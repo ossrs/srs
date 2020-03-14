@@ -51,24 +51,24 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
 
-static bool is_stun(const char* data, const int size) 
+static bool is_stun(const uint8_t* data, const int size) 
 {
     return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1); 
 }
 
-static bool is_dtls(const char* data, size_t len) 
+static bool is_dtls(const uint8_t* data, size_t len) 
 {
   	return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-static bool is_rtp_or_rtcp(const char* data, size_t len) 
+static bool is_rtp_or_rtcp(const uint8_t* data, size_t len) 
 {
   	return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
-static bool is_rtcp(const char* data, size_t len)
+static bool is_rtcp(const uint8_t* data, size_t len)
 {
-    return (len >=12) && (data[0] & 0x80) && (data[1] >= 200 && data[1] <= 209);
+    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 200 && data[1] <= 209);
 }
 
 static string gen_random_str(int len)
@@ -141,7 +141,7 @@ srs_error_t SrsSdp::decode(const string& sdp_str)
     string line;
     istringstream is(sdp_str);
     while (getline(is, line)) {
-        srs_trace("line=%s", line.c_str());
+        srs_verbose("line=%s", line.c_str());
 
         if (line.size() < 2 || line[1] != '=') {
             return srs_error_wrap(err, "invalid sdp line=%s", line.c_str());
@@ -267,7 +267,7 @@ srs_error_t SrsSdp::parse_attr(const string& line)
         }
     }
 
-    srs_trace("sdp attribute key=%s, val=%s", key.c_str(), val.c_str());
+    srs_verbose("sdp attribute key=%s, val=%s", key.c_str(), val.c_str());
 
     if (key == "ice-ufrag") {
         ice_ufrag = val;
@@ -345,7 +345,6 @@ srs_error_t SrsDtlsSession::handshake(SrsUdpMuxSocket* udp_mux_skt)
     }   
 
     if (out_bio_len) {   
-        srs_trace("send dtls handshake data");
         udp_mux_skt->sendto(out_bio_data, out_bio_len, 0);
     }
 
@@ -405,7 +404,7 @@ srs_error_t SrsDtlsSession::on_dtls_application_data(const char* buf, const int 
 void SrsDtlsSession::send_client_hello(SrsUdpMuxSocket* udp_mux_skt)
 {
     if (dtls == NULL) {    
-        srs_trace("send client hello");
+        srs_verbose("send client hello");
 
         dtls = SSL_new(SrsDtls::instance()->get_dtls_ctx());
         SSL_set_connect_state(dtls);
@@ -631,21 +630,17 @@ srs_error_t SrsRtcSenderThread::cycle()
     srs_error_t err = srs_success;
 
 	SrsSource* source = NULL;
-    SrsRequest req;
-    req.app = rtc_session->app;
-    req.stream = rtc_session->stream;
 
-    if (_srs_sources->fetch_or_create(&req, rtc_session->server, &source) != srs_success) {
-        srs_error("rtc fetch source failed");
+    if (_srs_sources->fetch_or_create(&rtc_session->request, rtc_session->server, &source) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    srs_trace("rtc fetch source success, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
+    srs_trace("source url=%s, source_id=%d[%d]",
+        rtc_session->request.get_stream_url().c_str(), source->source_id(), source->source_id());
 
 	SrsConsumer* consumer = NULL;
     if (source->create_consumer(NULL, consumer) != srs_success) {
-        srs_trace("rtc create consumer, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
-        return srs_error_wrap(err, "rtc create consumer, app=%s, stream=%s", rtc_session->app.c_str(), rtc_session->stream.c_str());
+        return srs_error_wrap(err, "rtc create consumer, source url=%s", rtc_session->request.get_stream_url().c_str());
     }    
 
     SrsAutoFree(SrsConsumer, consumer);
@@ -698,7 +693,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
     }
 }
 
-SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const string& un)
+SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un)
 {
     server = svr;
     rtc_server = rtc_svr;
@@ -709,6 +704,9 @@ SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const string
     username = un;
     
     last_stun_time = srs_get_system_time();
+
+    request = req;
+    source = NULL;
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -734,6 +732,13 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* 
     last_stun_time = srs_get_system_time();
 
     return err;
+}
+
+void SrsRtcSession::check_source()
+{
+    if (source == NULL) {
+        _srs_sources->fetch_or_create(&request, server, &source);
+    }
 }
 
 srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req)
@@ -767,6 +772,210 @@ srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsS
 
         peer_id = udp_mux_skt->get_peer_id();
         rtc_server->insert_into_id_sessions(peer_id, this);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_buf < 12) {
+        return srs_error_wrap(err, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
+    }
+
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsAutoFree(SrsBuffer, stream);
+
+    // @see: https://tools.ietf.org/html/rfc4585#section-6.1
+    /*
+		0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |V=2|P|   FMT   |       PT      |          length               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  SSRC of packet sender                        |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  SSRC of media source                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       :            Feedback Control Information (FCI)                 :
+       :                                                               :
+    */
+    uint8_t first = stream->read_1bytes();
+    uint8_t version = first & 0xC0;
+    uint8_t padding = first & 0x20;
+    uint8_t fmt = first & 0x1F;
+
+    uint8_t payload_type = stream->read_1bytes();
+    uint16_t length = stream->read_2bytes();
+    uint32_t ssrc_of_sender = stream->read_4bytes();
+    uint32_t ssrc_of_media_source = stream->read_4bytes();
+
+    /*
+		 0                   1                   2                   3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |            PID                |             BLP               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	*/
+
+    uint16_t pid = stream->read_2bytes();
+    int blp = stream->read_2bytes();
+
+    srs_verbose("pid=%u, blp=%d", pid, blp);
+
+    check_source();
+    if (! source) {
+        return srs_error_wrap(err, "can not found source");
+    }
+
+    vector<SrsRtpSharedPacket*> resend_pkts;
+    SrsRtpSharedPacket* pkt = source->find_rtp_packet(pid);
+    if (pkt) {
+        resend_pkts.push_back(pkt);
+    }
+
+    uint16_t mask = 0x01;
+    for (int i = 0; i < 16 && blp; ++i, mask <<= 1) {
+        if (! (blp & mask)) {
+            continue;
+        }
+
+        uint32_t loss_seq = pid + i;
+
+        SrsRtpSharedPacket* pkt = source->find_rtp_packet(loss_seq);
+        if (! pkt) {
+            continue;
+        }
+
+        resend_pkts.push_back(pkt);
+    }
+
+    for (int i = 0; i < resend_pkts.size(); ++i) {
+        if (dtls_session) {
+            char protected_buf[kRtpPacketSize];
+            int nb_protected_buf = resend_pkts[i]->size;
+
+            srs_verbose("resend pkt sequence=%u", resend_pkts[i]->sequence);
+
+            dtls_session->protect_rtp(protected_buf, resend_pkts[i]->payload, nb_protected_buf);
+            udp_mux_skt->sendto(protected_buf, nb_protected_buf, 0);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_buf < 12) {
+        return srs_error_wrap(err, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
+    }
+
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsAutoFree(SrsBuffer, stream);
+
+    uint8_t first = stream->read_1bytes();
+    uint8_t version = first & 0xC0;
+    uint8_t padding = first & 0x20;
+    uint8_t fmt = first & 0x1F;
+
+    uint8_t payload_type = stream->read_1bytes();
+    uint16_t length = stream->read_2bytes();
+    uint32_t ssrc_of_sender = stream->read_4bytes();
+    uint32_t ssrc_of_media_source = stream->read_4bytes();
+
+    switch (fmt) {
+        case kPLI: {
+            srs_verbose("pli");
+            break;
+        }
+        case kSLI: {
+            srs_verbose("sli");
+            break;
+        }
+        case kRPSI: {
+            srs_verbose("rpsi");
+            break;
+        }
+        case kAFB: {
+            srs_verbose("afb");
+            break;
+        }
+        default: {
+            return srs_error_wrap(err, "unknown payload specific feedback=%u", fmt);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSession::on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt)
+{
+    srs_error_t err = srs_success;
+
+    if (nb_buf < 8) {
+        return srs_error_wrap(err, "invalid rtp receiver report packet, nb_buf=%d", nb_buf);
+    }
+
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsAutoFree(SrsBuffer, stream);
+
+    // @see: https://tools.ietf.org/html/rfc3550#section-6.4.2
+    /*
+		0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+header |V=2|P|    RC   |   PT=RR=201   |             length            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     SSRC of packet sender                     |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_1 (SSRC of first source)                 |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  1    | fraction lost |       cumulative number of packets lost       |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           extended highest sequence number received           |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      interarrival jitter                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         last SR (LSR)                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                   delay since last SR (DLSR)                  |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_2 (SSRC of second source)                |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  2    :                               ...                             :
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+       |                  profile-specific extensions                  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
+    uint8_t first = stream->read_1bytes();
+    uint8_t version = first & 0xC0;
+    uint8_t padding = first & 0x20;
+    uint8_t rc = first & 0x1F;
+
+    uint8_t payload_type = stream->read_1bytes();
+    uint16_t length = stream->read_2bytes();
+    uint32_t ssrc_of_sender = stream->read_4bytes();
+
+    if (((length + 1) * 4) != (rc * 24 + 8)) {
+        return srs_error_wrap(err, "invalid rtcp receiver packet, length=%u, rc=%u", length, rc);
+    }
+
+    for (int i = 0; i < rc; ++i) {
+        uint32_t ssrc = stream->read_4bytes();
+        uint8_t fraction_lost = stream->read_1bytes();
+        uint32_t cumulative_number_of_packets_lost = stream->read_3bytes();
+        uint32_t highest_seq = stream->read_4bytes();
+        uint32_t jitter = stream->read_4bytes();
+        uint32_t lst = stream->read_4bytes();
+        uint32_t dlsr = stream->read_4bytes();
+
+        srs_verbose("ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, highest_seq=%u, jitter=%u, lst=%u, dlst=%u",
+            ssrc, fraction_lost, cumulative_number_of_packets_lost, highest_seq, jitter, lst, dlsr);
     }
 
     return err;
@@ -855,6 +1064,7 @@ srs_error_t SrsRtcSession::on_rtp(SrsUdpMuxSocket* udp_mux_skt)
 srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
+
     if (dtls_session == NULL) {
         return srs_error_wrap(err, "recv unexpect rtcp packet before dtls done");
     }
@@ -865,19 +1075,57 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
         return srs_error_wrap(err, "rtcp unprotect failed");
     }
 
-    // FIXME: use SrsRtpPacket 
-    SrsBuffer* stream = new SrsBuffer(unprotected_buf, nb_unprotected_buf);
-    SrsAutoFree(SrsBuffer, stream);
-    uint8_t first = stream->read_1bytes();
-    uint8_t payload_type = stream->read_1bytes();
+    char* ph = unprotected_buf;
+    int nb_left = nb_unprotected_buf;
+    while (nb_left) {
+        uint8_t payload_type = ph[1];
+        uint16_t length_4bytes = (((uint16_t)ph[2]) << 8) | ph[3];
 
-    if (payload_type == kSR) {
-    } else if (payload_type == kRR) {
-    } else if (kSDES) {
-    } else if (kBye) {
-    } else if (kApp) {
-    } else {
-        return srs_error_wrap(err, "unknown rtcp type=%u", payload_type);
+        int length = (length_4bytes + 1) * 4;
+
+        if (length > nb_unprotected_buf) {
+            return srs_error_wrap(err, "invalid rtcp packet, length=%u", length);
+        }
+
+        srs_verbose("on rtcp, payload_type=%u", payload_type);
+
+        switch (payload_type) {
+            case kSR: {
+                break;
+            }
+            case kRR: {
+                err = on_rtcp_receiver_report(ph, length, udp_mux_skt);
+                break;
+            }
+            case kSDES: {
+                break;
+            }
+            case kBye: {
+                break;
+            }
+            case kApp: {
+                break;
+            }
+            case kRtpFb: {
+                err = on_rtcp_feedback(ph, length, udp_mux_skt);
+                break;
+            }
+            case kPsFb: {
+                err = on_rtcp_ps_feedback(ph, length, udp_mux_skt);
+                break;
+            }
+            default:{
+                return srs_error_wrap(err, "unknown rtcp type=%u", payload_type);
+                break;
+            }
+        }
+
+        if (err !=  srs_success) {
+            return err;
+        }
+
+        ph += length;
+        nb_left -= length;
     }
 
     return err;
@@ -910,18 +1158,18 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
 
-    if (is_stun(udp_mux_skt->data(), udp_mux_skt->size())) {
+    if (is_stun(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         return on_stun(udp_mux_skt);
-    } else if (is_dtls(udp_mux_skt->data(), udp_mux_skt->size())) {
+    } else if (is_dtls(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         return on_dtls(udp_mux_skt);
-    } else if (is_rtp_or_rtcp(udp_mux_skt->data(), udp_mux_skt->size())) {
+    } else if (is_rtp_or_rtcp(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         return on_rtp_or_rtcp(udp_mux_skt);
     } 
 
     return srs_error_wrap(err, "unknown udp packet type");
 }
 
-SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
     std::string local_pwd = gen_random_str(32);
     std::string local_ufrag = "";
@@ -934,7 +1182,7 @@ SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsSdp& remote_sdp, SrsSdp
             break;
     }
 
-    SrsRtcSession* session = new SrsRtcSession(server, this, username);
+    SrsRtcSession* session = new SrsRtcSession(server, this, req, username);
     map_username_session.insert(make_pair(username, session));
 
     local_sdp.set_ice_ufrag(local_ufrag);
@@ -962,7 +1210,7 @@ srs_error_t SrsRtcServer::on_stun(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
 
-    srs_trace("recv stun packet from %s", udp_mux_skt->get_peer_id().c_str());
+    srs_verbose("recv stun packet from %s", udp_mux_skt->get_peer_id().c_str());
 
     SrsStunPacket stun_req;
     if (stun_req.decode(udp_mux_skt->data(), udp_mux_skt->size()) != srs_success) {
@@ -981,7 +1229,6 @@ srs_error_t SrsRtcServer::on_stun(SrsUdpMuxSocket* udp_mux_skt)
 srs_error_t SrsRtcServer::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
-    srs_trace("on dtls");
 
     SrsRtcSession* rtc_session = find_rtc_session_by_peer_id(udp_mux_skt->get_peer_id());
 
@@ -1004,7 +1251,7 @@ srs_error_t SrsRtcServer::on_rtp_or_rtcp(SrsUdpMuxSocket* udp_mux_skt)
         return srs_error_wrap(err, "can not find rtc session by peer_id=%s", udp_mux_skt->get_peer_id().c_str());
     }
 
-    if (is_rtcp(udp_mux_skt->data(), udp_mux_skt->size())) {
+    if (is_rtcp(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         rtc_session->on_rtcp(udp_mux_skt);
     } else {
         rtc_session->on_rtp(udp_mux_skt);

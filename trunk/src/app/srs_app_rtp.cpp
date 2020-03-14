@@ -78,7 +78,7 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         uint8_t nal_type = header & kNalTypeMask;
 
         // ignore SEI nal
-        if (nal_type == 0x06) {
+        if (nal_type == 0x06 || nal_type == 0x09) {
             continue;
         }
 

@@ -83,9 +83,6 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
     string magic_cookie = stream->read_string(4);
     transcation_id = stream->read_string(12);
 
-    srs_trace("message_type=%u, message_len=%u, magic_cookie=%s, transcation_id=%s",
-        message_type, message_len, magic_cookie.c_str(), transcation_id.c_str());
-
     if (nb_buf != 20 + message_len) {
         return srs_error_wrap(err, "invalid stun packet, message_len=%d, nb_buf=%d", message_len, nb_buf);
     }
@@ -111,7 +108,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
                 if (p != string::npos) {
                     local_ufrag = val.substr(0, p);
                     remote_ufrag = val.substr(p + 1);
-                    srs_trace("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag.c_str(), remote_ufrag.c_str());
+                    srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag.c_str(), remote_ufrag.c_str());
                 }
                 break;
             }

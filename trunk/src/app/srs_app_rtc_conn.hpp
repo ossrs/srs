@@ -28,6 +28,7 @@
 #include <srs_app_listener.hpp>
 #include <srs_service_st.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_rtmp_stack.hpp>
 
 #include <string>
 #include <map>
@@ -43,12 +44,23 @@ class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcSession;
 class SrsSharedPtrMessage;
+class SrsSource;
 
-const uint8_t kSR = 200;
-const uint8_t kRR = 201;
+const uint8_t kSR   = 200;
+const uint8_t kRR   = 201;
 const uint8_t kSDES = 202;
-const uint8_t kBye = 203;
-const uint8_t kApp = 204;
+const uint8_t kBye  = 203;
+const uint8_t kApp  = 204;
+
+// @see: https://tools.ietf.org/html/rfc4585#section-6.1
+const uint8_t kRtpFb = 205;
+const uint8_t kPsFb  = 206;
+
+// @see: https://tools.ietf.org/html/rfc4585#section-6.3
+const uint8_t kPLI  = 1;
+const uint8_t kSLI  = 2;
+const uint8_t kRPSI = 3;
+const uint8_t kAFB  = 15;
 
 const srs_utime_t kSrsRtcSessionStunTimeoutUs = 10*1000*1000LL;
 
@@ -182,10 +194,10 @@ private:
     std::string peer_id;
     srs_utime_t last_stun_time;
 public:
-    std::string app;
-    std::string stream;
+    SrsRequest request;
+    SrsSource* source;
 public:
-    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const std::string& un);
+    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
@@ -198,8 +210,6 @@ public:
     void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
 
     std::string id() const { return peer_id + "_" + username; }
-
-    void set_app_stream(const std::string& a, const std::string& s) { app = a; stream = s; }
 
     std::string get_peer_id() const { return peer_id; }
     void set_peer_id(const std::string& id) { peer_id = id; }
@@ -215,9 +225,13 @@ public:
 public:
     bool is_stun_timeout() { return last_stun_time + kSrsRtcSessionStunTimeoutUs < srs_get_system_time(); }
 private:
+    void check_source();
+private:
     srs_error_t on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
 private:
-    srs_error_t do_playing(SrsConsumer* consumer, SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
 };
 
 // XXX: is there any other timer thread?
@@ -257,7 +271,7 @@ public:
 
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt);
 
-    SrsRtcSession* create_rtc_session(const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
 private:

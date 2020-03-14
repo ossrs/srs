@@ -801,7 +801,6 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     
     string req_json;
     r->body_read_all(req_json);
-    srs_trace("req_json=%s", req_json.c_str());
 
     SrsJsonAny* json = SrsJsonAny::loads(req_json);
     SrsJsonObject* req_obj = json->to_object();
@@ -818,18 +817,17 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     string app = app_obj->to_str();
     string stream_name = stream_name_obj->to_str();
 
-    srs_trace("remote_sdp_str=%s", remote_sdp_str.c_str());
-    srs_trace("app=%s, stream=%s", app.c_str(), stream_name.c_str());
-
     SrsSdp remote_sdp;
     err = remote_sdp.decode(remote_sdp_str);
     if (err != srs_success) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
 
+    SrsRequest request;
+    request.app = app;
+    request.stream = stream_name;
     SrsSdp local_sdp;
-    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(remote_sdp, local_sdp);
-    rtc_session->set_app_stream(app, stream_name);
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
     err = local_sdp.encode(local_sdp_str);
@@ -841,7 +839,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     SrsAutoFree(SrsJsonObject, obj);
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    obj->set("server", SrsJsonAny::integer(stat->server_id()));
+    obj->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
 
     // TODO: add candidates in response json?
     
