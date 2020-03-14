@@ -115,7 +115,7 @@
                     });
                 });
             }).then(function(answer) {
-                pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
+                return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
             }).catch(function(reason) {
                 throw reason;
             });
