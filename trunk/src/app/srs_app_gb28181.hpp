@@ -281,7 +281,7 @@ public:
     virtual srs_error_t correct(int64_t& ts);
 };
 
-// 28181 stream core functions
+// 28181 stream core 
 class Srs28181StreamCore
 {
 private:
@@ -319,29 +319,18 @@ private:
     Srs28181AudioCache* acache;
 private:
     // this param group using on rtp packet decode 
-
+    
     int stream_id;
 
     Srs2SRtpPacket* cache_;
-
-	// the timestamp of a rtp group
-	uint32_t group_timestamp;
-	// true says using timestamp boundary
-	bool first_rtp_tsb_enabled_;
-	// first rtp with new timestamp in a rtp group
-	Srs2SRtpPacket * first_rtp_tsb_;
-
-    // indicates rtp group boundary decode type: marker or timestamp
-	int boundary_type_;
 public:
     Srs28181StreamCore(std::string suuid);
     virtual ~Srs28181StreamCore();
 
 public:
-    // decode rtp using MB boundary
+    // decode rtp
     virtual int decode_packet(char* buf, int nb_buf);
-    // decode rtp using TSB/MB boundary
-    virtual int decode_packet_v2(char* buf, int nb_buf);
+
 // internal methods
 public:
     virtual srs_error_t on_stream_packet(Srs2SRtpPacket* pkt, int stream_id);
@@ -373,89 +362,15 @@ private:
     std::string target_tcUrl;
     std::string stream_name;
     SrsPithyPrint* pprint;
-private:
-    std::string session;
-    // video stream.
-    int video_id;
-    std::string video_codec;
-    // audio stream.
-    int audio_id;
-    std::string audio_codec;
-    int audio_sample_rate;
-    int audio_channel;
-private:
-    srs_netfd_t stfd;
-    SrsStSocket* skt;
-    Srs28181TcpStreamListener* listener;
-    SrsCoroutine* trd;
-private:
-    //SrsRequest* req;
-    SrsSimpleRtmpClient* sdk;
-    Srs28181Jitter* vjitter;
-    Srs28181Jitter* ajitter;
-private:
-    SrsRawH264Stream* avc;
-    std::string h264_sps;
-    std::string h264_pps;
-	bool h264_sps_changed;
-	bool h264_pps_changed;
-	bool h264_sps_pps_sent;
-private:
-    SrsRawAacStream* aac;
-    SrsRawAacStreamCodec* acodec;
-    std::string aac_specific_config;
-    Srs28181AudioCache* acache;
-private:
-    // this param group using on rtp packet decode 
-
-    int stream_id;
-
-    Srs2SRtpPacket* cache_;
-
-	// the timestamp of a rtp group
-	uint32_t group_timestamp;
-	// if timestamp boundary flag enabled
-	// true says using rtp timestamp decode rtp group
-	bool first_rtp_tsb_enabled_;
-	// first rtp with new timestamp in a rtp group
-	Srs2SRtpPacket * first_rtp_tsb_;
-
-    // indicates rtp group boundary decode type: marker or timestamp
-	int boundary_type_;
 public:
     Srs28181TcpStreamConn(Srs28181TcpStreamListener* l, srs_netfd_t fd, std::string o);
     virtual ~Srs28181TcpStreamConn();
-public:
-    virtual srs_error_t init();
-private:
-    virtual srs_error_t do_cycle();
 
-private:
-    // decode rtp using MB boundary
-    virtual int decode_packet(char* buf, int nb_buf);
-    // decode rtp using TSB/MB boundary
-    virtual int decode_packet_v2(char* buf, int nb_buf);
-// internal methods
 public:
-    virtual srs_error_t on_rtp_packet(Srs2SRtpPacket* pkt, int stream_id);
-    virtual srs_error_t on_rtp_video_adv(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
-// Interface ISrsOneCycleThreadHandler
+    srs_error_t init();
+
 public:
     virtual srs_error_t cycle();
-private:
-    virtual srs_error_t on_rtp_video(Srs2SRtpPacket* pkt, int64_t dts, int64_t pts);
-    virtual srs_error_t on_rtp_audio(Srs2SRtpPacket* pkt, int64_t dts);
-    virtual srs_error_t kickoff_audio_cache(Srs2SRtpPacket* pkt, int64_t dts);
-private:
-    virtual srs_error_t write_sequence_header();
-    virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
-    virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
-private:
-    // Connect to RTMP server.
-    virtual srs_error_t connect();
-    // Close the connection to RTMP server.
-    virtual void close();
+
 };
 #endif
