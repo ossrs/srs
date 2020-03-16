@@ -1122,15 +1122,20 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         return err;
     }
 
+    // Parse RTMP message to RTP packets, in FU-A if too large.
     if ((err = rtp->on_video(msg, format)) != srs_success) {
+        // TODO: We should support more strategies.
         srs_warn("rtp: ignore video error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
         rtp->on_unpublish();
     }
 
+    // TODO: FIXME: Refactor to move to rtp?
+    // Save the RTP packets for find_rtp_packet() to rtx or restore it.
     source->rtp_queue->push(msg->rtp_packets);
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
+        // TODO: We should support more strategies.
         // apply the error strategy for hls.
         // @see https://github.com/ossrs/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(req->vhost);

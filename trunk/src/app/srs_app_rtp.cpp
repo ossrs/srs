@@ -77,6 +77,7 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         uint8_t header = sample.bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
+        // TODO: FIXME: Magic number? Doc?
         // ignore SEI nal
         if (nal_type == 0x06 || nal_type == 0x09) {
             continue;
@@ -253,6 +254,7 @@ void SrsRtp::dispose()
     }
 }
 
+// TODO: FIXME: Dead code?
 srs_error_t SrsRtp::cycle()
 {
     srs_error_t err = srs_success;
@@ -338,7 +340,8 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
 srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
 {
     srs_error_t err = srs_success;
-    
+
+    // TODO: FIXME: Maybe it should config on vhost level.
     if (!enabled) {
         return err;
     }
