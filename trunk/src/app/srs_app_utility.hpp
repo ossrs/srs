@@ -650,8 +650,9 @@ extern bool srs_is_boolean(std::string str);
 // Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
 
-extern std::string dump_string_hex(const std::string& str, const int& max_len = INT_MAX);
-extern std::string dump_string_hex(const char* buf, const int nb_buf, const int& max_len = INT_MAX);
+// Dump string(str in length) to hex, it will process min(limit, length) chars.
+extern std::string srs_string_dumps_hex(const std::string& str, const int& limit = INT_MAX);
+extern std::string srs_string_dumps_hex(const char* str, const int length, const int& limit = INT_MAX);
 
 // Get ENV variable, which may starts with $.
 //      srs_getenv("EIP") === srs_getenv("$EIP")

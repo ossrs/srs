@@ -1193,22 +1193,21 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 
-string dump_string_hex(const std::string& str, const int& max_len)
+string srs_string_dumps_hex(const std::string& str, const int& limit)
 {
-    return dump_string_hex(str.c_str(), str.size(), max_len);
+    return srs_string_dumps_hex(str.c_str(), str.size(), limit);
 }
 
-string dump_string_hex(const char* buf, const int nb_buf, const int& max_len)
+string srs_string_dumps_hex(const char* buf, const int length, const int& limit)
 {
     string ret;
-    ret.reserve(max_len * 4); 
+    ret.reserve(limit * 4);
 
     char tmp_buf[1024*16];
     tmp_buf[0] = '\n';
     int len = 1;
     
-    for (int i = 0; i < nb_buf && i < max_len; ++i) {
-        //int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "(%03d)%02X ", i, (uint8_t)buf[i]);
+    for (int i = 0; i < length && i < limit; ++i) {
         int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
         if (nb <= 0)
             break;
