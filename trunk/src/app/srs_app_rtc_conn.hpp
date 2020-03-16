@@ -110,6 +110,7 @@ private:
 
 enum SrsRtcSessionStateType
 {
+    // TODO: FIXME: Should prefixed by enum name.
     INIT = -1,
     WAITING_STUN = 1,
     DOING_DTLS_HANDSHAKE = 2,

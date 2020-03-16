@@ -818,6 +818,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     string app = app_obj->to_str();
     string stream_name = stream_name_obj->to_str();
 
+    // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
     err = remote_sdp.decode(remote_sdp_str);
     if (err != srs_success) {

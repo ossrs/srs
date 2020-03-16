@@ -325,6 +325,7 @@ public:
     virtual SrsSharedPtrMessage* pop();
 };
 
+// To find the RTP packet for RTX or restore.
 class SrsRtpPacketQueue
 {
 private:
