@@ -324,8 +324,22 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
+
+///////////////////////////////////////////////////////
+// RTC protocol error.
+///////////////////////////////////////////////////////
 #define ERROR_RTC_PORT                      4041
 #define ERROR_RTP_PACKET_CREATE             4042
+#define ERROR_OpenSslCreateSSL              4043
+#define ERROR_OpenSslBIOReset               4044
+#define ERROR_OpenSslBIOWrite               4045
+#define ERROR_OpenSslBIONew                 4046
+#define ERROR_RTC_RTP                       4047
+#define ERROR_RTC_RTCP                      4048
+#define ERROR_RTC_STUN                      4049
+#define ERROR_RTC_DTLS                      4050
+#define ERROR_RTC_UDP                       4051
+#define ERROR_RTC_RTP_MUXER                 4052
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

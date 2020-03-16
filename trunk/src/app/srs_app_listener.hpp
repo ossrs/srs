@@ -146,8 +146,7 @@ public:
     SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
 
     int recvfrom(srs_utime_t timeout);
-    int sendto(void* data, int size, srs_utime_t timeout);
-    int sendtov(struct iovec* iov, size_t iovlen, srs_utime_t timeout);
+    srs_error_t sendto(void* data, int size, srs_utime_t timeout);
 
     char* data() { return buf; }
     int size() { return nread; }

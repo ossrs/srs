@@ -801,9 +801,15 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     // e.g. /api/v1/sdp/ args = json:{"sdp":"sdp...", "app":"webrtc", "stream":"test"}
     
     string req_json;
-    r->body_read_all(req_json);
+    if ((err = r->body_read_all(req_json)) != srs_success) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
 
     SrsJsonAny* json = SrsJsonAny::loads(req_json);
+    if (json == NULL) {
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
     SrsJsonObject* req_obj = json->to_object();
 
     SrsJsonAny* remote_sdp_obj = req_obj->get_property("sdp");
@@ -832,8 +838,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
-    err = local_sdp.encode(local_sdp_str);
-    if (err != srs_success) {
+    if ((err = local_sdp.encode(local_sdp_str)) != srs_success) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
 

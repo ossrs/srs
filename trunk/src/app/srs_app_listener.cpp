@@ -278,20 +278,21 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     return nread;
 }
 
-int SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
+srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
 {
-    return srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
-}
+    srs_error_t err = srs_success;
 
-int SrsUdpMuxSocket::sendtov(struct iovec* iov, size_t iovlen, srs_utime_t timeout)
-{
-     struct msghdr udphdr = {0};
-     udphdr.msg_name = &from;
-     udphdr.msg_namelen = fromlen;
-     udphdr.msg_iov = iov;
-     udphdr.msg_iovlen = iovlen;
+    int nb_write = srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
 
-    return srs_sendmsg(lfd, &udphdr, 0, timeout);
+	if (nb_write <= 0) {
+        if (nb_write < 0 && errno == ETIME) {
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "sendto timeout %d ms", srsu2msi(timeout));
+        }   
+    
+        return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
+    }   
+
+    return err;
 }
 
 std::string SrsUdpMuxSocket::get_peer_id()

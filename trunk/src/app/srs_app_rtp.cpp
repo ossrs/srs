@@ -84,9 +84,13 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         }
 
         if (sample.size <= max_payload_size) {
-            packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec);
+            if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
+                return srs_error_wrap(err, "packet single nalu");
+            }
         } else {
-            packet_fu_a(shared_frame, format, &sample, rtp_packet_vec);
+            if ((err = packet_fu_a(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
+                return srs_error_wrap(err, "packet fu-a");
+            }
         }
     }
 
@@ -105,7 +109,9 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
     uint8_t nal_type = header & kNalTypeMask;
 
     if (nal_type == kIdr) {
-        packet_stap_a(sps, pps, shared_frame, rtp_packet_vec);
+        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
+            return srs_error_wrap(err, "packet stap-a");
+        }
     }
 
     int num_of_packet = (sample->size - 1 + max_payload_size) / max_payload_size;
@@ -154,6 +160,8 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
 
         rtp_packet_vec.push_back(rtp_shared_pkt);
     }
+
+    return err;
 }
 
 srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
@@ -168,7 +176,9 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     SrsAutoFree(SrsBuffer, stream);
 
     if (nal_type == kIdr) {
-        packet_stap_a(sps, pps, shared_frame, rtp_packet_vec);
+        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
+            return srs_error_wrap(err, "packet stap-a");
+        }
     }
 
     // v=2,p=0,x=0,cc=0
@@ -195,6 +205,10 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
 srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, SrsSharedPtrMessage* shared_frame, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
 {
     srs_error_t err = srs_success;
+
+    if (sps.empty() || pps.empty()) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
+    }
 
     uint8_t header = sps[0];
     uint8_t nal_type = header & kNalTypeMask;
@@ -245,6 +259,7 @@ SrsRtp::SrsRtp()
 
 SrsRtp::~SrsRtp()
 {
+    srs_freep(rtp_h264_muxer);
 }
 
 void SrsRtp::dispose()

@@ -31,23 +31,27 @@ static srs_error_t hmac_encode(const std::string& algo, const char* key, const i
     } else if(algo == "sha384") { 
         engine = EVP_sha384();
     } else { 
-        return srs_error_wrap(err, "unknown algo=%s", algo.c_str());
+        return srs_error_new(ERROR_RTC_STUN, "unknown algo=%s", algo.c_str());
     } 
 
     HMAC_CTX* ctx = HMAC_CTX_new();
+    if (ctx == NULL) {
+        return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
+    }
+
     if (HMAC_Init_ex(ctx, key, key_length, engine, NULL) < 0) {
         HMAC_CTX_free(ctx);
-        return srs_error_wrap(err, "hmac init faied");
+        return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
     }
 
     if (HMAC_Update(ctx, (const unsigned char*)input, input_length) < 0) {
         HMAC_CTX_free(ctx);
-        return srs_error_wrap(err, "hmac update faied");
+        return srs_error_new(ERROR_RTC_STUN, "hmac update faied");
     }
 
     if (HMAC_Final(ctx, (unsigned char*)output, &output_length) < 0) {
         HMAC_CTX_free(ctx);
-        return srs_error_wrap(err, "hmac final faied");
+        return srs_error_new(ERROR_RTC_STUN, "hmac final faied");
     }
 
     HMAC_CTX_free(ctx);
@@ -75,7 +79,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
     SrsAutoFree(SrsBuffer, stream);
 
     if (stream->left() < 20) {
-        return srs_error_wrap(err, "invalid stun packet, size=%d", stream->size());
+        return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, size=%d", stream->size());
     }
 
     message_type = stream->read_2bytes();
@@ -84,7 +88,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
     transcation_id = stream->read_string(12);
 
     if (nb_buf != 20 + message_len) {
-        return srs_error_wrap(err, "invalid stun packet, message_len=%d, nb_buf=%d", message_len, nb_buf);
+        return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, message_len=%d, nb_buf=%d", message_len, nb_buf);
     }
 
     while (stream->left() >= 4) {
@@ -92,7 +96,7 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
         uint16_t len = stream->read_2bytes();
 
         if (stream->left() < len) {
-            return srs_error_wrap(err, "invalid stun packet");
+            return srs_error_new(ERROR_RTC_STUN, "invalid stun packet");
         }
 
         string val = stream->read_string(len);
@@ -129,7 +133,7 @@ srs_error_t SrsStunPacket::encode(const string& pwd, SrsBuffer* stream)
         return encode_binding_response(pwd, stream);
     }
 
-    return srs_error_wrap(err, "unknown stun type=%d", get_message_type());
+    return srs_error_new(ERROR_RTC_STUN, "unknown stun type=%d", get_message_type());
 }
 
 // FIXME: make this function easy to read
@@ -152,7 +156,7 @@ srs_error_t SrsStunPacket::encode_binding_response(const string& pwd, SrsBuffer*
 
     char hmac_buf[20] = {0};
     unsigned int hmac_buf_len = 0;
-    if (hmac_encode("sha1", pwd.c_str(), pwd.size(), stream->data(), stream->pos(), hmac_buf, hmac_buf_len) != srs_success) {
+    if ((err = hmac_encode("sha1", pwd.c_str(), pwd.size(), stream->data(), stream->pos(), hmac_buf, hmac_buf_len)) != srs_success) {
         return srs_error_wrap(err, "hmac encode failed");
     }
 

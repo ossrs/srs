@@ -143,7 +143,7 @@ public:
     srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_dtls_application_data(const char* data, const int len);
 
-    void send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
@@ -221,7 +221,7 @@ public:
     srs_error_t on_rtcp(SrsUdpMuxSocket* udp_mux_skt);
 public:
     srs_error_t send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
-    void on_connection_established(SrsUdpMuxSocket* udp_mux_skt);
+    srs_error_t on_connection_established(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t start_play(SrsUdpMuxSocket* udp_mux_skt);
 public:
     bool is_stun_timeout() { return last_stun_time + kSrsRtcSessionStunTimeoutUs < srs_get_system_time(); }
