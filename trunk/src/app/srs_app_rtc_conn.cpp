@@ -166,7 +166,7 @@ srs_error_t SrsSdp::decode(const string& sdp_str)
                 break;
             }
             case 'a' :{
-                if (parse_attr(line) != srs_success) {
+                if ((err = parse_attr(line)) != srs_success) {
                     return srs_error_wrap(err, "decode sdp line=%s failed", line.c_str());
                 }
                 break;
@@ -466,11 +466,11 @@ srs_error_t SrsDtlsSession::srtp_initialize()
 	client_key = client_master_key + client_master_salt;
 	server_key = server_master_key + server_master_salt;
 
-    if (srtp_send_init() != srs_success) {
+    if ((err = srtp_send_init()) != srs_success) {
         return srs_error_wrap(err, "srtp send init failed");
     }
 
-    if (srtp_recv_init() != srs_success) { 
+    if ((err = srtp_recv_init()) != srs_success) {
         return srs_error_wrap(err, "srtp recv init failed");
     }
 
@@ -658,7 +658,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     // TODO: FIXME: Should refactor it, directly use http server as handler.
     ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-    if (_srs_sources->fetch_or_create(&rtc_session->request, handler, &source) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(&rtc_session->request, handler, &source)) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
@@ -666,7 +666,7 @@ srs_error_t SrsRtcSenderThread::cycle()
         rtc_session->request.get_stream_url().c_str(), source->source_id(), source->source_id());
 
 	SrsConsumer* consumer = NULL;
-    if (source->create_consumer(NULL, consumer) != srs_success) {
+    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", rtc_session->request.get_stream_url().c_str());
     }
 
@@ -684,7 +684,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 #endif
 
         int msg_count = 0;
-        if (consumer->dump_packets(&msgs, msg_count) != srs_success) {
+        if ((err = consumer->dump_packets(&msgs, msg_count)) != srs_success) {
             continue;
         }
 
@@ -771,7 +771,6 @@ srs_error_t SrsRtcSession::check_source()
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Check return error.
     if (source == NULL) {
         // TODO: FIXME: Should refactor it, directly use http server as handler.
         ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
@@ -1205,7 +1204,7 @@ srs_error_t SrsRtcServer::initialize()
     srs_error_t err = srs_success;
 
     rttrd = new SrsRtcTimerThread(this, _srs_context->get_id());
-    if (rttrd->start() != srs_success) {
+    if ((err = rttrd->start()) != srs_success) {
         return srs_error_wrap(err, "rtc timer thread init failed");
     }
 
