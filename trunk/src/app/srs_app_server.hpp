@@ -41,7 +41,6 @@ class SrsServer;
 class SrsConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
-class SrsRtcServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
@@ -70,8 +69,6 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
-    // UDP remux, rtp over udp
-    SrsListenerRtc = 6,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -159,19 +156,6 @@ public:
     virtual ~SrsUdpCasterListener();
 };
 
-// A UDP listener, for udp remux rtc server
-class SrsRtcListener : public SrsListener
-{
-protected:
-    SrsUdpMuxListener* listener;
-    ISrsUdpMuxHandler* rtc;
-public:
-    SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t);
-    virtual ~SrsRtcListener();
-public:
-    virtual srs_error_t listen(std::string i, int p);
-};
-
 // Convert signal to io,
 // @see: st-1.9/docs/notes.html
 class SrsSignalManager : public ISrsCoroutineHandler
@@ -241,7 +225,6 @@ private:
     // TODO: FIXME: rename to http_api
     SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
-    SrsRtcServer* rtc_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;
@@ -320,7 +303,6 @@ private:
     virtual srs_error_t listen_http_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
-    virtual srs_error_t listen_rtc();
     // Close the listeners for specified type,
     // Remove the listen object from manager.
     virtual void close_listeners(SrsListenerType type);
@@ -333,6 +315,8 @@ public:
     //       for instance RTMP connection to serve client.
     // @param stfd, the client fd in st boxed, the underlayer fd.
     virtual srs_error_t accept_client(SrsListenerType type, srs_netfd_t stfd);
+    // TODO: FIXME: Fetch from hybrid server manager.
+    virtual SrsHttpServeMux* api_server();
 private:
     virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
 // Interface IConnectionManager
@@ -356,8 +340,6 @@ public:
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
-// listeners commuction
-    virtual SrsListener* find_listener(SrsListenerType type);
 };
 
 #endif

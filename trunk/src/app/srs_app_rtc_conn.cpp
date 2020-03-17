@@ -50,6 +50,8 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_http_stack.hpp>
+#include <srs_app_http_api.hpp>
 
 static bool is_stun(const uint8_t* data, const int size) 
 {
@@ -654,7 +656,9 @@ srs_error_t SrsRtcSenderThread::cycle()
 
 	SrsSource* source = NULL;
 
-    if (_srs_sources->fetch_or_create(&rtc_session->request, rtc_session->server, &source) != srs_success) {
+    // TODO: FIXME: Should refactor it, directly use http server as handler.
+    ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
+    if (_srs_sources->fetch_or_create(&rtc_session->request, handler, &source) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
@@ -716,9 +720,8 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
     }
 }
 
-SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id)
+SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id)
 {
-    server = svr;
     rtc_server = rtc_svr;
     session_state = INIT;
     dtls_session = NULL;
@@ -766,8 +769,11 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* 
 
 void SrsRtcSession::check_source()
 {
+    // TODO: FIXME: Check return error.
     if (source == NULL) {
-        _srs_sources->fetch_or_create(&request, server, &source);
+        // TODO: FIXME: Should refactor it, directly use http server as handler.
+        ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
+        _srs_sources->fetch_or_create(&request, handler, &source);
     }
 }
 
@@ -1173,13 +1179,15 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
     return err;
 }
 
-SrsRtcServer::SrsRtcServer(SrsServer* svr)
+SrsRtcServer::SrsRtcServer()
 {
-    server = svr;
+    listener = NULL;
 }
 
 SrsRtcServer::~SrsRtcServer()
 {
+    srs_freep(listener);
+
     rttrd->stop();
     srs_freep(rttrd);
 }
@@ -1192,6 +1200,33 @@ srs_error_t SrsRtcServer::initialize()
     if (rttrd->start() != srs_success) {
         return srs_error_wrap(err, "rtc timer thread init failed");
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcServer::listen_rtc()
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_rtc_enabled()) {
+        return err;
+    }
+
+    int port = _srs_config->get_rtc_listen();
+    if (port <= 0) {
+        return srs_error_new(ERROR_RTC_PORT, "invalid port=%d", port);
+    }
+
+    string ip = srs_any_address_for_listener();
+
+    srs_freep(listener);
+    listener = new SrsUdpMuxListener(this, ip, port);
+
+    if ((err = listener->listen()) != srs_success) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+    }
+
+    srs_trace("rtc listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
 
     return err;
 }
@@ -1223,7 +1258,7 @@ SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const Srs
     }
 
     int cid = _srs_context->get_id();
-    SrsRtcSession* session = new SrsRtcSession(server, this, req, username, cid);
+    SrsRtcSession* session = new SrsRtcSession(this, req, username, cid);
     map_username_session.insert(make_pair(username, session));
 
     local_sdp.set_ice_ufrag(local_ufrag);
@@ -1406,3 +1441,46 @@ srs_error_t SrsRtcTimerThread::cycle()
         rtc_server->check_and_clean_timeout_session();
     }
 }
+
+RtcServerAdapter::RtcServerAdapter()
+{
+    rtc = new SrsRtcServer();
+}
+
+RtcServerAdapter::~RtcServerAdapter()
+{
+    srs_freep(rtc);
+}
+
+srs_error_t RtcServerAdapter::initialize()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = rtc->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc server initialize");
+    }
+
+    return err;
+}
+
+srs_error_t RtcServerAdapter::run()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = rtc->listen_rtc()) != srs_success) {
+        return srs_error_wrap(err, "rtc server initialize");
+    }
+
+    // TODO: FIXME: Fetch api from hybrid manager.
+    SrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
+    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(rtc))) != srs_success) {
+        return srs_error_wrap(err, "handle sdp");
+    }
+
+    return err;
+}
+
+void RtcServerAdapter::stop()
+{
+}
+

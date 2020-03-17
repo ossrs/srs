@@ -781,9 +781,8 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
-SrsGoApiSdp::SrsGoApiSdp(SrsServer* svr, SrsRtcServer* rtc_svr)
+SrsGoApiSdp::SrsGoApiSdp(SrsRtcServer* rtc_svr)
 {
-    server = svr;
     rtc_server = rtc_svr;
 }
 

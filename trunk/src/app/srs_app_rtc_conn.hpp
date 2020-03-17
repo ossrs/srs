@@ -29,6 +29,7 @@
 #include <srs_service_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_app_hybrid.hpp>
 
 #include <string>
 #include <map>
@@ -38,7 +39,6 @@
 #include <srtp2/srtp.h>
 
 class SrsUdpMuxSocket;
-class SrsServer;
 class SrsConsumer;
 class SrsStunPacket;
 class SrsRtcServer;
@@ -184,7 +184,6 @@ class SrsRtcSession
 {
     friend class SrsRtcSenderThread;
 private:
-    SrsServer* server;
     SrsRtcServer* rtc_server;
     SrsSdp  remote_sdp;
     SrsSdp  local_sdp;
@@ -201,7 +200,7 @@ public:
     SrsRequest request;
     SrsSource* source;
 public:
-    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
@@ -240,7 +239,7 @@ private:
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
 };
 
-// XXX: is there any other timer thread?
+// TODO: FIXME: is there any other timer thread?
 class SrsRtcTimerThread : public ISrsCoroutineHandler
 {
 protected:
@@ -264,16 +263,20 @@ public:
 class SrsRtcServer : public ISrsUdpMuxHandler
 {
 private:
-    SrsServer* server;
+    SrsUdpMuxListener* listener;
     SrsRtcTimerThread* rttrd;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
 public:
-    SrsRtcServer(SrsServer* svr);
+    SrsRtcServer();
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+
+    // TODO: FIXME: Support gracefully quit.
+    // TODO: FIXME: Support reload.
+    virtual srs_error_t listen_rtc();
 
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt);
 
@@ -287,6 +290,20 @@ private:
 private:
     SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
     SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
+};
+
+// The RTC server adapter.
+class RtcServerAdapter : public ISrsHybridServer
+{
+private:
+    SrsRtcServer* rtc;
+public:
+    RtcServerAdapter();
+    virtual ~RtcServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run();
+    virtual void stop();
 };
 
 #endif

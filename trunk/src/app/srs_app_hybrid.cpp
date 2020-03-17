@@ -102,6 +102,11 @@ void SrsServerAdapter::stop()
 {
 }
 
+SrsServer* SrsServerAdapter::instance()
+{
+    return srs;
+}
+
 SrsHybridServer::SrsHybridServer()
 {
 }
@@ -179,6 +184,16 @@ void SrsHybridServer::stop()
         ISrsHybridServer* server = *it;
         server->stop();
     }
+}
+
+SrsServerAdapter* SrsHybridServer::srs()
+{
+    for (vector<ISrsHybridServer*>::iterator it = servers.begin(); it != servers.end(); ++it) {
+        if (dynamic_cast<SrsServerAdapter*>(*it)) {
+            return dynamic_cast<SrsServerAdapter*>(*it);
+        }
+    }
+    return NULL;
 }
 
 SrsHybridServer* _srs_hybrid = new SrsHybridServer();

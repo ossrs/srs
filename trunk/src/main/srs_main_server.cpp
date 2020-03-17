@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 #ifdef SRS_AUTO_SRT
 #include <srt_server.hpp>
@@ -441,10 +442,14 @@ srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
 
+    // Create servers and register them.
     _srs_hybrid->register_server(new SrsServerAdapter());
+
 #ifdef SRS_AUTO_SRT
     _srs_hybrid->register_server(new SrtServerAdapter());
 #endif
+
+    _srs_hybrid->register_server(new RtcServerAdapter());
 
     // Do some system initialize.
     if ((err = _srs_hybrid->initialize()) != srs_success) {

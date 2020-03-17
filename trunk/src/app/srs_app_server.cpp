@@ -110,8 +110,6 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
-        case SrsListenerRtc:
-            return "RTC";
         default:
             return "UNKONWN";
     }
@@ -340,45 +338,6 @@ SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, Sr
 SrsUdpCasterListener::~SrsUdpCasterListener()
 {
     srs_freep(caster);
-}
-
-SrsRtcListener::SrsRtcListener(SrsServer* svr, SrsRtcServer* rtc_svr, SrsListenerType t) : SrsListener(svr, t)
-{
-    srs_assert(type == SrsListenerRtc);
-    rtc = rtc_svr;
-}
-
-SrsRtcListener::~SrsRtcListener()
-{
-}
-
-srs_error_t SrsRtcListener::listen(std::string i, int p)
-{
-    srs_error_t err = srs_success;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerRtc);
-    
-    ip = i;
-    port = p;
-    
-    srs_freep(listener);
-    listener = new SrsUdpMuxListener(rtc, ip, port);
-    
-    if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
-    }
-    
-    // notify the handler the fd changed.
-    if ((err = rtc->on_stfd_change(listener->stfd())) != srs_success) {
-        return srs_error_wrap(err, "notify fd change failed");
-    }
-    
-    string v = srs_listener_type2string(type);
-    srs_trace("%s listen at udp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
-    
-    return err;
 }
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -672,7 +631,6 @@ SrsServer::SrsServer()
     // new these objects in initialize instead.
     http_api_mux = new SrsHttpServeMux();
     http_server = new SrsHttpServer(this);
-    rtc_server = new SrsRtcServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
 }
@@ -797,10 +755,6 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
     if ((err = http_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "http server initialize");
     }
-
-    if ((err = rtc_server->initialize()) != srs_success) {
-        return srs_error_wrap(err, "rtc server initialize");
-    }
     
     return err;
 }
@@ -923,10 +877,6 @@ srs_error_t SrsServer::listen()
     if ((err = listen_stream_caster()) != srs_success) {
         return srs_error_wrap(err, "stream caster listen");
     }
-
-    if ((err = listen_rtc()) != srs_success) {
-        return srs_error_wrap(err, "rtc listen");
-    }
     
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
@@ -988,9 +938,6 @@ srs_error_t SrsServer::http_handle()
     }
     if ((err = http_api_mux->handle("/api/v1/streams/", new SrsGoApiStreams())) != srs_success) {
         return srs_error_wrap(err, "handle streams");
-    }
-    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(this, rtc_server))) != srs_success) {
-        return srs_error_wrap(err, "handle sdp");
     }
     if ((err = http_api_mux->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
         return srs_error_wrap(err, "handle clients");
@@ -1400,35 +1347,6 @@ srs_error_t SrsServer::listen_stream_caster()
     return err;
 }
 
-srs_error_t SrsServer::listen_rtc()
-{
-    srs_error_t err = srs_success;
-    
-    close_listeners(SrsListenerRtc);
-    
-    if (!_srs_config->get_rtc_enabled()) {
-        return err;
-    }
-        
-    SrsListener* listener = NULL;
-        
-    listener = new SrsRtcListener(this, rtc_server, SrsListenerRtc);
-    srs_assert(listener != NULL);
-        
-    listeners.push_back(listener);
-        
-    int port = _srs_config->get_rtc_listen();
-    if (port <= 0) {
-        return srs_error_new(ERROR_RTC_PORT, "invalid port=%d", port);
-    }
-        
-    if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
-        return srs_error_wrap(err, "listen at %d", port);
-    }
-    
-    return err;
-}
-
 void SrsServer::close_listeners(SrsListenerType type)
 {
     std::vector<SrsListener*>::iterator it;
@@ -1443,23 +1361,6 @@ void SrsServer::close_listeners(SrsListenerType type)
         srs_freep(listener);
         it = listeners.erase(it);
     }
-}
-
-SrsListener* SrsServer::find_listener(SrsListenerType type)
-{
-    std::vector<SrsListener*>::iterator it;
-    for (it = listeners.begin(); it != listeners.end();) {
-        SrsListener* listener = *it;
-        
-        if (listener->listen_type() != type) {
-            ++it;
-            continue;
-        }
-        
-        return *it;
-    }
-
-    return NULL;
 }
 
 void SrsServer::resample_kbps()
@@ -1508,6 +1409,11 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     }
     
     return err;
+}
+
+SrsHttpServeMux* SrsServer::api_server()
+{
+    return http_api_mux;
 }
 
 srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)
