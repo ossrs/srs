@@ -102,7 +102,7 @@ std::vector<std::string> SrsCandidate::get_candidate_ips()
     string candidate = _srs_config->get_rtc_candidates();
     if (candidate == "*" || candidate == "0.0.0.0") {
         std::vector<std::string> tmp = srs_get_local_ips();
-        for (int i = 0; i < tmp.size(); ++i) {
+        for (int i = 0; i < (int)tmp.size(); ++i) {
             if (tmp[i] != "127.0.0.1") {
                 candidate_ips.push_back(tmp[i]);
             }
@@ -185,7 +185,7 @@ srs_error_t SrsSdp::encode(string& sdp_str)
     string candidate_lines = "";
 
     std::vector<string> candidate_ips = SrsCandidate::get_candidate_ips();
-    for (int i = 0; i < candidate_ips.size(); ++i) {
+    for (int i = 0; i < (int)candidate_ips.size(); ++i) {
         ostringstream os;
         os << "a=candidate:10 1 udp 2115783679 " << candidate_ips[i] << " " << _srs_config->get_rtc_listen() <<" typ host generation 0\\r\\n";
         candidate_lines += os.str();
@@ -257,7 +257,7 @@ srs_error_t SrsSdp::parse_attr(const string& line)
     string key = "";
     string val = "";
     string* p = &key;
-    for (int i = 2; i < line.size(); ++i) {
+    for (int i = 2; i < (int)line.size(); ++i) {
         if (line[i] == ':' && p == &key) {
             p = &val;
         } else {
@@ -701,7 +701,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
 	for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
-        for (int i = 0; i < msg->rtp_packets.size(); ++i) {
+        for (int i = 0; i < (int)msg->rtp_packets.size(); ++i) {
             if (rtc_session->dtls_session) {
                 char protected_buf[kRtpPacketSize];
                 int nb_protected_buf = msg->rtp_packets[i]->size;
@@ -828,15 +828,15 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
        :            Feedback Control Information (FCI)                 :
        :                                                               :
     */
-    uint8_t first = stream->read_1bytes();
-    uint8_t version = first & 0xC0;
-    uint8_t padding = first & 0x20;
-    uint8_t fmt = first & 0x1F;
+    /*uint8_t first = */stream->read_1bytes();
+    //uint8_t version = first & 0xC0;
+    //uint8_t padding = first & 0x20;
+    //uint8_t fmt = first & 0x1F;
 
-    uint8_t payload_type = stream->read_1bytes();
-    uint16_t length = stream->read_2bytes();
-    uint32_t ssrc_of_sender = stream->read_4bytes();
-    uint32_t ssrc_of_media_source = stream->read_4bytes();
+    /*uint8_t payload_type = */stream->read_1bytes();
+    /*uint16_t length = */stream->read_2bytes();
+    /*uint32_t ssrc_of_sender = */stream->read_4bytes();
+    /*uint32_t ssrc_of_media_source = */stream->read_4bytes();
 
     /*
 		 0                   1                   2                   3
@@ -878,7 +878,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
         resend_pkts.push_back(pkt);
     }
 
-    for (int i = 0; i < resend_pkts.size(); ++i) {
+    for (int i = 0; i < (int)resend_pkts.size(); ++i) {
         if (dtls_session) {
             char protected_buf[kRtpPacketSize];
             int nb_protected_buf = resend_pkts[i]->size;
@@ -905,14 +905,15 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxS
     SrsAutoFree(SrsBuffer, stream);
 
     uint8_t first = stream->read_1bytes();
-    uint8_t version = first & 0xC0;
-    uint8_t padding = first & 0x20;
+    //uint8_t version = first & 0xC0;
+    //uint8_t padding = first & 0x20;
     uint8_t fmt = first & 0x1F;
 
-    uint8_t payload_type = stream->read_1bytes();
-    uint16_t length = stream->read_2bytes();
-    uint32_t ssrc_of_sender = stream->read_4bytes();
-    uint32_t ssrc_of_media_source = stream->read_4bytes();
+    // TODO: FIXME: Dead code?
+    /*uint8_t payload_type = */stream->read_1bytes();
+    /*uint16_t length = */stream->read_2bytes();
+    /*uint32_t ssrc_of_sender = */stream->read_4bytes();
+    /*uint32_t ssrc_of_media_source = */stream->read_4bytes();
 
     switch (fmt) {
         case kPLI: {
@@ -979,13 +980,13 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     */
     uint8_t first = stream->read_1bytes();
-    uint8_t version = first & 0xC0;
-    uint8_t padding = first & 0x20;
+    //uint8_t version = first & 0xC0;
+    //uint8_t padding = first & 0x20;
     uint8_t rc = first & 0x1F;
 
-    uint8_t payload_type = stream->read_1bytes();
+    /*uint8_t payload_type = */stream->read_1bytes();
     uint16_t length = stream->read_2bytes();
-    uint32_t ssrc_of_sender = stream->read_4bytes();
+    /*uint32_t ssrc_of_sender = */stream->read_4bytes();
 
     if (((length + 1) * 4) != (rc * 24 + 8)) {
         return srs_error_wrap(err, "invalid rtcp receiver packet, length=%u, rc=%u", length, rc);
@@ -1000,6 +1001,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         uint32_t lst = stream->read_4bytes();
         uint32_t dlsr = stream->read_4bytes();
 
+        (void)ssrc; (void)fraction_lost; (void)cumulative_number_of_packets_lost; (void)highest_seq; (void)jitter; (void)lst; (void)dlsr;
         srs_verbose("ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, highest_seq=%u, jitter=%u, lst=%u, dlst=%u",
             ssrc, fraction_lost, cumulative_number_of_packets_lost, highest_seq, jitter, lst, dlsr);
     }
@@ -1073,18 +1075,19 @@ srs_error_t SrsRtcSession::on_rtp(SrsUdpMuxSocket* udp_mux_skt)
     uint32_t timestamp = stream->read_4bytes();
     uint32_t ssrc = stream->read_4bytes();
 
+    (void)padding; (void)marker; (void)sequence; (void)timestamp; (void)ssrc;
     srs_verbose("sequence=%u, timestamp=%u, ssrc=%u, padding=%d, ext=%d, cc=%u, marker=%d, payload_type=%u", 
         sequence, timestamp, ssrc, padding, ext, cc, marker, payload_type);
 
     for (uint8_t i = 0; i < cc; ++i) {
-        uint32_t csrc = 0;
-        csrc = stream->read_4bytes();
+        /*uint32_t csrc = */stream->read_4bytes();
     }
 
     if (ext) {
         uint16_t extern_profile = stream->read_2bytes();
         uint16_t extern_length = stream->read_2bytes();
 
+        (void)extern_profile; (void)extern_length;
         srs_verbose("extern_profile=%u, extern_length=%u", extern_profile, extern_length);
 
         stream->read_string(extern_length * 4);
@@ -1258,8 +1261,6 @@ srs_error_t SrsRtcServer::on_stun(SrsUdpMuxSocket* udp_mux_skt)
 
 srs_error_t SrsRtcServer::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
 {
-    srs_error_t err = srs_success;
-
     SrsRtcSession* rtc_session = find_rtc_session_by_peer_id(udp_mux_skt->get_peer_id());
 
     if (rtc_session == NULL) {

@@ -128,7 +128,6 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
 
 srs_error_t SrsStunPacket::encode(const string& pwd, SrsBuffer* stream)
 {
-    srs_error_t err = srs_success;
     if (is_binding_response()) {
         return encode_binding_response(pwd, stream);
     }

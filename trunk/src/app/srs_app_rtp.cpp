@@ -115,7 +115,6 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
     }
 
     int num_of_packet = (sample->size - 1 + max_payload_size) / max_payload_size;
-    int avg_packet_size = sample->size / num_of_packet;
     for (int i = 0; i < num_of_packet; ++i) {
         char* buf = new char[kRtpPacketSize];
         SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
@@ -312,8 +311,6 @@ srs_error_t SrsRtp::on_publish()
 
 void SrsRtp::on_unpublish()
 {
-    srs_error_t err = srs_success;
-    
     // support multiple unpublish.
     if (!enabled) {
         return;

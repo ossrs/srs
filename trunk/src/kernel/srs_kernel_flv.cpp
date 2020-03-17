@@ -230,7 +230,7 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
         }
     }
 
-    for (int i = 0; i < rtp_packets.size(); ++i) {
+    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
         srs_freep(rtp_packets[i]);
     }
 }
@@ -351,7 +351,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 
-    for (int i = 0; i < rtp_packets.size(); ++i) {
+    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
         copy->rtp_packets.push_back(rtp_packets[i]->copy());
     }
 

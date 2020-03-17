@@ -836,7 +836,7 @@ void SrsRtpPacketQueue::clear()
 
 void SrsRtpPacketQueue::push(std::vector<SrsRtpSharedPacket*>& pkts)
 {
-    for (int i = 0; i < pkts.size(); ++i) {
+    for (int i = 0; i < (int)pkts.size(); ++i) {
         insert(pkts[i]->sequence, pkts[i]);
     }
 }

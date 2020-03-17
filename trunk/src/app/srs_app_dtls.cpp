@@ -118,8 +118,9 @@ void SrsDtls::init()
     char *p = fp;
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned int n = 0; 
- 
-    int r = X509_digest(dtls_cert, EVP_sha256(), md, &n);
+
+    // TODO: FIXME: Unused variable.
+    /*int r = */X509_digest(dtls_cert, EVP_sha256(), md, &n);
     
     for (unsigned int i = 0; i < n; i++, ++p) {
         sprintf(p, "%02X", md[i]);
