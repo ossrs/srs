@@ -662,8 +662,8 @@ srs_error_t SrsRtcSenderThread::cycle()
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    srs_trace("source url=%s, source_id=%d[%d]",
-        rtc_session->request.get_stream_url().c_str(), source->source_id(), source->source_id());
+    srs_trace("source url=%s, source_id=[%d][%d]",
+        rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id());
 
 	SrsConsumer* consumer = NULL;
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
