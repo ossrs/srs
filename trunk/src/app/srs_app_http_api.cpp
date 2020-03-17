@@ -799,6 +799,10 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     // path: {pattern}
     // method: POST
     // e.g. /api/v1/sdp/ args = json:{"sdp":"sdp...", "app":"webrtc", "stream":"test"}
+
+    // For each RTC session, we use short-term HTTP connection.
+    SrsHttpHeader* hdr = w->header();
+    hdr->set("Connection", "Close");
     
     string req_json;
     if ((err = r->body_read_all(req_json)) != srs_success) {
