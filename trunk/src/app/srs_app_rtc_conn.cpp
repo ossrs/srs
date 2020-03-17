@@ -668,7 +668,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 	SrsConsumer* consumer = NULL;
     if (source->create_consumer(NULL, consumer) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", rtc_session->request.get_stream_url().c_str());
-    }    
+    }
 
     SrsAutoFree(SrsConsumer, consumer);
 
@@ -767,14 +767,20 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* 
     return err;
 }
 
-void SrsRtcSession::check_source()
+srs_error_t SrsRtcSession::check_source()
 {
+    srs_error_t err = srs_success;
+
     // TODO: FIXME: Check return error.
     if (source == NULL) {
         // TODO: FIXME: Should refactor it, directly use http server as handler.
         ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-        _srs_sources->fetch_or_create(&request, handler, &source);
+        if ((err = _srs_sources->fetch_or_create(&request, handler, &source)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
     }
+
+    return err;
 }
 
 srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req)
@@ -864,7 +870,9 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
 
     srs_verbose("pid=%u, blp=%d", pid, blp);
 
-    check_source();
+    if ((err = check_source()) != srs_success) {
+        return srs_error_wrap(err, "check");
+    }
     if (! source) {
         return srs_error_wrap(err, "can not found source");
     }

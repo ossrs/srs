@@ -230,7 +230,7 @@ public:
 public:
     bool is_stun_timeout() { return last_stun_time + kSrsRtcSessionStunTimeoutUs < srs_get_system_time(); }
 private:
-    void check_source();
+    srs_error_t check_source();
 private:
     srs_error_t on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
 private:
