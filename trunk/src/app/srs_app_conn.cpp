@@ -178,6 +178,13 @@ srs_error_t SrsConnection::cycle()
         srs_trace("client finished.");
         return err;
     }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
     
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.

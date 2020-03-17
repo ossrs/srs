@@ -380,18 +380,21 @@ private:
     int rerrno;
     
     std::string desc;
+    std::string _summary;
 private:
     SrsCplxError();
 public:
     virtual ~SrsCplxError();
 private:
     virtual std::string description();
+    virtual std::string summary();
 public:
     static SrsCplxError* create(const char* func, const char* file, int line, int code, const char* fmt, ...);
     static SrsCplxError* wrap(const char* func, const char* file, int line, SrsCplxError* err, const char* fmt, ...);
     static SrsCplxError* success();
     static SrsCplxError* copy(SrsCplxError* from);
     static std::string description(SrsCplxError* err);
+    static std::string summary(SrsCplxError* err);
     static int error_code(SrsCplxError* err);
 };
 
@@ -401,6 +404,7 @@ public:
 #define srs_error_wrap(err, fmt, ...) SrsCplxError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
 #define srs_error_copy(err) SrsCplxError::copy(err)
 #define srs_error_desc(err) SrsCplxError::description(err)
+#define srs_error_summary(err) SrsCplxError::summary(err)
 #define srs_error_code(err) SrsCplxError::error_code(err)
 #define srs_error_reset(err) srs_freep(err); err = srs_success
 

@@ -1431,6 +1431,11 @@ srs_error_t SrsHttpApi::do_cycle()
         
         // get a http message
         if ((err = parser->parse_message(skt, &req)) != srs_success) {
+            // For HTTP timeout, we think it's ok.
+            if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
+                srs_freep(err);
+                return srs_error_wrap(srs_success, "http api timeout");
+            }
             return srs_error_wrap(err, "parse message");
         }
         
