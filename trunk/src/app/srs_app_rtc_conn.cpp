@@ -1335,6 +1335,10 @@ void SrsRtcServer::check_and_clean_timeout_session()
         }
 
         if (session->is_stun_timeout()) {
+            // Now, we got the RTC session to cleanup, switch to its context
+            // to make all logs write to the "correct" pid+cid.
+            session->switch_to_context();
+
             srs_trace("rtc session=%s, stun timeout", session->id().c_str());
             map_username_session.erase(iter++);
             map_id_session.erase(session->get_peer_id());
@@ -1398,7 +1402,7 @@ srs_error_t SrsRtcTimerThread::cycle()
             return srs_error_wrap(err, "rtc timer thread");
         }
 
-        srs_usleep(1*1000*1000LL);
+        srs_usleep(1 * SRS_UTIME_SECONDS);
         rtc_server->check_and_clean_timeout_session();
     }
 }
