@@ -716,7 +716,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
     }
 }
 
-SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un)
+SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id)
 {
     server = svr;
     rtc_server = rtc_svr;
@@ -730,6 +730,8 @@ SrsRtcSession::SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsReq
 
     request = req;
     source = NULL;
+
+    cid = context_id;
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -740,6 +742,11 @@ SrsRtcSession::~SrsRtcSession()
         strd->stop();
     }
     srs_freep(strd);
+}
+
+void SrsRtcSession::switch_to_context()
+{
+    _srs_context->set_id(cid);
 }
 
 srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req)
@@ -1215,7 +1222,8 @@ SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const Srs
             break;
     }
 
-    SrsRtcSession* session = new SrsRtcSession(server, this, req, username);
+    int cid = _srs_context->get_id();
+    SrsRtcSession* session = new SrsRtcSession(server, this, req, username, cid);
     map_username_session.insert(make_pair(username, session));
 
     local_sdp.set_ice_ufrag(local_ufrag);
@@ -1256,6 +1264,10 @@ srs_error_t SrsRtcServer::on_stun(SrsUdpMuxSocket* udp_mux_skt)
         return srs_error_new(ERROR_RTC_STUN, "can not find rtc_session, stun username=%s", username.c_str());
     }
 
+    // Now, we got the RTC session to handle the packet, switch to its context
+    // to make all logs write to the "correct" pid+cid.
+    rtc_session->switch_to_context();
+
     return rtc_session->on_stun(udp_mux_skt, &stun_req);
 }
 
@@ -1266,6 +1278,10 @@ srs_error_t SrsRtcServer::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
     if (rtc_session == NULL) {
         return srs_error_new(ERROR_RTC_DTLS, "can not find rtc session by peer_id=%s", udp_mux_skt->get_peer_id().c_str());
     }
+
+    // Now, we got the RTC session to handle the packet, switch to its context
+    // to make all logs write to the "correct" pid+cid.
+    rtc_session->switch_to_context();
 
     return rtc_session->on_dtls(udp_mux_skt);
 }
@@ -1279,6 +1295,10 @@ srs_error_t SrsRtcServer::on_rtp_or_rtcp(SrsUdpMuxSocket* udp_mux_skt)
     if (rtc_session == NULL) {
         return srs_error_new(ERROR_RTC_RTP, "can not find rtc session by peer_id=%s", udp_mux_skt->get_peer_id().c_str());
     }
+
+    // Now, we got the RTC session to handle the packet, switch to its context
+    // to make all logs write to the "correct" pid+cid.
+    rtc_session->switch_to_context();
 
     if (is_rtcp(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         err = rtc_session->on_rtcp(udp_mux_skt);

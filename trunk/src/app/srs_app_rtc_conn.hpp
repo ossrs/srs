@@ -194,11 +194,14 @@ private:
     std::string username;
     std::string peer_id;
     srs_utime_t last_stun_time;
+private:
+    // For each RTC session, we use a specified cid for debugging logs.
+    int cid;
 public:
     SrsRequest request;
     SrsSource* source;
 public:
-    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un);
+    SrsRtcSession(SrsServer* svr, SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
@@ -214,6 +217,8 @@ public:
 
     std::string get_peer_id() const { return peer_id; }
     void set_peer_id(const std::string& id) { peer_id = id; }
+
+    void switch_to_context();
 public:
     srs_error_t on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
