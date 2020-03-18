@@ -67,6 +67,8 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
     if (format->is_avc_sequence_header()) {
         sps.assign(format->vcodec->sequenceParameterSetNALUnit.data(), format->vcodec->sequenceParameterSetNALUnit.size());
         pps.assign(format->vcodec->pictureParameterSetNALUnit.data(), format->vcodec->pictureParameterSetNALUnit.size());
+        // only collect SPS/PPS.
+        return err;
     }
 
     vector<SrsRtpSharedPacket*> rtp_packet_vec;
@@ -77,12 +79,6 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         uint8_t header = sample.bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
-        // TODO: FIXME: Magic number? Doc?
-        // ignore SEI nal
-        if (nal_type == 0x06 || nal_type == 0x09) {
-            continue;
-        }
-
         if (sample.size <= max_payload_size) {
             if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
                 return srs_error_wrap(err, "packet single nalu");
@@ -91,6 +87,14 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
             if ((err = packet_fu_a(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
                 return srs_error_wrap(err, "packet fu-a");
             }
+        }
+    }
+
+    if (! rtp_packet_vec.empty()) {
+        // At the end of the frame, set marker bit.
+        // One frame may have multi nals. Set the marker bit in the last nal end, no the end of the nal.
+        if ((err = rtp_packet_vec.back()->set_marker(true)) != srs_success) {
+            return srs_error_wrap(err, "set marker");
         }
     }
 
@@ -125,11 +129,7 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
         // v=2,p=0,x=0,cc=0
         stream->write_1bytes(0x80);
         // marker payloadtype
-        if (i == num_of_packet - 1) {
-            stream->write_1bytes(kMarker | kH264PayloadType);
-        } else {
-            stream->write_1bytes(kH264PayloadType);
-        }
+        stream->write_1bytes(kH264PayloadType);
         // sequence
         stream->write_2bytes(sequence);
         // timestamp
@@ -183,7 +183,7 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     // v=2,p=0,x=0,cc=0
     stream->write_1bytes(0x80);
     // marker payloadtype
-    stream->write_1bytes(kMarker | kH264PayloadType);
+    stream->write_1bytes(kH264PayloadType);
     // sequenct
     stream->write_2bytes(sequence);
     // timestamp
@@ -219,7 +219,7 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
     // v=2,p=0,x=0,cc=0
     stream->write_1bytes(0x80);
     // marker payloadtype
-    stream->write_1bytes(kMarker | kH264PayloadType);
+    stream->write_1bytes(kH264PayloadType);
     // sequenct
     stream->write_2bytes(sequence);
     // timestamp

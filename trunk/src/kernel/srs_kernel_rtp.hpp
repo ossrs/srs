@@ -28,6 +28,8 @@
 
 #include <string>
 
+const uint8_t kMarker = 0x80;
+
 class SrsRtpSharedPacket
 {
 private:
@@ -57,6 +59,9 @@ public:
 public:
     srs_error_t create(int64_t t, uint16_t seq, uint32_t sc, uint16_t pt, char* p, int s);
     SrsRtpSharedPacket* copy();
+// interface to modify rtp header
+public:
+    srs_error_t set_marker(bool marker);
 };
 
 #endif

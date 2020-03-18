@@ -1201,7 +1201,6 @@ string srs_string_dumps_hex(const std::string& str, const int& limit)
 string srs_string_dumps_hex(const char* buf, const int length, const int& limit)
 {
     string ret;
-    ret.reserve(limit * 4);
 
     char tmp_buf[1024*16];
     tmp_buf[0] = '\n';
