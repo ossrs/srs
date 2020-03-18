@@ -1078,56 +1078,6 @@ srs_error_t SrsRtcSession::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
     return dtls_session->on_dtls(udp_mux_skt);
 }
 
-srs_error_t SrsRtcSession::on_rtp(SrsUdpMuxSocket* udp_mux_skt)
-{
-    srs_error_t err = srs_success;
-    if (dtls_session == NULL) {
-        return srs_error_new(ERROR_RTC_RTP, "recv unexpect rtp packet before dtls done");
-    }
-
-    char unprotected_buf[1460];
-    int nb_unprotected_buf = udp_mux_skt->size();
-    if ((err = dtls_session->unprotect_rtp(unprotected_buf, udp_mux_skt->data(), nb_unprotected_buf)) != srs_success) {
-        return srs_error_wrap(err, "rtp unprotect failed");
-    }
-
-    // FIXME: use SrsRtpPacket 
-    SrsBuffer* stream = new SrsBuffer(unprotected_buf, nb_unprotected_buf);
-    SrsAutoFree(SrsBuffer, stream);
-    uint8_t first = stream->read_1bytes();
-    uint8_t second = stream->read_1bytes();
-
-    bool padding = (first & 0x20);
-    bool ext = (first & 0x10);
-    uint8_t cc = (first & 0x0F);
-
-    bool marker = (second & 0x80);
-
-    uint16_t sequence = stream->read_2bytes();
-    uint32_t timestamp = stream->read_4bytes();
-    uint32_t ssrc = stream->read_4bytes();
-
-    (void)padding; (void)marker; (void)sequence; (void)timestamp; (void)ssrc;
-    srs_verbose("sequence=%u, timestamp=%u, ssrc=%u, padding=%d, ext=%d, cc=%u, marker=%d, payload_type=%u", 
-        sequence, timestamp, ssrc, padding, ext, cc, marker, payload_type);
-
-    for (uint8_t i = 0; i < cc; ++i) {
-        /*uint32_t csrc = */stream->read_4bytes();
-    }
-
-    if (ext) {
-        uint16_t extern_profile = stream->read_2bytes();
-        uint16_t extern_length = stream->read_2bytes();
-
-        (void)extern_profile; (void)extern_length;
-        srs_verbose("extern_profile=%u, extern_length=%u", extern_profile, extern_length);
-
-        stream->read_string(extern_length * 4);
-    }
-
-    return err;
-}
-
 srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
@@ -1370,7 +1320,9 @@ srs_error_t SrsRtcServer::on_rtp_or_rtcp(SrsUdpMuxSocket* udp_mux_skt)
     if (is_rtcp(reinterpret_cast<const uint8_t*>(udp_mux_skt->data()), udp_mux_skt->size())) {
         err = rtc_session->on_rtcp(udp_mux_skt);
     } else {
-        err = rtc_session->on_rtp(udp_mux_skt);
+        // We disable it because no RTP for player.
+        // see https://github.com/ossrs/srs/blob/018577e685a07d9de7a47354e7a9c5f77f5f4202/trunk/src/app/srs_app_rtc_conn.cpp#L1081
+        // err = rtc_session->on_rtp(udp_mux_skt);
     }
 
     return err;
