@@ -137,7 +137,7 @@ srs_error_t SrsSdp::decode(const string& sdp_str)
     srs_error_t err = srs_success;
 
     if (sdp_str.size() < 2 || sdp_str[0] != 'v' || sdp_str[1] != '=') {
-        return srs_error_wrap(err, "invalid sdp_str");
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp_str");
     }
 
     string line;
@@ -146,7 +146,7 @@ srs_error_t SrsSdp::decode(const string& sdp_str)
         srs_verbose("line=%s", line.c_str());
 
         if (line.size() < 2 || line[1] != '=') {
-            return srs_error_wrap(err, "invalid sdp line=%s", line.c_str());
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
         }
 
         switch (line[0]) {
@@ -167,7 +167,7 @@ srs_error_t SrsSdp::decode(const string& sdp_str)
             }
             case 'a' :{
                 if ((err = parse_attr(line)) != srs_success) {
-                    return srs_error_wrap(err, "decode sdp line=%s failed", line.c_str());
+                    return srs_error_new(ERROR_RTC_SDP_DECODE, "decode sdp line=%s failed", line.c_str());
                 }
                 break;
             }
@@ -397,7 +397,6 @@ srs_error_t SrsDtlsSession::on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt)
 
     handshake_done = true;
     if ((err = srtp_initialize()) != srs_success) {
-        srs_error("srtp init failed, err=%s", srs_error_desc(err).c_str());
         return srs_error_wrap(err, "srtp init failed");
     }
 
@@ -450,7 +449,7 @@ srs_error_t SrsDtlsSession::srtp_initialize()
 	unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
 	static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
 	if (! SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {   
-        return srs_error_wrap(err, "SSL_export_keying_material failed");
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
 	}   
 
 	size_t offset = 0;
@@ -501,7 +500,7 @@ srs_error_t SrsDtlsSession::srtp_send_init()
 
     if (srtp_create(&srtp_send, &policy) != 0) {
         srs_freepa(key);
-        return srs_error_wrap(err, "srtp_create failed");
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create failed");
     }
 
     srs_freepa(key);
@@ -533,7 +532,7 @@ srs_error_t SrsDtlsSession::srtp_recv_init()
 
     if (srtp_create(&srtp_recv, &policy) != 0) {
         srs_freepa(key);
-        return srs_error_wrap(err, "srtp_create failed");
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create failed");
     }
 
     srs_freepa(key);
@@ -548,13 +547,13 @@ srs_error_t SrsDtlsSession::protect_rtp(char* out_buf, const char* in_buf, int& 
     if (srtp_send) {
         memcpy(out_buf, in_buf, nb_out_buf);
         if (srtp_protect(srtp_send, out_buf, &nb_out_buf) != 0) {
-            return srs_error_wrap(err, "rtp protect failed");
+            return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
         }
 
         return err;
     }
 
-    return srs_error_wrap(err, "rtp protect failed");
+    return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
 }
 
 srs_error_t SrsDtlsSession::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
@@ -564,13 +563,13 @@ srs_error_t SrsDtlsSession::unprotect_rtp(char* out_buf, const char* in_buf, int
     if (srtp_recv) {
         memcpy(out_buf, in_buf, nb_out_buf);
         if (srtp_unprotect(srtp_recv, out_buf, &nb_out_buf) != 0) {
-            return srs_error_wrap(err, "rtp unprotect failed");
+            return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
         }
 
         return err;
     }
 
-    return srs_error_wrap(err, "rtp unprotect failed");
+    return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
 }
 
 srs_error_t SrsDtlsSession::protect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
@@ -580,13 +579,13 @@ srs_error_t SrsDtlsSession::protect_rtcp(char* out_buf, const char* in_buf, int&
     if (srtp_send) {
         memcpy(out_buf, in_buf, nb_out_buf);
         if (srtp_protect_rtcp(srtp_send, out_buf, &nb_out_buf) != 0) {
-            return srs_error_wrap(err, "rtcp protect failed");
+            return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
         }
 
         return err;
     }
 
-    return srs_error_wrap(err, "rtcp protect failed");
+    return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
 }
 
 srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
@@ -596,13 +595,13 @@ srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, in
     if (srtp_recv) {
         memcpy(out_buf, in_buf, nb_out_buf);
         if (srtp_unprotect_rtcp(srtp_recv, out_buf, &nb_out_buf) != 0) {
-            return srs_error_wrap(err, "rtcp unprotect failed");
+            return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
         }
 
         return err;
     }
 
-    return srs_error_wrap(err, "rtcp unprotect failed");
+    return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
 }
 
 SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid)
@@ -702,17 +701,30 @@ srs_error_t SrsRtcSenderThread::cycle()
 
 void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* udp_mux_skt)
 {
+    srs_error_t err = srs_success;
+
 	for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
         for (int i = 0; i < (int)msg->rtp_packets.size(); ++i) {
-            if (rtc_session->dtls_session) {
-                char protected_buf[kRtpPacketSize];
-                int nb_protected_buf = msg->rtp_packets[i]->size;
+            if (!rtc_session->dtls_session) {
+                continue;
+            }
 
-                rtc_session->dtls_session->protect_rtp(protected_buf, msg->rtp_packets[i]->payload, nb_protected_buf);
-                // TODO: use sendmmsg to send multi packet one system call
-                udp_mux_skt->sendto(protected_buf, nb_protected_buf, 0);
+            SrsRtpSharedPacket* pkt = msg->rtp_packets[i];
+
+            int length = pkt->size;
+            char buf[kRtpPacketSize];
+            if ((err = rtc_session->dtls_session->protect_rtp(buf, pkt->payload, length)) != srs_success) {
+                srs_warn("srtp err %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+                continue;
+            }
+
+            // TODO: use sendmmsg to send multi packet one system call
+            if ((err = udp_mux_skt->sendto(buf, length, 0)) != srs_success) {
+                srs_warn("send err %s", srs_error_desc(err).c_str());
+                srs_freep(err);
             }
         }
 
@@ -826,7 +838,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
     srs_error_t err = srs_success;
 
     if (nb_buf < 12) {
-        return srs_error_wrap(err, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
     }
 
     SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
@@ -873,7 +885,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
         return srs_error_wrap(err, "check");
     }
     if (! source) {
-        return srs_error_wrap(err, "can not found source");
+        return srs_error_new(ERROR_RTC_SOURCE_CHECK, "can not found source");
     }
 
     vector<SrsRtpSharedPacket*> resend_pkts;
@@ -918,7 +930,7 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxS
     srs_error_t err = srs_success;
 
     if (nb_buf < 12) {
-        return srs_error_wrap(err, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
     }
 
     SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
@@ -953,7 +965,7 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxS
             break;
         }
         default: {
-            return srs_error_wrap(err, "unknown payload specific feedback=%u", fmt);
+            return srs_error_new(ERROR_RTC_RTCP, "unknown payload specific feedback=%u", fmt);
         }
     }
 
@@ -965,7 +977,7 @@ srs_error_t SrsRtcSession::on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdp
     srs_error_t err = srs_success;
 
     if (nb_buf < 8) {
-        return srs_error_wrap(err, "invalid rtp receiver report packet, nb_buf=%d", nb_buf);
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp receiver report packet, nb_buf=%d", nb_buf);
     }
 
     SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
@@ -1009,7 +1021,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     /*uint32_t ssrc_of_sender = */stream->read_4bytes();
 
     if (((length + 1) * 4) != (rc * 24 + 8)) {
-        return srs_error_wrap(err, "invalid rtcp receiver packet, length=%u, rc=%u", length, rc);
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtcp receiver packet, length=%u, rc=%u", length, rc);
     }
 
     for (int i = 0; i < rc; ++i) {
@@ -1170,7 +1182,7 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
                 break;
             }
             default:{
-                return srs_error_wrap(err, "unknown rtcp type=%u", payload_type);
+                return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", payload_type);
                 break;
             }
         }
@@ -1453,7 +1465,6 @@ srs_error_t SrsRtcTimerThread::cycle()
 
     while (true) {
 		if ((err = trd->pull()) != srs_success) {
-            srs_trace("rtc_timer cycle failed");
             return srs_error_wrap(err, "rtc timer thread");
         }
 
