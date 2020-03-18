@@ -221,7 +221,6 @@ public:
 public:
     srs_error_t on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
-    srs_error_t on_rtp(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_rtcp(SrsUdpMuxSocket* udp_mux_skt);
 public:
     srs_error_t send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
