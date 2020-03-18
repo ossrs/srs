@@ -1095,9 +1095,8 @@ srs_error_t SrsRtcSession::on_rtp(SrsUdpMuxSocket* udp_mux_skt)
     uint32_t timestamp = stream->read_4bytes();
     uint32_t ssrc = stream->read_4bytes();
 
-    (void)padding; (void)marker; (void)sequence; (void)timestamp; (void)ssrc;
-    srs_verbose("sequence=%u, timestamp=%u, ssrc=%u, padding=%d, ext=%d, cc=%u, marker=%d, payload_type=%u", 
-        sequence, timestamp, ssrc, padding, ext, cc, marker, payload_type);
+    srs_verbose("sequence=%u, timestamp=%u, ssrc=%u, padding=%d, ext=%d, cc=%u, marker=%d", 
+        sequence, timestamp, ssrc, padding, ext, cc, marker);
 
     for (uint8_t i = 0; i < cc; ++i) {
         /*uint32_t csrc = */stream->read_4bytes();

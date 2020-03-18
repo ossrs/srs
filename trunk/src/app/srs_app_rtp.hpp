@@ -44,12 +44,11 @@ const uint8_t kH264PayloadType = 102;
 
 const uint8_t kNalTypeMask = 0x1F;
 
-const uint8_t kIdr = 5;
-const uint8_t kStapA = 24; 
-const uint8_t kFuA = 28; 
+const uint8_t kStapA = 24;
+const uint8_t kFuA   = 28;
 
 const uint8_t kStart = 0x80;
-const uint8_t kEnd = 0x40;
+const uint8_t kEnd   = 0x40;
 
 // FIXME: ssrc can relate to source
 const uint32_t kVideoSSRC = 3233846889;

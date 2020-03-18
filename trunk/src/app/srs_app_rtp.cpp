@@ -79,6 +79,32 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
         uint8_t header = sample.bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
+        // TODO: Use config to determine should check avc stream.
+        if (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR) {
+            SrsBuffer* stream = new SrsBuffer(sample.bytes, sample.size);
+            SrsAutoFree(SrsBuffer, stream);
+
+            // Skip nalu header.
+            stream->skip(1);
+
+            SrsBitBuffer bitstream(stream);
+            int32_t first_mb_in_slice = 0;
+            if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
+                return srs_error_wrap(err, "nalu read uev");
+            }
+
+            int32_t slice_type = 0;
+            if ((err = srs_avc_nalu_read_uev(&bitstream, slice_type)) != srs_success) {
+                return srs_error_wrap(err, "nalu read uev");
+            }
+
+            srs_verbose("nal_type=%d, slice type=%d", nal_type, slice_type);
+            // TODO: Use config to determine how to process B frame
+            if (slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1) {
+                continue;
+            }
+        }
+
         if (sample.size <= max_payload_size) {
             if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
                 return srs_error_wrap(err, "packet single nalu");
@@ -112,7 +138,7 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
     uint8_t header = sample->bytes[0];
     uint8_t nal_type = header & kNalTypeMask;
 
-    if (nal_type == kIdr) {
+    if (nal_type == SrsAvcNaluTypeIDR) {
         if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
             return srs_error_wrap(err, "packet stap-a");
         }
@@ -153,6 +179,11 @@ srs_error_t SrsRtpMuxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsForma
         p += packet_size;
         nb_left -= packet_size;
 
+        srs_verbose("rtp fu-a nalu, size=%u, seq=%u, timestamp=%lu, ssrc=%u, payloadtype=%u, rtp header=%s, payload=%s", 
+            sample->size, sequence, (shared_frame->timestamp * 90), kVideoSSRC, kH264PayloadType, 
+            srs_string_dumps_hex(stream->data(), 12).c_str(),
+            srs_string_dumps_hex(stream->data() + 12, stream->pos() - 12).c_str());
+
 
         SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
         rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
@@ -174,7 +205,7 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
     SrsAutoFree(SrsBuffer, stream);
 
-    if (nal_type == kIdr) {
+    if (nal_type == SrsAvcNaluTypeIDR) {
         if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
             return srs_error_wrap(err, "packet stap-a");
         }
@@ -192,6 +223,12 @@ srs_error_t SrsRtpMuxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, S
     stream->write_4bytes(int32_t(kVideoSSRC));
 
     stream->write_bytes(sample->bytes, sample->size);
+
+    srs_verbose("sample=%s", srs_string_dumps_hex(sample->bytes, sample->size).c_str());
+    srs_verbose("rtp single nalu, size=%u, seq=%u, timestamp=%lu, ssrc=%u, payloadtype=%u, rtp header=%s, payload=%s", 
+        sample->size, sequence, (shared_frame->timestamp * 90), kVideoSSRC, kH264PayloadType, 
+        srs_string_dumps_hex(stream->data(), 12).c_str(),
+        srs_string_dumps_hex(stream->data() + 12, stream->pos() - 12).c_str());
 
     SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
     rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
@@ -237,6 +274,11 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
 
     stream->write_2bytes(pps.size());
     stream->write_bytes((char*)pps.data(), pps.size());
+
+    srs_verbose("rtp stap-a nalu, size=%u, seq=%u, timestamp=%lu, ssrc=%u, payloadtype=%u, rtp header=%s, payload=%s", 
+        (sps.size() + pps.size()), sequence, (shared_frame->timestamp * 90), kVideoSSRC, kH264PayloadType, 
+        srs_string_dumps_hex(stream->data(), 12).c_str(),
+        srs_string_dumps_hex(stream->data() + 12, stream->pos() - 12).c_str());
 
     SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
     rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos());
