@@ -53,6 +53,7 @@
     </footer>
 </div>
 <script type="text/javascript">
+    var pc = null; // Global handler to do cleanup when replaying.
     $(function(){
         $('#rtc_media_player').hide();
         var query = parse_query_string();
@@ -63,7 +64,12 @@
             var urlObject = parse_rtmp_url($("#txt_url").val());
             var schame = window.location.protocol;
 
-            var pc = new RTCPeerConnection(null);
+            // Close PC when user replay.
+            if (pc) {
+                pc.close();
+            }
+
+            pc = new RTCPeerConnection(null);
             pc.onaddstream = function (event) {
                 var player = document.getElementById('rtc_media_player');
                 player.srcObject = event.stream;

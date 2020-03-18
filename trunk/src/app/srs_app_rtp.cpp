@@ -76,9 +76,6 @@ srs_error_t SrsRtpMuxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsF
     for (int i = 0; i < format->video->nb_samples; ++i) {
         SrsSample sample = format->video->samples[i];
 
-        uint8_t header = sample.bytes[0];
-        uint8_t nal_type = header & kNalTypeMask;
-
         if (sample.size <= max_payload_size) {
             if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
                 return srs_error_wrap(err, "packet single nalu");
