@@ -273,15 +273,20 @@ int srs_write_large_iovs(ISrsProtocolReaderWriter* skt, iovec* iovs, int size, s
     
     // send in multiple times.
     int cur_iov = 0;
+    int nwrite = 0;
     while (cur_iov < size) {
         int cur_count = srs_min(limits, size - cur_iov);
-        if ((ret = skt->writev(iovs + cur_iov, cur_count, pnwrite)) != ERROR_SUCCESS) {
+        if ((ret = skt->writev(iovs + cur_iov, cur_count, &nwrite)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("send with writev failed. ret=%d", ret);
             }
             return ret;
         }
         cur_iov += cur_count;
+        
+        if(pnwrite){
+            *pnwrite += nwrite;
+        }
     }
     
     return ret;
