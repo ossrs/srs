@@ -56,3 +56,6 @@ CONTRIBUTORS ordered by first contribution.
 * runner365<shi.weibd@hotmail.com>
 * XiaofengWang<wasphin@gmail.com>
 * XiaLixin<xialx@yuntongxun.com>
+* xiaozhihong<xiaozhihong8@gmail.com>
+* HuyaJohn<xiaozhihong@huya.com>
+
