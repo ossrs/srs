@@ -3486,8 +3486,8 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster" && n != "srt_server"
-            && n != "utc_time" && n != "work_dir" && n != "asprocess"
+            && n != "http_server" && n != "stream_caster" && n != "srt_server" 
+            && n !="28181_stream_server" && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker"
@@ -4264,6 +4264,77 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+
+SrsConfDirective* SrsConfig::get_2ss_feature()
+{
+	srs_assert(root);
+	return root->get("28181_stream_server");
+}
+
+bool SrsConfig::get_2ss_enabled()
+{
+	SrsConfDirective* sc = get_2ss_feature();
+	if (!sc) {
+		return false;
+	}
+
+	SrsConfDirective* conf = sc->get("enabled");
+	if (!conf || conf->arg0().empty()) {
+		return false;
+	}
+
+	return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+int SrsConfig::get_2ss_listen_port_min()
+{
+    static int DEFAULT = 0;
+    
+    SrsConfDirective* sc = get_2ss_feature();
+	if (!sc) {
+		return DEFAULT;
+	}
+    
+    SrsConfDirective* conf = sc->get("listen_port_min");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_2ss_listen_port_max()
+{
+    static int DEFAULT = 0;
+    
+    SrsConfDirective* sc = get_2ss_feature();
+	if (!sc) {
+		return DEFAULT;
+	}
+    
+    SrsConfDirective* conf = sc->get("listen_port_max");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_2ss_listener_alive_time()
+{
+	SrsConfDirective* sc = get_2ss_feature();
+	if (!sc) {
+		return -1;
+	}
+
+	SrsConfDirective* conf = sc->get("lisener_alive_s");
+	if (!conf || conf->arg0().empty()) {
+		return -1;
+	}
+
+	return ::atoi(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)

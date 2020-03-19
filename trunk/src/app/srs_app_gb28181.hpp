@@ -58,6 +58,8 @@ class Srs28181UdpStreamListener;
 class Srs28181TcpStreamListener;
 class Srs28181TcpStreamConn;
 class Srs28181StreamCore;
+class SrsStreamEnder;
+
 
 // A gb28181 stream server
 class Srs28181StreamServer
@@ -66,18 +68,23 @@ private:
     std::string output;
     int local_port_min;
     int local_port_max;
+    int port_offset;
     // The key: port, value: whether used.
     std::map<int, bool> used_ports;
-    private:
-    SrsCoroutine * trd;
+private:
+    SrsStreamEnder* ender;
+private:
+    // default: use first rtmp port. 
+    std::string rtmp_port;
 private:
     // TODO: will expand for multi-listeners
     std::vector<Srs28181Listener*> listeners;
+    std::vector<Srs28181Listener*> clears;
 public:
     Srs28181StreamServer();
-    Srs28181StreamServer(SrsConfDirective* c);
     virtual ~Srs28181StreamServer();
 public:
+    virtual srs_error_t init();
     // create a  28181 stream listener
     virtual srs_error_t create_listener(SrsListenerType type, int& ltn_port, std::string& suuid);
     // release a listener
@@ -87,9 +94,6 @@ public:
     virtual srs_error_t alloc_port(int* pport);
     // Free the alloced rtp port.
     virtual void free_port(int lpmin, int lpmax);
-
-public:
-    virtual void remove();
 };
 
 // A base listener
@@ -102,9 +106,34 @@ public:
     Srs28181Listener();
     virtual ~Srs28181Listener();
 public:
+    virtual int get_port();
+public:
     //virtual SrsListenerType listen_type();
     virtual srs_error_t listen(std::string i, int p) = 0;
 };
+
+
+// define a class to release BOTH tcp/udp stream listener. 
+// SrsCoroutineManager is ONLY for connection release. Hope can redefine SrsCoroutineManager as a BASE class in future
+class SrsStreamEnder : virtual public ISrsCoroutineHandler
+{
+private:
+    SrsCoroutine* trd;
+    std::vector<Srs28181Listener*> group;
+    srs_cond_t cond;
+public:
+    SrsStreamEnder();
+    virtual ~SrsStreamEnder();
+public:
+    srs_error_t start();
+public:
+    virtual srs_error_t cycle();
+public:
+    virtual void remove(Srs28181Listener* o);
+private:
+    void release();
+};
+
 
 // A TCP listener
 class Srs28181TcpStreamListener : public Srs28181Listener, public ISrsTcpHandler
@@ -126,69 +155,12 @@ public:
     virtual srs_error_t remove_conn(Srs28181TcpStreamConn* c);
 };
 
-
-// A ST-coroutine is a lightweight thread, just like the goroutine.
-// But the goroutine maybe run on different thread, while ST-coroutine only
-// run in single thread, because it use setjmp and longjmp, so it may cause
-// problem in multiple threads. For SRS, we only use single thread module,
-// like NGINX to get very high performance, with asynchronous and non-blocking
-// sockets.
-
-/* 
-* SrsOneCycleCoroutine has these features:
-* 1.will exit thread if it returns from cycle function
-* 2.no pull function 
-* 3.can destory itself in cycle
-*
-*/
-
-class SrsOneCycleCoroutine: public ISrsCoroutineHandler
-{
-private:
-    std::string name;
-    ISrsCoroutineHandler* handler;
-private:
-    srs_thread_t trd;
-    int context;
-    srs_error_t trd_err;
-private:
-    bool started;
-    bool interrupted;
-    bool disposed;
-    // Cycle done, no need to interrupt it.
-    bool cycle_done;
-public:
-    // Create a thread with name n and handler h.
-    // @remark User can specify a cid for thread to use, or we will allocate a new one.
-    SrsOneCycleCoroutine(std::string n, ISrsCoroutineHandler* h, int cid = 0);
-    virtual ~SrsOneCycleCoroutine();
-public:
-    // Start the thread.
-    // @remark Should never start it when stopped or terminated.
-    virtual srs_error_t start();
-    // Interrupt the thread then wait to terminated.
-    // @remark If user want to notify thread to quit async, for example if there are
-    //      many threads to stop like the encoder, use the interrupt to notify all threads
-    //      to terminate then use stop to wait for each to terminate.
-    virtual void stop();
-    // Interrupt the thread and notify it to terminate, it will be wakeup if it's blocked
-    // in some IO operations, such as st_read or st_write, then it will found should quit,
-    // finally the thread should terminated normally, user can use the stop to join it.
-    virtual void interrupt();
-
-    // Get the context id of thread.
-    virtual int cid();
-private:
-    virtual srs_error_t cycle();
-    static void* pfn(void* arg);
-};
-
 // Bind a udp port, start a thread to recv packet and handler it.
 class SrsLiveUdpListener : public ISrsCoroutineHandler
 {
 private:
     srs_netfd_t lfd;
-    SrsOneCycleCoroutine* trd;
+    SrsSTCoroutine* trd;
 private:
     char* buf;
     int nb_buf;
@@ -215,15 +187,14 @@ public:
 };
 
 // A guard thread
-class SrsLifeGuardThread : public SrsOneCycleCoroutine
+//class SrsLifeGuardThread : public SrsOneCycleCoroutine
+class SrsLifeGuardThread : public SrsSTCoroutine
 {
 private:
     srs_cond_t lgcond;
 public:
     SrsLifeGuardThread(std::string n, ISrsCoroutineHandler* h, int cid = 0);
     virtual ~SrsLifeGuardThread();
-public:
-    virtual void stop();
 public:
     virtual void awake();
     virtual void wait(srs_utime_t tm);
@@ -240,7 +211,7 @@ private:
     uint64_t nb_packet;
     bool workdone;
 public:
-    Srs28181UdpStreamListener(Srs28181StreamServer * srv, std::string suuid);
+    Srs28181UdpStreamListener(Srs28181StreamServer * srv, std::string suuid, std::string port);
     virtual ~Srs28181UdpStreamListener();
 private:
     Srs28181StreamServer * server;
@@ -266,7 +237,7 @@ struct Srs28181AudioCache
     virtual ~Srs28181AudioCache();
 };
 
-// The time jitter correct for rtsp.
+// The time jitter correct.
 class Srs28181Jitter
 {
 private:
@@ -287,8 +258,8 @@ class Srs28181StreamCore
 private:
     std::string output;
     std::string output_template;
-    std::string target_tcUrl;//rtsp_tcUrl;
-    std::string stream_name;//rtsp_stream;
+    std::string target_tcUrl;
+    std::string stream_name;
     SrsPithyPrint* pprint;
 private:
     std::string session;
@@ -324,7 +295,7 @@ private:
 
     Srs2SRtpPacket* cache_;
 public:
-    Srs28181StreamCore(std::string suuid);
+    Srs28181StreamCore(std::string sid, std::string port);
     virtual ~Srs28181StreamCore();
 
 public:
@@ -352,7 +323,7 @@ private:
     virtual void close();
 };
 
-// TODO: will rewrite blow codes for TCP mode in future
+// TODO: will rewrite these codes for TCP mode in future
 // The 28181 tcp stream connection 
 class Srs28181TcpStreamConn : public ISrsCoroutineHandler
 {

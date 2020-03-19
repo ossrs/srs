@@ -38,13 +38,16 @@ class SrsAudioFrame;
 class ISrsProtocolReadWriter;
 
 
-#define ERROR_RTP_PS_CORRUPT				12060
-#define ERROR_RTP_PS_HK_PRIVATE_PROTO		12061
-#define ERROR_RTP_PS_FIRST_TSB_LOSS			12062
+#define PH_PSC 0x01ba
+#define SYS_HEAD_PSC 0x01bb
+#define PS_MAP_PSC 0x01bc
+#define PES_V_PSC 0x01e0
+#define PES_A_PSC 0x01c0
+#define HK_PRIVATE_PSC 0x01bd
 
 #pragma pack (1)
 struct Packet_Start_Code {
-	u_int32_t start_code; //4bytes,need htonl exchange
+	u_int32_t start_code; 
 	//u_int8_t start_code[3];
 	//u_int8_t stream_id[1];
 };
@@ -52,7 +55,7 @@ struct Packet_Start_Code {
 struct PS_Packet_Header {
 	Packet_Start_Code psc; //4bytes
 	u_int8_t holder[9];
-	u_int8_t pack_stuffing_length; //low 3bit,high 5 bits are reserved;
+	u_int8_t pack_stuffing_length; 
 };
 
 struct PS_Sys_Header {
@@ -73,8 +76,8 @@ struct PS_PES {
 };
 #pragma pack ()
 
-// TODO: (besson) may rewrite this class derived from Srs2SRtpPacket in future
-// The 28181 stream rtp packet. Titled everything with "28181" is not a good idea 
+// TODO: (besson) will derived from a rewriten SrsRtpPacket in future
+// The 28181 stream rtp packet.  
 // 5. RTP Data Transfer Protocol, @see rfc3550-2003-rtp.pdf, page 12
 class Srs2SRtpPacket
 {
@@ -194,7 +197,7 @@ public:
     // The payload.
     SrsSimpleBufferX* payload;
 
-    // Beikesong: target tgt h264 stream or other types
+    // h264 stream or other types
 	SrsSimpleBufferX* tgtstream;
 
     // Whether transport in chunked payload.
@@ -222,7 +225,7 @@ public:
     virtual void reap(Srs2SRtpPacket* src);
     // 
     virtual void reap_v2(Srs2SRtpPacket* src);
-    // a dispatcher on different rtp packet dintecoder 
+    // a dispatcher on different rtp packet decoder 
     virtual int decode(SrsBuffer* stream);
     // a diapatcher on different stream-core decoder
 	virtual int decode_stream();
@@ -230,7 +233,7 @@ public:
 private:
     // decode rtp packet from stream
     virtual int decode_96ps_rtp(SrsBuffer* stream, int8_t marker);
-	// decode ps packet form stream, only aim on high stabilable
+	// decode ps packet. only aim on high stability
 	virtual int decode_96ps_core();
 };
 

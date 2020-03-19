@@ -184,6 +184,9 @@ SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirec
     srs_assert(type == SrsListenerRtsp);
     if (type == SrsListenerRtsp) {
         caster = new SrsRtspCaster(c);
+
+        // TODO: FIXME: Must check error.
+        caster->initialize();
     }
 }
 
@@ -505,11 +508,11 @@ void SrsServer::destroy()
     
     dispose();
     
-    srs_freep(srs_28181_streams);
     srs_freep(http_api_mux);
     srs_freep(http_server);
     srs_freep(http_heartbeat);
     srs_freep(ingester);
+    srs_freep(srs_28181_stream_server);
     
     if (pid_fd > 0) {
         ::close(pid_fd);
@@ -560,9 +563,11 @@ void SrsServer::gracefully_dispose()
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
+    srs_trace("listeners closed");
 
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
     ingester->stop();
+    srs_trace("ingesters stopped");
 
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
@@ -578,6 +583,7 @@ void SrsServer::gracefully_dispose()
 
     // dispose the source for hls and dvr.
     _srs_sources->dispose();
+    srs_trace("source disposed");
 
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
@@ -805,7 +811,6 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
-
     if ((err = http_api_mux->handle("/api/v1/srs28181stream-request-listener", new SrsGoApi28181StreamCreation(this))) != srs_success) {
         return srs_error_wrap(err, "handle srs28181stream-request-listener");
     }
@@ -894,6 +899,7 @@ srs_error_t SrsServer::cycle()
 void SrsServer::on_signal(int signo)
 {
     if (signo == SRS_SIGNAL_RELOAD) {
+        srs_trace("reload config, signo=%d", signo);
         signal_reload = true;
         return;
     }
@@ -901,7 +907,7 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
-        srs_warn("reopen log file");
+        srs_warn("reopen log file, signo=%d", signo);
         return;
     }
 #endif
@@ -909,7 +915,7 @@ void SrsServer::on_signal(int signo)
 #ifdef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
-        srs_warn("for gmc, the SIGUSR1 used as SIGINT");
+        srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
         return;
     }
 #endif
@@ -921,7 +927,7 @@ void SrsServer::on_signal(int signo)
     
     if (signo == SIGINT) {
 #ifdef SRS_AUTO_GPERF_MC
-        srs_trace("gmc is on, main cycle will terminate normally.");
+        srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
 #else
         #ifdef SRS_AUTO_MEM_WATCH
@@ -1195,19 +1201,25 @@ srs_error_t SrsServer::listen_stream_caster()
         }
     }
 
-    // create a 28181 stream server
-    srs_28181_streams = new Srs28181StreamServer();
+    // create 28181-stream-server
+    if(_srs_config->get_2ss_enabled()){
+        srs_trace("start 28181-stream-server");
+        srs_28181_stream_server = new Srs28181StreamServer();
+        if((err = srs_28181_stream_server->init()) != srs_success){
+            return srs_error_wrap(err,"28181 stream server init");
+        }
+    }
     
     return err;
 }
 
 srs_error_t SrsServer::create_28181stream_listener(SrsListenerType type, int& port, std::string& suuid)
 {
-    if(srs_28181_streams==NULL){
+    if(srs_28181_stream_server==NULL){
         return srs_error_new(13025,"srs 28181 stream server is null!");
     }    
 
-    return srs_28181_streams->create_listener(type, port,suuid);
+    return srs_28181_stream_server->create_listener(type, port,suuid);
     srs_trace("create a new 28181 stream listener[port:%d]",port);
 }
 

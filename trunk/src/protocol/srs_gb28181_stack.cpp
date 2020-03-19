@@ -114,7 +114,7 @@ void Srs2SRtpPacket::reap_v2(Srs2SRtpPacket* src)
     src->audio = NULL;
 }
 
-// beisong: decode gb28181 stream
+// decode gb28181 stream
 int Srs2SRtpPacket::decode(SrsBuffer* stream)
 {
 	int ret = ERROR_SUCCESS;
@@ -165,10 +165,10 @@ int Srs2SRtpPacket::decode_96ps_rtp(SrsBuffer* stream, int8_t marker)
 {
 	int ret = 0;
 
-	// atleast 2bytes content.
+	// at least 2bytes content.
 	if (!stream->require(0)) {
 		ret = ERROR_RTP_TYPE96_CORRUPT;
-		srs_error("rtsp: rtp type 96 ps corrupt. ret=%d", ret);
+		srs_error("rtp type 96 ps corrupt. ret=%d", ret);
 		return ret;
 	}
 
@@ -177,7 +177,6 @@ int Srs2SRtpPacket::decode_96ps_rtp(SrsBuffer* stream, int8_t marker)
 		completed = false;
 	}
 	else {
-		// always chunked in ps 
 		// considering compatibility for other streams, we set chunked as true always
 		chunked = true;
 		completed = true;
@@ -187,30 +186,27 @@ int Srs2SRtpPacket::decode_96ps_rtp(SrsBuffer* stream, int8_t marker)
 	return ret;
 }
 
-
-#define PH_PSC 0x01ba
-#define SYS_HEAD_PSC 0x01bb
-#define PS_MAP_PSC 0x01bc
-#define PES_V_PSC 0x01e0
-#define PES_A_PSC 0x01c0
-#define HK_PRIVATE_PSC 0x01bd
+// TOTO: will rewrite on return value
 int Srs2SRtpPacket::decode_96ps_core()
 {
-	int ret = 0;
+	int ret = ERROR_SUCCESS;
 
-	bool a, b, c;
 	Packet_Start_Code psc;
 	int psc_len = sizeof(Packet_Start_Code);
+
 	PS_Packet_Header ps_ph;
 	int ph_len = sizeof(PS_Packet_Header);
+
 	PS_Sys_Header sys_header;
 	int sys_header_len = sizeof(PS_Sys_Header);
+
 	PS_Map ps_map;
 	int psm_len = sizeof(PS_Map);
+
 	PS_PES pes;
 	int pes_len = sizeof(PS_PES);
 
-	// pesv and pesa
+	bool a, b, c = false;
 	int p_skip_0 = 0;
 	int p_skip_1 = 0;
 	psc.start_code = 0;
@@ -228,20 +224,15 @@ int Srs2SRtpPacket::decode_96ps_core()
 			u_int32_t load_len = pes.pes_packet_length - pes.pes_header_data_length - 3;
 			c = payload->require(load_len);
 
+			// return and work on next buffer
 			if (!a || !b) {
-				ret = ERROR_RTP_PS_CORRUPT;
-				srs_error(" core- rtp type 96 ps Currepted. size not enough at 4. ret=%d", ret);
 				return ret;
 			}
 
 			if (!c) {
-				// may loss some packets, copy the last buffer
-				srs_warn("core- rtp type 96 ps Loss some packet pesVV len:%d, cursize:%d", load_len, payload->cursize());
+				// may loss some data, copy the last buffer
 				load_len = payload->cursize();
-
 				if (load_len <= 0) {
-					srs_warn("core- rtp type 96 pesVV len <=0 cursize:%d, oft:%d, payload len:%d, tgt len:%d will return!",
-						payload->cursize(), payload->getoft(), payload->length(), tgtstream->length());
 					return ret;
 				}
 			}
@@ -260,22 +251,16 @@ int Srs2SRtpPacket::decode_96ps_core()
 			u_int32_t load_len = pes.pes_packet_length - pes.pes_header_data_length - 3;
 			c = payload->require(load_len);
 
+			// return and work on next buffer
 			if (!a || !b) {
-				ret = ERROR_RTP_PS_CORRUPT;
-				srs_error(" core- rtp type 96 ps Currepted. size not enough at 5. ret=%d", ret);
 				return ret;
 			}
             
-			// len may not enough as packet Loss, but still can work well as we call require(x) in skip_x
-			// this is a very stable strategy
+			// len may not enough as packet Loss, but still can work well
 			if (!c) {
 				// may loss some packets, copy the last buffer
-				srs_warn("core- rtp type 96 ps Loss some packet pesA len:%d, cursize:%d", load_len, payload->cursize());
 				load_len = payload->cursize();
-
 				if (load_len <= 0) {
-					srs_warn("core- rtp type 96 pesA len <=0 cursize:%d, oft:%d, payload len:%d, tgt len:%d will return!",
-						payload->cursize(), payload->getoft(), payload->length(), tgtstream->length());
 					return ret;
 				}
 			}

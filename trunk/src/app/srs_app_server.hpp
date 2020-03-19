@@ -50,8 +50,9 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
-class SrsCoroutineManager;
 class Srs28181StreamServer;
+class SrsRtspCaster;
+class SrsCoroutineManager;
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -112,7 +113,7 @@ class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandle
 {
 private:
     SrsTcpListener* listener;
-    ISrsTcpHandler* caster;
+    SrsRtspCaster* caster;
 public:
     SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsRtspListener();
@@ -215,8 +216,8 @@ private:
     SrsIngester* ingester;
     SrsCoroutineManager* conn_manager;
 private:
-    // for testing
-    Srs28181StreamServer* srs_28181_streams;
+    // define a 28181 stream server
+    Srs28181StreamServer* srs_28181_stream_server;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -297,9 +298,6 @@ private:
     virtual void close_listeners(SrsListenerType type);
     // Resample the server kbs.
     virtual void resample_kbps();
-public:
-    // create a 28181 stream listener
-    virtual srs_error_t create_28181stream_listener(SrsListenerType type, int& port, std::string& suuid);
 // For internal only
 public:
     // When listener got a fd, notice server to accept it.
@@ -326,6 +324,9 @@ public:
     virtual srs_error_t on_reload_http_stream_enabled();
     virtual srs_error_t on_reload_http_stream_disabled();
     virtual srs_error_t on_reload_http_stream_updated();
+public:
+    // create a 28181 stream listener
+    virtual srs_error_t create_28181stream_listener(SrsListenerType type, int& port, std::string& suuid);
 // Interface ISrsSourceHandler
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);

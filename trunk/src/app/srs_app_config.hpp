@@ -500,6 +500,17 @@ public:
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
 // vhost specified section
 public:
+    // get 28181 stream configures
+    virtual SrsConfDirective * get_2ss_feature();
+    // if the 28181 stream feature is enabled
+    virtual bool get_2ss_enabled();
+    // Get minimum  udp/tcp stream listen port 
+    virtual int get_2ss_listen_port_min();
+    // Get maximum udp/tcp stream listen port
+    virtual int get_2ss_listen_port_max();
+    // Get maximum listener alive time if no data recv
+    virtual int get_2ss_listener_alive_time();
+public:
     // Get the vhost directive by vhost name.
     // @param vhost, the name of vhost to get.
     // @param try_default_vhost whether try default when get specified vhost failed.
