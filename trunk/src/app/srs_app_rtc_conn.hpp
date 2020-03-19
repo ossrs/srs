@@ -30,6 +30,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_hourglass.hpp>
 
 #include <string>
 #include <map>
@@ -238,32 +239,11 @@ private:
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
 };
 
-// TODO: FIXME: is there any other timer thread?
-class SrsRtcTimerThread : public ISrsCoroutineHandler
-{
-protected:
-    SrsCoroutine* trd;
-    int _parent_cid;
-private:
-    SrsRtcServer* rtc_server;
-public:
-    SrsRtcTimerThread(SrsRtcServer* rtc_svr, int parent_cid);
-    virtual ~SrsRtcTimerThread();
-public:
-    virtual int cid();
-public:
-    virtual srs_error_t start();
-    virtual void stop();
-    virtual void stop_loop();
-public:
-    virtual srs_error_t cycle();
-};
-
-class SrsRtcServer : public ISrsUdpMuxHandler
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
 {
 private:
     SrsUdpMuxListener* listener;
-    SrsRtcTimerThread* rttrd;
+    SrsHourGlass* timer;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -289,6 +269,9 @@ private:
 private:
     SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
     SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 };
 
 // The RTC server adapter.

@@ -26,7 +26,6 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>
 
 ISrsHourGlass::ISrsHourGlass()
@@ -42,13 +41,31 @@ SrsHourGlass::SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution)
     handler = h;
     _resolution = resolution;
     total_elapse = 0;
+    trd = new SrsSTCoroutine("timer", this, _srs_context->get_id());
 }
 
 SrsHourGlass::~SrsHourGlass()
 {
+    srs_freep(trd);
 }
 
-srs_error_t SrsHourGlass::tick(int type, srs_utime_t interval)
+srs_error_t SrsHourGlass::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHourGlass::tick(srs_utime_t interval)
+{
+    return tick(0, interval);
+}
+
+srs_error_t SrsHourGlass::tick(int event, srs_utime_t interval)
 {
     srs_error_t err = srs_success;
     
@@ -57,7 +74,7 @@ srs_error_t SrsHourGlass::tick(int type, srs_utime_t interval)
             "invalid interval=%dms, resolution=%dms", srsu2msi(interval), srsu2msi(_resolution));
     }
     
-    ticks[type] = interval;
+    ticks[event] = interval;
     
     return err;
 }
@@ -65,22 +82,28 @@ srs_error_t SrsHourGlass::tick(int type, srs_utime_t interval)
 srs_error_t SrsHourGlass::cycle()
 {
     srs_error_t err = srs_success;
+
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "quit");
+        }
     
-    map<int, srs_utime_t>::iterator it;
-    for (it = ticks.begin(); it != ticks.end(); ++it) {
-        int type = it->first;
-        srs_utime_t interval = it->second;
-        
-        if (interval == 0 || (total_elapse % interval) == 0) {
-            if ((err = handler->notify(type, interval, total_elapse)) != srs_success) {
-                return srs_error_wrap(err, "notify");
+        map<int, srs_utime_t>::iterator it;
+        for (it = ticks.begin(); it != ticks.end(); ++it) {
+            int event = it->first;
+            srs_utime_t interval = it->second;
+
+            if (interval == 0 || (total_elapse % interval) == 0) {
+                if ((err = handler->notify(event, interval, total_elapse)) != srs_success) {
+                    return srs_error_wrap(err, "notify");
+                }
             }
         }
-    }
 
-    // TODO: FIXME: Maybe we should use wallclock.
-    total_elapse += _resolution;
-    srs_usleep(_resolution);
+        // TODO: FIXME: Maybe we should use wallclock.
+        total_elapse += _resolution;
+        srs_usleep(_resolution);
+    }
     
     return err;
 }

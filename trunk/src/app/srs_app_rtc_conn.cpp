@@ -1151,23 +1151,25 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* udp_mux_skt)
 SrsRtcServer::SrsRtcServer()
 {
     listener = NULL;
+    timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcServer::~SrsRtcServer()
 {
     srs_freep(listener);
-
-    rttrd->stop();
-    srs_freep(rttrd);
+    srs_freep(timer);
 }
 
 srs_error_t SrsRtcServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    rttrd = new SrsRtcTimerThread(this, _srs_context->get_id());
-    if ((err = rttrd->start()) != srs_success) {
-        return srs_error_wrap(err, "rtc timer thread init failed");
+    if ((err = timer->tick(1 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "hourglass tick");
+    }
+
+    if ((err = timer->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
     }
 
     return err;
@@ -1369,60 +1371,10 @@ void SrsRtcServer::check_and_clean_timeout_session()
     }
 }
 
-SrsRtcTimerThread::SrsRtcTimerThread(SrsRtcServer* rtc_svr, int parent_cid)
+srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
-    _parent_cid = parent_cid;
-    trd = new SrsDummyCoroutine();
-
-    rtc_server = rtc_svr;
-}
-
-SrsRtcTimerThread::~SrsRtcTimerThread()
-{
-    srs_freep(trd);
-}
-
-int SrsRtcTimerThread::cid()
-{
-    return trd->cid();
-}
-
-srs_error_t SrsRtcTimerThread::start()
-{
-    srs_error_t err = srs_success;
-    
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("rtc_timer", this, _parent_cid);
-    
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "rtc_timer");
-    }
-    
-    return err;
-}
-
-void SrsRtcTimerThread::stop()
-{
-    trd->stop();
-}
-
-void SrsRtcTimerThread::stop_loop()
-{
-    trd->interrupt();
-}
-
-srs_error_t SrsRtcTimerThread::cycle()
-{
-    srs_error_t err = srs_success;
-
-    while (true) {
-		if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "rtc timer thread");
-        }
-
-        srs_usleep(1 * SRS_UTIME_SECONDS);
-        rtc_server->check_and_clean_timeout_session();
-    }
+    check_and_clean_timeout_session();
+    return srs_success;
 }
 
 RtcServerAdapter::RtcServerAdapter()
