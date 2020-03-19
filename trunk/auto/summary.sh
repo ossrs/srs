@@ -12,7 +12,6 @@ SrsHttpCallbackSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_CALLBACK = Y
 SrsHttpServerSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
 SrsStreamCasterSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamCasterSummaryColor="\${GREEN}"; fi
-SrsKafkaSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_KAFKA = YES ]; then SrsKafkaSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSSLSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\${GREEN}"; fi fi
 SrsResearchSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\${GREEN}"; fi
@@ -44,16 +43,13 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "     |\${GREEN}The main server usage: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}About HLS, please read https://github.com/ossrs/srs/wiki/v2_CN_DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsDvrSummaryColor}About DVR, please read https://github.com/ossrs/srs/wiki/v3_CN_DVR\${BLACK}"
-echo -e "     |     ${SrsNginxSummaryColor}About NGINX, please read https://github.com/ossrs/srs/wiki/v2_CN_DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}About SSL, please read https://github.com/ossrs/srs/wiki/v1_CN_RTMPHandshake\${BLACK}"
-echo -e "     |     ${SrsFfmpegSummaryColor}About FFMPEG, please read https://github.com/ossrs/srs/wiki/v3_CN_FFMPEG\${BLACK}"
 echo -e "     |     ${SrsTranscodeSummaryColor}About transcoding, please read https://github.com/ossrs/srs/wiki/v3_CN_FFMPEG\${BLACK}"
 echo -e "     |     ${SrsIngestSummaryColor}About ingester, please read https://github.com/ossrs/srs/wiki/v1_CN_Ingest\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}About http-callback, please read https://github.com/ossrs/srs/wiki/v3_CN_HTTPCallback\${BLACK}"
-echo -e "     |     ${SrsHttpServerSummaryColor}Aoubt embeded http-server, please read https://github.com/ossrs/srs/wiki/v2_CN_HTTPServer\${BLACK}"
+echo -e "     |     ${SrsHttpServerSummaryColor}Aoubt http-server, please read https://github.com/ossrs/srs/wiki/v2_CN_HTTPServer\${BLACK}"
 echo -e "     |     ${SrsHttpApiSummaryColor}About http-api, please read https://github.com/ossrs/srs/wiki/v3_CN_HTTPApi\${BLACK}"
 echo -e "     |     ${SrsStreamCasterSummaryColor}About stream-caster, please read https://github.com/ossrs/srs/wiki/v2_CN_Streamer\${BLACK}"
-echo -e "     |     ${SrsKafkaSummaryColor}About kafka, please read https://github.com/ossrs/srs/wiki/v3_CN_Kafka\${BLACK}"
 echo -e "     |     ${SrsValgrindSummaryColor}About VALGRIND, please read https://github.com/ossrs/state-threads/issues/2\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries, please read https://github.com/ossrs/srs/wiki/v2_CN_Build\${BLACK}"

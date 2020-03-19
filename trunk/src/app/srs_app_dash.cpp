@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -34,6 +34,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_mp4.hpp>
 
+#include <stdlib.h>
 #include <sstream>
 using namespace std;
 
@@ -276,10 +277,17 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
     srs_error_t err = srs_success;
     
     home = fragment_home;
-    
-    sn = srs_update_system_time() / fragment;
+
+    // We name the segment as advanced N segments, because when we are generating segment at the current time,
+    // the player may also request the current segment.
+    srs_assert(fragment);
+    int64_t number = (srs_update_system_time() / fragment + 1);
+    // TOOD: FIXME: Should keep the segments continuous, or player may fail.
+    sn = number;
+
+    // The base time aligned with sn.
     basetime = sn * fragment;
-    
+
     if (video) {
         file_name = "video-" + srs_int2str(sn) + ".m4s";
     } else {
@@ -292,7 +300,7 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string& home, std::strin
 SrsDashController::SrsDashController()
 {
     req = NULL;
-    video_tack_id = 2;
+    video_tack_id = 0;
     audio_track_id = 1;
     mpd = new SrsMpdWriter();
     vcurrent = acurrent = NULL;
@@ -332,6 +340,10 @@ srs_error_t SrsDashController::on_publish()
     fragment = _srs_config->get_dash_fragment(r->vhost);
     home = _srs_config->get_dash_path(r->vhost);
 
+    if ((err = mpd->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "mpd");
+    }
+
     srs_freep(vcurrent);
     vcurrent = new SrsFragmentedMp4();
     if ((err = vcurrent->initialize(req, true, mpd, video_tack_id)) != srs_success) {
@@ -344,10 +356,6 @@ srs_error_t SrsDashController::on_publish()
         return srs_error_wrap(err, "audio fragment");
     }
 
-    if ((err = mpd->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "mpd");
-    }
-
     return err;
 }
 
@@ -355,7 +363,18 @@ void SrsDashController::on_unpublish()
 {
     mpd->on_unpublish();
 
+    srs_error_t err = srs_success;
+
+    if ((err = vcurrent->reap(video_dts)) != srs_success) {
+        srs_warn("reap video err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     srs_freep(vcurrent);
+
+    if ((err = acurrent->reap(audio_dts)) != srs_success) {
+        srs_warn("reap audio err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     srs_freep(acurrent);
 }
 

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -200,7 +200,7 @@ public:
     inline void set_index(int idx)
     {
         char file_path[1024] = {0};
-        sprintf(file_path, "%s/%s/%sSeg1-Frag%d", _srs_config->get_hds_path(req->vhost).c_str()
+        snprintf(file_path, 1024, "%s/%s/%sSeg1-Frag%d", _srs_config->get_hds_path(req->vhost).c_str()
                 , req->app.c_str(), req->stream.c_str(), idx);
         
         path = file_path;
@@ -428,7 +428,7 @@ srs_error_t SrsHds::flush_mainfest()
     srs_error_t err = srs_success;
     
     char buf[1024] = {0};
-    sprintf(buf, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+    snprintf(buf, 1024, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
             "<manifest xmlns=\"http://ns.adobe.com/f4m/1.0\">\n\t"
             "<id>%s.f4m</id>\n\t"
             "<streamType>live</streamType>\n\t"

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -52,7 +52,7 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     _port = p;
     stream_id = sid;
     // TODO: support listen at <[ip:]port>
-    listener = new SrsUdpListener(this, srs_any_address4listener(), p);
+    listener = new SrsUdpListener(this, srs_any_address_for_listener(), p);
     cache = new SrsRtpPacket();
     pprint = SrsPithyPrint::create_caster();
 }
@@ -243,6 +243,9 @@ srs_error_t SrsRtspConn::do_cycle()
     
     // retrieve ip of client.
     std::string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    if (ip.empty() && !_srs_config->empty_ip_ok()) {
+        srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
+    }
     srs_trace("rtsp: serve %s", ip.c_str());
     
     // consume all rtsp messages.
@@ -387,10 +390,9 @@ srs_error_t SrsRtspConn::cycle()
     
     if (err == srs_success) {
         srs_trace("client finished.");
-    } else if (srs_is_client_gracefully_close(srs_error_code(err))) {
+    } else if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. code=%d", srs_error_code(err));
         srs_freep(err);
-        err = srs_success;
     }
     
     if (video_rtp) {

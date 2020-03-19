@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,6 +36,13 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
+// For utest to mock it.
+_srs_open_t _srs_open_fn = ::open;
+_srs_write_t _srs_write_fn = ::write;
+_srs_read_t _srs_read_fn = ::read;
+_srs_lseek_t _srs_lseek_fn = ::lseek;
+_srs_close_t _srs_close_fn = ::close;
+
 SrsFileWriter::SrsFileWriter()
 {
     fd = -1;
@@ -57,7 +64,7 @@ srs_error_t SrsFileWriter::open(string p)
     int flags = O_CREAT|O_WRONLY|O_TRUNC;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
-    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -77,7 +84,7 @@ srs_error_t SrsFileWriter::open_append(string p)
     int flags = O_APPEND|O_WRONLY;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
-    if ((fd = ::open(p.c_str(), flags, mode)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -92,7 +99,7 @@ void SrsFileWriter::close()
         return;
     }
     
-    if (::close(fd) < 0) {
+    if (_srs_close_fn(fd) < 0) {
         srs_warn("close file %s failed", path.c_str());
     }
     fd = -1;
@@ -107,13 +114,13 @@ bool SrsFileWriter::is_open()
 
 void SrsFileWriter::seek2(int64_t offset)
 {
-    off_t r0 = ::lseek(fd, (off_t)offset, SEEK_SET);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)offset, SEEK_SET);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileWriter::tellg()
 {
-    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+    return (int64_t)_srs_lseek_fn(fd, 0, SEEK_CUR);
 }
 
 srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
@@ -122,7 +129,11 @@ srs_error_t SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     
     ssize_t nwrite;
     // TODO: FIXME: use st_write.
-    if ((nwrite = ::write(fd, buf, count)) < 0) {
+#ifdef _WIN32
+    if ((nwrite = ::_write(fd, buf, (unsigned int)count)) < 0) {
+#else
+    if ((nwrite = _srs_write_fn(fd, buf, count)) < 0) {
+#endif
         return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "write to file %s failed", path.c_str());
     }
     
@@ -156,7 +167,7 @@ srs_error_t SrsFileWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwrite
 
 srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
 {
-    off_t sk = ::lseek(fd, offset, whence);
+    off_t sk = _srs_lseek_fn(fd, offset, whence);
     if (sk < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file");
     }
@@ -166,6 +177,19 @@ srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
     }
     
     return srs_success;
+}
+
+ISrsFileReaderFactory::ISrsFileReaderFactory()
+{
+}
+
+ISrsFileReaderFactory::~ISrsFileReaderFactory()
+{
+}
+
+SrsFileReader* ISrsFileReaderFactory::create_file_reader()
+{
+    return new SrsFileReader();
 }
 
 SrsFileReader::SrsFileReader()
@@ -186,7 +210,7 @@ srs_error_t SrsFileReader::open(string p)
         return srs_error_new(ERROR_SYSTEM_FILE_ALREADY_OPENED, "file %s already opened", path.c_str());
     }
     
-    if ((fd = ::open(p.c_str(), O_RDONLY)) < 0) {
+    if ((fd = _srs_open_fn(p.c_str(), O_RDONLY)) < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", p.c_str());
     }
     
@@ -203,10 +227,8 @@ void SrsFileReader::close()
         return;
     }
     
-    if (::close(fd) < 0) {
-        ret = ERROR_SYSTEM_FILE_CLOSE;
-        srs_error("close file %s failed. ret=%d", path.c_str(), ret);
-        return;
+    if (_srs_close_fn(fd) < 0) {
+        srs_warn("close file %s failed. ret=%d", path.c_str(), ret);
     }
     fd = -1;
     
@@ -220,26 +242,26 @@ bool SrsFileReader::is_open()
 
 int64_t SrsFileReader::tellg()
 {
-    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+    return (int64_t)_srs_lseek_fn(fd, 0, SEEK_CUR);
 }
 
 void SrsFileReader::skip(int64_t size)
 {
-    off_t r0 = ::lseek(fd, (off_t)size, SEEK_CUR);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)size, SEEK_CUR);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileReader::seek2(int64_t offset)
 {
-    return (int64_t)::lseek(fd, (off_t)offset, SEEK_SET);
+    return (int64_t)_srs_lseek_fn(fd, (off_t)offset, SEEK_SET);
 }
 
 int64_t SrsFileReader::filesize()
 {
     int64_t cur = tellg();
-    int64_t size = (int64_t)::lseek(fd, 0, SEEK_END);
+    int64_t size = (int64_t)_srs_lseek_fn(fd, 0, SEEK_END);
     
-    off_t r0 = ::lseek(fd, (off_t)cur, SEEK_SET);
+    off_t r0 = _srs_lseek_fn(fd, (off_t)cur, SEEK_SET);
     srs_assert(r0 != -1);
     
     return size;
@@ -251,7 +273,11 @@ srs_error_t SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     ssize_t nread;
     // TODO: FIXME: use st_read.
-    if ((nread = ::read(fd, buf, count)) < 0) {
+#ifdef _WIN32
+    if ((nread = _read(fd, buf, (unsigned int)count)) < 0) {
+#else
+    if ((nread = _srs_read_fn(fd, buf, count)) < 0) {
+#endif
         return srs_error_new(ERROR_SYSTEM_FILE_READ, "read from file %s failed", path.c_str());
     }
     
@@ -268,7 +294,7 @@ srs_error_t SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 
 srs_error_t SrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
 {
-    off_t sk = ::lseek(fd, offset, whence);
+    off_t sk = _srs_lseek_fn(fd, offset, whence);
     if (sk < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek %v failed", (int)sk);
     }

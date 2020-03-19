@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,8 @@
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <math.h>
+#include <stdlib.h>
 #include <map>
 #include <sstream>
 using namespace std;
@@ -37,6 +39,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_http_stack.hpp>
 
 bool srs_string_is_http(string url)
 {
@@ -46,6 +49,28 @@ bool srs_string_is_http(string url)
 bool srs_string_is_rtmp(string url)
 {
     return srs_string_starts_with(url, "rtmp://");
+}
+
+bool srs_is_digit_number(string str)
+{
+    if (str.empty()) {
+        return false;
+    }
+
+    const char* p = str.c_str();
+    const char* p_end = str.data() + str.length();
+    for (; p < p_end; p++) {
+        if (*p != '0') {
+            break;
+        }
+    }
+    if (p == p_end) {
+        return true;
+    }
+
+    int64_t v = ::atoll(p);
+    int64_t powv = (int64_t)pow(10, p_end - p - 1);
+    return  v / powv >= 1 && v / powv <= 9;
 }
 
 // we detect all network device as internet or intranet device, by its ip address.
@@ -90,8 +115,28 @@ bool srs_net_device_is_internet(const sockaddr* addr)
         }
     } else if(addr->sa_family == AF_INET6) {
         const sockaddr_in6* a6 = (const sockaddr_in6*)addr;
-        if ((IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) ||
-            (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr))) {
+
+        // IPv6 loopback is ::1
+        if (IN6_IS_ADDR_LOOPBACK(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // IPv6 unspecified is ::
+        if (IN6_IS_ADDR_UNSPECIFIED(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // From IPv4, you might know APIPA (Automatic Private IP Addressing) or AutoNet.
+        // Whenever automatic IP configuration through DHCP fails.
+        // The prefix of a site-local address is FE80::/10.
+        if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+
+        // Site-local addresses are equivalent to private IP addresses in IPv4.
+        // The prefix of a site-local address is FEC0::/10.
+        // https://4sysops.com/archives/ipv6-tutorial-part-6-site-local-addresses-and-link-local-addresses/
+        if (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr)) {
            return false;
         }
     }
@@ -299,6 +344,31 @@ string srs_get_public_internet_address()
         return ip;
     }
     
+    return "";
+}
+
+string srs_get_original_ip(ISrsHttpMessage* r)
+{
+    SrsHttpHeader* h = r->header();
+
+    string x_forwarded_for = h->get("X-Forwarded-For");
+    if (!x_forwarded_for.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_forwarded_for.find(",")) == string::npos) {
+            return x_forwarded_for;
+        }
+        return x_forwarded_for.substr(0, pos);
+    }
+
+    string x_real_ip = h->get("X-Real-IP");
+    if (!x_real_ip.empty()) {
+        size_t pos = string::npos;
+        if ((pos = x_real_ip.find(":")) == string::npos) {
+            return x_real_ip;
+        }
+        return x_real_ip.substr(0, pos);
+    }
+
     return "";
 }
 

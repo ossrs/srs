@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -100,10 +100,13 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
             string _schema, _vhost, _app, _stream, _param, _host;
             srs_discovery_tc_url(redirect, _schema, _host, _vhost, _app, _stream, _port, _param);
             
-            srs_warn("RTMP redirect %s:%d to %s:%d stream=%s", server.c_str(), port, _host.c_str(), _port, _stream.c_str());
             server = _host;
             port = _port;
         }
+
+        // Remember the current selected server.
+        selected_ip = server;
+        selected_port = port;
         
         // support vhost tranform for edge,
         // @see https://github.com/ossrs/srs/issues/372
@@ -144,6 +147,12 @@ void SrsEdgeRtmpUpstream::close()
     srs_freep(sdk);
 }
 
+void SrsEdgeRtmpUpstream::selected(string& server, int& port)
+{
+    server = selected_ip;
+    port = selected_port;
+}
+
 void SrsEdgeRtmpUpstream::set_recv_timeout(srs_utime_t tm)
 {
     sdk->set_recv_timeout(tm);
@@ -160,7 +169,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     edge = NULL;
     req = NULL;
     
-    upstream = new SrsEdgeRtmpUpstream(redirect);
+    upstream = new SrsEdgeRtmpUpstream("");
     lb = new SrsLbRoundRobin();
     trd = new SrsDummyCoroutine();
 }
@@ -225,15 +234,17 @@ srs_error_t SrsEdgeIngester::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "edge ingester");
+        }
+
         if ((err = do_cycle()) != srs_success) {
             srs_warn("EdgeIngester: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
-        
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "edge ingester");
-        }
-        
+
         srs_usleep(SRS_EDGE_INGESTER_CIMS);
     }
     
@@ -243,7 +254,8 @@ srs_error_t SrsEdgeIngester::cycle()
 srs_error_t SrsEdgeIngester::do_cycle()
 {
     srs_error_t err = srs_success;
-    
+
+    std::string redirect;
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "do cycle pull");
@@ -251,10 +263,6 @@ srs_error_t SrsEdgeIngester::do_cycle()
         
         srs_freep(upstream);
         upstream = new SrsEdgeRtmpUpstream(redirect);
-        
-        // we only use the redict once.
-        // reset the redirect to empty, for maybe the origin changed.
-        redirect = "";
         
         if ((err = source->on_source_id_changed(_srs_context->get_id())) != srs_success) {
             return srs_error_wrap(err, "on source id changed");
@@ -267,11 +275,21 @@ srs_error_t SrsEdgeIngester::do_cycle()
         if ((err = edge->on_ingest_play()) != srs_success) {
             return srs_error_wrap(err, "notify edge play");
         }
+
+        // set to larger timeout to read av data from origin.
+        upstream->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT);
         
-        err = ingest();
+        err = ingest(redirect);
         
         // retry for rtmp 302 immediately.
         if (srs_error_code(err) == ERROR_CONTROL_REDIRECT) {
+            int port;
+            string server;
+            upstream->selected(server, port);
+
+            string url = req->get_stream_url();
+            srs_warn("RTMP redirect %s from %s:%d to %s", url.c_str(), server.c_str(), port, redirect.c_str());
+
             srs_error_reset(err);
             continue;
         }
@@ -286,18 +304,18 @@ srs_error_t SrsEdgeIngester::do_cycle()
     return err;
 }
 
-srs_error_t SrsEdgeIngester::ingest()
+srs_error_t SrsEdgeIngester::ingest(string& redirect)
 {
     srs_error_t err = srs_success;
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);
-    
-    // set to larger timeout to read av data from origin.
-    upstream->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT);
+
+    // we only use the redict once.
+    // reset the redirect to empty, for maybe the origin changed.
+    redirect = "";
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "thread quit");
         }
@@ -318,7 +336,7 @@ srs_error_t SrsEdgeIngester::ingest()
         srs_assert(msg);
         SrsAutoFree(SrsCommonMessage, msg);
         
-        if ((err = process_publish_message(msg)) != srs_success) {
+        if ((err = process_publish_message(msg, redirect)) != srs_success) {
             return srs_error_wrap(err, "process message");
         }
     }
@@ -326,7 +344,7 @@ srs_error_t SrsEdgeIngester::ingest()
     return err;
 }
 
-srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
+srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, string& redirect)
 {
     srs_error_t err = srs_success;
     
@@ -399,9 +417,14 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
                 return err;
             }
             SrsAmf0Object* ex = prop->to_object();
-            
-            if ((prop = ex->ensure_property_string("redirect")) == NULL) {
-                return err;
+
+            // The redirect is tcUrl while redirect2 is RTMP URL.
+            // https://github.com/ossrs/srs/issues/1575#issuecomment-574999798
+            if ((prop = ex->ensure_property_string("redirect2")) == NULL) {
+                // TODO: FIXME: Remove it when SRS3 released, it's temporarily support for SRS3 alpha versions(a0 to a8).
+                if ((prop = ex->ensure_property_string("redirect")) == NULL) {
+                    return err;
+                }
             }
             redirect = prop->to_str();
             
@@ -512,14 +535,16 @@ srs_error_t SrsEdgeForwarder::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
-        if ((err = do_cycle()) != srs_success) {
-            return srs_error_wrap(err, "do cycle");
-        }
-        
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "thread pull");
         }
-    
+
+        if ((err = do_cycle()) != srs_success) {
+            return srs_error_wrap(err, "do cycle");
+        }
+
         srs_usleep(SRS_EDGE_FORWARDER_CIMS);
     }
     

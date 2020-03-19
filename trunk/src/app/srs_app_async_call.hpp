@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -61,6 +61,7 @@ private:
 protected:
     std::vector<ISrsAsyncCallTask*> tasks;
     srs_cond_t wait;
+    srs_mutex_t lock;
 public:
     SrsAsyncCallWorker();
     virtual ~SrsAsyncCallWorker();
@@ -73,6 +74,8 @@ public:
 // Interface ISrsReusableThreadHandler
 public:
     virtual srs_error_t cycle();
+private:
+    virtual void flush_tasks();
 };
 
 #endif

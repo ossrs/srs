@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -37,6 +37,7 @@ class SrsBuffer;
 class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
+class SrsPacket;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -231,8 +232,9 @@ public:
 
 // The message header for shared ptr message.
 // only the message for all msgs are same.
-struct SrsSharedMessageHeader
+class SrsSharedMessageHeader
 {
+public:
     // 3bytes.
     // Three-byte field that represents the size of the payload in bytes.
     // It is set in big-endian format.
@@ -245,7 +247,7 @@ struct SrsSharedMessageHeader
     // set at decoding, and canbe used for directly send message,
     // For example, dispatch to all connections.
     int perfer_cid;
-    
+public:
     SrsSharedMessageHeader();
     virtual ~SrsSharedMessageHeader();
 };
@@ -309,6 +311,7 @@ public:
     // copy header, manage the payload of msg,
     // set the payload to NULL to prevent double free.
     // @remark payload of msg set to NULL if success.
+    // @remark User should free the msg.
     virtual srs_error_t create(SrsCommonMessage* msg);
     // Create shared ptr message,
     // from the header and payload.
@@ -359,7 +362,7 @@ public:
     //   1. E.2 The FLV header
     //   2. PreviousTagSize0 UI32 Always 0
     // that is, 9+4=13bytes.
-    virtual srs_error_t write_header();
+    virtual srs_error_t write_header(bool has_video = true, bool has_audio = true);
     virtual srs_error_t write_header(char flv_header[9]);
     // Write flv metadata.
     // @param type, the type of data, or other message type.
@@ -378,7 +381,6 @@ public:
     // including the tag header, body, and 4bytes previous tag size.
     // @remark assert data_size is not negative.
     static int size_tag(int data_size);
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 private:
     // The cache tag header.
     int nb_tag_headers;
@@ -392,12 +394,11 @@ private:
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
-#endif
 private:
-    virtual srs_error_t write_metadata_to_cache(char type, char* data, int size, char* cache);
-    virtual srs_error_t write_audio_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual srs_error_t write_video_to_cache(int64_t timestamp, char* data, int size, char* cache);
-    virtual srs_error_t write_pts_to_cache(int size, char* cache);
+    virtual void cache_metadata(char type, char* data, int size, char* cache);
+    virtual void cache_audio(int64_t timestamp, char* data, int size, char* cache);
+    virtual void cache_video(int64_t timestamp, char* data, int size, char* cache);
+    virtual void cache_pts(int size, char* cache);
     virtual srs_error_t write_tag(char* header, int header_size, char* tag, int tag_size);
 };
 

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -51,8 +51,7 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 
-SrsVodStream::SrsVodStream(string root_dir)
-: SrsHttpFileServer(root_dir)
+SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 {
 }
 
@@ -64,22 +63,23 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
 {
     srs_error_t err = srs_success;
     
-    SrsFileReader fs;
+    SrsFileReader* fs = fs_factory->create_file_reader();
+    SrsAutoFree(SrsFileReader, fs);
     
     // open flv file
-    if ((err = fs.open(fullpath)) != srs_success) {
+    if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file");
     }
     
-    if (offset > fs.filesize()) {
+    if (offset > fs->filesize()) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%d",
-            fullpath.c_str(), fs.filesize(), offset);
+            fullpath.c_str(), fs->filesize(), offset);
     }
     
     SrsFlvVodStreamDecoder ffd;
     
     // open fast decoder
-    if ((err = ffd.initialize(&fs)) != srs_success) {
+    if ((err = ffd.initialize(fs)) != srs_success) {
         return srs_error_wrap(err, "init ffd");
     }
     
@@ -107,16 +107,17 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     sh_data = new char[sh_size];
     SrsAutoFreeA(char, sh_data);
-    if ((err = fs.read(sh_data, sh_size, NULL)) != srs_success) {
+    if ((err = fs->read(sh_data, sh_size, NULL)) != srs_success) {
         return srs_error_wrap(err, "fs read");
     }
     
     // seek to data offset
-    int64_t left = fs.filesize() - offset;
+    int64_t left = fs->filesize() - offset;
     
     // write http header for ts.
     w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
     w->header()->set_content_type("video/x-flv");
+    w->write_header(SRS_CONSTS_HTTP_OK);
     
     // write flv header and sequence header.
     if ((err = w->write(flv_header, sizeof(flv_header))) != srs_success) {
@@ -132,7 +133,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     // send data
-    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
         return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), left);
     }
     
@@ -146,21 +147,22 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     srs_assert(start >= 0);
     srs_assert(end == -1 || end >= 0);
     
-    SrsFileReader fs;
+    SrsFileReader* fs = fs_factory->create_file_reader();
+    SrsAutoFree(SrsFileReader, fs);
     
     // open flv file
-    if ((err = fs.open(fullpath)) != srs_success) {
+    if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "fs open");
     }
     
     // parse -1 to whole file.
     if (end == -1) {
-        end = (int)fs.filesize();
+        end = (int)(fs->filesize() - 1);
     }
     
-    if (end > fs.filesize() || start > end) {
+    if (end > fs->filesize() || start > end || end < 0) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
-            fullpath.c_str(), fs.filesize(), start);
+            fullpath.c_str(), fs->filesize(), start);
     }
     
     // seek to data offset, [start, end] for range.
@@ -169,20 +171,19 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     // write http header for ts.
     w->header()->set_content_length(left);
     w->header()->set_content_type("video/mp4");
-    
-    // status code 206 to make dash.as happy.
     w->write_header(SRS_CONSTS_HTTP_PartialContent);
     
     // response the content range header.
+    // https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     std::stringstream content_range;
-    content_range << "bytes " << start << "-" << end << "/" << fs.filesize();
+    content_range << "bytes " << start << "-" << end << "/" << fs->filesize();
     w->header()->set("Content-Range", content_range.str());
     
     // write body.
-    fs.seek2(start);
+    fs->seek2(start);
     
     // send data
-    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
         return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), left);
     }
     

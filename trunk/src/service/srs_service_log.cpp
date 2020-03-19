@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,7 +43,11 @@ SrsThreadContext::~SrsThreadContext()
 
 int SrsThreadContext::generate_id()
 {
-    static int id = 100;
+    static int id = 0;
+
+    if (id == 0) {
+        id = (100 + ((int)(int64_t)this)%1000);
+    }
     
     int gid = id++;
     cache[srs_thread_self()] = gid;
@@ -78,6 +82,7 @@ void SrsThreadContext::clear_cid()
     }
 }
 
+// LCOV_EXCL_START
 SrsConsoleLog::SrsConsoleLog(SrsLogLevel l, bool u)
 {
     level = l;
@@ -204,6 +209,7 @@ void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
     
     fprintf(stderr, "%s\n", buffer);
 }
+// LCOV_EXCL_STOP
 
 bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize)
 {
@@ -250,6 +256,12 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid);
         }
+    }
+
+    // Exceed the size, ignore this log.
+    // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    if (written >= size) {
+        return false;
     }
     
     if (written == -1) {

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -398,11 +398,11 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
-        int nb_bytes = 0;
+        ssize_t nb_bytes = 0;
         if ((err = br->read(buf, nb_buf, &nb_bytes)) != srs_success) {
             break;
         }
-        nb_read += nb_bytes;
+        nb_read += (int)nb_bytes;
     }
     
     int spenttime = (int)(srsu2ms(srs_update_system_time()) - starttime);
@@ -464,7 +464,7 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     }
     port = (int)prop->to_integer();
     
-    srs_trace("http: on_hls ok, url=%s, response=%s", url.c_str(), res.c_str());
+    srs_trace("http: cluster redirect %s:%d ok, url=%s, response=%s", host.c_str(), port, url.c_str(), res.c_str());
     
     return err;
 }

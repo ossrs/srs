@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,6 +43,8 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
             return "VP6";
         case SrsVideoCodecIdHEVC:
             return "HEVC";
+        case SrsVideoCodecIdAV1:
+            return "AV1";
         case SrsVideoCodecIdReserved:
         case SrsVideoCodecIdReserved1:
         case SrsVideoCodecIdReserved2:
@@ -553,10 +555,8 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
     
-    // audio decode
-    if (!buffer->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "aac decode sound_format");
-    }
+    // We already checked the size is positive and data is not NULL.
+    srs_assert(buffer->require(1));
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     uint8_t v = buffer->read_1bytes();
@@ -599,10 +599,8 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     SrsBuffer* buffer = new SrsBuffer(data, size);
     SrsAutoFree(SrsBuffer, buffer);
     
-    // video decode
-    if (!buffer->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode frame_type");
-    }
+    // We already checked the size is positive and data is not NULL.
+    srs_assert(buffer->require(1));
     
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = buffer->read_1bytes();
@@ -654,7 +652,10 @@ bool SrsFormat::is_aac_sequence_header()
 
 bool SrsFormat::is_avc_sequence_header()
 {
-    return vcodec && (vcodec->id == SrsVideoCodecIdAVC || vcodec->id == SrsVideoCodecIdHEVC)
+    bool h264 = (vcodec && vcodec->id == SrsVideoCodecIdAVC);
+    bool h265 = (vcodec && vcodec->id == SrsVideoCodecIdHEVC);
+    bool av1 = (vcodec && vcodec->id == SrsVideoCodecIdAV1);
+    return vcodec && (h264 || h265 || av1)
         && video && video->avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
@@ -698,6 +699,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     nb_raw = stream->size() - stream->pos();
     
     if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
+        // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
@@ -711,6 +713,9 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     
     return err;
 }
+
+// For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
+// LCOV_EXCL_START
 
 srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
 {
@@ -1020,6 +1025,8 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     return err;
 }
 
+// LCOV_EXCL_STOP
+
 srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
@@ -1193,24 +1200,24 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     int8_t sound_size = (sound_format >> 1) & 0x01;
     int8_t sound_rate = (sound_format >> 2) & 0x03;
     sound_format = (sound_format >> 4) & 0x0f;
-    
+
     SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
     acodec->id = codec_id;
-    
+
     acodec->sound_type = (SrsAudioChannels)sound_type;
     acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
     acodec->sound_size = (SrsAudioSampleBits)sound_size;
-    
+
     // we support h.264+mp3 for hls.
     if (codec_id == SrsAudioCodecIdMP3) {
         return srs_error_new(ERROR_HLS_TRY_MP3, "try mp3");
     }
-    
+
     // only support aac
     if (codec_id != SrsAudioCodecIdAAC) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "not supported codec %d", codec_id);
     }
-    
+
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "aac decode aac_packet_type");
     }

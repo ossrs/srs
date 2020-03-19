@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,12 +30,12 @@
 
 #include <srs_http_stack.hpp>
 
-class SrsConnection;
+class ISrsConnection;
 class SrsFastStream;
 class SrsRequest;
 class ISrsReader;
 class SrsHttpResponseReader;
-class SrsStSocket;
+class ISrsProtocolReadWriter;
 
 // A wrapper for http-parser,
 // provides HTTP message originted service.
@@ -49,15 +49,17 @@ private:
     // Whether allow jsonp parse.
     bool jsonp;
 private:
-    // http parse data, reset before parse message.
-    bool expect_field_name;
     std::string field_name;
     std::string field_value;
     SrsHttpParseState state;
-    http_parser header;
+    http_parser hp_header;
     std::string url;
-    std::vector<SrsHttpHeaderField> headers;
-    const char* pbody;
+    SrsHttpHeader* header;
+private:
+    // Point to the start of body.
+    const char* p_body_start;
+    // To discover the length of header, point to the last few bytes in header.
+    const char* p_header_tail;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
@@ -85,9 +87,6 @@ private:
     static int on_body(http_parser* parser, const char* at, size_t length);
 };
 
-// for http header.
-typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -97,46 +96,55 @@ typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 class SrsHttpMessage : public ISrsHttpMessage
 {
 private:
+    // The body object, reader object.
+    // @remark, user can get body in string by get_body().
+    SrsHttpResponseReader* _body;
+    // Whether the body is infinite chunked.
+    bool infinite_chunked;
+    // Use a buffer to read and send ts file.
+    // The transport connection, can be NULL.
+    ISrsConnection* owner_conn;
+private:
+    uint8_t _method;
+    uint16_t _status;
+    int64_t _content_length;
+private:
+    // The http headers
+    SrsHttpHeader _header;
+    // Whether the request indicates should keep alive for the http connection.
+    bool _keep_alive;
+    // Whether the body is chunked.
+    bool chunked;
+private:
     // The parsed url.
     std::string _url;
     // The extension of file, for example, .flv
     std::string _ext;
-    // parsed http header.
-    http_parser _header;
-    // The body object, reader object.
-    // @remark, user can get body in string by get_body().
-    SrsHttpResponseReader* _body;
-    // Whether the body is chunked.
-    bool chunked;
-    // Whether the body is infinite chunked.
-    bool infinite_chunked;
-    // Whether the request indicates should keep alive for the http connection.
-    bool keep_alive;
     // The uri parser
     SrsHttpUri* _uri;
-    // Use a buffer to read and send ts file.
-    // TODO: FIXME: remove it.
-    char* _http_ts_send_buffer;
-    // The http headers
-    std::vector<SrsHttpHeaderField> _headers;
     // The query map
     std::map<std::string, std::string> _query;
-    // The transport connection, can be NULL.
-    SrsConnection* owner_conn;
+private:
     // Whether request is jsonp.
     bool jsonp;
     // The method in QueryString will override the HTTP method.
     std::string jsonp_method;
 public:
-    SrsHttpMessage(ISrsReader* io);
+    SrsHttpMessage(ISrsReader* reader = NULL, SrsFastStream* buffer = NULL);
     virtual ~SrsHttpMessage();
 public:
+    // Set the basic information for HTTP request.
+    // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
+    virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length);
+    // Set HTTP header and whether the request require keep alive.
+    // @remark User must call set_header before set_url, because the Host in header is used for url.
+    virtual void set_header(SrsHttpHeader* header, bool keep_alive);
     // set the original messages, then update the message.
-    virtual srs_error_t update(std::string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, std::vector<SrsHttpHeaderField>& headers);
+    virtual srs_error_t set_url(std::string url, bool allow_jsonp);
 public:
     // Get the owner connection, maybe NULL.
-    virtual SrsConnection* connection();
-    virtual void set_connection(SrsConnection* conn);
+    virtual ISrsConnection* connection();
+    virtual void set_connection(ISrsConnection* conn);
 public:
     virtual uint8_t method();
     virtual uint16_t status_code();
@@ -159,6 +167,7 @@ public:
     // The url maybe the path.
     virtual std::string url();
     virtual std::string host();
+    virtual int port();
     virtual std::string path();
     virtual std::string query();
     virtual std::string ext();
@@ -179,10 +188,7 @@ public:
     // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key);
     // Get the headers.
-    virtual int request_header_count();
-    virtual std::string request_header_key_at(int index);
-    virtual std::string request_header_value_at(int index);
-    virtual std::string get_request_header(std::string name);
+    virtual SrsHttpHeader* header();
 public:
     // Convert the http message to a request.
     // @remark user must free the return request.
@@ -195,12 +201,25 @@ public:
 // for writev, there always one chunk to send it.
 #define SRS_HTTP_HEADER_CACHE_SIZE 64
 
+class ISrsHttpHeaderFilter
+{
+public:
+    ISrsHttpHeaderFilter();
+    virtual ~ISrsHttpHeaderFilter();
+public:
+    // Filter the HTTP header h.
+    virtual srs_error_t filter(SrsHttpHeader* h) = 0;
+};
+
 // Response writer use st socket
 class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 {
 private:
-    SrsStSocket* skt;
+    ISrsProtocolReadWriter* skt;
     SrsHttpHeader* hdr;
+    // Before writing header, there is a chance to filter it,
+    // such as remove some headers or inject new.
+    ISrsHttpHeaderFilter* hf;
 private:
     char header_cache[SRS_HTTP_HEADER_CACHE_SIZE];
     iovec* iovss_cache;
@@ -222,7 +241,7 @@ private:
     // logically written.
     bool header_sent;
 public:
-    SrsHttpResponseWriter(SrsStSocket* io);
+    SrsHttpResponseWriter(ISrsProtocolReadWriter* io);
     virtual ~SrsHttpResponseWriter();
 public:
     virtual srs_error_t final_request();
@@ -242,24 +261,23 @@ private:
     SrsFastStream* buffer;
     bool is_eof;
     // The left bytes in chunk.
-    int nb_left_chunk;
+    size_t nb_left_chunk;
     // The number of bytes of current chunk.
-    int nb_chunk;
+    size_t nb_chunk;
     // Already read total bytes.
     int64_t nb_total_read;
 public:
-    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader);
+    // Generally the reader is the under-layer io such as socket,
+    // while buffer is a fast cache which may have cached some data from reader.
+    SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader, SrsFastStream* buffer);
     virtual ~SrsHttpResponseReader();
-public:
-    // Initialize the response reader with buffer.
-    virtual srs_error_t initialize(SrsFastStream* buffer);
 // Interface ISrsHttpResponseReader
 public:
     virtual bool eof();
-    virtual srs_error_t read(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
 private:
-    virtual srs_error_t read_chunked(char* data, int nb_data, int* nb_read);
-    virtual srs_error_t read_specified(char* data, int nb_data, int* nb_read);
+    virtual srs_error_t read_chunked(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t read_specified(void* buf, size_t size, ssize_t* nread);
 };
 
 #endif

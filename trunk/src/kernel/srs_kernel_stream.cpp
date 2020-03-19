@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -64,7 +64,12 @@ void SrsSimpleStream::erase(int size)
 
 void SrsSimpleStream::append(const char* bytes, int size)
 {
-    srs_assert(size > 0);
-    
-    data.insert(data.end(), bytes, bytes + size);
+    if (size > 0) {
+        data.insert(data.end(), bytes, bytes + size);
+    }
+}
+
+void SrsSimpleStream::append(SrsSimpleStream* src)
+{
+    append(src->bytes(), src->length());
 }

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
+#include <sys/inotify.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -49,7 +50,6 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_app_kafka.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
 
@@ -396,6 +396,11 @@ srs_error_t SrsSignalManager::start()
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
+    sigaction(SRS_SIGNAL_FAST_QUIT, &sa, NULL);
+
+    sa.sa_handler = SrsSignalManager::sig_catcher;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
@@ -408,8 +413,8 @@ srs_error_t SrsSignalManager::start()
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
     
-    srs_trace("signal installed, reload=%d, reopen=%d, grace_quit=%d",
-              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_GRACEFULLY_QUIT);
+    srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d, grace_quit=%d",
+              SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT, SRS_SIGNAL_GRACEFULLY_QUIT);
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "signal manager");
@@ -453,6 +458,147 @@ void SrsSignalManager::sig_catcher(int signo)
     errno = err;
 }
 
+// Whether we are in docker, defined in main module.
+extern bool _srs_in_docker;
+
+SrsInotifyWorker::SrsInotifyWorker(SrsServer* s)
+{
+    server = s;
+    trd = new SrsSTCoroutine("inotify", this);
+    inotify_fd = NULL;
+}
+
+SrsInotifyWorker::~SrsInotifyWorker()
+{
+    srs_freep(trd);
+    srs_close_stfd(inotify_fd);
+}
+
+srs_error_t SrsInotifyWorker::start()
+{
+    srs_error_t err = srs_success;
+
+    // Whether enable auto reload config.
+    bool auto_reload = _srs_config->inotify_auto_reload();
+    if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
+        srs_warn("enable auto reload for docker");
+        auto_reload = true;
+    }
+
+    if (!auto_reload) {
+        return err;
+    }
+
+    // Create inotify to watch config file.
+    int fd = ::inotify_init1(IN_NONBLOCK);
+    if (fd < 0) {
+        return srs_error_new(ERROR_INOTIFY_CREATE, "create inotify");
+    }
+
+    // Open as stfd to read by ST.
+    if ((inotify_fd = srs_netfd_open(fd)) == NULL) {
+        ::close(fd);
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "open fd=%d", fd);
+    }
+
+    if (((err = srs_fd_closeexec(fd))) != srs_success) {
+        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
+    }
+
+    // /* the following are legal, implemented events that user-space can watch for */
+    // #define IN_ACCESS               0x00000001      /* File was accessed */
+    // #define IN_MODIFY               0x00000002      /* File was modified */
+    // #define IN_ATTRIB               0x00000004      /* Metadata changed */
+    // #define IN_CLOSE_WRITE          0x00000008      /* Writtable file was closed */
+    // #define IN_CLOSE_NOWRITE        0x00000010      /* Unwrittable file closed */
+    // #define IN_OPEN                 0x00000020      /* File was opened */
+    // #define IN_MOVED_FROM           0x00000040      /* File was moved from X */
+    // #define IN_MOVED_TO             0x00000080      /* File was moved to Y */
+    // #define IN_CREATE               0x00000100      /* Subfile was created */
+    // #define IN_DELETE               0x00000200      /* Subfile was deleted */
+    // #define IN_DELETE_SELF          0x00000400      /* Self was deleted */
+    // #define IN_MOVE_SELF            0x00000800      /* Self was moved */
+    //
+    // /* the following are legal events.  they are sent as needed to any watch */
+    // #define IN_UNMOUNT              0x00002000      /* Backing fs was unmounted */
+    // #define IN_Q_OVERFLOW           0x00004000      /* Event queued overflowed */
+    // #define IN_IGNORED              0x00008000      /* File was ignored */
+    //
+    // /* helper events */
+    // #define IN_CLOSE                (IN_CLOSE_WRITE | IN_CLOSE_NOWRITE) /* close */
+    // #define IN_MOVE                 (IN_MOVED_FROM | IN_MOVED_TO) /* moves */
+    //
+    // /* special flags */
+    // #define IN_ONLYDIR              0x01000000      /* only watch the path if it is a directory */
+    // #define IN_DONT_FOLLOW          0x02000000      /* don't follow a sym link */
+    // #define IN_EXCL_UNLINK          0x04000000      /* exclude events on unlinked objects */
+    // #define IN_MASK_ADD             0x20000000      /* add to the mask of an already existing watch */
+    // #define IN_ISDIR                0x40000000      /* event occurred against dir */
+    // #define IN_ONESHOT              0x80000000      /* only send event once */
+
+    // Watch the config directory events.
+    string config_dir = srs_path_dirname(_srs_config->config());
+    uint32_t mask = IN_MODIFY | IN_CREATE | IN_MOVED_TO; int watch_conf = 0;
+    if ((watch_conf = ::inotify_add_watch(fd, config_dir.c_str(), mask)) < 0) {
+        return srs_error_new(ERROR_INOTIFY_WATCH, "watch file=%s, fd=%d, watch=%d, mask=%#x",
+            config_dir.c_str(), fd, watch_conf, mask);
+    }
+    srs_trace("auto reload watching fd=%d, watch=%d, file=%s", fd, watch_conf, config_dir.c_str());
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "inotify");
+    }
+
+    return err;
+}
+
+srs_error_t SrsInotifyWorker::cycle()
+{
+    srs_error_t err = srs_success;
+
+    string config_path = _srs_config->config();
+    string config_file = srs_path_basename(config_path);
+    string k8s_file = "..data";
+
+    while (true) {
+        char buf[4096];
+        ssize_t nn = srs_read(inotify_fd, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
+        if (nn < 0) {
+            srs_warn("inotify ignore read failed, nn=%d", (int)nn);
+            break;
+        }
+
+        // Whether config file changed.
+        bool do_reload = false;
+
+        // Parse all inotify events.
+        inotify_event* ie = NULL;
+        for (char* ptr = buf; ptr < buf + nn; ptr += sizeof(inotify_event) + ie->len) {
+            ie = (inotify_event*)ptr;
+
+            if (!ie->len || !ie->name) {
+                continue;
+            }
+
+            string name = ie->name;
+            if ((name == k8s_file || name == config_file) && ie->mask & (IN_MODIFY|IN_CREATE|IN_MOVED_TO)) {
+                do_reload = true;
+            }
+
+            srs_trace("inotify event wd=%d, mask=%#x, len=%d, name=%s, reload=%d", ie->wd, ie->mask, ie->len, ie->name, do_reload);
+        }
+
+        // Notify server to do reload.
+        if (do_reload && srs_path_exists(config_path)) {
+            server->on_signal(SRS_SIGNAL_RELOAD);
+        }
+
+        srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
+    }
+
+    return err;
+}
+
 ISrsServerCycle::ISrsServerCycle()
 {
 }
@@ -466,6 +612,7 @@ SrsServer::SrsServer()
     signal_reload = false;
     signal_persistence_config = false;
     signal_gmc_stop = false;
+    signal_fast_quit = false;
     signal_gracefully_quit = false;
     pid_fd = -1;
     
@@ -521,20 +668,62 @@ void SrsServer::dispose()
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
     
-    // @remark don't dispose ingesters, for too slow.
-    
-#ifdef SRS_AUTO_KAFKA
-    srs_dispose_kafka();
-#endif
+    // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
+    ingester->dispose();
     
     // dispose the source for hls and dvr.
-    SrsSource::dispose_all();
+    _srs_sources->dispose();
     
     // @remark don't dispose all connections, for too slow.
     
 #ifdef SRS_AUTO_MEM_WATCH
     srs_memory_report();
 #endif
+}
+
+void SrsServer::gracefully_dispose()
+{
+    _srs_config->unsubscribe(this);
+
+    // Always wait for a while to start.
+    srs_usleep(_srs_config->get_grace_start_wait());
+    srs_trace("start wait for %dms", srsu2msi(_srs_config->get_grace_start_wait()));
+
+    // prevent fresh clients.
+    close_listeners(SrsListenerRtmpStream);
+    close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerMpegTsOverUdp);
+    close_listeners(SrsListenerRtsp);
+    close_listeners(SrsListenerFlv);
+    srs_trace("listeners closed");
+
+    // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
+    ingester->stop();
+    srs_trace("ingesters stopped");
+
+    // Wait for connections to quit.
+    // While gracefully quiting, user can requires SRS to fast quit.
+    int wait_step = 1;
+    while (!conns.empty() && !signal_fast_quit) {
+        for (int i = 0; i < wait_step && !conns.empty() && !signal_fast_quit; i++) {
+            srs_usleep(1000 * SRS_UTIME_MILLISECONDS);
+        }
+
+        wait_step = (wait_step * 2) % 33;
+        srs_trace("wait for %d conns to quit", conns.size());
+    }
+
+    // dispose the source for hls and dvr.
+    _srs_sources->dispose();
+    srs_trace("source disposed");
+
+#ifdef SRS_AUTO_MEM_WATCH
+    srs_memory_report();
+#endif
+
+    srs_usleep(_srs_config->get_grace_final_wait());
+    srs_trace("final wait for %dms", srsu2msi(_srs_config->get_grace_final_wait()));
 }
 
 srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
@@ -589,13 +778,6 @@ srs_error_t SrsServer::initialize_st()
     
     // set current log id.
     _srs_context->generate_id();
-    
-    // initialize the conponents that depends on st.
-#ifdef SRS_AUTO_KAFKA
-    if ((err = srs_initialize_kafka()) != srs_success) {
-        return srs_error_wrap(err, "initialize kafka");
-    }
-#endif
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
@@ -809,7 +991,16 @@ srs_error_t SrsServer::ingest()
 
 srs_error_t SrsServer::cycle()
 {
-    srs_error_t err = do_cycle();
+    srs_error_t err = srs_success;
+
+    // Start the inotify auto reload by watching config file.
+    SrsInotifyWorker inotify(this);
+    if ((err = inotify.start()) != srs_success) {
+        return srs_error_wrap(err, "start inotify");
+    }
+
+    // Do server main cycle.
+     err = do_cycle();
     
 #ifdef SRS_AUTO_GPERF_MC
     destroy();
@@ -818,19 +1009,33 @@ srs_error_t SrsServer::cycle()
     srs_warn("sleep a long time for system st-threads to cleanup.");
     srs_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
-#else
-    // normally quit with neccessary cleanup by dispose().
+
+    return err;
+#endif
+
+    // quit normally.
     srs_warn("main cycle terminated, system quit normally.");
-    dispose();
+
+    // fast quit, do some essential cleanup.
+    if (signal_fast_quit) {
+        dispose();
+        srs_trace("srs disposed");
+    }
+
+    // gracefully quit, do carefully cleanup.
+    if (signal_gracefully_quit) {
+        gracefully_dispose();
+        srs_trace("srs gracefully quit");
+    }
+
     srs_trace("srs terminated");
     
     // for valgrind to detect.
     srs_freep(_srs_config);
     srs_freep(_srs_log);
-    
+
     exit(0);
-#endif
-    
+
     return err;
 }
 
@@ -838,6 +1043,7 @@ srs_error_t SrsServer::cycle()
 void SrsServer::on_signal(int signo)
 {
     if (signo == SRS_SIGNAL_RELOAD) {
+        srs_trace("reload config, signo=%d", signo);
         signal_reload = true;
         return;
     }
@@ -845,7 +1051,7 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
-        srs_warn("reopen log file");
+        srs_warn("reopen log file, signo=%d", signo);
         return;
     }
 #endif
@@ -853,7 +1059,7 @@ void SrsServer::on_signal(int signo)
 #ifdef SRS_AUTO_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
-        srs_warn("for gmc, the SIGUSR1 used as SIGINT");
+        srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
         return;
     }
 #endif
@@ -865,20 +1071,30 @@ void SrsServer::on_signal(int signo)
     
     if (signo == SIGINT) {
 #ifdef SRS_AUTO_GPERF_MC
-        srs_trace("gmc is on, main cycle will terminate normally.");
+        srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
 #else
-        srs_trace("user terminate program");
-#ifdef SRS_AUTO_MEM_WATCH
+        #ifdef SRS_AUTO_MEM_WATCH
         srs_memory_report();
+        #endif
 #endif
-        exit(0);
-#endif
+    }
+
+    // For K8S, force to gracefully quit for gray release or canary.
+    // @see https://github.com/ossrs/srs/issues/1595#issuecomment-587473037
+    if (signo == SRS_SIGNAL_FAST_QUIT && _srs_config->is_force_grace_quit()) {
+        srs_trace("force gracefully quit, signo=%d", signo);
+        signo = SRS_SIGNAL_GRACEFULLY_QUIT;
+    }
+
+    if ((signo == SIGINT || signo == SRS_SIGNAL_FAST_QUIT) && !signal_fast_quit) {
+        srs_trace("sig=%d, user terminate program, fast quit", signo);
+        signal_fast_quit = true;
         return;
     }
-    
+
     if (signo == SRS_SIGNAL_GRACEFULLY_QUIT && !signal_gracefully_quit) {
-        srs_trace("user terminate program, gracefully quit.");
+        srs_trace("sig=%d, user start gracefully quit", signo);
         signal_gracefully_quit = true;
         return;
     }
@@ -902,7 +1118,7 @@ srs_error_t SrsServer::do_cycle()
     // for asprocess.
     bool asprocess = _srs_config->get_asprocess();
     
-    // the deamon thread, update the time cache
+    // the daemon thread, update the time cache
     // TODO: FIXME: use SrsHourGlass.
     while (true) {
         if (handler && (err = handler->on_cycle()) != srs_success) {
@@ -923,9 +1139,9 @@ srs_error_t SrsServer::do_cycle()
                 return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid, ::getppid());
             }
             
-            // gracefully quit for SIGINT or SIGTERM.
-            if (signal_gracefully_quit) {
-                srs_trace("cleanup for gracefully terminate.");
+            // gracefully quit for SIGINT or SIGTERM or SIGQUIT.
+            if (signal_fast_quit || signal_gracefully_quit) {
+                srs_trace("cleanup for quit signal fast=%d, grace=%d", signal_fast_quit, signal_gracefully_quit);
                 return err;
             }
             
@@ -964,7 +1180,7 @@ srs_error_t SrsServer::do_cycle()
             }
             
             // notice the stream sources to cycle.
-            if ((err = SrsSource::cycle_all()) != srs_success) {
+            if ((err = _srs_sources->cycle()) != srs_success) {
                 return srs_error_wrap(err, "source cycle");
             }
             
@@ -1029,9 +1245,8 @@ srs_error_t SrsServer::listen_rtmp()
     for (int i = 0; i < (int)ip_ports.size(); i++) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerRtmpStream);
         listeners.push_back(listener);
-        
-        std::string ip;
-        int port;
+
+        int port; string ip;
         srs_parse_endpoint(ip_ports[i], ip, port);
         
         if ((err = listener->listen(ip, port)) != srs_success) {
@@ -1125,7 +1340,7 @@ srs_error_t SrsServer::listen_stream_caster()
         }
         
         // TODO: support listen at <[ip:]port>
-        if ((err = listener->listen(srs_any_address4listener(), port)) != srs_success) {
+        if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
         }
     }
@@ -1177,6 +1392,10 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     SrsConnection* conn = NULL;
     
     if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
+        if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
+            srs_close_stfd(stfd); srs_error_reset(err);
+            return srs_success;
+        }
         return srs_error_wrap(err, "fd2conn");
     }
     srs_assert(conn);

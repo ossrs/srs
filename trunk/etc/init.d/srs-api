@@ -54,7 +54,7 @@ start() {
     ok_msg "Starting SRS-api..."
     # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
     # TODO: FIXME: write log to, for instance, the same dir of log.
-    # TODO: FIXME: support deamon, without nohup.
+    # TODO: FIXME: support daemon, without nohup.
     (cd ${ROOT}; nohup ${APP} ${CONFIG} >/dev/null 2>&1 &)
     
     # check again after start server

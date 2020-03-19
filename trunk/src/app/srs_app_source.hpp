@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -33,6 +33,7 @@
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_service_st.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -330,7 +331,6 @@ class SrsOriginHub : public ISrsReloadHandler
 private:
     SrsSource* source;
     SrsRequest* req;
-    // Whether the stream hub is active, or stream is publishing.
     bool is_active;
 private:
     // The format, codec information.
@@ -364,6 +364,8 @@ public:
     // Cycle the hub, process some regular events,
     // For example, dispose hls in cycle.
     virtual srs_error_t cycle();
+    // Whether the stream hub is active, or stream is publishing.
+    virtual bool active();
 public:
     // When got a parsed metadata.
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata, SrsOnMetaDataPacket* packet);
@@ -376,7 +378,7 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
-    // Internal callback.
+// Internal callback.
 public:
     // For the SrsForwarder to callback to request the sequence headers.
     virtual srs_error_t on_forwarder_start(SrsForwarder* forwarder);
@@ -405,8 +407,10 @@ private:
     SrsSharedPtrMessage* meta;
     // The cached video sequence header, for example, sps/pps for h.264.
     SrsSharedPtrMessage* video;
+    SrsSharedPtrMessage* previous_video;
     // The cached audio sequence header, for example, asc for aac.
     SrsSharedPtrMessage* audio;
+    SrsSharedPtrMessage* previous_audio;
     // The format for sequence header.
     SrsRtmpFormat* vformat;
     SrsRtmpFormat* aformat;
@@ -416,6 +420,8 @@ public:
 public:
     // Dispose the metadata cache.
     virtual void dispose();
+    // For each publishing, clear the metadata cache.
+    virtual void clear();
 public:
     // Get the cached metadata.
     virtual SrsSharedPtrMessage* data();
@@ -430,6 +436,13 @@ public:
     // @param ds Whether dumps the sequence header.
     virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
+    // Previous exists sequence header.
+    virtual SrsSharedPtrMessage* previous_vsh();
+    virtual SrsSharedPtrMessage* previous_ash();
+    // Update previous sequence header, drop old one, set to new sequence header.
+    virtual void update_previous_vsh();
+    virtual void update_previous_ash();
+public:
     // Update the cached metadata by packet.
     virtual srs_error_t update_data(SrsMessageHeader* header, SrsOnMetaDataPacket* metadata, bool& updated);
     // Update the cached audio sequence header.
@@ -438,32 +451,44 @@ public:
     virtual srs_error_t update_vsh(SrsSharedPtrMessage* msg);
 };
 
-// live streaming source.
-class SrsSource : public ISrsReloadHandler
+// The source manager to create and refresh all stream sources.
+class SrsSourceManager
 {
-    friend class SrsOriginHub;
 private:
-    static std::map<std::string, SrsSource*> pool;
+    srs_mutex_t lock;
+    std::map<std::string, SrsSource*> pool;
+public:
+    SrsSourceManager();
+    virtual ~SrsSourceManager();
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
-    static srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
-    static SrsSource* fetch(SrsRequest* r);
+    virtual SrsSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
-    static void dispose_all();
-    static srs_error_t cycle_all();
+    virtual void dispose();
+    virtual srs_error_t cycle();
 private:
-    static srs_error_t do_cycle_all();
+    virtual srs_error_t do_cycle();
 public:
     // when system exit, destroy the sources,
     // For gmc to analysis mem leaks.
-    static void destroy();
+    virtual void destroy();
+};
+
+// Global singleton instance.
+extern SrsSourceManager* _srs_sources;
+
+// live streaming source.
+class SrsSource : public ISrsReloadHandler
+{
+    friend class SrsOriginHub;
 private:
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
@@ -531,6 +556,8 @@ public:
     // Whether source is inactive, which means there is no publishing stream source.
     // @remark For edge, it's inactive util stream has been pulled from origin.
     virtual bool inactive();
+    // Update the authentication information in request.
+    virtual void update_auth(SrsRequest* r);
 public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

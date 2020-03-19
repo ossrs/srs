@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -45,7 +45,7 @@ private:
     std::string log_file;
 private:
     std::string                 ffmpeg;
-    std::string                 _iparams;
+    std::vector<std::string>    iparams;
     std::vector<std::string>    perfile;
     std::string                 iformat;
     std::string                 input;
@@ -70,7 +70,7 @@ public:
     SrsFFMPEG(std::string ffmpeg_bin);
     virtual ~SrsFFMPEG();
 public:
-    virtual void set_iparams(std::string iparams);
+    virtual void append_iparam(std::string iparam);
     virtual void set_oformat(std::string format);
     virtual std::string output();
 public:
@@ -83,6 +83,7 @@ public:
     virtual void stop();
 public:
     virtual void fast_stop();
+    virtual void fast_kill();
 };
 
 #endif

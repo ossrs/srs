@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,7 @@
 
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <string>
 #include <sstream>
@@ -123,6 +124,7 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeTFHD = 0x74666864, // 'tfhd'
     SrsMp4BoxTypeTFDT = 0x74666474, // 'tfdt'
     SrsMp4BoxTypeTRUN = 0x7472756e, // 'trun'
+    SrsMp4BoxTypeSIDX = 0x73696478, // 'sidx'
 };
 
 // 8.4.3.3 Semantics
@@ -145,17 +147,23 @@ enum SrsMp4BoxBrand
     SrsMp4BoxBrandAVC1 = 0x61766331, // 'avc1'
     SrsMp4BoxBrandMP41 = 0x6d703431, // 'mp41'
     SrsMp4BoxBrandISO5 = 0x69736f35, // 'iso5'
+    SrsMp4BoxBrandISO6 = 0x69736f36, // 'iso6'
     SrsMp4BoxBrandMP42 = 0x6d703432, // 'mp42'
     SrsMp4BoxBrandDASH = 0x64617368, // 'dash'
     SrsMp4BoxBrandMSDH = 0x6d736468, // 'msdh'
+    SrsMp4BoxBrandMSIX = 0x6d736978, // 'msix'
 };
 
 // The context to dump.
-struct SrsMp4DumpContext
+class SrsMp4DumpContext
 {
+public:
     int level;
     bool summary;
-    
+
+    SrsMp4DumpContext();
+    virtual ~SrsMp4DumpContext();
+
     SrsMp4DumpContext indent();
 };
 
@@ -194,6 +202,8 @@ public:
     // Get the size of header, without contained boxes.
     // @remark For mdat box, we must codec its header, use this instead of sz().
     virtual int sz_header();
+    // Update the size of box.
+    virtual int update_size();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -206,6 +216,8 @@ public:
     // Remove the contained box of specified type.
     // @return The removed count.
     virtual int remove(SrsMp4BoxType bt);
+    // Append a child box.
+    virtual void append(SrsMp4Box* box);
     // Dumps the box and all contained boxes.
     virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     // Discovery the box from buffer.
@@ -467,8 +479,9 @@ enum SrsMp4TrunFlags
 
 // Entry for trun.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 69
-struct SrsMp4TrunEntry
+class SrsMp4TrunEntry : public ISrsCodec
 {
+public:
     SrsMp4FullBox* owner;
     
     uint32_t sample_duration;
@@ -480,10 +493,11 @@ struct SrsMp4TrunEntry
     SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
-    virtual int nb_header();
-    virtual srs_error_t encode_header(SrsBuffer* buf);
-    virtual srs_error_t decode_header(SrsBuffer* buf);
-    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf);
+
+    virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
 };
 
 // 8.8.8 Track Fragment Run Box (trun)
@@ -495,7 +509,7 @@ class SrsMp4TrackFragmentRunBox : public SrsMp4FullBox
 public:
     // The number of samples being added in this run; also the number of rows in the following
     // table (the rows can be empty)
-    uint32_t sample_count;
+    //uint32_t sample_count;
 // The following are optional fields
 public:
     // added to the implicit or explicit data_offset established in the track fragment header.
@@ -864,7 +878,8 @@ public:
 
 // 8.6.6 Edit List Box
 // ISO_IEC_14496-12-base-format-2012.pdf, page 55
-struct SrsMp4ElstEntry
+// LCOV_EXCL_START
+class SrsMp4ElstEntry
 {
 public:
     // An integer that specifies the duration of this edit segment in units of the timescale
@@ -888,6 +903,7 @@ public:
     virtual std::stringstream& dumps(std::stringstream& ss, SrsMp4DumpContext dc);
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
+// LCOV_EXCL_STOP
 
 // 8.6.6 Edit List Box (elst)
 // ISO_IEC_14496-12-base-format-2012.pdf, page 54
@@ -1106,6 +1122,8 @@ public:
 public:
     SrsMp4DataEntryBox();
     virtual ~SrsMp4DataEntryBox();
+public:
+    virtual bool boxes_in_header();
 };
 
 // 8.7.2 Data Reference Box (url )
@@ -1514,8 +1532,9 @@ public:
 
 // 8.6.1.2 Decoding Time to Sample Box (stts), for Audio/Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 48
-struct SrsMp4SttsEntry
+class SrsMp4SttsEntry
 {
+public:
     // An integer that counts the number of consecutive samples that have the given
     // duration.
     uint32_t sample_count;
@@ -1561,8 +1580,10 @@ public:
 
 // 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 49
-struct SrsMp4CttsEntry
+// LCOV_EXCL_START
+class SrsMp4CttsEntry
 {
+public:
     // An integer that counts the number of consecutive samples that have the given offset.
     uint32_t sample_count;
     // uint32_t for version=0
@@ -1576,6 +1597,7 @@ struct SrsMp4CttsEntry
 public:
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
+// LCOV_EXCL_STOP
 
 // 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 49
@@ -1638,8 +1660,9 @@ public:
 
 // 8.7.4 Sample To Chunk Box (stsc), for Audio/Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 58
-struct SrsMp4StscEntry
+class SrsMp4StscEntry
 {
+public:
     // An integer that gives the index of the first chunk in this run of chunks that share the
     // same samples-per-chunk and sample-description-index; the index of the first chunk in a track has the
     // value 1 (the first_chunk field in the first record of this box has the value 1, identifying that the first
@@ -1778,6 +1801,43 @@ public:
 public:
     SrsMp4UserDataBox();
     virtual ~SrsMp4UserDataBox();
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+// The entry for SegmentIndexBox(sidx) for MPEG-DASH.
+// @doc https://patches.videolan.org/patch/103/
+struct SrsMp4SegmentIndexEntry
+{
+    uint8_t reference_type; // 1bit
+    uint32_t referenced_size; // 31bits
+    uint32_t subsegment_duration; // 32bits
+    uint8_t starts_with_SAP; // 1bit
+    uint8_t SAP_type; // 3bits
+    uint32_t SAP_delta_time; // 28bits
+};
+
+// The SegmentIndexBox(sidx) for MPEG-DASH.
+// @doc https://gpac.wp.imt.fr/2012/02/01/dash-support/
+// @doc https://patches.videolan.org/patch/103/
+// @doc https://github.com/necccc/iso-bmff-parser-stream/blob/master/lib/box/sidx.js
+class SrsMp4SegmentIndexBox : public SrsMp4Box
+{
+public:
+    uint8_t version;
+    uint32_t flags;
+    uint32_t reference_id;
+    uint32_t timescale;
+    uint64_t earliest_presentation_time;
+    uint64_t first_offset;
+    std::vector<SrsMp4SegmentIndexEntry> entries;
+public:
+    SrsMp4SegmentIndexBox();
+    virtual ~SrsMp4SegmentIndexBox();
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -2015,12 +2075,12 @@ public:
     // @param pts The output pts in milliseconds.
     // @param sample The output payload, user must free it.
     // @param nb_sample The output size of payload.
-    virtual srs_error_t write_sample(SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
+    virtual srs_error_t write_sample(SrsFormat* format, SrsMp4HandlerType ht, uint16_t ft, uint16_t ct,
         uint32_t dts, uint32_t pts, uint8_t* sample, uint32_t nb_sample);
     // Flush the encoder, to write the moov.
     virtual srs_error_t flush();
 private:
-    virtual srs_error_t copy_sequence_header(bool vsh, uint8_t* sample, uint32_t nb_sample);
+    virtual srs_error_t copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample);
     virtual srs_error_t do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
 };
 
@@ -2052,10 +2112,9 @@ private:
 private:
     uint32_t nb_audios;
     uint32_t nb_videos;
+    uint32_t styp_bytes;
     uint64_t mdat_bytes;
     SrsMp4SampleManager* samples;
-private:
-    uint64_t data_offset;
 public:
     SrsMp4M2tsSegmentEncoder();
     virtual ~SrsMp4M2tsSegmentEncoder();
@@ -2075,6 +2134,114 @@ public:
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t& dts);
 };
+
+// LCOV_EXCL_START
+/////////////////////////////////////////////////////////////////////////////////
+// MP4 dumps functions.
+/////////////////////////////////////////////////////////////////////////////////
+
+#include <iomanip>
+
+#define SrsMp4SummaryCount 8
+
+extern std::stringstream& srs_mp4_padding(std::stringstream& ss, SrsMp4DumpContext dc, int tab = 4);
+
+extern void srs_mp4_delimiter_inline(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_inspace(std::stringstream& ss, SrsMp4DumpContext dc);
+extern void srs_mp4_delimiter_newline(std::stringstream& ss, SrsMp4DumpContext dc);
+
+extern std::stringstream& srs_print_mp4_type(std::stringstream& ss, uint32_t v);
+extern std::stringstream& srs_mp4_print_bytes(std::stringstream& ss, const char* p, int size, SrsMp4DumpContext dc, int line = SrsMp4SummaryCount, int max = -1);
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(std::vector<T>&arr, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = arr.size();
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if ((int)i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+// TODO: FIXME: Extract to common utility.
+template<typename T>
+std::stringstream& srs_dumps_array(T* arr, int size, std::stringstream& ss, SrsMp4DumpContext dc,
+    void (*pfn)(T&, std::stringstream&, SrsMp4DumpContext),
+    void (*delimiter)(std::stringstream&, SrsMp4DumpContext))
+{
+    int limit = size;
+    if (dc.summary) {
+        limit = srs_min(SrsMp4SummaryCount, limit);
+    }
+
+    for (size_t i = 0; i < (size_t)limit; i++) {
+        T& elem = arr[i];
+
+        pfn(elem, ss, dc);
+
+        if ((int)i < limit - 1) {
+            delimiter(ss, dc);
+        }
+    }
+    return ss;
+}
+
+template<typename T>
+void srs_mp4_pfn_box(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail(T& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem.dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_box2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_detail2(T*& elem, std::stringstream& ss, SrsMp4DumpContext dc)
+{
+    elem->dumps_detail(ss, dc);
+}
+
+template<typename T>
+void srs_mp4_pfn_type(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    srs_print_mp4_type(ss, (uint32_t)elem);
+}
+
+template<typename T>
+void srs_mp4_pfn_hex(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << "0x" << std::setw(2) << std::setfill('0') << std::hex << (uint32_t)(uint8_t)elem << std::dec;
+}
+
+template<typename T>
+void srs_mp4_pfn_elem(T& elem, std::stringstream& ss, SrsMp4DumpContext /*dc*/)
+{
+    ss << elem;
+}
+
+// LCOV_EXCL_STOP
 
 #endif
 

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -132,7 +132,7 @@ private:
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.
-    SrsSTCoroutine(const std::string& n, ISrsCoroutineHandler* h, int cid = 0);
+    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, int cid = 0);
     virtual ~SrsSTCoroutine();
 public:
     // Start the thread.

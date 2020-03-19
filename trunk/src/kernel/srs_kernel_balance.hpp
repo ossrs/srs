@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -31,7 +31,7 @@
 
 /**
  * the round-robin load balance algorithm,
- * used for edge pull, kafka and other multiple server feature.
+ * used for edge pull and other multiple server feature.
  */
 class SrsLbRoundRobin
 {

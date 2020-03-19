@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -176,13 +176,6 @@
     //#define SRS_PERF_SO_SNDBUF_SIZE 1024
     #undef SRS_PERF_SO_SNDBUF_SIZE
 #endif
-
-/**
- * define the following macro to enable the fast flv encoder.
- * @see https://github.com/ossrs/srs/issues/405
- */
-#undef SRS_PERF_FAST_FLV_ENCODER
-#define SRS_PERF_FAST_FLV_ENCODER
 
 /**
  * whether ensure glibc memory check.

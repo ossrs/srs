@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -181,15 +181,17 @@ srs_error_t SrsForwarder::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "forwarder");
+        }
+
         if ((err = do_cycle()) != srs_success) {
             srs_warn("Forwarder: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
-        
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "forwarder");
-        }
-    
+
         srs_usleep(SRS_FORWARDER_CIMS);
     }
     

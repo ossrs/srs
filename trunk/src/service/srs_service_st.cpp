@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -34,6 +34,9 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_service_utility.hpp>
 #include <srs_kernel_utility.hpp>
+
+// nginx also set to 512
+#define SERVER_LISTEN_BACKLOG 512
 
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -86,17 +89,57 @@ void srs_close_stfd(srs_netfd_t& stfd)
     }
 }
 
-void srs_fd_close_exec(int fd)
+srs_error_t srs_fd_closeexec(int fd)
 {
     int flags = fcntl(fd, F_GETFD);
     flags |= FD_CLOEXEC;
-    fcntl(fd, F_SETFD, flags);
+    if (fcntl(fd, F_SETFD, flags) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%v", fd);
+    }
+
+    return srs_success;
 }
 
-void srs_socket_reuse_addr(int fd)
+srs_error_t srs_fd_reuseaddr(int fd)
 {
     int v = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int));
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
+    }
+
+	return srs_success;
+}
+
+srs_error_t srs_fd_reuseport(int fd)
+{
+#if defined(SO_REUSEPORT)
+    int v = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
+        #ifdef SRS_AUTO_CROSSBUILD
+            srs_warn("SO_REUSEPORT disabled for crossbuild");
+            return srs_success;
+        #else
+            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+        #endif
+    }
+#else
+    #warning "SO_REUSEPORT is not supported by your OS"
+    srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
+#endif
+
+	return srs_success;
+}
+
+srs_error_t srs_fd_keepalive(int fd)
+{
+#ifdef SO_KEEPALIVE
+    int v = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(int)) == -1) {
+        return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "SO_KEEPALIVE fd=%d", fd);
+    }
+#endif
+
+	return srs_success;
 }
 
 srs_thread_t srs_thread_self()
@@ -104,7 +147,7 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
-srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
+srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;
     if (tm != SRS_UTIME_NO_TIMEOUT) {
@@ -119,7 +162,7 @@ srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netf
     
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     
     addrinfo* r  = NULL;
@@ -147,6 +190,138 @@ srs_error_t srs_socket_connect(string server, int port, srs_utime_t tm, srs_netf
     
     *pstfd = stfd;
     return srs_success;
+}
+
+srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    // Detect alive for TCP connection.
+    // @see https://github.com/ossrs/srs/issues/1044
+    if ((err = srs_fd_keepalive(fd)) != srs_success) {
+        return srs_error_wrap(err, "set keepalive");
+    }
+
+    if ((err = srs_fd_closeexec(fd)) != srs_success) {
+        return srs_error_wrap(err, "set closeexec");
+    }
+
+    if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseaddr");
+    }
+
+    if ((err = srs_fd_reuseport(fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseport");
+    }
+
+    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+        return srs_error_new(ERROR_SOCKET_BIND, "bind");
+    }
+
+    if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
+        return srs_error_new(ERROR_SOCKET_LISTEN, "listen");
+    }
+
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
+    }
+
+    return err;
+}
+
+srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    char sport[8];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+
+    addrinfo* r = NULL;
+    SrsAutoFree(addrinfo, r);
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
+            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+    }
+
+    int fd = 0;
+    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
+            r->ai_family, r->ai_socktype, r->ai_protocol);
+    }
+
+    if ((err = do_srs_tcp_listen(fd, r, pfd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "fd=%d", fd);
+    }
+
+    return err;
+}
+
+srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    if ((err = srs_fd_closeexec(fd)) != srs_success) {
+        return srs_error_wrap(err, "set closeexec");
+    }
+
+    if ((err = srs_fd_reuseaddr(fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseaddr");
+    }
+
+    if ((err = srs_fd_reuseport(fd)) != srs_success) {
+        return srs_error_wrap(err, "set reuseport");
+    }
+
+    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+        return srs_error_new(ERROR_SOCKET_BIND, "bind");
+    }
+
+    if ((*pfd = srs_netfd_open_socket(fd)) == NULL){
+        return srs_error_new(ERROR_ST_OPEN_SOCKET, "st open");
+    }
+
+    return err;
+}
+
+srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
+{
+	srs_error_t err = srs_success;
+
+    char sport[8];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags    = AI_NUMERICHOST;
+
+    addrinfo* r  = NULL;
+    SrsAutoFree(addrinfo, r);
+    if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
+            hints.ai_family, hints.ai_socktype, hints.ai_flags);
+    }
+
+	int fd = 0;
+    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
+            r->ai_family, r->ai_socktype, r->ai_protocol);
+    }
+
+    if ((err = do_srs_udp_listen(fd, r, pfd)) != srs_success) {
+        ::close(fd);
+        return srs_error_wrap(err, "fd=%d", fd);
+    }
+
+    return err;
 }
 
 srs_cond_t srs_cond_new()
@@ -181,6 +356,9 @@ srs_mutex_t srs_mutex_new()
 
 int srs_mutex_destroy(srs_mutex_t mutex)
 {
+    if (!mutex) {
+        return 0;
+    }
     return st_mutex_destroy((st_mutex_t)mutex);
 }
 
@@ -229,6 +407,11 @@ ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
     return st_read((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
 }
 
+bool srs_is_never_timeout(srs_utime_t tm)
+{
+    return tm == SRS_UTIME_NO_TIMEOUT;
+}
+
 SrsStSocket::SrsStSocket()
 {
     stfd = NULL;
@@ -244,11 +427,6 @@ srs_error_t SrsStSocket::initialize(srs_netfd_t fd)
 {
     stfd = fd;
     return srs_success;
-}
-
-bool SrsStSocket::is_never_timeout(srs_utime_t tm)
-{
-    return tm == SRS_UTIME_NO_TIMEOUT;
 }
 
 void SrsStSocket::set_recv_timeout(srs_utime_t tm)
@@ -439,7 +617,7 @@ srs_error_t SrsTcpClient::connect()
     close();
     
     srs_assert(stfd == NULL);
-    if ((err = srs_socket_connect(host, port, timeout, &stfd)) != srs_success) {
+    if ((err = srs_tcp_connect(host, port, timeout, &stfd)) != srs_success) {
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
     }
     
@@ -458,11 +636,6 @@ void SrsTcpClient::close()
     }
     
     srs_close_stfd(stfd);
-}
-
-bool SrsTcpClient::is_never_timeout(srs_utime_t tm)
-{
-    return io->is_never_timeout(tm);
 }
 
 void SrsTcpClient::set_recv_timeout(srs_utime_t tm)

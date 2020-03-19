@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -53,8 +53,6 @@
  *              |                             |
  *           +--+-----------------------------+-+
  *           |       IProtocolReadWriter        |
- *           +----------------------------------+
- *           | + is_never_timeout()             |
  *           +----------------------------------+
  */
 
@@ -121,10 +119,6 @@ class ISrsProtocolReadWriter : virtual public ISrsProtocolReader, virtual public
 public:
     ISrsProtocolReadWriter();
     virtual ~ISrsProtocolReadWriter();
-// For protocol
-public:
-    // Whether the specified tm in srs_utime_t is never timeout.
-    virtual bool is_never_timeout(srs_utime_t tm) = 0;
 };
 
 #endif

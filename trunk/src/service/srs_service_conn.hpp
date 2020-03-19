@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,12 +26,17 @@
 
 #include <srs_core.hpp>
 
+#include <string>
+
 // The connection interface for all HTTP/RTMP/RTSP object.
 class ISrsConnection
 {
 public:
     ISrsConnection();
     virtual ~ISrsConnection();
+public:
+    // Get remote ip address.
+    virtual std::string remote_ip() = 0;
 };
 
 // The manager for connection.

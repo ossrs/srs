@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -63,6 +63,7 @@ private:
 private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
+    srs_utime_t recv_timeout;
     // The host name or ip.
     std::string host;
     int port;

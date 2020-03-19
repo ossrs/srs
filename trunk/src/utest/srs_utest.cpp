@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2019 Winlin
+Copyright (c) 2013-2020 Winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -29,30 +29,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 
+#include <string>
+using namespace std;
+
+// Temporary disk config.
+std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
+// Temporary network config.
+std::string _srs_tmp_host = "127.0.0.1";
+int _srs_tmp_port = 11935;
+srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
+
 // kernel module.
 ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
+bool _srs_in_docker = false;
 
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
 #include <srs_app_st.hpp>
-#endif
 
 // Initialize global settings.
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
-    #if !defined(SRS_OSX)
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "init st");
     }
 
     srs_freep(_srs_context);
     _srs_context = new SrsThreadContext();
-    #endif
 
     return err;
 }

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -181,10 +181,12 @@ srs_error_t SrsConnection::cycle()
     
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
-    if (srs_is_client_gracefully_close(srs_error_code(err))) {
+    if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
     } else {
-        srs_error("connect error %s", srs_error_desc(err).c_str());
+        srs_error("serve error %s", srs_error_desc(err).c_str());
     }
     
     srs_freep(err);
@@ -194,6 +196,10 @@ srs_error_t SrsConnection::cycle()
 int SrsConnection::srs_id()
 {
     return trd->cid();
+}
+
+string SrsConnection::remote_ip() {
+    return ip;
 }
 
 void SrsConnection::expire()

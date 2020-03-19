@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -35,15 +35,20 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_service_conn.hpp>
 
 SrsHttpParser::SrsHttpParser()
 {
     buffer = new SrsFastStream();
+    header = NULL;
+
+    p_body_start = p_header_tail = NULL;
 }
 
 SrsHttpParser::~SrsHttpParser()
 {
     srs_freep(buffer);
+    srs_freep(header);
 }
 
 srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
@@ -70,19 +75,20 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
 
 srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg)
 {
+    srs_error_t err = srs_success;
+
     *ppmsg = NULL;
     
-    srs_error_t err = srs_success;
-    
-    // reset request data.
-    field_name = "";
-    field_value = "";
-    expect_field_name = true;
+    // Reset request data.
     state = SrsHttpParseStateInit;
-    header = http_parser();
-    url = "";
-    headers.clear();
-    pbody = NULL;
+    hp_header = http_parser();
+    // The body that we have read from cache.
+    p_body_start = p_header_tail = NULL;
+    // We must reset the field name and value, because we may get a partial value in on_header_value.
+    field_name = field_value = "";
+    // The header of the request.
+    srs_freep(header);
+    header = new SrsHttpHeader();
     
     // do parse
     if ((err = parse_message_imp(reader)) != srs_success) {
@@ -90,12 +96,14 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     }
     
     // create msg
-    SrsHttpMessage* msg = new SrsHttpMessage(reader);
-    
-    // initalize http msg, parse url.
-    if ((err = msg->update(url, jsonp, &header, buffer, headers)) != srs_success) {
+    SrsHttpMessage* msg = new SrsHttpMessage(reader, buffer);
+
+    // Initialize the basic information.
+    msg->set_basic(hp_header.method, hp_header.status_code, hp_header.content_length);
+    msg->set_header(header, http_should_keep_alive(&hp_header));
+    if ((err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
-        return srs_error_wrap(err, "update message");
+        return srs_error_wrap(err, "set url=%s, jsonp=%d", url.c_str(), jsonp);
     }
     
     // parse ok, return the msg.
@@ -110,15 +118,26 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     
     while (true) {
         if (buffer->size() > 0) {
-            ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
-	        if (buffer->size() != nparsed) {
-	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse failed, nparsed=%d, size=%d", nparsed, buffer->size());
+            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+
+            // The error is set in http_errno.
+            enum http_errno code;
+	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
+	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
+	                buffer->size(), consumed, http_errno_name(code), http_errno_description(code));
 	        }
 
-			// The consumed size, does not include the body.
-	        ssize_t consumed = nparsed;
-	        if (pbody && buffer->bytes() < pbody) {
-	           consumed = pbody - buffer->bytes();
+            // When buffer consumed these bytes, it's dropped so the new ptr is actually the HTTP body. But http-parser
+            // doesn't indicate the specific sizeof header, so we must finger it out.
+            // @remark We shouldn't use on_body, because it only works for normal case, and losts the chunk header and length.
+            // @see https://github.com/ossrs/srs/issues/1508
+	        if (p_header_tail && buffer->bytes() < p_body_start) {
+	            for (const char* p = p_header_tail; p <= p_body_start - 4; p++) {
+	                if (p[0] == SRS_CONSTS_CR && p[1] == SRS_CONSTS_LF && p[2] == SRS_CONSTS_CR && p[3] == SRS_CONSTS_LF) {
+	                    consumed = p + 4 - buffer->bytes();
+	                    break;
+	                }
+	            }
 	        }
             srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
 
@@ -137,10 +156,10 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
             return srs_error_wrap(err, "grow buffer");
         }
     }
-    
-    // parse last header.
-    if (!field_name.empty() && !field_value.empty()) {
-        headers.push_back(std::make_pair(field_name, field_value));
+
+    SrsHttpParser* obj = this;
+    if (!obj->field_value.empty()) {
+        obj->header->set(obj->field_name, obj->field_value);
     }
     
     return err;
@@ -163,9 +182,13 @@ int SrsHttpParser::on_headers_complete(http_parser* parser)
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
     
-    obj->header = *parser;
+    obj->hp_header = *parser;
     // save the parser when header parse completed.
     obj->state = SrsHttpParseStateHeaderComplete;
+
+    // We must update the body start when header complete, because sometimes we only got header.
+    // When we got the body start event, we will update it to much precious position.
+    obj->p_body_start = obj->buffer->bytes() + obj->buffer->size();
 
     srs_info("***HEADERS COMPLETE***");
     
@@ -192,8 +215,13 @@ int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
     srs_assert(obj);
     
     if (length > 0) {
-        obj->url.append(at, (int)length);
+        obj->url = string(at, (int)length);
     }
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Method: %d, Url: %.*s", parser->method, (int)length, at);
     
@@ -204,20 +232,20 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
-    
-    // field value=>name, reap the field.
-    if (!obj->expect_field_name) {
-        obj->headers.push_back(std::make_pair(obj->field_name, obj->field_value));
-        
-        // reset the field name when parsed.
-        obj->field_name = "";
-        obj->field_value = "";
+
+    if (!obj->field_value.empty()) {
+        obj->header->set(obj->field_name, obj->field_value);
+        obj->field_name = obj->field_value = "";
     }
-    obj->expect_field_name = true;
     
     if (length > 0) {
         obj->field_name.append(at, (int)length);
     }
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
@@ -231,7 +259,11 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     if (length > 0) {
         obj->field_value.append(at, (int)length);
     }
-    obj->expect_field_name = false;
+
+    // When header parsed, we must save the position of start for body,
+    // because we have to consume the header in buffer.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_header_tail = at;
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
@@ -245,66 +277,88 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     // save the parser when body parsed.
     obj->state = SrsHttpParseStateBody;
 
-    // Save the body position.
-    obj->pbody = at;
-    
+    // Used to discover the header length.
+    // @see https://github.com/ossrs/srs/issues/1508
+    obj->p_body_start = at;
+
     srs_info("Body: %.*s", (int)length, at);
     
     return 0;
 }
 
-SrsHttpMessage::SrsHttpMessage(ISrsReader* reader) : ISrsHttpMessage()
+SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrsHttpMessage()
 {
     owner_conn = NULL;
     chunked = false;
     infinite_chunked = false;
-    keep_alive = true;
     _uri = new SrsHttpUri();
-    _body = new SrsHttpResponseReader(this, reader);
-    _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
+    _body = new SrsHttpResponseReader(this, reader, buffer);
+
     jsonp = false;
+
+    // As 0 is DELETE, so we use GET as default.
+    _method = SRS_CONSTS_HTTP_GET;
+    // 200 is ok.
+    _status = SRS_CONSTS_HTTP_OK;
+    // -1 means infinity chunked mode.
+    _content_length = -1;
+    // From HTTP/1.1, default to keep alive.
+    _keep_alive = true;
 }
 
 SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
     srs_freep(_uri);
-    srs_freepa(_http_ts_send_buffer);
 }
 
-srs_error_t SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* header, SrsFastStream* body, vector<SrsHttpHeaderField>& headers)
+void SrsHttpMessage::set_basic(uint8_t method, uint16_t status, int64_t content_length)
+{
+    _method = method;
+    _status = status;
+    if (_content_length == -1) {
+        _content_length = content_length;
+    }
+}
+
+void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
+{
+    _header = *header;
+    _keep_alive = keep_alive;
+
+    // whether chunked.
+    chunked = (header->get("Transfer-Encoding") == "chunked");
+
+    // Update the content-length in header.
+    string clv = header->get("Content-Length");
+    if (!clv.empty()) {
+        _content_length = ::atoll(clv.c_str());
+    }
+}
+
+srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
 {
     srs_error_t err = srs_success;
     
     _url = url;
-    _header = *header;
-    _headers = headers;
-    
-    // whether chunked.
-    std::string transfer_encoding = get_request_header("Transfer-Encoding");
-    chunked = (transfer_encoding == "chunked");
-    
-    // whether keep alive.
-    keep_alive = http_should_keep_alive(header);
-    
-    // set the buffer.
-    if ((err = _body->initialize(body)) != srs_success) {
-        return srs_error_wrap(err, "init body");
+
+    // parse uri from schema/server:port/path?query
+    std::string uri = _url;
+
+    if (!srs_string_contains(uri, "://")) {
+        // use server public ip when host not specified.
+        // to make telnet happy.
+        std::string host = _header.get("Host");
+        if (host.empty()) {
+            host= srs_get_public_internet_address();
+        }
+        if (!host.empty()) {
+            uri = "http://" + host + _url;
+        }
     }
-    
-    // parse uri from url.
-    std::string host = get_request_header("Host");
-    
-    // use server public ip when no host specified.
-    // to make telnet happy.
-    if (host.empty()) {
-        host= srs_get_public_internet_address();
-    }
-    
-    // parse uri to schema/server:port/path?query
-    std::string uri = "http://" + host + _url;
+
     if ((err = _uri->initialize(uri)) != srs_success) {
-        return srs_error_wrap(err, "init uri");
+        return srs_error_wrap(err, "init uri %s", uri.c_str());
     }
     
     // parse ext.
@@ -326,12 +380,12 @@ srs_error_t SrsHttpMessage::update(string url, bool allow_jsonp, http_parser* he
     return err;
 }
 
-SrsConnection* SrsHttpMessage::connection()
+ISrsConnection* SrsHttpMessage::connection()
 {
     return owner_conn;
 }
 
-void SrsHttpMessage::set_connection(SrsConnection* conn)
+void SrsHttpMessage::set_connection(ISrsConnection* conn)
 {
     owner_conn = conn;
 }
@@ -349,13 +403,13 @@ uint8_t SrsHttpMessage::method()
             return SRS_CONSTS_HTTP_DELETE;
         }
     }
-    
-    return (uint8_t)_header.method;
+
+    return _method;
 }
 
 uint16_t SrsHttpMessage::status_code()
 {
-    return (uint16_t)_header.status_code;
+    return _status;
 }
 
 string SrsHttpMessage::method_str()
@@ -405,7 +459,7 @@ bool SrsHttpMessage::is_http_delete()
 
 bool SrsHttpMessage::is_http_options()
 {
-    return _header.method == SRS_CONSTS_HTTP_OPTIONS;
+    return _method == SRS_CONSTS_HTTP_OPTIONS;
 }
 
 bool SrsHttpMessage::is_chunked()
@@ -415,7 +469,7 @@ bool SrsHttpMessage::is_chunked()
 
 bool SrsHttpMessage::is_keep_alive()
 {
-    return keep_alive;
+    return _keep_alive;
 }
 
 bool SrsHttpMessage::is_infinite_chunked()
@@ -444,7 +498,22 @@ string SrsHttpMessage::url()
 
 string SrsHttpMessage::host()
 {
+    std::map<string, string>::iterator it = _query.find("vhost");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
+    it = _query.find("domain");
+    if (it != _query.end() && !it->second.empty()) {
+        return it->second;
+    }
+
     return _uri->get_host();
+}
+
+int SrsHttpMessage::port()
+{
+    return _uri->get_port();
 }
 
 string SrsHttpMessage::path()
@@ -504,7 +573,7 @@ srs_error_t SrsHttpMessage::body_read_all(string& body)
     
     // whatever, read util EOF.
     while (!_body->eof()) {
-        int nb_read = 0;
+        ssize_t nb_read = 0;
         if ((err = _body->read(buf, SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
             return srs_error_wrap(err, "read body");
         }
@@ -524,7 +593,7 @@ ISrsHttpResponseReader* SrsHttpMessage::body_reader()
 
 int64_t SrsHttpMessage::content_length()
 {
-    return _header.content_length;
+    return _content_length;
 }
 
 string SrsHttpMessage::query_get(string key)
@@ -538,39 +607,9 @@ string SrsHttpMessage::query_get(string key)
     return v;
 }
 
-int SrsHttpMessage::request_header_count()
+SrsHttpHeader* SrsHttpMessage::header()
 {
-    return (int)_headers.size();
-}
-
-string SrsHttpMessage::request_header_key_at(int index)
-{
-    srs_assert(index < request_header_count());
-    SrsHttpHeaderField item = _headers[index];
-    return item.first;
-}
-
-string SrsHttpMessage::request_header_value_at(int index)
-{
-    srs_assert(index < request_header_count());
-    SrsHttpHeaderField item = _headers[index];
-    return item.second;
-}
-
-string SrsHttpMessage::get_request_header(string name)
-{
-    std::vector<SrsHttpHeaderField>::iterator it;
-    
-    for (it = _headers.begin(); it != _headers.end(); ++it) {
-        SrsHttpHeaderField& elem = *it;
-        std::string key = elem.first;
-        std::string value = elem.second;
-        if (key == name) {
-            return value;
-        }
-    }
-    
-    return "";
+    return &_header;
 }
 
 SrsRequest* SrsHttpMessage::to_request(string vhost)
@@ -590,12 +629,12 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     
     // generate others.
     req->tcUrl = "rtmp://" + vhost + "/" + req->app;
-    req->pageUrl = get_request_header("Referer");
+    req->pageUrl = _header.get("Referer");
     req->objectEncoding = 0;
 
     std::string query = _uri->get_query();
     if (!query.empty()) {
-        req->tcUrl = req->tcUrl + "?" + query;
+        req->param = "?" + query;
     }
     
     srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->stream, req->port, req->param);
@@ -604,6 +643,17 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     // reset the host to http request host.
     if (req->host == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         req->host = _uri->get_host();
+    }
+
+    // Set ip by remote ip of connection.
+    if (owner_conn) {
+        req->ip = owner_conn->remote_ip();
+    }
+
+    // Overwrite by ip from proxy.
+    string oip = srs_get_original_ip(this);
+    if (!oip.empty()) {
+        req->ip = oip;
     }
     
     return req;
@@ -614,7 +664,15 @@ bool SrsHttpMessage::is_jsonp()
     return jsonp;
 }
 
-SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
+ISrsHttpHeaderFilter::ISrsHttpHeaderFilter()
+{
+}
+
+ISrsHttpHeaderFilter::~ISrsHttpHeaderFilter()
+{
+}
+
+SrsHttpResponseWriter::SrsHttpResponseWriter(ISrsProtocolReadWriter* io)
 {
     skt = io;
     hdr = new SrsHttpHeader();
@@ -625,6 +683,7 @@ SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
     header_sent = false;
     nb_iovss_cache = 0;
     iovss_cache = NULL;
+    hf = NULL;
 }
 
 SrsHttpResponseWriter::~SrsHttpResponseWriter()
@@ -635,9 +694,16 @@ SrsHttpResponseWriter::~SrsHttpResponseWriter()
 
 srs_error_t SrsHttpResponseWriter::final_request()
 {
+    srs_error_t err = srs_success;
+
     // write the header data in memory.
     if (!header_wrote) {
         write_header(SRS_CONSTS_HTTP_OK);
+    }
+
+    // whatever header is wrote, we should try to send header.
+    if ((err = send_header(NULL, 0)) != srs_success) {
+        return srs_error_wrap(err, "send header");
     }
     
     // complete the chunked encoding.
@@ -663,6 +729,12 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     
     // write the header data in memory.
     if (!header_wrote) {
+        if (hdr->content_type().empty()) {
+            hdr->set_content_type("text/plain; charset=utf-8");
+        }
+        if (hdr->content_length() == -1) {
+            hdr->set_content_length(size);
+        }
         write_header(SRS_CONSTS_HTTP_OK);
     }
     
@@ -678,7 +750,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     }
     
     // ignore NULL content.
-    if (!data) {
+    if (!data || size <= 0) {
         return err;
     }
     
@@ -716,9 +788,8 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     if (!header_wrote || content_length != -1) {
         ssize_t nwrite = 0;
         for (int i = 0; i < iovcnt; i++) {
-            const iovec* piovc = iov + i;
-            nwrite += piovc->iov_len;
-            if ((err = write((char*)piovc->iov_base, (int)piovc->iov_len)) != srs_success) {
+            nwrite += iov[i].iov_len;
+            if ((err = write((char*)iov[i].iov_base, (int)iov[i].iov_len)) != srs_success) {
                 return srs_error_wrap(err, "writev");
             }
         }
@@ -734,6 +805,11 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     if (iovcnt <= 0) {
         return err;
     }
+
+    // whatever header is wrote, we should try to send header.
+    if ((err = send_header(NULL, 0)) != srs_success) {
+        return srs_error_wrap(err, "send header");
+    }
     
     // send in chunked encoding.
     int nb_iovss = 3 + iovcnt;
@@ -744,9 +820,7 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
         iovss = iovss_cache = new iovec[nb_iovss];
     }
     
-    // send in chunked encoding.
-    
-    // chunk size.
+    // Send all iovs in one chunk, the size is the total size of iovs.
     int size = 0;
     for (int i = 0; i < iovcnt; i++) {
         const iovec* data_iov = iov + i;
@@ -756,29 +830,23 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     
     // chunk header
     int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x", size);
-    iovec* iovs = iovss;
-    iovs[0].iov_base = (char*)header_cache;
-    iovs[0].iov_len = (int)nb_size;
-    iovs++;
-    
+    iovss[0].iov_base = (char*)header_cache;
+    iovss[0].iov_len = (int)nb_size;
+
     // chunk header eof.
-    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
-    iovs[0].iov_len = 2;
-    iovs++;
-    
+    iovss[1].iov_base = (char*)SRS_HTTP_CRLF;
+    iovss[1].iov_len = 2;
+
     // chunk body.
     for (int i = 0; i < iovcnt; i++) {
-        const iovec* data_iov = iov + i;
-        iovs[0].iov_base = (char*)data_iov->iov_base;
-        iovs[0].iov_len = (int)data_iov->iov_len;
-        iovs++;
+        iovss[2+i].iov_base = (char*)iov[i].iov_base;
+        iovss[2+i].iov_len = (int)iov[i].iov_len;
     }
     
     // chunk body eof.
-    iovs[0].iov_base = (char*)SRS_HTTP_CRLF;
-    iovs[0].iov_len = 2;
-    iovs++;
-    
+    iovss[2+iovcnt].iov_base = (char*)SRS_HTTP_CRLF;
+    iovss[2+iovcnt].iov_len = 2;
+
     // sendout all ioves.
     ssize_t nwrite;
     if ((err = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != srs_success) {
@@ -823,7 +891,7 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     
     // detect content type
     if (srs_go_http_body_allowd(status)) {
-        if (hdr->content_type().empty()) {
+        if (data && hdr->content_type().empty()) {
             hdr->set_content_type(srs_go_http_detect(data, size));
         }
     }
@@ -840,8 +908,13 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     
     // keep alive to make vlc happy.
     hdr->set("Connection", "Keep-Alive");
+
+    // Filter the header before writing it.
+    if (hf && ((err = hf->filter(hdr)) != srs_success)) {
+        return srs_error_wrap(err, "filter header");
+    }
     
-    // write headers
+    // write header
     hdr->write(ss);
     
     // header_eof
@@ -851,30 +924,18 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
 }
 
-SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader)
+SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader, SrsFastStream* body)
 {
     skt = reader;
     owner = msg;
     is_eof = false;
     nb_total_read = 0;
     nb_left_chunk = 0;
-    buffer = NULL;
+    buffer = body;
 }
 
 SrsHttpResponseReader::~SrsHttpResponseReader()
 {
-}
-
-srs_error_t SrsHttpResponseReader::initialize(SrsFastStream* body)
-{
-    srs_error_t err = srs_success;
-    
-    nb_chunk = 0;
-    nb_left_chunk = 0;
-    nb_total_read = 0;
-    buffer = body;
-    
-    return err;
 }
 
 bool SrsHttpResponseReader::eof()
@@ -882,7 +943,7 @@ bool SrsHttpResponseReader::eof()
     return is_eof;
 }
 
-srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -897,7 +958,7 @@ srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     
     // read by specified content-length
     if (owner->content_length() != -1) {
-        int max = (int)owner->content_length() - (int)nb_total_read;
+        size_t max = (size_t)owner->content_length() - (size_t)nb_total_read;
         if (max <= 0) {
             is_eof = true;
             return err;
@@ -921,7 +982,7 @@ srs_error_t SrsHttpResponseReader::read(char* data, int nb_data, int* nb_read)
     return err;
 }
 
-srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read_chunked(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -961,40 +1022,46 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
         // it's ok to set the pos and pos+1 to NULL.
         at[length - 1] = 0;
         at[length - 2] = 0;
-        
+
         // size is the bytes size, excludes the chunk header and end CRLF.
-        int ilength = (int)::strtol(at, NULL, 16);
-        if (ilength < 0) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length=%d", ilength);
+        // @remark It must be hex format, please read https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Transfer-Encoding#Directives
+        // @remark For strtol, note that: If no conversion could be performed, 0 is returned and the global variable errno is set to EINVAL.
+        char* at_parsed = at; errno = 0;
+        int ilength = (int)::strtol(at, &at_parsed, 16);
+        if (ilength < 0 || errno != 0 || at_parsed - at != length - 2) {
+            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "invalid length %s as %d, parsed=%.*s, errno=%d",
+                at, ilength, (int)(at_parsed-at), at, errno);
         }
         
         // all bytes in chunk is left now.
-        nb_chunk = nb_left_chunk = ilength;
+        nb_chunk = nb_left_chunk = (size_t)ilength;
     }
     
     if (nb_chunk <= 0) {
         // for the last chunk, eof.
         is_eof = true;
+        *nb_read = 0;
     } else {
         // for not the last chunk, there must always exists bytes.
         // left bytes in chunk, read some.
         srs_assert(nb_left_chunk);
         
-        int nb_bytes = srs_min(nb_left_chunk, nb_data);
-        err = read_specified(data, nb_bytes, &nb_bytes);
+        size_t nb_bytes = srs_min(nb_left_chunk, nb_data);
+        err = read_specified(data, nb_bytes, (ssize_t*)&nb_bytes);
         
         // the nb_bytes used for output already read size of bytes.
         if (nb_read) {
             *nb_read = nb_bytes;
         }
         nb_left_chunk -= nb_bytes;
-        
-        // error or still left bytes in chunk, ignore and read in future.
+
         if (err != srs_success) {
             return srs_error_wrap(err, "read specified");
         }
+
+        // If still left bytes in chunk, ignore and read in future.
         if (nb_left_chunk > 0) {
-            return srs_error_new(ERROR_HTTP_INVALID_CHUNK_HEADER, "read specified left=%d", nb_left_chunk);
+            return err;
         }
     }
     
@@ -1007,7 +1074,7 @@ srs_error_t SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb
     return err;
 }
 
-srs_error_t SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
+srs_error_t SrsHttpResponseReader::read_specified(void* data, size_t nb_data, ssize_t* nb_read)
 {
     srs_error_t err = srs_success;
     
@@ -1018,7 +1085,7 @@ srs_error_t SrsHttpResponseReader::read_specified(char* data, int nb_data, int* 
         }
     }
     
-    int nb_bytes = srs_min(nb_data, buffer->size());
+    size_t nb_bytes = srs_min(nb_data, (size_t)buffer->size());
     
     // read data to buffer.
     srs_assert(nb_bytes);

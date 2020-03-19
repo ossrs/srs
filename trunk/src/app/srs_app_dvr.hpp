@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -185,8 +185,8 @@ public:
     virtual ~SrsDvrPlan();
 public:
     virtual srs_error_t initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
-    virtual srs_error_t on_publish() = 0;
-    virtual void on_unpublish() = 0;
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata);
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);

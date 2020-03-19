@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -61,6 +61,7 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, ",", "?");
     app = srs_string_replace(app, "...", "?");
     app = srs_string_replace(app, "&&", "?");
+    app = srs_string_replace(app, "&", "?");
     app = srs_string_replace(app, "=", "?");
     
     if (srs_string_ends_with(app, "/_definst_")) {
@@ -76,10 +77,12 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
             if (!query.empty()) {
                 vhost = query;
             }
-            if ((pos = vhost.find("?")) != std::string::npos) {
-                vhost = vhost.substr(0, pos);
-            }
         }
+    }
+
+    // vhost with params.
+    if ((pos = vhost.find("?")) != std::string::npos) {
+        vhost = vhost.substr(0, pos);
     }
     
     /* others */
@@ -151,7 +154,6 @@ void srs_random_generate(char* bytes, int size)
     if (!_random_initialized) {
         srand(0);
         _random_initialized = true;
-        srs_trace("srand initialized the random.");
     }
     
     for (int i = 0; i < size; i++) {
@@ -200,10 +202,10 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
     }
     
     // Remove the start & when param is empty.
-    srs_string_trim_start(query, "&");
-    
+    query = srs_string_trim_start(query, "&");
+
     // Prefix query with ?.
-    if (!srs_string_starts_with(query, "?")) {
+    if (!query.empty() && !srs_string_starts_with(query, "?")) {
         url += "?";
     }
     

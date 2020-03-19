@@ -76,7 +76,6 @@ else
     cd $ff_current_dir &&
     rm -rf x264-snapshot-20181116-2245 && unzip -q ${ff_src_dir}/x264-snapshot-20181116-2245.zip &&
     cd x264-snapshot-20181116-2245 && 
-#    chmod +w configure && patch -p0 <../../../3rdparty/patches/5.x264.osx.gcc.patch &&
     ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=all \
         --enable-static --disable-avs  --disable-swscale  --disable-lavf \
         --disable-ffms  --disable-gpac --disable-cli && 

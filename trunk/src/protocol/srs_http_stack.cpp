@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -35,8 +35,12 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
+
+// @see ISrsHttpMessage._http_ts_send_buffer
+#define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // get the status text of code.
 string srs_generate_http_status_text(int status)
@@ -99,9 +103,9 @@ string srs_generate_http_status_text(int status)
 // permits a body.  See RFC2616, section 4.4.
 bool srs_go_http_body_allowd(int status)
 {
-    if (status >= 100 && status <= 199) {
+    if (status >= SRS_CONSTS_HTTP_Continue && status < SRS_CONSTS_HTTP_OK) {
         return false;
-    } else if (status == 204 || status == 304) {
+    } else if (status == SRS_CONSTS_HTTP_NoContent || status == SRS_CONSTS_HTTP_NotModified) {
         return false;
     }
     
@@ -116,9 +120,7 @@ bool srs_go_http_body_allowd(int status)
 // returns "application/octet-stream".
 string srs_go_http_detect(char* data, int size)
 {
-    // detect only when data specified.
-    if (data) {
-    }
+    // TODO: Implement the request content-type detecting.
     return "application/octet-stream"; // fallback
 }
 
@@ -158,12 +160,35 @@ void SrsHttpHeader::set(string key, string value)
 string SrsHttpHeader::get(string key)
 {
     std::string v;
-    
-    if (headers.find(key) != headers.end()) {
-        v = headers[key];
+
+    map<string, string>::iterator it = headers.find(key);
+    if (it != headers.end()) {
+        v = it->second;
     }
     
     return v;
+}
+
+void SrsHttpHeader::del(string key)
+{
+    map<string, string>::iterator it = headers.find(key);
+    if (it != headers.end()) {
+        headers.erase(it);
+    }
+}
+
+int SrsHttpHeader::count()
+{
+    return (int)headers.size();
+}
+
+void SrsHttpHeader::dumps(SrsJsonObject* o)
+{
+    map<string, string>::iterator it;
+    for (it = headers.begin(); it != headers.end(); ++it) {
+        string v = it->second;
+        o->set(it->first, SrsJsonAny::str(v.c_str()));
+    }
 }
 
 int64_t SrsHttpHeader::content_length()
@@ -194,7 +219,7 @@ void SrsHttpHeader::set_content_type(string ct)
 
 void SrsHttpHeader::write(stringstream& ss)
 {
-    std::map<std::string, std::string>::iterator it;
+    map<string, string>::iterator it;
     for (it = headers.begin(); it != headers.end(); ++it) {
         ss << it->first << ": " << it->second << SRS_HTTP_CRLF;
     }
@@ -247,7 +272,7 @@ srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHt
         location += "?" + r->query();
     }
     
-    string msg = "Redirect to" + location;
+    string msg = "Redirect to " + location;
     
     w->header()->set_content_type("text/plain; charset=utf-8");
     w->header()->set_content_length(msg.length());
@@ -279,37 +304,67 @@ srs_error_t SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, ISrsHt
     return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
 }
 
-SrsHttpFileServer::SrsHttpFileServer(string root_dir)
+string srs_http_fs_fullpath(string dir, string pattern, string upath)
 {
-    dir = root_dir;
-}
-
-SrsHttpFileServer::~SrsHttpFileServer()
-{
-}
-
-srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
-{
-    string upath = r->path();
-    
     // add default pages.
     if (srs_string_ends_with(upath, "/")) {
         upath += SRS_HTTP_DEFAULT_PAGE;
     }
-    
-    string fullpath = dir + "/";
-    
-    // remove the virtual directory.
-    srs_assert(entry);
-    size_t pos = entry->pattern.find("/");
-    if (upath.length() > entry->pattern.length() && pos != string::npos) {
-        fullpath += upath.substr(entry->pattern.length() - pos);
-    } else {
-        fullpath += upath;
+
+    // Remove the virtual directory.
+    // For example:
+    //      pattern=/api, the virtual directory is api, upath=/api/index.html, fullpath={dir}/index.html
+    //      pattern=/api, the virtual directory is api, upath=/api/views/index.html, fullpath={dir}/views/index.html
+    // The vhost prefix is ignored, for example:
+    //      pattern=ossrs.net/api, the vhost is ossrs.net, the pattern equals to /api under this vhost,
+    //      so the virtual directory is also api
+    size_t pos = pattern.find("/");
+    string filename = upath;
+    if (upath.length() > pattern.length() && pos != string::npos) {
+        filename = upath.substr(pattern.length() - pos);
     }
+
+    string fullpath = srs_string_trim_end(dir, "/");
+    if (!srs_string_starts_with(filename, "/")) {
+        fullpath += "/";
+    }
+    fullpath += filename;
+
+    return fullpath;
+}
+
+SrsHttpFileServer::SrsHttpFileServer(string root_dir)
+{
+    dir = root_dir;
+    fs_factory = new ISrsFileReaderFactory();
+    _srs_path_exists = srs_path_exists;
+}
+
+SrsHttpFileServer::~SrsHttpFileServer()
+{
+    srs_freep(fs_factory);
+}
+
+void SrsHttpFileServer::set_fs_factory(ISrsFileReaderFactory* f)
+{
+    srs_freep(fs_factory);
+    fs_factory = f;
+}
+
+void SrsHttpFileServer::set_path_check(_pfn_srs_path_exists pfn)
+{
+    _srs_path_exists = pfn;
+}
+
+srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_assert(entry);
+
+    string upath = r->path();
+    string fullpath = srs_http_fs_fullpath(dir, entry->pattern, upath);
     
     // stat current dir, if exists, return error.
-    if (!srs_path_exists(fullpath)) {
+    if (!_srs_path_exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s",
                  fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
         return SrsHttpNotFoundHandler().serve_http(w, r);
@@ -332,15 +387,16 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath)
 {
     srs_error_t err = srs_success;
-    
-    // open the target file.
-    SrsFileReader fs;
-    
-    if ((err = fs.open(fullpath)) != srs_success) {
+
+    SrsFileReader* fs = fs_factory->create_file_reader();
+    SrsAutoFree(SrsFileReader, fs);
+
+    if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
     }
-    
-    int64_t length = fs.filesize();
+
+    // The length of bytes we could response to.
+    int64_t length = fs->filesize() - fs->tellg();
     
     // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
@@ -390,10 +446,13 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
             w->header()->set_content_type(_mime[ext]);
         }
     }
+
+    // Enter chunked mode, because we didn't set the content-length.
+    w->write_header(SRS_CONSTS_HTTP_OK);
     
     // write body.
     int64_t left = length;
-    if ((err = copy(w, &fs, r, (int)left)) != srs_success) {
+    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
         return srs_error_wrap(err, "copy file=%s size=%d", fullpath.c_str(), left);
     }
     
@@ -422,12 +481,19 @@ srs_error_t SrsHttpFileServer::serve_flv_file(ISrsHttpResponseWriter* w, ISrsHtt
 srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath)
 {
     // for flash to request mp4 range in query string.
-    // for example, http://digitalprimates.net/dash/DashTest.html?url=http://dashdemo.edgesuite.net/digitalprimates/nexus/oops-20120802-manifest.mpd
     std::string range = r->query_get("range");
-    // or, use bytes to request range,
-    // for example, http://dashas.castlabs.com/demo/try.html
+    // or, use bytes to request range.
     if (range.empty()) {
         range = r->query_get("bytes");
+    }
+
+    // Fetch range from header.
+    SrsHttpHeader* h = r->header();
+    if (range.empty() && h) {
+        range = h->get("Range");
+        if (range.find("bytes=") == 0) {
+            range = range.substr(6);
+        }
     }
     
     // rollback to serve whole file.
@@ -458,11 +524,15 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
 
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
 {
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
 {
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
@@ -471,23 +541,20 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
     srs_error_t err = srs_success;
     
     int left = size;
-    char* buf = r->http_ts_send_buffer();
+    char* buf = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
+    SrsAutoFreeA(char, buf);
     
     while (left > 0) {
         ssize_t nread = -1;
         int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
         if ((err = fs->read(buf, max_read, &nread)) != srs_success) {
-            break;
+            return srs_error_wrap(err, "read limit=%d, left=%d", max_read, left);
         }
         
         left -= nread;
         if ((err = w->write(buf, (int)nread)) != srs_success) {
-            break;
+            return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%d", max_read, nread, left);
         }
-    }
-    
-    if (err != srs_success) {
-        return srs_error_wrap(err, "copy");
     }
     
     return err;
@@ -609,16 +676,13 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handle
         std::string rpattern = pattern.substr(0, pattern.length() - 1);
         SrsHttpMuxEntry* entry = NULL;
         
-        // free the exists not explicit entry
+        // free the exists implicit entry
         if (entries.find(rpattern) != entries.end()) {
-            SrsHttpMuxEntry* exists = entries[rpattern];
-            if (!exists->explicit_match) {
-                entry = exists;
-            }
+            entry = entries[rpattern];
         }
         
         // create implicit redirect.
-        if (!entry || entry->explicit_match) {
+        if (!entry || !entry->explicit_match) {
             srs_freep(entry);
             
             entry = new SrsHttpMuxEntry();
@@ -666,7 +730,7 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage* r, ISrsHttpHandler** 
     
     // always hijack.
     if (!hijackers.empty()) {
-        // notice all hijacker the match failed.
+        // notify all hijackers unless matching failed.
         std::vector<ISrsHttpMatchHijacker*>::iterator it;
         for (it = hijackers.begin(); it != hijackers.end(); ++it) {
             ISrsHttpMatchHijacker* hijacker = *it;
@@ -765,17 +829,10 @@ srs_error_t SrsHttpCorsMux::initialize(ISrsHttpServeMux* worker, bool cros_enabl
 
 srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    srs_error_t err = srs_success;
-    
     // If CORS enabled, and there is a "Origin" header, it's CORS.
     if (enabled) {
-        for (int i = 0; i < r->request_header_count(); i++) {
-            string k = r->request_header_key_at(i);
-            if (k == "Origin" || k == "origin") {
-                required = true;
-                break;
-            }
-        }
+        SrsHttpHeader* h = r->header();
+        required = !h->get("Origin").empty();
     }
     
     // When CORS required, set the CORS headers.
@@ -795,9 +852,7 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
         } else {
             w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
         }
-        if ((err = w->final_request()) != srs_success) {
-            return srs_error_wrap(err, "final request");
-        }
+        return w->final_request();
     }
     
     srs_assert(next);
@@ -806,17 +861,10 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
 ISrsHttpMessage::ISrsHttpMessage()
 {
-    _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 ISrsHttpMessage::~ISrsHttpMessage()
 {
-    srs_freepa(_http_ts_send_buffer);
-}
-
-char* ISrsHttpMessage::http_ts_send_buffer()
-{
-    return _http_ts_send_buffer;
 }
 
 SrsHttpUri::SrsHttpUri()
@@ -911,6 +959,8 @@ string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
 
 // For #if !defined(SRS_EXPORT_LIBRTMP)
 #endif
+
+// LCOV_EXCL_START
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -3436,3 +3486,13 @@ http_parser_set_max_header_size(uint32_t size) {
   max_header_size = size;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+
+// LCOV_EXCL_STOP

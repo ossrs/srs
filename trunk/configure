@@ -17,7 +17,7 @@ BLACK="\\033[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG_TOOL/SRS_HTTP_CALLBACK/......
+# srs features: SRS_SSL/SRS_HLS/SRS_HTTP_CALLBACK/......
 # build options: SRS_JOBS
 #####################################################################################
 # parse options, exit with error when parse options invalid.
@@ -83,6 +83,13 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     fi
 done
 
+# generate extra phony for each modules.
+cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+
+.PHONY: $__mphonys
+
+END
+
 #####################################################################################
 # build tools or compiler args.
 # enable gdb debug
@@ -111,13 +118,17 @@ fi
 if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
+# User configed options.
+if [[ $SRS_EXTRA_FLAGS != '' ]]; then
+    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_FLAGS";
+fi
 # Start to generate the Makefile.
-cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-GCC = gcc
-CXX = g++
-AR = ar
+cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
+GCC = ${SRS_TOOL_CC}
+CXX = ${SRS_TOOL_CXX}
+AR = ${SRS_TOOL_AR}
 ARFLAGS = -rs
-LINK = g++
+LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
 .PHONY: default srs srs_ingest_hls librtmp
@@ -133,6 +144,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
@@ -156,10 +168,6 @@ fi
 if [ $SRS_STATIC = YES ]; then
     SrsLinkOptions="${SrsLinkOptions} -static";
 fi
-# if mips, add -lgcc_eh, or stl compile failed.
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    SrsLinkOptions="${SrsLinkOptions} -lgcc_eh";
-fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
@@ -172,7 +180,7 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_autofree" "srs_core_performance"
+MODULE_FILES=("srs_core" "srs_core_version3" "srs_core_autofree" "srs_core_performance"
 		"srs_core_mem_watch" "srs_core_time")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
@@ -195,7 +203,7 @@ ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_rtmp_handshake" "srs_protocol_utility" "srs_rtmp_msg_array" "srs_protocol_stream"
         "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
-        "srs_kafka_stack" "srs_protocol_format")
+        "srs_protocol_format")
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -225,7 +233,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
-            "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec" "srs_app_kafka"
+            "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec"
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
             "srs_app_coworkers")
     DEFINES=""
@@ -314,9 +322,9 @@ fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 if [ $SRS_UTEST = YES ]; then
-    MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
-            "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
-            "srs_utest_reload" "srs_utest_service" "srs_utest_app")
+    MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" "srs_utest_kernel" "srs_utest_core"
+        "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
+        "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
@@ -344,23 +352,10 @@ cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
-END
-
-# embeded, ubuntu12, use embeded tool chain.
-if [ $SRS_CROSS_BUILD = YES ]; then
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-default:
-	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default
-
-END
-# x86/x64, use gnu-gcc/g++ tool chain.
-else
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 default:
 	\$(MAKE) _default
 
 END
-fi
 
 # the real entry for all platform:
 #       the server, librtmp and utest
@@ -422,13 +417,13 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     # if export librtmp, donot build the bravo-ingest.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-$SRS_MODULE_NAME: _prepare_dir
+$SRS_MODULE_NAME: _prepare_dir server
 	@echo "Ingore the $SRS_MODULE_NAME for srs-librtmp"
 
 END
     else
         cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-$SRS_MODULE_NAME: _prepare_dir
+$SRS_MODULE_NAME: _prepare_dir server
 	@echo "Build the $SRS_MODULE_NAME over SRS"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} $SRS_MODULE_NAME
 
@@ -484,22 +479,30 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)
 	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
-	@cp research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
 	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
-	@cp objs/srs \$(__REAL_INSTALL)/objs
+	@cp -f objs/srs \$(__REAL_INSTALL)/objs
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
-	@cp conf/*.conf \$(__REAL_INSTALL)/conf
+	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
 	@echo "Now copy init.d script files"
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
-	@cp etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
+	@cp -f etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
+	@echo "Now copy systemctl service files"
+	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
+	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "SRS is installed, to link and start srs:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs"
+	@echo "The api installed, to link and start srs, please"
+	@echo "For CentOS6:"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
 	@echo "     /etc/init.d/srs start"
-	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
+	@echo "For CentOS7:"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
+	@echo "     sudo cp -f \$(SRS_PREFIX)/usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service && sudo systemctl daemon-reload && sudo systemctl enable srs &&"
+	@echo "     sudo systemctl start srs"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
 
 END
 fi
@@ -566,7 +569,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo ""
     echo "Configure summary:"
     echo "     ${SRS_AUTO_USER_CONFIGURE}"
-    echo "      ${SRS_AUTO_CONFIGURE}"
+    echo "     ${SRS_AUTO_CONFIGURE}"
     if [ $SRS_HLS = YES ]; then
         echo -e "${GREEN}HLS is enabled.${BLACK}"
     else
@@ -577,20 +580,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Note: StreamCaster is disabled.${BLACK}"
     fi
-    if [ $SRS_KAFKA = YES ]; then
-        echo -e "${GREEN}Kafka is enabled.${BLACK}"
-    else
-        echo -e "${YELLOW}Warning: Kafka is disabled.${BLACK}"
-    fi
     if [ $SRS_HDS = YES ]; then
         echo -e "${YELLOW}Experiment: HDS is enabled.${BLACK}"
     else
         echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
-    fi
-    if [ $SRS_NGINX = YES ]; then
-        echo -e "${GREEN}Nginx is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: Nginx is disabled.${BLACK}"
     fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"
@@ -601,11 +594,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${GREEN}RTMP complex handshake is enabled${BLACK}"
     else
         echo -e "${YELLOW}Warning: RTMP complex handshake is disabled, flash cann't play h264/aac.${BLACK}"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "${GREEN}The FFMPEG tool is enabled.${BLACK}"
-    else
-        echo -e "${YELLOW}Warning: The FFMPEG tool is disabled, please use other tools for transcode/mux/ingest.${BLACK}"
     fi
     if [ $SRS_TRANSCODE = YES ]; then
         echo -e "${GREEN}The transcoding is enabled${BLACK}"
@@ -677,16 +665,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
     fi
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The cross-build arm-ubuntu12(armhf, v7cpu) is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The cross-build arm-ubuntu12(armhf, v7cpu)is disabled.${BLACK}"
-    fi
-    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        echo -e "${GREEN}The mips-ubuntu12 is enabled.${BLACK}"
-    else
-        echo -e "${GREEN}Note: The mips-ubuntu12 is disabled.${BLACK}"
-    fi
     if [ $SRS_VALGRIND = YES ]; then
         echo -e "${GREEN}The valgrind is enabled.${BLACK}"
     else
@@ -705,12 +683,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
     echo ""
     echo "You can run 3rdparty applications:"
-    if [ $SRS_NGINX = YES ]; then
-        echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
-    fi
     if [ $SRS_HTTP_CALLBACK = YES ]; then
         echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
     fi
@@ -735,4 +707,6 @@ else
         echo -e "${GREEN}Please use the srs-librtmp project: ${BLACK}"
         echo -e "${GREEN}       cd $SRS_EXPORT_LIBRTMP_PROJECT && make ${BLACK}"
     fi
+    # Change to experiment.
+    echo -e "${YELLOW}Warning: Notice srs-librtmp is deprecated and maybe removed in future.${BLACK}"
 fi

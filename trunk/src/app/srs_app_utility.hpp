@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -89,7 +89,7 @@ public:
 
 // Get system rusage, use cache to avoid performance problem.
 extern SrsRusage* srs_get_system_rusage();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_system_rusage();
 
 // To stat the process info.
@@ -339,7 +339,7 @@ public:
 extern SrsProcSelfStat* srs_get_self_proc_stat();
 // Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSystemStat* srs_get_system_proc_stat();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_proc_stat();
 
 // Stat disk iops
@@ -446,7 +446,7 @@ public:
 
 // Get disk stat, use cache to avoid performance problem.
 extern SrsDiskStat* srs_get_disk_stat();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_disk_stat();
 
 // Stat system memory info
@@ -487,7 +487,7 @@ public:
 
 // Get system meminfo, use cache to avoid performance problem.
 extern SrsMemInfo* srs_get_meminfo();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_meminfo();
 
 // system cpu hardware info.
@@ -543,7 +543,7 @@ public:
 
 // Get platform info, use cache to avoid performance problem.
 extern SrsPlatformInfo* srs_get_platform_info();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_platform_info();
 
 // The network device summary for each network device, for example, eth0, eth1, ethN
@@ -586,7 +586,7 @@ public:
 // Get network devices info, use cache to avoid performance problem.
 extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_network_devices();
 
 // The system connections, and srs rtmp network summary
@@ -629,7 +629,7 @@ public:
 
 // Get network devices info, use cache to avoid performance problem.
 extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
-// The deamon st-thread will update it.
+// The daemon st-thread will update it.
 extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
 // Get local or peer ip.
@@ -640,17 +640,11 @@ extern int srs_get_local_port(int fd);
 // Where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
 
-// Whether string is digit number
-//      is_digit("1234567890")  === true
-//      is_digit("0123456789")  === false
-//      is_digit("1234567890a") === false
-//      is_digit("a1234567890") === false
-extern bool srs_is_digit_number(const std::string& str);
 // Whether string is boolean
 //      is_bool("true") == true
 //      is_bool("false") == true
 //      otherwise, false.
-extern bool srs_is_boolean(const std::string& str);
+extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);

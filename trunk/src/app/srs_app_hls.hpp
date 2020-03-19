@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -157,7 +157,8 @@ private:
     // The key and iv.
     unsigned char key[16];
     unsigned char iv[16];
-    SrsFileWriter *writer;
+    // The underlayer file writer.
+    SrsFileWriter* writer;
 private:
     int _sequence_no;
     srs_utime_t max_td;
@@ -184,6 +185,9 @@ public:
 public:
     // Initialize the hls muxer.
     virtual srs_error_t initialize();
+    // When publish or unpublish stream.
+    virtual srs_error_t on_publish(SrsRequest* req);
+    virtual srs_error_t on_unpublish();
     // When publish, update the config for muxer.
     virtual srs_error_t update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
@@ -287,6 +291,8 @@ private:
     int64_t previous_audio_dts;
     // The total aac samples.
     uint64_t aac_samples;
+    // Whether directly turn FLV timestamp to TS DTS.
+    bool hls_dts_directly;
 private:
     SrsOriginHub* hub;
     SrsRtmpJitter* jitter;

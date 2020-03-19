@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -116,14 +116,23 @@
 ///////////////////////////////////////////////////////////
 #define SRS_CONSTS_NULL_FILE "/dev/null"
 #define SRS_CONSTS_LOCALHOST "127.0.0.1"
+#define SRS_CONSTS_LOOPBACK "0.0.0.0"
+#define SRS_CONSTS_LOOPBACK6 "::"
 
 // The signal defines.
 // To reload the config file and apply new config.
 #define SRS_SIGNAL_RELOAD SIGHUP
 // Reopen the log file.
 #define SRS_SIGNAL_REOPEN_LOG SIGUSR1
-// The signal for srs to gracefully quit, do dispose then exit.
-#define SRS_SIGNAL_GRACEFULLY_QUIT SIGTERM
+// For gracefully upgrade, start new SRS and gracefully quit old one.
+// @see https://github.com/ossrs/srs/issues/1579
+// TODO: Not implemented.
+#define SRS_SIGNAL_UPGRADE SIGUSR2
+// The signal for srs to fast quit, do essential dispose then exit.
+#define SRS_SIGNAL_FAST_QUIT SIGTERM
+// The signal for srs to gracefully quit, do carefully dispose then exit.
+// @see https://github.com/ossrs/srs/issues/1579
+#define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
 
 // The application level signals.
 // Persistence the config in memory to config file.
@@ -144,7 +153,7 @@
 // Downloading speed-up, play to edge, ingest from origin
 #define SRS_CONSTS_LOG_EDGE_PLAY "EIG"
 // Uploading speed-up, publish to edge, foward to origin
-#define SRS_CONSTS_LOG_EDGE_PUBLISH "EFW"
+#define SRS_CONSTS_LOG_EDGE_PUBLISH "EPB"
 // The edge/origin forwarder.
 #define SRS_CONSTS_LOG_FOWARDER "FWR"
 // Play stream on edge/origin.
@@ -211,7 +220,7 @@
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
 // The default recv timeout.
-#define SRS_HTTP_RECV_TIMEOUT (60 * SRS_UTIME_SECONDS)
+#define SRS_HTTP_RECV_TIMEOUT (15 * SRS_UTIME_SECONDS)
 
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
@@ -389,14 +398,6 @@
 #define SRS_CONSTS_RTSP_GatewayTimeout_str                      "Gateway Timeout"
 #define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
 #define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
-
-///////////////////////////////////////////////////////////
-// KAFKA consts values
-///////////////////////////////////////////////////////////
-#define SRS_CONSTS_KAFKA_DEFAULT_PORT 9092
-
-// The common io timeout, for both recv and send.
-#define SRS_CONSTS_KAFKA_TIMEOUT (30 * SRS_UTIME_MILLISECONDS)
 
 #endif
 

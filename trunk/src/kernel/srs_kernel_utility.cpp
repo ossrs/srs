@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -37,6 +37,7 @@
 #include <stdlib.h>
 
 #include <vector>
+#include <algorithm>
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -122,11 +123,14 @@ srs_utime_t srs_get_system_startup_time()
     return _srs_system_time_startup_time;
 }
 
+// For utest to mock it.
+_srs_gettimeofday_t _srs_gettimeofday = ::gettimeofday;
+
 srs_utime_t srs_update_system_time()
 {
     timeval now;
     
-    if (gettimeofday(&now, NULL) < 0) {
+    if (_srs_gettimeofday(&now, NULL) < 0) {
         srs_warn("gettimeofday failed, ignore");
         return -1;
     }
@@ -166,60 +170,87 @@ string srs_dns_resolve(string host, int& family)
 {
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family  = family;
+    hints.ai_family = family;
     
     addrinfo* r = NULL;
     SrsAutoFree(addrinfo, r);
-    
-    if(getaddrinfo(host.c_str(), NULL, NULL, &r)) {
+    if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
         return "";
     }
     
-    char saddr[64];
-    char* h = (char*)saddr;
-    socklen_t nbh = sizeof(saddr);
-    const int r0 = getnameinfo(r->ai_addr, r->ai_addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
-
-    if(!r0) {
-       family = r->ai_family;
-       return string(saddr);
+    char shost[64];
+    memset(shost, 0, sizeof(shost));
+    if (getnameinfo(r->ai_addr, r->ai_addrlen, shost, sizeof(shost), NULL, 0, NI_NUMERICHOST)) {
+        return "";
     }
-    return "";
+
+   family = r->ai_family;
+   return string(shost);
 }
 
-void srs_parse_hostport(const string& hostport, string& host, int& port)
+void srs_parse_hostport(string hostport, string& host, int& port)
 {
-    const size_t pos = hostport.rfind(":");   // Look for ":" from the end, to work with IPv6.
-    if (pos != std::string::npos) {
-        const string p = hostport.substr(pos + 1);
-        if ((pos >= 1) &&
-            (hostport[0]       == '[') &&
-            (hostport[pos - 1] == ']')) {
-            // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
-            host = hostport.substr(1, pos - 2);
-        } else {
-            // Handle IP address
-            host = hostport.substr(0, pos);
-        }
-        port = ::atoi(p.c_str());
-    } else {
+    // No host or port.
+    if (hostport.empty()) {
+        return;
+    }
+
+    size_t pos = string::npos;
+
+    // Host only for ipv4.
+    if ((pos = hostport.rfind(":")) == string::npos) {
         host = hostport;
+        return;
+    }
+
+    // For ipv4(only one colon), host:port.
+    if (hostport.find(":") == pos) {
+        host = hostport.substr(0, pos);
+        string p = hostport.substr(pos + 1);
+        if (!p.empty()) {
+            port = ::atoi(p.c_str());
+        }
+        return;
+    }
+
+    // Host only for ipv6.
+    if (hostport.at(0) != '[' || (pos = hostport.rfind("]:")) == string::npos) {
+        host = hostport;
+        return;
+    }
+
+    // For ipv6, [host]:port.
+    host = hostport.substr(1, pos - 1);
+    string p = hostport.substr(pos + 2);
+    if (!p.empty()) {
+        port = ::atoi(p.c_str());
     }
 }
 
-string srs_any_address4listener()
+string srs_any_address_for_listener()
 {
-    int fd = socket(AF_INET6, SOCK_DGRAM, 0);
-    
-    // socket()
-    // A -1 is returned if an error occurs, otherwise the return value is a
-    // descriptor referencing the socket.
-    if(fd != -1) {
-        close(fd);
-        return "::";
+    bool ipv4_active = false;
+    bool ipv6_active = false;
+
+    if (true) {
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if(fd != -1) {
+            ipv4_active = true;
+            close(fd);
+        }
     }
-    
-    return "0.0.0.0";
+    if (true) {
+        int fd = socket(AF_INET6, SOCK_DGRAM, 0);
+        if(fd != -1) {
+            ipv6_active = true;
+            close(fd);
+        }
+    }
+
+    if (ipv6_active && !ipv4_active) {
+        return SRS_CONSTS_LOOPBACK6;
+    }
+    return SRS_CONSTS_LOOPBACK;
 }
 
 void srs_parse_endpoint(string hostport, string& ip, int& port)
@@ -237,7 +268,7 @@ void srs_parse_endpoint(string hostport, string& ip, int& port)
         const string sport = hostport.substr(pos + 1);
         port = ::atoi(sport.c_str());
     } else {
-        ip   = srs_any_address4listener();
+        ip = srs_any_address_for_listener();
         port = ::atoi(hostport.c_str());
     }
 }
@@ -437,6 +468,16 @@ bool srs_string_contains(string str, string flag0, string flag1, string flag2)
     return str.find(flag0) != string::npos || str.find(flag1) != string::npos || str.find(flag2) != string::npos;
 }
 
+int srs_string_count(string str, string flag)
+{
+    int nn = 0;
+    for (int i = 0; i < (int)flag.length(); i++) {
+        char ch = flag.at(i);
+        nn += std::count(str.begin(), str.end(), ch);
+    }
+    return nn;
+}
+
 vector<string> srs_string_split(string str, string flag)
 {
     vector<string> arr;
@@ -543,11 +584,11 @@ int srs_do_create_dir_recursively(string dir)
     
     // create curren dir.
     // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#ifndef _WIN32
+#ifdef _WIN32
+    if (::_mkdir(dir.c_str()) < 0) {
+#else
     mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
-#else
-    if (::mkdir(dir.c_str()) < 0) {
 #endif
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
@@ -611,15 +652,20 @@ bool srs_path_exists(std::string path)
 string srs_path_dirname(string path)
 {
     std::string dirname = path;
+
+    // No slash, it must be current dir.
     size_t pos = string::npos;
-    
-    if ((pos = dirname.rfind("/")) != string::npos) {
-        if (pos == 0) {
-            return "/";
-        }
-        dirname = dirname.substr(0, pos);
+    if ((pos = dirname.rfind("/")) == string::npos) {
+        return "./";
     }
-    
+
+    // Path under root.
+    if (pos == 0) {
+        return "/";
+    }
+
+    // Fetch the directory.
+    dirname = dirname.substr(0, pos);
     return dirname;
 }
 
@@ -1077,9 +1123,9 @@ int srs_chunk_header_c0(int perfer_cid, uint32_t timestamp, int32_t payload_leng
         *p++ = pp[1];
         *p++ = pp[0];
     } else {
-        *p++ = 0xFF;
-        *p++ = 0xFF;
-        *p++ = 0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
+        *p++ = (char)0xFF;
     }
     
     // message_length, 3bytes, big-endian

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -216,6 +216,8 @@ void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
         << "/" << std::hex << any->to_date_time_zone() << endl;
     } else if (any->is_null()) {
         ss << "Null" << endl;
+    } else if (any->is_undefined()) {
+        ss << "Undefined" << endl;
     } else if (any->is_ecma_array()) {
         SrsAmf0EcmaArray* obj = any->to_ecma_array();
         ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
@@ -1028,12 +1030,7 @@ SrsAmf0StrictArray::SrsAmf0StrictArray()
 
 SrsAmf0StrictArray::~SrsAmf0StrictArray()
 {
-    std::vector<SrsAmf0Any*>::iterator it;
-    for (it = properties.begin(); it != properties.end(); ++it) {
-        SrsAmf0Any* any = *it;
-        srs_freep(any);
-    }
-    properties.clear();
+    clear();
 }
 
 int SrsAmf0StrictArray::total_size()
@@ -1145,6 +1142,11 @@ SrsJsonAny* SrsAmf0StrictArray::to_json()
 
 void SrsAmf0StrictArray::clear()
 {
+    std::vector<SrsAmf0Any*>::iterator it;
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsAmf0Any* any = *it;
+        srs_freep(any);
+    }
     properties.clear();
 }
 
@@ -1167,7 +1169,7 @@ void SrsAmf0StrictArray::append(SrsAmf0Any* any)
 
 int SrsAmf0Size::utf8(string value)
 {
-    return 2 + (int)value.length();
+    return (int)(2 + value.length());
 }
 
 int SrsAmf0Size::str(string value)
@@ -1750,7 +1752,7 @@ namespace _srs_internal
         if (!stream->require(2)) {
             return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
         }
-        stream->write_2bytes(value.length());
+        stream->write_2bytes((int16_t)value.length());
         
         // empty string
         if (value.length() <= 0) {
@@ -1781,24 +1783,8 @@ namespace _srs_internal
     
     srs_error_t srs_amf0_write_object_eof(SrsBuffer* stream, SrsAmf0ObjectEOF* value)
     {
-        srs_error_t err = srs_success;
-        
         srs_assert(value != NULL);
-        
-        // value
-        if (!stream->require(2)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
-        }
-        stream->write_2bytes(0x00);
-        
-        // marker
-        if (!stream->require(1)) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
-        }
-        
-        stream->write_1bytes(RTMP_AMF0_ObjectEnd);
-        
-        return err;
+        return value->write(stream);
     }
     
     srs_error_t srs_amf0_write_any(SrsBuffer* stream, SrsAmf0Any* value)

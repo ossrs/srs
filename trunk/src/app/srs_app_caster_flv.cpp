@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -76,8 +76,12 @@ srs_error_t SrsAppCasterFlv::initialize()
 srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
-    
+
     string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    if (ip.empty() && !_srs_config->empty_ip_ok()) {
+        srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
+    }
+
     SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
     conns.push_back(conn);
     
@@ -295,7 +299,7 @@ srs_error_t SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     int total_read = 0;
     while (total_read < (int)count) {
-        int nread = 0;
+        ssize_t nread = 0;
         if ((err = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != srs_success) {
             return srs_error_wrap(err, "read");
         }
@@ -306,7 +310,7 @@ srs_error_t SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
         }
         
         srs_assert(nread);
-        total_read += nread;
+        total_read += (int)nread;
     }
     
     if (pnread) {

@@ -1,0 +1,12 @@
+[Unit]
+Description=The SRS Media Stream Cluster
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/etc/init.d/srs start
+ExecReload=/etc/init.d/srs reload
+ExecStop=/etc/init.d/srs stop
+
+[Install]
+WantedBy=multi-user.target

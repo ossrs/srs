@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -81,11 +81,9 @@ srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    srs_trace("HTTP client ip=%s", ip.c_str());
-    
     // initialize parser
     if ((err = parser->initialize(HTTP_REQUEST, false)) != srs_success) {
-        return srs_error_wrap(err, "init parser");
+        return srs_error_wrap(err, "init parser for %s", ip.c_str());
     }
     
     // set the recv timeout, for some clients never disconnect the connection.
@@ -102,10 +100,12 @@ srs_error_t SrsHttpConn::do_cycle()
     }
     
     // process http messages.
-    while ((err = trd->pull()) == srs_success) {
-        ISrsHttpMessage* req = NULL;
-        
+    for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
+        // Try to receive a message from http.
+        srs_trace("HTTP client ip=%s, request=%d, to=%dms", ip.c_str(), req_id, srsu2ms(SRS_HTTP_RECV_TIMEOUT));
+
         // get a http message
+        ISrsHttpMessage* req = NULL;
         if ((err = parser->parse_message(skt, &req)) != srs_success) {
             break;
         }

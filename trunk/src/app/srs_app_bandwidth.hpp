@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,14 +40,14 @@ class ISrsProtocolStatistic;
 class SrsBandwidthSample
 {
 public:
-    // The plan, how long to do the test, in ms,
+    // The plan, how long to do the test,
     // if exceed the duration, abort the test.
-    int duration_ms;
-    // The plan, interval for each check/test packet, in ms
-    int interval_ms;
+    srs_utime_t duration;
+    // The plan, interval for each check/test packet
+    srs_utime_t interval;
 public:
-    // The actual test duration, in ms.
-    int actual_duration_ms;
+    // The actual test duration.
+    srs_utime_t actual_duration;
     // The actual test bytes
     int bytes;
     // The actual test kbps
@@ -58,8 +58,8 @@ public:
 public:
     // Update the bytes and actual duration, then calc the kbps.
     // @param _bytes update the sample bytes.
-    // @param _duration update the actual duration, in ms.
-    virtual void calc_kbps(int _bytes, int _duration);
+    // @param _duration update the actual duration.
+    virtual void calc_kbps(int _bytes, srs_utime_t _duration);
 };
 
 // The bandwidth test agent which provides the interfaces for bandwidth check.

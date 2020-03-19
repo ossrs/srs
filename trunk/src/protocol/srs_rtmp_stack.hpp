@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -49,6 +49,7 @@ class SrsChunkStream;
 class SrsSharedPtrMessage;
 
 class SrsProtocol;
+class ISrsProtocolReader;
 class ISrsProtocolReadWriter;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
@@ -114,6 +115,9 @@ class SrsPacket
 public:
     SrsPacket();
     virtual ~SrsPacket();
+public:
+    // Covert packet to common message.
+    virtual srs_error_t to_msg(SrsCommonMessage* msg, int stream_id);
 public:
     // The subpacket can override this encode,
     // For example, video and audio will directly set the payload withou memory copy,
@@ -209,7 +213,8 @@ private:
     // The c0c3 caches must use unit SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE bytes.
     //
     // @remark, the c0c3 cache cannot be realloc.
-    char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
+    // To allocate it in heap to make VS2015 happy.
+    char* out_c0c3_caches;
     // Whether warned user to increase the c0c3 header cache.
     bool warned_c0c3_cache_dry;
     // The output chunk size, default to 128, set by config.
@@ -355,9 +360,6 @@ private:
     virtual srs_error_t do_iovs_send(iovec* iovs, int size);
     // The underlayer api for send and free packet.
     virtual srs_error_t do_send_and_free_packet(SrsPacket* packet, int stream_id);
-    // Use simple algorithm to send the header and bytes.
-    // @remark, for do_send_and_free_packet to send.
-    virtual srs_error_t do_simple_send(SrsMessageHeader* mh, char* payload, int size);
     // The imp for decode_message
     virtual srs_error_t do_decode_message(SrsMessageHeader& header, SrsBuffer* stream, SrsPacket** ppacket);
     // Recv bytes oriented RTMP message from protocol stack.
@@ -500,6 +502,8 @@ bool srs_client_type_is_publish(SrsRtmpConnType type);
 class SrsHandshakeBytes
 {
 public:
+    // For RTMP proxy, the real IP.
+    uint32_t proxy_real_ip;
     // [1+1536]
     char* c0c1;
     // [1+1536+1536]
@@ -510,9 +514,11 @@ public:
     SrsHandshakeBytes();
     virtual ~SrsHandshakeBytes();
 public:
-    virtual srs_error_t read_c0c1(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_s0s1s2(ISrsProtocolReadWriter* io);
-    virtual srs_error_t read_c2(ISrsProtocolReadWriter* io);
+    virtual void dispose();
+public:
+    virtual srs_error_t read_c0c1(ISrsProtocolReader* io);
+    virtual srs_error_t read_s0s1s2(ISrsProtocolReader* io);
+    virtual srs_error_t read_c2(ISrsProtocolReader* io);
     virtual srs_error_t create_c0c1();
     virtual srs_error_t create_s0s1s2(const char* c1 = NULL);
     virtual srs_error_t create_c2();
@@ -615,6 +621,10 @@ private:
 public:
     SrsRtmpServer(ISrsProtocolReadWriter* skt);
     virtual ~SrsRtmpServer();
+public:
+    // For RTMP proxy, the real IP. 0 if no proxy.
+    // @doc https://github.com/ossrs/go-oryx/wiki/RtmpProxy
+    virtual uint32_t proxy_real_ip();
 // Protocol methods proxy
 public:
     // Set the auto response message when recv for protocol stack.
@@ -697,9 +707,9 @@ public:
     // @param server_ip the ip of server.
     virtual srs_error_t response_connect_app(SrsRequest* req, const char* server_ip = NULL);
     // Redirect the connection to another rtmp server.
-    // @param the hostname or ip of target.
+    // @param a RTMP url to redirect to.
     // @param whether the client accept the redirect.
-    virtual srs_error_t redirect(SrsRequest* r, std::string host, int port, bool& accepted);
+    virtual srs_error_t redirect(SrsRequest* r, std::string url, bool& accepted);
     // Reject the connect app request.
     virtual void response_connect_reject(SrsRequest* req, const char* desc);
     // Response  client the onBWDone message.
@@ -766,7 +776,7 @@ public:
         return protocol->expect_message<T>(pmsg, ppacket);
     }
 private:
-    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
+    virtual srs_error_t identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, int depth, SrsRtmpConnType& type, std::string& stream_name, srs_utime_t& duration);
     virtual srs_error_t identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_haivision_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual srs_error_t identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);

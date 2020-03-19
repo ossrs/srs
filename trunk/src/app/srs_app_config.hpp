@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +30,7 @@
 #include <string>
 #include <map>
 #include <sstream>
+#include <algorithm>
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
@@ -46,6 +47,35 @@ class SrsRequest;
 class SrsJsonArray;
 class SrsConfDirective;
 
+/**
+ * whether the two vector actual equals, for instance,
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [2, 1, 0])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 2, 1])      ==== true
+ *      srs_vector_actual_equals([0, 1, 2], [0, 1, 2, 3])   ==== false
+ *      srs_vector_actual_equals([1, 2, 3], [0, 1, 2])      ==== false
+ */
+template<typename T>
+bool srs_vector_actual_equals(const std::vector<T>& a, const std::vector<T>& b)
+{
+    // all elements of a in b.
+    for (int i = 0; i < (int)a.size(); i++) {
+        const T& e = a.at(i);
+        if (std::find(b.begin(), b.end(), e) == b.end()) {
+            return false;
+        }
+    }
+
+    // all elements of b in a.
+    for (int i = 0; i < (int)b.size(); i++) {
+        const T& e = b.at(i);
+        if (std::find(a.begin(), a.end(), e) == a.end()) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 namespace _srs_internal
 {
@@ -93,7 +123,7 @@ extern bool srs_stream_caster_is_flv(std::string caster);
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
 
 // Convert bool in str to on/off
-extern std::string srs_config_bool2switch(const std::string& sbool);
+extern std::string srs_config_bool2switch(std::string sbool);
 
 // Parse loaded vhost directives to compatible mode.
 // For exmaple, SRS1/2 use the follow refer style:
@@ -185,6 +215,7 @@ public:
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0, std::string a1);
     virtual SrsConfDirective* set_arg0(std::string a0);
     // Remove the v from sub directives, user must free the v.
     virtual void remove(SrsConfDirective* v);
@@ -278,9 +309,7 @@ public:
 public:
     // Whether srs is in dolphin mode.
     virtual bool is_dolphin();
-private:
-    virtual void set_config_directive(SrsConfDirective* parent, std::string dir, std::string value);
-// Reload 
+// Reload
 public:
     // For reload handler to register itself,
     // when config service do the reload, callback the handler.
@@ -406,10 +435,10 @@ public:
     // The root directive, no name and args, contains directives.
     // All directive parsed can retrieve from root.
     virtual SrsConfDirective* get_root();
-    // Get the deamon config.
-    // If  true, SRS will run in deamon mode, fork and fork to reap the
+    // Get the daemon config.
+    // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
-    virtual bool get_deamon();
+    virtual bool get_daemon();
     // Get the max connections limit of system.
     // If  exceed the max connection, SRS will disconnect the connection.
     // @remark, linux will limit the connections of each process,
@@ -439,6 +468,20 @@ public:
     virtual std::string get_work_dir();
     // Whether use asprocess mode.
     virtual bool get_asprocess();
+    // Whether empty client IP is ok.
+    virtual bool empty_ip_ok();
+    // Get the start wait in ms for gracefully quit.
+    virtual srs_utime_t get_grace_start_wait();
+    // Get the final wait in ms for gracefully quit.
+    virtual srs_utime_t get_grace_final_wait();
+    // Whether force to gracefully quit, never fast quit.
+    virtual bool is_force_grace_quit();
+    // Whether disable daemon for docker.
+    virtual bool disable_daemon_for_docker();
+    // Whether use inotify to auto reload by watching config file changes.
+    virtual bool inotify_auto_reload();
+    // Whether enable auto reload config for docker.
+    virtual bool auto_reload_for_docker();
 // stream_caster section
 public:
     // Get all stream_caster in config file.
@@ -455,14 +498,6 @@ public:
     virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     // Get the max udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
-// kafka section.
-public:
-    // Whether the kafka enabled.
-    virtual bool get_kafka_enabled();
-    // Get the broker list, each is format in <ip:port>.
-    virtual SrsConfDirective* get_kafka_brokers();
-    // Get the kafka topic to use for srs.
-    virtual std::string get_kafka_topic();
 // vhost specified section
 public:
     // Get the vhost directive by vhost name.
@@ -758,10 +793,12 @@ public:
     // Get the log file path.
     virtual std::string get_log_file();
     // Whether ffmpeg log enabled
-    virtual bool get_ffmpeg_log_enabled();
+    virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.
     // @remark, /dev/null to disable it.
-    virtual std::string get_ffmpeg_log_dir();
+    virtual std::string get_ff_log_dir();
+    // The ffmpeg log level.
+    virtual std::string get_ff_log_level();
 // The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);
@@ -833,6 +870,8 @@ public:
     // Get the size of bytes to read from cdn network, for the on_hls_notify callback,
     // that is, to read max bytes of the bytes from the callback, or timeout or error.
     virtual int get_vhost_hls_nb_notify(std::string vhost);
+    // Whether turn the FLV timestamp to TS DTS.
+    virtual bool get_vhost_hls_dts_directly(std::string vhost);
 // hds section
 private:
     // Get the hds directive of vhost.

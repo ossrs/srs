@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -41,7 +41,7 @@ SrsHttpClient::SrsHttpClient()
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     parser = NULL;
-    timeout = SRS_UTIME_NO_TIMEOUT;
+    recv_timeout = timeout = SRS_UTIME_NO_TIMEOUT;
     port = 0;
 }
 
@@ -68,7 +68,7 @@ srs_error_t SrsHttpClient::initialize(string h, int p, srs_utime_t tm)
     // Always disconnect the transport.
     host = h;
     port = p;
-    timeout = tm;
+    recv_timeout = timeout = tm;
     disconnect();
     
     // ep used for host in header.
@@ -187,7 +187,7 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
 
 void SrsHttpClient::set_recv_timeout(srs_utime_t tm)
 {
-    transport->set_recv_timeout(tm);
+    recv_timeout = tm;
 }
 
 void SrsHttpClient::kbps_sample(const char* label, int64_t age)
@@ -222,11 +222,12 @@ srs_error_t SrsHttpClient::connect()
     transport = new SrsTcpClient(host, port, timeout);
     if ((err = transport->connect()) != srs_success) {
         disconnect();
-        return srs_error_wrap(err, "http: tcp connect %s:%d to=%dms", host.c_str(), port, srsu2msi(timeout));
+        return srs_error_wrap(err, "http: tcp connect %s:%d to=%dms, rto=%dms",
+            host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
     }
     
     // Set the recv/send timeout in srs_utime_t.
-    transport->set_recv_timeout(timeout);
+    transport->set_recv_timeout(recv_timeout);
     transport->set_send_timeout(timeout);
     
     kbps->set_io(transport, transport);

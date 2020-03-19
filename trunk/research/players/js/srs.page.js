@@ -3,7 +3,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.31"; }
+function srs_get_version_code() { return "1.33"; }
 
 /**
 * player specified size.
@@ -18,13 +18,6 @@ function srs_get_player_vhost() { return "players"; }
 function srs_get_api_server_port() { return 8085; }
 // the srs http server port
 function srs_get_srs_http_server_port() { return 8080; }
-// get the stream published to vhost,
-// generally we need to transcode the stream to support HLS and filters.
-// for example, src_vhost is "players", we transcode stream to vhost "players_pub".
-// if not equals to the player vhost, return the orignal vhost.
-function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
-// for chat, use rtmp only vhost, low latecy, without gop cache.
-function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_chat"); }
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +43,15 @@ function user_extra_params(query, params) {
     var server = (query.server == undefined)? window.location.hostname:query.server;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
 
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (vhost == "ossrs.net") {
+        vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
+
     for (var key in query.user_query) {
         if (key == 'app' || key == 'autostart' || key == 'dir'
             || key == 'filename' || key == 'host' || key == 'hostname'
@@ -59,7 +61,10 @@ function user_extra_params(query, params) {
         ) {
             continue;
         }
-        queries.push(key + '=' + query[key]);
+
+        if (query[key]) {
+            queries.push(key + '=' + query[key]);
+        }
     }
 
     return queries;
@@ -75,12 +80,21 @@ function user_extra_params(query, params) {
 function build_default_rtmp_url() {
     var query = parse_query_string();
 
-    var schema = (query.schema == undefined)? "rtmp":query.schema;
-    var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
-    var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
-    var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "demo":query.stream;
+    var schema = (!query.schema)? "rtmp":query.schema;
+    var server = (!query.server)? window.location.hostname:query.server;
+    var port = (!query.port)? schema=="http"?80:1935:query.port;
+    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
+    var app = (!query.app)? "live":query.app;
+    var stream = (!query.stream)? "livestream":query.stream;
+
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (vhost == "ossrs.net") {
+        vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
 
     var queries = [];
     if (server != vhost && vhost != "__defaultVhost__") {
@@ -99,16 +113,25 @@ function build_default_rtmp_url() {
 function build_default_publish_rtmp_url() {
     var query = parse_query_string();
 
-    var schema = (query.schema == undefined)? "rtmp":query.schema;
-    var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? schema=="http"?80:1935:query.port;
-    var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
-    var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "demo":query.stream;
+    var schema = (!query.schema)? "rtmp":query.schema;
+    var server = (!query.server)? window.location.hostname:query.server;
+    var port = (!query.port)? schema=="http"?80:1935:query.port;
+    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
+    var app = (!query.app)? "live":query.app;
+    var stream = (!query.stream)? "demo":query.stream;
+
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (vhost == "ossrs.net") {
+        vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
 
     var queries = [];
     if (server != vhost && vhost != "__defaultVhost__") {
-        queries.push("vhost=" + srs_get_player_chat_vhost(vhost));
+        queries.push("vhost=" + vhost);
     }
     if (query.shp_identify) {
         queries.push("shp_identify=" + query.shp_identify);
@@ -125,11 +148,20 @@ function build_default_publish_rtmp_url() {
 function build_default_bandwidth_rtmp_url() {
     var query = parse_query_string();
 
-    var server = (query.server == undefined)? window.location.hostname:query.server;
-    var port = (query.port == undefined)? 1935:query.port;
+    var server = (!query.server)? window.location.hostname:query.server;
+    var port = (!query.port)? 1935:query.port;
     var vhost = "bandcheck.srs.com";
-    var app = (query.app == undefined)? "app":query.app;
-    var key = (query.key == undefined)? "35c9b402c12a7246868752e2878f7e0e":query.key;
+    var app = (!query.app)? "app":query.app;
+    var key = (!query.key)? "35c9b402c12a7246868752e2878f7e0e":query.key;
+
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (vhost == "ossrs.net") {
+        vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
 
     return "rtmp://" + server + ":" + port + "/" + app + "?key=" + key + "&vhost=" + vhost;
 }
@@ -145,6 +177,12 @@ function build_default_bandwidth_rtmp_url() {
 function build_default_hls_url() {
     var query = parse_query_string();
 
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (query.hls_vhost == "ossrs.net") {
+        query.hls_vhost = "r.ossrs.net";
+    }
+
     // for http, use hls_vhost to override server if specified.
     var server = window.location.hostname;
     if (query.server != undefined) {
@@ -153,11 +191,11 @@ function build_default_hls_url() {
         server = query.hls_vhost;
     }
     
-    var port = (query.hls_port == undefined)? window.location.port:query.hls_port;
-    var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "demo":query.stream;
+    var port = (!query.hls_port)? window.location.port:query.hls_port;
+    var app = (!query.app)? "live":query.app;
+    var stream = (!query.stream)? "demo":query.stream;
 
-    if (port == "" || port == null || port == undefined) {
+    if (!port) {
         port = 8080;
     }
     

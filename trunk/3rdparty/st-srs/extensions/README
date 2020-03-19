@@ -1,0 +1,42 @@
+This directory contains extensions to the core State Threads Library
+that were contributed by users.  All files hereunder are not part of the
+State Threads Library itself.  They are provided as-is, without warranty
+or support, and under whatever license terms their authors provided.  To
+contribute your own extensions, just mail them to the project
+administrators or to one of the project's mailing lists; see
+state-threads.sourceforge.net.  Please indicate the license terms under
+which the project may distribute your contribution.
+
+========================================================================
+
+stx_fileio
+----------
+Contributed by Jeff <jlb-st@houseofdistraction.com>, 4 Nov 2002.
+
+Provides non-blocking random access file reading capability for
+programs using the State Threads library.  There is one public function:
+
+ssize_t stx_file_read(st_netfd_t fd, off_t offset,
+                      void *buf, size_t nbytes, st_utime_t timeout);
+
+The implementation is not optimal in that the data is copied at least once
+more than should be necessary.  Its usefulness is limited to cases where
+random access to a file is required and where starvation of other threads
+is unacceptable.
+
+The particular application which motivated this implementation was a UDP
+file transfer protocol.  Because the OS does very little buffering of UDP
+traffic it is important that UDP transmission threads are not starved for
+periods of time which are long relative to the interval required to
+maintain a steady send rate.
+
+Licensed under the same dual MPL/GPL as core State Threads.
+
+========================================================================
+
+stx_dns
+-------
+
+Documentation coming.
+
+========================================================================

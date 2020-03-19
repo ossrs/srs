@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2019 Winlin
+Copyright (c) 2013-2020 Winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -46,9 +46,6 @@ class MockEmptyIO : public ISrsProtocolReadWriter
 public:
     MockEmptyIO();
     virtual ~MockEmptyIO();
-// for protocol
-public:
-    virtual bool is_never_timeout(srs_utime_t tm);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
@@ -83,13 +80,22 @@ public:
     // data buffer for socket send.
     SrsSimpleStream out_buffer;
 public:
+    // Mock error for io.
+    srs_error_t in_err;
+    srs_error_t out_err;
+public:
     MockBufferIO();
     virtual ~MockBufferIO();
 public:
+    virtual int length();
     virtual MockBufferIO* append(std::string data);
-// for protocol
+    virtual MockBufferIO* append(MockBufferIO* data);
+    virtual MockBufferIO* append(uint8_t* data, int size);
 public:
-    virtual bool is_never_timeout(srs_utime_t tm);
+    virtual int out_length();
+    virtual MockBufferIO* out_append(std::string data);
+    virtual MockBufferIO* out_append(MockBufferIO* data);
+    virtual MockBufferIO* out_append(uint8_t* data, int size);
 // for handshake.
 public:
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);

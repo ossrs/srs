@@ -23,6 +23,8 @@ echo "# build ${APP_TARGET}" >> ${FILE}
 # generate the binary depends, for example:
 #       srs: objs/srs
 echo "${BUILD_KEY}: ${APP_TARGET}" >> ${FILE}
+echo "" >> ${FILE}
+
 # the link commands, for example:
 #       objs/srs: objs/src/core/srs_core.o
 echo -n "${APP_TARGET}: " >> ${FILE}
@@ -87,6 +89,7 @@ for item in ${ModuleLibFiles[*]}; do
 done
 # link options.
 echo -n "${LINK_OPTIONS}" >> ${FILE}
+echo "" >> ${FILE}
 echo "" >> ${FILE}
 
 echo -n "Generate app ${APP_NAME} ok"; echo '!';

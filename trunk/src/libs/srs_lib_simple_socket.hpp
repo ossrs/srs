@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -65,7 +65,6 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // Interface ISrsProtocolReadWriter
 public:
-    virtual bool is_never_timeout(srs_utime_t tm);
     virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
 };

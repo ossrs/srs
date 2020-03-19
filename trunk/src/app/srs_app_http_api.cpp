@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -599,16 +599,6 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     features->set("transcode", SrsJsonAny::boolean(true));
     features->set("ingest", SrsJsonAny::boolean(true));
     features->set("stat", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_NGINX
-    features->set("nginx", SrsJsonAny::boolean(true));
-#else
-    features->set("nginx", SrsJsonAny::boolean(false));
-#endif
-#ifdef SRS_AUTO_FFMPEG_TOOL
-    features->set("ffmpeg", SrsJsonAny::boolean(true));
-#else
-    features->set("ffmpeg", SrsJsonAny::boolean(false));
-#endif
     features->set("caster", SrsJsonAny::boolean(true));
 #ifdef SRS_PERF_COMPLEX_SEND
     features->set("complex_send", SrsJsonAny::boolean(true));
@@ -664,12 +654,7 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // request headers
     SrsJsonObject* headers = SrsJsonAny::object();
     data->set("headers", headers);
-    
-    for (int i = 0; i < r->request_header_count(); i++) {
-        std::string key = r->request_header_key_at(i);
-        std::string value = r->request_header_value_at(i);
-        headers->set(key, SrsJsonAny::str(value.c_str()));
-    }
+    r->header()->dumps(headers);
     
     // server informations
     SrsJsonObject* server = SrsJsonAny::object();
@@ -1290,6 +1275,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     string vhost = r->query_get("vhost");
     string app = r->query_get("app");
     string stream = r->query_get("stream");
+    string coworker = r->query_get("coworker");
     data->set("query", SrsJsonAny::object()
               ->set("ip", SrsJsonAny::str(ip.c_str()))
               ->set("vhost", SrsJsonAny::str(vhost.c_str()))
@@ -1297,7 +1283,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
               ->set("stream", SrsJsonAny::str(stream.c_str())));
     
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
-    data->set("origin", coworkers->dumps(vhost, app, stream));
+    data->set("origin", coworkers->dumps(vhost, coworker, app, stream));
     
     return srs_api_response(w, r, obj->dumps());
 }
@@ -1342,7 +1328,7 @@ srs_error_t SrsHttpApi::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    srs_trace("api get peer ip success. ip=%s", ip.c_str());
+    srs_trace("API server client, ip=%s", ip.c_str());
     
     // initialize parser
     if ((err = parser->initialize(HTTP_REQUEST, true)) != srs_success) {

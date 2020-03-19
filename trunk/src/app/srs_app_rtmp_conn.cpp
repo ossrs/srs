@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -55,7 +55,6 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
-#include <srs_app_kafka.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -154,18 +153,17 @@ srs_error_t SrsRtmpConn::do_cycle()
     
     srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
     
-    // notify kafka cluster.
-#ifdef SRS_AUTO_KAFKA
-    if ((err = _srs_kafka->on_client(srs_id(), SrsListenerRtmpStream, ip)) != srs_success) {
-        return srs_error_wrap(err, "kafka on client");
-    }
-#endif
-    
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
 
     if ((err = rtmp->handshake()) != srs_success) {
         return srs_error_wrap(err, "rtmp handshake");
+    }
+
+    uint32_t rip = rtmp->proxy_real_ip();
+    if (rip > 0) {
+        srs_trace("RTMP proxy real client ip=%d.%d.%d.%d",
+            uint8_t(rip>>24), uint8_t(rip>>16), uint8_t(rip>>8), uint8_t(rip));
     }
     
     SrsRequest* req = info->req;
@@ -383,7 +381,6 @@ srs_error_t SrsRtmpConn::service_cycle()
     }
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
@@ -392,8 +389,8 @@ srs_error_t SrsRtmpConn::service_cycle()
         
         // stream service must terminated with error, never success.
         // when terminated with success, it's user required to stop.
-        if (srs_error_code(err) == ERROR_SUCCESS) {
-            srs_freep(err);
+        // TODO: FIXME: Support RTMP client timeout, https://github.com/ossrs/srs/issues/1134
+        if (err == srs_success) {
             continue;
         }
         
@@ -408,7 +405,7 @@ srs_error_t SrsRtmpConn::service_cycle()
             rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT);
             rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT);
             
-            srs_trace("rtmp: retry for republish");
+            srs_info("rtmp: retry for republish");
             srs_freep(err);
             continue;
         }
@@ -498,7 +495,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     // find a source to serve.
     SrsSource* source = NULL;
-    if ((err = SrsSource::fetch_or_create(req, server, &source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req, server, &source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
     srs_assert(source != NULL);
@@ -609,17 +606,32 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     if (!info->edge && _srs_config->get_vhost_origin_cluster(req->vhost) && source->inactive()) {
         vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
         for (int i = 0; i < (int)coworkers.size(); i++) {
-            int port;
-            string host;
-            string url = "http://" + coworkers.at(i) + "/api/v1/clusters?"
-                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream;
+            // TODO: FIXME: User may config the server itself as coworker, we must identify and ignore it.
+            string host; int port = 0; string coworker = coworkers.at(i);
+
+            string url = "http://" + coworker + "/api/v1/clusters?"
+                + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
+                + "&coworker=" + coworker;
             if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
+                // If failed to discovery stream in this coworker, we should request the next one util the last.
+                // @see https://github.com/ossrs/srs/issues/1223
+                if (i < (int)coworkers.size() - 1) {
+                    continue;
+                }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
-            srs_trace("rtmp: redirect in cluster, url=%s, target=%s:%d", url.c_str(), host.c_str(), port);
+
+            string rurl = srs_generate_rtmp_url(host, port, req->host, req->vhost, req->app, req->stream, req->param);
+            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
+                req->host.c_str(), req->port, host.c_str(), port, url.c_str(), rurl.c_str());
+
+            // Ignore if host or port is invalid.
+            if (host.empty() || port == 0) {
+                continue;
+            }
             
             bool accepted = false;
-            if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
+            if ((err = rtmp->redirect(req, rurl, accepted)) != srs_success) {
                 srs_error_reset(err);
             } else {
                 return srs_error_new(ERROR_CONTROL_REDIRECT, "redirected");
@@ -691,14 +703,14 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
-        // collect elapse for pithy print.
-        pprint->elapse();
-        
         // when source is set to expired, disconnect it.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        // collect elapse for pithy print.
+        pprint->elapse();
+
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/ossrs/srs/issues/196
         // @see: https://github.com/ossrs/srs/issues/217
@@ -859,12 +871,12 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
     while (true) {
-        pprint->elapse();
-        
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        pprint->elapse();
+
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
@@ -1180,7 +1192,8 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
     }
     
     // for token tranverse, always take the debug info(which carries token).
-    if ((err = client->connect_app(req->app, req->tcUrl, req, true, NULL)) != srs_success) {
+    SrsServerInfo si;
+    if ((err = client->connect_app(req->app, req->tcUrl, req, true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
     
@@ -1193,12 +1206,6 @@ srs_error_t SrsRtmpConn::on_disconnect()
     srs_error_t err = srs_success;
     
     http_hooks_on_close();
-    
-#ifdef SRS_AUTO_KAFKA
-    if ((err = _srs_kafka->on_close(srs_id())) != srs_success) {
-        return srs_error_wrap(err, "kafka on close");
-    }
-#endif
     
     // TODO: FIXME: Implements it.
     

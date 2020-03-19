@@ -1,0 +1,34 @@
+---
+name: File bug
+about: File bug to improve SRS
+title: ''
+labels: ''
+assignees: ''
+
+---
+
+**描述(Description)**
+
+> 描述你遇到了什么问题(Please description your issue here)
+
+1. SRS版本(Version): `xxxxxx`
+1. SRS的日志如下(Log):
+```
+xxxxxxxxxxxx
+```
+1. SRS的配置如下(Config):
+```
+xxxxxxxxxxxx
+```
+
+**重现(Replay)**
+
+> 重现Bug的步骤(How to replay bug?)
+
+1. `xxxxxx`
+1. `xxxxxx`
+1. `xxxxxx`
+
+**期望行为(Expect)**
+
+> 描述你期望发生的事情(Please describe your expectation)

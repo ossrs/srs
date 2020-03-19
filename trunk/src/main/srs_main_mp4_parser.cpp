@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,28 +40,19 @@ using namespace std;
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsThreadContext* _srs_context = new SrsThreadContext();
 
-int parse(std::string mp4_file, bool verbose)
+srs_error_t parse(std::string mp4_file, bool verbose)
 {
-    int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
     SrsFileReader fr;
     if ((err = fr.open(mp4_file)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        srs_error("Open MP4 file failed, ret=%d", ret);
-        return ret;
+        return srs_error_wrap(err, "open mp4 file %s", mp4_file.c_str());
     }
     srs_trace("MP4 file open success");
     
     SrsMp4BoxReader br;
     if ((err = br.initialize(&fr)) != srs_success) {
-        // TODO: FIXME: Use error
-        ret = srs_error_code(err);
-        srs_freep(err);
-        srs_error("Open MP4 box reader failed, ret=%d", ret);
-        return ret;
+        return srs_error_wrap(err, "open box reader");
     }
     srs_trace("MP4 box reader open success");
     
@@ -74,34 +65,21 @@ int parse(std::string mp4_file, bool verbose)
         SrsAutoFree(SrsMp4Box, box);
         
         if ((err = br.read(stream, &box)) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
-            srs_freep(err);
-            if (ret != ERROR_SYSTEM_FILE_EOF) {
-                srs_error("Read MP4 box failed, ret=%d", ret);
-            } else {
+            if (srs_error_code(err) == ERROR_SYSTEM_FILE_EOF) {
                 fprintf(stderr, "\n");
             }
-            return ret;
+            return srs_error_wrap(err, "read box");
         }
         
         SrsBuffer* buffer = new SrsBuffer(stream->bytes(), stream->length());
         SrsAutoFree(SrsBuffer, buffer);
         
         if ((err = box->decode(buffer)) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
-            srs_freep(err);
-            srs_error("Decode the box failed, ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "decode box");
         }
         
         if ((err = br.skip(box, stream)) != srs_success) {
-            // TODO: FIXME: Use error
-            ret = srs_error_code(err);
-            srs_freep(err);
-            srs_error("Skip MP4 box failed, ret=%d", ret);
-            return ret;
+            return srs_error_wrap(err, "skip box");
         }
         
         SrsMp4DumpContext ctx;
@@ -112,13 +90,11 @@ int parse(std::string mp4_file, bool verbose)
         fprintf(stderr, "%s", box->dumps(ss, ctx).str().c_str());
     }
     
-    return ret;
+    return err;
 }
 
 int main(int argc, char** argv)
 {
-    int ret = ERROR_SUCCESS;
-    
     printf("SRS MP4 parser/%d.%d.%d, parse and show the mp4 boxes structure.\n",
            VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
     
@@ -140,13 +116,16 @@ int main(int argc, char** argv)
     }
     srs_trace("Parse MP4 file %s, verbose=%d", mp4_file.c_str(), verbose);
     
-    ret = parse(mp4_file, verbose);
-    
-    if (ret == ERROR_SYSTEM_FILE_EOF) {
+    srs_error_t err = parse(mp4_file, verbose);
+    int code = srs_error_code(err);
+
+    if (code == ERROR_SYSTEM_FILE_EOF) {
         srs_trace("Parse complete");
-        return 0;
+    } else {
+        srs_error("Parse error %s", srs_error_desc(err).c_str());
     }
-    
-    return ret;
+
+    srs_freep(err);
+    return code;
 }
 

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Winlin
+ * Copyright (c) 2013-2020 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -489,7 +489,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     uint32_t nb_sample = (uint32_t)format->nb_raw;
     
     uint32_t dts = (uint32_t)audio->timestamp;
-    if ((err = enc->write_sample(SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
         return srs_error_wrap(err, "write sample");
     }
     
@@ -515,7 +515,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsSharedPtrMessage* video, SrsForm
     
     uint8_t* sample = (uint8_t*)format->raw;
     uint32_t nb_sample = (uint32_t)format->nb_raw;
-    if ((err = enc->write_sample(SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
         return srs_error_wrap(err, "write sample");
     }
     
@@ -609,11 +609,23 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
         return srs_error_wrap(err, "segmenter");
     }
     
+    return err;
+}
+
+srs_error_t SrsDvrPlan::on_publish()
+{
+    srs_error_t err = srs_success;
+
     if ((err = async->start()) != srs_success) {
         return srs_error_wrap(err, "async");
     }
-    
+
     return err;
+}
+
+void SrsDvrPlan::on_unpublish()
+{
+    async->stop();
 }
 
 srs_error_t SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
@@ -699,6 +711,10 @@ SrsDvrSessionPlan::~SrsDvrSessionPlan()
 srs_error_t SrsDvrSessionPlan::on_publish()
 {
     srs_error_t err = srs_success;
+
+    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+        return err;
+    }
     
     // support multiple publish.
     if (dvr_enabled) {
@@ -736,6 +752,10 @@ void SrsDvrSessionPlan::on_unpublish()
     }
     
     dvr_enabled = false;
+
+    // We should notify the on_dvr, then stop the async.
+    // @see https://github.com/ossrs/srs/issues/1601
+    SrsDvrPlan::on_unpublish();
 }
 
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
@@ -766,6 +786,10 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, S
 srs_error_t SrsDvrSegmentPlan::on_publish()
 {
     srs_error_t err = srs_success;
+
+    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+        return err;
+    }
     
     // support multiple publish.
     if (dvr_enabled) {
@@ -791,6 +815,18 @@ srs_error_t SrsDvrSegmentPlan::on_publish()
 
 void SrsDvrSegmentPlan::on_unpublish()
 {
+    srs_error_t err = srs_success;
+
+    if ((err = segment->close()) != srs_success) {
+        srs_warn("ignore err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    dvr_enabled = false;
+
+    // We should notify the on_dvr, then stop the async.
+    // @see https://github.com/ossrs/srs/issues/1601
+    SrsDvrPlan::on_unpublish();
 }
 
 srs_error_t SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
