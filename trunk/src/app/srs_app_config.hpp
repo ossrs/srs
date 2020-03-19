@@ -119,6 +119,7 @@ extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
 extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
+extern bool srs_stream_caster_is_gb28181(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
 
@@ -484,6 +485,17 @@ public:
     virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     // Get the max udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
+    
+    virtual int get_stream_caster_gb28181_rtp_ide_timeout(SrsConfDirective* conf);
+    virtual int get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf);
+    virtual int get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf);
+    virtual bool get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf);
+    virtual std::string get_stream_caster_gb28181_host(SrsConfDirective* conf);
+    virtual std::string get_stream_caster_gb28181_serial(SrsConfDirective* conf);
+    virtual std::string get_stream_caster_gb28181_realm(SrsConfDirective* conf);
+    virtual bool get_stream_caster_gb28181_print_sip_message(SrsConfDirective* conf);
+    virtual bool get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf);
+
 // vhost specified section
 public:
     // Get the vhost directive by vhost name.

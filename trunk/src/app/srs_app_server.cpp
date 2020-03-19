@@ -51,6 +51,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
+#include <srs_app_gb28181.hpp>
 
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
@@ -108,6 +109,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerGb28181:
+            return "GB28181-SIP over UDP";
         default:
             return "UNKONWN";
     }
@@ -298,7 +301,7 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp || type == SrsListenerGb28181);
     
     ip = i;
     port = p;
@@ -332,6 +335,22 @@ SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, Sr
 }
 
 SrsUdpCasterListener::~SrsUdpCasterListener()
+{
+    srs_freep(caster);
+}
+
+
+SrsGb28181Listener::SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
+{
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerGb28181);
+    if (type == SrsListenerGb28181) {
+        caster = new SrsGb28181Caster(c);
+    }
+}
+
+SrsGb28181Listener::~SrsGb28181Listener()
 {
     srs_freep(caster);
 }
@@ -1093,6 +1112,8 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
+        } else if (srs_stream_caster_is_gb28181(caster)) {
+            listener = new SrsGb28181Listener(this, SrsListenerGb28181, stream_caster);
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());
         }
