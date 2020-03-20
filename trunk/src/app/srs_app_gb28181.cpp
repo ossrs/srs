@@ -571,8 +571,7 @@ srs_error_t SrsGb28181Conn::do_cycle()
         pprint->elapse();
 
         if ((err = trd->pull()) != srs_success) {
-            //srs_trace("pull faild %s"));
-            //return srs_error_wrap(err, "sip cycle");
+            return srs_error_wrap(err, "gb28181conn cycle");
         }
 
         srs_utime_t now = srs_get_system_time();
@@ -616,8 +615,11 @@ srs_error_t SrsGb28181Conn::do_cycle()
         }
        
        if (pprint->can_print()) {
-            srs_trace("gb28181: client id=%s, status, druation reg=%u alive=%u invite=%u",
+            srs_trace("gb28181: client id=%s, druation reg=%u alive=%u invite=%u",
             session_id.c_str(), reg_duration, alive_duration, invite_duration);
+
+            srs_trace("gb28181: client id=%s, status reg_status=%u alive_status=%u invite_status=%u",
+            session_id.c_str(), register_status, alive_status, invite_status);
        }
      
         srs_usleep(1000 * 1000);
@@ -1188,12 +1190,11 @@ srs_error_t SrsGb28181Caster::on_udp_bytes(string peer_ip, int peer_port,
         }
         srs_assert(conn != NULL);
         
-        if (conn->register_status == Srs28181Unkonw)
-        {
-            conn->serve();
-        }else{
-            srs_trace("gb28181: %s client is register", req->sip_auth_id.c_str());
-        }
+        // if (conn->register_status == Srs28181Unkonw)
+        // {
+        // }else{
+        //     srs_trace("gb28181: %s client is register", req->sip_auth_id.c_str());
+        // }
 
         send_status(req, from, fromlen);
         conn->register_status = Srs28181RegisterOk;
@@ -1204,13 +1205,13 @@ srs_error_t SrsGb28181Caster::on_udp_bytes(string peer_ip, int peer_port,
     }else if (req->is_message()) {
         SrsGb28181Conn* conn = fetch(req);
         if (!conn){
-            srs_trace("gb28181: %s client not found", req->sip_auth_id.c_str());
+            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return srs_success;
         }
         
         if (conn->register_status == Srs28181Unkonw) {
             send_bye(req, from, fromlen);
-            srs_trace("gb28181: %s client not register", req->sip_auth_id.c_str());
+            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return srs_success;
         }
          
@@ -1247,14 +1248,14 @@ srs_error_t SrsGb28181Caster::on_udp_bytes(string peer_ip, int peer_port,
        
         if (!conn){
             send_bye(req, from, fromlen);
-            srs_trace("gb28181: %s client not found", req->sip_auth_id.c_str());
+            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return srs_success;
         }
 
         if (conn->register_status == Srs28181Unkonw ||
             conn->alive_status == Srs28181Unkonw) {
             send_bye(req, from, fromlen);
-            srs_trace("gb28181: %s client not register or alive", req->sip_auth_id.c_str());
+            srs_trace("gb28181: %s client not registered or not alive", req->sip_auth_id.c_str());
             return srs_success;
         }
         
@@ -1274,7 +1275,7 @@ srs_error_t SrsGb28181Caster::on_udp_bytes(string peer_ip, int peer_port,
         send_status(req, from, fromlen);
 
         if (!conn){
-            srs_trace("gb28181: %s client not found", req->sip_auth_id.c_str());
+            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return srs_success;
         }
        

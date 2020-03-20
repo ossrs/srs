@@ -297,10 +297,10 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                             srs_trace("sip: message head %s content=%s", phead, content.c_str());
                         } 
                         else if (!strcasecmp(phead, "content-length:")) {
-                            srs_trace("sip: message head %s content=%s", phead, content.c_str());
+                            req->content_length = strtoul(content.c_str(), NULL, 10);
                         } 
                         else if (!strcasecmp(phead, "content-type:")) {
-                            srs_trace("sip: message head %s content=%s", phead, content.c_str());
+                            req->content_type = content;
                         } 
                         else if (!strcasecmp(phead, "cseq:")) {
                             std::vector<std::string> vec_seq = srs_string_split(content, " ");
@@ -330,6 +330,9 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                         }
                         else if (!strcasecmp(phead, "user-agent:")){
                             req->user_agent = content;
+                        } 
+                        else if (!strcasecmp(phead, "max-forwards:")){
+                            req->max_forwards = strtoul(content.c_str(), NULL, 10);
                         } 
                         else {
                             srs_trace("sip: unkonw message head %s content=%s", phead, content.c_str());
