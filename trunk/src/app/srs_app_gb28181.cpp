@@ -763,6 +763,11 @@ srs_error_t Srs28181StreamCore::on_stream_video(Srs2SRtpPacket *pkt, int64_t dts
                 continue;
             }
 
+            if(sps.length() < 4){
+                srs_warn("h264-ps stream: sps length < 4 !");
+                continue;
+            }
+
             if (h264_sps != sps)
             {
                 h264_sps = sps;
@@ -794,7 +799,6 @@ srs_error_t Srs28181StreamCore::on_stream_video(Srs2SRtpPacket *pkt, int64_t dts
         // set sps/pps
         if (h264_sps_changed && h264_pps_changed)
         {
-
             h264_sps_changed = false;
             h264_pps_changed = false;
             h264_sps_pps_sent = true;
