@@ -59,6 +59,13 @@ srs_error_t ISrsUdpHandler::on_stfd_change(srs_netfd_t /*fd*/)
     return srs_success;
 }
 
+void ISrsUdpHandler::set_stfd(srs_netfd_t /*fd*/)
+{
+    
+}
+
+
+
 ISrsTcpHandler::ISrsTcpHandler()
 {
 }
@@ -104,6 +111,8 @@ srs_error_t SrsUdpListener::listen()
     if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
+
+    handler->set_stfd(lfd);
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this);
@@ -206,4 +215,3 @@ srs_error_t SrsTcpListener::cycle()
     
     return err;
 }
-

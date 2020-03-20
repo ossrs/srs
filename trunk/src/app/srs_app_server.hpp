@@ -69,6 +69,8 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
+    // UDP stream, gb28181 stream
+    SrsListenerGb28181 = 6,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -154,6 +156,14 @@ class SrsUdpCasterListener : public SrsUdpStreamListener
 public:
     SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsUdpCasterListener();
+};
+
+// A UDP sip listener, for sip server.
+class SrsGb28181Listener :  public SrsUdpStreamListener
+{
+public:
+    SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    virtual ~SrsGb28181Listener();
 };
 
 // Convert signal to io,

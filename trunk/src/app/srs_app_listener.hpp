@@ -43,6 +43,8 @@ public:
     // When fd changed, for instance, reload the listen port,
     // notify the handler and user can do something.
     virtual srs_error_t on_stfd_change(srs_netfd_t fd);
+    
+    virtual void set_stfd(srs_netfd_t fd);
 public:
     // When udp listener got a udp packet, notice server to process it.
     // @param type, the client type, used to create concrete connection,
