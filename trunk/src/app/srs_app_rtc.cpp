@@ -402,6 +402,7 @@ srs_error_t SrsRtpOpusMuxer::packet_opus(SrsSharedPtrMessage* shared_frame, SrsS
     stream->write_2bytes(sequence);
     // timestamp
     stream->write_4bytes(int32_t(timestamp));
+    // TODO: FIXME: Why 960? Need Refactoring?
     timestamp += 960;
     // ssrc
     stream->write_4bytes(int32_t(kAudioSSRC));
