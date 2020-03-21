@@ -3486,7 +3486,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_server" && n != "stream_caster" && n != "rtc" && n != "srt_server"
+            && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
@@ -3673,7 +3673,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux" && n != "dash"
                 && n != "http_static" && n != "hds" && n != "exec"
-                && n != "in_ack_size" && n != "out_ack_size") {
+                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -3816,6 +3816,13 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.bandcheck.%s of %s", m.c_str(), vhost->arg0().c_str());
+                    }
+                }
+            } else if (n == "rtc") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+                    if (m != "enabled" && m != "bframe") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.bandcheck.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4266,13 +4273,13 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     return ::atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_rtc_enabled()
+int SrsConfig::get_rtc_server_enabled()
 {
-    SrsConfDirective* conf = root->get("rtc");
-    return get_rtc_enabled(conf);
+    SrsConfDirective* conf = root->get("rtc_server");
+    return get_rtc_server_enabled(conf);
 }
 
-bool SrsConfig::get_rtc_enabled(SrsConfDirective* conf)
+bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)
 {
     static bool DEFAULT = false;
     
@@ -4288,11 +4295,11 @@ bool SrsConfig::get_rtc_enabled(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-int SrsConfig::get_rtc_listen()
+int SrsConfig::get_rtc_server_listen()
 {
     static int DEFAULT = 8000;
     
-    SrsConfDirective* conf = root->get("rtc");
+    SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
         return DEFAULT;
     }
@@ -4305,11 +4312,11 @@ int SrsConfig::get_rtc_listen()
     return ::atoi(conf->arg0().c_str());
 }
 
-std::string SrsConfig::get_rtc_candidates()
+std::string SrsConfig::get_rtc_server_candidates()
 {
     static string DEFAULT = "*";
     
-    SrsConfDirective* conf = root->get("rtc");
+    SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
         return DEFAULT;
     }
@@ -4330,6 +4337,48 @@ std::string SrsConfig::get_rtc_candidates()
     }
     
     return (conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_rtc(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    return conf? conf->get("rtc") : NULL;
+}
+
+bool SrsConfig::get_rtc_enabled(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_rtc(vhost);
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_bframe_discard(string vhost)
+{
+    static bool DEFAULT = false;
+    
+    SrsConfDirective* conf = get_rtc(vhost);
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return conf->arg0() == "discard";
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)

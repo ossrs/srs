@@ -21,8 +21,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_RTP_HPP
-#define SRS_APP_RTP_HPP
+#ifndef SRS_APP_RTC_HPP
+#define SRS_APP_RTC_HPP
 
 #include <srs_core.hpp>
 
@@ -53,12 +53,15 @@ const uint8_t kEnd   = 0x40;
 // FIXME: ssrc can relate to source
 const uint32_t kVideoSSRC = 3233846889;
 
+// TODO: Define interface class like ISrsRtpMuxer to support SrsRtpOpusMuxer and so on.
 class SrsRtpMuxer
 {
 private:
     uint16_t sequence;
     std::string sps;
     std::string pps;
+public:
+    bool discard_bframe;
 public:
     SrsRtpMuxer();
     virtual ~SrsRtpMuxer();
@@ -70,7 +73,7 @@ private:
     srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
 };
 
-class SrsRtp
+class SrsRtc
 {
 private:
     SrsRequest* req;
@@ -80,8 +83,8 @@ private:
     SrsRtpMuxer* rtp_h264_muxer;
     SrsOriginHub* hub;
 public:
-    SrsRtp();
-    virtual ~SrsRtp();
+    SrsRtc();
+    virtual ~SrsRtc();
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
