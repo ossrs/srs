@@ -85,23 +85,23 @@
             }).then(function(offer) {
                 return new Promise(function(resolve, reject) {
                     var port = urlObject.user_query.api || 1985;
-                    var api = urlObject.user_query.play || '/api/v1/sdp/';
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var api = urlObject.user_query.play || '/rtc/v1/play/';
                     if (api.lastIndexOf('/') != api.length - 1) {
                         api += '/';
                     }
 
-                    var url = schame + '//' + urlObject.server + ':' + port + api
-                        + '?app=' + urlObject.app + '&stream=' + urlObject.stream;
+                    var url = schame + '//' + urlObject.server + ':' + port + api;
                     for (var key in urlObject.user_query) {
                         if (key != 'api' && key != 'play') {
                             url += '&' + key + '=' + urlObject.user_query[key];
                         }
                     }
 
+                    // @see https://github.com/rtcdn/rtcdn-draft
                     var data = {
-                        "api": url,
-                        "streamurl": urlObject.url, "app": urlObject.app, "stream": urlObject.stream,
-                        "sdp": offer.sdp
+                        api: url, streamurl: urlObject.url, clientip: null, sdp: offer.sdp
                     };
                     console.log("offer: " + JSON.stringify(data));
 
