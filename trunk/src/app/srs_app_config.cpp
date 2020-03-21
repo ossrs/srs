@@ -4373,7 +4373,7 @@ bool SrsConfig::get_rtc_bframe_discard(string vhost)
         return DEFAULT;
     }
     
-    conf = conf->get("enabled");
+    conf = conf->get("bframe");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
