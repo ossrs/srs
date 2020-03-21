@@ -20,7 +20,7 @@ SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
 SRS_RESEARCH=NO
-SRS_UTEST=YES
+SRS_UTEST=NO
 SRS_GPERF=NO # Performance test: tcmalloc
 SRS_GPERF_MC=NO # Performance test: gperf memory check
 SRS_GPERF_MD=NO # Performance test: gperf memory defence
@@ -386,7 +386,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
@@ -413,7 +413,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
