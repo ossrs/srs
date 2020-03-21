@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-21, For [#1629][bug #1629], fix kickoff FLV client bug. 3.0.137
 * v3.0, 2020-03-21, For [#1619][bug #1619], configure without utest by default. 3.0.136
 * v3.0, 2020-03-21, For [#1651][bug #1651], fix return pnwrite of srs_write_large_iovs. 3.0.135
 * <strong>v3.0, 2020-03-18, [3.0 beta3(3.0.134)][r3.0b3] released. 122509 lines.</strong>
@@ -1680,6 +1681,7 @@ Winlin
 [bug #1635]: https://github.com/ossrs/srs/issues/1635
 [bug #1651]: https://github.com/ossrs/srs/issues/1651
 [bug #1619]: https://github.com/ossrs/srs/issues/1619
+[bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
