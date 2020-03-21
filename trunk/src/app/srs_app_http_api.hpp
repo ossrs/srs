@@ -32,6 +32,7 @@ class SrsHttpParser;
 class SrsHttpHandler;
 class SrsServer;
 class SrsRtcServer;
+class SrsJsonObject;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
@@ -174,6 +175,8 @@ public:
     virtual ~SrsGoApiSdp();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 };
 
 class SrsGoApiClients : public ISrsHttpHandler

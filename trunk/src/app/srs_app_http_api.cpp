@@ -804,6 +804,22 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
 {
     srs_error_t err = srs_success;
 
+    SrsJsonObject* res = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, res);
+
+    if ((err = do_serve_http(w, r, res)) != srs_success) {
+        srs_warn("RTC error %s", srs_error_desc(err).c_str()); srs_freep(err);
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+
+    }
+
+    return srs_api_response(w, r, res->dumps());
+}
+
+srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+{
+    srs_error_t err = srs_success;
+
     // For each RTC session, we use short-term HTTP connection.
     SrsHttpHeader* hdr = w->header();
     hdr->set("Connection", "Close");
@@ -813,12 +829,12 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     if (true) {
         string req_json;
         if ((err = r->body_read_all(req_json)) != srs_success) {
-            return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+            return srs_error_wrap(err, "read body");
         }
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
-            return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+            return srs_error_wrap(err, "not json");
         }
 
         req = json->to_object();
@@ -827,12 +843,12 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     // Fetch params from req object.
     SrsJsonAny* prop = NULL;
     if ((prop = req->ensure_property_string("sdp")) == NULL) {
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        return srs_error_wrap(err, "not sdp");
     }
     string remote_sdp_str = prop->to_str();
 
     if ((prop = req->ensure_property_string("streamurl")) == NULL) {
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        return srs_error_wrap(err, "not streamurl");
     }
     string streamurl = prop->to_str();
 
@@ -863,9 +879,8 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
-    err = remote_sdp.decode(remote_sdp_str);
-    if (err != srs_success) {
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    if ((err = remote_sdp.decode(remote_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "decode sdp");
     }
 
     SrsRequest request;
@@ -877,23 +892,20 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
 
     string local_sdp_str = "";
     if ((err = local_sdp.encode(local_sdp_str)) != srs_success) {
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        return srs_error_wrap(err, "encode sdp");
     }
 
-    SrsJsonObject* obj = SrsJsonAny::object();
-    SrsAutoFree(SrsJsonObject, obj);
-
-    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    obj->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
+    res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
 
     // TODO: add candidates in response json?
 
-    obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    obj->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+    res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
 
     srs_trace("RTC sid=%s, answer=%dB", rtc_session->id().c_str(), local_sdp_str.length());
-    
-    return srs_api_response(w, r, obj->dumps());
+
+    return err;
 }
 
 SrsGoApiClients::SrsGoApiClients()
