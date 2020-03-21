@@ -2261,6 +2261,11 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         }
     }
     
+    // Copy to hub to all utilities.
+    if ((err = hub->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "consume audio");
+    }
+
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -2269,11 +2274,6 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
                 return srs_error_wrap(err, "consume message");
             }
         }
-    }
-    
-    // Copy to hub to all utilities.
-    if ((err = hub->on_audio(msg)) != srs_success) {
-        return srs_error_wrap(err, "consume audio");
     }
     
     // cache the sequence header of aac, or first packet of mp3.

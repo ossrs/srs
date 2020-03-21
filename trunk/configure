@@ -150,6 +150,8 @@ LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # srtp
 LibSrtpRoot="${SRS_OBJS_DIR}/srtp2/include"; LibSrtpFile="${SRS_OBJS_DIR}/srtp2/lib/libsrtp2.a"
+# ffmpeg
+LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a ${SRS_OBJS_DIR}/ffmpeg/lib/libopus.a -lpthread"
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
@@ -235,7 +237,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
-    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
     MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
         "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
         "srs_service_conn")
@@ -248,7 +250,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -259,7 +261,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_mpegts_udp" "srs_app_rtp" "srs_app_rtc_conn" "srs_app_dtls" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
             "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec"
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
-            "srs_app_coworkers" "srs_app_hybrid")
+            "srs_app_coworkers" "srs_app_hybrid" "srs_app_audio_recode")
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -286,7 +288,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [[ $SRS_SRT == YES ]]; then
         MODULE_DEPENDS+=("SRT")
     fi
-    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
@@ -299,7 +301,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     MODULE_FILES=()
     DEFINES=""
     # add each modules for main
@@ -326,13 +328,13 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     done
     #
     # all depends libraries
-    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibFfmpegFile} ${LibSSLfile} ${LibGperfFile})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
-    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
     fi
@@ -343,7 +345,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
-    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibSSLfile} ${LibGperfFile})
+    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibFfmpegFile} ${LibSSLfile} ${LibGperfFile})
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -363,11 +365,11 @@ if [ $SRS_UTEST = YES ]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
-    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSrtpRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSrtpRoot} ${LibFfmpegRoot} ${LibSSLRoot})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
-    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibSSLfile})
+    ModuleLibFiles=(${LibSTfile} ${LibSrtpFile} ${LibFfmpegFile} ${LibSSLfile})
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi

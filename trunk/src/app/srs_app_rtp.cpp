@@ -50,6 +50,46 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_protocol_format.hpp>
 #include <openssl/rand.h>
+#include <srs_app_audio_recode.hpp>
+
+// TODO: Add this function into SrsRtpMux class.
+srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, SrsBuffer** stream_ptr)
+{
+    srs_error_t err = srs_success;
+
+    if (format->is_aac_sequence_header()) {
+        return err;
+    }
+
+    if (stream_ptr == NULL) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
+    }
+
+    srs_verbose("audio samples=%d", format->audio->nb_samples);
+
+    if (format->audio->nb_samples != 1) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
+    }
+
+    int nb_buf = format->audio->samples[0].size + 7;
+    char* buf = new char[nb_buf];
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+
+    // TODO: Add comment.
+    stream->write_1bytes(0xFF);
+    stream->write_1bytes(0xF9);
+    stream->write_1bytes(((format->acodec->aac_object - 1) << 6) | ((format->acodec->aac_sample_rate & 0x0F) << 2) | ((format->acodec->aac_channels & 0x04) >> 2));
+    stream->write_1bytes(((format->acodec->aac_channels & 0x03) << 6) | ((nb_buf >> 11) & 0x03));
+    stream->write_1bytes((nb_buf >> 3) & 0xFF);
+    stream->write_1bytes(((nb_buf & 0x07) << 5) | 0x1F);
+    stream->write_1bytes(0xFC);
+
+    stream->write_bytes(format->audio->samples[0].bytes, format->audio->samples[0].size);
+
+    *stream_ptr = stream;
+
+    return err;
+}
 
 SrsRtpMuxer::SrsRtpMuxer()
 {
@@ -288,6 +328,104 @@ srs_error_t SrsRtpMuxer::packet_stap_a(const string &sps, const string& pps, Srs
     return err;
 }
 
+SrsRtpOpusMuxer::SrsRtpOpusMuxer()
+{
+    sequence = 0;
+    timestamp = 0;
+    recoder = NULL;
+}
+
+SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
+{
+    if (recoder) {
+        delete recoder;
+        recoder = NULL;
+    }
+}
+
+srs_error_t SrsRtpOpusMuxer::initialize()
+{
+    srs_error_t err = srs_success;
+
+    recoder = new SrsAudioRecode(kChannel, kSamplerate);
+    if (!recoder) {
+        return srs_error_wrap(err, "SrsAacOpus init failed");
+    }
+    recoder->initialize();
+
+    return err;
+}
+
+srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, SrsBuffer* stream)
+{
+    srs_error_t err = srs_success;
+
+    vector<SrsRtpSharedPacket*> rtp_packet_vec;
+
+    char* data_ptr[kArrayLength];
+    static char data_array[kArrayLength][kArrayBuffer];
+    int elen[kArrayLength], number = 0;
+
+    data_ptr[0] = &data_array[0][0];
+    for (int i = 1; i < kArrayLength; i++) {
+       data_ptr[i] = data_array[i];
+    }
+
+    SrsSample pkt;
+    pkt.bytes = stream->data();
+    pkt.size = stream->pos();
+
+    if ((err = recoder->recode(&pkt, data_ptr, elen, number)) != srs_success) {
+        return srs_error_wrap(err, "recode error");
+    }
+
+    for (int i = 0; i < number; i++) {
+        SrsSample sample;
+        sample.size = elen[i];
+        sample.bytes = data_ptr[i];
+        packet_opus(shared_audio, &sample, rtp_packet_vec);
+    }
+
+    shared_audio->set_rtp_packets(rtp_packet_vec);
+
+    return err;
+}
+
+srs_error_t SrsRtpOpusMuxer::packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec)
+{
+    srs_error_t err = srs_success;
+
+    char* buf = new char[kRtpPacketSize];
+    SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
+    SrsAutoFree(SrsBuffer, stream);
+
+    // v=2,p=0,x=0,cc=0
+    stream->write_1bytes(0x80);
+    // marker payloadtype
+    stream->write_1bytes(kOpusPayloadType);
+    // sequenct
+    stream->write_2bytes(sequence);
+    // timestamp
+    stream->write_4bytes(int32_t(timestamp));
+    timestamp += 960;
+    // ssrc
+    stream->write_4bytes(int32_t(kAudioSSRC));
+
+    stream->write_bytes(sample->bytes, sample->size);
+
+    srs_verbose("sample=%s", srs_string_dumps_hex(sample->bytes, sample->size).c_str());
+    srs_verbose("opus, size=%u, seq=%u, timestamp=%lu, ssrc=%u, payloadtype=%u",
+        sample->size, sequence, timestamp, kAudioSSRC, kOpusPayloadType);
+
+    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
+    rtp_shared_pkt->create(timestamp, sequence++, kAudioSSRC, kOpusPayloadType, stream->data(), stream->pos());
+    rtp_shared_pkt->set_marker(true);
+
+    rtp_packet_vec.push_back(rtp_shared_pkt);
+
+    return err;
+}
+
 SrsRtp::SrsRtp()
 {
     req = NULL;
@@ -326,6 +464,11 @@ srs_error_t SrsRtp::initialize(SrsOriginHub* h, SrsRequest* r)
     req = r;
 
     rtp_h264_muxer = new SrsRtpMuxer();
+
+    rtp_opus_muxer = new SrsRtpOpusMuxer();
+    if (rtp_opus_muxer) {
+        rtp_opus_muxer->initialize();
+    }
     
     return err;
 }
@@ -387,7 +530,16 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // ignore sequence header
     srs_assert(format->audio);
 
-    // TODO: rtc no support aac
+    SrsBuffer* stream = NULL;
+    SrsAutoFree(SrsBuffer, stream);
+    if ((err = aac_raw_append_adts_header(shared_audio, format, &stream)) != srs_success) {
+        return srs_error_wrap(err, "aac append header");
+    }
+
+    if (stream) {
+        rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
+    }
+
     return err;
 }
 
