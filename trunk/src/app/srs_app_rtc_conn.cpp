@@ -1221,7 +1221,7 @@ srs_error_t SrsRtcServer::listen_api()
 
     // TODO: FIXME: Fetch api from hybrid manager.
     SrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
-    if ((err = http_api_mux->handle("/api/v1/sdp/", new SrsGoApiSdp(this))) != srs_success) {
+    if ((err = http_api_mux->handle("/rtc/v1/play/", new SrsGoApiSdp(this))) != srs_success) {
         return srs_error_wrap(err, "handle sdp");
     }
 

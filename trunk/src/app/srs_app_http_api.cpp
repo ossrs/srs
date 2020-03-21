@@ -790,42 +790,75 @@ SrsGoApiSdp::~SrsGoApiSdp()
 {
 }
 
-// TODO: FIXME: Support query string http://localhost:1985/api/v1/sdp?app=live&stream=livestream
+
+// Request:
+//      POST /rtc/v1/play/
+//      {
+//          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
+//          "api":'http...", "clientip":"..."
+//      }
+// Response:
+//      {"sdp":"answer...", "sid":"..."}
 srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
 
-    // path: {pattern}
-    // method: POST
-    // e.g. /api/v1/sdp/ args = json:{"sdp":"sdp...", "app":"webrtc", "stream":"test"}
-
     // For each RTC session, we use short-term HTTP connection.
     SrsHttpHeader* hdr = w->header();
     hdr->set("Connection", "Close");
-    
-    string req_json;
-    if ((err = r->body_read_all(req_json)) != srs_success) {
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+
+    // Parse req, the request json object, from body.
+    SrsJsonObject* req = NULL;
+    if (true) {
+        string req_json;
+        if ((err = r->body_read_all(req_json)) != srs_success) {
+            return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        }
+
+        SrsJsonAny* json = SrsJsonAny::loads(req_json);
+        if (!json || !json->is_object()) {
+            return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        }
+
+        req = json->to_object();
     }
 
-    SrsJsonAny* json = SrsJsonAny::loads(req_json);
-    if (json == NULL) {
+    // Fetch params from req object.
+    SrsJsonAny* prop = NULL;
+    if ((prop = req->ensure_property_string("sdp")) == NULL) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
+    string remote_sdp_str = prop->to_str();
 
-    SrsJsonObject* req_obj = json->to_object();
-
-    SrsJsonAny* remote_sdp_obj = req_obj->get_property("sdp");
-    SrsJsonAny* app_obj = req_obj->get_property("app");
-    SrsJsonAny* stream_name_obj = req_obj->get_property("stream");
-
-    if (remote_sdp_obj == NULL || app_obj == NULL || stream_name_obj == NULL) {
+    if ((prop = req->ensure_property_string("streamurl")) == NULL) {
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
     }
+    string streamurl = prop->to_str();
 
-    string remote_sdp_str = remote_sdp_obj->to_str();
-    string app = app_obj->to_str();
-    string stream_name = stream_name_obj->to_str();
+    string clientip;
+    if ((prop = req->ensure_property_string("clientip")) != NULL) {
+        clientip = prop->to_str();
+    }
+
+    string api;
+    if ((prop = req->ensure_property_string("api")) != NULL) {
+        api = prop->to_str();
+    }
+
+    // Parse app and stream from streamurl.
+    string app;
+    string stream_name;
+    if (true) {
+        string tcUrl;
+        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+
+        int port;
+        string schema, host, vhost, param;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    }
+
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -839,7 +872,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     request.stream = stream_name;
     SrsSdp local_sdp;
     // TODO: FIXME: Maybe need a better name?
-    /*SrsRtcSession* rtc_session = */rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
     if ((err = local_sdp.encode(local_sdp_str)) != srs_success) {
@@ -853,12 +886,11 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     obj->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
 
     // TODO: add candidates in response json?
-    
-    if (r->is_http_post()) {
-        obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    } else {
-        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
-    }
+
+    obj->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+    obj->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+
+    srs_trace("RTC sid=%s, answer=%dB", rtc_session->id().c_str(), local_sdp_str.length());
     
     return srs_api_response(w, r, obj->dumps());
 }
