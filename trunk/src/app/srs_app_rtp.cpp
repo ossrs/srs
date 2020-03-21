@@ -467,10 +467,10 @@ srs_error_t SrsRtp::initialize(SrsOriginHub* h, SrsRequest* r)
 
     rtp_opus_muxer = new SrsRtpOpusMuxer();
     if (rtp_opus_muxer) {
-        rtp_opus_muxer->initialize();
+        return srs_error_wrap(err, "rtp_opus_muxer nullptr");
     }
     
-    return err;
+    return rtp_opus_muxer->initialize();
 }
 
 srs_error_t SrsRtp::on_publish()
@@ -536,11 +536,11 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
         return srs_error_wrap(err, "aac append header");
     }
 
-    if (stream) {
-        rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
+    if (!stream) {
+        return srs_error_wrap(err, "adts aac nullptr");
     }
 
-    return err;
+    return rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
 }
 
 srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
