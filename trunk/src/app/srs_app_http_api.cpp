@@ -799,6 +799,7 @@ SrsGoApiSdp::~SrsGoApiSdp()
 //      }
 // Response:
 //      {"sdp":"answer...", "sid":"..."}
+// @see https://github.com/rtcdn/rtcdn-draft
 srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
