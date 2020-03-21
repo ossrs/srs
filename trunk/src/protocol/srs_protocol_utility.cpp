@@ -336,7 +336,7 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
 #endif
     
     // send in a time.
-    if (size < limits) {
+    if (size <= limits) {
         if ((err = skt->writev(iovs, size, pnwrite)) != srs_success) {
             return srs_error_wrap(err, "writev");
         }

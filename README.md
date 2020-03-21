@@ -146,6 +146,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-21, For [#1651][bug #1651], fix return pnwrite of srs_write_large_iovs. 3.0.135
 * <strong>v3.0, 2020-03-18, [3.0 beta3(3.0.134)][r3.0b3] released. 122509 lines.</strong>
 * v3.0, 2020-03-12, For [#1635][bug #1635], inotify watch ConfigMap for reload. 3.0.134
 * v3.0, 2020-03-12, For [#1635][bug #1635], support auto reaload config by inotify. 3.0.129
@@ -1676,6 +1677,7 @@ Winlin
 [bug #1594]: https://github.com/ossrs/srs/issues/1594
 [bug #1630]: https://github.com/ossrs/srs/issues/1630
 [bug #1635]: https://github.com/ossrs/srs/issues/1635
+[bug #1651]: https://github.com/ossrs/srs/issues/1651
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
