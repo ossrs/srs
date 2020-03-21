@@ -810,7 +810,6 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     if ((err = do_serve_http(w, r, res)) != srs_success) {
         srs_warn("RTC error %s", srs_error_desc(err).c_str()); srs_freep(err);
         return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
-
     }
 
     return srs_api_response(w, r, res->dumps());
