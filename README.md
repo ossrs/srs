@@ -16,8 +16,8 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 **Step 1:** Get SRS.
 
 ```
-git clone https://github.com/ossrs/srs &&
-cd srs/trunk
+git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
 > Note: Repository too large? Please clone from these [mirrors](#mirrors) instead.
