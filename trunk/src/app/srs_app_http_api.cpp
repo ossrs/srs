@@ -887,6 +887,7 @@ srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     request.stream = stream_name;
     SrsSdp local_sdp;
     // TODO: FIXME: Maybe need a better name?
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
