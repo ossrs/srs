@@ -1121,21 +1121,23 @@ A big THANK YOU goes to:
 OSChina: [https://gitee.com/winlinvip/srs.oschina][oschina], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git
+git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
 > Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
+
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
+
+```
+git clone https://gitlab.com/winlinvip/srs-gitlab.git srs &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
+```
 
 Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
 git clone https://github.com/ossrs/srs.git
-```
-
-Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
-
-```
-git clone https://gitlab.com/winlinvip/srs-gitlab.git
 ```
 
 | Branch | Cost | Size | CMD |
