@@ -92,7 +92,7 @@
                         api += '/';
                     }
 
-                    var url = schame + '//' + urlObject.server + ':' + port + api;
+                    var url = schema + '//' + urlObject.server + ':' + port + api;
                     for (var key in urlObject.user_query) {
                         if (key != 'api' && key != 'play') {
                             url += '&' + key + '=' + urlObject.user_query[key];
