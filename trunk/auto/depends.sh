@@ -400,7 +400,6 @@ fi
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/opus/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
@@ -415,6 +414,70 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
+fi
+
+#####################################################################################
+# ffmpeg-fix, for WebRTC to transcode AAC with Opus.
+#####################################################################################
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    if [[ -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]]; then
+        echo "The ffmpeg-4.2-fit is ok.";
+    else
+        echo "Building ffmpeg-4.2-fit.";
+        (
+            rm -rf ${SRS_OBJS}/ffmpeg-4.2-fit && cd ${SRS_OBJS} && ABS_OBJS=`pwd` &&
+            ln -sf ../3rdparty/ffmpeg-4.2-fit && cd ffmpeg-4.2-fit &&
+            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
+              --prefix=`pwd`/_release \
+              --pkg-config-flags="--static" \
+              --extra-libs=-lpthread \
+              --extra-libs=-lm \
+              --disable-programs \
+              --disable-doc \
+              --disable-htmlpages \
+              --disable-manpages \
+              --disable-podpages \
+              --disable-txtpages \
+              --disable-avdevice \
+              --disable-avformat \
+              --disable-swscale \
+              --disable-postproc \
+              --disable-avfilter \
+              --disable-network \
+              --disable-dct \
+              --disable-dwt \
+              --disable-error-resilience \
+              --disable-lsp \
+              --disable-lzo \
+              --disable-faan \
+              --disable-pixelutils \
+              --disable-hwaccels \
+              --disable-devices \
+              --disable-audiotoolbox \
+              --disable-videotoolbox \
+              --disable-appkit \
+              --disable-coreimage \
+              --disable-avfoundation \
+              --disable-securetransport \
+              --disable-iconv \
+              --disable-lzma \
+              --disable-sdl2 \
+              --disable-everything \
+              --enable-decoder=aac \
+              --enable-decoder=aac_fixed \
+              --enable-decoder=aac_latm \
+              --enable-decoder=libopus \
+              --enable-encoder=aac \
+              --enable-encoder=opus \
+              --enable-encoder=libopus \
+              --enable-libopus &&
+            make ${SRS_JOBS} && make install
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/_release ffmpeg
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 
 #####################################################################################

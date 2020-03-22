@@ -1,0 +1,17 @@
+# Ignore files.
+*.d
+*.pc
+*.o
+config.asm
+config.h
+_release
+doc
+ffbuild/config.fate
+ffbuild/config.log
+ffbuild/config.mak
+ffbuild/config.sh
+ffbuild/.config
+libavutil/lib.version
+libavcodec/libavcodec.version
+libavutil/libavutil.version
+libswresample/libswresample.version
