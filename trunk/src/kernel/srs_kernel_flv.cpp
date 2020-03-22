@@ -36,11 +36,13 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_kernel_rtp.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
+#ifdef SRS_AUTO_RTC
+#include <srs_kernel_rtp.hpp>
+#endif
 
 SrsMessageHeader::SrsMessageHeader()
 {
@@ -230,9 +232,11 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
         }
     }
 
+#ifdef SRS_AUTO_RTC
     for (int i = 0; i < (int)rtp_packets.size(); ++i) {
         srs_freep(rtp_packets[i]);
     }
+#endif
 }
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -351,17 +355,21 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 
+#ifdef SRS_AUTO_RTC
     for (int i = 0; i < (int)rtp_packets.size(); ++i) {
         copy->rtp_packets.push_back(rtp_packets[i]->copy());
     }
+#endif
 
     return copy;
 }
 
+#ifdef SRS_AUTO_RTC
 void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
 {
     rtp_packets = pkts;
 }
+#endif
 
 SrsFlvTransmuxer::SrsFlvTransmuxer()
 {

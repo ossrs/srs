@@ -399,7 +399,7 @@ fi
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     if [[ -f ${SRS_OBJS}/opus/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
@@ -419,7 +419,7 @@ fi
 #####################################################################################
 # ffmpeg-fix, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     if [[ -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]]; then
         echo "The ffmpeg-4.2-fit is ok.";
     else

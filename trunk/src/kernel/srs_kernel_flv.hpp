@@ -288,7 +288,10 @@ public:
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
 
+#ifdef SRS_AUTO_RTC
     std::vector<SrsRtpSharedPacket*> rtp_packets;
+#endif
+
 private:
     class SrsSharedPtrPayload
     {
@@ -344,7 +347,9 @@ public:
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
 public:
+#ifdef SRS_AUTO_RTC
     virtual void set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts);
+#endif
 };
 
 // Transmux RTMP packets to FLV stream.
