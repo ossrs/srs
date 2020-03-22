@@ -84,11 +84,13 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
-    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing nasm."
-        require_sudoer "sudo apt-get install -y --force-yes nasm"
-        sudo apt-get install -y --force-yes nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The nasm is installed."
+    if [[ $SRS_NASM == YES ]]; then
+      nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+          echo "Installing nasm."
+          require_sudoer "sudo apt-get install -y --force-yes nasm"
+          sudo apt-get install -y --force-yes nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+          echo "The nasm is installed."
+      fi
     fi
 
     if [[ $SRS_VALGRIND == YES ]]; then
@@ -420,6 +422,10 @@ fi
 # ffmpeg-fix, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+    FFMPEG_OPTIONS=""
+    if [[ $SRS_NASM == NO ]]; then
+        FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
+    fi
     if [[ -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]]; then
         echo "The ffmpeg-4.2-fit is ok.";
     else
@@ -429,7 +435,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
             ln -sf ../3rdparty/ffmpeg-4.2-fit && cd ffmpeg-4.2-fit &&
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
               --prefix=`pwd`/_release \
-              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm \
+              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
