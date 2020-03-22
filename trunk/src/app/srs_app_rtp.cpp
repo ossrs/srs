@@ -332,14 +332,14 @@ SrsRtpOpusMuxer::SrsRtpOpusMuxer()
 {
     sequence = 0;
     timestamp = 0;
-    recoder = NULL;
+    transcode = NULL;
 }
 
 SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
 {
-    if (recoder) {
-        delete recoder;
-        recoder = NULL;
+    if (transcode) {
+        delete transcode;
+        transcode = NULL;
     }
 }
 
@@ -347,11 +347,11 @@ srs_error_t SrsRtpOpusMuxer::initialize()
 {
     srs_error_t err = srs_success;
 
-    recoder = new SrsAudioRecode(kChannel, kSamplerate);
-    if (!recoder) {
-        return srs_error_wrap(err, "SrsAacOpus init failed");
+    transcode = new SrsAudioRecode(kChannel, kSamplerate);
+    if (!transcode) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAacOpus init failed");
     }
-    recoder->initialize();
+    transcode->initialize();
 
     return err;
 }
@@ -375,7 +375,7 @@ srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, 
     pkt.bytes = stream->data();
     pkt.size = stream->pos();
 
-    if ((err = recoder->recode(&pkt, data_ptr, elen, number)) != srs_success) {
+    if ((err = transcode->recode(&pkt, data_ptr, elen, number)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
@@ -466,7 +466,7 @@ srs_error_t SrsRtp::initialize(SrsOriginHub* h, SrsRequest* r)
     rtp_h264_muxer = new SrsRtpMuxer();
 
     rtp_opus_muxer = new SrsRtpOpusMuxer();
-    if (rtp_opus_muxer) {
+    if (!rtp_opus_muxer) {
         return srs_error_wrap(err, "rtp_opus_muxer nullptr");
     }
     
@@ -536,11 +536,11 @@ srs_error_t SrsRtp::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
         return srs_error_wrap(err, "aac append header");
     }
 
-    if (!stream) {
-        return srs_error_wrap(err, "adts aac nullptr");
+    if (stream) {
+        return rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
     }
 
-    return rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
+    return err;
 }
 
 srs_error_t SrsRtp::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)

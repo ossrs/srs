@@ -84,7 +84,7 @@ class SrsRtpOpusMuxer
 private:
     uint32_t timestamp;
     uint16_t sequence;
-    SrsAudioRecode* recoder;
+    SrsAudioRecode* transcode;
 public:
     SrsRtpOpusMuxer();
     virtual ~SrsRtpOpusMuxer();

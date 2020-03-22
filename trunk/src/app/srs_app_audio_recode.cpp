@@ -61,31 +61,31 @@ srs_error_t SrsAudioDecoder::initialize()
     srs_error_t err = srs_success;
 
     if (codec_name_.compare("aac")) {
-        return srs_error_wrap(err, "Invalid codec name");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Invalid codec name");
     }
 
     const AVCodec *codec = avcodec_find_decoder_by_name(codec_name_.c_str());
     if (!codec) {
-        return srs_error_wrap(err, "Codec not found by name");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Codec not found by name");
     }
 
     codec_ctx_ = avcodec_alloc_context3(codec);
     if (!codec_ctx_) {
-        return srs_error_wrap(err, "Could not allocate audio codec context");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio codec context");
     }
 
     if (avcodec_open2(codec_ctx_, codec, NULL) < 0) {
-        return srs_error_wrap(err, "Could not open codec");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not open codec");
     }
 
     frame_ = av_frame_alloc();
     if (!frame_) {
-        return srs_error_wrap(err, "Could not allocate audio frame");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio frame");
     }
 
     packet_ = av_packet_alloc();
     if (!packet_) {
-        return srs_error_wrap(err, "Could not allocate audio packet");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio packet");
     }
 
     return err;
@@ -100,7 +100,7 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
 
     int ret = avcodec_send_packet(codec_ctx_, packet_);
     if (ret < 0) {
-        return srs_error_wrap(err, "Error submitting the packet to the decoder");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error submitting the packet to the decoder");
     }
 
     int max = size;
@@ -111,12 +111,12 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             return err;
         } else if (ret < 0) {
-            return srs_error_wrap(err, "Error during decoding");
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "Error during decoding");
         }
 
         int pcm_size = av_get_bytes_per_sample(codec_ctx_->sample_fmt);
         if (pcm_size < 0) {
-            return srs_error_wrap(err, "Failed to calculate data size");
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "Failed to calculate data size");
         }
 
         for (int i = 0; i < frame_->nb_samples; i++) {
@@ -159,7 +159,7 @@ srs_error_t SrsAudioEncoder::initialize()
     int error = 0;
     opus_ = opus_encoder_create(sampling_rate_, channels_, OPUS_APPLICATION_VOIP, &error);
     if (error != OPUS_OK) {
-        return srs_error_wrap(err, "Error create Opus encoder");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error create Opus encoder");
     }
 
     switch (sampling_rate_)
@@ -200,7 +200,7 @@ srs_error_t SrsAudioEncoder::encode(SrsSample *frame, char *buf, int &size)
 
     int nb_samples = sampling_rate_ * kOpusPacketMs / 1000;
     if (frame->size != nb_samples * 2 * channels_) {
-        return srs_error_wrap(err, "invalid frame size %d, should be %d", frame->size, nb_samples * 2 * channels_);
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid frame size %d, should be %d", frame->size, nb_samples * 2 * channels_);
     }
 
     opus_int16 *data = (opus_int16 *)frame->bytes;
@@ -255,7 +255,7 @@ srs_error_t SrsAudioResample::initialize()
 
     swr_ctx_ = swr_alloc();
     if (!swr_ctx_) {
-        return srs_error_wrap(err, "Could not allocate resampler context");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate resampler context");
     }
 
     av_opt_set_int(swr_ctx_, "in_channel_layout",    src_ch_layout_, 0);
@@ -268,14 +268,14 @@ srs_error_t SrsAudioResample::initialize()
 
     int ret;
     if ((ret = swr_init(swr_ctx_)) < 0) {
-        return srs_error_wrap(err, "Failed to initialize the resampling context");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Failed to initialize the resampling context");
     }
 
     src_nb_channels_ = av_get_channel_layout_nb_channels(src_ch_layout_);
     ret = av_samples_alloc_array_and_samples(&src_data_, &src_linesize_, src_nb_channels_,
                                              src_nb_samples_, src_sample_fmt_, 0);
     if (ret < 0) {
-        return srs_error_wrap(err, "Could not allocate source samples");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate source samples");
     }
 
     max_dst_nb_samples_ = dst_nb_samples_ =
@@ -285,7 +285,7 @@ srs_error_t SrsAudioResample::initialize()
     ret = av_samples_alloc_array_and_samples(&dst_data_, &dst_linesize_, dst_nb_channels_,
                                              dst_nb_samples_, dst_sample_fmt_, 0);
     if (ret < 0) {
-        return srs_error_wrap(err, "Could not allocate destination samples");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate destination samples");
     }
 
     return err;
@@ -300,7 +300,7 @@ srs_error_t SrsAudioResample::resample(SrsSample *pcm, char *buf, int &size)
         plane = 2;
     }
     if (src_linesize_ * plane < pcm->size || pcm->size < 0) {
-        return srs_error_wrap(err, "size not ok");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "size not ok");
     }
     memcpy(src_data_[0], pcm->bytes, pcm->size);
 
@@ -311,20 +311,20 @@ srs_error_t SrsAudioResample::resample(SrsSample *pcm, char *buf, int &size)
         ret = av_samples_alloc(dst_data_, &dst_linesize_, dst_nb_channels_,
                                 dst_nb_samples_, dst_sample_fmt_, 1);
         if (ret < 0) {
-            return srs_error_wrap(err, "alloc error");
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "alloc error");
         }
         max_dst_nb_samples_ = dst_nb_samples_;
     }
 
     ret = swr_convert(swr_ctx_, dst_data_, dst_nb_samples_, (const uint8_t **)src_data_, src_nb_samples_);
     if (ret < 0) {
-       return srs_error_wrap(err, "Error while converting"); 
+       return srs_error_new(ERROR_RTC_RTP_MUXER, "Error while converting"); 
     }
 
     int dst_bufsize = av_samples_get_buffer_size(&dst_linesize_, dst_nb_channels_,
                                                 ret, dst_sample_fmt_, 1);
     if (dst_bufsize < 0) {
-        return srs_error_wrap(err, "Could not get sample buffer size"); 
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not get sample buffer size"); 
     }
 
     int max = size;
@@ -369,13 +369,13 @@ srs_error_t SrsAudioRecode::initialize()
 
     dec_ = new SrsAudioDecoder("aac");
     if (!dec_) {
-        return srs_error_wrap(err, "SrsAudioDecoder failed");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAudioDecoder failed");
     }
     dec_->initialize();
 
     enc_ = new SrsAudioEncoder(dst_samplerate_, dst_channels_, 1, 1);
     if (!enc_) {
-        return srs_error_wrap(err, "SrsAudioEncoder failed");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAudioEncoder failed");
     }
     enc_->initialize();
 
@@ -393,12 +393,12 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
     static char encode_buffer[kPacketBufMax];
     
     if (!dec_) {
-        return srs_error_wrap(err, "dec_ nullptr");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "dec_ nullptr");
     }
 
     int decode_len = kPacketBufMax;
     if ((err = dec_->decode(pkt, decode_buffer, decode_len)) != srs_success) {
-        return srs_error_wrap(err, "decode error");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
     }
 
     if (!resample_) {
@@ -409,7 +409,7 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
                         AV_SAMPLE_FMT_S16);
 
         if (!resample_) {
-            return srs_error_wrap(err, "SrsAudioResample failed");
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAudioResample failed");
         }
         resample_->initialize();
     }
@@ -419,7 +419,7 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
     pcm.size = decode_len;
     int resample_len = kFrameBufMax;
     if ((err = resample_->resample(&pcm, resample_buffer, resample_len)) != srs_success) {
-        return srs_error_wrap(err, "decode error");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
     }
 
     n = 0;
@@ -438,14 +438,14 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
             index += total - size_;
             size_ += total - size_;
             if (!enc_) {
-                return srs_error_wrap(err, "enc_ nullptr");
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "enc_ nullptr");
             }
             
             int encode_len;
             pcm.bytes = (char *)data_;
             pcm.size = size_;
             if ((err = enc_->encode(&pcm, encode_buffer, encode_len)) != srs_success) {
-                return srs_error_wrap(err, "decode error");
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
             }
 
             memcpy(buf[n], encode_buffer, encode_len);
