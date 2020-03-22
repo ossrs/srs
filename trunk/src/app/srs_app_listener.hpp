@@ -143,9 +143,6 @@ public:
     SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
 
-    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
-    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
-
     int recvfrom(srs_utime_t timeout);
     srs_error_t sendto(void* data, int size, srs_utime_t timeout);
 
@@ -154,6 +151,12 @@ public:
     std::string get_peer_ip() const { return peer_ip; }
     int get_peer_port() const { return peer_port; }
     std::string get_peer_id();
+public:
+    SrsUdpMuxSocket* copy_sendonly();
+private:
+    // Don't allow copy, user copy_sendonly instead
+    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
+    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
 };
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler

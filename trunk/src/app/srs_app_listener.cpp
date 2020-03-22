@@ -237,23 +237,21 @@ SrsUdpMuxSocket::~SrsUdpMuxSocket()
     srs_freepa(buf);
 }
 
-SrsUdpMuxSocket::SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs)
+SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
 {
-    operator=(rhs);
-}
+    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(lfd);
 
-SrsUdpMuxSocket& SrsUdpMuxSocket::operator=(const SrsUdpMuxSocket& rhs)
-{
-    buf = NULL;
-    nb_buf = 0;
-    nread = 0;
-    lfd = rhs.lfd;
-    from = rhs.from;
-    fromlen = rhs.fromlen;
-    peer_ip = rhs.peer_ip;
-    peer_port = rhs.peer_port;
+    // Don't copy buffer
+    srs_freepa(sendonly->buf);
+    sendonly->nb_buf    = 0;
+    sendonly->nread     = 0;
+    sendonly->lfd       = lfd;
+    sendonly->from      = from;
+    sendonly->fromlen   = fromlen;
+    sendonly->peer_ip   = peer_ip;
+    sendonly->peer_port = peer_port;
 
-    return *this;
+    return sendonly;
 }
 
 int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)

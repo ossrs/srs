@@ -605,18 +605,19 @@ srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, in
 }
 
 SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid)
-    : ukt(NULL)
+    : sendonly_ukt(NULL)
 {
     _parent_cid = parent_cid;
     trd = new SrsDummyCoroutine();
 
     rtc_session = s;
-    ukt = *u;
+    sendonly_ukt = u->copy_sendonly();
 }
 
 SrsRtcSenderThread::~SrsRtcSenderThread()
 {
     srs_freep(trd);
+    srs_freep(sendonly_ukt);
 }
 
 int SrsRtcSenderThread::cid()
@@ -695,8 +696,17 @@ srs_error_t SrsRtcSenderThread::cycle()
             continue;
         }
 
-        send_and_free_messages(msgs.msgs, msg_count, &ukt);
+        send_and_free_messages(msgs.msgs, msg_count, sendonly_ukt);
     }
+}
+
+void SrsRtcSenderThread::update_sendonly_socket(SrsUdpMuxSocket* ukt) 
+{
+    srs_trace("session %s address changed, update %s -> %s", 
+        rtc_session->id().c_str(), sendonly_ukt->get_peer_id().c_str(), ukt->get_peer_id().c_str());
+
+    srs_freep(sendonly_ukt);
+    sendonly_ukt = ukt->copy_sendonly();
 }
 
 void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* udp_mux_skt)
@@ -775,6 +785,12 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* 
     }
 
     last_stun_time = srs_get_system_time();
+
+    if (strd && strd->sendonly_ukt) {
+        if (strd->sendonly_ukt->get_peer_id() != udp_mux_skt->get_peer_id()) {
+            strd->update_sendonly_socket(udp_mux_skt);
+        }
+    }
 
     return err;
 }
