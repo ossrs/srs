@@ -46,7 +46,9 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
+#ifdef SRS_AUTO_RTC
 #include <srs_app_rtc_conn.hpp>
+#endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -781,6 +783,7 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
+#ifdef SRS_AUTO_RTC
 SrsGoApiSdp::SrsGoApiSdp(SrsRtcServer* rtc_svr)
 {
     rtc_server = rtc_svr;
@@ -887,6 +890,7 @@ srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     request.stream = stream_name;
     SrsSdp local_sdp;
     // TODO: FIXME: Maybe need a better name?
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
     string local_sdp_str = "";
@@ -906,6 +910,7 @@ srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
     return err;
 }
+#endif
 
 SrsGoApiClients::SrsGoApiClients()
 {

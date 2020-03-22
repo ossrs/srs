@@ -54,7 +54,7 @@ class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
-class SrsRtp;
+class SrsRtc;
 class SrsDvr;
 class SrsDash;
 class SrsEncoder;
@@ -325,6 +325,7 @@ public:
     virtual SrsSharedPtrMessage* pop();
 };
 
+#ifdef SRS_AUTO_RTC
 // To find the RTP packet for RTX or restore.
 class SrsRtpPacketQueue
 {
@@ -347,6 +348,7 @@ public:
     void insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt);
     SrsRtpSharedPacket* find(const uint16_t& sequence);
 };
+#endif
 
 // The hub for origin is a collection of utilities for origin only,
 // For example, DVR, HLS, Forward and Transcode are only available for origin,
@@ -360,8 +362,10 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
-    // rtp handler
-    SrsRtp* rtp;
+#ifdef SRS_AUTO_RTC
+    // rtc handler
+    SrsRtc* rtc;
+#endif
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -534,8 +538,10 @@ private:
     bool mix_correct;
     // The mix queue to implements the mix correct algorithm.
     SrsMixQueue* mix_queue;
+#ifdef SRS_AUTO_RTC
     // rtp packet queue
     SrsRtpPacketQueue* rtp_queue;
+#endif
     // For play, whether enabled atc.
     // The atc(use absolute time and donot adjust time),
     // directly use msg time and donot adjust if atc is true,
@@ -625,8 +631,10 @@ public:
 public:
     virtual std::string get_curr_origin();
 public:
+#ifdef SRS_AUTO_RTC
     // Find rtp packet by sequence
     SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
+#endif
 };
 
 #endif

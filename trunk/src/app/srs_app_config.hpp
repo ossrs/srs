@@ -501,10 +501,15 @@ public:
 
 // rtc section
 public:
-    virtual int get_rtc_enabled();
-    virtual bool get_rtc_enabled(SrsConfDirective* conf);
-    virtual int get_rtc_listen();
-    virtual std::string get_rtc_candidates();
+    virtual int get_rtc_server_enabled();
+    virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
+    virtual int get_rtc_server_listen();
+    virtual std::string get_rtc_server_candidates();
+
+    SrsConfDirective* get_rtc(std::string vhost);
+    bool get_rtc_enabled(std::string vhost);
+    bool get_rtc_bframe_discard(std::string vhost);
+    bool get_rtc_aac_discard(std::string vhost);
 
 // vhost specified section
 public:

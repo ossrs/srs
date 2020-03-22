@@ -384,6 +384,7 @@ srs_error_t SrsAudioRecode::initialize()
     return err;
 }
 
+// TODO: FIXME: Rename to transcode.
 srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int &n)
 {
     srs_error_t err = srs_success;

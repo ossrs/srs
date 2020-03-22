@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_app_dtls.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_rtp.hpp>
+#include <srs_app_rtc.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
@@ -101,7 +101,7 @@ std::vector<std::string> SrsCandidate::get_candidate_ips()
 {
     std::vector<std::string> candidate_ips;
 
-    string candidate = _srs_config->get_rtc_candidates();
+    string candidate = _srs_config->get_rtc_server_candidates();
     if (candidate == "*" || candidate == "0.0.0.0") {
         std::vector<std::string> tmp = srs_get_local_ips();
         for (int i = 0; i < (int)tmp.size(); ++i) {
@@ -189,7 +189,7 @@ srs_error_t SrsSdp::encode(string& sdp_str)
     std::vector<string> candidate_ips = SrsCandidate::get_candidate_ips();
     for (int i = 0; i < (int)candidate_ips.size(); ++i) {
         ostringstream os;
-        os << "a=candidate:10 1 udp 2115783679 " << candidate_ips[i] << " " << _srs_config->get_rtc_listen() <<" typ host generation 0\\r\\n";
+        os << "a=candidate:10 1 udp 2115783679 " << candidate_ips[i] << " " << _srs_config->get_rtc_server_listen() <<" typ host generation 0\\r\\n";
         candidate_lines += os.str();
     }
 
@@ -1179,11 +1179,11 @@ srs_error_t SrsRtcServer::listen_udp()
 {
     srs_error_t err = srs_success;
 
-    if (!_srs_config->get_rtc_enabled()) {
+    if (!_srs_config->get_rtc_server_enabled()) {
         return err;
     }
 
-    int port = _srs_config->get_rtc_listen();
+    int port = _srs_config->get_rtc_server_listen();
     if (port <= 0) {
         return srs_error_new(ERROR_RTC_PORT, "invalid port=%d", port);
     }
