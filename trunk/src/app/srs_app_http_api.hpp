@@ -166,6 +166,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+#ifdef SRS_AUTO_RTC
 class SrsGoApiSdp : public ISrsHttpHandler
 {
 private:
@@ -178,6 +179,7 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 };
+#endif
 
 class SrsGoApiClients : public ISrsHttpHandler
 {

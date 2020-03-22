@@ -73,6 +73,12 @@ else
     srs_undefine_macro "SRS_AUTO_SRT" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_RTC = YES ]; then
+    srs_define_macro "SRS_AUTO_RTC" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_RTC" $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_MEM_WATCH = YES ]; then
     srs_define_macro "SRS_AUTO_MEM_WATCH" $SRS_AUTO_HEADERS_H
 else
