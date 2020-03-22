@@ -58,7 +58,7 @@
         var startPlay = function() {
             $('#rtc_media_player').show();
             var urlObject = parse_rtmp_url($("#txt_url").val());
-            var schame = window.location.protocol;
+            var schema = query.schema? query.schema:window.location.protocol;
 
             // Close PC when user replay.
             if (pc) {
