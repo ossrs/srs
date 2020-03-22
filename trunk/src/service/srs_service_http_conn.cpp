@@ -907,7 +907,9 @@ srs_error_t SrsHttpResponseWriter::send_header(char* data, int size)
     }
     
     // keep alive to make vlc happy.
-    hdr->set("Connection", "Keep-Alive");
+    if (hdr->get("Connection").empty()) {
+        hdr->set("Connection", "Keep-Alive");
+    }
 
     // Filter the header before writing it.
     if (hf && ((err = hf->filter(hdr)) != srs_success)) {

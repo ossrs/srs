@@ -315,6 +315,8 @@ public:
     //       for instance RTMP connection to serve client.
     // @param stfd, the client fd in st boxed, the underlayer fd.
     virtual srs_error_t accept_client(SrsListenerType type, srs_netfd_t stfd);
+    // TODO: FIXME: Fetch from hybrid server manager.
+    virtual SrsHttpServeMux* api_server();
 private:
     virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
 // Interface IConnectionManager

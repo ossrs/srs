@@ -17,6 +17,7 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
+SRS_RTC=YES
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
@@ -130,7 +131,8 @@ Features:
   --with-librtmp            Enable srs-librtmp, library for client.
   --with-research           Build the research tools.
   --with-utest              Build the utest for SRS.
-  --with-srt                Build the srt for SRS.
+  --with-srt                Build the SRT support for SRS.
+  --with-rtc                Build the WebRTC support for SRS.
 
   --without-ssl             Disable rtmp complex handshake.
   --without-hds             Disable hds, the adobe http dynamic streaming.
@@ -139,7 +141,8 @@ Features:
   --without-librtmp         Disable srs-librtmp, library for client.
   --without-research        Do not build the research tools.
   --without-utest           Do not build the utest for SRS.
-  --without-srt             Do not build the srt for SRS.
+  --without-srt             Do not build the SRT support for SRS.
+  --without-rtc             Do not build the WebRTC support for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
@@ -225,6 +228,7 @@ function parse_user_option() {
         --with-research)                SRS_RESEARCH=YES            ;;
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-srt)                     SRS_SRT=YES                 ;;
+        --with-rtc)                     SRS_RTC=YES                 ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -240,7 +244,8 @@ function parse_user_option() {
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
-        --without-srt)                  SRS_SRT=NO                 ;;
+        --without-srt)                  SRS_SRT=NO                  ;;
+        --without-rtc)                  SRS_RTC=NO                  ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -539,6 +544,7 @@ function regenerate_options() {
     if [ $SRS_RESEARCH = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-research"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-research"; fi
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
+    if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi

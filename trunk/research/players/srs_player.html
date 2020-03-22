@@ -550,6 +550,9 @@
             if (query.buffer) {
                 url += "&buffer=" + query.buffer;
             }
+            if (query.api_port) {
+                url += "&api_port=" + query.api_port;
+            }
 
             var queries = user_extra_params(query);
             if (queries && queries.length) {

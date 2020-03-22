@@ -1410,6 +1410,11 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     return err;
 }
 
+SrsHttpServeMux* SrsServer::api_server()
+{
+    return http_api_mux;
+}
+
 srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)
 {
     srs_error_t err = srs_success;

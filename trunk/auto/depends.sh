@@ -84,6 +84,13 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
+    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing nasm."
+        require_sudoer "sudo apt-get install -y --force-yes nasm"
+        sudo apt-get install -y --force-yes nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The nasm is installed."
+    fi
+
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
@@ -155,6 +162,13 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y unzip"
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
+    fi
+
+    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing nasm."
+        require_sudoer "sudo yum install -y nasm"
+        sudo yum install -y nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The nasm is installed."
     fi
 
     if [[ $SRS_VALGRIND == YES ]]; then
@@ -240,6 +254,27 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
+fi
+
+#####################################################################################
+# srtp
+#####################################################################################
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]]; then
+        echo "The srtp2 is ok.";
+    else
+        echo "Building srtp2.";
+        (
+            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS} &&
+            unzip -q ../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 && 
+            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -352,13 +387,63 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
             rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
             unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
             ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
-            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} && make install_sw &&
+            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
+fi
+
+#####################################################################################
+# libopus, for WebRTC to transcode AAC with Opus.
+#####################################################################################
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+    if [[ -f ${SRS_OBJS}/opus/lib/libopus.a ]]; then
+        echo "The opus-1.3.1 is ok.";
+    else
+        echo "Building opus-1.3.1.";
+        (
+            rm -rf ${SRS_OBJS}/opus-1.3.1 && cd ${SRS_OBJS} &&
+            tar xf ../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
+            ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
+            cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
+fi
+
+#####################################################################################
+# ffmpeg-fix, for WebRTC to transcode AAC with Opus.
+#####################################################################################
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+    if [[ -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]]; then
+        echo "The ffmpeg-4.2-fit is ok.";
+    else
+        echo "Building ffmpeg-4.2-fit.";
+        (
+            rm -rf ${SRS_OBJS}/ffmpeg-4.2-fit && cd ${SRS_OBJS} && ABS_OBJS=`pwd` &&
+            ln -sf ../3rdparty/ffmpeg-4.2-fit && cd ffmpeg-4.2-fit &&
+            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
+              --prefix=`pwd`/_release \
+              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm \
+              --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
+              --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
+              --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
+              --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-appkit --disable-coreimage \
+              --disable-avfoundation --disable-securetransport --disable-iconv --disable-lzma --disable-sdl2 --disable-everything \
+              --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm --enable-decoder=libopus --enable-encoder=aac \
+              --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
+            make ${SRS_JOBS} && make install
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/_release ffmpeg
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -372,17 +457,9 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "build ffmpeg-4.1"; 
-        (
-            cd ${SRS_OBJS} && pwd_dir=`pwd` && 
-            rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
-            rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
-            cd ${pwd_dir} && rm -rf ffmpeg && ln -sf ffmpeg.src/_release ffmpeg
-        )
+        echo "no ffmpeg-4.1 found, please run in docker ossrs/srs:dev";
+        exit -1;
     fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-4.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-4.1 failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -396,7 +473,7 @@ if [[ $SRS_SRT == YES ]]; then
     if [[ -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
         echo "libsrt-1.4.1 is ok.";
     else
-        echo "no libsrt, please use srs-docker or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
+        echo "no libsrt, please run in docker ossrs/srs:srt or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
         exit -1;
     fi
 fi

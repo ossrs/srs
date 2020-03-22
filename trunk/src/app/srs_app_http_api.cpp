@@ -46,6 +46,9 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
+#ifdef SRS_AUTO_RTC
+#include <srs_app_rtc_conn.hpp>
+#endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
 {
@@ -780,6 +783,135 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
+#ifdef SRS_AUTO_RTC
+SrsGoApiSdp::SrsGoApiSdp(SrsRtcServer* rtc_svr)
+{
+    rtc_server = rtc_svr;
+}
+
+SrsGoApiSdp::~SrsGoApiSdp()
+{
+}
+
+
+// Request:
+//      POST /rtc/v1/play/
+//      {
+//          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
+//          "api":'http...", "clientip":"..."
+//      }
+// Response:
+//      {"sdp":"answer...", "sid":"..."}
+// @see https://github.com/rtcdn/rtcdn-draft
+srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, res);
+
+    if ((err = do_serve_http(w, r, res)) != srs_success) {
+        srs_warn("RTC error %s", srs_error_desc(err).c_str()); srs_freep(err);
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    return srs_api_response(w, r, res->dumps());
+}
+
+srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+{
+    srs_error_t err = srs_success;
+
+    // For each RTC session, we use short-term HTTP connection.
+    SrsHttpHeader* hdr = w->header();
+    hdr->set("Connection", "Close");
+
+    // Parse req, the request json object, from body.
+    SrsJsonObject* req = NULL;
+    if (true) {
+        string req_json;
+        if ((err = r->body_read_all(req_json)) != srs_success) {
+            return srs_error_wrap(err, "read body");
+        }
+
+        SrsJsonAny* json = SrsJsonAny::loads(req_json);
+        if (!json || !json->is_object()) {
+            return srs_error_wrap(err, "not json");
+        }
+
+        req = json->to_object();
+    }
+
+    // Fetch params from req object.
+    SrsJsonAny* prop = NULL;
+    if ((prop = req->ensure_property_string("sdp")) == NULL) {
+        return srs_error_wrap(err, "not sdp");
+    }
+    string remote_sdp_str = prop->to_str();
+
+    if ((prop = req->ensure_property_string("streamurl")) == NULL) {
+        return srs_error_wrap(err, "not streamurl");
+    }
+    string streamurl = prop->to_str();
+
+    string clientip;
+    if ((prop = req->ensure_property_string("clientip")) != NULL) {
+        clientip = prop->to_str();
+    }
+
+    string api;
+    if ((prop = req->ensure_property_string("api")) != NULL) {
+        api = prop->to_str();
+    }
+
+    // Parse app and stream from streamurl.
+    string app;
+    string stream_name;
+    if (true) {
+        string tcUrl;
+        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+
+        int port;
+        string schema, host, vhost, param;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    }
+
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length());
+
+    // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
+    SrsSdp remote_sdp;
+    if ((err = remote_sdp.decode(remote_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "decode sdp");
+    }
+
+    SrsRequest request;
+    request.app = app;
+    request.stream = stream_name;
+    SrsSdp local_sdp;
+    // TODO: FIXME: Maybe need a better name?
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
+
+    string local_sdp_str = "";
+    if ((err = local_sdp.encode(local_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "encode sdp");
+    }
+
+    res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
+
+    // TODO: add candidates in response json?
+
+    res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+
+    srs_trace("RTC sid=%s, answer=%dB", rtc_session->id().c_str(), local_sdp_str.length());
+
+    return err;
+}
+#endif
+
 SrsGoApiClients::SrsGoApiClients()
 {
 }
@@ -1351,6 +1483,11 @@ srs_error_t SrsHttpApi::do_cycle()
         
         // get a http message
         if ((err = parser->parse_message(skt, &req)) != srs_success) {
+            // For HTTP timeout, we think it's ok.
+            if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
+                srs_freep(err);
+                return srs_error_wrap(srs_success, "http api timeout");
+            }
             return srs_error_wrap(err, "parse message");
         }
         

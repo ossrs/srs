@@ -186,8 +186,8 @@ int SrsPithyPrint::enter_stage()
     srs_assert(stage != NULL);
     client_id = stage->nb_clients++;
     
-    srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-                stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d",
+                stage->stage_id, client_id, stage->nb_clients);
     
     return client_id;
 }
@@ -199,8 +199,8 @@ void SrsPithyPrint::leave_stage()
     
     stage->nb_clients--;
     
-    srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-                stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d",
+                stage->stage_id, client_id, stage->nb_clients);
 }
 
 void SrsPithyPrint::elapse()

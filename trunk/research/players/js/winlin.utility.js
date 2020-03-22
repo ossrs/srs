@@ -3,9 +3,9 @@
 /**
  * common utilities
  * depends: jquery1.10
- * https://code.csdn.net/snippets/147103
+ * https://gitee.com/winlinvip/codes/rpn0c2ewbomj81augzk4y59
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.17
+ * v 1.0.19
  */
 
 /**
@@ -293,7 +293,7 @@ function __fill_query(query_string, obj) {
 function parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
-    a.href = rtmp_url.replace("rtmp://", "http://");
+    a.href = rtmp_url.replace("rtmp://", "http://").replace("webrtc://", "http://");
 
     var vhost = a.hostname;
     var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);

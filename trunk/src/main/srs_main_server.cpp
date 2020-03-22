@@ -50,6 +50,9 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#ifdef SRS_AUTO_RTC
+#include <srs_app_rtc_conn.hpp>
+#endif
 
 #ifdef SRS_AUTO_SRT
 #include <srt_server.hpp>
@@ -59,7 +62,6 @@ using namespace std;
 srs_error_t run_directly_or_daemon();
 srs_error_t run_hybrid_server();
 void show_macro_features();
-string srs_getenv(const char* name);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
@@ -344,17 +346,6 @@ void show_macro_features()
 #endif
 }
 
-string srs_getenv(const char* name)
-{
-    char* cv = ::getenv(name);
-    
-    if (cv) {
-        return cv;
-    }
-    
-    return "";
-}
-
 // Detect docker by https://stackoverflow.com/a/41559867
 bool _srs_in_docker = false;
 srs_error_t srs_detect_docker()
@@ -453,9 +444,15 @@ srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
 
+    // Create servers and register them.
     _srs_hybrid->register_server(new SrsServerAdapter());
+
 #ifdef SRS_AUTO_SRT
     _srs_hybrid->register_server(new SrtServerAdapter());
+#endif
+
+#ifdef SRS_AUTO_RTC
+    _srs_hybrid->register_server(new RtcServerAdapter());
 #endif
 
     // Do some system initialize.
