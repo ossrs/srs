@@ -58,4 +58,6 @@ CONTRIBUTORS ordered by first contribution.
 * XiaLixin<xialx@yuntongxun.com>
 * xiaozhihong<xiaozhihong8@gmail.com>
 * HuyaJohn<xiaozhihong@huya.com>
+* yanghuiwen<cainiaodj@qq.com>
+* Bepartofyou<pengqiang.wpq@alibaba-inc.com>
 
