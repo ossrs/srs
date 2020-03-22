@@ -5,7 +5,7 @@ jobs:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure && make
+      - run: cd trunk && ./configure --without-rtc && make && ./configure && make
   test:
     docker:
       - image: ossrs/srs:dev

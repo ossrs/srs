@@ -509,6 +509,7 @@ public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
     bool get_rtc_bframe_discard(std::string vhost);
+    bool get_rtc_aac_discard(std::string vhost);
 
 // vhost specified section
 public:
