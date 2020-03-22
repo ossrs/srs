@@ -18,6 +18,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=YES
+SRS_NASM=YES
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
@@ -179,6 +180,8 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
   --ld=<LD>                 Use linker tool LD, default is ld.
   --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib.
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
+  --with-nasm               Build FFMPEG for RTC with nasm support.
+  --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
 
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -229,6 +232,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-srt)                     SRS_SRT=YES                 ;;
         --with-rtc)                     SRS_RTC=YES                 ;;
+        --with-nasm)                    SRS_NASM=YES                ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -246,6 +250,7 @@ function parse_user_option() {
         --without-utest)                SRS_UTEST=NO                ;;
         --without-srt)                  SRS_SRT=NO                  ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
+        --without-nasm)                 SRS_NASM=NO                 ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -545,6 +550,7 @@ function regenerate_options() {
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
     if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
+    if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi

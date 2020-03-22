@@ -2565,7 +2565,7 @@ VOID TEST(KernelUtility, BytesUtils)
 VOID TEST(KernelUtility, PathUtils)
 {
     if (true) {
-        EXPECT_TRUE("" == srs_path_dirname(""));
+        EXPECT_TRUE("./" == srs_path_dirname(""));
         EXPECT_TRUE("/" == srs_path_dirname("/"));
         EXPECT_TRUE("/" == srs_path_dirname("//"));
         EXPECT_TRUE("/" == srs_path_dirname("/stream"));

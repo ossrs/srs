@@ -192,6 +192,10 @@ fi
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
+# For FFMPEG/RTC.
+if [[ $SRS_RTC == YES && $SRS_NASM == NO ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -lrt";
+fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary

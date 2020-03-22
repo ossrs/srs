@@ -165,7 +165,8 @@ protected:
     int _parent_cid;
 private:
     SrsRtcSession* rtc_session;
-    SrsUdpMuxSocket ukt;
+public:
+    SrsUdpMuxSocket* sendonly_ukt;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
@@ -177,6 +178,8 @@ public:
     virtual void stop_loop();
 public:
     virtual srs_error_t cycle();
+public:
+    void update_sendonly_socket(SrsUdpMuxSocket* ukt);
 private:
     void send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* udp_mux_skt);
 };
