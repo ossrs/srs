@@ -443,7 +443,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
               --disable-avfoundation --disable-securetransport --disable-iconv --disable-lzma --disable-sdl2 --disable-everything \
               --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm --enable-decoder=libopus --enable-encoder=aac \
               --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
-            make ${SRS_JOBS} && make install
+            make ${SRS_JOBS} && make install &&
             cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/_release ffmpeg
         )
     fi

@@ -153,6 +153,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-22, For [#307][bug #307], support play with WebRTC. 4.0.14
 * v4.0, 2020-03-13, For [#1636][bug #1636], fix bug for mux AAC to ADTS, never overwrite by RTMP sampling rate. 4.0.13
 * v4.0, 2020-03-07, For [#1612][bug #1612], fix crash bug for RTSP. 4.0.12
 * v4.0, 2020-03-07, For [#1631][bug #1631], support sei_filter for SRT. 4.0.11
