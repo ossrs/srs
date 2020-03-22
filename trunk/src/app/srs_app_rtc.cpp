@@ -430,6 +430,8 @@ SrsRtc::SrsRtc()
     enabled = false;
     disposable = false;
     last_update_time = 0;
+
+    discard_aac = false;
 }
 
 SrsRtc::~SrsRtc()
@@ -461,6 +463,8 @@ srs_error_t SrsRtc::initialize(SrsOriginHub* h, SrsRequest* r)
 
     rtp_h264_muxer = new SrsRtpMuxer();
     rtp_h264_muxer->discard_bframe = _srs_config->get_rtc_bframe_discard(req->vhost);
+    // TODO: FIXME: Support reload and log it.
+    discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
 
     rtp_opus_muxer = new SrsRtpOpusMuxer();
     if (rtp_opus_muxer) {
@@ -525,6 +529,11 @@ srs_error_t SrsRtc::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
+        return err;
+    }
+
+    // When drop aac audio packet, never transcode.
+    if (discard_aac && acodec == SrsAudioCodecIdAAC) {
         return err;
     }
     

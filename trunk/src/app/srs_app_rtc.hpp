@@ -82,6 +82,7 @@ private:
     srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
 };
 
+// TODO: FIXME: It's not a muxer, but a transcoder.
 class SrsRtpOpusMuxer
 {
 private:
@@ -105,6 +106,7 @@ private:
     SrsRequest* req;
     bool enabled;
     bool disposable;
+    bool discard_aac;
     srs_utime_t last_update_time;
     SrsRtpMuxer* rtp_h264_muxer;
     SrsRtpOpusMuxer* rtp_opus_muxer;
