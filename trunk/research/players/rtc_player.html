@@ -82,7 +82,7 @@
                 return pc.setLocalDescription(offer).then(function(){ return offer; });
             }).then(function(offer) {
                 return new Promise(function(resolve, reject) {
-                    var port = urlObject.user_query.api || 1985;
+                    var port = urlObject.port || 1985;
 
                     // @see https://github.com/rtcdn/rtcdn-draft
                     var api = urlObject.user_query.play || '/rtc/v1/play/';

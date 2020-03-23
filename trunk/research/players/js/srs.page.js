@@ -58,7 +58,7 @@ function user_extra_params(query, params) {
             || key === 'filename' || key === 'host' || key === 'hostname'
             || key === 'http_port' || key === 'pathname' || key === 'port'
             || key === 'server' || key === 'stream' || key === 'buffer'
-            || key === 'schema' || key === 'vhost'
+            || key === 'schema' || key === 'vhost' || key === 'api'
         ) {
             continue;
         }
@@ -211,6 +211,7 @@ function build_default_rtc_url(query) {
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
     var stream = (!query.stream)? "livestream":query.stream;
+    var api = query.api? ':'+query.api : '';
 
     // Note that ossrs.net provides only web service,
     // that is migrating to r.ossrs.net
@@ -227,7 +228,7 @@ function build_default_rtc_url(query) {
     }
     queries = user_extra_params(query, queries);
 
-    var uri = "webrtc://" + server + "/" + app + "/" + stream + "?" + queries.join('&');
+    var uri = "webrtc://" + server + api + "/" + app + "/" + stream + "?" + queries.join('&');
     while (uri.lastIndexOf("?") == uri.length - 1) {
         uri = uri.substr(0, uri.length - 1);
     }
