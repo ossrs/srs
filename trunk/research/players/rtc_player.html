@@ -15,9 +15,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<!--
-<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
--->
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtc'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -58,7 +56,7 @@
         var startPlay = function() {
             $('#rtc_media_player').show();
             var urlObject = parse_rtmp_url($("#txt_url").val());
-            var schema = query.schema? query.schema+':':window.location.protocol;
+            var schema = window.location.protocol;
 
             // Close PC when user replay.
             if (pc) {
