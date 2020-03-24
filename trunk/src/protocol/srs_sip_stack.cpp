@@ -51,7 +51,7 @@ unsigned int srs_sip_random(int min,int max)
     return  rand() % (max - min + 1) + min;
 } 
 
-std::string  srs_sip_get_form_to_uri(std::string  msg)
+std::string  srs_sip_get_from_to_uri(std::string  msg)
 {
     //<sip:34020000002000000001@3402000000>;tag=536961166
     //sip:34020000002000000001@3402000000 
@@ -309,14 +309,14 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                         } 
                         else if (!strcasecmp(phead, "from:")) {
                             content = srs_string_replace(content, "sip:", "");
-                            req->from = srs_sip_get_form_to_uri(content.c_str());
+                            req->from = srs_sip_get_from_to_uri(content.c_str());
                             if (srs_string_contains(content, "tag")) {
                                 req->from_tag = srs_sip_get_param(content.c_str(), "tag");
                             }
                         } 
                         else if (!strcasecmp(phead, "to:")) {
                             content = srs_string_replace(content, "sip:", "");
-                            req->to = srs_sip_get_form_to_uri(content.c_str());
+                            req->to = srs_sip_get_from_to_uri(content.c_str());
                             if (srs_string_contains(content, "tag")) {
                                 req->to_tag = srs_sip_get_param(content.c_str(), "tag");
                             }
