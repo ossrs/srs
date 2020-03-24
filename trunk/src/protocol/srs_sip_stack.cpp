@@ -65,6 +65,7 @@ std::string  srs_sip_get_from_to_uri(std::string  msg)
 
     size_t pos2 = msg.find(">");
     if (pos2 == string::npos) {
+        srs_warn("sip: invalid uri, missing matched `>'!");
         return msg;
     }
 
