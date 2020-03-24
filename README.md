@@ -132,6 +132,7 @@ For previous versions, please read:
 - [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
+- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
@@ -140,8 +141,8 @@ For previous versions, please read:
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
-- [ ] Support H.264+Opus codec for WebRTC.
-- [ ] Support publishing stream by WebRTC.
+- [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
+- [ ] Support publishing stream by WebRTC, [#307][bug #307].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
 - [ ] Support playing stream by WebRTC.
