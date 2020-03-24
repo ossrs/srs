@@ -20,7 +20,7 @@ git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
 cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
-> Note: Repository too large? Please clone from these [mirrors](#mirrors) instead.
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
 
 **Step 2:** Build SRS.
 
@@ -28,7 +28,7 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && gi
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: You can also build SRS in docker, please read [docker][docker-dev].
 
@@ -41,8 +41,11 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && gi
 **Whatever**, you can also directly run SRS in [docker][docker-srs3]:
 
 ```
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
+docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
+
+> Note: Again, we use [ACR](https://cr.console.aliyun.com/) here, you can directly use `docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3` instead.
 
 **From here,** strongly recommend to read bellow wikis:
 
