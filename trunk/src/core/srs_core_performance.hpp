@@ -58,6 +58,10 @@
 #define SRS_PERF_MR_ENABLED false
 #define SRS_PERF_MR_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 
+// For tcmalloc, set the default release rate.
+// @see https://gperftools.github.io/gperftools/tcmalloc.html
+#define SRS_PERF_TCMALLOC_RELEASE_RATE 0.8
+
 /**
  * the MW(merged-write) send cache time in srs_utime_t.
  * the default value, user can override it in config.

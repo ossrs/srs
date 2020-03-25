@@ -483,6 +483,8 @@ public:
     virtual bool inotify_auto_reload();
     // Whether enable auto reload config for docker.
     virtual bool auto_reload_for_docker();
+    // For tcmalloc, get the release rate.
+    virtual double tcmalloc_release_rate();
 // stream_caster section
 public:
     // Get all stream_caster in config file.

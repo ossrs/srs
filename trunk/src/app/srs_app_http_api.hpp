@@ -241,9 +241,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-
 #ifdef SRS_AUTO_GB28181
-
 class SrsGoApiGb28181 : public ISrsHttpHandler
 {
 public:
@@ -252,7 +250,17 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
+#endif
 
+#ifdef SRS_AUTO_GPERF
+class SrsGoApiTcmalloc : public ISrsHttpHandler
+{
+public:
+    SrsGoApiTcmalloc();
+    virtual ~SrsGoApiTcmalloc();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
 #endif
 
 class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler

@@ -268,6 +268,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
+    urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
 
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
@@ -1636,7 +1637,6 @@ srs_error_t SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
 }
 
 #ifdef SRS_AUTO_GB28181
-
 SrsGoApiGb28181::SrsGoApiGb28181()
 {
 }
@@ -1761,7 +1761,83 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         return srs_api_response_code(w, r, ERROR_GB28181_SERVER_NOT_RUN);
     }
 }
+#endif
 
+#ifdef SRS_AUTO_GPERF
+#include <gperftools/malloc_extension.h>
+
+SrsGoApiTcmalloc::SrsGoApiTcmalloc()
+{
+}
+
+SrsGoApiTcmalloc::~SrsGoApiTcmalloc()
+{
+}
+
+srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    string page = r->query_get("page");
+
+    if (page == "summary") {
+        char buffer[32 * 1024];
+        MallocExtension::instance()->GetStats(buffer, sizeof(buffer));
+
+        string data(buffer);
+        if ((err = w->write((char*)data.data(), (int)data.length())) != srs_success) {
+            return srs_error_wrap(err, "write");
+        }
+
+        return err;
+    }
+
+    // By default, response the json style response.
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+
+    size_t value = 0;
+
+    // @see https://gperftools.github.io/gperftools/tcmalloc.html
+    data->set("release_rate", SrsJsonAny::number(MallocExtension::instance()->GetMemoryReleaseRate()));
+
+    if (true) {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("generic", p);
+
+        MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &value);
+        p->set("current_allocated_bytes", SrsJsonAny::integer(value));
+
+        MallocExtension::instance()->GetNumericProperty("generic.heap_size", &value);
+        p->set("heap_size", SrsJsonAny::integer(value));
+    }
+
+    if (true) {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("tcmalloc", p);
+
+        MallocExtension::instance()->GetNumericProperty("tcmalloc.pageheap_free_bytes", &value);
+        p->set("pageheap_free_bytes", SrsJsonAny::integer(value));
+
+        MallocExtension::instance()->GetNumericProperty("tcmalloc.pageheap_unmapped_bytes", &value);
+        p->set("pageheap_unmapped_bytes", SrsJsonAny::integer(value));
+
+        MallocExtension::instance()->GetNumericProperty("tcmalloc.slack_bytes", &value);
+        p->set("slack_bytes", SrsJsonAny::integer(value));
+
+        MallocExtension::instance()->GetNumericProperty("tcmalloc.max_total_thread_cache_bytes", &value);
+        p->set("max_total_thread_cache_bytes", SrsJsonAny::integer(value));
+
+        MallocExtension::instance()->GetNumericProperty("tcmalloc.current_total_thread_cache_bytes", &value);
+        p->set("current_total_thread_cache_bytes", SrsJsonAny::integer(value));
+    }
+
+    return srs_api_response(w, r, obj->dumps());
+}
 #endif
 
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)

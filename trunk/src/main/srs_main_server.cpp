@@ -37,6 +37,10 @@ using namespace std;
 #include <gperftools/profiler.h>
 #endif
 
+#ifdef SRS_AUTO_GPERF
+#include <gperftools/malloc_extension.h>
+#endif
+
 #include <unistd.h>
 using namespace std;
 
@@ -185,6 +189,16 @@ srs_error_t do_main(int argc, char** argv)
     
     // features
     show_macro_features();
+
+#ifdef SRS_AUTO_GPERF
+    // For tcmalloc, use slower release rate.
+    if (true) {
+        double trr = _srs_config->tcmalloc_release_rate();
+        double otrr = MallocExtension::instance()->GetMemoryReleaseRate();
+        MallocExtension::instance()->SetMemoryReleaseRate(trr);
+        srs_trace("tcmalloc: set release-rate %.2f=>%.2f", otrr, trr);
+    }
+#endif
     
     if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");

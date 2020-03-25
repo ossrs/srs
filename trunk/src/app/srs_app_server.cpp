@@ -1014,6 +1014,14 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("error.srs.com/api/v1/tests/errors", new SrsGoApiError())) != srs_success) {
         return srs_error_wrap(err, "handle tests errors for error.srs.com");
     }
+
+#ifdef SRS_AUTO_GPERF
+    // The test api for get tcmalloc stats.
+    // @see Memory Introspection in https://gperftools.github.io/gperftools/tcmalloc.html
+    if ((err = http_api_mux->handle("/api/v1/tcmalloc", new SrsGoApiTcmalloc())) != srs_success) {
+        return srs_error_wrap(err, "handle tests errors");
+    }
+#endif
     
     // TODO: FIXME: for console.
     // TODO: FIXME: support reload.
