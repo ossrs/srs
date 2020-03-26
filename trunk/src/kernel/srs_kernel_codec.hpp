@@ -608,7 +608,8 @@ public:
     SrsAvcLevel avc_level;
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
-    std::vector<char> sequenceParameterSetNALUnit;
+	std::vector<char> videoParameterSetNALUnit;
+	std::vector<char> sequenceParameterSetNALUnit;
     std::vector<char> pictureParameterSetNALUnit;
 public:
     // the avc payload format.
@@ -735,6 +736,8 @@ private:
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
     virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+	// Parse the HEVC SPS/PPS.
+	virtual srs_error_t hevc_demux_sps_pps(SrsBuffer* stream);
 private:
     // Parse the H.264 NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);

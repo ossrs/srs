@@ -2236,18 +2236,31 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
         }
     }
     last_packet_time = shared_video->header.timestamp;
-    
-    // drop any unknown header video.
-    // @see https://github.com/ossrs/srs/issues/421
-    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
-        char b0 = 0x00;
-        if (shared_video->size > 0) {
-            b0 = shared_video->payload[0];
-        }
-        
-        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
-        return err;
-    }
+
+	if (shared_video->header.stream_id == SrsCodecVideoH264) {
+	    // drop any unknown header video.
+	    // @see https://github.com/ossrs/srs/issues/421
+	    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
+	        char b0 = 0x00;
+	        if (shared_video->size > 0) {
+	            b0 = shared_video->payload[0];
+	        }
+	        
+	        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+	        return err;
+	    }
+	}
+	else {
+		if (!SrsFlvVideo::acceptable_hevc(shared_video->payload, shared_video->size)) {
+	        char b0 = 0x00;
+	        if (shared_video->size > 0) {
+	            b0 = shared_video->payload[0];
+	        }
+	        
+	        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+	        return err;
+	    }
+	}
     
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.

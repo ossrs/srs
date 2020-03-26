@@ -155,6 +155,29 @@ bool SrsFlvVideo::h264(char* data, int size)
     return codec_id == SrsVideoCodecIdAVC;
 }
 
+bool SrsFlvVideo::acceptable_hevc(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    char frame_type = data[0];
+    char codec_id = frame_type & 0x0f;
+    frame_type = (frame_type >> 4) & 0x0f;
+    
+    if (frame_type < 1 || frame_type > 5) {
+        return false;
+    }
+    
+    if (codec_id < 2 || codec_id > 7) {
+        return false;
+    }
+    
+    return true;
+}
+
+
 bool SrsFlvVideo::acceptable(char* data, int size)
 {
     // 1bytes required.
@@ -678,8 +701,8 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     }
     
     // only support h.264/avc
-    if (codec_id != SrsVideoCodecIdAVC) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc only support video h.264/avc, actual=%d", codec_id);
+    if (codec_id != SrsVideoCodecIdAVC && codec_id != SrsVideoCodecIdHEVC) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc only support video h.264/avc and h.265/hevc, actual=%d", codec_id);
     }
     vcodec->id = codec_id;
     
@@ -700,7 +723,10 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     
     if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
-        if ((err = avc_demux_sps_pps(stream)) != srs_success) {
+        if (codec_id == SrsCodecVideoAVC && (err = avc_demux_sps_pps(stream)) != srs_success) {
+            return srs_error_wrap(err, "demux SPS/PPS");
+        }
+		if (codec_id == SrsCodecVideoHEVC && (err = hevc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
     } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
@@ -713,6 +739,111 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     
     return err;
 }
+
+srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
+{
+    int hevc_extra_size = stream->size() - stream->pos();
+	srs_trace("hevc extra data size: %d", hevc_extra_size);
+	if (avc_extra_size > 0) {
+        char *copy_stream_from = stream->data() + stream->pos();
+        vcodec->avc_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + hevc_extra_size);
+    }
+    
+    if (!stream->require(6)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode sequence header");
+    }
+    stream->read_1bytes(); // version
+    stream->read_1bytes(); // profile 2,1,5
+    vcodec->avc_profile = SrsAvcProfileHigh;
+    stream->read_4bytes(); // 32
+	stream->read_4bytes(); // 48
+	stream->read_2bytes();
+	stream->read_1bytes(); // level_idc
+	stream->read_2bytes(); // min_spatial_segmentation_idc
+	stream->read_4bytes(); // min_spatial_segmentation_idc - bitDepthChromaMinus8
+    vcodec->avc_level = (SrsAvcLevel)stream->read_1bytes();
+	vcodec->frame_rate = stream->read_2bytes();
+    
+    // parse the NALU size.
+    int8_t lengthSizeMinusOne = stream->read_1bytes();
+    lengthSizeMinusOne &= 0x03;
+    vcodec->NAL_unit_length = lengthSizeMinusOne;
+	srs_trace("hevc NAL_unit_length: %d", lengthSizeMinusOne);
+    
+    if (vcodec->NAL_unit_length == 2) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
+    }
+
+	if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS");
+    }
+
+	int8_t numOfArrays = stream->read_1bytes();
+	srs_trace("hevc numOfArrays: %d", numOfArrays);
+
+	stream->read_1bytes(); // nalu type
+    int8_t numOfVideoParameterSets = stream->read_2bytes();
+    numOfVideoParameterSets &= 0x1f;
+    if (numOfVideoParameterSets != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS");
+    }
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS size");
+    }
+    uint16_t videoParameterSetLength = stream->read_2bytes();
+    if (!stream->require(videoParameterSetLength)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS data");
+    }
+    if (videoParameterSetLength > 0) {
+        vcodec->videoParameterSetNALUnit.resize(videoParameterSetLength);
+        stream->read_bytes(&vcodec->videoParameterSetNALUnit[0], videoParameterSetLength);
+    }
+	
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
+    }
+	stream->read_1bytes(); // nalu type
+    int8_t numOfSequenceParameterSets = stream->read_2bytes();
+    numOfSequenceParameterSets &= 0x1f;
+    if (numOfSequenceParameterSets != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
+    }
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS size");
+    }
+    uint16_t sequenceParameterSetLength = stream->read_2bytes();
+    if (!stream->require(sequenceParameterSetLength)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS data");
+    }
+    if (sequenceParameterSetLength > 0) {
+        vcodec->sequenceParameterSetNALUnit.resize(sequenceParameterSetLength);
+        stream->read_bytes(&vcodec->sequenceParameterSetNALUnit[0], sequenceParameterSetLength);
+    }
+    // 1 pps
+    if (!stream->require(1)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+    }
+	stream->read_1bytes(); // nalu type
+    int8_t numOfPictureParameterSets = stream->read_2bytes();
+    numOfPictureParameterSets &= 0x1f;
+    if (numOfPictureParameterSets != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+    }
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
+    }
+    uint16_t pictureParameterSetLength = stream->read_2bytes();
+    if (!stream->require(pictureParameterSetLength)) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS data");
+    }
+    if (pictureParameterSetLength > 0) {
+        vcodec->pictureParameterSetNALUnit.resize(pictureParameterSetLength);
+        stream->read_bytes(&vcodec->pictureParameterSetNALUnit[0], pictureParameterSetLength);
+    }
+    
+    return srs_success;//avc_demux_sps();
+}
+
 
 // For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
 // LCOV_EXCL_START
