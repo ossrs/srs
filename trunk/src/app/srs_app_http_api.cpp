@@ -264,7 +264,8 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
-    
+    urls->set("perf", SrsJsonAny::str("System performance stat"));
+
     SrsJsonObject* tests = SrsJsonAny::object();
     obj->set("tests", tests);
     
@@ -1285,6 +1286,34 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsCoWorkers* coworkers = SrsCoWorkers::instance();
     data->set("origin", coworkers->dumps(vhost, coworker, app, stream));
     
+    return srs_api_response(w, r, obj->dumps());
+}
+
+SrsGoApiPerf::SrsGoApiPerf()
+{
+}
+
+SrsGoApiPerf::~SrsGoApiPerf()
+{
+}
+
+srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->dumps_perf_mw(data)) != srs_success) {
+        int code = srs_error_code(err); srs_error_reset(err);
+        return srs_api_response_code(w, r, code);
+    }
+
     return srs_api_response(w, r, obj->dumps());
 }
 

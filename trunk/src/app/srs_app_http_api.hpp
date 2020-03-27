@@ -201,6 +201,15 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+class SrsGoApiPerf : public ISrsHttpHandler
+{
+public:
+    SrsGoApiPerf();
+    virtual ~SrsGoApiPerf();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 class SrsGoApiError : public ISrsHttpHandler
 {
 public:

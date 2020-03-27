@@ -147,6 +147,21 @@ protected:
     virtual srs_error_t encode_packet(SrsBuffer* stream);
 };
 
+// The performance statistic data collect.
+class ISrsProtocolPerf
+{
+public:
+    ISrsProtocolPerf();
+    virtual ~ISrsProtocolPerf();
+public:
+    // Stat for packets merged written, nb_msgs is the number of RTMP messages,
+    // bytes_msgs is the total bytes of RTMP messages, nb_iovs is the total number of iovec.
+    virtual void perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs) = 0;
+    // Stat for packets merged written, nb_pkts is the number of or chunk packets,
+    // bytes_pkts is the total bytes of or chunk packets, nb_iovs is the total number of iovec.
+    virtual void perf_mw_on_packets(int nb_pkts, int bytes_pkts, int nb_iovs) = 0;
+};
+
 // The protocol provides the rtmp-message-protocol services,
 // To recv RTMP message from RTMP chunk stream,
 // and to send out RTMP message over RTMP chunk stream.
@@ -168,6 +183,8 @@ private:
 private:
     // The underlayer socket object, send/recv bytes.
     ISrsProtocolReadWriter* skt;
+    // The performance stat handler.
+    ISrsProtocolPerf* perf;
     // The requests sent out, used to build the response.
     // key: transactionId
     // value: the request command name
@@ -227,6 +244,8 @@ public:
     // @param v, whether auto response message when recv message.
     // @see: https://github.com/ossrs/srs/issues/217
     virtual void set_auto_response(bool v);
+    // Set the performance stat handler.
+    virtual void set_perf(ISrsProtocolPerf* v);
     // Flush for manual response when the auto response is disabled
     // by set_auto_response(false), we default use auto response, so donot
     // need to call this api(the protocol sdk will auto send message).
@@ -631,6 +650,8 @@ public:
     // @param v, whether auto response message when recv message.
     // @see: https://github.com/ossrs/srs/issues/217
     virtual void set_auto_response(bool v);
+    // Set the performance stat handler.
+    virtual void set_perf(ISrsProtocolPerf* v);
 #ifdef SRS_PERF_MERGED_READ
     // To improve read performance, merge some packets then read,
     // When it on and read small bytes, we sleep to wait more data.,

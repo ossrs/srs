@@ -746,7 +746,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
             return srs_error_wrap(err, "rtmp: consumer dump packets");
         }
-        
+
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
