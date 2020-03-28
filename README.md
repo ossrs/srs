@@ -149,6 +149,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-28, Support multiple OS/Platform build cache. 3.0.139
 * v3.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin. 3.0.138
 * v3.0, 2020-03-21, For [#1629][bug #1629], fix kickoff FLV client bug. 3.0.137
 * v3.0, 2020-03-21, For [#1619][bug #1619], configure without utest by default. 3.0.136
