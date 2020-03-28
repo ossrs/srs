@@ -124,7 +124,9 @@ srs_utime_t srs_get_system_startup_time()
 }
 
 // For utest to mock it.
+#ifndef SRS_AUTO_OSX
 _srs_gettimeofday_t _srs_gettimeofday = ::gettimeofday;
+#endif
 
 srs_utime_t srs_update_system_time()
 {

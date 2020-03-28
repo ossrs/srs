@@ -46,7 +46,7 @@ int SrsThreadContext::generate_id()
     static int id = 0;
 
     if (id == 0) {
-        id = (100 + ((int)(int64_t)this)%1000);
+        id = (100 + ((uint32_t)(int64_t)this)%1000);
     }
     
     int gid = id++;

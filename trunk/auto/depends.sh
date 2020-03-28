@@ -118,6 +118,7 @@ function Ubuntu_prepare()
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
 fi
+
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
@@ -198,14 +199,105 @@ function Centos_prepare()
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
 fi
+
+#####################################################################################
+# For OSX, auto install tools by brew
+#####################################################################################
+OS_IS_OSX=NO
+function OSX_prepare()
+{
+    uname -s|grep Darwin >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        if [ $SRS_OSX = YES ]; then
+            echo "OSX check failed, actual is `uname -s`"
+            exit 1;
+        fi
+        return 0;
+    fi
+
+    # cross build for arm, install the cross build tool chain.
+    if [ $SRS_CROSS_BUILD = YES ]; then
+        echo "embeded(arm/mips) is invalid for OSX"
+        return 1
+    fi
+
+    OS_IS_OSX=YES
+    echo "OSX detected, install tools if needed"
+    # requires the osx when os
+    if [ $OS_IS_OSX = YES ]; then
+        if [ $SRS_OSX = NO ]; then
+            echo "OSX detected, must specifies the --osx"
+            exit 1
+        fi
+    fi
+
+    brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install brew"
+        echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
+        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install brew success"
+    fi
+
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc"
+        echo "brew install gcc"
+        brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc success"
+    fi
+
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc-c++"
+        echo "brew install gcc-c++"
+        brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc-c++ success"
+    fi
+
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install make"
+        echo "brew install make"
+        brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install make success"
+    fi
+
+    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install patch"
+        echo "brew install patch"
+        brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install patch success"
+    fi
+
+    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install unzip"
+        echo "brew install unzip"
+        brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install unzip success"
+    fi
+
+    echo "OSX install tools success"
+    return 0
+}
+# donot prepare tools, for srs-librtmp depends only gcc and g++.
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
+fi
+
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
 # We must use a bash function instead of variable.
 function sed_utility() {
-    sed -i "$@"
+    if [ $OS_IS_OSX = YES ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+
     ret=$?; if [[ $ret -ne 0 ]]; then
-        echo "sed -i \"$@\""
+        if [ $OS_IS_OSX = YES ]; then
+            echo "sed -i '' \"$@\""
+        else
+            echo "sed -i \"$@\""
+        fi
         return $ret
     fi
 }
@@ -220,7 +312,7 @@ SED="sed_utility" && echo "SED is $SED"
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
         echo "Your OS `uname -s` is not supported."
         exit 1
