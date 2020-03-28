@@ -476,6 +476,10 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
                 ln -sf /usr/local/include/openssl)
         fi
     fi
+    # For osx, if exists openssl, use it.
+    if [[ $SRS_OSX == YES && -f ${SRS_OBJS}/openssl-1.1.0e/_release/lib/libssl.a ]]; then
+        (cd ${SRS_OBJS} && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl)
+    fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
         echo "Openssl-1.1.0e is ok.";

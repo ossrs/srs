@@ -440,7 +440,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -462,6 +462,7 @@ help:
 	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project"
+	@echo "     destroy            cleanup project and depends"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
@@ -479,6 +480,11 @@ clean:
 	(cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+destroy: clean
+	(cd ${SRS_OBJS_DIR} && rm -rf opus srtp2 st st-srs openssl ffmpeg)
+	(cd 3rdparty/st-srs && make clean && rm -rf LINUX_* DARWIN_*)
+	(cd 3rdparty/ffmpeg-4.2-fit && make clean && rm -rf _release)
 
 END
 
