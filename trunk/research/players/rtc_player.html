@@ -15,9 +15,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<!--
-<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
--->
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtc'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -58,7 +56,7 @@
         var startPlay = function() {
             $('#rtc_media_player').show();
             var urlObject = parse_rtmp_url($("#txt_url").val());
-            var schame = window.location.protocol;
+            var schema = window.location.protocol;
 
             // Close PC when user replay.
             if (pc) {
@@ -84,7 +82,7 @@
                 return pc.setLocalDescription(offer).then(function(){ return offer; });
             }).then(function(offer) {
                 return new Promise(function(resolve, reject) {
-                    var port = urlObject.user_query.api || 1985;
+                    var port = urlObject.port || 1985;
 
                     // @see https://github.com/rtcdn/rtcdn-draft
                     var api = urlObject.user_query.play || '/rtc/v1/play/';
@@ -92,7 +90,7 @@
                         api += '/';
                     }
 
-                    var url = schame + '//' + urlObject.server + ':' + port + api;
+                    var url = schema + '//' + urlObject.server + ':' + port + api;
                     for (var key in urlObject.user_query) {
                         if (key != 'api' && key != 'play') {
                             url += '&' + key + '=' + urlObject.user_query[key];

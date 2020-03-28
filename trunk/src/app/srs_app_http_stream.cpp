@@ -593,10 +593,15 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
+
+    // Use receive thread to accept the close event to avoid FD leak.
+    // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id(), req, NULL, SrsRtmpConnPlay)) != srs_success) {
+    if ((err = stat->on_client(_srs_context->get_id(), req, hc, SrsRtmpConnPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
     
@@ -614,11 +619,6 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     }
     
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
-
-    // Use receive thread to accept the close event to avoid FD leak.
-    // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
-    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
-    SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
     
     // Set the socket options for transport.
     bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);

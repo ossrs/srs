@@ -23,7 +23,7 @@ SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
 SRS_RESEARCH=NO
-SRS_UTEST=YES
+SRS_UTEST=NO
 SRS_GPERF=NO # Performance test: tcmalloc
 SRS_GPERF_MC=NO # Performance test: gperf memory check
 SRS_GPERF_MD=NO # Performance test: gperf memory defence
@@ -210,10 +210,6 @@ Remark:
 END
 }
 
-function ignore_option() {
-    echo "ignore option \"$option\""
-}
-
 function parse_user_option() {
     case "$option" in
         -h)                             help=yes                    ;;
@@ -307,16 +303,16 @@ function parse_user_option() {
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
 
-        --without-stream-caster)        ignore_option               ;;
-        --without-ingest)               ignore_option               ;;
-        --without-ssl)                  ignore_option               ;;
-        --without-stat)                 ignore_option               ;;
-        --without-transcode)            ignore_option               ;;
-        --without-http-callback)        ignore_option               ;;
-        --without-http-server)          ignore_option               ;;
-        --without-http-api)             ignore_option               ;;
-        --without-hls)                  ignore_option               ;;
-        --without-dvr)                  ignore_option               ;;
+        --without-stream-caster)        echo "ignore option \"$option\"" ;;
+        --without-ingest)               echo "ignore option \"$option\"" ;;
+        --without-ssl)                  echo "ignore option \"$option\"" ;;
+        --without-stat)                 echo "ignore option \"$option\"" ;;
+        --without-transcode)            echo "ignore option \"$option\"" ;;
+        --without-http-callback)        echo "ignore option \"$option\"" ;;
+        --without-http-server)          echo "ignore option \"$option\"" ;;
+        --without-http-api)             echo "ignore option \"$option\"" ;;
+        --without-hls)                  echo "ignore option \"$option\"" ;;
+        --without-dvr)                  echo "ignore option \"$option\"" ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -407,7 +403,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
@@ -434,7 +430,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
@@ -587,16 +583,16 @@ function check_option_conflicts() {
         echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
     fi
 
-    if [ $SRS_OSX = YES ]; then
-        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"; exit -1
-    fi
-
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
     if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1
+        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+    fi
+
+    if [[ $SRS_OSX == YES && $SRS_UTEST == YES ]]; then
+        echo "Mac does not support utest."; exit -1;
     fi
 
     # TODO: FIXME: check more os.

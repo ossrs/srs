@@ -101,6 +101,9 @@ public:
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
 public:
     virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
+public:
+    // Set connection to expired.
+    virtual void expire();
 };
 
 // The http server, use http stream or static server to serve requests.
