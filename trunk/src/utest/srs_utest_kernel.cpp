@@ -4208,6 +4208,7 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
     }
 }
 
+#ifndef SRS_AUTO_OSX
 extern _srs_gettimeofday_t _srs_gettimeofday;
 int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
 	return -1;
@@ -4238,6 +4239,7 @@ VOID TEST(KernelUtilityTest, CoverTimeSpecial)
 		EXPECT_TRUE(-1 == srs_update_system_time());
 	}
 }
+#endif
 
 extern int64_t _srs_system_time_startup_time;
 extern int64_t _srs_system_time_us_cache;
