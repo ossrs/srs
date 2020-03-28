@@ -137,6 +137,11 @@ if [ $SRS_CROSS_BUILD = YES ]; then
 else
     srs_undefine_macro "SRS_AUTO_CROSSBUILD" $SRS_AUTO_HEADERS_H
 fi
+if [ $SRS_OSX = YES ]; then
+    srs_define_macro "SRS_AUTO_OSX" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_OSX" $SRS_AUTO_HEADERS_H
+fi
 
 # prefix
 echo "" >> $SRS_AUTO_HEADERS_H

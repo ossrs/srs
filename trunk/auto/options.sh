@@ -284,18 +284,16 @@ function parse_user_option() {
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
 
-        --without-stream-caster) ;&
-        --without-ingest) ;&
-        --without-ssl) ;&
-        --without-stat) ;&
-        --without-transcode) ;&
-        --without-http-callback) ;&
-        --without-http-server) ;&
-        --without-http-api) ;&
-        --without-hls) ;&
-        --without-dvr)
-            echo "ignore option \"$option\""
-        ;;
+        --without-stream-caster)        echo "ignore option \"$option\"" ;;
+        --without-ingest)               echo "ignore option \"$option\"" ;;
+        --without-ssl)                  echo "ignore option \"$option\"" ;;
+        --without-stat)                 echo "ignore option \"$option\"" ;;
+        --without-transcode)            echo "ignore option \"$option\"" ;;
+        --without-http-callback)        echo "ignore option \"$option\"" ;;
+        --without-http-server)          echo "ignore option \"$option\"" ;;
+        --without-http-api)             echo "ignore option \"$option\"" ;;
+        --without-hls)                  echo "ignore option \"$option\"" ;;
+        --without-dvr)                  echo "ignore option \"$option\"" ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -562,16 +560,16 @@ function check_option_conflicts() {
         echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
     fi
 
-    if [ $SRS_OSX = YES ]; then
-        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"; exit -1
-    fi
-
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
     if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1
+        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+    fi
+
+    if [[ $SRS_OSX == YES && $SRS_UTEST == YES ]]; then
+        echo "Mac does not support utest."; exit -1;
     fi
 
     # TODO: FIXME: check more os.
