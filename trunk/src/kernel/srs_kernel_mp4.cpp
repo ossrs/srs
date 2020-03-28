@@ -2744,7 +2744,7 @@ SrsMp4DataEntryBox* SrsMp4DataReferenceBox::entry_at(int index)
     return entries.at(index);
 }
 
-SrsMp4DataReferenceBox* SrsMp4DataReferenceBox::append(SrsMp4DataEntryBox* v)
+SrsMp4DataReferenceBox* SrsMp4DataReferenceBox::append2(SrsMp4DataEntryBox* v)
 {
     entries.push_back(v);
     return this;
@@ -3765,7 +3765,7 @@ SrsMp4SampleEntry* SrsMp4SampleDescriptionBox::entrie_at(int index)
     return entries.at(index);
 }
 
-SrsMp4SampleDescriptionBox* SrsMp4SampleDescriptionBox::append(SrsMp4SampleEntry* v)
+SrsMp4SampleDescriptionBox* SrsMp4SampleDescriptionBox::append2(SrsMp4SampleEntry* v)
 {
     entries.push_back(v);
     return this;

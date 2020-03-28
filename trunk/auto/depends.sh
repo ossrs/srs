@@ -369,7 +369,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo "Building srtp2.";
         (
             rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS} &&
-            unzip -q ../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 && 
+            rm -rf libsrtp-2.0.0 && unzip -q ../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
             ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
             cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
         )

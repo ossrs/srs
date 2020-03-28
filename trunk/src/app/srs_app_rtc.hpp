@@ -89,7 +89,7 @@ private:
     // TODO: FIXME: How to handle timestamp overflow?
     uint32_t timestamp;
     uint16_t sequence;
-    SrsAudioRecode* recoder;
+    SrsAudioRecode* transcode;
 public:
     SrsRtpOpusMuxer();
     virtual ~SrsRtpOpusMuxer();

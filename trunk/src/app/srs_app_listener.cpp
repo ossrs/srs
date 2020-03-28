@@ -143,6 +143,14 @@ srs_error_t SrsUdpListener::cycle()
         if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
             return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
         }
+
+        // Drop UDP health check packet of Aliyun SLB.
+        //      Healthcheck udp check
+        // @see https://help.aliyun.com/document_detail/27595.html
+        if (nread == 21 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x61 && buf[3] == 0x6c
+            && buf[19] == 0x63 && buf[20] == 0x6b) {
+            continue;
+        }
         
         if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             return srs_error_wrap(err, "handle packet %d bytes", nread);
@@ -259,7 +267,16 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     fromlen = sizeof(from);
     nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
 
+    // Drop UDP health check packet of Aliyun SLB.
+    //      Healthcheck udp check
+    // @see https://help.aliyun.com/document_detail/27595.html
+    if (nread == 21 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x61 && buf[3] == 0x6c
+        && buf[19] == 0x63 && buf[20] == 0x6b) {
+        return 0;
+    }
+
     if (nread > 0) {
+        // TODO: FIXME: Maybe we should not covert to string for each packet.
 	    char address_string[64];
         char port_string[16];
         if (getnameinfo((sockaddr*)&from, fromlen, 
@@ -267,7 +284,7 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
                        (char*)&port_string, sizeof(port_string),
                        NI_NUMERICHOST|NI_NUMERICSERV)) {
             return -1;
-        }   
+        }
 
         peer_ip = std::string(address_string);
         peer_port = atoi(port_string);	
@@ -392,15 +409,18 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         SrsUdpMuxSocket udp_mux_skt(lfd);
 
-        if (udp_mux_skt.recvfrom(SRS_UTIME_NO_TIMEOUT) <= 0) {
-            srs_error("udp recv error");
+        int nread = udp_mux_skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
+        if (nread <= 0) {
+            if (nread < 0) {
+                srs_warn("udp recv error");
+            }
             // remux udp never return
             continue;
         }   
     
         if ((err = handler->on_udp_packet(&udp_mux_skt)) != srs_success) {
             // remux udp never return
-            srs_error("udp packet handler error:%s", srs_error_desc(err).c_str());
+            srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
             continue;
         }   
     

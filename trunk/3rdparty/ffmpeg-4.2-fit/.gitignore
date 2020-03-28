@@ -16,3 +16,4 @@ libavcodec/libavcodec.version
 libavutil/libavutil.version
 libswresample/libswresample.version
 libavutil/ffversion.h
+libavutil/avconfig.h
