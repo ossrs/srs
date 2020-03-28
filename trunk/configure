@@ -684,6 +684,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Warning: SRT is disabled.${BLACK}"
     fi
+    if [ $SRS_RTC = YES ]; then
+        echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
+    else
+        echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
+    fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"
     else

@@ -810,6 +810,13 @@ srs_error_t SrsRtcSession::check_source()
     return err;
 }
 
+#ifdef SRS_AUTO_OSX
+// These functions are similar to the older byteorder(3) family of functions.
+// For example, be32toh() is identical to ntohl().
+// @see https://linux.die.net/man/3/be32toh
+#define be32toh ntohl
+#endif
+
 srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req)
 {
     srs_error_t err = srs_success;
