@@ -157,6 +157,8 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
+* v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.
 * v4.0, 2020-03-22, Welcome maintainers [Runner365](https://github.com/runner365), [John](https://github.com/xiaozhihong) and [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou). 4.0.15
 * v4.0, 2020-03-22, For [#307][bug #307], support play with WebRTC. 4.0.14
 * v4.0, 2020-03-13, For [#1636][bug #1636], fix bug for mux AAC to ADTS, never overwrite by RTMP sampling rate. 4.0.13
