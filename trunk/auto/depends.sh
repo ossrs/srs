@@ -506,22 +506,47 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
 fi
 
 #####################################################################################
+# srtp
+#####################################################################################
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
+        echo "The srtp2 is ok.";
+    else
+        echo "Building srtp2.";
+        (
+            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
+            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
+    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
+fi
+
+#####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
-    if [[ -f ${SRS_OBJS}/opus/lib/libopus.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
         echo "Building opus-1.3.1.";
         (
-            rm -rf ${SRS_OBJS}/opus-1.3.1 && cd ${SRS_OBJS} &&
-            tar xf ../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            tar xf ../../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
             ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
             cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
 fi
 
@@ -533,15 +558,17 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     if [[ $SRS_NASM == NO ]]; then
         FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
     fi
-    if [[ -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/lib/libavcodec.a ]]; then
         echo "The ffmpeg-4.2-fit is ok.";
     else
         echo "Building ffmpeg-4.2-fit.";
         (
-            rm -rf ${SRS_OBJS}/ffmpeg-4.2-fit && cd ${SRS_OBJS} && ABS_OBJS=`pwd` &&
-            ln -sf ../3rdparty/ffmpeg-4.2-fit && cd ffmpeg-4.2-fit &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
+            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do mkdir -p $dir; done &&
+            for file in `(cd .src && find . -type f ! -name '*.o' ! -name '*.d'|grep -v '\/\.')`; do ln -sf `pwd`/.src/$file $file; done &&
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
-              --prefix=`pwd`/_release \
+              --prefix=`pwd`/${SRS_PLATFORM}/_release \
               --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
@@ -551,11 +578,13 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
               --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm --enable-decoder=libopus --enable-encoder=aac \
               --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
             make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/_release ffmpeg
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
     if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 
