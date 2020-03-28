@@ -13,22 +13,22 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 <a name="product"></a>
 ## Usage
 
-**Step 1:** Get SRS.
+**>>> Step 1:** Get SRS.
 
 ```
 git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
 cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
-> Note: Repository too large? Please clone from these [mirrors](#mirrors) instead.
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
 
-**Step 2:** Build SRS.
+**>>> Step 2:** Build SRS.
 
 ```
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: You can also build SRS in docker, please read [docker][docker-dev].
 
@@ -38,13 +38,16 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && gi
 ./objs/srs -c conf/srs.conf
 ```
 
-**Whatever**, you can also directly run SRS in [docker][docker-srs3]:
+**>>> Whatever**, you can also directly run SRS in [docker][docker-srs3]:
 
 ```
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
+docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
 
-**From here,** strongly recommend to read bellow wikis:
+> Note: Again, we use [ACR](https://cr.console.aliyun.com/) here, you can directly run in docker hub by `docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3`
+
+**>>> From here,** strongly recommend to read bellow wikis:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP-Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
@@ -169,6 +172,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin. 3.0.138
 * v3.0, 2020-03-21, For [#1629][bug #1629], fix kickoff FLV client bug. 3.0.137
 * v3.0, 2020-03-21, For [#1619][bug #1619], configure without utest by default. 3.0.136
 * v3.0, 2020-03-21, For [#1651][bug #1651], fix return pnwrite of srs_write_large_iovs. 3.0.135
