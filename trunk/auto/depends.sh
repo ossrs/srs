@@ -308,9 +308,13 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD}
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
+    fi
+    # for osx, use darwin for st, donot use epoll.
+    if [[ $SRS_OSX == YES ]]; then
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC}
     fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
@@ -325,7 +329,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
             ln -sf ../3rdparty/st-srs && cd st-srs &&
             make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
-                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
             cd .. && rm -f st && ln -sf st-srs/obj st
         )
     fi
