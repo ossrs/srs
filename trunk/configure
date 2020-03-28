@@ -8,6 +8,8 @@ SRS_WORKDIR="."
 SRS_OBJS_DIR="objs"
 SRS_OBJS="${SRS_WORKDIR}/${SRS_OBJS_DIR}"
 SRS_MAKEFILE="Makefile"
+SRS_PLATFORM=`uname -s`-`uname -r|awk -F '-' '{print $1}'`
+echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 
 # linux shell color support.
 RED="\\033[31m"
@@ -26,16 +28,11 @@ BLACK="\\033[0m"
 # setup variables when options parsed.
 . auto/setup_variables.sh
 
-# clean the exists, when not export srs-librtmp.
-# do this only when the options is ok.
-if [[ -f Makefile ]]; then
-make clean
-fi
-# remove makefile
+# We don't need to cleanup the exists files.
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 # create objs
-mkdir -p ${SRS_OBJS}
+mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 
 # for export srs-librtmp, change target to it.
 . auto/generate-srs-librtmp-project.sh
@@ -45,6 +42,11 @@ mkdir -p ${SRS_OBJS}
 
 # the auto generated variables.
 . auto/auto_headers.sh
+
+# For src object files on each platform.
+echo "Fast cleanup, if need to do full cleanup, please use: make clean"
+(cd ${SRS_OBJS_DIR} && rm -rf src srs srs_hls_ingester srs_mp4_parser &&
+mkdir -p ${SRS_PLATFORM}/src && ln -sf ${SRS_PLATFORM}/src)
 
 #####################################################################################
 # generate Makefile.
@@ -440,7 +442,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean doclean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -459,9 +461,10 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project"
+	@echo "     destroy            Deep cleanup project and depends"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
@@ -473,12 +476,20 @@ help:
 	@echo "     make"
 	@echo "     make help"
 
-clean: 
+doclean:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
-	(cd ${SRS_OBJS_DIR} && rm -rf src include lib)
-	(cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
+	(cd ${SRS_OBJS_DIR} && rm -rf src/* include lib)
+	(mkdir -p ${SRS_OBJS_DIR}/utest && cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+clean: doclean
+	@echo "You can do full clean by: make destroy"
+
+destroy: clean
+	(cd 3rdparty/st-srs && rm -rf Linux_* Darwin_* obj)
+	(cd 3rdparty/ffmpeg-4.2-fit && rm -rf Linux-* Darwin-*)
+	(cd ${SRS_OBJS_DIR} && rm -rf Linux-* Darwin-*)
 
 END
 

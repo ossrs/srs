@@ -324,33 +324,37 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD}
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # for osx, use darwin for st, donot use epoll.
     if [[ $SRS_OSX == YES ]]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC}
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
     fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
       _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [[ -f ${SRS_OBJS}/st/libst.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
         echo "The state-threads is ok.";
     else
         echo "Building state-threads.";
         (
-            rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
-            ln -sf ../3rdparty/st-srs && cd st-srs &&
-            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
+            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do mkdir -p $dir; done &&
+            for file in `(cd .src && find . -type f ! -name '*.o' ! -name '*.d'|grep -v '\/\.')`; do ln -sf `pwd`/.src/$file $file; done &&
+            make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
                 CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
-            cd .. && rm -f st && ln -sf st-srs/obj st
+            cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
     if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 fi
 
@@ -424,19 +428,19 @@ fi
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
         echo "Installing CherryPy-3.2.4";
         (
-            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} &&
-            unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
+            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
             python setup.py install --user
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+    if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 
     echo "Link players to cherrypy static-dir"
     rm -rf research/api-server/static-dir/players &&
@@ -469,21 +473,26 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     else
         # If not crossbuild, try to use exists libraries.
-        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-            (mkdir -p  ${SRS_OBJS}/openssl/lib && cd ${SRS_OBJS}/openssl/lib &&
+        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
-            (mkdir -p ${SRS_OBJS}/openssl/include && cd ${SRS_OBJS}/openssl/include &&
+            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/include/openssl)
         fi
     fi
+    # Which lib we use.
+    OPENSSL_LIB="openssl-1.1.0e/_release"
+    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
+        OPENSSL_LIB="openssl"
+    fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         echo "Openssl-1.1.0e is ok.";
     else
         echo "Building openssl-1.1.0e.";
         (
-            rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
-            unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1.0e && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
             ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
             make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
@@ -491,6 +500,8 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
     if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
 fi
 
@@ -609,18 +620,20 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    if [[ -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest/include/gtest/gtest.h ]]; then
         echo "The gtest-1.6.0 is ok.";
     else
         echo "Build gtest-1.6.0";
         (
-            rm -rf ${SRS_OBJS}/gtest-1.6.0 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/gtest-1.6.0.zip &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/gtest-1.6.0.zip &&
             rm -rf gtest && ln -sf gtest-1.6.0 gtest
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
     if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
 fi
 
@@ -628,13 +641,13 @@ fi
 # build gperf code
 #####################################################################################
 if [ $SRS_GPERF = YES ]; then
-    if [[ -f ${SRS_OBJS}/gperf/bin/pprof ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gperf/bin/pprof ]]; then
         echo "The gperftools-2.1 is ok.";
     else
         echo "Build gperftools-2.1";
         (
-            rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
             ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
             cd .. && rm -rf gperf && ln -sf gperftools-2.1/_release gperf &&
             rm -rf pprof && ln -sf gperf/bin/pprof pprof
@@ -642,10 +655,7 @@ if [ $SRS_GPERF = YES ]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f pprof && ln -sf ${SRS_PLATFORM}/gperf/bin/pprof pprof)
     if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "Build gperftools-2.1 failed."; exit -1; fi
 fi
-
-#####################################################################################
-# generated the test script
-#####################################################################################
-rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test
