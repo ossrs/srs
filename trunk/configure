@@ -462,19 +462,18 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
-	@echo "     help               display this help menu"
-	@echo "     clean              cleanup project and all depends"
-	@echo "     destroy            Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
-	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
-	@echo "     librtmp            build the client publish/play library, and samples"
-	@echo "     utest              build the utest for srs"
-	@echo "     install            install srs to the prefix path"
-	@echo "     install-api        install srs and api-server to the prefix path"
-	@echo "     uninstall          uninstall srs from prefix path"
+	@echo "     help            Display this help menu"
+	@echo "     clean           Cleanup project and all depends"
+	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
+	@echo "     server          Build the srs and other modules in main"
+	@echo "     librtmp         Build the client publish/play library, and samples"
+	@echo "     utest           Build the utest for srs"
+	@echo "     install         Install srs to the prefix path"
+	@echo "     install-api     Install srs and api-server to the prefix path"
+	@echo "     uninstall       Uninstall srs from prefix path"
 	@echo "To rebuild special module:"
-	@echo "     st          Rebuild st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
-	@echo "     ffmpeg      Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
-	@echo "@remark all modules will auto genearted and build"
+	@echo "     st              Rebuild st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
 	@echo "For example:"
 	@echo "     make"
 	@echo "     make help"
@@ -523,7 +522,7 @@ st:
 
 ffmpeg:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) && \$(MAKE) install-libs)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) install-libs)
 
 END
 
