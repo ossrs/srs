@@ -350,10 +350,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
                 ln -sf .src/$file $file;
             done &&
             # Link source files under .src/xxx, the first child dir.
-            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
+            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
                 mkdir -p $dir &&
                 for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                    ln -sf .src/$dir/$file $dir/$file;
+                    ln -sf ../.src/$dir/$file $dir/$file;
                 done;
             done &&
             # Build source code.
