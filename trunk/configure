@@ -52,7 +52,7 @@ SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
-if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/utest; \$(MAKE))"; fi
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/utest && \$(MAKE))"; fi
 
 #####################################################################################
 # finger out modules to install.
@@ -545,7 +545,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-	(cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp && \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else
