@@ -497,7 +497,9 @@ destroy: clean_st clean_openssl clean_ffmpeg clean_srtp2 clean_opus clean_nginx 
 
 clean_srs:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf src include lib utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include/* lib/*)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find src -name "*.o" -delete)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find utest -name "*.o" -delete)
 
 clean_modules:
 	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)

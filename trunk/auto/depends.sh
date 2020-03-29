@@ -305,7 +305,10 @@ SED="sed_utility" && echo "SED is $SED"
 
 function _srs_link_file()
 {
-    tmp_dir=$1; tmp_dest=$2; tmp_prefix=$3
+    tmp_dir=$1; if [[ $tmp_dir != *'/' ]]; then tmp_dir+='/'; fi
+    tmp_dest=$2; if [[ $tmp_dest != *'/' ]]; then tmp_dest+='/'; fi
+    tmp_prefix=$3; if [[ $tmp_prefix != *'/' ]]; then tmp_prefix+='/'; fi
+
     echo "LINK files at dir: $tmp_dir, dest: $tmp_dest, prefix: $tmp_prefix, pwd: `pwd`"
     for file in `(cd $tmp_dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d' ! -name '*.log')`; do
         basefile=`basename $file` &&
@@ -357,7 +360,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
             # Link source files under .src
-            _srs_link_file .src/ ./ &&
+            _srs_link_file .src/ ./ ./ &&
             for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
                 dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
             done &&
@@ -590,7 +593,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
             # Link source files under .src
-            _srs_link_file .src/ ./ &&
+            _srs_link_file .src/ ./ ./ &&
             for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
                 dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../ &&
                 for dir2 in `(cd .src/$dir && find . -maxdepth 1 -type d|grep '\./')`; do
