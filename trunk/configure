@@ -396,7 +396,7 @@ fi
 # For utest on mac.
 # @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
 if [[ $SRS_OSX == YES ]]; then
-    EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
+    UTEST_EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
 fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
