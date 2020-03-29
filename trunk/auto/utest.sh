@@ -20,9 +20,6 @@ SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
 GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
 
-# the extra defines to compile utest.
-EXTRA_DEFINES=""
-
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS_DIR}/utest dir
 # at the same dir of Makefile.
