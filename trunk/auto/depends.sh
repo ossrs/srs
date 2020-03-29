@@ -603,6 +603,10 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
                     done
                 done
             done &&
+            # We should remove some files(in .gitignore) to keep them in local generated.
+            (cd ffbuild && rm -f config.fate config.log config.mak config.sh .config) &&
+            (cd libavutil && rm -f lib.version libavutil.version ffversion.h avconfig.h) &&
+            (rm -rf doc && rm -f config.asm config.h libavcodec/libavcodec.version libswresample/libswresample.version) &&
             # Build source code.
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
               --prefix=`pwd`/${SRS_PLATFORM}/_release \
