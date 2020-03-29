@@ -303,6 +303,17 @@ function sed_utility() {
 }
 SED="sed_utility" && echo "SED is $SED"
 
+function _srs_link_file()
+{
+    tmp_dir=$1; tmp_dest=$2; tmp_prefix=$3
+    echo "LINK files at dir: $tmp_dir, dest: $tmp_dest, prefix: $tmp_prefix, pwd: `pwd`"
+    for file in `(cd $tmp_dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d' ! -name '*.log')`; do
+        basefile=`basename $file` &&
+        #echo "ln -sf ${tmp_prefix}${tmp_dir}$basefile ${tmp_dest}$basefile" &&
+        ln -sf ${tmp_prefix}${tmp_dir}$basefile ${tmp_dest}$basefile;
+    done
+}
+
 #####################################################################################
 # check the os.
 #####################################################################################
@@ -346,8 +357,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
             # Link source files under .src
-            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                ln -sf .src/$file $file;
+            _srs_link_file .src/ ./ &&
+            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
+                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
             done &&
             # Link source files under .src/xxx, the first child dir.
             for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
@@ -578,22 +590,14 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
             # Link source files under .src
-            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                ln -sf .src/$file $file;
-            done &&
-            # Link source files under .src/xxx, the first child dir.
+            _srs_link_file .src/ ./ &&
             for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
-                # Link files under .src/xxx
-                mkdir -p $dir &&
-                for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                    ln -sf ../.src/$dir/$file $dir/$file;
-                done &&
-                # Link directory under .src/xxx/xxx
+                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../ &&
                 for dir2 in `(cd .src/$dir && find . -maxdepth 1 -type d|grep '\./')`; do
-                    mkdir -p $dir/$dir2 &&
-                    for file in `(cd .src/$dir/$dir2 && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                        ln -sf ../../.src/$dir/$dir2/$file $dir/$dir2/$file;
-                    done;
+                    dir2=`basename $dir2` && mkdir -p $dir/$dir2 && _srs_link_file .src/$dir/$dir2/ $dir/$dir2/ ../../ &&
+                    for dir3 in `(cd .src/$dir/$dir2 && find . -maxdepth 1 -type d|grep '\./')`; do
+                        dir3=`basename $dir3` && mkdir -p $dir/$dir2/$dir3 && _srs_link_file .src/$dir/$dir2/$dir3/ $dir/$dir2/$dir3/ ../../../;
+                    done
                 done
             done &&
             # Build source code.
