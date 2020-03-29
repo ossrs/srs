@@ -391,7 +391,7 @@ doclean:
 clean: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
 	@echo "You can clean each some components, see make help"
 
-destroy: clean
+destroy:
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
 
 clean_srs:
