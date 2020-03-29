@@ -441,7 +441,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 .PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
-.PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+.PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy clean_srtp2 clean_opus
 .PHONY: st
 
 # install prefix.
@@ -474,7 +474,9 @@ help:
 	@echo "To clean special module:"
 	@echo "     clean_st           Clean depend st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
 	@echo "     clean_openssl      Clean depend openssl in objs"
-	@echo "     clean_ffmpeg       Clean depend ffmpeg in objs"
+	@echo "     clean_ffmpeg       Clean depend ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
+	@echo "     clean_srtp2        Clean depend srtp2 in objs"
+	@echo "     clean_opus         Clean depend opus in objs"
 	@echo "@remark all modules will auto genearted and build"
 	@echo "For example:"
 	@echo "     make"
@@ -490,7 +492,7 @@ doclean:
 clean: clean_srs clean_modules
 	@echo "You can clean each some components, see make help"
 
-destroy: clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+destroy: clean_st clean_openssl clean_ffmpeg clean_srtp2 clean_opus clean_nginx clean_cherrypy
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
 
 clean_srs:
@@ -501,13 +503,20 @@ clean_modules:
 	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
 
 clean_st:
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && make clean)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && make clean && make ${_ST_MAKE})
 
 clean_openssl:
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
 
+clean_srtp2:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf libsrtp-2.0.0)
+
+clean_opus:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf opus-1.3.1)
+
 clean_ffmpeg:
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf ffmpeg)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && make clean && rm -rf _release)
 
 clean_nginx:
 	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
