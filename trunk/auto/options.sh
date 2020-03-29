@@ -584,10 +584,6 @@ function check_option_conflicts() {
         echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
-    if [[ $SRS_OSX == YES && $SRS_UTEST == YES ]]; then
-        echo "Mac does not support utest."; exit -1;
-    fi
-
     # TODO: FIXME: check more os.
 
     __check_ok=YES

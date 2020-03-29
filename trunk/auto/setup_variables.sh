@@ -13,7 +13,7 @@ echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SR
 # For src object files on each platform.
 (
     mkdir -p ${SRS_OBJS_DIR} && cd ${SRS_OBJS_DIR} &&
-    rm -rf src utest srs research include lib srs_hls_ingester srs_mp4_parser &&
+    rm -rf src utest srs srs_utest research include lib srs_hls_ingester srs_mp4_parser &&
     mkdir -p ${SRS_PLATFORM}/src && ln -sf ${SRS_PLATFORM}/src &&
     mkdir -p ${SRS_PLATFORM}/utest && ln -sf ${SRS_PLATFORM}/utest &&
     mkdir -p ${SRS_PLATFORM}/research && ln -sf ${SRS_PLATFORM}/research &&
