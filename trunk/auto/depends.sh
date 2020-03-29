@@ -327,9 +327,20 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo "Building state-threads.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
+            # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
-            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do mkdir -p $dir; done &&
-            for file in `(cd .src && find . -type f ! -name '*.o' ! -name '*.d'|grep -v '\/\.')`; do ln -sf `pwd`/.src/$file $file; done &&
+            # Link source files under .src
+            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                ln -sf .src/$file $file;
+            done &&
+            # Link source files under .src/xxx, the first child dir.
+            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
+                mkdir -p $dir &&
+                for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                    ln -sf .src/$dir/$file $dir/$file;
+                done;
+            done &&
+            # Build source code.
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
                 CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
             cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
@@ -338,7 +349,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
+    (cd ${SRS_OBJS} && rm -rf st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
     if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 fi
 
@@ -464,7 +475,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
+    (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
     if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
 fi
 
@@ -472,24 +483,19 @@ fi
 # live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
 # Always link the ffmpeg tools if exists.
-if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-    mkdir -p ${SRS_OBJS}/ffmpeg/bin && ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/ffmpeg/bin/ffmpeg
+if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
+    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin &&
+    ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg
 fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
-    if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "build ffmpeg-4.1"; 
-        (
-            cd ${SRS_OBJS} && pwd_dir=`pwd` && 
-            rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
-            rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
-            cd ${pwd_dir} && rm -rf ffmpeg && ln -sf ffmpeg.src/_release ffmpeg
-        )
+        echo "no ffmpeg found, please use srs-docker or --without-ffmpeg";
+        exit -1;
     fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-4.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-4.1 failed."; exit -1; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
 fi
 
 #####################################################################################
@@ -550,7 +556,7 @@ if [ $SRS_UTEST = YES ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
+    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
     if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
 fi
 
@@ -573,6 +579,6 @@ if [ $SRS_GPERF = YES ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f pprof && ln -sf ${SRS_PLATFORM}/gperf/bin/pprof pprof)
+    (cd ${SRS_OBJS} && rm -rf pprof && ln -sf ${SRS_PLATFORM}/gperf/bin/pprof pprof)
     if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "Build gperftools-2.1 failed."; exit -1; fi
 fi
