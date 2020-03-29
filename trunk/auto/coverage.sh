@@ -17,7 +17,7 @@ mkdir -p $workdir && cd $workdir
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Enter workdir failed, ret=$ret"; exit $ret; fi
 
 # Collect all *.gcno and *.gcda to objs/cover.
-cd $workdir && (rm -rf src && cp -R ../../src . && cp -R ../src .)
+cd $workdir && (rm -rf src && cp -R ../../src . && cp -R ../src/* src/)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Collect *.gcno and *.gcda failed, ret=$ret"; exit $ret; fi
 
 # Generate *.gcov for coverage.
