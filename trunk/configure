@@ -388,15 +388,15 @@ doclean:
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
-clean: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+clean: clean_srs clean_modules
 	@echo "You can clean each some components, see make help"
 
-destroy:
+destroy: clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
 
 clean_srs:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include lib utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf src include lib utest)
 
 clean_modules:
 	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)

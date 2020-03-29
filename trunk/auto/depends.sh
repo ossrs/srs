@@ -327,9 +327,20 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo "Building state-threads.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
+            # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
-            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do mkdir -p $dir; done &&
-            for file in `(cd .src && find . -type f ! -name '*.o' ! -name '*.d'|grep -v '\/\.')`; do ln -sf `pwd`/.src/$file $file; done &&
+            # Link source files under .src
+            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                ln -sf .src/$file $file;
+            done &&
+            # Link source files under .src/xxx, the first child dir.
+            for dir in `(cd .src && find . -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
+                mkdir -p $dir &&
+                for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                    ln -sf .src/$dir/$file $dir/$file;
+                done;
+            done &&
+            # Build source code.
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
                 CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
             cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
