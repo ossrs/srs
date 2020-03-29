@@ -120,22 +120,22 @@ ok_msg "start build srs, ARM: $ARM, MIPS: $MIPS, PI: $PI, X86_64: $X86_X64, JOBS
 if [ $ARM = YES ]; then
     (
         cd $work_dir && 
-        ./configure --arm --jobs=$JOBS --prefix=$INSTALL && make
+        ./configure --arm --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_machine} && make
     ) >> $log 2>&1
 elif [ $MIPS = YES ]; then
     (
         cd $work_dir && 
-        ./configure --mips --jobs=$JOBS --prefix=$INSTALL && make
+        ./configure --mips --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_machine} && make
     ) >> $log 2>&1
 elif [ $PI = YES ]; then
     (
         cd $work_dir && 
-        ./configure --pi --jobs=$JOBS --prefix=$INSTALL && make
+        ./configure --pi --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_machine} && make
     ) >> $log 2>&1
 elif [ $X86_X64 = YES ]; then
     (
         cd $work_dir && 
-        ./configure --x86-x64 --jobs=$JOBS --prefix=$INSTALL && make
+        ./configure --x86-x64 --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_machine} && make
     ) >> $log 2>&1
 else
     failed_msg "invalid option, must be --x86-x64/--arm/--mips/--pi, see --help"; exit 1;

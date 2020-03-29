@@ -8,8 +8,6 @@ SRS_WORKDIR="."
 SRS_OBJS_DIR="objs"
 SRS_OBJS="${SRS_WORKDIR}/${SRS_OBJS_DIR}"
 SRS_MAKEFILE="Makefile"
-SRS_PLATFORM=`uname -s`-`uname -r|awk -F '-' '{print $1}'`
-echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 
 # linux shell color support.
 RED="\\033[31m"
@@ -42,11 +40,6 @@ mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 
 # the auto generated variables.
 . auto/auto_headers.sh
-
-# For src object files on each platform.
-echo "Fast cleanup, if need to do full cleanup, please use: make clean"
-(cd ${SRS_OBJS_DIR} && rm -rf src srs srs_hls_ingester srs_mp4_parser &&
-mkdir -p ${SRS_PLATFORM}/src && ln -sf ${SRS_PLATFORM}/src)
 
 #####################################################################################
 # generate Makefile.
@@ -348,7 +341,9 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean doclean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+.PHONY: st
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -369,14 +364,18 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
-	@echo "     clean              cleanup project"
-	@echo "     destroy            Deep cleanup project and depends"
+	@echo "     clean              cleanup project and all depends"
+	@echo "     destroy            Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
 	@echo "     install-api        install srs and api-server to the prefix path"
 	@echo "     uninstall          uninstall srs from prefix path"
+	@echo "To clean special module:"
+	@echo "     clean_st           Clean depend st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
+	@echo "     clean_openssl      Clean depend openssl in objs"
+	@echo "     clean_ffmpeg       Clean depend ffmpeg in objs"
 	@echo "@remark all modules will auto genearted and build"
 	@echo "For example:"
 	@echo "     make"
@@ -389,13 +388,34 @@ doclean:
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
-clean: doclean
-	@echo "You can do full clean by: make destroy"
+clean: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+	@echo "You can clean each some components, see make help"
 
 destroy: clean
-	(cd 3rdparty/st-srs && rm -rf Linux_* Darwin_* obj)
-	(cd 3rdparty/ffmpeg-4.2-fit && rm -rf Linux-* Darwin-*)
-	(cd ${SRS_OBJS_DIR} && rm -rf Linux-* Darwin-*)
+	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
+
+clean_srs:
+	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include lib utest)
+
+clean_modules:
+	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
+
+clean_st:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && make clean)
+
+clean_openssl:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
+
+clean_ffmpeg:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf ffmpeg)
+
+clean_nginx:
+	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
+
+clean_cherrypy:
+	(cd research/librtmp && make clean)
+	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 END
 
