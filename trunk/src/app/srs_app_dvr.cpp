@@ -180,6 +180,7 @@ srs_error_t SrsDvrSegmenter::close()
     
     // Close the encoder, then close the fs object.
     if ((err = close_encoder()) != srs_success) {
+        fs->close();
         return srs_error_wrap(err, "close encoder");
     }
     
