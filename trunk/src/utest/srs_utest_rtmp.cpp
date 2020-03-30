@@ -2495,7 +2495,7 @@ VOID TEST(ProtocolRTMPTest, CoverAll)
         SrsCommonMessage* msg = NULL;
         SrsAcknowledgementPacket* pkt = NULL;
         HELPER_ASSERT_SUCCESS(r.expect_message(&msg, &pkt));
-        EXPECT_EQ(1024, pkt->sequence_number);
+        EXPECT_EQ(1024, (int)pkt->sequence_number);
         srs_freep(msg); srs_freep(pkt);
     }
 }

@@ -4823,7 +4823,7 @@ VOID TEST(KernelMP4Test, CoverMP4CodecSingleFrame)
             HELPER_EXPECT_SUCCESS(enc.write_sample(
                 &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
             ));
-            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+            EXPECT_EQ(768, (int)enc.width); EXPECT_EQ(320, (int)enc.height);
         }
 
         if (true) {
@@ -4936,7 +4936,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleVideos)
             HELPER_EXPECT_SUCCESS(enc.write_sample(
                 &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
             ));
-            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+            EXPECT_EQ(768, (int)enc.width); EXPECT_EQ(320, (int)enc.height);
         }
 
         if (true) {
@@ -5024,7 +5024,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleCTTs)
             HELPER_EXPECT_SUCCESS(enc.write_sample(
                 &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
             ));
-            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+            EXPECT_EQ(768, (int)enc.width); EXPECT_EQ(320, (int)enc.height);
         }
 
         if (true) {
@@ -5126,7 +5126,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVs)
             HELPER_EXPECT_SUCCESS(enc.write_sample(
                 &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
             ));
-            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+            EXPECT_EQ(768, (int)enc.width); EXPECT_EQ(320, (int)enc.height);
         }
 
         if (true) {
@@ -5240,7 +5240,7 @@ VOID TEST(KernelMP4Test, CoverMP4CodecErrorNoFrames)
             HELPER_EXPECT_SUCCESS(enc.write_sample(
                 &fmt, SrsMp4HandlerTypeVIDE, fmt.video->frame_type, fmt.video->avc_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
             ));
-            EXPECT_EQ(768, enc.width); EXPECT_EQ(320, enc.height);
+            EXPECT_EQ(768, (int)enc.width); EXPECT_EQ(320, (int)enc.height);
         }
 
         if (true) {
