@@ -416,7 +416,7 @@ srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string& value)
 
     std::vector<std::string> vec = split_str(word, "/");
     if (vec.size() < 2) {
-        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid rtpmap line=%s", value);
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid rtpmap line=%s", value.c_str());
     }
 
     payload->encoding_name_ = vec[0];
@@ -525,7 +525,7 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string& value)
     } else if (ssrc_attr == "msid") {
         std::vector<std::string> vec = split_str(ssrc_value, " ");
         if (vec.empty()) {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc line=%s", value);
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc line=%s", value.c_str());
         }
 
         ssrc_info.msid_ = vec[0];
@@ -611,7 +611,7 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
     while (getline(is, line)) {
         srs_trace("%s", line.c_str());
         if (line.size() < 2 || line[1] != '=') {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line);
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
         }
         if (! line.empty() && line[line.size()-1] == '\r') {
             line.erase(line.size()-1, 1);

@@ -1124,7 +1124,7 @@ SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const Srs
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
     local_sdp.set_fingerprint(SrsDtls::instance()->get_fingerprint());
-	std::vector<string> candidate_ips = get_candidate_ips();
+    std::vector<string> candidate_ips = get_candidate_ips();
     for (int i = 0; i < (int)candidate_ips.size(); ++i) {
         local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
     }

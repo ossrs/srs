@@ -884,7 +884,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
     if ((err = remote_sdp.parse(remote_sdp_str)) != srs_success) {
-        return srs_error_wrap(err, "parse sdp failed");
+        return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
     if ((err = check_remote_sdp(remote_sdp)) != srs_success) {
@@ -921,7 +921,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
 
-    srs_trace("RTC sid=%s, answer=%dB", rtc_session->id().c_str(), local_sdp_str.length());
+    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", rtc_session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -1006,8 +1006,8 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
                 H264SpecificParam h264_param;
-                if (parse_h264_fmtp(iter->format_specific_param_, h264_param) != 0) {
-                    continue;
+                if ((err = parse_h264_fmtp(iter->format_specific_param_, h264_param)) != srs_success) {
+                    srs_error_reset(err); continue;
                 }
 
                 if (h264_param.packetization_mode == 1 && h264_param.level_asymmerty_allow == 1) {

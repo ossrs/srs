@@ -36,7 +36,7 @@ class SrsSessionInfo
 {
 public:
     SrsSessionInfo();
-    ~SrsSessionInfo();
+    virtual ~SrsSessionInfo();
 
     srs_error_t parse_attribute(const std::string& attribute, const std::string& value);
     srs_error_t encode(std::ostringstream& os);
@@ -84,7 +84,7 @@ class SrsMediaPayloadType
 {
 public:
     SrsMediaPayloadType(int payload_type);
-    ~SrsMediaPayloadType();
+    virtual ~SrsMediaPayloadType();
 
     srs_error_t encode(std::ostringstream& os);
 public:
@@ -109,7 +109,7 @@ class SrsMediaDesc
 {
 public:
     SrsMediaDesc(const std::string& type);
-    ~SrsMediaDesc();
+    virtual ~SrsMediaDesc();
 public:
     srs_error_t parse_line(const std::string& line);
     srs_error_t encode(std::ostringstream& os);
@@ -157,7 +157,7 @@ class SrsSdp
 {
 public:
     SrsSdp();
-    ~SrsSdp();
+    virtual ~SrsSdp();
 public:
     srs_error_t parse(const std::string& sdp_str);
     srs_error_t encode(std::ostringstream& os);
