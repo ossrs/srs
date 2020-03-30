@@ -43,8 +43,6 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_rtsp_stack.hpp>
 
-#define SIP_MAX_HEADER_LEN 2049
-
 unsigned int srs_sip_random(int min,int max)  
 {  
     srand(int(time(0)));
@@ -68,8 +66,32 @@ std::string  srs_sip_get_form_to_uri(std::string  msg)
         return msg;
     }
 
-    msg = msg.substr(0, pos2-1);
+    msg = msg.substr(0, pos2);
     return msg;
+}
+
+std::string srs_sip_get_utc_date()
+{
+    // clock time
+    timeval tv;
+    if (gettimeofday(&tv, NULL) == -1) {
+        return "";
+    }
+    
+    // to calendar time
+    struct tm* tm;
+    if ((tm = gmtime(&tv.tv_sec)) == NULL) {
+        return "";
+    }
+    
+    //Date: 2020-03-21T14:20:57.638
+    std::string utc_date = "";
+    char buffer[25] = {0};
+    snprintf(buffer, 25,
+                "%d-%02d-%02dT%02d:%02d:%02d.%03d",
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000));
+    utc_date = buffer;
+    return utc_date;
 }
 
 
@@ -120,6 +142,8 @@ SrsSipRequest::SrsSipRequest()
     status = "";
     expires = 3600;
     max_forwards = 70;
+    www_authenticate = "";
+    authorization = "";
     cmdtype = SrsSipCmdRequest;
 
     host = "127.0.0.1";;
@@ -202,6 +226,8 @@ void SrsSipRequest::copy(SrsSipRequest* src)
      status = src->status;
      expires = src->expires;
      max_forwards = src->max_forwards;
+     www_authenticate = src->www_authenticate;
+     authorization = src->authorization;
      cmdtype = src->cmdtype;
 
      host = src->host;
@@ -215,9 +241,7 @@ void SrsSipRequest::copy(SrsSipRequest* src)
      sip_username = src->sip_username;
      peer_ip = src->peer_ip;
      peer_port = src->peer_port;
-
 }
-
 
 SrsSipStack::SrsSipStack()
 {
@@ -256,8 +280,8 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
        body =  header_body.at(1);
     }
 
-    //srs_trace("sip: header=%s\n", header.c_str());
-    //srs_trace("sip: body=%s\n", body.c_str());
+    srs_info("sip: header=%s\n", header.c_str());
+    srs_info("sip: body=%s\n", body.c_str());
 
     // parse one by one.
     char* start = (char*)header.c_str();
@@ -274,7 +298,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
 
             if (firstline == ""){
                 firstline = oneline;
-                //srs_trace("=== first line=%s", firstline.c_str());
+                srs_info("sip: first line=%s", firstline.c_str());
             }else{
                 size_t pos = oneline.find(":");
                 if (pos != string::npos){
@@ -322,6 +346,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                             }
                         } 
                         else if (!strcasecmp(phead, "via:")) {
+                            std::vector<std::string> vec_seq = srs_string_split(content, ";");
                             req->via = content;
                             req->branch = srs_sip_get_param(content.c_str(), "branch");
                         } 
@@ -333,13 +358,19 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                         } 
                         else if (!strcasecmp(phead, "max-forwards:")){
                             req->max_forwards = strtoul(content.c_str(), NULL, 10);
+                        }
+                        else if (!strcasecmp(phead, "www-authenticate:")){
+                            req->www_authenticate = content;
+                        } 
+                        else if (!strcasecmp(phead, "authorization:")){
+                            req->authorization = content;
                         } 
                         else {
+                            //TODO: fixme
                             srs_trace("sip: unkonw message head %s content=%s", phead, content.c_str());
                         }
                    }
                 }
-                //srs_trace("====new line=%s", oneline.c_str());
             }
         }else{
             p++;
@@ -370,24 +401,24 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
 
     req->sip_username =  req->sip_auth_id;
    
-    //srs_trace("sip: method=%s uri=%s version=%s cmdtype=%s", 
-    //        req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
-    // srs_trace("via=%s", req->via.c_str());
-    // srs_trace("via_branch=%s", req->branch.c_str());
-    //srs_trace("cseq=%d", req->seq);
-    // srs_trace("contact=%s", req->contact.c_str());
-    //srs_trace("from=%s",  req->from.c_str());
-    //srs_trace("to=%s",  req->to.c_str());
-    //srs_trace("callid=%s", req->call_id.c_str());
-    // srs_trace("status=%s", req->status.c_str());
-    // srs_trace("from_tag=%s", req->from_tag.c_str());
-    // srs_trace("to_tag=%s", req->to_tag.c_str());
-    //srs_trace("sip_auth_id=%s", req->sip_auth_id.c_str());
+    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
+           req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
+    srs_info("via=%s", req->via.c_str());
+    srs_info("via_branch=%s", req->branch.c_str());
+    srs_info("cseq=%d", req->seq);
+    srs_info("contact=%s", req->contact.c_str());
+    srs_info("from=%s",  req->from.c_str());
+    srs_info("to=%s",  req->to.c_str());
+    srs_info("callid=%s", req->call_id.c_str());
+    srs_info("status=%s", req->status.c_str());
+    srs_info("from_tag=%s", req->from_tag.c_str());
+    srs_info("to_tag=%s", req->to_tag.c_str());
+    srs_info("sip_auth_id=%s", req->sip_auth_id.c_str());
 
     return err;
 }
 
-srs_error_t SrsSipStack::resp_keepalive(std::stringstream& ss, SrsSipRequest *req){
+void SrsSipStack::resp_keepalive(std::stringstream& ss, SrsSipRequest *req){
     ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";branch=" << req->branch << SRS_RTSP_CRLF
     << "From: <sip:" << req->from.c_str() << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
@@ -398,30 +429,43 @@ srs_error_t SrsSipStack::resp_keepalive(std::stringstream& ss, SrsSipRequest *re
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
     << "User-Agent: "<< SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
     << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
-
-    return srs_success;
 }
 
-srs_error_t SrsSipStack::resp_ack(std::stringstream& ss, SrsSipRequest *req){
-  
-    ss << "ACK " << "sip:" <<  req->sip_auth_id << "@" << req->realm << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
-    << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";branch=" << req->branch << SRS_RTSP_CRLF
-    << "From: <sip:" << req->serial << "@" << req->host + ":" << req->host_port << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
-    << "To: <sip:"<< req->sip_auth_id <<  "@" << req->realm << ">\r\n"
-    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
-    << "CSeq: " << req->seq << " " << req->method << SRS_RTSP_CRLF
-    << "Max-Forwards: 70" << SRS_RTSP_CRLF
-    << "User-Agent: "<< SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
-    << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
-    
-    return srs_success;
-}
-
-srs_error_t SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
+void SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
 {
-    srs_error_t err = srs_success;
-
     if (req->method == "REGISTER"){
+        /* 
+        //request:  sip-agent-----REGISTER------->sip-server
+        REGISTER sip:34020000002000000001@3402000000 SIP/2.0
+        Via: SIP/2.0/UDP 192.168.137.11:5060;rport;branch=z9hG4bK1371463273
+        From: <sip:34020000001320000003@3402000000>;tag=2043466181
+        To: <sip:34020000001320000003@3402000000>
+        Call-ID: 1011047669
+        CSeq: 1 REGISTER
+        Contact: <sip:34020000001320000003@192.168.137.11:5060>
+        Max-Forwards: 70
+        User-Agent: IP Camera
+        Expires: 3600
+        Content-Length: 0
+        
+        //response:  sip-agent<-----200 OK--------sip-server
+        SIP/2.0 200 OK
+        Via: SIP/2.0/UDP 192.168.137.11:5060;rport;branch=z9hG4bK1371463273
+        From: <sip:34020000001320000003@3402000000>
+        To: <sip:34020000001320000003@3402000000>
+        CSeq: 1 REGISTER
+        Call-ID: 1011047669
+        Contact: <sip:34020000001320000003@192.168.137.11:5060>
+        User-Agent: SRS/4.0.4(Leo)
+        Expires: 3600
+        Content-Length: 0
+
+        */
+        if (req->authorization.empty()){
+            //TODO: fixme supoort 401
+            //return req_401_unauthorized(ss, req);
+        }
+
         ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
         << "Via: " << req->via << SRS_RTSP_CRLF
         << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
@@ -430,8 +474,43 @@ srs_error_t SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
         << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
         << "Contact: " << req->contact << SRS_RTSP_CRLF
         << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
+        << "Expires: " << req->expires << SRS_RTSP_CRLF
         << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
     }else{
+        /*
+        //request: sip-agnet-------MESSAGE------->sip-server
+        MESSAGE sip:34020000002000000001@3402000000 SIP/2.0
+        Via: SIP/2.0/UDP 192.168.137.11:5060;rport;branch=z9hG4bK1066375804
+        From: <sip:34020000001320000003@3402000000>;tag=1925919231
+        To: <sip:34020000002000000001@3402000000>
+        Call-ID: 1185236415
+        CSeq: 20 MESSAGE
+        Content-Type: Application/MANSCDP+xml
+        Max-Forwards: 70
+        User-Agent: IP Camera
+        Content-Length:   175
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Notify>
+        <CmdType>Keepalive</CmdType>
+        <SN>1</SN>
+        <DeviceID>34020000001320000003</DeviceID>
+        <Status>OK</Status>
+        <Info>
+        </Info>
+        </Notify>
+        //response: sip-agent------200 OK --------> sip-server
+        SIP/2.0 200 OK
+        Via: SIP/2.0/UDP 192.168.137.11:5060;rport;branch=z9hG4bK1066375804
+        From: <sip:34020000001320000003@3402000000>
+        To: <sip:34020000002000000001@3402000000>
+        CSeq: 20 MESSAGE
+        Call-ID: 1185236415
+        User-Agent: SRS/4.0.4(Leo)
+        Content-Length: 0
+        
+        */
+
         ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
         << "Via: " << req->via << SRS_RTSP_CRLF
         << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
@@ -442,61 +521,104 @@ srs_error_t SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
         << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
     }
    
-    return err;
 }
 
-srs_error_t SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, int port)
+void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, int port, uint32_t ssrc)
 {
-    /*
-    INVITE sip:34020000001320000001@3402000000 SIP/2.0
-    Via: SIP/2.0/UDP 192.168.1.22:15060;rport;branch=z9hG4bK369961166
-    From: <sip:34020000002000000001@3402000000>;tag=536961166
-    To: <sip:34020000001320000001@3402000000>
-    Call-ID: 929961057
-    CSeq: 3 INVITE
-    Content-Type: APPLICATION/SDP
-    Contact: <sip:34020000002000000001@192.168.1.22:15060>
-    Max-Forwards: 70
-    User-Agent: XXXXXXX XXXXXXX
-    Subject: 34020000001320000001:0200000001,34020000002020000001:0
-    Content-Length: 247
+    /* 
+    //request: sip-agent <-------INVITE------ sip-server
+    INVITE sip:34020000001320000003@3402000000 SIP/2.0
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@39.100.155.146:15063>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>
+    Call-ID: 200008805
+    CSeq: 20 INVITE
+    Content-Type: Application/SDP
+    Contact: <sip:34020000001320000003@3402000000>
+    Max-Forwards: 70 
+    User-Agent: SRS/4.0.4(Leo)
+    Subject: 34020000001320000003:630886,34020000002000000001:0
+    Content-Length: 164
 
     v=0
-    o=34020000002000000001 0 0 IN IP4 192.168.1.23
+    o=34020000001320000003 0 0 IN IP4 39.100.155.146
     s=Play
-    c=IN IP4 192.168.1.23
+    c=IN IP4 39.100.155.146
     t=0 0
-    m=video 30000 RTP/AVP 96 97 98 99
+    m=video 9000 RTP/AVP 96
     a=recvonly
     a=rtpmap:96 PS/90000
-    a=rtpmap:97 MPEG4/90000
-    a=rtpmap:98 H264/90000
-    a=rtpmap:99 H265/90000
-    y=0200000001
+    y=630886
+    //response: sip-agent --------100 Trying--------> sip-server
+    SIP/2.0 100 Trying
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport=15063;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@39.100.155.146:15063>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>
+    Call-ID: 200008805
+    CSeq: 20 INVITE
+    User-Agent: IP Camera
+    Content-Length: 0
+
+    //response: sip-agent -------200 OK--------> sip-server 
+    SIP/2.0 200 OK
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport=15063;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@39.100.155.146:15063>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>;tag=1083111311
+    Call-ID: 200008805
+    CSeq: 20 INVITE
+    Contact: <sip:34020000001320000003@192.168.137.11:5060>
+    Content-Type: application/sdp
+    User-Agent: IP Camera
+    Content-Length:   263
+
+    v=0
+    o=34020000001320000003 1073 1073 IN IP4 192.168.137.11
+    s=Play
+    c=IN IP4 192.168.137.11
+    t=0 0
+    m=video 15060 RTP/AVP 96
+    a=setup:active
+    a=sendonly
+    a=rtpmap:96 PS/90000
+    a=username:34020000001320000003
+    a=password:12345678
+    a=filesize:0
+    y=0000630886
+    f=
+    //request: sip-agent <------ ACK ------- sip-server
+    ACK sip:34020000001320000003@3402000000 SIP/2.0
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@39.100.155.146:15063>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>
+    Call-ID: 200008805
+    CSeq: 20 ACK
+    Max-Forwards: 70
+    User-Agent: SRS/4.0.4(Leo)
+    Content-Length: 0
     */
 
-    srs_error_t err = srs_success;
-    int ssrc = srs_sip_random(10000, 99999);
     std::stringstream sdp;
     sdp << "v=0" << SRS_RTSP_CRLF
-    << "o=" << req->sip_auth_id << " 0 0 IN IP4 " << req->host << SRS_RTSP_CRLF
+    << "o=" << req->sip_auth_id << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
     << "s=Play" << SRS_RTSP_CRLF
-    << "c=IN IP4 " << req->host << SRS_RTSP_CRLF
+    << "c=IN IP4 " << ip << SRS_RTSP_CRLF
     << "t=0 0" << SRS_RTSP_CRLF
-    << "m=video " << port <<" RTP/AVP 96 97 98 99" << SRS_RTSP_CRLF
+    //TODO 97 98 99 current no support
+    //<< "m=video " << port <<" RTP/AVP 96 97 98 99" << SRS_RTSP_CRLF
+    << "m=video " << port <<" RTP/AVP 96" << SRS_RTSP_CRLF
     << "a=recvonly" << SRS_RTSP_CRLF
     << "a=rtpmap:96 PS/90000" << SRS_RTSP_CRLF
-    << "a=rtpmap:97 MPEG4/90000" << SRS_RTSP_CRLF
-    << "a=rtpmap:98 H264/90000" << SRS_RTSP_CRLF
-    << "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
-    << "y=00181" << ssrc << SRS_RTSP_CRLF;
-
+    //TODO: current no support
+    //<< "a=rtpmap:97 MPEG4/90000" << SRS_RTSP_CRLF
+    //<< "a=rtpmap:98 H264/90000" << SRS_RTSP_CRLF
+    //<< "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
     //<< "a=streamMode:MAIN\r\n"
     //<< "a=filesize:0\r\n"
-    
+    << "y=" << ssrc << SRS_RTSP_CRLF;
+
     
     int rand = srs_sip_random(1000, 9999);
-    std::stringstream from, to, uri;
+    std::stringstream from, to, uri, branch, from_tag;
     //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
     uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
     //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
@@ -507,9 +629,14 @@ srs_error_t SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, int po
     req->to   = to.str();
     req->uri  = uri.str();
 
+    branch << "z9hG4bK3420" << rand;
+    from_tag << "51235" << rand;
+    req->branch = branch.str();
+    req->from_tag = from_tag.str();
+
     ss << "INVITE " << req->uri << " " << SRS_SIP_VERSION << SRS_RTSP_CRLF
-    << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=z9hG4bK3420" << rand << SRS_RTSP_CRLF
-    << "From: <sip:" << req->from << ">;tag=51235" << rand << SRS_RTSP_CRLF
+    << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: <sip:" << req->from << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
     << "To: <sip:" << req->to << ">" << SRS_RTSP_CRLF
     << "Call-ID: 20000" << rand <<SRS_RTSP_CRLF
     << "CSeq: 20 INVITE" << SRS_RTSP_CRLF
@@ -517,40 +644,133 @@ srs_error_t SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, int po
     << "Contact: <sip:" << req->to << ">" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << " \r\n"
     << "User-Agent: " << SRS_SIP_USER_AGENT <<SRS_RTSP_CRLF
-    << "Subject: "<< req->sip_auth_id << ":00181" << ssrc << "," << req->serial << ":0" << SRS_RTSP_CRLF
+    << "Subject: "<< req->sip_auth_id << ":" << ssrc << "," << req->serial << ":0" << SRS_RTSP_CRLF
     << "Content-Length: " << sdp.str().length() << SRS_RTSP_CRLFCRLF
     << sdp.str();
-
-    return err;
 }
 
-srs_error_t SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
+
+void SrsSipStack::req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req)
 {
-    srs_error_t err = srs_success;
+    /* sip-agent <-----401 Unauthorized ------ sip-server
+    SIP/2.0 401 Unauthorized
+    Via: SIP/2.0/UDP 192.168.137.92:5061;rport=61378;received=192.168.1.13;branch=z9hG4bK802519080
+    From: <sip:34020000001320000004@192.168.137.92:5061>;tag=611442989
+    To: <sip:34020000001320000004@192.168.137.92:5061>;tag=102092689
+    CSeq: 1 REGISTER
+    Call-ID: 1650345118
+    User-Agent: LiveGBS v200228
+    Contact: <sip:34020000002000000001@192.168.1.23:15060>
+    Content-Length: 0
+    WWW-Authenticate: Digest realm="3402000000",qop="auth",nonce="f1da98bd160f3e2efe954c6eedf5f75a"
+    */
+
+    ss << SRS_SIP_VERSION <<" 401 Unauthorized" << SRS_RTSP_CRLF
+    //<< "Via: " << req->via << SRS_RTSP_CRLF
+    << "Via: " << req->via << ";rport=" << req->peer_port << ";received=" << req->peer_ip << ";branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
+    << "To: <sip:"<< req->to << ">" << SRS_RTSP_CRLF
+    << "CSeq: "<< req->seq << " " << req->method <<  SRS_RTSP_CRLF
+    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
+    << "Contact: " << req->contact << SRS_RTSP_CRLF
+    << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
+    << "Content-Length: 0" << SRS_RTSP_CRLF
+    << "WWW-Authenticate: Digest realm=\"3402000000\",qop=\"auth\",nonce=\"f1da98bd160f3e2efe954c6eedf5f75a\"" << SRS_RTSP_CRLFCRLF;
+    return;
+}
+
+void SrsSipStack::resp_ack(std::stringstream& ss, SrsSipRequest *req){
+    /*
+    //request: sip-agent <------ ACK ------- sip-server
+    ACK sip:34020000001320000003@3402000000 SIP/2.0
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@39.100.155.146:15063>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>
+    Call-ID: 200008805
+    CSeq: 20 ACK
+    Max-Forwards: 70
+    User-Agent: SRS/4.0.4(Leo)
+    Content-Length: 0
+    */
+  
+    ss << "ACK " << "sip:" <<  req->sip_auth_id << "@" << req->realm << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
+    << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: <sip:" << req->serial << "@" << req->host + ":" << req->host_port << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
+    << "To: <sip:"<< req->sip_auth_id <<  "@" << req->realm << ">\r\n"
+    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
+    << "CSeq: " << req->seq << " ACK"<< SRS_RTSP_CRLF
+    << "Max-Forwards: 70" << SRS_RTSP_CRLF
+    << "User-Agent: "<< SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
+    << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
+}
+
+void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
+{
+    /*
+    //request: sip-agent <------BYE------ sip-server
+    BYE sip:34020000001320000003@3402000000 SIP/2.0
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@3402000000>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>;tag=1083111311
+    Call-ID: 200008805
+    CSeq: 79 BYE
+    Max-Forwards: 70
+    User-Agent: SRS/4.0.4(Leo)
+    Content-Length: 0
+
+    //response: sip-agent ------200 OK ------> sip-server
+    SIP/2.0 200 OK
+    Via: SIP/2.0/UDP 39.100.155.146:15063;rport=15063;branch=z9hG4bK34208805
+    From: <sip:34020000002000000001@3402000000>;tag=512358805
+    To: <sip:34020000001320000003@3402000000>;tag=1083111311
+    Call-ID: 200008805
+    CSeq: 79 BYE
+    User-Agent: IP Camera
+    Content-Length: 0
+
+    */
 
     std::stringstream from, to, uri;
     uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
-    from << req->serial << "@" << req->host << ":"  << req->host_port;
-    to << req->sip_auth_id <<  "@" << req->realm;
+    from << req->serial << "@"  << req->realm;
+    to << req->sip_auth_id <<  "@" <<  req->realm;
 
     req->from = from.str();
     req->to   = to.str();
     req->uri  = uri.str();
 
-    int rand = srs_sip_random(1000, 9999);
+    string to_tag, from_tag, branch;
+
+    if (req->branch.empty()){
+        branch = "";
+    }else {
+        branch = ";branch=" + req->branch;
+    }
+
+    if (req->from_tag.empty()){
+        from_tag = "";
+    }else {
+        from_tag = ";tag=" + req->from_tag;
+    }
+    
+    if (req->to_tag.empty()){
+        to_tag = "";
+    }else {
+        to_tag = ";tag=" + req->to_tag;
+    }
+
+    int seq = srs_sip_random(22, 99);
     ss << "BYE " << req->uri << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
-    << "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";branch=z9hG4bK3420" << rand << SRS_RTSP_CRLF
-    << "From: <sip:" << req->from << ">;tag=51235" << rand << SRS_RTSP_CRLF
-    << "To: <sip:" << req->to << ">" << SRS_RTSP_CRLF
-    << "Call-ID: 20000" << rand << SRS_RTSP_CRLF
-    << "CSeq: 21 BYE" << SRS_RTSP_CRLF
+    << "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport" << branch << SRS_RTSP_CRLF
+    << "From: <sip:" << req->from << ">" << from_tag << SRS_RTSP_CRLF
+    << "To: <sip:" << req->to << ">" << to_tag << SRS_RTSP_CRLF
+    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
+    << "CSeq: "<< seq <<" BYE" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
     << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
     << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
    
-    return err;
 }
-
 
 #endif
 

@@ -83,6 +83,9 @@ public:
     long expires;
     int max_forwards;
 
+    std::string www_authenticate;
+    std::string authorization;
+
 public:
     std::string serial;
     std::string realm;
@@ -128,12 +131,13 @@ protected:
     virtual srs_error_t do_parse_request(SrsSipRequest* req, const char *recv_msg);
 
 public:
-    virtual srs_error_t resp_status(std::stringstream& ss, SrsSipRequest *req);
-    virtual srs_error_t resp_keepalive(std::stringstream& ss, SrsSipRequest *req);
-    virtual srs_error_t resp_ack(std::stringstream& ss, SrsSipRequest *req);
+    virtual void resp_status(std::stringstream& ss, SrsSipRequest *req);
+    virtual void resp_keepalive(std::stringstream& ss, SrsSipRequest *req);
+    virtual void resp_ack(std::stringstream& ss, SrsSipRequest *req);
      
-    virtual srs_error_t req_invite(std::stringstream& ss, SrsSipRequest *req, int port);
-    virtual srs_error_t req_bye(std::stringstream& ss, SrsSipRequest *req);
+    virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, int port, uint32_t ssrc);
+    virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
+    virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);
    
 };
 
