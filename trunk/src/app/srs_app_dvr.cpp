@@ -179,12 +179,11 @@ srs_error_t SrsDvrSegmenter::close()
     }
     
     // Close the encoder, then close the fs object.
-    if ((err = close_encoder()) != srs_success) {
-        fs->close();
+    err = close_encoder();
+    fs->close(); // Always close the file.
+    if (err != srs_success) {
         return srs_error_wrap(err, "close encoder");
     }
-    
-    fs->close();
     
     // when tmp flv file exists, reap it.
     if ((err = fragment->rename()) != srs_success) {
