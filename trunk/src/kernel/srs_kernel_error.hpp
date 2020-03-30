@@ -346,6 +346,7 @@
 #define ERROR_RTC_SRTP_UNPROTECT            5015
 #define ERROR_RTC_RTCP_CHECK                5016
 #define ERROR_RTC_SOURCE_CHECK              5017
+#define ERROR_RTC_SDP_EXCHANGE              5018
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

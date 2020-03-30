@@ -284,7 +284,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
             "srs_app_coworkers" "srs_app_hybrid")
     if [[ $SRS_RTC == YES ]]; then
-        MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_dtls" "srs_app_audio_recode")
+        MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_dtls" "srs_app_audio_recode" "srs_app_sdp")
     fi
     DEFINES=""
     # add each modules for app

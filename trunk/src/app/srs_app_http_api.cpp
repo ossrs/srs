@@ -784,12 +784,14 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 }
 
 #ifdef SRS_AUTO_RTC
-SrsGoApiSdp::SrsGoApiSdp(SrsRtcServer* rtc_svr)
+uint32_t SrsGoApiRtcPlay::ssrc_num = 0;
+
+SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* rtc_svr)
 {
     rtc_server = rtc_svr;
 }
 
-SrsGoApiSdp::~SrsGoApiSdp()
+SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
 {
 }
 
@@ -803,7 +805,7 @@ SrsGoApiSdp::~SrsGoApiSdp()
 // Response:
 //      {"sdp":"answer...", "sid":"..."}
 // @see https://github.com/rtcdn/rtcdn-draft
-srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
 
@@ -818,7 +820,7 @@ srs_error_t SrsGoApiSdp::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     return srs_api_response(w, r, res->dumps());
 }
 
-srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
 {
     srs_error_t err = srs_success;
 
@@ -881,22 +883,35 @@ srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
-    if ((err = remote_sdp.decode(remote_sdp_str)) != srs_success) {
-        return srs_error_wrap(err, "decode sdp");
+    if ((err = remote_sdp.parse(remote_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "parse sdp failed");
+    }
+
+    if ((err = check_remote_sdp(remote_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp check failed");
+    }
+
+    SrsSdp local_sdp;
+    if ((err = exchange_sdp(app, stream_name, remote_sdp, local_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
 
     SrsRequest request;
     request.app = app;
     request.stream = stream_name;
-    SrsSdp local_sdp;
+
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp);
 
-    string local_sdp_str = "";
-    if ((err = local_sdp.encode(local_sdp_str)) != srs_success) {
+    ostringstream os;
+    if ((err = local_sdp.encode(os)) != srs_success) {
         return srs_error_wrap(err, "encode sdp");
     }
+
+    string local_sdp_str = os.str();
+
+    srs_trace("local_sdp=%s", local_sdp_str.c_str());
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
@@ -910,6 +925,138 @@ srs_error_t SrsGoApiSdp::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
 
     return err;
 }
+
+srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
+{
+    srs_error_t err = srs_success;
+
+    if (remote_sdp.group_policy_ != "BUNDLE") {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only support BUNDLE, group policy=%s", remote_sdp.group_policy_.c_str());
+    }
+
+    if (remote_sdp.media_descs_.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
+    }
+
+    for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->type_ != "audio" && iter->type_ != "video") {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
+        }
+
+        if (! iter->rtcp_mux_) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
+        }
+
+        for (std::vector<SrsMediaPayloadType>::const_iterator iter_media = iter->payload_types_.begin(); iter_media != iter->payload_types_.end(); ++iter_media) {
+            if (iter->sendonly_) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "play API only support sendrecv/recvonly");
+            }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+{
+	srs_error_t err = srs_success;
+    local_sdp.version_ = "0";
+
+    local_sdp.username_        = RTMP_SIG_SRS_SERVER;
+    local_sdp.session_id_      = srs_int2str((int64_t)this);
+    local_sdp.session_version_ = "2";
+    local_sdp.nettype_         = "IN";
+    local_sdp.addrtype_        = "IP4";
+    local_sdp.unicast_address_ = "0.0.0.0";
+
+    local_sdp.session_name_ = "live_play_session";
+
+    local_sdp.msid_semantic_ = "WMS";
+    local_sdp.msids_.push_back(app + "/" + stream);
+
+    local_sdp.group_policy_ = "BUNDLE";
+
+    int mid = 0;
+
+    for (int i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+
+        if (remote_media_desc.is_audio()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
+        } else if (remote_media_desc.is_video()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+        }
+
+        SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+        if (remote_media_desc.is_audio()) {
+            // TODO: check opus format specific param
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
+            for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
+                // Only choose one match opus codec.
+                local_media_desc.payload_types_.push_back(*iter);
+                break;
+            }
+
+            if (local_media_desc.payload_types_.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+            }
+
+        } else if (remote_media_desc.is_video()) {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
+            for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
+                H264SpecificParam h264_param;
+                if (parse_h264_fmtp(iter->format_specific_param_, h264_param) != 0) {
+                    continue;
+                }
+
+                if (h264_param.packetization_mode == 1 && h264_param.level_asymmerty_allow == 1) {
+                    // Only choose first match H.264 payload type.
+                    local_media_desc.payload_types_.push_back(*iter);
+                    break;
+                }
+            }
+
+            if (local_media_desc.payload_types_.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found H.264 payload type");
+            }
+        }
+
+        local_media_desc.mid_ = remote_media_desc.mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+
+        if (remote_media_desc.session_info_.setup_ == "active") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else if (remote_media_desc.session_info_.setup_ == "passive") {
+            local_media_desc.session_info_.setup_ = "active";
+        } else if (remote_media_desc.session_info_.setup_ == "actpass") {
+            local_media_desc.session_info_.setup_ = "passive";
+        }
+
+        local_sdp.media_descs_.back().session_info_.ice_options_ = "trickle";
+    
+        if (remote_media_desc.sendonly_) {
+            local_media_desc.recvonly_ = true;
+        } else if (remote_media_desc.recvonly_) {
+            local_media_desc.sendonly_ = true;
+        } else if (remote_media_desc.sendrecv_) {
+            local_media_desc.sendrecv_ = true;
+        }
+
+        local_media_desc.rtcp_mux_ = true;
+
+        SrsSSRCInfo ssrc_info;
+        ssrc_info.ssrc_ = ++ssrc_num;
+        ssrc_info.cname_ = "test_sdp_cname";
+        local_media_desc.ssrc_infos_.push_back(ssrc_info);
+    }
+
+    return err;
+}
+
 #endif
 
 SrsGoApiClients::SrsGoApiClients()

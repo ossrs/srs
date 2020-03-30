@@ -126,3 +126,30 @@ srs_error_t SrsRtpSharedPacket::set_marker(bool marker)
 
     return err;
 }
+
+srs_error_t SrsRtpSharedPacket::set_ssrc(uint32_t ssrc)
+{
+    srs_error_t err = srs_success;
+
+    if (payload_ptr == NULL || payload_ptr->payload == NULL || payload_ptr->size < 12) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    }
+
+    SrsBuffer stream(payload_ptr->payload + 8, 4);
+    stream.write_4bytes(ssrc);
+
+    return err;
+}
+
+srs_error_t SrsRtpSharedPacket::set_payload_type(uint8_t pt)
+{
+    srs_error_t err = srs_success;
+
+    if (payload_ptr == NULL || payload_ptr->payload == NULL || payload_ptr->size < 2) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    }
+
+    payload_ptr->payload[1] = (payload_ptr->payload[1] & 0x80) | pt;
+
+    return err;
+}

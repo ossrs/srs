@@ -43,7 +43,7 @@ const int max_payload_size = 1200;
 const int kRtpPacketSize = 1500;
 
 const uint8_t kOpusPayloadType = 111;
-const uint8_t kH264PayloadType = 102;
+const uint8_t kH264PayloadType = 95;
 
 const uint8_t kNalTypeMask = 0x1F;
 
