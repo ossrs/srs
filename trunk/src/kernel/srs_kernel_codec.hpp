@@ -258,6 +258,10 @@ public:
      */
     // TODO: FIXME: Remove it, use SrsFormat instead.
     static bool sh(char* data, int size);
+	/**
+     * check codec hevc.
+     */
+    static bool hevc(char* data, int size);
     /**
      * check codec h264.
      */
@@ -268,6 +272,8 @@ public:
      * @remark all type of audio is possible, no need to check audio.
      */
     static bool acceptable(char* data, int size);
+
+	static bool acceptable_hevc(char* data, int size);
 };
 
 /**

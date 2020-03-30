@@ -1043,7 +1043,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((err = stat->on_video_info(req, SrsVideoCodecIdAVC, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
+        if ((err = stat->on_video_info(req, c->id, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
             return srs_error_wrap(err, "stat video");
         }
         
@@ -2237,6 +2237,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
     }
     last_packet_time = shared_video->header.timestamp;
 
+	srs_error("bbbbbbbbbbbbbbb shared_video->header.stream_id: %d", shared_video->header.stream_id);
 	if (shared_video->header.stream_id == SrsVideoCodecIdAVC) {
 	    // drop any unknown header video.
 	    // @see https://github.com/ossrs/srs/issues/421
@@ -2246,7 +2247,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
 	            b0 = shared_video->payload[0];
 	        }
 	        
-	        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+	        srs_warn("drop unknown header video(avc), size=%d, bytes[0]=%#x", shared_video->size, b0);
 	        return err;
 	    }
 	}
@@ -2257,7 +2258,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
 	            b0 = shared_video->payload[0];
 	        }
 	        
-	        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
+	        srs_warn("drop unknown header video(hevc), size=%d, bytes[0]=%#x", shared_video->size, b0);
 	        return err;
 	    }
 	}

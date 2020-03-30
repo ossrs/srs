@@ -176,14 +176,25 @@ bool SrsFlvVideo::hevc(char* data, int size)
 bool SrsFlvVideo::acceptable_hevc(char* data, int size)
 {
     // 1bytes required.
-    if (size < 2) {
+    if (size < 1) {
         return false;
     }
-    
-    int nal_unit_type = (*data & 0x7E)>>1;
+	
+    char frame_type = data[0];
+    char codec_id = frame_type & 0x0f;
+    frame_type = (frame_type >> 4) & 0x0f;
+	srs_error("codec_id %d, frame_type %d", codec_id, frame_type);
+
+	if (frame_type > 40 || (frame_type > 21 && frame_type < 32)) {
+		srs_error("invalid hevc frame_type: %d", frame_type);
+        return false;
+    }
+	
+    /*int nal_unit_type = (*data & 0x7E)>>1;
     if (nal_unit_type > 40 || (nal_unit_type > 21 && nal_unit_type < 32)) {
+		srs_error("invalid hevc nal_unit_type: %d", nal_unit_type);
         return false;
-    }
+    }*/
     
     return true;
 }
@@ -734,10 +745,10 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     
     if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
-        if (codec_id == SrsCodecVideoAVC && (err = avc_demux_sps_pps(stream)) != srs_success) {
+        if (codec_id == SrsVideoCodecIdAVC && (err = avc_demux_sps_pps(stream)) != srs_success) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
-		if (codec_id == SrsCodecVideoHEVC && (err = hevc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
+		if (codec_id == SrsVideoCodecIdHEVC && (err = hevc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
     } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
@@ -755,7 +766,7 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
 {
     int hevc_extra_size = stream->size() - stream->pos();
 	srs_trace("hevc extra data size: %d", hevc_extra_size);
-	if (avc_extra_size > 0) {
+	if (hevc_extra_size > 0) {
         char *copy_stream_from = stream->data() + stream->pos();
         vcodec->avc_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + hevc_extra_size);
     }

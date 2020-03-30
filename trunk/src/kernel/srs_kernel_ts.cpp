@@ -63,6 +63,7 @@ string srs_ts_stream2string(SrsTsStream stream)
         case SrsTsStreamAudioAC3: return "AC3";
         case SrsTsStreamAudioDTS: return "AudioDTS";
         case SrsTsStreamVideoH264: return "H.264";
+		case SrsTsStreamVideoHEVC: return "HEVC";
         case SrsTsStreamVideoMpeg4: return "MP4";
         case SrsTsStreamAudioMpeg4: return "MP4A";
         default: return "Other";
@@ -381,7 +382,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter* writer, int16_t vpid,
 {
     srs_error_t err = srs_success;
     
-    if (vs != SrsTsStreamVideoH264 && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
+    if (vs != SrsTsStreamVideoH264 && vs != SrsTsStreamVideoHEVC && as != SrsTsStreamAudioAAC && as != SrsTsStreamAudioMp3) {
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no PID, vs=%d, as=%d", vs, as);
     }
     
@@ -451,7 +452,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
         return err;
     }
     
-    if (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC) {
+    if (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamVideoHEVC && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC) {
         srs_info("ts: ignore the unknown stream, sid=%d", sid);
         return err;
     }
@@ -777,7 +778,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     pmt->last_section_number = 0;
     
     // must got one valid codec.
-    srs_assert(vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
+    srs_assert(vs == SrsTsStreamVideoH264 || vs == SrsTsStreamVideoHEVC || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
     
     // if mp3 or aac specified, use audio to carry pcr.
     if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
@@ -788,7 +789,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     }
     
     // if h.264 specified, use video to carry pcr.
-    if (vs == SrsTsStreamVideoH264) {
+    if (vs == SrsTsStreamVideoH264 || vs == SrsTsStreamVideoHEVC) {
         pmt->PCR_PID = vpid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
     }
@@ -2464,6 +2465,7 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
+			case SrsTsStreamVideoHEVC:
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2547,6 +2549,7 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer* stream)
         // update the apply pid table
         switch (info->stream_type) {
             case SrsTsStreamVideoH264:
+			case SrsTsStreamVideoHEVC:
             case SrsTsStreamVideoMpeg4:
                 packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
                 break;
@@ -2996,21 +2999,21 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
 	        
 	        // Insert sps/pps before IDR when there is no sps/pps in samples.
 	        // The sps/pps is parsed from sequence header(generally the first flv packet).
-	        if (nal_unit_type >= 16 && nal_unit_type <= 21 && !sample->has_sps_pps && !is_sps_pps_appended) {
-				if (frame->vcodec()->videoParameterSetNALUnit.size() > 0) {
+	        if (nal_unit_type >= 16 && nal_unit_type <= 21 && !frame->has_sps_pps && !is_sps_pps_appended) {
+				if (codec->videoParameterSetNALUnit.size() > 0) {
 	                srs_avc_insert_aud(video->payload, aud_inserted);
 	                video->payload->append(
-						frame->vcodec()->videoParameterSetNALUnit.c_str(), frame->vcodec()->videoParameterSetNALUnit.size());
+						&codec->videoParameterSetNALUnit[0], codec->videoParameterSetNALUnit.size());
 	            }
-	            if (frame->vcodec()->sequenceParameterSetNALUnit().size() > 0) {
+	            if (codec->sequenceParameterSetNALUnit.size() > 0) {
 	                srs_avc_insert_aud(video->payload, aud_inserted);
 	                video->payload->append(
-						frame->vcodec()->sequenceParameterSetNALUnit.c_str(), frame->vcodec()->sequenceParameterSetNALUnit.size());
+						&codec->sequenceParameterSetNALUnit[0], codec->sequenceParameterSetNALUnit.size());
 	            }
-	            if (frame->vcodec()->pictureParameterSetNALUnit().size() > 0) {
+	            if (codec->pictureParameterSetNALUnit.size() > 0) {
 	                srs_avc_insert_aud(video->payload, aud_inserted);
 	                video->payload->append(
-						frame->vcodec()->pictureParameterSetNALUnit.c_str(), frame->vcodec()->pictureParameterSetNALUnit.size());
+						&codec->pictureParameterSetNALUnit[0], codec->pictureParameterSetNALUnit.size());
 	            }
 	            is_sps_pps_appended = true;
         	}
@@ -3111,7 +3114,7 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
         return err;
     }
     
-    if (format->vcodec->id != SrsVideoCodecIdAVC) {
+    if (format->vcodec->id != SrsVideoCodecIdAVC && format->vcodec->id != SrsVideoCodecIdHEVC) {
         return err;
     }
     
