@@ -461,7 +461,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-            python setup.py install --user
+            python setup.py install --user --prefix=''
         )
     fi
     # check status
