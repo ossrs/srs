@@ -26,16 +26,11 @@ BLACK="\\033[0m"
 # setup variables when options parsed.
 . auto/setup_variables.sh
 
-# clean the exists, when not export srs-librtmp.
-# do this only when the options is ok.
-if [[ -f Makefile ]]; then
-make clean
-fi
-# remove makefile
+# We don't need to cleanup the exists files.
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 # create objs
-mkdir -p ${SRS_OBJS}
+mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 
 # for export srs-librtmp, change target to it.
 . auto/generate-srs-librtmp-project.sh
@@ -57,7 +52,7 @@ SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
-if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(MAKE))"; fi
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/utest && \$(MAKE))"; fi
 
 #####################################################################################
 # finger out modules to install.
@@ -398,6 +393,11 @@ if [ $SRS_LIBRTMP = YES ]; then
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${LIBS_OBJS[@]}"
     BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
 fi
+# For utest on mac.
+# @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
+if [[ $SRS_OSX == YES ]]; then
+    UTEST_EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
+fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 if [ $SRS_UTEST = YES ]; then
@@ -440,7 +440,9 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus
+.PHONY: st ffmpeg
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -459,26 +461,68 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
-	@echo "     help               display this help menu"
-	@echo "     clean              cleanup project"
-	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
-	@echo "     librtmp            build the client publish/play library, and samples"
-	@echo "     utest              build the utest for srs"
-	@echo "     install            install srs to the prefix path"
-	@echo "     install-api        install srs and api-server to the prefix path"
-	@echo "     uninstall          uninstall srs from prefix path"
-	@echo "@remark all modules will auto genearted and build"
+	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "     help            Display this help menu"
+	@echo "     clean           Cleanup project and all depends"
+	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
+	@echo "     server          Build the srs and other modules in main"
+	@echo "     librtmp         Build the client publish/play library, and samples"
+	@echo "     utest           Build the utest for srs"
+	@echo "     install         Install srs to the prefix path"
+	@echo "     install-api     Install srs and api-server to the prefix path"
+	@echo "     uninstall       Uninstall srs from prefix path"
+	@echo "To rebuild special module:"
+	@echo "     st              Rebuild st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
 	@echo "For example:"
 	@echo "     make"
 	@echo "     make help"
 
-clean: 
+doclean:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
-	(cd ${SRS_OBJS_DIR} && rm -rf src include lib)
-	(cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
+	(cd ${SRS_OBJS_DIR} && rm -rf src/* include lib)
+	(mkdir -p ${SRS_OBJS_DIR}/utest && cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+clean: clean_srs clean_modules
+	@echo "You can clean each some components, see make help"
+
+destroy:
+	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
+
+clean_srs:
+	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include/* lib/*)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find src -name "*.o" -delete)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find utest -name "*.o" -delete)
+
+clean_modules:
+	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
+
+clean_openssl:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
+
+clean_srtp2:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf libsrtp-2.0.0)
+
+clean_opus:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf opus-1.3.1)
+
+clean_nginx:
+	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
+
+clean_cherrypy:
+	(cd research/librtmp && make clean)
+	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+st:
+	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
+
+ffmpeg:
+	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) install-libs)
 
 END
 
@@ -608,7 +652,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-	(cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp && \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else
@@ -683,6 +727,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
     else
         echo -e "${GREEN}Warning: SRT is disabled.${BLACK}"
+    fi
+    if [ $SRS_RTC = YES ]; then
+        echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
+    else
+        echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
     fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"

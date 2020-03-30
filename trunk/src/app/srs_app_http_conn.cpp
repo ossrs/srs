@@ -198,18 +198,31 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
     srs_error_t err = srs_success;
     
     SrsStSocket skt;
-    
+
     if ((err = skt.initialize(stfd)) != srs_success) {
         return srs_error_wrap(err, "init socket");
     }
-    
-    if ((err = parser->parse_message(&skt, preq)) != srs_success) {
-        return srs_error_wrap(err, "parse message");
+
+    // Check user interrupt by interval.
+    skt.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+
+    // drop all request body.
+    char body[4096];
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "timeout");
+        }
+
+        if ((err = skt.read(body, 4096, NULL)) != srs_success) {
+            // Because we use timeout to check trd state, so we should ignore any timeout.
+            if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
+                srs_freep(err);
+                continue;
+            }
+
+            return srs_error_wrap(err, "read response");
+        }
     }
-    
-    // Attach owner connection to message.
-    SrsHttpMessage* hreq = (SrsHttpMessage*)(*preq);
-    hreq->set_connection(this);
     
     return err;
 }
@@ -219,12 +232,12 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     srs_error_t err = srs_success;
     
     ISrsHttpResponseReader* br = msg->body_reader();
-    
+
     // when not specified the content length, ignore.
     if (msg->content_length() == -1) {
         return err;
     }
-    
+
     // drop all request body.
     char body[4096];
     while (!br->eof()) {
@@ -234,6 +247,11 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     }
     
     return err;
+}
+
+void SrsResponseOnlyHttpConn::expire()
+{
+    SrsHttpConn::expire();
 }
 
 SrsHttpServer::SrsHttpServer(SrsServer* svr)

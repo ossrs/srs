@@ -230,8 +230,6 @@ srs_error_t MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite
         total += writen;
     }
     
-    sbytes += total;
-    
     if (nwrite) {
         *nwrite = total;
     }
@@ -6409,6 +6407,68 @@ VOID TEST(ProtocolKbpsTest, RAWStatistic)
         kbps->set_io(NULL, NULL);
         EXPECT_EQ(150 * 1000, kbps->get_recv_bytes());
         EXPECT_EQ(150 * 1000, kbps->get_send_bytes());
+    }
+}
+
+VOID TEST(ProtocolKbpsTest, WriteLargeIOVs)
+{
+    srs_error_t err;
+
+    if (true) {
+        iovec iovs[1];
+        iovs[0].iov_base = (char*)"Hello";
+        iovs[0].iov_len = 5;
+
+        MockBufferIO io;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(srs_write_large_iovs(&io, iovs, 1, &nn));
+        EXPECT_EQ(5, nn);
+        EXPECT_EQ(5, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[1024];
+        int nn_iovs = (int)(sizeof(iovs)/sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char*)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(srs_write_large_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[1025];
+        int nn_iovs = (int)(sizeof(iovs)/sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char*)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(srs_write_large_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
+    }
+
+    if (true) {
+        iovec iovs[4096];
+        int nn_iovs = (int)(sizeof(iovs)/sizeof(iovec));
+        for (int i = 0; i < nn_iovs; i++) {
+            iovs[i].iov_base = (char*)"Hello";
+            iovs[i].iov_len = 5;
+        }
+
+        MockBufferIO io;
+        ssize_t nn = 0;
+        HELPER_EXPECT_SUCCESS(srs_write_large_iovs(&io, iovs, nn_iovs, &nn));
+        EXPECT_EQ(5 * nn_iovs, nn);
+        EXPECT_EQ(5 * nn_iovs, io.sbytes);
     }
 }
 

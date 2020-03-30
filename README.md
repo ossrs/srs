@@ -13,22 +13,22 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 <a name="product"></a>
 ## Usage
 
-**Step 1:** Get SRS.
+**>>> Step 1:** Get SRS.
 
 ```
 git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
 cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
-> Note: Repository too large? Please clone from these [mirrors](#mirrors) instead.
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
 
-**Step 2:** Build SRS.
+**>>> Step 2:** Build SRS.
 
 ```
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: You can also build SRS in docker, please read [docker][docker-dev].
 
@@ -38,13 +38,16 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && gi
 ./objs/srs -c conf/srs.conf
 ```
 
-**Whatever**, you can also directly run SRS in [docker][docker-srs3]:
+**>>> Whatever**, you can also directly run SRS in [docker][docker-srs3]:
 
 ```
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
+docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
 
-**From here,** strongly recommend to read bellow wikis:
+> Note: Again, we use [ACR](https://cr.console.aliyun.com/) here, you can directly run in docker hub by `docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3`
+
+**>>> From here,** strongly recommend to read bellow wikis:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP-Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
@@ -154,6 +157,9 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
+* v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.
+* v4.0, 2020-03-22, Welcome maintainers [Runner365](https://github.com/runner365), [John](https://github.com/xiaozhihong) and [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou). 4.0.15
 * v4.0, 2020-03-22, For [#307][bug #307], support play with WebRTC. 4.0.14
 * v4.0, 2020-03-13, For [#1636][bug #1636], fix bug for mux AAC to ADTS, never overwrite by RTMP sampling rate. 4.0.13
 * v4.0, 2020-03-07, For [#1612][bug #1612], fix crash bug for RTSP. 4.0.12
@@ -171,6 +177,12 @@ For previous versions, please read:
 
 ## V3 changes
 
+* <strong>v3.0, 2020-03-29, [3.0 beta4(3.0.139)][r3.0b4] released. 122674 lines.</strong>
+* v3.0, 2020-03-28, Support multiple OS/Platform build cache. 3.0.139
+* v3.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin. 3.0.138
+* v3.0, 2020-03-21, For [#1629][bug #1629], fix kickoff FLV client bug. 3.0.137
+* v3.0, 2020-03-21, For [#1619][bug #1619], configure without utest by default. 3.0.136
+* v3.0, 2020-03-21, For [#1651][bug #1651], fix return pnwrite of srs_write_large_iovs. 3.0.135
 * <strong>v3.0, 2020-03-18, [3.0 beta3(3.0.134)][r3.0b3] released. 122509 lines.</strong>
 * v3.0, 2020-03-12, For [#1635][bug #1635], inotify watch ConfigMap for reload. 3.0.134
 * v3.0, 2020-03-12, For [#1635][bug #1635], support auto reaload config by inotify. 3.0.129
@@ -778,6 +790,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-03-29, [Release v3.0-b3][r3.0b4], 3.0 beta4, 3.0.139, 122674 lines.
 * 2020-03-18, [Release v3.0-b3][r3.0b3], 3.0 beta3, 3.0.134, 122509 lines.
 * 2020-03-05, [Release v3.0-b2][r3.0b2], 3.0 beta2, 3.0.123, 122170 lines.
 * 2020-02-14, [Release v3.0-b1][r3.0b1], 3.0 beta1, 3.0.117, 121964 lines.
@@ -1138,6 +1151,8 @@ Maintainers of SRS project:
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
 * [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
+* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
 
 A big THANK YOU goes to:
 
@@ -1712,6 +1727,9 @@ Winlin
 [bug #1594]: https://github.com/ossrs/srs/issues/1594
 [bug #1630]: https://github.com/ossrs/srs/issues/1630
 [bug #1635]: https://github.com/ossrs/srs/issues/1635
+[bug #1651]: https://github.com/ossrs/srs/issues/1651
+[bug #1619]: https://github.com/ossrs/srs/issues/1619
+[bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
@@ -1721,6 +1739,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b4]: https://github.com/ossrs/srs/releases/tag/v3.0-b4
 [r3.0b3]: https://github.com/ossrs/srs/releases/tag/v3.0-b3
 [r3.0b2]: https://github.com/ossrs/srs/releases/tag/v3.0-b2
 [r3.0b1]: https://github.com/ossrs/srs/releases/tag/v3.0-b1
