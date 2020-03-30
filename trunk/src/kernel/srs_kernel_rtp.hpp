@@ -62,6 +62,8 @@ public:
 // interface to modify rtp header
 public:
     srs_error_t set_marker(bool marker);
+    srs_error_t set_ssrc(uint32_t ssrc);
+    srs_error_t set_payload_type(uint8_t pt);
 };
 
 #endif

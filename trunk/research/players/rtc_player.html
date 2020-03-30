@@ -68,15 +68,13 @@
                 $('#rtc_media_player').prop('srcObject', event.stream);
             };
             new Promise(function(resolve, reject) {
+                pc.addTransceiver("audio", {direction: "recvonly"});
+                pc.addTransceiver("video", {direction: "recvonly"});
+
                 pc.createOffer(function(offer){
                     resolve(offer);
                 },function(reason){
                     reject(reason);
-                },{
-                    mandatory: {
-                        OfferToReceiveAudio: true,
-                        OfferToReceiveVideo: true
-                    }
                 });
             }).then(function(offer) {
                 return pc.setLocalDescription(offer).then(function(){ return offer; });

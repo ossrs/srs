@@ -31,6 +31,7 @@
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_app_sdp.hpp>
 
 #include <string>
 #include <map>
@@ -65,50 +66,6 @@ const uint8_t kAFB  = 15;
 
 const srs_utime_t kSrsRtcSessionStunTimeoutUs = 10*1000*1000LL;
 
-class SrsCandidate
-{
-private:
-public:
-    SrsCandidate();
-    virtual ~SrsCandidate();
-
-    static std::vector<std::string> get_candidate_ips();
-};
-
-class SrsSdpMediaInfo
-{
-private:
-public:
-    SrsSdpMediaInfo();
-    virtual ~SrsSdpMediaInfo();
-};
-
-class SrsSdp
-{
-private:
-    std::string sdp;
-    int version;
-    std::string ice_ufrag;
-    std::string ice_pwd;
-    std::string fingerprint;
-    std::string setup;
-    std::vector<SrsSdpMediaInfo> media_infos;
-public:
-    SrsSdp();
-    virtual ~SrsSdp();
-
-    srs_error_t decode(const std::string& sdp_str);
-    srs_error_t encode(std::string& sdp_str);
-
-    std::string get_ice_ufrag() const { return ice_ufrag; }
-    std::string get_ice_pwd() const { return ice_pwd; }
-
-    void set_ice_ufrag(const std::string& u) { ice_ufrag = u; }
-    void set_ice_pwd(const std::string& p) { ice_pwd = p; }
-private:
-    srs_error_t parse_attr(const std::string& line);
-};
-
 enum SrsRtcSessionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
@@ -140,11 +97,11 @@ public:
     SrsDtlsSession(SrsRtcSession* s);
     virtual ~SrsDtlsSession();
 
+    srs_error_t initialize();
+
     srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_dtls_application_data(const char* data, const int len);
-
-    srs_error_t send_client_hello(SrsUdpMuxSocket* udp_mux_skt);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
@@ -165,11 +122,17 @@ protected:
     int _parent_cid;
 private:
     SrsRtcSession* rtc_session;
+    uint32_t video_ssrc;
+    uint32_t audio_ssrc;
+    uint16_t video_payload_type;
+    uint16_t audio_payload_type;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
+public:
+    srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
 public:
     virtual int cid();
 public:
@@ -208,7 +171,7 @@ public:
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
-    void set_local_sdp(const SrsSdp& sdp) { local_sdp = sdp; }
+    void set_local_sdp(const SrsSdp& sdp);
 
     SrsSdp* get_remote_sdp() { return &remote_sdp; }
     void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
