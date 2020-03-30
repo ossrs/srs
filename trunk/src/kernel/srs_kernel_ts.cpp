@@ -50,6 +50,7 @@ using namespace std;
 #define TS_PMT_NUMBER 1
 #define TS_PMT_PID 0x1001
 #define TS_VIDEO_AVC_PID 0x100
+#define TS_VIDEO_HEVC_PID 0x110
 #define TS_AUDIO_AAC_PID 0x101
 #define TS_AUDIO_MP3_PID 0x102
 
@@ -301,6 +302,10 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
             vs = SrsTsStreamVideoH264;
             video_pid = TS_VIDEO_AVC_PID;
             break;
+		case SrsVideoCodecIdHEVC:
+			vs = SrsTsStreamVideoHEVC;
+            video_pid = TS_VIDEO_HEVC_PID;
+            break;
         case SrsVideoCodecIdDisabled:
             vs = SrsTsStreamReserved;
             break;
@@ -312,7 +317,6 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter* writer, SrsTsMessage* msg, Sr
         case SrsVideoCodecIdOn2VP6:
         case SrsVideoCodecIdOn2VP6WithAlphaChannel:
         case SrsVideoCodecIdScreenVideoVersion2:
-        case SrsVideoCodecIdHEVC:
         case SrsVideoCodecIdAV1:
             vs = SrsTsStreamReserved;
             break;
@@ -2964,24 +2968,53 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
         if (!sample->bytes || size <= 0) {
             return srs_error_new(ERROR_HLS_AVC_SAMPLE_SIZE, "ts: invalid avc sample length=%d", size);
         }
-        
-        // 5bits, 7.3.1 NAL unit syntax,
-        // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x1f);
-        
-        // Insert sps/pps before IDR when there is no sps/pps in samples.
-        // The sps/pps is parsed from sequence header(generally the first flv packet).
-        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps && !is_sps_pps_appended) {
-            if (!codec->sequenceParameterSetNALUnit.empty()) {
-                srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(&codec->sequenceParameterSetNALUnit[0], (int)codec->sequenceParameterSetNALUnit.size());
-            }
-            if (!codec->pictureParameterSetNALUnit.empty()) {
-                srs_avc_insert_aud(video->payload, aud_inserted);
-                video->payload->append(&codec->pictureParameterSetNALUnit[0], (int)codec->pictureParameterSetNALUnit.size());
-            }
-            is_sps_pps_appended = true;
-        }
+
+
+		if (frame->vcodec()->id == 7)
+		{
+			// 5bits, 7.3.1 NAL unit syntax,
+	        // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
+	        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x1f);
+	        
+	        // Insert sps/pps before IDR when there is no sps/pps in samples.
+	        // The sps/pps is parsed from sequence header(generally the first flv packet).
+	        if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps && !is_sps_pps_appended) {
+	            if (!codec->sequenceParameterSetNALUnit.empty()) {
+	                srs_avc_insert_aud(video->payload, aud_inserted);
+	                video->payload->append(&codec->sequenceParameterSetNALUnit[0], (int)codec->sequenceParameterSetNALUnit.size());
+	            }
+	            if (!codec->pictureParameterSetNALUnit.empty()) {
+	                srs_avc_insert_aud(video->payload, aud_inserted);
+	                video->payload->append(&codec->pictureParameterSetNALUnit[0], (int)codec->pictureParameterSetNALUnit.size());
+	            }
+	            is_sps_pps_appended = true;
+	        }
+		}
+		else if (frame->vcodec()->id == 12)
+		{
+	        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x7e);
+	        
+	        // Insert sps/pps before IDR when there is no sps/pps in samples.
+	        // The sps/pps is parsed from sequence header(generally the first flv packet).
+	        if (nal_unit_type >= 16 && nal_unit_type <= 21 && !sample->has_sps_pps && !is_sps_pps_appended) {
+				if (frame->vcodec()->videoParameterSetNALUnit.size() > 0) {
+	                srs_avc_insert_aud(video->payload, aud_inserted);
+	                video->payload->append(
+						frame->vcodec()->videoParameterSetNALUnit.c_str(), frame->vcodec()->videoParameterSetNALUnit.size());
+	            }
+	            if (frame->vcodec()->sequenceParameterSetNALUnit().size() > 0) {
+	                srs_avc_insert_aud(video->payload, aud_inserted);
+	                video->payload->append(
+						frame->vcodec()->sequenceParameterSetNALUnit.c_str(), frame->vcodec()->sequenceParameterSetNALUnit.size());
+	            }
+	            if (frame->vcodec()->pictureParameterSetNALUnit().size() > 0) {
+	                srs_avc_insert_aud(video->payload, aud_inserted);
+	                video->payload->append(
+						frame->vcodec()->pictureParameterSetNALUnit.c_str(), frame->vcodec()->pictureParameterSetNALUnit.size());
+	            }
+	            is_sps_pps_appended = true;
+        	}
+		}
         
         // Insert the NALU to video in annexb.
         srs_avc_insert_aud(video->payload, aud_inserted);

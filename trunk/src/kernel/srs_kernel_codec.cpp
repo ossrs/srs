@@ -124,7 +124,7 @@ bool SrsFlvVideo::keyframe(char* data, int size)
 bool SrsFlvVideo::sh(char* data, int size)
 {
     // sequence header only for h264
-    if (!h264(data, size)) {
+    if (!h264(data, size) && !hevc(data, size)) {
         return false;
     }
     
@@ -132,12 +132,16 @@ bool SrsFlvVideo::sh(char* data, int size)
     if (size < 2) {
         return false;
     }
-    
+	
     char frame_type = data[0];
     frame_type = (frame_type >> 4) & 0x0F;
     
     char avc_packet_type = data[1];
-    
+
+	if (hevc(data, size)) {
+		return avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
+	}
+	
     return frame_type == SrsVideoAvcFrameTypeKeyFrame
     && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
@@ -155,22 +159,29 @@ bool SrsFlvVideo::h264(char* data, int size)
     return codec_id == SrsVideoCodecIdAVC;
 }
 
-bool SrsFlvVideo::acceptable_hevc(char* data, int size)
+bool SrsFlvVideo::hevc(char* data, int size)
 {
     // 1bytes required.
     if (size < 1) {
         return false;
     }
     
-    char frame_type = data[0];
-    char codec_id = frame_type & 0x0f;
-    frame_type = (frame_type >> 4) & 0x0f;
+    char codec_id = data[0];
+    codec_id = codec_id & 0x0F;
     
-    if (frame_type < 1 || frame_type > 5) {
+    return codec_id == SrsVideoCodecIdHEVC;
+}
+
+
+bool SrsFlvVideo::acceptable_hevc(char* data, int size)
+{
+    // 1bytes required.
+    if (size < 2) {
         return false;
     }
     
-    if (codec_id < 2 || codec_id > 7) {
+    int nal_unit_type = (*data & 0x7E)>>1;
+    if (nal_unit_type > 40 || (nal_unit_type > 21 && nal_unit_type < 32)) {
         return false;
     }
     

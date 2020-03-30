@@ -2237,7 +2237,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
     }
     last_packet_time = shared_video->header.timestamp;
 
-	if (shared_video->header.stream_id == SrsCodecVideoH264) {
+	if (shared_video->header.stream_id == SrsVideoCodecIdAVC) {
 	    // drop any unknown header video.
 	    // @see https://github.com/ossrs/srs/issues/421
 	    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
