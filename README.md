@@ -157,6 +157,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-31, Play stream by WebRTC on iOS/Android/PC browser. 4.0.17
 * v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
 * v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.
 * v4.0, 2020-03-22, Welcome maintainers [Runner365](https://github.com/runner365), [John](https://github.com/xiaozhihong) and [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou). 4.0.15
