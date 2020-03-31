@@ -349,6 +349,22 @@
 #define ERROR_RTC_SDP_EXCHANGE              5018
 
 ///////////////////////////////////////////////////////
+// GB28181 API error.
+///////////////////////////////////////////////////////
+#define ERROR_GB28181_SERVER_NOT_RUN        6000
+#define ERROR_GB28181_SESSION_IS_EXIST      6001
+#define ERROR_GB28181_SESSION_IS_NOTEXIST   6002
+#define ERROR_GB28181_RTP_PORT_FULL         6003
+#define ERROR_GB28181_PORT_MODE_INVALID     6004
+#define ERROR_GB28181_VALUE_EMPTY           6005  
+#define ERROR_GB28181_ACTION_INVALID        6006 
+#define ERROR_GB28181_SIP_NOT_RUN           6007 
+#define ERROR_GB28281_SIP_INVITE_FAILED     6008
+#define ERROR_GB28281_SIP_BYE_FAILED        6009
+#define ERROR_GB28281_SIP_IS_INVITING       6010
+#define ERROR_GB28281_CREATER_RTMPMUXER_FAILED 6011
+
+///////////////////////////////////////////////////////
 // HTTP API error.
 ///////////////////////////////////////////////////////
 //#define ERROR_API_METHOD_NOT_ALLOWD

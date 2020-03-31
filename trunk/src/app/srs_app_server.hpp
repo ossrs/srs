@@ -36,6 +36,8 @@
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_service_st.hpp>
+#include <srs_app_gb28181.hpp>
+#include <srs_app_gb28181_sip.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -52,6 +54,8 @@ class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsRtspCaster;
 class SrsCoroutineManager;
+class SrsGb28181Caster;
+
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -69,6 +73,10 @@ enum SrsListenerType
     SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
+    // UDP stream, gb28181 ps stream over rtp, 
+    SrsListenerGb28181RtpMux = 6,
+    // UDP gb28181 sip server
+    SrsListenerGb28181Sip = 7,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -154,6 +162,14 @@ class SrsUdpCasterListener : public SrsUdpStreamListener
 public:
     SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsUdpCasterListener();
+};
+
+// A UDP gb28181 listener, for sip and rtp stream mux server.
+class SrsGb28181Listener :  public SrsUdpStreamListener
+{
+public:
+    SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    virtual ~SrsGb28181Listener();
 };
 
 // Convert signal to io,
@@ -303,6 +319,7 @@ private:
     virtual srs_error_t listen_http_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
+    virtual srs_error_t listen_gb28281_sip(SrsConfDirective* c);
     // Close the listeners for specified type,
     // Remove the listen object from manager.
     virtual void close_listeners(SrsListenerType type);

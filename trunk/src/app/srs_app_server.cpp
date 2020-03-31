@@ -54,6 +54,8 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
+#include <srs_app_gb28181.hpp>
+#include <srs_app_gb28181_sip.hpp>
 
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
@@ -111,6 +113,10 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerGb28181Sip:
+            return "GB28181-SIP over UDP";
+        case SrsListenerGb28181RtpMux:
+            return "GB28181-Stream over RTP";
         default:
             return "UNKONWN";
     }
@@ -303,7 +309,9 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp 
+            || type == SrsListenerGb28181Sip 
+            || type == SrsListenerGb28181RtpMux);
     
     ip = i;
     port = p;
@@ -337,6 +345,26 @@ SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, Sr
 }
 
 SrsUdpCasterListener::~SrsUdpCasterListener()
+{
+    srs_freep(caster);
+}
+
+
+SrsGb28181Listener::SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
+{
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerGb28181Sip 
+             ||type == SrsListenerGb28181RtpMux);
+
+    if (type == SrsListenerGb28181Sip) {
+        caster = new SrsGb28181SipService(c);
+    }else if(type == SrsListenerGb28181RtpMux){
+        caster = new SrsGb28181RtpMuxService(c);
+    }
+}
+
+SrsGb28181Listener::~SrsGb28181Listener()
 {
     srs_freep(caster);
 }
@@ -663,6 +691,9 @@ void SrsServer::destroy()
     
     srs_freep(signal_manager);
     srs_freep(conn_manager);
+
+    //free global gb28281 manager
+    srs_freep(_srs_gb28181);
 }
 
 void SrsServer::dispose()
@@ -951,6 +982,10 @@ srs_error_t SrsServer::http_handle()
         return srs_error_wrap(err, "handle raw");
     }
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
+        return srs_error_wrap(err, "handle raw");
+    }
+
+    if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
     
@@ -1307,6 +1342,30 @@ srs_error_t SrsServer::listen_http_stream()
     return err;
 }
 
+srs_error_t SrsServer::listen_gb28281_sip(SrsConfDirective* stream_caster)
+{ 
+    srs_error_t err = srs_success;
+
+    SrsListener* sip_listener = NULL;
+    sip_listener = new SrsGb28181Listener(this, SrsListenerGb28181Sip, stream_caster);
+               
+    int port =  _srs_config->get_stream_caster_gb28181_sip_listen(stream_caster);
+    if (port <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid sip port=%d", port);
+    }
+    
+    srs_assert(sip_listener != NULL);
+    
+    listeners.push_back(sip_listener);
+
+    // TODO: support listen at <[ip:]port>
+    if ((err = sip_listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
+        return srs_error_wrap(err, "listen at %d", port);
+    }
+
+    return err;
+}
+
 srs_error_t SrsServer::listen_stream_caster()
 {
     srs_error_t err = srs_success;
@@ -1331,18 +1390,34 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
+        } else if (srs_stream_caster_is_gb28181(caster)) {
+            //init global gb28281 manger
+            if (_srs_gb28181 == NULL){
+                _srs_gb28181 = new SrsGb28181Manger(stream_caster);
+                if ((err = _srs_gb28181->initialize()) != srs_success){
+                    return err;
+                }
+            }
+
+            //sip listener
+            if (_srs_config->get_stream_caster_gb28181_sip_enable(stream_caster)){
+                if ((err = listen_gb28281_sip(stream_caster)) != srs_success){
+                    return err;
+                }
+            }
+
+            //gb28281 stream listener
+            listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());
         }
         srs_assert(listener != NULL);
         
         listeners.push_back(listener);
-        
         int port = _srs_config->get_stream_caster_listen(stream_caster);
         if (port <= 0) {
             return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid port=%d", port);
         }
-        
         // TODO: support listen at <[ip:]port>
         if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
