@@ -272,8 +272,6 @@ public:
      * @remark all type of audio is possible, no need to check audio.
      */
     static bool acceptable(char* data, int size);
-
-	static bool acceptable_hevc(char* data, int size);
 };
 
 /**

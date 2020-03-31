@@ -172,34 +172,6 @@ bool SrsFlvVideo::hevc(char* data, int size)
     return codec_id == SrsVideoCodecIdHEVC;
 }
 
-
-bool SrsFlvVideo::acceptable_hevc(char* data, int size)
-{
-    // 1bytes required.
-    if (size < 1) {
-        return false;
-    }
-	
-    char frame_type = data[0];
-    char codec_id = frame_type & 0x0f;
-    frame_type = (frame_type >> 4) & 0x0f;
-	srs_error("codec_id %d, frame_type %d", codec_id, frame_type);
-
-	if (frame_type > 40 || (frame_type > 21 && frame_type < 32)) {
-		srs_error("invalid hevc frame_type: %d", frame_type);
-        return false;
-    }
-	
-    /*int nal_unit_type = (*data & 0x7E)>>1;
-    if (nal_unit_type > 40 || (nal_unit_type > 21 && nal_unit_type < 32)) {
-		srs_error("invalid hevc nal_unit_type: %d", nal_unit_type);
-        return false;
-    }*/
-    
-    return true;
-}
-
-
 bool SrsFlvVideo::acceptable(char* data, int size)
 {
     // 1bytes required.
@@ -211,11 +183,11 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     char codec_id = frame_type & 0x0f;
     frame_type = (frame_type >> 4) & 0x0f;
     
-    if (frame_type < 1 || frame_type > 5) {
+    if (frame_type < SrsVideoAvcFrameTypeKeyFrame || frame_type > SrsVideoAvcFrameTypeVideoInfoFrame) {
         return false;
     }
     
-    if (codec_id < 2 || codec_id > 7) {
+    if ((codec_id < SrsVideoCodecIdSorensonH263 || codec_id > SrsVideoCodecIdAVC) && codec_id != SrsVideoCodecIdHEVC) {
         return false;
     }
     
