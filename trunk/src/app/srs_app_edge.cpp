@@ -94,6 +94,11 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_parse_hostport(server, server, port);
         
+        // support vhost tranform for edge,
+        // @see https://github.com/ossrs/srs/issues/372
+        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
+        vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
+        
         // override the origin info by redirect.
         if (!redirect.empty()) {
             int _port;
@@ -102,16 +107,12 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
             
             server = _host;
             port = _port;
+            vhost = _vhost;
         }
 
         // Remember the current selected server.
         selected_ip = server;
         selected_port = port;
-        
-        // support vhost tranform for edge,
-        // @see https://github.com/ossrs/srs/issues/372
-        std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
-        vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
         url = srs_generate_rtmp_url(server, port, req->host, vhost, req->app, req->stream, req->param);
     }

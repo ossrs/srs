@@ -414,7 +414,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(int cid, std::string url, SrsRequest* re
     return srs_success;
 }
 
-srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& port)
+srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& port, string& vhost)
 {
     srs_error_t err = srs_success;
     
@@ -464,7 +464,12 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     }
     port = (int)prop->to_integer();
     
-    srs_trace("http: cluster redirect %s:%d ok, url=%s, response=%s", host.c_str(), port, url.c_str(), res.c_str());
+    if ((prop = p->ensure_property_string("vhost")) == NULL) {
+        return srs_error_new(ERROR_OCLUSTER_DISCOVER, "parse data %s", res.c_str());
+    }
+    vhost = prop->to_str();
+    
+    srs_trace("http: cluster redirect %s:%d vhost=%s ok, url=%s, response=%s", host.c_str(), port, vhost.c_str(), url.c_str(), res.c_str());
     
     return err;
 }

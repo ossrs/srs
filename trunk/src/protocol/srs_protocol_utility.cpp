@@ -194,6 +194,12 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
         } else if (!srs_is_ipv4(host)) {
             guessVhost = host;
         }
+    } else if (query.find("vhost=" + vhost) == string::npos) {
+	string current_vhost, param2;
+	string query2 = query;
+	srs_vhost_resolve(current_vhost, query2, param2);
+	current_vhost = "vhost=" + current_vhost;
+	query.replace(query.find(current_vhost),current_vhost.length(),"vhost=" + vhost);
     }
     
     // Well, if vhost exists, always append in query string.

@@ -607,12 +607,12 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
         vector<string> coworkers = _srs_config->get_vhost_coworkers(req->vhost);
         for (int i = 0; i < (int)coworkers.size(); i++) {
             // TODO: FIXME: User may config the server itself as coworker, we must identify and ignore it.
-            string host; int port = 0; string coworker = coworkers.at(i);
+            string host, vhost; int port = 0; string coworker = coworkers.at(i);
 
             string url = "http://" + coworker + "/api/v1/clusters?"
                 + "vhost=" + req->vhost + "&ip=" + req->host + "&app=" + req->app + "&stream=" + req->stream
                 + "&coworker=" + coworker;
-            if ((err = SrsHttpHooks::discover_co_workers(url, host, port)) != srs_success) {
+            if ((err = SrsHttpHooks::discover_co_workers(url, host, port, vhost)) != srs_success) {
                 // If failed to discovery stream in this coworker, we should request the next one util the last.
                 // @see https://github.com/ossrs/srs/issues/1223
                 if (i < (int)coworkers.size() - 1) {
@@ -621,9 +621,9 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
 
-            string rurl = srs_generate_rtmp_url(host, port, req->host, req->vhost, req->app, req->stream, req->param);
-            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
-                req->host.c_str(), req->port, host.c_str(), port, url.c_str(), rurl.c_str());
+            string rurl = srs_generate_rtmp_url(host, port, req->host, vhost, req->app, req->stream, req->param);
+            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d vhost=%s, url=%s, rurl=%s",
+                req->host.c_str(), req->port, host.c_str(), port, vhost.c_str(), url.c_str(), rurl.c_str());
 
             // Ignore if host or port is invalid.
             if (host.empty() || port == 0) {
