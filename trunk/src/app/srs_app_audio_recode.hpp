@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2020 Bepartofyou
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,8 +24,9 @@
 #ifndef SRS_APP_AUDIO_RECODE_HPP
 #define SRS_APP_AUDIO_RECODE_HPP
 
-#include <string>
 #include <srs_core.hpp>
+
+#include <string>
 
 #ifdef __cplusplus
 extern "C" {
