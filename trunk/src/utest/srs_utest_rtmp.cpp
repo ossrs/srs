@@ -3260,9 +3260,9 @@ VOID TEST(ProtocolRTMPTest, GenerateURL)
     }
 
     if (true) {
-        string host("184.23.22.14"), vhost("__defaultVhost__"), stream("stream"), param("vhost=ossrs.net");
+        string host("184.23.22.14"), vhost("__defaultVhost__"), stream("stream"), param("?vhost=ossrs.net");
         string url = srs_generate_stream_with_query(host, vhost, stream, param);
-        EXPECT_STREQ("stream?vhost=ossrs.net", url.c_str());
+        EXPECT_STREQ("stream?vhost=__defaultVhost__", url.c_str());
     }
 
     if (true) {
