@@ -349,6 +349,7 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
     srs_freep(caster);
 }
 
+#ifdef SRS_AUTO_GB28181
 
 SrsGb28181Listener::SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
@@ -368,6 +369,8 @@ SrsGb28181Listener::~SrsGb28181Listener()
 {
     srs_freep(caster);
 }
+
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -692,8 +695,10 @@ void SrsServer::destroy()
     srs_freep(signal_manager);
     srs_freep(conn_manager);
 
+#ifdef SRS_AUTO_GB28181
     //free global gb28281 manager
     srs_freep(_srs_gb28181);
+#endif
 }
 
 void SrsServer::dispose()
@@ -984,10 +989,11 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
-
+#ifdef SRS_AUTO_GB28181
     if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
+#endif
     
     // test the request info.
     if ((err = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != srs_success) {
@@ -1342,6 +1348,7 @@ srs_error_t SrsServer::listen_http_stream()
     return err;
 }
 
+#ifdef SRS_AUTO_GB28181
 srs_error_t SrsServer::listen_gb28281_sip(SrsConfDirective* stream_caster)
 { 
     srs_error_t err = srs_success;
@@ -1365,6 +1372,7 @@ srs_error_t SrsServer::listen_gb28281_sip(SrsConfDirective* stream_caster)
 
     return err;
 }
+#endif
 
 srs_error_t SrsServer::listen_stream_caster()
 {
@@ -1391,6 +1399,7 @@ srs_error_t SrsServer::listen_stream_caster()
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else if (srs_stream_caster_is_gb28181(caster)) {
+#ifdef SRS_AUTO_GB28181
             //init global gb28281 manger
             if (_srs_gb28181 == NULL){
                 _srs_gb28181 = new SrsGb28181Manger(stream_caster);
@@ -1408,6 +1417,10 @@ srs_error_t SrsServer::listen_stream_caster()
 
             //gb28281 stream listener
             listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
+#else
+            srs_warn("gb28181 is disabled, please enable it by: ./configure --with-gb28181");
+            continue;
+#endif
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());
         }

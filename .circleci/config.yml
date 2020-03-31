@@ -6,15 +6,17 @@ jobs:
     steps:
       - checkout
       - run: |
-          cd trunk && ./configure --without-rtc --without-utest && make &&
-          ./configure --with-rtc --with-utest && make clean && make
+          cd trunk &&
+          ./configure --without-rtc --without-gb28181 --without-utest && make &&
+          ./configure --with-rtc --with-gb28181 --with-utest && make clean && make
   test:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
       - run: |
-          cd trunk && ./configure --with-utest --gcov && make &&
+          cd trunk &&
+          ./configure --with-rtc --with-gb28181 --with-utest --gcov && make &&
           ./objs/srs_utest && bash auto/coverage.sh
 workflows:
   version: 2

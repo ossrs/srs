@@ -136,6 +136,7 @@ For previous versions, please read:
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
@@ -157,6 +158,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-03-31, For [#1500][bug #1500], support push stream by GB28181. 4.0.18
 * v4.0, 2020-03-31, Play stream by WebRTC on iOS/Android/PC browser. 4.0.17
 * v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
 * v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.
@@ -1154,6 +1156,7 @@ Maintainers of SRS project:
 * [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
 * [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
 * [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
 
 A big THANK YOU goes to:
 

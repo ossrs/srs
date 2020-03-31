@@ -1578,6 +1578,8 @@ srs_error_t SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return srs_api_response_code(w, r, 100);
 }
 
+#ifdef SRS_AUTO_GB28181
+
 SrsGoApiGb28181::SrsGoApiGb28181()
 {
 }
@@ -1703,8 +1705,10 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     }
 }
 
+#endif
+
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
-: SrsConnection(cm, fd, cip)
+    : SrsConnection(cm, fd, cip)
 {
     mux = m;
     cors = new SrsHttpCorsMux();
