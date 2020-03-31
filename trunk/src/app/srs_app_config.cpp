@@ -2160,6 +2160,10 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "print_sip_message") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "invite_port_fixed") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "auto_play") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 }
 
             }
@@ -3675,11 +3679,23 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->name;
             if (n != "enabled" && n != "caster" && n != "output"
                 && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
-                && n != "rtp_idle_timeout" && n != "ack_timeout" && n != "keepalive_timeout"
-                && n != "host" && n != "serial" && n != "realm" 
+                && n != "rtp_idle_timeout" && n != "sip"
                 && n != "audio_enable" && n != "wait_keyframe"
-                && n != "print_sip_message") {
+                && n != "host") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
+            }
+
+            if (n == "sip") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+                    if (m != "enabled"  && m != "listen"
+                        && m != "ack_timeout" && m != "keepalive_timeout"
+                        && m != "host" && m != "serial" && m != "realm"
+                        && m != "print_sip_message" && m != "auto_play"
+                        && m != "invite_port_fixed") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", m.c_str());
+                    }
+                }
             }
         }
     }
@@ -4294,7 +4310,7 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     return ::atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_stream_caster_gb28181_rtp_ide_timeout(SrsConfDirective* conf)
+int SrsConfig::get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf)
 {
     static int DEFAULT = 30;
     
@@ -4302,7 +4318,7 @@ int SrsConfig::get_stream_caster_gb28181_rtp_ide_timeout(SrsConfDirective* conf)
         return DEFAULT;
     }
     
-    conf = conf->get("rtp_ide_timeout");
+    conf = conf->get("rtp_idle_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -4314,6 +4330,11 @@ int SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
 {
     static int DEFAULT = 30;
     
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
     if (!conf) {
         return DEFAULT;
     }
@@ -4333,6 +4354,11 @@ int SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* con
     if (!conf) {
         return DEFAULT;
     }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
     
     conf = conf->get("keepalive_timeout");
     if (!conf || conf->arg0().empty()) {
@@ -4344,12 +4370,12 @@ int SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* con
 
 string SrsConfig::get_stream_caster_gb28181_host(SrsConfDirective* conf)
 {
-    static string DEFAULT = "127.0.0.1";
+    static string DEFAULT = "";
     
     if (!conf) {
         return DEFAULT;
     }
-    
+  
     conf = conf->get("host");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
@@ -4362,6 +4388,11 @@ string SrsConfig::get_stream_caster_gb28181_serial(SrsConfDirective* conf)
 {
     static string DEFAULT = "";
     
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
     if (!conf) {
         return DEFAULT;
     }
@@ -4378,6 +4409,11 @@ string SrsConfig::get_stream_caster_gb28181_realm(SrsConfDirective* conf)
 {
     static string DEFAULT = "";
     
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
     if (!conf) {
         return DEFAULT;
     }
@@ -4413,6 +4449,11 @@ bool SrsConfig::get_stream_caster_gb28181_print_sip_message(SrsConfDirective* co
     if (!conf) {
         return DEFAULT;
     }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
     
     conf = conf->get("print_sip_message");
     if (!conf || conf->arg0().empty()) {
@@ -4437,6 +4478,95 @@ bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
+
+bool SrsConfig::get_stream_caster_gb28181_sip_enable(SrsConfDirective* conf)
+{
+    static bool DEFAULT = false;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+
+}
+
+bool SrsConfig::get_stream_caster_gb28181_sip_auto_play(SrsConfDirective* conf)
+{
+    static bool DEFAULT = false;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("auto_play");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+
+}
+
+int SrsConfig::get_stream_caster_gb28181_sip_listen(SrsConfDirective* conf)
+{
+    static int DEFAULT = 0;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+
+}
+
+bool SrsConfig::get_stream_caster_gb28181_sip_invite_port_fixed(SrsConfDirective* conf)
+{
+    static bool DEFAULT = true;
+    
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+ 
+    conf = conf->get("invite_port_fixed");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+
+}
+
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
