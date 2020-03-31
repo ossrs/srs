@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2020 Lixin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -749,7 +749,7 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
         }
         
         srs_utime_t now = srs_get_system_time();
-        srs_utime_t duration = (now - recv_stream_time) / (1000*1000);
+        srs_utime_t duration = now - recv_stream_time;
         
         SrsGb28181Config config = gb28181_manger->get_gb28181_config();
         if (duration > config.rtp_idle_timeout){

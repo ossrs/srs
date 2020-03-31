@@ -500,7 +500,7 @@ public:
     // Get the max udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_max(SrsConfDirective* conf);
     
-    virtual int get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf);
+    virtual srs_utime_t get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf);
     virtual int get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf);
     virtual int get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf);
@@ -513,7 +513,6 @@ public:
     virtual bool get_stream_caster_gb28181_sip_auto_play(SrsConfDirective* conf);
     virtual int get_stream_caster_gb28181_sip_listen(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_sip_invite_port_fixed(SrsConfDirective* conf);
-
 
 // vhost specified section
 public:

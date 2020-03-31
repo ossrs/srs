@@ -4310,9 +4310,9 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)
     return ::atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf)
+srs_utime_t SrsConfig::get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf)
 {
-    static int DEFAULT = 30;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
     
     if (!conf) {
         return DEFAULT;
@@ -4323,7 +4323,7 @@ int SrsConfig::get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirective* conf
         return DEFAULT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
@@ -4349,7 +4349,7 @@ int SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
 
 int SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf)
 {
-    static int DEFAULT = 30;
+    static int DEFAULT = 120;
     
     if (!conf) {
         return DEFAULT;
@@ -4386,7 +4386,7 @@ string SrsConfig::get_stream_caster_gb28181_host(SrsConfDirective* conf)
 
 string SrsConfig::get_stream_caster_gb28181_serial(SrsConfDirective* conf)
 {
-    static string DEFAULT = "";
+    static string DEFAULT = "34020000002000000001";
     
     if (!conf) {
         return DEFAULT;
@@ -4407,7 +4407,7 @@ string SrsConfig::get_stream_caster_gb28181_serial(SrsConfDirective* conf)
 
 string SrsConfig::get_stream_caster_gb28181_realm(SrsConfDirective* conf)
 {
-    static string DEFAULT = "";
+    static string DEFAULT = "3402000000";
     
     if (!conf) {
         return DEFAULT;
@@ -4428,7 +4428,7 @@ string SrsConfig::get_stream_caster_gb28181_realm(SrsConfDirective* conf)
 
 bool SrsConfig::get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf)
 {
-    static bool DEFAULT = true;
+    static bool DEFAULT = false;
     
     if (!conf) {
         return DEFAULT;
@@ -4481,7 +4481,7 @@ bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
 
 bool SrsConfig::get_stream_caster_gb28181_sip_enable(SrsConfDirective* conf)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
     
     if (!conf) {
         return DEFAULT;
@@ -4503,7 +4503,7 @@ bool SrsConfig::get_stream_caster_gb28181_sip_enable(SrsConfDirective* conf)
 
 bool SrsConfig::get_stream_caster_gb28181_sip_auto_play(SrsConfDirective* conf)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
     
     if (!conf) {
         return DEFAULT;
@@ -4525,7 +4525,7 @@ bool SrsConfig::get_stream_caster_gb28181_sip_auto_play(SrsConfDirective* conf)
 
 int SrsConfig::get_stream_caster_gb28181_sip_listen(SrsConfDirective* conf)
 {
-    static int DEFAULT = 0;
+    static int DEFAULT = 5060;
     
     if (!conf) {
         return DEFAULT;
