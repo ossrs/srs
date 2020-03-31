@@ -5,13 +5,13 @@ jobs:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure && make
+      - run: cd trunk && ./configure --with-utest && make
   test:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure --gcov && make && ./objs/srs_utest && bash auto/coverage.sh
+      - run: cd trunk && ./configure --with-utest --gcov && make && ./objs/srs_utest && bash auto/coverage.sh
 workflows:
   version: 2
   build_and_test:

@@ -16,12 +16,9 @@ mkdir -p ${SRS_OBJS}/utest
 # the prefix to generate the objs/utest/Makefile
 # dirs relative to current dir(objs/utest), it's trunk/objs/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
-SRS_TRUNK_PREFIX=../..
+SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
 GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
-
-# the extra defines to compile utest.
-EXTRA_DEFINES=""
 
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS_DIR}/utest dir

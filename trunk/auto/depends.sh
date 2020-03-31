@@ -109,6 +109,7 @@ function Ubuntu_prepare()
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
 fi
+
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
@@ -182,14 +183,105 @@ function Centos_prepare()
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
 fi
+
+#####################################################################################
+# For OSX, auto install tools by brew
+#####################################################################################
+OS_IS_OSX=NO
+function OSX_prepare()
+{
+    uname -s|grep Darwin >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        if [ $SRS_OSX = YES ]; then
+            echo "OSX check failed, actual is `uname -s`"
+            exit 1;
+        fi
+        return 0;
+    fi
+
+    # cross build for arm, install the cross build tool chain.
+    if [ $SRS_CROSS_BUILD = YES ]; then
+        echo "embeded(arm/mips) is invalid for OSX"
+        return 1
+    fi
+
+    OS_IS_OSX=YES
+    echo "OSX detected, install tools if needed"
+    # requires the osx when os
+    if [ $OS_IS_OSX = YES ]; then
+        if [ $SRS_OSX = NO ]; then
+            echo "OSX detected, must specifies the --osx"
+            exit 1
+        fi
+    fi
+
+    brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install brew"
+        echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
+        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install brew success"
+    fi
+
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc"
+        echo "brew install gcc"
+        brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc success"
+    fi
+
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc-c++"
+        echo "brew install gcc-c++"
+        brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc-c++ success"
+    fi
+
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install make"
+        echo "brew install make"
+        brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install make success"
+    fi
+
+    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install patch"
+        echo "brew install patch"
+        brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install patch success"
+    fi
+
+    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install unzip"
+        echo "brew install unzip"
+        brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install unzip success"
+    fi
+
+    echo "OSX install tools success"
+    return 0
+}
+# donot prepare tools, for srs-librtmp depends only gcc and g++.
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
+fi
+
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
 # We must use a bash function instead of variable.
 function sed_utility() {
-    sed -i "$@"
+    if [ $OS_IS_OSX = YES ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+
     ret=$?; if [[ $ret -ne 0 ]]; then
-        echo "sed -i \"$@\""
+        if [ $OS_IS_OSX = YES ]; then
+            echo "sed -i '' \"$@\""
+        else
+            echo "sed -i \"$@\""
+        fi
         return $ret
     fi
 }
@@ -204,7 +296,7 @@ SED="sed_utility" && echo "SED is $SED"
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
         echo "Your OS `uname -s` is not supported."
         exit 1
@@ -216,29 +308,48 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
+    fi
+    # for osx, use darwin for st, donot use epoll.
+    if [[ $SRS_OSX == YES ]]; then
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
     fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
       _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [[ -f ${SRS_OBJS}/st/libst.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
         echo "The state-threads is ok.";
     else
         echo "Building state-threads.";
         (
-            rm -rf ${SRS_OBJS}/st-srs && cd ${SRS_OBJS} &&
-            ln -sf ../3rdparty/st-srs && cd st-srs &&
-            make clean && make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
-                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
-            cd .. && rm -f st && ln -sf st-srs/obj st
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
+            # Create a hidden directory .src
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
+            # Link source files under .src
+            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                ln -sf .src/$file $file;
+            done &&
+            # Link source files under .src/xxx, the first child dir.
+            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
+                mkdir -p $dir &&
+                for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                    ln -sf ../.src/$dir/$file $dir/$file;
+                done;
+            done &&
+            # Build source code.
+            make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
+                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+            cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
     if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 fi
 
@@ -291,19 +402,19 @@ fi
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
         echo "Installing CherryPy-3.2.4";
         (
-            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} &&
-            unzip -q ../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 && 
+            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
             python setup.py install --user
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+    if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 
     echo "Link players to cherrypy static-dir"
     rm -rf research/api-server/static-dir/players &&
@@ -336,21 +447,26 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     else
         # If not crossbuild, try to use exists libraries.
-        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-            (mkdir -p  ${SRS_OBJS}/openssl/lib && cd ${SRS_OBJS}/openssl/lib &&
+        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
-            (mkdir -p ${SRS_OBJS}/openssl/include && cd ${SRS_OBJS}/openssl/include &&
+            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/include/openssl)
         fi
     fi
+    # Which lib we use.
+    OPENSSL_LIB="openssl-1.1.0e/_release"
+    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
+        OPENSSL_LIB="openssl"
+    fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         echo "Openssl-1.1.0e is ok.";
     else
         echo "Building openssl-1.1.0e.";
         (
-            rm -rf ${SRS_OBJS}/openssl-1.1.0e && cd ${SRS_OBJS} &&
-            unzip -q ../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1.0e && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
             ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
             make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
@@ -358,6 +474,8 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
     if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
 fi
 
@@ -365,24 +483,19 @@ fi
 # live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
 # Always link the ffmpeg tools if exists.
-if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
-    mkdir -p ${SRS_OBJS}/ffmpeg/bin && ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/ffmpeg/bin/ffmpeg
+if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
+    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin &&
+    ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg
 fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
-    if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "build ffmpeg-4.1"; 
-        (
-            cd ${SRS_OBJS} && pwd_dir=`pwd` && 
-            rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
-            rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
-            cd ${pwd_dir} && rm -rf ffmpeg && ln -sf ffmpeg.src/_release ffmpeg
-        )
+        echo "no ffmpeg found, please use srs-docker or --without-ffmpeg";
+        exit -1;
     fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-4.1 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-4.1 failed."; exit -1; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
 fi
 
 #####################################################################################
@@ -430,18 +543,20 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    if [[ -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest/include/gtest/gtest.h ]]; then
         echo "The gtest-1.6.0 is ok.";
     else
         echo "Build gtest-1.6.0";
         (
-            rm -rf ${SRS_OBJS}/gtest-1.6.0 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/gtest-1.6.0.zip &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/gtest-1.6.0.zip &&
             rm -rf gtest && ln -sf gtest-1.6.0 gtest
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
     if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
 fi
 
@@ -449,13 +564,13 @@ fi
 # build gperf code
 #####################################################################################
 if [ $SRS_GPERF = YES ]; then
-    if [[ -f ${SRS_OBJS}/gperf/bin/pprof ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gperf/bin/pprof ]]; then
         echo "The gperftools-2.1 is ok.";
     else
         echo "Build gperftools-2.1";
         (
-            rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
             ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
             cd .. && rm -rf gperf && ln -sf gperftools-2.1/_release gperf &&
             rm -rf pprof && ln -sf gperf/bin/pprof pprof
@@ -463,10 +578,7 @@ if [ $SRS_GPERF = YES ]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf pprof && ln -sf ${SRS_PLATFORM}/gperf/bin/pprof pprof)
     if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "Build gperftools-2.1 failed."; exit -1; fi
 fi
-
-#####################################################################################
-# generated the test script
-#####################################################################################
-rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test

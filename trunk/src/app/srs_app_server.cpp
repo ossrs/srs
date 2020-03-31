@@ -30,7 +30,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
+#ifndef SRS_AUTO_OSX
 #include <sys/inotify.h>
+#endif
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -509,6 +511,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
+#ifndef SRS_AUTO_OSX
     // Whether enable auto reload config.
     bool auto_reload = _srs_config->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
@@ -579,6 +582,7 @@ srs_error_t SrsInotifyWorker::start()
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "inotify");
     }
+#endif
 
     return err;
 }
@@ -587,6 +591,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
+#ifndef SRS_AUTO_OSX
     string config_path = _srs_config->config();
     string config_file = srs_path_basename(config_path);
     string k8s_file = "..data";
@@ -626,6 +631,7 @@ srs_error_t SrsInotifyWorker::cycle()
 
         srs_usleep(3000 * SRS_UTIME_MILLISECONDS);
     }
+#endif
 
     return err;
 }
@@ -792,7 +798,7 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
 srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
-    
+
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.

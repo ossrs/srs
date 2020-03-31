@@ -16,6 +16,7 @@ PI=NO
 MIPS=NO
 #
 EMBEDED=NO
+JOBS=1
 
 ##################################################################################
 ##################################################################################
@@ -39,6 +40,7 @@ do
         --mips)                         MIPS=YES                  ;;
         --arm)                          ARM=YES                   ;;
         --pi)                           PI=YES                    ;;
+        --jobs)                         JOBS=$value               ;;
 
         *)
             echo "$0: error: invalid option \"$option\", @see $0 --help"
@@ -56,6 +58,7 @@ if [ $help = yes ]; then
   --mips                   for mips cross-build platform, configure/make/package.
   --pi                     for pi platform, configure/make/package.
   --x86-64                 alias for --x86-x64.
+  --jobs                   Set the configure and make jobs.
 END
     exit 0
 fi
@@ -113,26 +116,26 @@ ok_msg "real os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
 # @see https://github.com/ossrs/srs/wiki/v1_CN_Build
-ok_msg "start build srs"
+ok_msg "start build srs, ARM: $ARM, MIPS: $MIPS, PI: $PI, X86_64: $X86_X64, JOBS: $JOBS"
 if [ $ARM = YES ]; then
     (
         cd $work_dir && 
-        ./configure --arm --prefix=$INSTALL && make
+        ./configure --arm --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
     ) >> $log 2>&1
 elif [ $MIPS = YES ]; then
     (
         cd $work_dir && 
-        ./configure --mips --prefix=$INSTALL && make
+        ./configure --mips --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
     ) >> $log 2>&1
 elif [ $PI = YES ]; then
     (
         cd $work_dir && 
-        ./configure --pi --prefix=$INSTALL && make
+        ./configure --pi --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
     ) >> $log 2>&1
 elif [ $X86_X64 = YES ]; then
     (
         cd $work_dir && 
-        ./configure --x86-x64 --prefix=$INSTALL && make
+        ./configure --x86-x64 --jobs=$JOBS --prefix=$INSTALL --build-tag=${os_name}${os_major_version} && make
     ) >> $log 2>&1
 else
     failed_msg "invalid option, must be --x86-x64/--arm/--mips/--pi, see --help"; exit 1;
