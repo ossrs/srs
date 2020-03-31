@@ -99,7 +99,6 @@ std::string srs_sip_get_param(std::string msg, std::string param)
 {
     std::vector<std::string>  vec_params = srs_string_split(msg, ";");
 
-    size_t min_pos = string::npos;
     for (vector<string>::iterator it = vec_params.begin(); it != vec_params.end(); ++it) {
         string  value = *it;
         

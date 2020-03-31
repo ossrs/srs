@@ -221,8 +221,6 @@ private:
     std::string _rtmp_url;
     std::string video_ssrc;
     std::string audio_ssrc;
-    int audio_sample_rate;
-    int audio_channel;
 
     SrsGb28181Manger* gb28181_manger;
     SrsCoroutine* trd;

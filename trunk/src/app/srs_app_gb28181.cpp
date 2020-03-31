@@ -231,7 +231,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         
         //get previous timestamp by ssrc
         uint32_t pre_timestamp = pre_packet[pre_pkt_key]->timestamp;
-        uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
+        //uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
 
         //TODO:  check sequence number out of order
         //it may be out of order, or multiple streaming ssrc are the same
@@ -1403,8 +1403,6 @@ srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
 
 void SrsGb28181Manger::stop_rtp_listen(std::string id)
 {
-    srs_error_t err = srs_success;
-  
     map<std::string, SrsGb28181RtmpMuxer*>::iterator it = rtmpmuxers.find(id);
     if (it == rtmpmuxers.end()){
        return; 
