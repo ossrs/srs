@@ -18,6 +18,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=YES
+SRS_GB28181=NO
 SRS_NASM=YES
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
@@ -136,16 +137,18 @@ Features:
   --with-utest              Build the utest for SRS.
   --with-srt                Build the SRT support for SRS.
   --with-rtc                Build the WebRTC support for SRS.
+  --with-gb28181            Build the GB28181 support for SRS.
 
   --without-ssl             Disable rtmp complex handshake.
   --without-hds             Disable hds, the adobe http dynamic streaming.
   --without-stream-caster   Disable stream caster, only listen and serve RTMP/HTTP.
   --without-stat            Disable the data statistic feature.
   --without-librtmp         Disable srs-librtmp, library for client.
-  --without-research        Do not build the research tools.
-  --without-utest           Do not build the utest for SRS.
-  --without-srt             Do not build the SRT support for SRS.
-  --without-rtc             Do not build the WebRTC support for SRS.
+  --without-research        Disable the research tools.
+  --without-utest           Disable the utest for SRS.
+  --without-srt             Disable the SRT support for SRS.
+  --without-rtc             Disable the WebRTC support for SRS.
+  --without-gb28181         Disable the GB28181 support for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
@@ -231,6 +234,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-srt)                     SRS_SRT=YES                 ;;
         --with-rtc)                     SRS_RTC=YES                 ;;
+        --with-gb28181)                 SRS_GB28181=YES             ;;
         --with-nasm)                    SRS_NASM=YES                ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
@@ -249,6 +253,7 @@ function parse_user_option() {
         --without-utest)                SRS_UTEST=NO                ;;
         --without-srt)                  SRS_SRT=NO                  ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
+        --without-gb28181)              SRS_GB28181=NO              ;;
         --without-nasm)                 SRS_NASM=NO                 ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
@@ -550,6 +555,7 @@ function regenerate_options() {
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
     if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
+    if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
     if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi

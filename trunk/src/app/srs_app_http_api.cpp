@@ -976,8 +976,6 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
     local_sdp.group_policy_ = "BUNDLE";
 
-    int mid = 0;
-
     for (int i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
 
@@ -1580,8 +1578,137 @@ srs_error_t SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return srs_api_response_code(w, r, 100);
 }
 
+#ifdef SRS_AUTO_GB28181
+
+SrsGoApiGb28181::SrsGoApiGb28181()
+{
+}
+
+SrsGoApiGb28181::~SrsGoApiGb28181()
+{
+}
+
+srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+    
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    SrsJsonObject* data = SrsJsonAny::object();
+    obj->set("data", data);
+    
+    string id = r->query_get("id");
+    string action = r->query_get("action");
+    string vhost = r->query_get("vhost");
+    string app = r->query_get("app");
+    string stream = r->query_get("stream");
+    //fixed, random
+    string port_mode = r->query_get("port_mode");
+   
+    if (_srs_gb28181) {
+        if(action == "create_channel"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            SrsGb28181StreamChannel channel;
+            channel.set_channel_id(id);
+            channel.set_app(app);
+            channel.set_stream(stream);
+            channel.set_port_mode(port_mode);
+
+            uint32_t code = _srs_gb28181->create_stream_channel(&channel);
+            if (code != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, code);
+            }
+           
+            data->set("query", SrsJsonAny::object()
+              ->set("id", SrsJsonAny::str(channel.get_channel_id().c_str()))
+              ->set("ip", SrsJsonAny::str(channel.get_ip().c_str()))
+              ->set("rtmp_port", SrsJsonAny::integer(channel.get_rtmp_port()))
+              ->set("app", SrsJsonAny::str(channel.get_app().c_str()))
+              ->set("stream", SrsJsonAny::str(channel.get_stream().c_str()))
+              ->set("rtp_port", SrsJsonAny::integer(channel.get_rtp_port()))
+              ->set("ssrc", SrsJsonAny::integer(channel.get_ssrc())));
+            return srs_api_response(w, r, obj->dumps());
+       
+        }
+        else if(action == "delete_channel"){
+           if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            uint32_t code = _srs_gb28181->delete_stream_channel(id);
+            return srs_api_response_code(w, r, code);
+        }
+        else if(action == "query_channel") {
+            SrsJsonArray* arr = SrsJsonAny::array();
+            data->set("channels", arr);
+           
+            uint32_t code = _srs_gb28181->queue_stream_channel(id, arr);
+            if (code != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, code);
+            }
+
+            return srs_api_response(w, r, obj->dumps());
+        }
+        else if(action == "sip_invite"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            string ssrc = r->query_get("ssrc");
+            string rtp_port = r->query_get("rtp_port");
+            string ip = r->query_get("ip");
+
+            int _port = strtoul(rtp_port.c_str(), NULL, 10);
+            uint32_t _ssrc = (uint32_t)(strtoul(ssrc.c_str(), NULL, 10));
+
+           
+
+            int code = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc);
+            return srs_api_response_code(w, r, code);
+        }
+        else if(action == "sip_bye"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            int code = _srs_gb28181->notify_sip_bye(id);
+            return srs_api_response_code(w, r, code);
+        }
+        else if(action == "sip_raw_data"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            std::string body;
+            r->body_read_all(body);
+            int code = _srs_gb28181->notify_sip_raw_data(id, body);
+            return srs_api_response_code(w, r, code);
+        }
+        else if(action == "sip_unregister"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+            
+            int code = _srs_gb28181->notify_sip_unregister(id);
+            return srs_api_response_code(w, r, code);
+        }
+        else
+        {
+            return srs_api_response_code(w, r, ERROR_GB28181_ACTION_INVALID);
+        }
+
+    }else {
+        return srs_api_response_code(w, r, ERROR_GB28181_SERVER_NOT_RUN);
+    }
+}
+
+#endif
+
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
-: SrsConnection(cm, fd, cip)
+    : SrsConnection(cm, fd, cip)
 {
     mux = m;
     cors = new SrsHttpCorsMux();

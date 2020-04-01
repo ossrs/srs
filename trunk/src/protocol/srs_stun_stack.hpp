@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2020 John
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,9 +24,10 @@
 #ifndef SRS_PROTOCOL_STUN_HPP
 #define SRS_PROTOCOL_STUN_HPP
 
+#include <srs_core.hpp>
+
 #include <string>
 
-#include <srs_core.hpp>
 #include <srs_kernel_error.hpp>
 
 class SrsBuffer;
