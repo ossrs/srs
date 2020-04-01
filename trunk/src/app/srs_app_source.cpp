@@ -625,7 +625,8 @@ srs_error_t SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
     // got video, update the video count if acceptable
     if (msg->is_video()) {
         // drop video when not h.264
-        if (!SrsFlvVideo::h264(msg->payload, msg->size)) {
+        if (!SrsFlvVideo::h264(msg->payload, msg->size) &&
+			!SrsFlvVideo::hevc(msg->payload, msg->size)) {
             return err;
         }
         

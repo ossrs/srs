@@ -397,6 +397,35 @@ enum SrsAvcNaluType
     // Coded slice extension slice_layer_extension_rbsp( )
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
+
+enum SrsHEvcNaluType
+{
+    SrsHEvcNaluTypeCODE_SLICE_TRAIL_N = 0, //·Ç¹Ø¼üÖ¡
+	SrsHEvcNaluTypeCODED_SLICE_TRAIL_R,
+	SrsHEvcNaluTypeCODED_SLICE_TSA_N,
+	SrsHEvcNaluTypeCODED_SLICE_TSA_R,
+	SrsHEvcNaluTypeCODED_SLICE_STSA_N,
+	SrsHEvcNaluTypeCODED_SLICE_STSA_R,
+	SrsHEvcNaluTypeCODED_SLICE_RADL_N,
+	SrsHEvcNaluTypeCODED_SLICE_RADL_R,
+	SrsHEvcNaluTypeCODED_SLICE_RASL_N,
+	SrsHEvcNaluTypeCODE_SLICE_RASL_R = 9,
+	SrsHEvcNaluTypeReserved = 15,
+	SrsHEvcNaluTypeCODED_SLICE_BLA_W_LP = 16, // ¹Ø¼üÖ¡
+	SrsHEvcNaluTypeCODE_SLICE_BLA_W_RADL,
+	SrsHEvcNaluTypeCODE_SLICE_BLA_N_LP,
+	SrsHEvcNaluTypeCODE_SLICE_IDR_W_RADL,
+	SrsHEvcNaluTypeCODE_SLICE_IDR_N_LP = 20,
+	SrsHEvcNaluTypeCODE_SLICE_CRA = 21,
+	SrsHEvcNaluTypeVPS = 32,
+	SrsHEvcNaluTypeSPS = 33,
+	SrsHEvcNaluTypePPS = 34,
+	SrsHEvcNaluTypeAccessUnitDelimiter = 35,
+	SrsHEvcNaluTypePrefixSEI = 39,
+	SrsHEvcNaluTypeSuffixSEI = 40,
+	SrsHEvcNaluTypeInvalid = 64,
+};
+
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 /**

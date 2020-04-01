@@ -382,9 +382,8 @@ srs_error_t SrsHlsMuxer::segment_open()
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
             default_vcodec = SrsVideoCodecIdAVC;
-        } else if (default_vcodec_str == "h265") {
+        } else if (default_vcodec_str == "hevc") {
             default_vcodec = SrsVideoCodecIdHEVC;
-            srs_info("hls: use default hevc vcodec");
         } else if (default_vcodec_str == "vn") {
             default_vcodec = SrsVideoCodecIdDisabled;
         } else {

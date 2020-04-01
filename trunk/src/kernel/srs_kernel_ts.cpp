@@ -2995,11 +2995,12 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
 		}
 		else if (frame->vcodec()->id == 12)
 		{
-	        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes[0] & 0x7e);
+	        SrsHEvcNaluType nal_unit_type = (SrsHEvcNaluType)((sample->bytes[0] & 0x7e) >> 1);
 	        
 	        // Insert sps/pps before IDR when there is no sps/pps in samples.
 	        // The sps/pps is parsed from sequence header(generally the first flv packet).
-	        if (nal_unit_type >= 16 && nal_unit_type <= 21 && !frame->has_sps_pps && !is_sps_pps_appended) {
+	        if (nal_unit_type >= SrsHEvcNaluTypeCODED_SLICE_BLA_W_LP &&
+				nal_unit_type <= SrsHEvcNaluTypeCODE_SLICE_CRA && !frame->has_sps_pps && !is_sps_pps_appended) {
 				if (codec->videoParameterSetNALUnit.size() > 0) {
 	                srs_avc_insert_aud(video->payload, aud_inserted);
 	                video->payload->append(
