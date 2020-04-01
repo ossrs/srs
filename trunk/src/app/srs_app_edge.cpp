@@ -690,6 +690,7 @@ void SrsPlayEdge::on_all_client_stop()
     // when all client disconnected,
     // and edge is ingesting origin stream, abort it.
     if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
+        state = SrsEdgeStateIngestStoping; // avoid multi call stop
         ingester->stop();
         
         SrsEdgeState pstate = state;
