@@ -624,7 +624,7 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
     
     // TODO: Support other codecs.
-    if (codec_id != SrsVideoCodecIdAVC) {
+    if (codec_id != SrsVideoCodecIdAVC && codec_id != SrsVideoCodecIdHEVC) {
         return err;
     }
     
@@ -736,8 +736,10 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
 
 srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
 {
+	// refer to https://blog.csdn.net/yihuanyihuan/article/details/88717809
     int hevc_extra_size = stream->size() - stream->pos();
-	srs_trace("hevc extra data size: %d", hevc_extra_size);
+	srs_trace("hevc extra data size: %d, stream pos %d, stream size %d",
+		hevc_extra_size, stream->pos(), stream->size());
 	if (hevc_extra_size > 0) {
         char *copy_stream_from = stream->data() + stream->pos();
         vcodec->avc_extra_data = std::vector<char>(copy_stream_from, copy_stream_from + hevc_extra_size);
@@ -746,18 +748,33 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
     if (!stream->require(6)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode sequence header");
     }
+
+	int chromaFormat, bitDepthLumaMinus8, bitDepthChromaMinus8, avgFrameRate;
+	int nal_type;
+	
     stream->read_1bytes(); // version
     stream->read_1bytes(); // profile 2,1,5
     vcodec->avc_profile = SrsAvcProfileHigh;
     stream->read_4bytes(); // 32
 	stream->read_4bytes(); // 48
 	stream->read_2bytes();
-	stream->read_1bytes(); // level_idc
-	stream->read_2bytes(); // min_spatial_segmentation_idc
-	stream->read_4bytes(); // min_spatial_segmentation_idc - bitDepthChromaMinus8
-    vcodec->avc_level = (SrsAvcLevel)stream->read_1bytes();
-	vcodec->frame_rate = stream->read_2bytes();
-    
+	vcodec->avc_level = (SrsAvcLevel)stream->read_1bytes(); // general_level_idc
+	stream->read_2bytes(); // min_spatial_segmentation_idc (12bit)
+	stream->read_1bytes(); // parallelismType (2bit) & 0x3
+	chromaFormat = stream->read_1bytes(); // chromaFormat (2bit) & 0x3
+	bitDepthLumaMinus8 = stream->read_1bytes(); // bitDepthLumaMinus8 (3bit) & 0x7
+	bitDepthChromaMinus8 = stream->read_1bytes(); // bitDepthChromaMinus8 (3bit) & 0x7
+	avgFrameRate = stream->read_2bytes();
+
+	srs_trace("hevc avgFrameRate: %d", avgFrameRate);
+
+	chromaFormat &= 0x3;
+	bitDepthLumaMinus8 &= 0x7;
+	bitDepthChromaMinus8 &= 0x7;
+	
+	vcodec->frame_rate = avgFrameRate;
+
+	// constantFrameRate(2bit) numTemporalLaters(3) tempporalIdNetsted(1) lengthSizeMinusOne(2)
     // parse the NALU size.
     int8_t lengthSizeMinusOne = stream->read_1bytes();
     lengthSizeMinusOne &= 0x03;
@@ -768,44 +785,55 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
 
-	if (!stream->require(1)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS");
-    }
-
 	int8_t numOfArrays = stream->read_1bytes();
 	srs_trace("hevc numOfArrays: %d", numOfArrays);
 
-	stream->read_1bytes(); // nalu type
-    int8_t numOfVideoParameterSets = stream->read_2bytes();
-    numOfVideoParameterSets &= 0x1f;
-    if (numOfVideoParameterSets != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS");
+
+	// vps
+	if (!stream->require(1)) {
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS");
+	}
+	nal_type = stream->read_1bytes() & 0x3f;
+	if (nal_type != 32) {
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "not vps nal: %d", nal_type);
+	}
+	uint16_t numOfVideoParameterSets = stream->read_2bytes();
+    srs_trace("hevc numOfVideoParameterSets: %d", numOfVideoParameterSets);
+	if (numOfVideoParameterSets != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc NOT support more than 1 vps");
     }
     if (!stream->require(2)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS size");
     }
     uint16_t videoParameterSetLength = stream->read_2bytes();
-    if (!stream->require(videoParameterSetLength)) {
+	srs_trace("hevc videoParameterSetLength: %d, pos %d", videoParameterSetLength, stream->pos());
+	if (!stream->require(videoParameterSetLength)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode VPS data");
     }
     if (videoParameterSetLength > 0) {
+		
         vcodec->videoParameterSetNALUnit.resize(videoParameterSetLength);
         stream->read_bytes(&vcodec->videoParameterSetNALUnit[0], videoParameterSetLength);
     }
-	
+
+	// sps
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
     }
-	stream->read_1bytes(); // nalu type
-    int8_t numOfSequenceParameterSets = stream->read_2bytes();
-    numOfSequenceParameterSets &= 0x1f;
+	nal_type = stream->read_1bytes() & 0x3f;
+	if (nal_type != 33) {
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "not sps nal: %d", nal_type);
+	}
+    uint16_t numOfSequenceParameterSets = stream->read_2bytes();
+	srs_trace("hevc numOfSequenceParameterSets: %d", numOfSequenceParameterSets);
     if (numOfSequenceParameterSets != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc NOT support more than 1 sps");
     }
     if (!stream->require(2)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS size");
     }
     uint16_t sequenceParameterSetLength = stream->read_2bytes();
+	srs_trace("hevc sequenceParameterSetLength: %d, pos %d", sequenceParameterSetLength, stream->pos());
     if (!stream->require(sequenceParameterSetLength)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS data");
     }
@@ -813,20 +841,25 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
         vcodec->sequenceParameterSetNALUnit.resize(sequenceParameterSetLength);
         stream->read_bytes(&vcodec->sequenceParameterSetNALUnit[0], sequenceParameterSetLength);
     }
-    // 1 pps
+	
+    // pps
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
     }
-	stream->read_1bytes(); // nalu type
-    int8_t numOfPictureParameterSets = stream->read_2bytes();
+	nal_type = stream->read_1bytes() & 0x3f;
+	if (nal_type != 34) {
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "not sps nal: %d", nal_type);
+	}
+    uint16_t numOfPictureParameterSets = stream->read_2bytes();
     numOfPictureParameterSets &= 0x1f;
     if (numOfPictureParameterSets != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc NOT support more than 1 pps");
     }
     if (!stream->require(2)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
     }
     uint16_t pictureParameterSetLength = stream->read_2bytes();
+	srs_trace("hevc pictureParameterSetLength: %d, pos %d", pictureParameterSetLength, stream->pos());
     if (!stream->require(pictureParameterSetLength)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS data");
     }
