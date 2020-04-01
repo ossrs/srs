@@ -871,7 +871,7 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
 		return srs_error_new(ERROR_HLS_DECODE_ERROR, "not sps nal: %d", nal_type);
 	}
     uint16_t numOfPictureParameterSets = stream->read_2bytes();
-    numOfPictureParameterSets &= 0x1f;
+    srs_trace("hevc numOfPictureParameterSets: %d", numOfPictureParameterSets);
     if (numOfPictureParameterSets != 1) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc NOT support more than 1 pps");
     }
