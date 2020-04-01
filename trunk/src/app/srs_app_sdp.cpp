@@ -116,7 +116,9 @@ srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const 
     } else if (attribute == "setup") {
         // @see: https://tools.ietf.org/html/rfc4145#section-4
         setup_ = value;
-    } 
+    } else {
+        srs_trace("ignore attribute=%s, value=%s", attribute.c_str(), value.c_str());
+    }
 
     return err;
 }
@@ -132,6 +134,10 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
     }
     if (! ice_options_.empty()) {
         os << "a=ice-options:" << ice_options_ << kCRLF;
+    } else {
+		// @see: https://webrtcglossary.com/trickle-ice/
+        // Trickle ICE is an optimization of the ICE specification for NAT traversal.
+        os << "a=ice-options:trickle" << kCRLF;
     }
     if (! fingerprint_algo_.empty() && ! fingerprint_.empty()) {
         os << "a=fingerprint:" << fingerprint_algo_ << " " << fingerprint_ << kCRLF;
@@ -325,6 +331,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << "a=rtcp-mux" << kCRLF;
     }
 
+    if (rtcp_rsize_) {
+        os << "a=rtcp-rsize" << kCRLF;
+    }
+
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         if ((err = iter->encode(os)) != srs_success) {
             return srs_error_wrap(err, "encode media payload failed");
@@ -366,6 +376,8 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
         return 0;
     } else if (attribute == "rtpmap") {
         return parse_attr_rtpmap(value);
+    } else if (attribute == "rtcp") {
+        return parse_attr_rtcp(value);
     } else if (attribute == "rtcp-fb") {
         return parse_attr_rtcp_fb(value);
     } else if (attribute == "fmtp") {
@@ -380,6 +392,8 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
         return parse_attr_ssrc_group(value);
     } else if (attribute == "rtcp-mux") {
         rtcp_mux_ = true;
+    } else if (attribute == "rtcp-rsize") {
+        rtcp_rsize_ = true;
     } else if (attribute == "recvonly") {
         recvonly_ = true;
     } else if (attribute == "sendonly") {
@@ -425,6 +439,15 @@ srs_error_t SrsMediaDesc::parse_attr_rtpmap(const std::string& value)
     if (vec.size() == 3) {
         payload->encoding_param_ = vec[2];
     }
+
+    return err;
+}
+
+srs_error_t SrsMediaDesc::parse_attr_rtcp(const std::string& value)
+{
+    srs_error_t err = srs_success;
+
+    // TODO:parse rtcp attribute
 
     return err;
 }
@@ -633,7 +656,7 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     os << "o=" << username_ << " " << session_id_ << " " << session_version_ << " " << nettype_ << " " << addrtype_ << " " << unicast_address_ << kCRLF;
     os << "s=" << session_name_ << kCRLF;
     os << "t=" << start_time_ << " " << end_time_ << kCRLF;
-    // TODO: ice options
+    // @see: ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
     os << "a=ice-lite" << kCRLF;
 
     if (! groups_.empty()) {
@@ -656,7 +679,7 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         if ((err = (*iter).encode(os)) != srs_success) {
-            return srs_error_wrap(err, "encode media failed");
+            return srs_error_wrap(err, "encode media description failed");
         }
     }
 

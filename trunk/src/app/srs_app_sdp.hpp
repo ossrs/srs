@@ -121,6 +121,7 @@ public:
 private:
     srs_error_t parse_attribute(const std::string& content);
     srs_error_t parse_attr_rtpmap(const std::string& value);
+    srs_error_t parse_attr_rtcp(const std::string& value);
     srs_error_t parse_attr_rtcp_fb(const std::string& value);
     srs_error_t parse_attr_fmtp(const std::string& value);
     srs_error_t parse_attr_mid(const std::string& value);
@@ -136,6 +137,7 @@ public:
     int port_;
 
     bool rtcp_mux_;
+    bool rtcp_rsize_;
 
     bool sendonly_;
     bool recvonly_;

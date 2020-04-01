@@ -911,7 +911,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     string local_sdp_str = os.str();
 
-    srs_trace("local_sdp=%s", local_sdp_str.c_str());
+    srs_verbose("local_sdp=%s", local_sdp_str.c_str());
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
@@ -1036,8 +1036,6 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             local_media_desc.session_info_.setup_ = "passive";
         }
 
-        local_sdp.media_descs_.back().session_info_.ice_options_ = "trickle";
-    
         if (remote_media_desc.sendonly_) {
             local_media_desc.recvonly_ = true;
         } else if (remote_media_desc.recvonly_) {
@@ -1047,9 +1045,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
         }
 
         local_media_desc.rtcp_mux_ = true;
+        local_media_desc.rtcp_rsize_ = true;
 
         SrsSSRCInfo ssrc_info;
         ssrc_info.ssrc_ = ++ssrc_num;
+        // TODO:use formated cname
         ssrc_info.cname_ = "test_sdp_cname";
         local_media_desc.ssrc_infos_.push_back(ssrc_info);
     }
