@@ -72,7 +72,7 @@ srs_error_t parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_par
 {
     srs_error_t err = srs_success;
     std::vector<std::string> vec = split_str(fmtp, ";");
-    for (int i = 0; i < vec.size(); ++i) {
+    for (size_t i = 0; i < vec.size(); ++i) {
         std::vector<std::string> kv = split_str(vec[i], "=");
         if (kv.size() == 2) {
             if (kv[0] == "profile-level-id") {

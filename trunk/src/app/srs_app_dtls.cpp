@@ -103,7 +103,7 @@ void SrsDtls::init()
     BN_free(exponent);
     X509_NAME_free(subject);
 
-    dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+    dtls_ctx = SSL_CTX_new(DTLS_method());
 	srs_assert(SSL_CTX_use_certificate(dtls_ctx, dtls_cert) == 1);
 
     srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, dtls_private_key) == 1);

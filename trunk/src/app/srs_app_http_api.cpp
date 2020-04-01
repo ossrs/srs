@@ -976,7 +976,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
     local_sdp.group_policy_ = "BUNDLE";
 
-    for (int i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
 
         if (remote_media_desc.is_audio()) {

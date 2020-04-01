@@ -926,7 +926,7 @@ srs_error_t SrsRtcSession::start_play(SrsUdpMuxSocket* udp_mux_skt)
     uint32_t audio_ssrc = 0;
     uint16_t video_payload_type = 0;
     uint16_t audio_payload_type = 0;
-    for (int i = 0; i < local_sdp.media_descs_.size(); ++i) {
+    for (size_t i = 0; i < local_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& media_desc = local_sdp.media_descs_[i];
         if (media_desc.is_audio()) {
             audio_ssrc = media_desc.ssrc_infos_[0].ssrc_;
