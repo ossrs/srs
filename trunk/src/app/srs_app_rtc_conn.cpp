@@ -763,7 +763,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
     }
 
     uint16_t mask = 0x01;
-    for (int i = 0; i < 16 && blp; ++i, mask <<= 1) {
+    for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {
         if (! (blp & mask)) {
             continue;
         }
