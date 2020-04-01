@@ -2246,7 +2246,7 @@ srs_error_t SrsSource::on_video(SrsCommonMessage* shared_video)
             b0 = shared_video->payload[0];
         }
         
-        srs_warn("drop unknown header video(avc), size=%d, bytes[0]=%#x", shared_video->size, b0);
+        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
         return err;
     }
     
