@@ -2922,7 +2922,7 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
     bool aud_inserted = false;
     
     // Insert a default AUD NALU when no AUD in samples.
-    if (!frame->has_aud) {
+    if (!frame->has_aud && frame->vcodec()->id == SrsVideoCodecIdAVC/*hevc NOT add AUD NALU*/) {
         // the aud(access unit delimiter) before each frame.
         // 7.3.2.4 Access unit delimiter RBSP syntax
         // ISO_IEC_14496-10-AVC-2012.pdf, page 66.

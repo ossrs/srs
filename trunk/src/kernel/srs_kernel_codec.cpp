@@ -512,21 +512,41 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     if ((err = SrsFrame::add_sample(bytes, size)) != srs_success) {
         return srs_error_wrap(err, "add frame");
     }
-    
-    // for video, parse the nalu type, set the IDR flag.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
-    
-    if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        has_idr = true;
-    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
-        has_sps_pps = true;
-    } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
-        has_aud = true;
-    }
-    
-    if (first_nalu_type == SrsAvcNaluTypeReserved) {
-        first_nalu_type = nal_unit_type;
-    }
+
+	if (vcodec()->id == SrsVideoCodecIdAVC) {
+		// for video, parse the nalu type, set the IDR flag.
+	    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+	    
+	    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+	        has_idr = true;
+	    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
+	        has_sps_pps = true;
+	    } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+	        has_aud = true;
+	    }
+	    
+	    if (first_nalu_type == SrsAvcNaluTypeReserved) {
+	        first_nalu_type = nal_unit_type;
+	    }
+	}
+    else if (vcodec()->id == SrsVideoCodecIdHEVC) {
+		// for video, parse the nalu type, set the IDR flag.
+	    SrsHEvcNaluType nal_unit_type = (SrsHEvcNaluType)((bytes[0] & 0x7e) >> 1);
+	    
+	    if (nal_unit_type >= SrsHEvcNaluTypeCODED_SLICE_BLA_W_LP || 
+			nal_unit_type <= SrsHEvcNaluTypeCODE_SLICE_CRA) {
+	        has_idr = true;
+	    } else if (nal_unit_type == SrsHEvcNaluTypeVPS ||
+	    	nal_unit_type == SrsHEvcNaluTypeSPS ||nal_unit_type == SrsHEvcNaluTypePPS) {
+	        has_sps_pps = true;
+	    } else if (nal_unit_type == SrsHEvcNaluTypeAccessUnitDelimiter) {
+	        has_aud = true;
+	    }
+	    
+	    if (first_nalu_type == SrsAvcNaluTypeReserved) {
+	        first_nalu_type = (SrsAvcNaluType)nal_unit_type;
+	    }
+	}
     
     return err;
 }
