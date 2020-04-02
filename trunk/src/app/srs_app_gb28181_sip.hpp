@@ -69,7 +69,7 @@ private:
     std::string _peer_ip;
     int _peer_port;
 
-    sockaddr *_from;
+    sockaddr  _from;
     int _fromlen;
     SrsSipRequest *req;
 
@@ -84,9 +84,10 @@ public:
     void set_reg_expires(int e) { _reg_expires = e;}
     void set_peer_ip(std::string i) { _peer_ip = i;}
     void set_peer_port(int o) { _peer_port = o;}
-    void set_sockaddr(sockaddr *f) { _from = f;}
+    void set_sockaddr(sockaddr  f) { _from = f;}
     void set_sockaddr_len(int l) { _fromlen = l;}
     void set_request(SrsSipRequest *r) { req->copy(r);}
+
 
     SrsGb28181SipSessionStatusType register_status() { return _register_status;}
     SrsGb28181SipSessionStatusType alive_status() { return  _alive_status;}
@@ -98,7 +99,7 @@ public:
     int reg_expires() { return _reg_expires;}
     std::string peer_ip() { return _peer_ip;}
     int peer_port() { return _peer_port;}
-    sockaddr* sockaddr_from() { return _from;}
+    sockaddr  sockaddr_from() { return _from;}
     int sockaddr_fromlen() { return _fromlen;}
     SrsSipRequest request() { return *req;}
 

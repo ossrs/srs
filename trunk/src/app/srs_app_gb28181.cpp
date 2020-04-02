@@ -261,8 +261,9 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         }
 
         if (pprint->can_print()) {
-            srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " gb28181: client_id %s, ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
-                        channel_id.c_str(), nb_buf, pprint->age(), pkt.version, pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
+            srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " gb28181: client_id %s, peer(ip=%s, port=%d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
+                        channel_id.c_str(),  address_string, peer_port, nb_buf, pprint->age(), pkt.version, 
+                        pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
                         pkt.payload->length()
                         );
         }
@@ -615,14 +616,15 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     ps_demixer = new SrsPsStreamDemixer(this, id, a, k);
     wait_ps_queue = srs_cond_new();
 
-    h264_sps_changed = false;
-    h264_pps_changed = false;
-    h264_sps_pps_sent = false;
-
     stream_idle_timeout = -1;
     recv_stream_time = 0;
 
     _rtmp_url = "";
+
+    h264_sps = "";
+    h264_pps = "";
+    aac_specific_config = "";
+
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
@@ -761,7 +763,8 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
         //other port data will be received again
         if (duration > (2 * SRS_UTIME_SECONDS) && channel->get_rtp_peer_port() != 0){
             srs_warn("gb28181: client id=%s ssrc=%#x, peer(ip=%s port=%d), no rtp data %d in seconds, clean it, wait other port!", 
-                 channel_id.c_str(), channel->get_ssrc(), channel->get_rtp_peer_ip().c_str(), channel->get_rtp_peer_port(), duration/SRS_UTIME_SECONDS);
+                channel_id.c_str(), channel->get_ssrc(), channel->get_rtp_peer_ip().c_str(),
+                channel->get_rtp_peer_port(), duration/SRS_UTIME_SECONDS);
             channel->set_rtp_peer_port(0);
             channel->set_rtp_peer_ip("");
         }
@@ -887,7 +890,6 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
             if (h264_sps == sps) {
                 continue;
             }
-            h264_sps_changed = true;
             h264_sps = sps;
             
             if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
@@ -906,7 +908,6 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
             if (h264_pps == pps) {
                 continue;
             }
-            h264_pps_changed = true;
             h264_pps = pps;
             
             if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
@@ -1020,10 +1021,6 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
-    if (!h264_sps_changed || !h264_pps_changed) {
-        return err;
-    }
-
     // h264 raw to h264 packet.
     std::string sh;
     if ((err = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != srs_success) {
@@ -1045,10 +1042,6 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "write packet");
     }
 
-    // reset sps and pps.
-    h264_sps_changed = false;
-    h264_pps_changed = false;
-    h264_sps_pps_sent = true;
     
     return err;
 }
@@ -1157,6 +1150,12 @@ srs_error_t SrsGb28181RtmpMuxer::connect()
 void SrsGb28181RtmpMuxer::close()
 {
     srs_freep(sdk);
+  
+    // cleared and sequence header will be sent again next time.
+    // RTMP close may stop through API(rtmp_close)
+    h264_sps = "";
+    h264_pps = "";
+    aac_specific_config = "";
 }
 
 void SrsGb28181RtmpMuxer::rtmp_close(){

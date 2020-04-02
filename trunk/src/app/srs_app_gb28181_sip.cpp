@@ -65,7 +65,6 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
     _peer_ip = "";
     _peer_port = 0;
 
-    _from = NULL;
     _fromlen = 0;
 }
 
@@ -123,10 +122,10 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
 {
     srs_error_t err = srs_success;
 
-    if (config->print_sip_message)
+    if (config->print_sip_message || true)
     {
         srs_trace("gb28181: request peer_ip=%s, peer_port=%d nbbuf=%d", peer_ip.c_str(), peer_port, nb_buf);
-        srs_trace("gb28181: request recv message=%s", buf);
+        //srs_trace("gb28181: request recv message=%s", buf);
     }
     
     if (nb_buf < 10) {
@@ -175,7 +174,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         sip_session->set_register_status(SrsGb28181SipSessionRegisterOk);
         sip_session->set_register_time(srs_get_system_time());
         sip_session->set_reg_expires(req->expires);
-        sip_session->set_sockaddr(from);
+        sip_session->set_sockaddr((sockaddr)*from);
         sip_session->set_sockaddr_len(fromlen);
         sip_session->set_peer_ip(peer_ip);
         sip_session->set_peer_port(peer_port);
@@ -192,7 +191,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         sip_session->set_register_time(srs_get_system_time());
         sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
         sip_session->set_alive_time(srs_get_system_time());
-        sip_session->set_sockaddr(from);
+        sip_session->set_sockaddr((sockaddr)*from);
         sip_session->set_sockaddr_len(fromlen);
         sip_session->set_peer_port(peer_port);
         sip_session->set_peer_ip(peer_ip);
@@ -238,10 +237,12 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         srs_trace("gb28181: request client id=%s",  req->sip_auth_id.c_str());
        
         if (!sip_session){
-            send_bye(req);
             srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return err;
         }
+        
+        sip_session->set_sockaddr((sockaddr)*from);
+        sip_session->set_sockaddr_len(fromlen);
 
         if (sip_session->register_status() == SrsGb28181SipSessionUnkonw ||
             sip_session->alive_status() == SrsGb28181SipSessionUnkonw) {
@@ -273,6 +274,9 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return err;
         }
+
+        sip_session->set_sockaddr((sockaddr)*from);
+        sip_session->set_sockaddr_len(fromlen);
        
         sip_session->set_invite_status(SrsGb28181SipSessionBye);
         sip_session->set_invite_time(0);
@@ -356,7 +360,9 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
     std::stringstream ss;
     sip->req_invite(ss, req, ip, port, ssrc);
 
-    if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
+    sockaddr addr = sip_session->sockaddr_from();
+
+    if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
         return ERROR_GB28181_SIP_INVITE_FAILED;
     }
@@ -391,7 +397,8 @@ int SrsGb28181SipService::send_bye(SrsSipRequest *req)
     std::stringstream ss;
     sip->req_bye(ss, req);
    
-    if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
+    sockaddr addr = sip_session->sockaddr_from();
+    if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
         return ERROR_GB28181_SIP_BYE_FAILED;
     }
@@ -415,7 +422,8 @@ int SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string dat
     std::stringstream ss;
     ss << data;
 
-    if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
+    sockaddr addr = sip_session->sockaddr_from();
+    if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
         return ERROR_GB28181_SIP_BYE_FAILED;
     }

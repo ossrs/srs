@@ -234,9 +234,6 @@ private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
     std::string h264_pps;
-    bool h264_sps_changed;
-    bool h264_pps_changed;
-    bool h264_sps_pps_sent;
 
     SrsRawAacStream* aac;
     std::string aac_specific_config;
