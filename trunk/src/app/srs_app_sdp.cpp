@@ -349,9 +349,18 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         }
     }
 
-    // TODO: Candidate priority
+    int foundation = 0;
+    int component_id = 1; /* RTP */
 	for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
-        os << "a=candidate:10 1 udp 2115783679 " << iter->ip_ << " " << iter->port_ <<" typ " << iter->type_ << " generation 0" << kCRLF;
+        // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-4.2
+        uint32_t priority = (1<<24)*(126) + (1<<8)*(65535) + (1)*(256 - component_id);
+
+        // @see: https://tools.ietf.org/id/draft-ietf-mmusic-ice-sip-sdp-14.html#rfc.section.5.1
+        os << "a=candidate:" << foundation++ << " "
+           << component_id << " udp " << priority << " "
+           << iter->ip_ << " " << iter->port_
+           << " typ " << iter->type_ 
+           << " generation 0" << kCRLF;
     }
 
     return err;
@@ -656,7 +665,7 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     os << "o=" << username_ << " " << session_id_ << " " << session_version_ << " " << nettype_ << " " << addrtype_ << " " << unicast_address_ << kCRLF;
     os << "s=" << session_name_ << kCRLF;
     os << "t=" << start_time_ << " " << end_time_ << kCRLF;
-    // @see: ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
+    // ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
     os << "a=ice-lite" << kCRLF;
 
     if (! groups_.empty()) {
