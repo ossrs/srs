@@ -303,6 +303,9 @@ srs_error_t SrsDtlsSession::srtp_send_init()
     srtp_policy_t policy;
     bzero(&policy, sizeof(policy));
 
+    // TODO: Maybe we can use SRTP-GCM in future.
+    // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+    // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
     srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtp);
     srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtcp);
 

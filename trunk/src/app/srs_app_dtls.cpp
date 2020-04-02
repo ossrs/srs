@@ -123,6 +123,10 @@ void SrsDtls::init()
 
     srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, dtls_private_key) == 1);
     srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH") == 1);
+    
+    // TODO: Maybe we can use SRTP-GCM in future.
+    // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+    // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
     srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
 
     // Server will send Certificate Request.
