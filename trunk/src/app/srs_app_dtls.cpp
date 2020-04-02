@@ -50,6 +50,21 @@ SrsDtls* SrsDtls::instance()
     return _instance;
 }
 
+// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
+// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
+// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
+// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
+// not be terminated with respect to verification failures and the connection will be established. The calling process
+// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
+// its own error storage managed by verify_callback.
+// @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+    // Always OK, we don't check the certificate of client,
+    // because we allow client self-sign certificate.
+    return 1;
+}
+
 void SrsDtls::init()
 {
     // srtp init first
@@ -110,7 +125,16 @@ void SrsDtls::init()
     srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH") == 1);
     srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
 
-    SSL_CTX_set_verify_depth (dtls_ctx, 4); 
+    // Server will send Certificate Request.
+    // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+    // TODO: FIXME: Config it, default to off to make the packet smaller.
+    SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
+
+    // The depth count is "level 0:peer certificate", "level 1: CA certificate",
+    // "level 2: higher level CA certificate", and so on.
+    // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+    SSL_CTX_set_verify_depth (dtls_ctx, 4);
+
     SSL_CTX_set_read_ahead(dtls_ctx, 1);
 
     // dtls fingerprint
