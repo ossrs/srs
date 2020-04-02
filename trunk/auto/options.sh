@@ -113,6 +113,8 @@ SRS_TOOL_RANDLIB=randlib
 SRS_EXTRA_FLAGS=
 # Set the object files tag name.
 SRS_BUILD_TAG=
+# Whether do "make clean" when configure.
+SRS_CLEAN=YES
 
 #####################################################################################
 # menu
@@ -188,6 +190,8 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
   --with-nasm               Build FFMPEG for RTC with nasm support.
   --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
   --build-tag=<TAG>         Set the build object directory suffix.
+  --with-clean              Configure SRS and do `make clean` if possible.
+  --without-clean           Configure SRS and never `make clean` even possible..
 
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -236,6 +240,7 @@ function parse_user_option() {
         --with-rtc)                     SRS_RTC=YES                 ;;
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --with-nasm)                    SRS_NASM=YES                ;;
+        --with-clean)                   SRS_CLEAN=YES               ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -255,6 +260,7 @@ function parse_user_option() {
         --without-rtc)                  SRS_RTC=NO                  ;;
         --without-gb28181)              SRS_GB28181=NO              ;;
         --without-nasm)                 SRS_NASM=NO                 ;;
+        --without-clean)                SRS_CLEAN=NO                ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -557,6 +563,7 @@ function regenerate_options() {
     if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
     if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
     if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
+    if [ $SRS_CLEAN = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-clean"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-clean"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi
@@ -600,6 +607,12 @@ function check_option_conflicts() {
 
     if [[ $SRS_FFMPEG_TOOL == YES ]]; then
         echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+    fi
+
+    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
+    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
+        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
+        exit -1
     fi
 
     # TODO: FIXME: check more os.
