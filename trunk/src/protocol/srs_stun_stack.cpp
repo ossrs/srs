@@ -88,6 +88,9 @@ SrsStunPacket::SrsStunPacket()
     message_type = 0;
     local_ufrag = "";
     remote_ufrag = "";
+    use_candidate = false;
+    ice_controlled = false;
+    ice_controlling = false;
 }
 
 SrsStunPacket::~SrsStunPacket()
@@ -139,8 +142,32 @@ srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)
                 }
                 break;
             }
+
+			case UseCandidate: {
+                use_candidate = true;
+                srs_verbose("stun use-candidate");
+                break;
+            }
+
+            // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-5.1.2
+			// One agent full, one lite:  The full agent MUST take the controlling
+            // role, and the lite agent MUST take the controlled role.  The full
+            // agent will form check lists, run the ICE state machines, and
+            // generate connectivity checks.
+			case IceControlled: {
+                ice_controlled = true;
+                srs_verbose("stun ice-controlled");
+                break;
+            }
+
+			case IceControlling: {
+                ice_controlling = true;
+                srs_verbose("stun ice-controlling");
+                break;
+            }
             
             default: {
+                srs_verbose("stun type=%u, no process", type);
                 break;
             }
         }
