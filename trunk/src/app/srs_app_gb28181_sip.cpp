@@ -143,7 +143,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
     { 
         srs_trace("gb28181: %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
-        srs_trace("gb28281: request client id=%s",  req->sip_auth_id.c_str());
+        srs_trace("gb28181: request client id=%s",  req->sip_auth_id.c_str());
     }
     
     req->peer_ip = peer_ip;
@@ -163,7 +163,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         srs_trace("gb28181: request peer_ip=%s, peer_port=%d", peer_ip.c_str(), peer_port, nb_buf);
         srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
-        srs_trace("gb28281: request client id=%s",  req->sip_auth_id.c_str());
+        srs_trace("gb28181: request client id=%s",  req->sip_auth_id.c_str());
 
         SrsGb28181SipSession* sip_session = create_sip_session(req);
         if (!sip_session) {
@@ -235,7 +235,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         srs_trace("gb28181: request peer_ip=%s, peer_port=%d", peer_ip.c_str(), peer_port, nb_buf);
         srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
-        srs_trace("gb28281: request client id=%s",  req->sip_auth_id.c_str());
+        srs_trace("gb28181: request client id=%s",  req->sip_auth_id.c_str());
        
         if (!sip_session){
             send_bye(req);
@@ -264,7 +264,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         srs_trace("gb28181: request peer_ip=%s, peer_port=%d", peer_ip.c_str(), peer_port, nb_buf);
         srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
-        srs_trace("gb28281: request client id=%s",  req->sip_auth_id.c_str());
+        srs_trace("gb28181: request client id=%s",  req->sip_auth_id.c_str());
 
         SrsGb28181SipSession* sip_session = fetch(session_id);
         send_status(req, from, fromlen);
@@ -311,7 +311,7 @@ int SrsGb28181SipService::send_ack(SrsSipRequest *req, sockaddr *f, int l)
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
 
-    sip->resp_ack(ss, req);
+    sip->req_ack(ss, req);
     return send_message(f, l, ss);
 }
 
@@ -345,7 +345,7 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
     //you cannot invite again. you need to 'bye' and try again
     if (sip_session->invite_status() == SrsGb28181SipSessionTrying ||
         sip_session->invite_status() == SrsGb28181SipSessionInviteOk){
-        return ERROR_GB28281_SIP_IS_INVITING;   
+        return ERROR_GB28181_SIP_IS_INVITING;   
     }
    
     req->host =  config->host;
@@ -358,7 +358,7 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
 
     if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28281_SIP_INVITE_FAILED;
+        return ERROR_GB28181_SIP_INVITE_FAILED;
     }
 
     sip_session->set_invite_status(SrsGb28181SipSessionTrying);
@@ -393,7 +393,7 @@ int SrsGb28181SipService::send_bye(SrsSipRequest *req)
    
     if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28281_SIP_BYE_FAILED;
+        return ERROR_GB28181_SIP_BYE_FAILED;
     }
 
     return ERROR_SUCCESS;
@@ -417,7 +417,7 @@ int SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string dat
 
     if (send_message(sip_session->sockaddr_from(), sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28281_SIP_BYE_FAILED;
+        return ERROR_GB28181_SIP_BYE_FAILED;
     }
 
     return ERROR_SUCCESS;

@@ -41,7 +41,7 @@ class SrsGb28181Config;
 class SrsSipStack;
 class SrsGb28181SipService;
 
-enum SrsGb28281SipSessionStatusType{
+enum SrsGb28181SipSessionStatusType{
      SrsGb28181SipSessionUnkonw = 0,
      SrsGb28181SipSessionRegisterOk = 1,
      SrsGb28181SipSessionAliveOk = 2,
@@ -57,9 +57,9 @@ private:
     SrsGb28181SipService *caster;
     std::string   session_id;
 private:
-    SrsGb28281SipSessionStatusType _register_status;
-    SrsGb28281SipSessionStatusType _alive_status;
-    SrsGb28281SipSessionStatusType _invite_status;
+    SrsGb28181SipSessionStatusType _register_status;
+    SrsGb28181SipSessionStatusType _alive_status;
+    SrsGb28181SipSessionStatusType _invite_status;
     srs_utime_t _register_time;
     srs_utime_t _alive_time;
     srs_utime_t _invite_time;
@@ -74,9 +74,9 @@ private:
     SrsSipRequest *req;
 
 public:
-    void set_register_status(SrsGb28281SipSessionStatusType s) { _register_status = s;}
-    void set_alive_status(SrsGb28281SipSessionStatusType s) { _alive_status = s;}
-    void set_invite_status(SrsGb28281SipSessionStatusType s) { _invite_status = s;}
+    void set_register_status(SrsGb28181SipSessionStatusType s) { _register_status = s;}
+    void set_alive_status(SrsGb28181SipSessionStatusType s) { _alive_status = s;}
+    void set_invite_status(SrsGb28181SipSessionStatusType s) { _invite_status = s;}
     void set_register_time(srs_utime_t t) { _register_time = t;}
     void set_alive_time(srs_utime_t t) { _alive_time = t;}
     void set_invite_time(srs_utime_t t) { _invite_time = t;}
@@ -88,9 +88,9 @@ public:
     void set_sockaddr_len(int l) { _fromlen = l;}
     void set_request(SrsSipRequest *r) { req->copy(r);}
 
-    SrsGb28281SipSessionStatusType register_status() { return _register_status;}
-    SrsGb28281SipSessionStatusType alive_status() { return  _alive_status;}
-    SrsGb28281SipSessionStatusType invite_status() { return  _invite_status;}
+    SrsGb28181SipSessionStatusType register_status() { return _register_status;}
+    SrsGb28181SipSessionStatusType alive_status() { return  _alive_status;}
+    SrsGb28181SipSessionStatusType invite_status() { return  _invite_status;}
     srs_utime_t register_time() { return  _register_time;}
     srs_utime_t alive_time() { return _alive_time;}
     srs_utime_t invite_time() { return _invite_time;}

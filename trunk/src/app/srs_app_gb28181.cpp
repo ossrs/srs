@@ -236,7 +236,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         //TODO:  check sequence number out of order
         //it may be out of order, or multiple streaming ssrc are the same
         // if (pre_sequence_number > pkt.sequence_number){
-        //     srs_info("gb28281: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, addr=%s,port=%s",
+        //     srs_info("gb28181: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, addr=%s,port=%s",
         //       pkt.ssrc, pre_sequence_number, pkt.sequence_number, address_string, port_string);
         //     //return err;
         // }
@@ -305,11 +305,11 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                         muxer->get_channel_id().c_str(), pkt.ssrc, muxer->channel_peer_port(), peer_port);
                     srs_freep(key->second);
                 }else {
-                    //put it in queue, wait for conn to process, and then free
+                    //put it in queue, wait for consumer to process, and then free
                     muxer->ps_packet_enqueue(key->second);
                 }
             }else{
-                //no connection process it, discarded
+                //no consumer process it, discarded
                 srs_freep(key->second);
             }
             cache_ps_rtp_packet.erase(pkt_key);
@@ -461,7 +461,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             //in a frame of data, pts is obtained from the first PSE packet
             if (pse_index == 0 && pts_dts_flags > 0) {
 				video_pts = parse_ps_timestamp((unsigned char*)next_ps_pack + 9);
-                srs_info("gb28181: ps stream video ts=%u pkt_ts=%u", pts, timestamp);
+                srs_info("gb28181: ps stream video ts=%u pkt_ts=%u", video_pts, timestamp);
 			}
             pse_index +=1;
 
@@ -704,6 +704,11 @@ std::string SrsGb28181RtmpMuxer::rtmp_url()
     return _rtmp_url;
 }
 
+srs_utime_t SrsGb28181RtmpMuxer::get_recv_stream_time()
+{
+    return recv_stream_time;
+}
+
 
 void SrsGb28181RtmpMuxer::destroy()
 {
@@ -750,6 +755,16 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
         
         srs_utime_t now = srs_get_system_time();
         srs_utime_t duration = now - recv_stream_time;
+
+        //if no RTP data is received within 2 seconds, 
+        //the peer-port and peer-ip will be cleared and 
+        //other port data will be received again
+        if (duration > (2 * SRS_UTIME_SECONDS) && channel->get_rtp_peer_port() != 0){
+            srs_warn("gb28181: client id=%s ssrc=%#x, peer(ip=%s port=%d), no rtp data %d in seconds, clean it, wait other port!", 
+                 channel_id.c_str(), channel->get_ssrc(), channel->get_rtp_peer_ip().c_str(), channel->get_rtp_peer_port(), duration/SRS_UTIME_SECONDS);
+            channel->set_rtp_peer_port(0);
+            channel->set_rtp_peer_ip("");
+        }
         
         SrsGb28181Config config = gb28181_manger->get_gb28181_config();
         if (duration > config.rtp_idle_timeout){
@@ -777,6 +792,8 @@ void SrsGb28181RtmpMuxer::stop()
 void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
 {
     srs_assert(pkt);
+   
+    recv_stream_time = srs_update_system_time();
 
     //prevent consumers from being unable to process data 
     //and accumulating in the queue
@@ -1292,7 +1309,7 @@ srs_error_t SrsGb28181Manger::fetch_or_create_rtmpmuxer(std::string id,  SrsGb28
     
     muxer = new SrsGb28181RtmpMuxer(this, id, config->audio_enable, config->wait_keyframe);
     if ((err = muxer->serve()) != srs_success) {
-        return srs_error_wrap(err, "gb28281: rtmp muxer serve %s", id.c_str());
+        return srs_error_wrap(err, "gb28181: rtmp muxer serve %s", id.c_str());
     }
     rtmpmuxers[id] = muxer;
     *gb28181 = muxer;
@@ -1453,12 +1470,12 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
         channel->set_port_mode(RTP_PORT_MODE_FIXED);
     }
    
-    //create on rtmp muxer, gb28281 stream to rtmp
+    //create on rtmp muxer, gb28181 stream to rtmp
     srs_error_t err = srs_success;
     if ((err = fetch_or_create_rtmpmuxer(id, &muxer)) != srs_success){
         srs_warn("gb28181: create rtmp muxer error, %s", srs_error_desc(err).c_str());
         srs_freep(err);
-        return ERROR_GB28281_CREATER_RTMPMUXER_FAILED;
+        return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
     }
 
     //Start RTP listening port, receive gb28181 stream, 
@@ -1477,7 +1494,7 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
             srs_warn("gb28181: start ps rtp listen error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
             free_port(rtp_port, rtp_port + 1);
-            return ERROR_GB28281_CREATER_RTMPMUXER_FAILED;
+            return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
         }
     }
     else if(port_mode == RTP_PORT_MODE_FIXED) {

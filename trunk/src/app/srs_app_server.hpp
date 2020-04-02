@@ -324,7 +324,7 @@ private:
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
 #ifdef SRS_AUTO_GB28181
-    virtual srs_error_t listen_gb28281_sip(SrsConfDirective* c);
+    virtual srs_error_t listen_gb28181_sip(SrsConfDirective* c);
 #endif
     // Close the listeners for specified type,
     // Remove the listen object from manager.

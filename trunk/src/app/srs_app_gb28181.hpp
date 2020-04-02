@@ -76,7 +76,7 @@ public:
     virtual srs_error_t decode(SrsBuffer* stream);
 };
 
-//randomly assigned ports receive gb28281 device streams
+//randomly assigned ports receive gb28181 device streams
 class SrsPsRtpListener: public ISrsUdpHandler
 {
 private:
@@ -94,7 +94,7 @@ public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
-//multiplexing service, single port receiving all gb28281 device streams
+//multiplexing service, single port receiving all gb28181 device streams
 class SrsGb28181RtpMuxService : public ISrsUdpHandler
 {
 private:
@@ -110,7 +110,7 @@ public:
 };
 
 
-//process gb28281 RTP package, generate a completed PS stream data, 
+//process gb28181 RTP package, generate a completed PS stream data, 
 //call the PS stream parser, parse the original video and audio
 class SrsGb28181PsRtpProcessor: public ISrsUdpHandler
 {
@@ -262,6 +262,7 @@ public:
     virtual void set_rtmp_url(std::string url);
     virtual std::string rtmp_url();
     virtual SrsGb28181StreamChannel get_channel();
+    srs_utime_t get_recv_stream_time();
 
 private:
     virtual srs_error_t do_cycle();
@@ -288,7 +289,7 @@ public:
     virtual void rtmp_close();
 };
 
-//system parameter configuration of gb28281 module,
+//system parameter configuration of gb28181 module,
 //read file from configuration file to generate
 class SrsGb28181Config
 {
