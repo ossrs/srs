@@ -639,13 +639,15 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* 
         if ((err = on_binding_request(udp_mux_skt, stun_req)) != srs_success) {
             return srs_error_wrap(err, "stun binding request failed");
         }
-    }
 
-    last_stun_time = srs_get_system_time();
+        last_stun_time = srs_get_system_time();
 
-    if (strd && strd->sendonly_ukt) {
-        if (strd->sendonly_ukt->get_peer_id() != udp_mux_skt->get_peer_id()) {
-            strd->update_sendonly_socket(udp_mux_skt);
+        if (strd && strd->sendonly_ukt) {
+            // We are running in the ice-lite(server) mode. If client have multi network interface,
+            // we only choose one candidate pair which is determined by client.
+            if (stun_req->get_use_candidate() && strd->sendonly_ukt->get_peer_id() != udp_mux_skt->get_peer_id()) {
+                strd->update_sendonly_socket(udp_mux_skt);
+            }
         }
     }
 
@@ -677,6 +679,10 @@ srs_error_t SrsRtcSession::check_source()
 srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsStunPacket* stun_req)
 {
     srs_error_t err = srs_success;
+
+    if (stun_req->get_ice_controlled()) {
+        return srs_error_new(ERROR_RTC_STUN, "Peer must not in ice-controlled role in ice-lite mode.");
+    }
 
     SrsStunPacket stun_binding_response;
     char buf[1460];
@@ -1159,12 +1165,13 @@ srs_error_t SrsRtcServer::on_stun(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
 
-    srs_verbose("recv stun packet from %s", udp_mux_skt->get_peer_id().c_str());
-
     SrsStunPacket stun_req;
     if ((err = stun_req.decode(udp_mux_skt->data(), udp_mux_skt->size())) != srs_success) {
         return srs_error_wrap(err, "decode stun packet failed");
     }
+
+    srs_verbose("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d", 
+        udp_mux_skt->get_peer_id().c_str(), stun_req.get_use_candidate(), stun_req.get_ice_controlled(), stun_req.get_ice_controlling());
 
     std::string username = stun_req.get_username();
     SrsRtcSession* rtc_session = find_rtc_session_by_username(username);

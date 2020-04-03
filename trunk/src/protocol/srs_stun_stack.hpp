@@ -69,6 +69,11 @@ enum SrsStunMessageAttribute
     Software          = 0x8022,
     AlternateServer   = 0x8023,
     Fingerprint       = 0x8028,
+
+    Priority          = 0x0024,
+    UseCandidate      = 0x0025,
+    IceControlled     = 0x8029,
+    IceControlling    = 0x802A,
 };
 
 class SrsStunPacket 
@@ -81,6 +86,9 @@ private:
     std::string transcation_id;
     uint32_t mapped_address;
     uint16_t mapped_port;
+    bool use_candidate;
+    bool ice_controlled;
+    bool ice_controlling;
 public:
     SrsStunPacket();
     virtual ~SrsStunPacket();
@@ -95,6 +103,9 @@ public:
     std::string get_transcation_id() const { return transcation_id; }
     uint32_t get_mapped_address() const { return mapped_address; }
     uint16_t get_mapped_port() const { return mapped_port; }
+    bool get_ice_controlled() const { return ice_controlled; }
+    bool get_ice_controlling() const { return ice_controlling; }
+    bool get_use_candidate() const { return use_candidate; }
 
     void set_message_type(const uint16_t& m) { message_type = m; }
     void set_local_ufrag(const std::string& u) { local_ufrag = u; }
