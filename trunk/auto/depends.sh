@@ -480,14 +480,16 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         # Try to use files for openssl 1.1.*
         if [[ -f /usr/local/lib64/libssl.a ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
-                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
+                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a &&
+                mkdir -p /usr/local/lib64/pkgconfig && ln -sf /usr/local/lib64/pkgconfig)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/include/openssl)
         fi
         # Try to use files for openssl 1.0.*
         if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
-                ln -sf /usr/local/lib/libssl.a && ln -sf /usr/local/lib/libcrypto.a)
+                ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a &&
+                mkdir -p /usr/local/ssl/lib/pkgconfig && ln -sf /usr/local/ssl/lib/pkgconfig)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/ssl/include/openssl)
         fi
