@@ -476,13 +476,20 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
-    else
-        # If not crossbuild, try to use exists libraries.
-        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+    elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+        # Try to use files for openssl 1.1.*
+        if [[ -f /usr/local/lib64/libssl.a ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/include/openssl)
+        fi
+        # Try to use files for openssl 1.0.*
+        if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
+            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
+                ln -sf /usr/local/lib/libssl.a && ln -sf /usr/local/lib/libcrypto.a)
+            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
+                ln -sf /usr/local/ssl/include/openssl)
         fi
     fi
     # For RTC, we should use ASM to improve performance, not a little improving.
