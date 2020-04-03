@@ -73,8 +73,10 @@ srs_error_t SrsDtls::init(const SrsRequest& req)
 {
     srs_error_t err = srs_success;
 
-    // Initialize SRTP first.
-    srs_assert(srtp_init() == 0);
+    // Initialize once.
+    if (dtls_ctx) {
+        return err;
+    }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
     // Initialize SSL library by registering algorithms
@@ -91,6 +93,9 @@ srs_error_t SrsDtls::init(const SrsRequest& req)
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
     //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
 #endif
+
+    // Initialize SRTP first.
+    srs_assert(srtp_init() == 0);
 
     // Whether use ECDSA certificate.
     bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
