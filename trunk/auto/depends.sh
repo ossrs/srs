@@ -489,40 +489,49 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
         OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
     fi
-    # Which lib we use.
-    OPENSSL_LIB="openssl-1.1.0e/_release"
-    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
-        OPENSSL_LIB="openssl"
-    fi
     # Mac OS X can have issues (its often a neglected platform).
     # @see https://wiki.openssl.org/index.php/Compilation_and_Installation
-    if [[ $SRS_OSX == YES ]];
+    if [[ $SRS_OSX == YES ]]; then
         export KERNEL_BITS=64;
+    fi
+    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf  ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         echo "Openssl-1.1.0e is ok.";
     else
-        echo "Building openssl-1.1.0e.";
+        echo "Building $OPENSSL_CANDIDATE.";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1.0e && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-            ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
             make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
-            cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
+            cd .. && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl
         )
     fi
+    # Which lib we use.
+    OPENSSL_LIB="$OPENSSL_CANDIDATE/_release"
+    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
+        OPENSSL_LIB="openssl"
+    fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build $OPENSSL_CANDIDATE failed, ret=$ret"; exit $ret; fi
     # Always update the links.
     (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
-    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
+    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build $OPENSSL_CANDIDATE failed."; exit -1; fi
 fi
 
 #####################################################################################
 # srtp
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    SRTP_CONFIG="echo 'SRTP without openssl'" && SRTP_OPTIONS=""
+    # If use ASM for SRTP, we enable openssl(with ASM).
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
+    fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
         echo "The srtp2 is ok.";
@@ -531,7 +540,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
-            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+            ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+            make ${SRS_JOBS} && make install &&
             cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
         )
     fi
