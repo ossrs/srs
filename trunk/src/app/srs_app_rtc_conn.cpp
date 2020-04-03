@@ -142,9 +142,13 @@ SrsDtlsSession::~SrsDtlsSession()
     }
 }
 
-srs_error_t SrsDtlsSession::initialize()
+srs_error_t SrsDtlsSession::initialize(const SrsRequest& req)
 {    
     srs_error_t err = srs_success;
+
+    if ((err = SrsDtls::instance()->init(req)) != srs_success) {
+        return srs_error_wrap(err, "DTLS init");
+    }
 
     if ((dtls = SSL_new(SrsDtls::instance()->get_dtls_ctx())) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
@@ -593,7 +597,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const
     rtc_server = rtc_svr;
     session_state = INIT;
     dtls_session = new SrsDtlsSession(this);
-    dtls_session->initialize();
+    dtls_session->initialize(req);
     strd = NULL;
 
     username = un;

@@ -28,6 +28,8 @@
 
 #include <string>
 
+class SrsRequest;
+
 #include <openssl/ssl.h>
 
 class SrsDtls
@@ -36,12 +38,12 @@ private:
     static SrsDtls* _instance;
 private:
     std::string fingerprint;
-    SSL_CTX*    dtls_ctx;
+    SSL_CTX* dtls_ctx;
 private:
     SrsDtls();
     virtual ~SrsDtls();
-
-    void init();
+public:
+    srs_error_t init(const SrsRequest& req);
 public:
     static SrsDtls* instance();
     SSL_CTX* get_dtls_ctx() { return dtls_ctx; }

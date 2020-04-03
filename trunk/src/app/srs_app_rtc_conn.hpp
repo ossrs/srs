@@ -97,7 +97,7 @@ public:
     SrsDtlsSession(SrsRtcSession* s);
     virtual ~SrsDtlsSession();
 
-    srs_error_t initialize();
+    srs_error_t initialize(const SrsRequest& req);
 
     srs_error_t on_dtls(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt);

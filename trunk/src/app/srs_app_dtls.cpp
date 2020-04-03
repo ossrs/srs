@@ -28,6 +28,8 @@ using namespace std;
 #include <string.h>
 
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_app_config.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -36,17 +38,18 @@ SrsDtls* SrsDtls::_instance = NULL;
 
 SrsDtls::SrsDtls()
 {
+    dtls_ctx = NULL;
 }
 
 SrsDtls::~SrsDtls()
 {
+    SSL_CTX_free(dtls_ctx);
 }
 
 SrsDtls* SrsDtls::instance()
 {
     if (!_instance) {
         _instance = new SrsDtls();
-        _instance->init();
     }   
     return _instance;
 }
@@ -66,8 +69,10 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-void SrsDtls::init()
+srs_error_t SrsDtls::init(const SrsRequest& req)
 {
+    srs_error_t err = srs_success;
+
     // Initialize SRTP first.
     srs_assert(srtp_init() == 0);
 
@@ -87,10 +92,13 @@ void SrsDtls::init()
     //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
 #endif
 
+    // Whether use ECDSA certificate.
+    bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
+
     // Create keys by RSA or ECDSA.
     EVP_PKEY* dtls_pkey = EVP_PKEY_new();
     srs_assert(dtls_pkey);
-    if (false) { // By RSA
+    if (!is_ecdsa) { // By RSA
         RSA* rsa = RSA_new();
         srs_assert(rsa);
 
@@ -110,7 +118,7 @@ void SrsDtls::init()
         RSA_free(rsa);
         BN_free(exponent);
     }
-    if (true) { // By ECDSA, https://stackoverflow.com/a/6006898
+    if (is_ecdsa) { // By ECDSA, https://stackoverflow.com/a/6006898
         EC_KEY* eckey = EC_KEY_new();
         srs_assert(eckey);
 
@@ -240,4 +248,6 @@ void SrsDtls::init()
         fingerprint.assign(fp, strlen(fp));
         srs_trace("fingerprint=%s", fingerprint.c_str());
     }
+
+    return err;
 }

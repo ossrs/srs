@@ -520,6 +520,7 @@ public:
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();
+    virtual bool get_rtc_server_ecdsa();
 
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);

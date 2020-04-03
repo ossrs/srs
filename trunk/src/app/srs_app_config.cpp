@@ -4639,6 +4639,23 @@ std::string SrsConfig::get_rtc_server_candidates()
     return (conf->arg0().c_str());
 }
 
+bool SrsConfig::get_rtc_server_ecdsa()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ecdsa");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
