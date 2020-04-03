@@ -150,6 +150,7 @@ srs_error_t SrsDtlsSession::initialize(const SrsRequest& req)
         return srs_error_wrap(err, "DTLS init");
     }
 
+    // TODO: FIXME: Support config by vhost to use RSA or ECDSA certificate.
     if ((dtls = SSL_new(SrsDtls::instance()->get_dtls_ctx())) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
     }
