@@ -299,14 +299,15 @@ public:
     int rtp_port_min;
     int rtp_port_max;
     int rtp_mux_port;
+    bool auto_create_channel;
 
     //sip config
     int  sip_port;
     std::string sip_serial;
     std::string sip_realm;
     bool sip_enable;
-    int sip_ack_timeout;
-    int sip_keepalive_timeout;
+    srs_utime_t sip_ack_timeout;
+    srs_utime_t sip_keepalive_timeout;
     bool print_sip_message;
     bool sip_auto_play;
     bool sip_invite_port_fixed;
@@ -323,6 +324,7 @@ private:
     std::string port_mode;
     std::string app;
     std::string stream;
+    std::string rtmp_url;
     
     std::string ip;
     int rtp_port;
@@ -348,6 +350,7 @@ public:
     uint32_t get_ssrc() const { return ssrc; }
     uint32_t get_rtp_peer_port() const { return rtp_peer_port; }
     std::string get_rtp_peer_ip() const { return rtp_peer_ip; }
+    std::string get_rtmp_url() const { return rtmp_url; }
 
     void set_channel_id(const std::string &i) { channel_id = i; }
     void set_port_mode(const std::string &p) { port_mode = p; }
@@ -359,6 +362,7 @@ public:
     void set_ssrc( const int &s) { ssrc = s;}
     void set_rtp_peer_ip( const std::string &p) { rtp_peer_ip = p; }
     void set_rtp_peer_port( const int &s) { rtp_peer_port = s;}
+    void set_rtmp_url( const std::string &u) { rtmp_url = u; }
 
     void copy(const SrsGb28181StreamChannel *s);
     void dumps(SrsJsonObject* obj);

@@ -22,11 +22,7 @@
  */
 
 #include <srs_app_gb28181.hpp>
-
-#include <algorithm>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 
 using namespace std;
@@ -292,9 +288,24 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                 muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
             }else {
                 muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
-               
             }
 
+            //auto crate channel
+            if (!muxer && config->auto_create_channel){
+                //auto create channel generated id
+                std::stringstream ss, ss1;
+                ss << "chid" << pkt.ssrc;
+                std::string tmp_id = ss.str();
+
+                SrsGb28181StreamChannel channel;
+                channel.set_channel_id(tmp_id);
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+                channel.set_ssrc(pkt.ssrc);
+                _srs_gb28181->create_stream_channel(&channel);
+
+                muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+            }
+          
             if (muxer){
                 //TODO: fixme: the same device uses the same SSRC to send with different local ports
                 //record the first peer port
@@ -563,12 +574,23 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
     return err;
 }
 
+static std::string get_host_candidate_ips(SrsConfDirective* c)
+{
+    string candidate = _srs_config->get_stream_caster_gb28181_host(c);
+    if (candidate == "*" || candidate == "0.0.0.0") {
+        std::vector<std::string> ips = srs_get_local_ips();
+        int index = _srs_config->get_stats_network();
+        return ips.at(index);
+    } else {
+        return candidate;
+    }
+}
 
 //Gb28181 Config
 SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
-    host = _srs_config->get_stream_caster_gb28181_host(c);
+    host = get_host_candidate_ips(c);
     output = _srs_config->get_stream_caster_output(c);
     rtp_mux_port = _srs_config->get_stream_caster_listen(c);
     rtp_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
@@ -577,6 +599,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
 
     wait_keyframe = _srs_config->get_stream_caster_gb28181_wait_keyframe(c);
     audio_enable = _srs_config->get_stream_caster_gb28181_audio_enable(c);
+    auto_create_channel = _srs_config->get_stream_caster_gb28181_auto_create_channel(c);
 
     //sip config
     sip_enable = _srs_config->get_stream_caster_gb28181_sip_enable(c);
@@ -1173,6 +1196,7 @@ SrsGb28181StreamChannel::SrsGb28181StreamChannel(){
     ssrc = 0;
     rtp_peer_port = 0;
     rtp_peer_ip = "";
+    rtmp_url = "";
 }
 
 SrsGb28181StreamChannel::~SrsGb28181StreamChannel()
@@ -1193,6 +1217,8 @@ void SrsGb28181StreamChannel::copy(const SrsGb28181StreamChannel *s){
 
     rtp_peer_ip = s->get_rtp_peer_ip();
     rtp_peer_port = s->get_rtp_peer_port();
+
+    rtmp_url = s->get_rtmp_url();
 }
 
 void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
@@ -1202,12 +1228,14 @@ void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
     obj->set("rtmp_port", SrsJsonAny::integer(rtmp_port));
     obj->set("app", SrsJsonAny::str(app.c_str()));
     obj->set("stream", SrsJsonAny::str(stream.c_str()));
+    obj->set("rtmp_url", SrsJsonAny::str(rtmp_url.c_str()));
    
     obj->set("ssrc", SrsJsonAny::integer(ssrc));
     obj->set("rtp_port", SrsJsonAny::integer(rtp_port));
     obj->set("port_mode", SrsJsonAny::str(port_mode.c_str()));
     obj->set("rtp_peer_port", SrsJsonAny::integer(rtp_peer_port));
     obj->set("rtp_peer_ip", SrsJsonAny::str(rtp_peer_ip.c_str()));
+    
 }
 
 
@@ -1457,18 +1485,6 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
        return ERROR_SUCCESS;
     }
 
-    if (channel->get_stream().empty()){
-        channel->set_stream("[stream]");
-    }
-
-    if (channel->get_app().empty()){
-        channel->set_stream("[app]");
-    }
-
-    if (channel->get_port_mode().empty()){
-        channel->set_port_mode(RTP_PORT_MODE_FIXED);
-    }
-   
     //create on rtmp muxer, gb28181 stream to rtmp
     srs_error_t err = srs_success;
     if ((err = fetch_or_create_rtmpmuxer(id, &muxer)) != srs_success){
@@ -1482,6 +1498,11 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
     //random is random allocation port
     int rtp_port = 0;
     std::string port_mode = channel->get_port_mode();
+    
+    if (port_mode.empty()){
+        port_mode = RTP_PORT_MODE_FIXED;
+        channel->set_port_mode(port_mode);
+    }
    
     if (port_mode == RTP_PORT_MODE_RANDOM){
         alloc_port(&rtp_port);
@@ -1503,38 +1524,75 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
         return ERROR_GB28181_PORT_MODE_INVALID;
     }
 
-    //Generate SSRC according to the hash code, 
-    //of the string value of the id
-    uint32_t ssrc = generate_ssrc(id);
+    uint32_t ssrc = channel->get_ssrc();
+    if (ssrc == 0){
+        //auto generate SSRC according to the hash code, 
+        //of the string value of the id
+        ssrc = generate_ssrc(id);
+    }
     rtmpmuxer_map_by_ssrc(muxer, ssrc);
 
-    //Generate RTMP push stream address,
-    std::string app = channel->get_app();
-    std::string stream = channel->get_stream();
-    app = srs_string_replace(app, "[app]", "live");
-    stream = srs_string_replace(stream, "[stream]", id);
-
-    std::string url = "rtmp://" + config->output + "/" + app + "/" + stream;
+    //generate RTMP push stream address,
+    //if the app and stream in the API are empty, 
+    //RTMP URL is generated using the output template parameter
+    std::string url = "";
     int rtmp_port;
+    string app = channel->get_app();
+    string stream = channel->get_stream();
+
     if (true) {
-        std::string schema, host, vhost, param, _app, _stream;
-        srs_discovery_tc_url(url, schema, host, vhost, _app, _stream, rtmp_port, param);
-        url = srs_generate_rtmp_url(host, rtmp_port, "", "", app, stream, "");
+        string tcUrl, stream_name;
+
+        //get template rtmp url configuration
+        std::string output = config->output;
+        srs_parse_rtmp_url(output, tcUrl, stream_name);
+        
+        string _schema, _host, _vhost, _param, _app, _stream;
+        srs_discovery_tc_url(tcUrl, _schema, _host, _vhost, _app, _stream, rtmp_port, _param);
+
+        //if the stream name is not parameterized, 
+        //it needs to be parameterized to ensure that the stream name is different
+        if (!srs_string_contains(stream_name, "[stream]") &&
+            !srs_string_contains(stream_name, "[timestamp]") &&
+            !srs_string_contains(stream_name, "[ssrc]")){
+            stream_name = stream_name + "_[stream]";
+        }
+
+        if (app.empty()){
+            app = _app;
+        }
+
+        if (stream.empty())
+        {
+            stream = stream_name;
+        }
+
+        url = srs_generate_rtmp_url(_host, rtmp_port, "", "", app, stream, "");
+        url = srs_string_replace(url, "[app]", "live");
+        url = srs_string_replace(url, "[stream]", id);
         std::stringstream ss;
         ss << ssrc;
         url = srs_string_replace(url, "[ssrc]", ss.str());
         url = srs_path_build_timestamp(url);
-    }
-    muxer->set_rtmp_url(url);
-    srs_trace("gb28181: create new stream channel id:%s rtmp url=%s", id.c_str(), muxer->rtmp_url().c_str());
+        
+        //update channel app stream value
+        srs_parse_rtmp_url(url, tcUrl, stream_name);
+        srs_discovery_tc_url(tcUrl, _schema, _host, _vhost, _app, _stream, rtmp_port, _param);
+        
+        //generate the value returned to the api response
+        channel->set_rtp_port(rtp_port);
+        channel->set_ssrc(ssrc);
 
-    //generate the value returned to the api response
-    channel->set_app(app);
-    channel->set_stream(stream);
-    channel->set_rtp_port(rtp_port);
-    channel->set_rtmp_port(rtmp_port);
-    channel->set_ip(config->host);
-    channel->set_ssrc(ssrc);
+        channel->set_app(_app);
+        channel->set_stream(stream_name);
+        channel->set_rtmp_port(rtmp_port);
+        channel->set_ip(config->host);
+        std::string play_url = srs_generate_rtmp_url(config->host, rtmp_port, "", "", app, stream_name, "");
+        channel->set_rtmp_url(play_url);
+    }
+
+    muxer->set_rtmp_url(url);
+    srs_trace("gb28181: create new stream channel id:%s rtmp url=%s", id.c_str(), url.c_str());
 
     muxer->copy_channel(channel);
 

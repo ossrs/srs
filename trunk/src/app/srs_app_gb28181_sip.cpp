@@ -122,10 +122,10 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
 {
     srs_error_t err = srs_success;
 
-    if (config->print_sip_message || true)
+    if (config->print_sip_message)
     {
         srs_trace("gb28181: request peer_ip=%s, peer_port=%d nbbuf=%d", peer_ip.c_str(), peer_port, nb_buf);
-        //srs_trace("gb28181: request recv message=%s", buf);
+        srs_trace("gb28181: request recv message=%s", buf);
     }
     
     if (nb_buf < 10) {
@@ -208,8 +208,6 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             SrsGb28181StreamChannel ch;
             ch.set_channel_id(session_id);
             ch.set_ip(config->host);
-            ch.set_stream(session_id);
-            ch.set_app("live");
             if (config->sip_invite_port_fixed){
                ch.set_port_mode(RTP_PORT_MODE_FIXED);
             }else {

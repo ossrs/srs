@@ -2164,7 +2164,10 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "auto_play") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
+                } else if (sdir->name == "auto_create_channel") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 }
+
 
             }
             obj->set(dir->name, sobj);
@@ -3681,7 +3684,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
                 && n != "rtp_idle_timeout" && n != "sip"
                 && n != "audio_enable" && n != "wait_keyframe"
-                && n != "host") {
+                && n != "host" && n != "auto_create_channel") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
 
@@ -4333,9 +4336,9 @@ srs_utime_t SrsConfig::get_stream_caster_gb28181_rtp_idle_timeout(SrsConfDirecti
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
+srs_utime_t SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
 {
-    static int DEFAULT = 30;
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
     if (!conf) {
         return DEFAULT;
@@ -4351,12 +4354,13 @@ int SrsConfig::get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf)
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    return  (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf)
+srs_utime_t SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf)
 {
-    static int DEFAULT = 120;
+    static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
+
 
     if (!conf) {
         return DEFAULT;
@@ -4372,19 +4376,25 @@ int SrsConfig::get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* con
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_stream_caster_gb28181_host(SrsConfDirective* conf)
 {
-    static string DEFAULT = "";
-
-    if (!conf) {
-        return DEFAULT;
-    }
+    static string DEFAULT = "*";
 
     conf = conf->get("host");
     if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    string eip = srs_getenv(conf->arg0());
+    if (!eip.empty()) {
+        return eip;
+    }
+
+    // If configed as ENV, but no ENV set, use default value.
+    if (srs_string_starts_with(conf->arg0(), "$")) {
         return DEFAULT;
     }
 
@@ -4571,6 +4581,22 @@ bool SrsConfig::get_stream_caster_gb28181_sip_invite_port_fixed(SrsConfDirective
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 
+}
+
+bool SrsConfig::get_stream_caster_gb28181_auto_create_channel(SrsConfDirective* conf)
+{
+    static bool DEFAULT = false;
+
+    if (!conf) {
+        return DEFAULT;
+    }
+   
+    conf = conf->get("auto_create_channel");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 int SrsConfig::get_rtc_server_enabled()
