@@ -567,6 +567,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
             if (msg->is_video()) {
                 pkt->set_payload_type(video_payload_type);
                 pkt->set_ssrc(video_ssrc);
+                srs_verbose("send video, ssrc=%u, seq=%u, timestamp=%u", video_ssrc, pkt->sequence, pkt->timestamp);
             }
 
             if (msg->is_audio()) {
