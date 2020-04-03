@@ -205,7 +205,8 @@ void retrieve_local_ips()
         // @see: https://github.com/ossrs/srs/issues/141
         bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
         bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
-        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC) || (cur->ifa_flags & IFF_LOOPBACK);
+        // Ignore IFF_PROMISC(Interface is in promiscuous mode), which may be set by Wireshark.
+        bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_LOOPBACK) || (cur->ifa_flags & IFF_POINTOPOINT);
         if (ipv4 && ready && !ignored) {
             discover_network_iface(cur, ips, ss0, ss1, false);
         }
