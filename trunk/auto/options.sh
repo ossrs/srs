@@ -66,6 +66,7 @@ SRS_LOG_TRACE=NO
 ################################################################
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
+# TODO: Use pkg-config to get the openssl path.
 SRS_USE_SYS_SSL=NO
 # enable memory watch, detect memory leak,
 # similar to gmc, should disable in release version for hurts performance.
@@ -190,8 +191,8 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
   --with-nasm               Build FFMPEG for RTC with nasm support.
   --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
   --build-tag=<TAG>         Set the build object directory suffix.
-  --with-clean              Configure SRS and do `make clean` if possible.
-  --without-clean           Configure SRS and never `make clean` even possible..
+  --with-clean              Configure SRS and do make clean if possible.
+  --without-clean           Configure SRS and never make clean even possible..
 
 Conflicts:
   1. --with-gmc vs --with-gmp: 
