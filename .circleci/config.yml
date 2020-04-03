@@ -16,7 +16,7 @@ jobs:
       - checkout
       - run: |
           cd trunk &&
-          ./configure --with-rtc --with-gb28181 --with-srtp-nasm --with-utest--gcov && make &&
+          ./configure --with-rtc --with-gb28181 --with-srtp-nasm --with-utest --gcov && make &&
           ./objs/srs_utest && bash auto/coverage.sh
 workflows:
   version: 2
