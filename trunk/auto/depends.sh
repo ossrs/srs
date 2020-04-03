@@ -471,7 +471,7 @@ fi
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
-    OPENSSL_OPTIONS="-no-shared -no-threads -no-asm -DOPENSSL_NO_HEARTBEATS"
+    OPENSSL_OPTIONS="-no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
     OPENSSL_CONFIG="./config"
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
@@ -485,10 +485,19 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
                 ln -sf /usr/local/include/openssl)
         fi
     fi
+    # For RTC, we should use ASM to improve performance, not a little improving.
+    if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
+    fi
     # Which lib we use.
     OPENSSL_LIB="openssl-1.1.0e/_release"
     if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
         OPENSSL_LIB="openssl"
+    fi
+    # Mac OS X can have issues (its often a neglected platform).
+    # @see https://wiki.openssl.org/index.php/Compilation_and_Installation
+    if [[ $SRS_OSX == YES ]];
+        export KERNEL_BITS=64;
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
