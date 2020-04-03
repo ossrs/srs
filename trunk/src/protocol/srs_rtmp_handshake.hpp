@@ -34,6 +34,12 @@ class SrsBuffer;
 // For openssl.
 #include <openssl/hmac.h>
 
+// @see https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+extern HMAC_CTX *HMAC_CTX_new(void);
+extern void HMAC_CTX_free(HMAC_CTX *ctx);
+#endif
+
 namespace _srs_internal
 {
     // The digest key generate size.
