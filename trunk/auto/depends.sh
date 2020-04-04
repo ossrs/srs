@@ -477,8 +477,12 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
-        # Try to use files for openssl 1.1.*
+        # For older docker, which does not support SRTP asm optimization.
         if [[ -f /usr/local/lib64/libssl.a ]]; then
+            # TODO: FIMXE: Remove it in future, do not need to be compatible with older docker.
+            if [[ $SRS_SRTP_ASM == YES ]]; then
+                SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
+            fi;
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a &&
                 mkdir -p /usr/local/lib64/pkgconfig && ln -sf /usr/local/lib64/pkgconfig)
