@@ -5126,9 +5126,12 @@ srs_utime_t SrsConfig::get_mr_sleep(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-srs_utime_t SrsConfig::get_mw_sleep(string vhost)
+srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
 {
-    static srs_utime_t DEFAULT = SRS_PERF_MW_SLEEP;
+    static srs_utime_t SYS_DEFAULT = SRS_PERF_MW_SLEEP;
+    static srs_utime_t RTC_DEFAULT = 0;
+
+    srs_utime_t DEFAULT = is_rtc? RTC_DEFAULT : SYS_DEFAULT;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -5148,19 +5151,28 @@ srs_utime_t SrsConfig::get_mw_sleep(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-bool SrsConfig::get_realtime_enabled(string vhost)
+bool SrsConfig::get_realtime_enabled(string vhost, bool is_rtc)
 {
+    static bool SYS_DEFAULT = SRS_PERF_MIN_LATENCY_ENABLED;
+    static bool RTC_DEFAULT = true;
+
+    bool DEFAULT = is_rtc? RTC_DEFAULT : SYS_DEFAULT;
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return SRS_PERF_MIN_LATENCY_ENABLED;
+        return DEFAULT;
     }
     
     conf = conf->get("min_latency");
     if (!conf || conf->arg0().empty()) {
-        return SRS_PERF_MIN_LATENCY_ENABLED;
+        return DEFAULT;
     }
-    
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+
+    if (is_rtc) {
+        return SRS_CONF_PERFER_TRUE(conf->arg0());
+    } else {
+        return SRS_CONF_PERFER_FALSE(conf->arg0());
+    }
 }
 
 bool SrsConfig::get_tcp_nodelay(string vhost)

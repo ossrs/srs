@@ -605,14 +605,14 @@ public:
     // @param vhost, the vhost to get the mr sleep time.
     // TODO: FIXME: add utest for mr config.
     virtual srs_utime_t get_mr_sleep(std::string vhost);
-    // Get the mw sleep time in srs_utime_t for vhost.
+    // Get the mw_latency, mw sleep time in srs_utime_t for vhost.
     // @param vhost, the vhost to get the mw sleep time.
     // TODO: FIXME: add utest for mw config.
-    virtual srs_utime_t get_mw_sleep(std::string vhost);
+    virtual srs_utime_t get_mw_sleep(std::string vhost, bool is_rtc = false);
     // Whether min latency mode enabled.
     // @param vhost, the vhost to get the min_latency.
     // TODO: FIXME: add utest for min_latency.
-    virtual bool get_realtime_enabled(std::string vhost);
+    virtual bool get_realtime_enabled(std::string vhost, bool is_rtc = false);
     // Whether enable tcp nodelay for all clients of vhost.
     virtual bool get_tcp_nodelay(std::string vhost);
     // The minimal send interval in srs_utime_t.

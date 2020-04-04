@@ -507,21 +507,31 @@ srs_error_t SrsRtcSenderThread::cycle()
         rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id());
 
 	SrsConsumer* consumer = NULL;
+    SrsAutoFree(SrsConsumer, consumer);
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", rtc_session->request.get_stream_url().c_str());
     }
 
-    SrsAutoFree(SrsConsumer, consumer);
+    // TODO: FIXME: Support reload.
+    SrsRequest* req = &rtc_session->request;
+    bool realtime = _srs_config->get_realtime_enabled(req->vhost, true);
+    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);
+
+    SrsMessageArray msgs(SRS_PERF_MW_MSGS);
 
     while (true) {
 		if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
         }
 
-        SrsMessageArray msgs(SRS_PERF_MW_MSGS);
-
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-        consumer->wait(0, SRS_PERF_MW_SLEEP);
+        if (realtime) {
+            // for realtime, min required msgs is 0, send when got one+ msgs.
+            consumer->wait(0, mw_sleep);
+        } else {
+            // for no-realtime, got some msgs then send.
+            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
+        }
 #endif
 
         int msg_count = 0;
