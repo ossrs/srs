@@ -158,6 +158,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-04-04, Merge RTC and GB28181, with bugs fixed. 4.0.21
 * v4.0, 2020-04-04, For [#307][bug #307], refine RTC latency from 600ms to 200ms. 4.0.20
 * v4.0, 2020-04-03, For [#307][bug #307], build SRTP with openssl to improve performance. 4.0.19
 * v4.0, 2020-03-31, For [#1500][bug #1500], support push stream by GB28181. 4.0.18
