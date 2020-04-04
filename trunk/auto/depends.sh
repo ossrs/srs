@@ -540,9 +540,10 @@ fi
 # srtp
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    SRTP_CONFIG="echo 'SRTP without openssl'" && SRTP_OPTIONS=""
+    SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
     # If use ASM for SRTP, we enable openssl(with ASM).
     if [[ $SRS_SRTP_ASM == YES ]]; then
+        echo "SRTP with openssl(ASM) optimization" &&
         SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
