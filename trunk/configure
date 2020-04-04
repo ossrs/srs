@@ -828,6 +828,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
+# Do cleanup when configure done.
+#####################################################################################
+if [[ $SRS_CLEAN == YES && -f Makefile ]]; then
+    echo "Do full cleanup, you can disable it by: --without-clean"
+    make clean
+fi
+
+#####################################################################################
 # next step
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then

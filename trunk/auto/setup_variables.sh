@@ -10,11 +10,6 @@ if [[ ${SRS_BUILD_TAG} != "" ]]; then
 fi
 echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 
-if [[ $SRS_CLEAN == YES && -f Makefile ]]; then
-    echo "Do full cleanup, you can disable it by: --without-clean"
-    make clean
-fi
-
 # For src object files on each platform.
 (
     mkdir -p ${SRS_OBJS_DIR} && cd ${SRS_OBJS_DIR} &&
