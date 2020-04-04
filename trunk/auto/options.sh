@@ -573,7 +573,7 @@ function regenerate_options() {
     if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
     if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
     if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
-    if [ $SRS_SRTP_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srtp-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srtp-nasm"; fi
+    if [ $SRS_SRTP_ASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srtp-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srtp-nasm"; fi
     if [ $SRS_CLEAN = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-clean"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-clean"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
