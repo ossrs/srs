@@ -636,7 +636,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
     if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 

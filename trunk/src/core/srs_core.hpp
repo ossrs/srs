@@ -48,7 +48,7 @@
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY "/" RTMP_SIG_SRS_VERSION "(" RTMP_SIG_SRS_CODE ")"
 
 // The current stable release.
-#define VERSION_STABLE 2
+#define VERSION_STABLE 3
 #define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE)".0release"
 
 // For 32bit os, 2G big file limit for unistd io,
