@@ -8,7 +8,9 @@ st-1.9.zip
     basic framework for srs.
     
 openssl-1.1.0e.zip
+openssl-OpenSSL_1_0_2u.tar.gz
     openssl for SRS(with-ssl) RTMP complex handshake to delivery h264+aac stream.
+    SRTP depends on openssl 1.0.*, so we use both ssl versions.
 
 CherryPy-3.2.4.zip
     sample api server for srs.

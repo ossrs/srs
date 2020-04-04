@@ -17,6 +17,8 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
+SRS_RTC=YES
+SRS_GB28181=NO
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
@@ -63,6 +65,7 @@ SRS_LOG_TRACE=NO
 ################################################################
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
+# TODO: Use pkg-config to get the openssl path.
 SRS_USE_SYS_SSL=NO
 # enable memory watch, detect memory leak,
 # similar to gmc, should disable in release version for hurts performance.
@@ -73,6 +76,10 @@ SRS_EXPORT_LIBRTMP_PROJECT=NO
 SRS_EXPORT_LIBRTMP_SINGLE=NO
 # valgrind
 SRS_VALGRIND=NO
+# Set the object files tag name.
+SRS_BUILD_TAG=
+# Whether do "make clean" when configure.
+SRS_CLEAN=YES
 #
 ################################################################
 # presets
@@ -108,8 +115,11 @@ SRS_TOOL_AR=ar
 SRS_TOOL_LD=ld
 SRS_TOOL_RANDLIB=randlib
 SRS_EXTRA_FLAGS=
-# Set the object files tag name.
-SRS_BUILD_TAG=
+#
+#####################################################################################
+# Performance optimize.
+SRS_NASM=YES
+SRS_SRTP_ASM=YES
 
 #####################################################################################
 # menu
@@ -132,16 +142,20 @@ Features:
   --with-librtmp            Enable srs-librtmp, library for client.
   --with-research           Build the research tools.
   --with-utest              Build the utest for SRS.
-  --with-srt                Build the srt for SRS.
+  --with-srt                Build the SRT support for SRS.
+  --with-rtc                Build the WebRTC support for SRS.
+  --with-gb28181            Build the GB28181 support for SRS.
 
   --without-ssl             Disable rtmp complex handshake.
   --without-hds             Disable hds, the adobe http dynamic streaming.
   --without-stream-caster   Disable stream caster, only listen and serve RTMP/HTTP.
   --without-stat            Disable the data statistic feature.
   --without-librtmp         Disable srs-librtmp, library for client.
-  --without-research        Do not build the research tools.
-  --without-utest           Do not build the utest for SRS.
-  --without-srt             Do not build the srt for SRS.
+  --without-research        Disable the research tools.
+  --without-utest           Disable the utest for SRS.
+  --without-srt             Disable the SRT support for SRS.
+  --without-rtc             Disable the WebRTC support for SRS.
+  --without-gb28181         Disable the GB28181 support for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
@@ -169,6 +183,11 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --without-gcp             Do not build cpu profile for SRS with gperf tools.
   --without-gprof           Do not build srs with gprof(GNU profile tool).
 
+  --with-nasm               Build FFMPEG for RTC with nasm support.
+  --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
+  --with-srtp-nasm          Build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
+  --without-srtp-nasm       Disable SRTP ASM support.
+
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --arm                     Enable crossbuild for ARM.
   --mips                    Enable crossbuild for MIPS.
@@ -178,7 +197,6 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
   --ld=<LD>                 Use linker tool LD, default is ld.
   --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib.
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
-  --build-tag=<TAG>         Set the build object directory suffix.
 
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -194,6 +212,9 @@ Experts:
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
   --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
+  --build-tag=<TAG>         Set the build object directory suffix.
+  --with-clean              Configure SRS and do make clean if possible.
+  --without-clean           Configure SRS and never make clean even possible..
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
@@ -224,6 +245,11 @@ function parse_user_option() {
         --with-research)                SRS_RESEARCH=YES            ;;
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-srt)                     SRS_SRT=YES                 ;;
+        --with-rtc)                     SRS_RTC=YES                 ;;
+        --with-gb28181)                 SRS_GB28181=YES             ;;
+        --with-nasm)                    SRS_NASM=YES                ;;
+        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
+        --with-clean)                   SRS_CLEAN=YES               ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -239,7 +265,12 @@ function parse_user_option() {
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
-        --without-srt)                  SRS_SRT=NO                 ;;
+        --without-srt)                  SRS_SRT=NO                  ;;
+        --without-rtc)                  SRS_RTC=NO                  ;;
+        --without-gb28181)              SRS_GB28181=NO              ;;
+        --without-nasm)                 SRS_NASM=NO                 ;;
+        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
+        --without-clean)                SRS_CLEAN=NO                ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -539,6 +570,11 @@ function regenerate_options() {
     if [ $SRS_RESEARCH = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-research"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-research"; fi
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
+    if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
+    if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
+    if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
+    if [ $SRS_SRTP_ASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srtp-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srtp-nasm"; fi
+    if [ $SRS_CLEAN = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-clean"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-clean"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi
@@ -582,6 +618,22 @@ function check_option_conflicts() {
 
     if [[ $SRS_FFMPEG_TOOL == YES ]]; then
         echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+    fi
+
+    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
+    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
+        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
+        exit -1
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
+        echo "Disable SRTP ASM, because RTC is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
+        echo "Disable SRTP ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
     fi
 
     # TODO: FIXME: check more os.

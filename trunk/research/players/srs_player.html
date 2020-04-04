@@ -25,7 +25,7 @@
     </style>
 </head>
 <body>
-<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -33,6 +33,7 @@
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
                     <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
                     <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
@@ -549,6 +550,9 @@
             }
             if (query.buffer) {
                 url += "&buffer=" + query.buffer;
+            }
+            if (query.api_port) {
+                url += "&api_port=" + query.api_port;
             }
 
             var queries = user_extra_params(query);

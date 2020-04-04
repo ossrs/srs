@@ -143,6 +143,15 @@ END
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
+# srtp
+if [[ $SRS_RTC == YES ]]; then
+  LibSrtpRoot="${SRS_OBJS_DIR}/srtp2/include"; LibSrtpFile="${SRS_OBJS_DIR}/srtp2/lib/libsrtp2.a"
+fi
+# FFMPEG for WebRTC transcoding, such as aac to opus.
+if [[ $SRS_RTC == YES ]]; then
+  LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
+  LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
+fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
@@ -163,8 +172,8 @@ if [[ $SRS_SRT == YES ]]; then
 fi
 # the link options, always use static link
 SrsLinkOptions="-ldl";
-if [[ $SRS_SRT == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -pthread";
+if [[ $SRS_SRT == YES || $SRS_RTC == YES ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -lpthread";
 fi
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
@@ -177,6 +186,10 @@ fi
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
+fi
+# For FFMPEG/RTC.
+if [[ $SRS_RTC == YES && $SRS_NASM == NO ]]; then
+    SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 
 #####################################################################################
@@ -199,6 +212,9 @@ MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_buffer"
         "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_io"
         "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts"
         "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file")
+if [[ $SRS_RTC == YES ]]; then
+    MODULE_FILES+=("srs_kernel_rtp")
+fi
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -208,8 +224,11 @@ MODULE_DEPENDS=("CORE" "KERNEL")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_rtmp_handshake" "srs_protocol_utility" "srs_rtmp_msg_array" "srs_protocol_stream"
-        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
+        "srs_raw_avc" "srs_rtsp_stack" "srs_sip_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
         "srs_protocol_format")
+if [[ $SRS_RTC == YES ]]; then
+    MODULE_FILES+=("srs_stun_stack")
+fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -229,6 +248,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVICE"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
         "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
         "srs_service_conn")
@@ -242,6 +264,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -253,6 +278,12 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec"
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
             "srs_app_coworkers" "srs_app_hybrid")
+    if [[ $SRS_RTC == YES ]]; then
+        MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_dtls" "srs_app_audio_recode" "srs_app_sdp")
+    fi
+    if [[ $SRS_GB28181 == YES ]]; then
+        MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")
+    fi
     DEFINES=""
     # add each modules for app
     for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -280,6 +311,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         MODULE_DEPENDS+=("SRT")
     fi
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
@@ -293,6 +327,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     MODULE_FILES=()
     DEFINES=""
     # add each modules for main
@@ -320,12 +357,18 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibFiles+=("${LibFfmpegFile[*]}" ${LibSrtpFile})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
     # all depends objects
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
     fi
@@ -337,6 +380,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibFiles+=("${LibFfmpegFile[*]}" ${LibSrtpFile})
+    fi
     #
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -353,7 +399,7 @@ fi
 # For utest on mac.
 # @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
 if [[ $SRS_OSX == YES ]]; then
-    EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
+    UTEST_EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
 fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
@@ -362,10 +408,16 @@ if [ $SRS_UTEST = YES ]; then
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
         "srs_utest_mp4" "srs_utest_service" "srs_utest_app")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
+    if [[ $SRS_RTC == YES ]]; then
+        ModuleLibFiles+=("${LibFfmpegFile[*]}" ${LibSrtpFile})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
@@ -392,8 +444,8 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 .PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
-.PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
-.PHONY: st
+.PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus
+.PHONY: st ffmpeg
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -413,20 +465,22 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
-	@echo "     help               display this help menu"
-	@echo "     clean              cleanup project and all depends"
-	@echo "     destroy            Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
-	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
-	@echo "     librtmp            build the client publish/play library, and samples"
-	@echo "     utest              build the utest for srs"
-	@echo "     install            install srs to the prefix path"
-	@echo "     install-api        install srs and api-server to the prefix path"
-	@echo "     uninstall          uninstall srs from prefix path"
-	@echo "To clean special module:"
-	@echo "     clean_st           Clean depend st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
-	@echo "     clean_openssl      Clean depend openssl in objs"
-	@echo "     clean_ffmpeg       Clean depend ffmpeg in objs"
-	@echo "@remark all modules will auto genearted and build"
+	@echo "     help            Display this help menu"
+	@echo "     clean           Cleanup project and all depends"
+	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
+	@echo "     server          Build the srs and other modules in main"
+	@echo "     librtmp         Build the client publish/play library, and samples"
+	@echo "     utest           Build the utest for srs"
+	@echo "     install         Install srs to the prefix path"
+	@echo "     install-api     Install srs and api-server to the prefix path"
+	@echo "     uninstall       Uninstall srs from prefix path"
+	@echo "To rebuild special module:"
+	@echo "     st              Rebuild st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
+	@echo "To reconfigure special depends:"
+	@echo "     clean_openssl   Remove the openssl cache."
+	@echo "     clean_srtp2     Remove the libsrtp2 cache."
+	@echo "     clean_opus      Remove the opus cache."
 	@echo "For example:"
 	@echo "     make"
 	@echo "     make help"
@@ -441,24 +495,29 @@ doclean:
 clean: clean_srs clean_modules
 	@echo "You can clean each some components, see make help"
 
-destroy: clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+destroy:
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
 
 clean_srs:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf src include lib utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include/* lib/*)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find src -name "*.o" -delete)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find utest -name "*.o" -delete)
 
 clean_modules:
 	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
 
-clean_st:
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && make clean)
-
 clean_openssl:
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
+	@echo "Please rebuild openssl by: ./configure"
 
-clean_ffmpeg:
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf ffmpeg)
+clean_srtp2:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf libsrtp-2.0.0)
+	@echo "Please rebuild libsrtp2 by: ./configure"
+
+clean_opus:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf opus-1.3.1)
+	@echo "Please rebuild opus by: ./configure"
 
 clean_nginx:
 	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
@@ -466,6 +525,16 @@ clean_nginx:
 clean_cherrypy:
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+st:
+	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
+	@echo "Please rebuild srs by: rm -f objs/srs && make"
+
+ffmpeg:
+	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) install-libs)
+	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 END
 
@@ -671,6 +740,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Warning: SRT is disabled.${BLACK}"
     fi
+    if [ $SRS_RTC = YES ]; then
+        echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
+    else
+        echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
+    fi
     if [ $SRS_DVR = YES ]; then
         echo -e "${GREEN}DVR is enabled.${BLACK}"
     else
@@ -760,6 +834,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         echo -e "${GREEN}Enable module: $SRS_MODULE${BLACK}"
     done
+fi
+
+#####################################################################################
+# Do cleanup when configure done.
+#####################################################################################
+if [[ $SRS_CLEAN == YES && -f Makefile ]]; then
+    echo "Do full cleanup, you can disable it by: --without-clean"
+    make clean
 fi
 
 #####################################################################################

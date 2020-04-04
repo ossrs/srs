@@ -1259,3 +1259,55 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 
+string srs_string_dumps_hex(const std::string& str, const int& limit)
+{
+    return srs_string_dumps_hex(str.c_str(), str.size(), limit);
+}
+
+string srs_string_dumps_hex(const char* buf, const int length, const int& limit)
+{
+    string ret;
+
+    char tmp_buf[1024*16];
+    tmp_buf[0] = '\n';
+    int len = 1;
+    
+    for (int i = 0; i < length && i < limit; ++i) {
+        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
+        if (nb <= 0)
+            break;
+
+        len += nb; 
+
+        if (i % 48 == 47) {
+            tmp_buf[len++] = '\n';
+            ret.append(tmp_buf, len);
+            len = 0;
+        }   
+    }   
+    tmp_buf[len] = '\0';
+    ret.append(tmp_buf, len);
+
+    return ret;
+
+}
+
+string srs_getenv(string key)
+{
+    string ekey = key;
+    if (srs_string_starts_with(key, "$")) {
+        ekey = key.substr(1);
+    }
+
+    if (ekey.empty()) {
+        return "";
+    }
+
+    char* value = ::getenv(ekey.c_str());
+    if (value) {
+        return value;
+    }
+
+    return "";
+}
+

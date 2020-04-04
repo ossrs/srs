@@ -20,5 +20,7 @@ echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SR
     mkdir -p ${SRS_PLATFORM}/include && ln -sf ${SRS_PLATFORM}/include &&
     mkdir -p ${SRS_PLATFORM}/lib && ln -sf ${SRS_PLATFORM}/lib
 )
-echo "Fast cleanup, if need to do full cleanup, please use: make clean"
+if [[ $SRS_CLEAN == NO ]]; then
+  echo "Fast cleanup, if need to do full cleanup, please use: make clean"
+fi
 

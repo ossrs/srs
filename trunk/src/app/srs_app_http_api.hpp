@@ -31,6 +31,9 @@ class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
 class SrsServer;
+class SrsRtcServer;
+class SrsJsonObject;
+class SrsSdp;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
@@ -164,6 +167,25 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+#ifdef SRS_AUTO_RTC
+class SrsGoApiRtcPlay : public ISrsHttpHandler
+{
+public:
+    static uint32_t ssrc_num;
+private:
+    SrsRtcServer* rtc_server;
+public:
+    SrsGoApiRtcPlay(SrsRtcServer* rtc_svr);
+    virtual ~SrsGoApiRtcPlay();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    srs_error_t exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+};
+#endif
+
 class SrsGoApiClients : public ISrsHttpHandler
 {
 public:
@@ -209,6 +231,20 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
+
+
+#ifdef SRS_AUTO_GB28181
+
+class SrsGoApiGb28181 : public ISrsHttpHandler
+{
+public:
+    SrsGoApiGb28181();
+    virtual ~SrsGoApiGb28181();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
+#endif
 
 class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
 {

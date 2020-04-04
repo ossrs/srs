@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 // For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -38,6 +39,7 @@ class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
+class SrsRtpSharedPacket;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -285,6 +287,11 @@ public:
     // @remark, not all message payload can be decoded to packet. for example,
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
+
+#ifdef SRS_AUTO_RTC
+    std::vector<SrsRtpSharedPacket*> rtp_packets;
+#endif
+
 private:
     class SrsSharedPtrPayload
     {
@@ -339,6 +346,10 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
+public:
+#ifdef SRS_AUTO_RTC
+    virtual void set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts);
+#endif
 };
 
 // Transmux RTMP packets to FLV stream.

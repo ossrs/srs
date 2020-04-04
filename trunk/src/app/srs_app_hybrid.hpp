@@ -57,6 +57,8 @@ public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
     virtual void stop();
+public:
+    virtual SrsServer* instance();
 };
 
 // The hybrid server manager.
@@ -73,6 +75,8 @@ public:
     virtual srs_error_t initialize();
     virtual srs_error_t run();
     virtual void stop();
+public:
+    virtual SrsServerAdapter* srs();
 };
 
 extern SrsHybridServer* _srs_hybrid;

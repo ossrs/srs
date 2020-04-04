@@ -29,6 +29,7 @@ function srs_get_srs_http_server_port() { return 8080; }
 function update_nav() {
     $("#srs_index").attr("href", "index.html" + window.location.search);
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
+    $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);
@@ -53,11 +54,11 @@ function user_extra_params(query, params) {
     }
 
     for (var key in query.user_query) {
-        if (key == 'app' || key == 'autostart' || key == 'dir'
-            || key == 'filename' || key == 'host' || key == 'hostname'
-            || key == 'http_port' || key == 'pathname' || key == 'port'
-            || key == 'server' || key == 'stream' || key == 'buffer'
-            || key == 'schema' || key == 'vhost'
+        if (key === 'app' || key === 'autostart' || key === 'dir'
+            || key === 'filename' || key === 'host' || key === 'hostname'
+            || key === 'http_port' || key === 'pathname' || key === 'port'
+            || key === 'server' || key === 'stream' || key === 'buffer'
+            || key === 'schema' || key === 'vhost' || key === 'api'
         ) {
             continue;
         }
@@ -205,6 +206,36 @@ function build_default_hls_url() {
     return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
 }
 
+function build_default_rtc_url(query) {
+    var server = (!query.server)? window.location.hostname:query.server;
+    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
+    var app = (!query.app)? "live":query.app;
+    var stream = (!query.stream)? "livestream":query.stream;
+    var api = query.api? ':'+query.api : '';
+
+    // Note that ossrs.net provides only web service,
+    // that is migrating to r.ossrs.net
+    if (vhost == "ossrs.net") {
+        vhost = "r.ossrs.net";
+    }
+    if (server == "ossrs.net") {
+        server = "r.ossrs.net";
+    }
+
+    var queries = [];
+    if (server != vhost && vhost != "__defaultVhost__") {
+        queries.push("vhost=" + vhost);
+    }
+    queries = user_extra_params(query, queries);
+
+    var uri = "webrtc://" + server + api + "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.lastIndexOf("?") == uri.length - 1) {
+        uri = uri.substr(0, uri.length - 1);
+    }
+
+    return uri;
+};
+
 /**
 * initialize the page.
 * @param rtmp_url the div id contains the rtmp stream url to play
@@ -216,6 +247,10 @@ function srs_init_rtmp(rtmp_url, modal_player) {
 }
 function srs_init_hls(hls_url, modal_player) {
     srs_init(null, hls_url, modal_player);
+}
+function srs_init_rtc(id, query) {
+    update_nav();
+    $(id).val(build_default_rtc_url(query));
 }
 function srs_init(rtmp_url, hls_url, modal_player) {
     update_nav();

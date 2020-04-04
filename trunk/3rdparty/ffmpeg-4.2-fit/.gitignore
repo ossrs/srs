@@ -1,0 +1,21 @@
+# Ignore files.
+*.d
+*.pc
+*.o
+_release
+
+# We should remove bellow files in depends.sh
+doc
+config.asm
+config.h
+ffbuild/config.fate
+ffbuild/config.log
+ffbuild/config.mak
+ffbuild/config.sh
+ffbuild/.config
+libavutil/lib.version
+libavutil/libavutil.version
+libavutil/ffversion.h
+libavutil/avconfig.h
+libavcodec/libavcodec.version
+libswresample/libswresample.version

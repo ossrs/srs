@@ -84,6 +84,15 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
+    if [[ $SRS_NASM == YES ]]; then
+      nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+          echo "Installing nasm."
+          require_sudoer "sudo apt-get install -y --force-yes nasm"
+          sudo apt-get install -y --force-yes nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+          echo "The nasm is installed."
+      fi
+    fi
+
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
@@ -156,6 +165,13 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y unzip"
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "The unzip is installed."
+    fi
+
+    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing nasm."
+        require_sudoer "sudo yum install -y nasm"
+        sudo yum install -y nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The nasm is installed."
     fi
 
     if [[ $SRS_VALGRIND == YES ]]; then
@@ -287,6 +303,20 @@ function sed_utility() {
 }
 SED="sed_utility" && echo "SED is $SED"
 
+function _srs_link_file()
+{
+    tmp_dir=$1; if [[ $tmp_dir != *'/' ]]; then tmp_dir+='/'; fi
+    tmp_dest=$2; if [[ $tmp_dest != *'/' ]]; then tmp_dest+='/'; fi
+    tmp_prefix=$3; if [[ $tmp_prefix != *'/' ]]; then tmp_prefix+='/'; fi
+
+    echo "LINK files at dir: $tmp_dir, dest: $tmp_dest, prefix: $tmp_prefix, pwd: `pwd`"
+    for file in `(cd $tmp_dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d' ! -name '*.log')`; do
+        basefile=`basename $file` &&
+        #echo "ln -sf ${tmp_prefix}${tmp_dir}$basefile ${tmp_dest}$basefile" &&
+        ln -sf ${tmp_prefix}${tmp_dir}$basefile ${tmp_dest}$basefile;
+    done
+}
+
 #####################################################################################
 # check the os.
 #####################################################################################
@@ -330,8 +360,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
             # Link source files under .src
-            for file in `(cd .src && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                ln -sf .src/$file $file;
+            _srs_link_file .src/ ./ ./ &&
+            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
+                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
             done &&
             # Link source files under .src/xxx, the first child dir.
             for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
@@ -409,7 +440,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-            python setup.py install --user
+            python setup.py install --user --prefix=''
         )
     fi
     # check status
@@ -440,43 +471,174 @@ fi
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
-    OPENSSL_OPTIONS="-no-shared -no-threads -no-asm -DOPENSSL_NO_HEARTBEATS"
+    OPENSSL_OPTIONS="-no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
     OPENSSL_CONFIG="./config"
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
-    else
-        # If not crossbuild, try to use exists libraries.
-        if [[ -f /usr/local/lib64/libssl.a && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+    elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+        # For older docker, which does not support SRTP asm optimization.
+        if [[ -f /usr/local/lib64/libssl.a ]]; then
+            # TODO: FIMXE: Remove it in future, do not need to be compatible with older docker.
+            if [[ $SRS_SRTP_ASM == YES ]]; then
+                SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
+            fi;
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
-                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a)
+                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a &&
+                mkdir -p /usr/local/lib64/pkgconfig && ln -sf /usr/local/lib64/pkgconfig)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/include/openssl)
         fi
+        # Try to use files for openssl 1.0.*
+        if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
+            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
+                ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a &&
+                mkdir -p /usr/local/ssl/lib/pkgconfig && ln -sf /usr/local/ssl/lib/pkgconfig)
+            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
+                ln -sf /usr/local/ssl/include/openssl)
+        fi
     fi
-    # Which lib we use.
-    OPENSSL_LIB="openssl-1.1.0e/_release"
-    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
-        OPENSSL_LIB="openssl"
+    # For RTC, we should use ASM to improve performance, not a little improving.
+    if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
+    fi
+    # Mac OS X can have issues (its often a neglected platform).
+    # @see https://wiki.openssl.org/index.php/Compilation_and_Installation
+    if [[ $SRS_OSX == YES ]]; then
+        export KERNEL_BITS=64;
+    fi
+    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf  ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         echo "Openssl-1.1.0e is ok.";
     else
-        echo "Building openssl-1.1.0e.";
+        echo "Building $OPENSSL_CANDIDATE.";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1.0e && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/openssl-1.1.0e.zip && cd openssl-1.1.0e &&
-            ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
-            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} && make install_sw &&
-            cd .. && rm -rf openssl && ln -sf openssl-1.1.0e/_release openssl
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
+            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
+            cd .. && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl
+        )
+    fi
+    # Which lib we use.
+    OPENSSL_LIB="$OPENSSL_CANDIDATE/_release"
+    if [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_LIB}/lib/libssl.a ]]; then
+        OPENSSL_LIB="openssl"
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build $OPENSSL_CANDIDATE failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
+    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build $OPENSSL_CANDIDATE failed."; exit -1; fi
+fi
+
+#####################################################################################
+# srtp
+#####################################################################################
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
+    # If use ASM for SRTP, we enable openssl(with ASM).
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        echo "SRTP with openssl(ASM) optimization" &&
+        SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
+    fi
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
+        echo "The srtp2 is ok.";
+    else
+        echo "Building srtp2.";
+        (
+            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
+            ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+            make ${SRS_JOBS} && make install &&
+            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build openssl-1.1.0e failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
-    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build openssl-1.1.0e failed."; exit -1; fi
+    (cd ${SRS_OBJS} && rm -f srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
+    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
+fi
+
+#####################################################################################
+# libopus, for WebRTC to transcode AAC with Opus.
+#####################################################################################
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus/lib/libopus.a ]]; then
+        echo "The opus-1.3.1 is ok.";
+    else
+        echo "Building opus-1.3.1.";
+        (
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            tar xf ../../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
+            ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
+            cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -f opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
+    if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
+fi
+
+#####################################################################################
+# ffmpeg-fix, for WebRTC to transcode AAC with Opus.
+#####################################################################################
+if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+    FFMPEG_OPTIONS=""
+    if [[ $SRS_NASM == NO ]]; then
+        FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
+    fi
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/lib/libavcodec.a ]]; then
+        echo "The ffmpeg-4.2-fit is ok.";
+    else
+        echo "Building ffmpeg-4.2-fit.";
+        (
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit &&
+            # Create a hidden directory .src
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
+            # Link source files under .src
+            _srs_link_file .src/ ./ ./ &&
+            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
+                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../ &&
+                for dir2 in `(cd .src/$dir && find . -maxdepth 1 -type d|grep '\./')`; do
+                    dir2=`basename $dir2` && mkdir -p $dir/$dir2 && _srs_link_file .src/$dir/$dir2/ $dir/$dir2/ ../../ &&
+                    for dir3 in `(cd .src/$dir/$dir2 && find . -maxdepth 1 -type d|grep '\./')`; do
+                        dir3=`basename $dir3` && mkdir -p $dir/$dir2/$dir3 && _srs_link_file .src/$dir/$dir2/$dir3/ $dir/$dir2/$dir3/ ../../../;
+                    done
+                done
+            done &&
+            # We should remove some files(in .gitignore) to keep them in local generated.
+            (cd ffbuild && rm -f config.fate config.log config.mak config.sh .config) &&
+            (cd libavutil && rm -f lib.version libavutil.version ffversion.h avconfig.h) &&
+            (rm -rf doc && rm -f config.asm config.h libavcodec/libavcodec.version libswresample/libswresample.version) &&
+            # Build source code.
+            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
+              --prefix=`pwd`/${SRS_PLATFORM}/_release \
+              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
+              --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
+              --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
+              --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
+              --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-appkit --disable-coreimage \
+              --disable-avfoundation --disable-securetransport --disable-iconv --disable-lzma --disable-sdl2 --disable-everything \
+              --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm --enable-decoder=libopus --enable-encoder=aac \
+              --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
+            make ${SRS_JOBS} && make install &&
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
+    if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -509,7 +671,7 @@ if [[ $SRS_SRT == YES ]]; then
     if [[ -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
         echo "libsrt-1.4.1 is ok.";
     else
-        echo "no libsrt, please use srs-docker or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
+        echo "no libsrt, please run in docker ossrs/srs:srt or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
         exit -1;
     fi
 fi

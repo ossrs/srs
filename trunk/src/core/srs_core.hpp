@@ -43,12 +43,12 @@
 #define RTMP_SIG_SRS_CODE "Leo"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
-#define RTMP_SIG_SRS_AUTHORS "winlin,wenjie,runner365"
+#define RTMP_SIG_SRS_AUTHORS "Winlin,Wenjie,Runner365,John,B.P.Y,Lixin"
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR) "." SRS_XSTR(VERSION_MINOR) "." SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY "/" RTMP_SIG_SRS_VERSION "(" RTMP_SIG_SRS_CODE ")"
 
 // The current stable release.
-#define VERSION_STABLE 2
+#define VERSION_STABLE 3
 #define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE)".0release"
 
 // For 32bit os, 2G big file limit for unistd io,
@@ -60,6 +60,11 @@
 // For int64_t print using PRId64 format.
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS
+#endif
+
+// For RTC/FFMPEG build.
+#if defined(SRS_AUTO_RTC) && !defined(__STDC_CONSTANT_MACROS)
+    #define __STDC_CONSTANT_MACROS
 #endif
 
 // For srs-librtmp, @see https://github.com/ossrs/srs/issues/213

@@ -399,6 +399,24 @@ enum SrsAvcNaluType
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
 /**
+ * Table 7-6 – Name association to slice_type
+ * ISO_IEC_14496-10-AVC-2012.pdf, page 105.
+ */
+enum SrsAvcSliceType
+{
+    SrsAvcSliceTypeP   = 0,
+    SrsAvcSliceTypeB   = 1,
+    SrsAvcSliceTypeI   = 2,
+    SrsAvcSliceTypeSP  = 3,
+    SrsAvcSliceTypeSI  = 4,
+    SrsAvcSliceTypeP1  = 5,
+    SrsAvcSliceTypeB1  = 6,
+    SrsAvcSliceTypeI1  = 7,
+    SrsAvcSliceTypeSP1 = 8,
+    SrsAvcSliceTypeSI1 = 9,
+};
+
+/**
  * the avc payload format, must be ibmf or annexb format.
  * we guess by annexb first, then ibmf for the first time,
  * and we always use the guessed format for the next time.
