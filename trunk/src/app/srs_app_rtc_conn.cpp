@@ -564,6 +564,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
 {
     srs_error_t err = srs_success;
 
+    vector<mmsghdr> mhdrs;
 	for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
@@ -585,21 +586,41 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
             }
 
             int length = pkt->size;
-            char buf[kRtpPacketSize];
+            char* buf = new char[kRtpPacketSize];
             if ((err = rtc_session->dtls_session->protect_rtp(buf, pkt->payload, length)) != srs_success) {
-                srs_warn("srtp err %s", srs_error_desc(err).c_str());
-                srs_freep(err);
+                srs_warn("srtp err %s", srs_error_desc(err).c_str()); srs_freep(err); srs_freepa(buf);
                 continue;
             }
 
-            // TODO: use sendmmsg to send multi packet one system call
-            if ((err = udp_mux_skt->sendto(buf, length, 0)) != srs_success) {
-                srs_warn("send err %s", srs_error_desc(err).c_str());
-                srs_freep(err);
-            }
+            mmsghdr mhdr;
+            memset(&mhdr, 0, sizeof(mmsghdr));
+            mhdr.msg_hdr.msg_name = (sockaddr_in*)udp_mux_skt->peer_addr();
+            mhdr.msg_hdr.msg_namelen = udp_mux_skt->peer_addrlen();
+            mhdr.msg_hdr.msg_iovlen = 1;
+            mhdr.msg_hdr.msg_iov = new iovec();
+            mhdr.msg_hdr.msg_iov->iov_base = buf;
+            mhdr.msg_hdr.msg_iov->iov_len = length;
+            mhdrs.push_back(mhdr);
         }
 
         srs_freep(msg);
+    }
+
+
+    if (!mhdrs.empty()) {
+        mmsghdr* msgvec = &mhdrs[0];
+        unsigned int vlen = (unsigned int)mhdrs.size();
+        int r0 = srs_sendmmsg(udp_mux_skt->stfd(), msgvec, vlen, 0, SRS_UTIME_NO_TIMEOUT);
+        if (r0 != (int)vlen) {
+            srs_warn("sendmsg %d msgs, %d done", vlen, r0);
+        }
+    }
+    for (int i = 0; i < (int)mhdrs.size(); i++) {
+        msghdr* hdr = &mhdrs[i].msg_hdr;
+        for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
+            iovec* iov = hdr->msg_iov + i;
+            delete (char*)iov->iov_base;
+        }
     }
 }
 

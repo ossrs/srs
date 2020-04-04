@@ -316,6 +316,21 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
     return err;
 }
 
+srs_netfd_t SrsUdpMuxSocket::stfd()
+{
+    return lfd;
+}
+
+sockaddr_in* SrsUdpMuxSocket::peer_addr()
+{
+    return (sockaddr_in*)&from;
+}
+
+socklen_t SrsUdpMuxSocket::peer_addrlen()
+{
+    return (socklen_t)fromlen;
+}
+
 std::string SrsUdpMuxSocket::get_peer_id()
 {
     char id_buf[1024];

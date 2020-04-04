@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <string>
 
@@ -147,6 +148,10 @@ public:
 
     int recvfrom(srs_utime_t timeout);
     srs_error_t sendto(void* data, int size, srs_utime_t timeout);
+
+    srs_netfd_t stfd();
+    sockaddr_in* peer_addr();
+    socklen_t peer_addrlen();
 
     char* data() { return buf; }
     int size() { return nread; }

@@ -124,7 +124,7 @@
 #define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     #define SRS_PERF_MW_MIN_MSGS 8
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 0
+    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 4
 #endif
 /**
  * the default value of vhost for

@@ -151,6 +151,7 @@ extern int st_recvfrom(st_netfd_t fd, void *buf, int len, struct sockaddr *from,
 extern int st_sendto(st_netfd_t fd, const void *msg, int len, const struct sockaddr *to, int tolen, st_utime_t timeout);
 extern int st_recvmsg(st_netfd_t fd, struct msghdr *msg, int flags, st_utime_t timeout);
 extern int st_sendmsg(st_netfd_t fd, const struct msghdr *msg, int flags, st_utime_t timeout);
+extern int st_sendmmsg(st_netfd_t fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout);
 extern st_netfd_t st_open(const char *path, int oflags, mode_t mode);
 
 #ifdef DEBUG

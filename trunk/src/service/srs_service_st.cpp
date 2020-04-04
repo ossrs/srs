@@ -407,6 +407,31 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
     return st_sendmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
 }
 
+int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
+{
+#if defined(SRS_AUTO_OSX)
+    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    for (int i = 0; i < (int)vlen; ++i) {
+        struct mmsghdr* p = msgvec + i;
+        int n = srs_sendmsg(stfd, &p->msg_hdr, flags, timeout);
+        if (n < 0) {
+            // An error is returned only if no datagrams could be sent.
+            if (i == 0) {
+                return n;
+            }
+            return i + 1;
+        }
+
+        p->msg_len = n;
+    }
+    // Returns the number of messages sent from msgvec; if this is less than vlen, the caller can retry with a
+    // further sendmmsg() call to send the remaining messages.
+    return vlen;
+#else
+    return st_sendmmsg((st_netfd_t)stfd, msgvec, vlen, flags, (st_utime_t)timeout);
+#endif
+}
+
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)
 {
     return (srs_netfd_t)st_accept((st_netfd_t)stfd, addr, addrlen, (st_utime_t)timeout);
