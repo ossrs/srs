@@ -121,6 +121,7 @@ SRS_EXTRA_FLAGS=
 SRS_NASM=YES
 SRS_SRTP_ASM=YES
 SRS_SENDMMSG=YES
+SRS_HAS_SENDMMSG=YES
 
 #####################################################################################
 # menu
@@ -564,9 +565,12 @@ function apply_user_detail_options() {
     fi
 
     grep -qs sendmmsg /usr/include/sys/socket.h
-    if [[ $? -ne 0 && $SRS_SENDMMSG == YES ]]; then
-        echo "Disable UDP sendmmsg automatically"
-        SRS_SENDMMSG=NO
+    if [[ $? -ne 0 ]]; then
+        SRS_HAS_SENDMMSG=NO
+        if [[ $SRS_SENDMMSG == YES ]]; then
+          echo "Disable UDP sendmmsg automatically"
+          SRS_SENDMMSG=NO
+        fi
     fi
 }
 apply_user_detail_options

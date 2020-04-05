@@ -91,7 +91,7 @@ extern int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *f
 extern int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr *to, int tolen, srs_utime_t timeout);
 extern int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout);
 
-#if !defined(SRS_AUTO_SENDMMSG)
+#if !defined(SRS_AUTO_HAS_SENDMMSG)
     // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     #include <sys/socket.h>
     struct mmsghdr {
