@@ -479,10 +479,6 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         # For older docker, which does not support SRTP asm optimization.
         if [[ -f /usr/local/lib64/libssl.a ]]; then
-            # TODO: FIMXE: Remove it in future, do not need to be compatible with older docker.
-            if [[ $SRS_SRTP_ASM == YES ]]; then
-                SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
-            fi;
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a &&
                 mkdir -p /usr/local/lib64/pkgconfig && ln -sf /usr/local/lib64/pkgconfig)
@@ -540,6 +536,18 @@ fi
 # srtp
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # For openssl-1.1.*, we should disable SRTP ASM, because SRTP only works with openssl-1.0.*
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        echo "#include <openssl/ssl.h>" > ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "#if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "#error \"SRTP only works with openssl-1.0.*\"" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "#endif" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        gcc -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
+        fi
+        rm -f ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+    fi;
     SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
     # If use ASM for SRTP, we enable openssl(with ASM).
     if [[ $SRS_SRTP_ASM == YES ]]; then
