@@ -120,6 +120,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
         if (buffer->size() > 0) {
             ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
 
+
             // The error is set in http_errno.
             enum http_errno code;
 	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
@@ -139,6 +140,8 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
 	                }
 	            }
 	        }
+            
+            size_t nparsed;
             srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
 
 	        // Only consume the header bytes.

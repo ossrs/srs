@@ -4459,26 +4459,26 @@ bool SrsConfig::get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_stream_caster_gb28181_print_sip_message(SrsConfDirective* conf)
-{
-    static bool DEFAULT = false;
+// bool SrsConfig::get_stream_caster_gb28181_print_sip_message(SrsConfDirective* conf)
+// {
+//     static bool DEFAULT = false;
 
-    if (!conf) {
-        return DEFAULT;
-    }
+//     if (!conf) {
+//         return DEFAULT;
+//     }
 
-    conf = conf->get("sip");
-    if (!conf) {
-        return DEFAULT;
-    }
+//     conf = conf->get("sip");
+//     if (!conf) {
+//         return DEFAULT;
+//     }
 
-    conf = conf->get("print_sip_message");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
+//     conf = conf->get("print_sip_message");
+//     if (!conf || conf->arg0().empty()) {
+//         return DEFAULT;
+//     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
+//     return SRS_CONF_PERFER_FALSE(conf->arg0());
+// }
 
 bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
 {
