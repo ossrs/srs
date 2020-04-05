@@ -55,6 +55,8 @@ enum SrsSipCmdType{
     SrsSipCmdRespone=1
 };
 
+std::string srs_sip_get_utc_date();
+
 class SrsSipRequest
 {
 public:
