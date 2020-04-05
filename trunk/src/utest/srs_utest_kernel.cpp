@@ -4865,7 +4865,7 @@ VOID TEST(KernelMP4Test, CoverMP4CodecSingleFrame)
         MockSrsFileReader fr((const char*)f.data(), f.filesize());
         SrsMp4Decoder dec; HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
         
-        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample;
+        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample = NULL;
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
@@ -4980,7 +4980,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleVideos)
         MockSrsFileReader fr((const char*)f.data(), f.filesize());
         SrsMp4Decoder dec; HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
 
-        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample;
+        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample = NULL;
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
@@ -5078,7 +5078,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleCTTs)
         MockSrsFileReader fr((const char*)f.data(), f.filesize());
         SrsMp4Decoder dec; HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
 
-        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample;
+        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample = NULL;
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
@@ -5190,7 +5190,7 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVs)
         MockSrsFileReader fr((const char*)f.data(), f.filesize());
         SrsMp4Decoder dec; HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
 
-        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample;
+        SrsMp4HandlerType ht; uint16_t ft, ct; uint32_t dts, pts, nb_sample; uint8_t* sample = NULL;
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
