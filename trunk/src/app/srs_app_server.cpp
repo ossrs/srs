@@ -987,7 +987,10 @@ srs_error_t SrsServer::http_handle()
         return srs_error_wrap(err, "handle raw");
     }
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
-        return srs_error_wrap(err, "handle raw");
+        return srs_error_wrap(err, "handle clusters");
+    }
+    if ((err = http_api_mux->handle("/api/v1/perf", new SrsGoApiPerf())) != srs_success) {
+        return srs_error_wrap(err, "handle perf");
     }
 #ifdef SRS_AUTO_GB28181
     if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {

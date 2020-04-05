@@ -217,6 +217,14 @@ srs_error_t SrsPacket::encode_packet(SrsBuffer* stream)
     return srs_error_new(ERROR_SYSTEM_PACKET_INVALID, "encode");
 }
 
+ISrsProtocolPerf::ISrsProtocolPerf()
+{
+}
+
+ISrsProtocolPerf::~ISrsProtocolPerf()
+{
+}
+
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     window = 0;
@@ -256,6 +264,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReadWriter* io)
     }
 
     out_c0c3_caches = new char[SRS_CONSTS_C0C3_HEADERS_MAX];
+    perf = NULL;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -301,6 +310,11 @@ SrsProtocol::~SrsProtocol()
 void SrsProtocol::set_auto_response(bool v)
 {
     auto_response_when_recv = v;
+}
+
+void SrsProtocol::set_perf(ISrsProtocolPerf* v)
+{
+    perf = v;
 }
 
 srs_error_t SrsProtocol::manual_response_flush()
@@ -448,7 +462,12 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
     
     int c0c3_cache_index = 0;
     char* c0c3_cache = out_c0c3_caches + c0c3_cache_index;
-    
+
+    // How many messages are merged in written.
+    int nb_msgs_merged_written = 0;
+    // How many bytes of messages are merged in written.
+    int bytes_msgs_merged_written = 0;
+
     // try to send use the c0c3 header cache,
     // if cache is consumed, try another loop.
     for (int i = 0; i < nb_msgs; i++) {
@@ -462,6 +481,10 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
         if (!msg->payload || msg->size <= 0) {
             continue;
         }
+
+        // Increase the perf stat data.
+        nb_msgs_merged_written++;
+        bytes_msgs_merged_written += msg->size;
         
         // p set to current write position,
         // it's ok when payload is NULL and size is 0.
@@ -522,6 +545,12 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
                 if ((err = do_iovs_send(out_iovs, iov_index)) != srs_success) {
                     return srs_error_wrap(err, "send iovs");
                 }
+
+                // Notify about perf stat.
+                if (perf) {
+                    perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+                    nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
+                }
                 
                 // reset caches, while these cache ensure
                 // atleast we can sendout a chunk.
@@ -539,8 +568,19 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
     if (iov_index <= 0) {
         return err;
     }
-    
-    return do_iovs_send(out_iovs, iov_index);
+
+    // Send out iovs at a time.
+    if ((err = do_iovs_send(out_iovs, iov_index)) != srs_success) {
+        return srs_error_wrap(err, "send iovs");
+    }
+
+    // Notify about perf stat.
+    if (perf) {
+        perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+        nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
+    }
+
+    return err;
 #else
     // try to send use the c0c3 header cache,
     // if cache is consumed, try another loop.
@@ -586,6 +626,11 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
             
             if ((er = skt->writev(iovs, 2, NULL)) != srs_success) {
                 return srs_error_wrap(err, "writev");
+            }
+
+            // Notify about perf stat.
+            if (perf) {
+                perf->perf_mw_on_packets(1, payload_size, 2);
             }
         }
     }
@@ -2207,6 +2252,11 @@ uint32_t SrsRtmpServer::proxy_real_ip()
 void SrsRtmpServer::set_auto_response(bool v)
 {
     protocol->set_auto_response(v);
+}
+
+void SrsRtmpServer::set_perf(ISrsProtocolPerf* v)
+{
+    protocol->set_perf(v);
 }
 
 #ifdef SRS_PERF_MERGED_READ
