@@ -2744,10 +2744,12 @@ SrsMp4DataEntryBox* SrsMp4DataReferenceBox::entry_at(int index)
     return entries.at(index);
 }
 
-SrsMp4DataReferenceBox* SrsMp4DataReferenceBox::append2(SrsMp4DataEntryBox* v)
+void SrsMp4DataReferenceBox::append(SrsMp4Box* v)
 {
-    entries.push_back(v);
-    return this;
+    SrsMp4DataEntryBox* pv = dynamic_cast<SrsMp4DataEntryBox*>(v);
+    if (pv) {
+        entries.push_back(pv);
+    }
 }
 
 int SrsMp4DataReferenceBox::nb_header()
@@ -3765,10 +3767,12 @@ SrsMp4SampleEntry* SrsMp4SampleDescriptionBox::entrie_at(int index)
     return entries.at(index);
 }
 
-SrsMp4SampleDescriptionBox* SrsMp4SampleDescriptionBox::append2(SrsMp4SampleEntry* v)
+void SrsMp4SampleDescriptionBox::append(SrsMp4Box* v)
 {
-    entries.push_back(v);
-    return this;
+    SrsMp4SampleEntry* pv = dynamic_cast<SrsMp4SampleEntry*>(v);
+    if (pv) {
+        entries.push_back(pv);
+    }
 }
 
 int SrsMp4SampleDescriptionBox::nb_header()
