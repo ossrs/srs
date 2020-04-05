@@ -606,21 +606,9 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
         srs_freep(msg);
     }
 
-
-    if (!mhdrs.empty()) {
-        mmsghdr* msgvec = &mhdrs[0];
-        unsigned int vlen = (unsigned int)mhdrs.size();
-        int r0 = srs_sendmmsg(udp_mux_skt->stfd(), msgvec, vlen, 0, SRS_UTIME_NO_TIMEOUT);
-        if (r0 != (int)vlen) {
-            srs_warn("sendmsg %d msgs, %d done", vlen, r0);
-        }
-    }
-    for (int i = 0; i < (int)mhdrs.size(); i++) {
-        msghdr* hdr = &mhdrs[i].msg_hdr;
-        for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
-            iovec* iov = hdr->msg_iov + i;
-            delete (char*)iov->iov_base;
-        }
+    if ((err = rtc_session->rtc_server->send_and_free_messages(udp_mux_skt->stfd(), mhdrs)) != srs_success) {
+        srs_warn("sendmsg %d msgs, err %s", mhdrs.size(), srs_error_summary(err).c_str());
+        srs_freep(err);
     }
 }
 
@@ -1072,12 +1060,21 @@ SrsRtcServer::SrsRtcServer()
 {
     listener = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
+
+    mmstfd = NULL;
+    waiting_msgs = false;
+    cond = srs_cond_new();
+    trd = new SrsDummyCoroutine();
 }
 
 SrsRtcServer::~SrsRtcServer()
 {
     srs_freep(listener);
     srs_freep(timer);
+
+    srs_freep(trd);
+    srs_cond_destroy(cond);
+    clear();
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -1090,6 +1087,12 @@ srs_error_t SrsRtcServer::initialize()
 
     if ((err = timer->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
+    }
+
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("udp", this);
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "start coroutine");
     }
 
     return err;
@@ -1302,6 +1305,80 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 {
     check_and_clean_timeout_session();
     return srs_success;
+}
+
+srs_error_t SrsRtcServer::send_and_free_messages(srs_netfd_t stfd, const vector<mmsghdr>& msgs)
+{
+    srs_error_t err = srs_success;
+
+    mmstfd = stfd;
+    mmhdrs.insert(mmhdrs.end(), msgs.begin(), msgs.end());
+
+    if (waiting_msgs) {
+        waiting_msgs = false;
+        srs_cond_signal(cond);
+    }
+
+    return err;
+}
+
+void SrsRtcServer::clear()
+{
+    for (int i = 0; i < (int)mmhdrs.size(); i++) {
+        msghdr* hdr = &mmhdrs[i].msg_hdr;
+        for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
+            iovec* iov = hdr->msg_iov + i;
+            delete (char*)iov->iov_base;
+        }
+    }
+
+    mmhdrs.clear();
+}
+
+srs_error_t SrsRtcServer::cycle()
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: Use pithy print.
+    uint32_t cnt = 1;
+
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return err;
+        }
+
+        // TODO: FIXME: Use cond trigger.
+        if (mmhdrs.empty()) {
+            waiting_msgs = true;
+            srs_cond_wait(cond);
+        }
+
+        vector<mmsghdr> mhdrs = mmhdrs;
+        mmhdrs.clear();
+
+        // TODO: FIXME: Use pithy print.
+        if ((cnt++ % 1000) == 0) {
+            srs_trace("SEND %d msgs by sendmmsg", mhdrs.size());
+        }
+
+        if (!mhdrs.empty()) {
+            mmsghdr* msgvec = &mhdrs[0];
+            unsigned int vlen = (unsigned int)mhdrs.size();
+            int r0 = srs_sendmmsg(mmstfd, msgvec, vlen, 0, SRS_UTIME_NO_TIMEOUT);
+            if (r0 != (int)vlen) {
+                srs_warn("sendmsg %d msgs, %d done", vlen, r0);
+            }
+        }
+        for (int i = 0; i < (int)mhdrs.size(); i++) {
+            msghdr* hdr = &mhdrs[i].msg_hdr;
+            for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
+                iovec* iov = hdr->msg_iov + i;
+                delete (char*)iov->iov_base;
+            }
+        }
+    }
+
+    return err;
 }
 
 RtcServerAdapter::RtcServerAdapter()

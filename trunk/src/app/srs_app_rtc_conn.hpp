@@ -36,6 +36,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <sys/socket.h>
 
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
@@ -205,11 +206,18 @@ private:
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
 };
 
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsCoroutineHandler
 {
 private:
     SrsUdpMuxListener* listener;
     SrsHourGlass* timer;
+private:
+    SrsCoroutine* trd;
+    srs_cond_t cond;
+    bool waiting_msgs;
+    // TODO: FIXME: Support multiple stfd.
+    srs_netfd_t mmstfd;
+    std::vector<mmsghdr> mmhdrs;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -238,6 +246,11 @@ private:
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// Internal only.
+public:
+    srs_error_t send_and_free_messages(srs_netfd_t stfd, const std::vector<mmsghdr>& msgs);
+    void clear();
+    virtual srs_error_t cycle();
 };
 
 // The RTC server adapter.
