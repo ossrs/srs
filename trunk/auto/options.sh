@@ -120,6 +120,7 @@ SRS_EXTRA_FLAGS=
 # Performance optimize.
 SRS_NASM=YES
 SRS_SRTP_ASM=YES
+SRS_SENDMMSG=YES
 
 #####################################################################################
 # menu
@@ -187,6 +188,8 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
   --with-srtp-nasm          Build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
   --without-srtp-nasm       Disable SRTP ASM support.
+  --with-sendmmsg           Enable UDP sendmmsg support. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+  --without-sendmmsg        Disable UDP sendmmsg support.
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --arm                     Enable crossbuild for ARM.
@@ -249,6 +252,7 @@ function parse_user_option() {
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --with-nasm)                    SRS_NASM=YES                ;;
         --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
+        --with-sendmmsg)                SRS_SENDMMSG=YES            ;;
         --with-clean)                   SRS_CLEAN=YES               ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
@@ -270,6 +274,7 @@ function parse_user_option() {
         --without-gb28181)              SRS_GB28181=NO              ;;
         --without-nasm)                 SRS_NASM=NO                 ;;
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
+        --without-sendmmsg)             SRS_SENDMMSG=NO             ;;
         --without-clean)                SRS_CLEAN=NO                ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
@@ -547,6 +552,22 @@ function apply_user_detail_options() {
         SRS_GPROF=NO
         SRS_STATIC=NO
     fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
+        echo "Disable SRTP ASM, because RTC is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
+        echo "Disable SRTP ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    grep -qs sendmmsg /usr/include/sys/socket.h
+    if [[ $? -ne 0 && $SRS_SENDMMSG == YES ]]; then
+        echo "Disable UDP sendmmsg automatically"
+        SRS_SENDMMSG=NO
+    fi
 }
 apply_user_detail_options
 
@@ -574,6 +595,7 @@ function regenerate_options() {
     if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
     if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
     if [ $SRS_SRTP_ASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srtp-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srtp-nasm"; fi
+    if [ $SRS_SENDMMSG = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-sendmmsg"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-sendmmsg"; fi
     if [ $SRS_CLEAN = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-clean"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-clean"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
@@ -624,16 +646,6 @@ function check_option_conflicts() {
     if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
         echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
         exit -1
-    fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
-        echo "Disable SRTP ASM, because RTC is disabled."
-        SRS_SRTP_ASM=NO
-    fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
-        echo "Disable SRTP ASM, because NASM is disabled."
-        SRS_SRTP_ASM=NO
     fi
 
     # TODO: FIXME: check more os.

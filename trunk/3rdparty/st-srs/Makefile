@@ -189,6 +189,10 @@ OTHER_FLAGS = -Wall
 ifeq ($(shell test -f /usr/include/sys/epoll.h && echo yes), yes)
 DEFINES     += -DMD_HAVE_EPOLL
 endif
+# For SRS, sendmmsg
+ifeq ($(shell grep -qs sendmmsg /usr/include/sys/socket.h && echo yes), yes)
+DEFINES     += -DMD_HAVE_SENDMMSG -D_GNU_SOURCE
+endif
 endif
 
 ifeq ($(OS), NETBSD)
@@ -281,6 +285,10 @@ endif
 # or to disable default epoll(4) support:
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
+#
+# or to enable sendmmsg(2) support:
+#
+# make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
 ##########################
 

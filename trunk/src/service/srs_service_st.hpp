@@ -90,6 +90,15 @@ extern srs_netfd_t srs_netfd_open(int osfd);
 extern int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, int *fromlen, srs_utime_t timeout);
 extern int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr *to, int tolen, srs_utime_t timeout);
 extern int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout);
+
+#if !defined(SRS_AUTO_SENDMMSG)
+    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    #include <sys/socket.h>
+    struct mmsghdr {
+       struct msghdr msg_hdr;  /* Message header */
+       unsigned int  msg_len;  /* Number of bytes transmitted */
+    };
+#endif
 extern int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout);
 
 extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout);

@@ -346,9 +346,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [[ $SRS_OSX == YES ]]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
     fi
+    # For UDP sendmmsg, disable it if not suppported.
+    if [[ $SRS_SENDMMSG == YES ]]; then
+        echo "Build ST with UDP sendmmsg support."
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
+    fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
-      _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
     fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
@@ -542,7 +547,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo "#if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
         echo "#error \"SRTP only works with openssl-1.0.*\"" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
         echo "#endif" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        gcc -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
+        ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
         fi

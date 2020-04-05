@@ -528,12 +528,12 @@ clean_cherrypy:
 
 st:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 ffmpeg:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) install-libs)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && \$(MAKE) && \$(MAKE) install-libs)
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 END

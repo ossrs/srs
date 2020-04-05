@@ -409,7 +409,7 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
 
 int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
 {
-#if defined(SRS_AUTO_OSX)
+#if defined(SRS_AUTO_OSX) || !defined(SRS_AUTO_SENDMMSG)
     // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     for (int i = 0; i < (int)vlen; ++i) {
         struct mmsghdr* p = msgvec + i;
