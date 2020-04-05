@@ -141,7 +141,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
 	            }
 	        }
             
-            size_t nparsed;
+            //TODO: fixme 'nparsed' undefined,  open info compile error!
             srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
 
 	        // Only consume the header bytes.
