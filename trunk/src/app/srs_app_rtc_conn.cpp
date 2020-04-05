@@ -52,6 +52,7 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_http_stack.hpp>
 #include <srs_app_http_api.hpp>
+#include <srs_app_statistic.hpp>
 
 static bool is_stun(const uint8_t* data, const int size) 
 {
@@ -1342,6 +1343,11 @@ srs_error_t SrsRtcServer::cycle()
     // TODO: FIXME: Use pithy print.
     uint32_t cnt = 1;
 
+    SrsStatistic* stat = SrsStatistic::instance();
+
+    // TODO: FIXME: Support reload.
+    int max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return err;
@@ -1356,19 +1362,26 @@ srs_error_t SrsRtcServer::cycle()
         vector<mmsghdr> mhdrs = mmhdrs;
         mmhdrs.clear();
 
-        // TODO: FIXME: Use pithy print.
-        if ((cnt++ % 1000) == 0) {
-            srs_trace("SEND %d msgs by sendmmsg", mhdrs.size());
-        }
+        mmsghdr* p = &mhdrs[0];
+        for (mmsghdr* end = p + mhdrs.size(); p < end; p += max_sendmmsg) {
+            int vlen = (int)(end - p);
+            vlen = srs_min(max_sendmmsg, vlen);
 
-        if (!mhdrs.empty()) {
-            mmsghdr* msgvec = &mhdrs[0];
-            unsigned int vlen = (unsigned int)mhdrs.size();
-            int r0 = srs_sendmmsg(mmstfd, msgvec, vlen, 0, SRS_UTIME_NO_TIMEOUT);
-            if (r0 != (int)vlen) {
+            int r0 = srs_sendmmsg(mmstfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
+            if (r0 != vlen) {
                 srs_warn("sendmsg %d msgs, %d done", vlen, r0);
             }
+
+            stat->perf_mw_on_packets(vlen);
         }
+
+        // TODO: FIXME: Use pithy print.
+        if ((cnt++ % 100) == 0) {
+            // TODO: FIXME: Support reload.
+            max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
+            srs_trace("-> RTC SEND %d msgs, by sendmmsg %d", mhdrs.size(), max_sendmmsg);
+        }
+
         for (int i = 0; i < (int)mhdrs.size(); i++) {
             msghdr* hdr = &mhdrs[i].msg_hdr;
             for (int i = 0; i < (int)hdr->msg_iovlen; i++) {

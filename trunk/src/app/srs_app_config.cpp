@@ -4656,6 +4656,27 @@ bool SrsConfig::get_rtc_server_ecdsa()
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
+int SrsConfig::get_rtc_server_sendmmsg()
+{
+#if !defined(SRS_AUTO_HAS_SENDMMSG) || !defined(SRS_AUTO_SENDMMSG)
+    static int DEFAULT = 1;
+#else
+    static int DEFAULT = 256;
+#endif
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sendmmsg");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);

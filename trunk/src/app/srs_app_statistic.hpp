@@ -169,6 +169,7 @@ private:
     SrsStatisticCategory* perf_iovs;
     SrsStatisticCategory* perf_msgs;
     SrsStatisticCategory* perf_sys;
+    SrsStatisticCategory* perf_sendmmsg;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
@@ -233,8 +234,13 @@ public:
     // Stat for packets merged written, nb_pkts is the number of or chunk packets,
     // bytes_pkts is the total bytes of or chunk packets, nb_iovs is the total number of iovec.
     virtual void perf_mw_on_packets(int nb_pkts, int bytes_pkts, int nb_iovs);
-    // Dumps the perf statistic data, for performance analysis.
-    virtual srs_error_t dumps_perf_mw(SrsJsonObject* obj);
+    // Dumps the perf statistic data for TCP writev, for performance analysis.
+    virtual srs_error_t dumps_perf_writev(SrsJsonObject* obj);
+public:
+    // Stat for packets UDP sendmmsg, nb_msgs is the vlen for sendmmsg.
+    virtual void perf_mw_on_packets(int nb_msgs);
+    // Dumps the perf statistic data for UDP sendmmsg, for performance analysis.
+    virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

@@ -428,6 +428,14 @@ int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, in
     // further sendmmsg() call to send the remaining messages.
     return vlen;
 #else
+    if (vlen == 1) {
+        int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
+        if (r0 < 0) {
+            return r0;
+        }
+        msgvec->msg_len = r0;
+        return 1;
+    }
     return st_sendmmsg((st_netfd_t)stfd, msgvec, vlen, flags, (st_utime_t)timeout);
 #endif
 }

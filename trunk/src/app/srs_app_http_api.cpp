@@ -1586,9 +1586,34 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
     obj->set("data", data);
 
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->dumps_perf_mw(data)) != srs_success) {
-        int code = srs_error_code(err); srs_error_reset(err);
-        return srs_api_response_code(w, r, code);
+
+    string target = r->query_get("target");
+    srs_trace("query target=%s", target.c_str());
+
+    if (true) {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("query", p);
+
+        p->set("target", SrsJsonAny::str(target.c_str()));
+        p->set("help", SrsJsonAny::str("?target=writev|sendmmsg"));
+    }
+
+    if (target.empty() || target == "writev") {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("writev", p);
+        if ((err = stat->dumps_perf_writev(p)) != srs_success) {
+            int code = srs_error_code(err); srs_error_reset(err);
+            return srs_api_response_code(w, r, code);
+        }
+    }
+
+    if (target.empty() || target == "sendmmsg") {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("sendmmsg", p);
+        if ((err = stat->dumps_perf_sendmmsg(p)) != srs_success) {
+            int code = srs_error_code(err); srs_error_reset(err);
+            return srs_api_response_code(w, r, code);
+        }
     }
 
     return srs_api_response(w, r, obj->dumps());
