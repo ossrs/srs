@@ -429,11 +429,25 @@ int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, in
     return vlen;
 #else
     if (vlen == 1) {
-        int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
-        if (r0 < 0) {
-            return r0;
-        }
-        msgvec->msg_len = r0;
+        #if 1
+            int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
+            if (r0 < 0) {
+                return r0;
+            }
+            msgvec->msg_len = r0;
+        #else
+            int tolen = (int)msgvec->msg_hdr.msg_namelen;
+            const struct sockaddr* to = (const struct sockaddr*)msgvec->msg_hdr.msg_name;
+            for (int i = 0; i < msgvec->msg_hdr.msg_iovlen; i++) {
+                iovec* iov = msgvec->msg_hdr.msg_iov + i;
+                int r0 = srs_sendto(stfd, (void*)iov->iov_base, (int)iov->iov_len, to, tolen, timeout);
+                if (r0 < 0) {
+                    return r0;
+                }
+                msgvec->msg_len += r0;
+            }
+        #endif
+
         return 1;
     }
     return st_sendmmsg((st_netfd_t)stfd, msgvec, vlen, flags, (st_utime_t)timeout);
