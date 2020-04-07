@@ -263,7 +263,7 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot} ${LibGperfRoot})
     if [[ $SRS_RTC == YES ]]; then
         ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
     fi
