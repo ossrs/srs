@@ -256,7 +256,7 @@ public:
 // Internal only.
 public:
     srs_error_t send_and_free_messages(srs_netfd_t stfd, const std::vector<mmsghdr>& msgs);
-    void clear();
+    void free_messages(std::vector<mmsghdr>& hdrs);
     virtual srs_error_t cycle();
 };
 

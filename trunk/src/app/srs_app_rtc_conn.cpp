@@ -1081,7 +1081,9 @@ SrsRtcServer::~SrsRtcServer()
 
     srs_freep(trd);
     srs_cond_destroy(cond);
-    clear();
+
+    free_messages(mmhdrs);
+    mmhdrs.clear();
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -1335,10 +1337,10 @@ srs_error_t SrsRtcServer::send_and_free_messages(srs_netfd_t stfd, const vector<
     return err;
 }
 
-void SrsRtcServer::clear()
+void SrsRtcServer::free_messages(vector<mmsghdr>& hdrs)
 {
-    for (int i = 0; i < (int)mmhdrs.size(); i++) {
-        msghdr* hdr = &mmhdrs[i].msg_hdr;
+    for (int i = 0; i < (int)hdrs.size(); i++) {
+        msghdr* hdr = &hdrs[i].msg_hdr;
         for (int j = (int)hdr->msg_iovlen - 1; j >= 0 ; j--) {
             iovec* iov = hdr->msg_iov + j;
             char* data = (char*)iov->iov_base;
@@ -1346,8 +1348,6 @@ void SrsRtcServer::clear()
             srs_freep(iov);
         }
     }
-
-    mmhdrs.clear();
 }
 
 srs_error_t SrsRtcServer::cycle()
@@ -1396,13 +1396,7 @@ srs_error_t SrsRtcServer::cycle()
             srs_trace("-> RTC SEND %d msgs, by sendmmsg %d", mhdrs.size(), max_sendmmsg);
         }
 
-        for (int i = 0; i < (int)mhdrs.size(); i++) {
-            msghdr* hdr = &mhdrs[i].msg_hdr;
-            for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
-                iovec* iov = hdr->msg_iov + i;
-                delete (char*)iov->iov_base;
-            }
-        }
+        free_messages(mhdrs);
     }
 
     return err;
