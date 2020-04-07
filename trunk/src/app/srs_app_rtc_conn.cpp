@@ -1152,7 +1152,7 @@ srs_error_t SrsRtcServer::listen_api()
     return err;
 }
 
-SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const string& mock_eip)
 {
     std::string local_pwd = gen_random_str(32);
     std::string local_ufrag = "";
@@ -1173,9 +1173,15 @@ SrsRtcSession* SrsRtcServer::create_rtc_session(const SrsRequest& req, const Srs
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
     local_sdp.set_fingerprint(SrsDtls::instance()->get_fingerprint());
-    std::vector<string> candidate_ips = get_candidate_ips();
-    for (int i = 0; i < (int)candidate_ips.size(); ++i) {
-        local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+
+    // We allows to mock the eip of server.
+    if (!mock_eip.empty()) {
+        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
+    } else {
+        std::vector<string> candidate_ips = get_candidate_ips();
+        for (int i = 0; i < (int)candidate_ips.size(); ++i) {
+            local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+        }
     }
 
     session->set_remote_sdp(remote_sdp);

@@ -233,7 +233,7 @@ public:
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt);
 public:
     virtual srs_error_t listen_api();
-    SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip);
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
 private:

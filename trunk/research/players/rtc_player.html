@@ -94,6 +94,8 @@
                             url += '&' + key + '=' + urlObject.user_query[key];
                         }
                     }
+                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                    url = url.replace(api + '&', api + '?');
 
                     // @see https://github.com/rtcdn/rtcdn-draft
                     var data = {

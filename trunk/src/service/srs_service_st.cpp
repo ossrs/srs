@@ -429,7 +429,7 @@ int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, in
     return vlen;
 #else
     if (vlen == 1) {
-        #if 0
+        #if 1
             int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
             if (r0 < 0) {
                 return r0;
