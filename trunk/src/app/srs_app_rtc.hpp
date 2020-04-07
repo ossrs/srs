@@ -39,31 +39,37 @@ class SrsOriginHub;
 class SrsAudioRecode;
 class SrsBuffer;
 
-const int max_payload_size = 1200;
-const int kRtpPacketSize = 1500;
+// Rtp packet max payload size, not include rtp header.
+// Must left some bytes to payload header, rtp header, udp header, ip header.
+const int kRtpMaxPayloadSize    = 1200;
+const int kRtpPacketSize        = 1500;
 
-const uint8_t kOpusPayloadType = 111;
-const uint8_t kH264PayloadType = 95;
+// Payload type will rewrite in srs_app_rtc_conn.cpp when send to client.
+const uint8_t kOpusPayloadType  = 111;
+const uint8_t kH264PayloadType  = 102;
 
-const uint8_t kNalTypeMask = 0x1F;
+// H.264 nalu header type mask.
+const uint8_t kNalTypeMask      = 0x1F;
 
-const uint8_t kStapA = 24;
-const uint8_t kFuA   = 28;
+// @see: https://tools.ietf.org/html/rfc6184#section-5.2
+const uint8_t kStapA            = 24;
+const uint8_t kFuA              = 28;
 
-const uint8_t kStart = 0x80;
-const uint8_t kEnd   = 0x40;
+// @see: https://tools.ietf.org/html/rfc6184#section-5.8
+const uint8_t kStart            = 0x80; // Fu-header start bit
+const uint8_t kEnd              = 0x40; // Fu-header end bit
 
-const int kChannel      = 2;
-const int kSamplerate   = 48000;
-const int kArrayLength  = 8;
-const int kArrayBuffer  = 4096;
+const int kChannel              = 2;
+const int kSamplerate           = 48000;
+const int kArrayLength          = 8;
+const int kArrayBuffer          = 4096;
 
-// FIXME: ssrc can relate to source
-const uint32_t kAudioSSRC = 3233846890;
-const uint32_t kVideoSSRC = 3233846889;
+// SSRC will rewrite in srs_app_rtc_conn.cpp when send to client.
+const uint32_t kAudioSSRC       = 1;
+const uint32_t kVideoSSRC       = 2;
 
-// TODO: Define interface class like ISrsRtpMuxer to support SrsRtpOpusMuxer and so on.
-class SrsRtpMuxer
+// TODO: Define interface class like ISrsRtpMuxer
+class SrsRtpH264Muxer
 {
 private:
     uint16_t sequence;
@@ -72,8 +78,8 @@ private:
 public:
     bool discard_bframe;
 public:
-    SrsRtpMuxer();
-    virtual ~SrsRtpMuxer();
+    SrsRtpH264Muxer();
+    virtual ~SrsRtpH264Muxer();
 public:
     srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 private:
@@ -108,7 +114,7 @@ private:
     bool disposable;
     bool discard_aac;
     srs_utime_t last_update_time;
-    SrsRtpMuxer* rtp_h264_muxer;
+    SrsRtpH264Muxer* rtp_h264_muxer;
     SrsRtpOpusMuxer* rtp_opus_muxer;
     SrsOriginHub* hub;
 public:
