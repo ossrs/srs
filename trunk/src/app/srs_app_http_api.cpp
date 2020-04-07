@@ -1779,6 +1779,7 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     srs_error_t err = srs_success;
 
     string page = r->query_get("page");
+    srs_trace("query page=%s", page.c_str());
 
     if (page == "summary") {
         char buffer[32 * 1024];
@@ -1799,6 +1800,14 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
+
+    if (true) {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("query", p);
+
+        p->set("page", SrsJsonAny::str(page.c_str()));
+        p->set("help", SrsJsonAny::str("?page=summary|detail"));
+    }
 
     size_t value = 0;
 
