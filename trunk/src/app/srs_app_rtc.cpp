@@ -538,6 +538,9 @@ srs_error_t SrsRtc::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     }
 
     if (stream) {
+        char* stream_data = stream->data();
+        SrsAutoFreeA(char, stream_data);
+
         return rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
     }
 

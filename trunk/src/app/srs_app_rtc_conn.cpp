@@ -1339,9 +1339,11 @@ void SrsRtcServer::clear()
 {
     for (int i = 0; i < (int)mmhdrs.size(); i++) {
         msghdr* hdr = &mmhdrs[i].msg_hdr;
-        for (int i = 0; i < (int)hdr->msg_iovlen; i++) {
-            iovec* iov = hdr->msg_iov + i;
-            delete (char*)iov->iov_base;
+        for (int j = (int)hdr->msg_iovlen - 1; j >= 0 ; j--) {
+            iovec* iov = hdr->msg_iov + j;
+            char* data = (char*)iov->iov_base;
+            srs_freep(data);
+            srs_freep(iov);
         }
     }
 

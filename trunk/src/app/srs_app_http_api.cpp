@@ -832,6 +832,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     // Parse req, the request json object, from body.
     SrsJsonObject* req = NULL;
+    SrsAutoFree(SrsJsonObject, req);
     if (true) {
         string req_json;
         if ((err = r->body_read_all(req_json)) != srs_success) {
