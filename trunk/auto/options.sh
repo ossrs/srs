@@ -564,8 +564,17 @@ function apply_user_detail_options() {
         SRS_SRTP_ASM=NO
     fi
 
-    grep -qs sendmmsg /usr/include/sys/socket.h
-    if [[ $? -ne 0 ]]; then
+    # Detect whether has sendmmsg.
+    # @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    echo "#include <sys/socket.h>" > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "int main(int argc, char** argv) {" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  struct mmsghdr hdr;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  hdr.msg_len = 0;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  return 0;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "}" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_sendmmsg_detect.c -D_GNU_SOURCE -o /dev/null >/dev/null 2>&1
+    ret=$?; rm -f ${SRS_OBJS}/_tmp_sendmmsg_detect.c;
+    if [[ $ret -ne 0 ]]; then
         SRS_HAS_SENDMMSG=NO
         if [[ $SRS_SENDMMSG == YES ]]; then
           echo "Disable UDP sendmmsg automatically"
