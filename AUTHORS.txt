@@ -59,4 +59,6 @@ CONTRIBUTORS ordered by first contribution.
 * xiaozhihong<xiaozhihong8@gmail.com>
 * HuyaJohn<xiaozhihong@huya.com>
 * yanghuiwen<cainiaodj@qq.com>
-* Bepartofyou<pengqiang.wpq@alibaba-inc.com>
+* Bepartofyou<309554135@qq.com>
+* l<22312935+lam2003@users.noreply.github.com>
+* xfalcon<x-falcon@users.noreply.github.com>

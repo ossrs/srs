@@ -246,7 +246,7 @@ VOID TEST(SrsAVCTest, H264IPBFrame)
     if (true) {
         SrsRawH264Stream h; string frame;
         HELPER_ASSERT_SUCCESS(h.mux_ipb_frame((char*)"Hello", 5, frame));
-        EXPECT_EQ(4+5, frame.length());
+        EXPECT_EQ(4+5, (int)frame.length());
         EXPECT_EQ(0, (uint8_t)frame.at(0)); EXPECT_EQ(0, (uint8_t)frame.at(1));
         EXPECT_EQ(0, (uint8_t)frame.at(2)); EXPECT_EQ(5, (uint8_t)frame.at(3));
         EXPECT_STREQ("Hello", frame.substr(4).c_str());
@@ -407,7 +407,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sound_rate = SrsAudioSampleRate22050;
         codec.sampling_frequency_index = 7;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0b, (uint8_t)sh.at(0));
         EXPECT_EQ(0x88, (uint8_t)sh.at(1));
     }
@@ -420,7 +420,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sound_rate = SrsAudioSampleRate11025;
         codec.sampling_frequency_index = 0xa;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0d, (uint8_t)sh.at(0));
         EXPECT_EQ(0x08, (uint8_t)sh.at(1));
     }
@@ -442,7 +442,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sampling_frequency_index = 4;
         codec.sound_rate = SrsAudioSampleRateReserved;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
         EXPECT_EQ(0x08, (uint8_t)sh.at(1));
     }
@@ -488,7 +488,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sound_rate = SrsAudioSampleRate44100;
         codec.sampling_frequency_index = SrsAacSampleRateUnset;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
         EXPECT_EQ(0x08, (uint8_t)sh.at(1));
     }

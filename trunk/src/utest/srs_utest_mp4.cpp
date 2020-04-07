@@ -611,7 +611,7 @@ VOID TEST(KernelMp4Test, TFHDBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentHeaderBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(100, box.track_id);
+            EXPECT_EQ(100, (int)box.track_id);
         }
     }
 
@@ -769,10 +769,10 @@ VOID TEST(KernelMp4Test, TRUNBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackFragmentRunBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            ASSERT_EQ(1, box.entries.size());
+            ASSERT_EQ(1, (int)box.entries.size());
 
             SrsMp4TrunEntry* entry = box.entries.at(0);
-            EXPECT_EQ(1000, entry->sample_duration);
+            EXPECT_EQ(1000,  (int)entry->sample_duration);
         }
     }
 }
@@ -803,7 +803,7 @@ VOID TEST(KernelMp4Test, FreeBox)
             b.skip(-1 * b.pos());
             SrsMp4FreeSpaceBox box(SrsMp4BoxTypeSKIP);
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(4, box.data.size());
+            EXPECT_EQ(4, (int)box.data.size());
         }
     }
 }
@@ -906,11 +906,11 @@ VOID TEST(KernelMp4Test, TREXBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackExtendsBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(box.track_ID, 1);
-            EXPECT_EQ(box.default_sample_description_index, 2);
-            EXPECT_EQ(box.default_sample_size, 3);
-            EXPECT_EQ(box.default_sample_duration, 4);
-            EXPECT_EQ(box.default_sample_flags, 5);
+            EXPECT_EQ((int)box.track_ID, 1);
+            EXPECT_EQ((int)box.default_sample_description_index, 2);
+            EXPECT_EQ((int)box.default_sample_size, 3);
+            EXPECT_EQ((int)box.default_sample_duration, 4);
+            EXPECT_EQ((int)box.default_sample_flags, 5);
         }
     }
 
@@ -948,7 +948,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackHeaderBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(box.track_ID, 1);
+            EXPECT_EQ((int)box.track_ID, 1);
         }
     }
 
@@ -975,7 +975,7 @@ VOID TEST(KernelMp4Test, TKHDBox)
             b.skip(-1 * b.pos());
             SrsMp4TrackHeaderBox box;
             HELPER_EXPECT_SUCCESS(box.decode(&b));
-            EXPECT_EQ(box.track_ID, 1);
+            EXPECT_EQ((int)box.track_ID, 1);
         }
     }
 }

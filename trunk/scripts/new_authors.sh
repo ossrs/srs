@@ -11,7 +11,7 @@ for author in $authors; do
   echo $author| grep 'winterserver' >/dev/null 2>&1 && continue;
   echo $author| grep 'wenjie.zhao' >/dev/null 2>&1 && continue;
   echo $author| grep 'zhaowenjie' >/dev/null 2>&1 && continue;
-  echo $author| grep 'noreply' >/dev/null 2>&1 && continue;
+  echo $author| grep 'pengqiang.wpq' >/dev/null 2>&1 && continue;
 
   grep $author $AFILE 1>/dev/null 2>/dev/null && continue;
 

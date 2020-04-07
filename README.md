@@ -184,6 +184,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-30, For [#1672][bug #1672], fix dvr close file failed bug. 3.0.140
 * <strong>v3.0, 2020-03-29, [3.0 beta4(3.0.139)][r3.0b4] released. 122674 lines.</strong>
 * v3.0, 2020-03-28, Support multiple OS/Platform build cache. 3.0.139
 * v3.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin. 3.0.138
