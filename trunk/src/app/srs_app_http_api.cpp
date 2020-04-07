@@ -882,9 +882,12 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    // For client to specifies whether encrypt by SRTP.
+    string encrypt = r->query_get("encrypt");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str());
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(),
+        eip.c_str(), encrypt.c_str());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -908,6 +911,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp, eip);
+    if (encrypt.empty()) {
+        rtc_session->set_encrypt(_srs_config->get_rtc_server_encrypt());
+    } else {
+        rtc_session->set_encrypt(encrypt != "false");
+    }
 
     ostringstream os;
     if ((err = local_sdp.encode(os)) != srs_success) {

@@ -504,8 +504,8 @@ srs_error_t SrsRtcSenderThread::cycle()
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    srs_trace("source url=%s, source_id=[%d][%d]",
-        rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id());
+    srs_trace("source url=%s, source_id=[%d][%d], encrypt=%d",
+        rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id(), rtc_session->encrypt);
 
 	SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
@@ -588,9 +588,13 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
 
             int length = pkt->size;
             char* buf = new char[kRtpPacketSize];
-            if ((err = rtc_session->dtls_session->protect_rtp(buf, pkt->payload, length)) != srs_success) {
-                srs_warn("srtp err %s", srs_error_desc(err).c_str()); srs_freep(err); srs_freepa(buf);
-                continue;
+            if (rtc_session->encrypt) {
+                if ((err = rtc_session->dtls_session->protect_rtp(buf, pkt->payload, length)) != srs_success) {
+                    srs_warn("srtp err %s", srs_error_desc(err).c_str()); srs_freep(err); srs_freepa(buf);
+                    continue;
+                }
+            } else {
+                memcpy(buf, pkt->payload, length);
             }
 
             mmsghdr mhdr;
@@ -629,6 +633,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const
     source = NULL;
 
     cid = context_id;
+    encrypt = true;
 }
 
 SrsRtcSession::~SrsRtcSession()

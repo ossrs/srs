@@ -3583,6 +3583,16 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
     }
+    if (true) {
+        SrsConfDirective* conf = root->get("rtc_server");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
+                && n != "sendmmsg" && n != "encrypt") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
+            }
+        }
+    }
     
     ////////////////////////////////////////////////////////////////////////
     // check listen for rtmp.
@@ -4665,6 +4675,23 @@ bool SrsConfig::get_rtc_server_ecdsa()
     }
 
     conf = conf->get("ecdsa");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_encrypt()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("encrypt");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

@@ -164,6 +164,11 @@ private:
 private:
     // For each RTC session, we use a specified cid for debugging logs.
     int cid;
+    // For each RTC session, whether requires encrypt.
+    //      Read config value, rtc_server.encrypt, default to on.
+    //      Sepcifies by HTTP API, query encrypt, optional.
+    // TODO: FIXME: Support reload.
+    bool encrypt;
 public:
     SrsRequest request;
     SrsSource* source;
@@ -184,6 +189,8 @@ public:
 
     std::string get_peer_id() const { return peer_id; }
     void set_peer_id(const std::string& id) { peer_id = id; }
+
+    void set_encrypt(bool v) { encrypt = v; }
 
     void switch_to_context();
 public:
