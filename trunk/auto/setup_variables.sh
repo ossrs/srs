@@ -29,3 +29,7 @@ if [[ $SRS_CLEAN == NO ]]; then
   echo "Fast cleanup, if need to do full cleanup, please use: make clean"
 fi
 
+# Python or python2, for CentOS8.
+python2 --version >/dev/null 2>&1 && alias python=python2 &&
+echo "Alias python2 as python"
+
