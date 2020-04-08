@@ -73,9 +73,9 @@ class SrsSSRCGroup
 
 struct H264SpecificParam
 {
-    int profile_level_id;
-    int packetization_mode;
-    int level_asymmerty_allow;
+    std::string profile_level_id;
+    std::string packetization_mode;
+    std::string level_asymmerty_allow;
 };
 
 extern srs_error_t parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param);

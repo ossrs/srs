@@ -53,6 +53,7 @@ using namespace std;
 #include <srs_http_stack.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_pithy_print.hpp>
 
 static bool is_stun(const uint8_t* data, const int size) 
 {
@@ -520,10 +521,20 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
 
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
+    SrsAutoFree(SrsPithyPrint, pprint);
+
     while (true) {
 		if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
         }
+
+        pprint->elapse();
+
+		if (pprint->can_print()) {
+            // TODO: FIXME:
+            // Print stat like frame/s, packet/s, loss_packets.
+        } 
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         if (realtime) {
@@ -709,7 +720,10 @@ srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsS
 {
     srs_error_t err = srs_success;
 
-    if (stun_req->get_ice_controlled()) {
+    bool strict_check = _srs_config->get_rtc_stun_strict_check(request.vhost);
+    if (strict_check && stun_req->get_ice_controlled()) {
+        // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-6.1.3.1
+        // TODO: Send 487 (Role Conflict) error response.
         return srs_error_new(ERROR_RTC_STUN, "Peer must not in ice-controlled role in ice-lite mode.");
     }
 
@@ -1381,8 +1395,8 @@ srs_error_t SrsRtcServer::cycle()
             srs_cond_wait(cond);
         }
 
-        vector<mmsghdr> mhdrs = mmhdrs;
-        mmhdrs.clear();
+        vector<mmsghdr> mhdrs;
+        mmhdrs.swap(mhdrs);
 
         mmsghdr* p = &mhdrs[0];
         for (mmsghdr* end = p + mhdrs.size(); p < end; p += max_sendmmsg) {
