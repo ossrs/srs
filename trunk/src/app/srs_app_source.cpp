@@ -840,13 +840,14 @@ void SrsRtpPacketQueue::clear()
 void SrsRtpPacketQueue::push(std::vector<SrsRtpSharedPacket*>& pkts)
 {
     for (int i = 0; i < (int)pkts.size(); ++i) {
-        insert(pkts[i]->sequence, pkts[i]);
+        insert(pkts[i]->rtp_header.get_sequence(), pkts[i]);
     }
 }
 
 void SrsRtpPacketQueue::insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt)
 {
     pkt_queue.insert(make_pair(sequence, pkt->copy()));
+    // TODO: 3000 is magic number.
     if (pkt_queue.size() >= 3000) {
         srs_freep(pkt_queue.begin()->second);
         pkt_queue.erase(pkt_queue.begin());

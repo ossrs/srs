@@ -577,14 +577,14 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
             SrsRtpSharedPacket* pkt = msg->rtp_packets[i];
 
             if (msg->is_video()) {
-                pkt->set_payload_type(video_payload_type);
-                pkt->set_ssrc(video_ssrc);
-                srs_verbose("send video, ssrc=%u, seq=%u, timestamp=%u", video_ssrc, pkt->sequence, pkt->timestamp);
+                pkt->modify_rtp_header_payload_type(video_payload_type);
+                pkt->modify_rtp_header_ssrc(video_ssrc);
+                srs_verbose("send video, ssrc=%u, seq=%u, timestamp=%u", video_ssrc, pkt->rtp_header.get_sequence(), pkt->rtp_header.get_timestamp());
             }
 
             if (msg->is_audio()) {
-                pkt->set_payload_type(audio_payload_type);
-                pkt->set_ssrc(audio_ssrc);
+                pkt->modify_rtp_header_payload_type(audio_payload_type);
+                pkt->modify_rtp_header_ssrc(audio_ssrc);
             }
 
             int length = pkt->size;
@@ -826,7 +826,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
             char protected_buf[kRtpPacketSize];
             int nb_protected_buf = resend_pkts[i]->size;
 
-            srs_verbose("resend pkt sequence=%u", resend_pkts[i]->sequence);
+            srs_verbose("resend pkt sequence=%u", resend_pkts[i]->rtp_header.get_sequence());
 
             dtls_session->protect_rtp(protected_buf, resend_pkts[i]->payload, nb_protected_buf);
             udp_mux_skt->sendto(protected_buf, nb_protected_buf, 0);
