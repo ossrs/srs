@@ -65,8 +65,6 @@ const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
 
-const srs_utime_t kSrsRtcSessionStunTimeoutUs = 10*1000*1000LL;
-
 enum SrsRtcSessionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
@@ -169,6 +167,8 @@ private:
     //      Sepcifies by HTTP API, query encrypt, optional.
     // TODO: FIXME: Support reload.
     bool encrypt;
+    // The timeout of session, keep alive by STUN ping pong.
+    srs_utime_t sessionStunTimeout;
 public:
     SrsRequest request;
     SrsSource* source;
@@ -202,7 +202,7 @@ public:
     srs_error_t on_connection_established(SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t start_play(SrsUdpMuxSocket* udp_mux_skt);
 public:
-    bool is_stun_timeout() { return last_stun_time + kSrsRtcSessionStunTimeoutUs < srs_get_system_time(); }
+    bool is_stun_timeout();
 private:
     srs_error_t check_source();
 private:

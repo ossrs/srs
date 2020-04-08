@@ -635,6 +635,9 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const
 
     cid = context_id;
     encrypt = true;
+
+    // TODO: FIXME: Support reload.
+    sessionStunTimeout = _srs_config->get_rtc_stun_timeout(req.vhost);
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -951,7 +954,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 srs_error_t SrsRtcSession::on_connection_established(SrsUdpMuxSocket* udp_mux_skt)
 {
-    srs_trace("rtc session=%s, connection established", id().c_str());
+    srs_trace("rtc session=%s, timeout=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
     return start_play(udp_mux_skt);
 }
 
@@ -986,6 +989,11 @@ srs_error_t SrsRtcSession::start_play(SrsUdpMuxSocket* udp_mux_skt)
     }
 
     return err;
+}
+
+bool SrsRtcSession::is_stun_timeout()
+{
+    return last_stun_time + sessionStunTimeout < srs_get_system_time();
 }
 
 srs_error_t SrsRtcSession::on_dtls(SrsUdpMuxSocket* udp_mux_skt)

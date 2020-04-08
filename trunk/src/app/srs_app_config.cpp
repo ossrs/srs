@@ -4780,6 +4780,24 @@ bool SrsConfig::get_rtc_aac_discard(string vhost)
     return conf->arg0() == "discard";
 }
 
+srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
+{
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("stun_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);
