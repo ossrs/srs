@@ -525,7 +525,6 @@ public:
     virtual bool get_rtc_server_ecdsa();
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
-    virtual bool get_rtc_server_encrypt();
 
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
