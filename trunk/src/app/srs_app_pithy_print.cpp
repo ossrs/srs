@@ -110,6 +110,8 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_HTTP_STREAM_CACHE 10
 // for the ng-exec stage.
 #define SRS_CONSTS_STAGE_EXEC 11
+// for the rtc play
+#define SRS_CONSTS_STAGE_RTC_PLAY 12
 
 SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
 {
@@ -164,6 +166,11 @@ SrsPithyPrint* SrsPithyPrint::create_http_stream()
 SrsPithyPrint* SrsPithyPrint::create_http_stream_cache()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_HTTP_STREAM_CACHE);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_rtc_play()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_PLAY);
 }
 
 SrsPithyPrint::~SrsPithyPrint()

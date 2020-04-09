@@ -531,6 +531,7 @@ public:
     bool get_rtc_bframe_discard(std::string vhost);
     bool get_rtc_aac_discard(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
+    bool get_rtc_stun_strict_check(std::string vhost);
 
 // vhost specified section
 public:

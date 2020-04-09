@@ -1011,26 +1011,40 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             }
 
             if (local_media_desc.payload_types_.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid opus payload type");
             }
 
         } else if (remote_media_desc.is_video()) {
+            std::deque<SrsMediaPayloadType> backup_payloads;
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
+                if (iter->format_specific_param_.empty()) {
+                    backup_payloads.push_front(*iter);
+                    continue;
+                }
                 H264SpecificParam h264_param;
                 if ((err = parse_h264_fmtp(iter->format_specific_param_, h264_param)) != srs_success) {
                     srs_error_reset(err); continue;
                 }
 
-                if (h264_param.packetization_mode == 1 && h264_param.level_asymmerty_allow == 1) {
+                // Try to pick the "best match" H.264 payload type.
+                if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
                     // Only choose first match H.264 payload type.
                     local_media_desc.payload_types_.push_back(*iter);
                     break;
                 }
+
+                backup_payloads.push_back(*iter);
+            }
+
+            // Try my best to pick at least one media payload type.
+            if (local_media_desc.payload_types_.empty() && ! backup_payloads.empty()) {
+                srs_warn("choose backup H.264 payload type=%d", backup_payloads.front().payload_type_);
+                local_media_desc.payload_types_.push_back(backup_payloads.front());
             }
 
             if (local_media_desc.payload_types_.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found H.264 payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.264 payload type");
             }
         }
 
