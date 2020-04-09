@@ -107,7 +107,7 @@ srs_error_t srs_fd_reuseaddr(int fd)
         return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
     }
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_error_t srs_fd_reuseport(int fd)
@@ -127,7 +127,7 @@ srs_error_t srs_fd_reuseport(int fd)
     srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
 #endif
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_error_t srs_fd_keepalive(int fd)
@@ -139,7 +139,7 @@ srs_error_t srs_fd_keepalive(int fd)
     }
 #endif
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_thread_t srs_thread_self()
@@ -194,7 +194,7 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
 
 srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     // Detect alive for TCP connection.
     // @see https://github.com/ossrs/srs/issues/1044
@@ -231,7 +231,7 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 
 srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     char sport[8];
     snprintf(sport, sizeof(sport), "%d", port);
@@ -265,7 +265,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
 srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     if ((err = srs_fd_closeexec(fd)) != srs_success) {
         return srs_error_wrap(err, "set closeexec");
@@ -292,7 +292,7 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 
 srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     char sport[8];
     snprintf(sport, sizeof(sport), "%d", port);
@@ -310,7 +310,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
 
-	int fd = 0;
+    int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
             r->ai_family, r->ai_socktype, r->ai_protocol);

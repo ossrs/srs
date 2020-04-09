@@ -62,12 +62,12 @@ static bool is_stun(const uint8_t* data, const int size)
 
 static bool is_dtls(const uint8_t* data, size_t len) 
 {
-  	return (len >= 13 && (data[0] > 19 && data[0] < 64));
+      return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
 static bool is_rtp_or_rtcp(const uint8_t* data, size_t len) 
 {
-  	return (len >= 12 && (data[0] & 0xC0) == 0x80);
+      return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
 static bool is_rtcp(const uint8_t* data, size_t len)
@@ -178,7 +178,7 @@ srs_error_t SrsDtlsSession::handshake(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
 
-	int ret = SSL_do_handshake(dtls);
+    int ret = SSL_do_handshake(dtls);
 
     unsigned char *out_bio_data;
     int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
@@ -217,7 +217,7 @@ srs_error_t SrsDtlsSession::handshake(SrsUdpMuxSocket* udp_mux_skt)
 srs_error_t SrsDtlsSession::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
-	if (BIO_reset(bio_in) != 1) {
+    if (BIO_reset(bio_in) != 1) {
         return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
     }
     if (BIO_reset(bio_out) != 1) {
@@ -244,7 +244,7 @@ srs_error_t SrsDtlsSession::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
         }
     }
 
-	return err;
+    return err;
 }
 
 srs_error_t SrsDtlsSession::on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt)
@@ -273,24 +273,24 @@ srs_error_t SrsDtlsSession::srtp_initialize()
 {
     srs_error_t err = srs_success;
 
-	unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
-	static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-	if (! SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {   
+    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
+    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
+    if (! SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {   
         return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
-	}   
+    }   
 
-	size_t offset = 0;
+    size_t offset = 0;
 
-	std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
-	offset += SRTP_MASTER_KEY_KEY_LEN;
-	std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
-	offset += SRTP_MASTER_KEY_KEY_LEN;
-	std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-	offset += SRTP_MASTER_KEY_SALT_LEN;
-	std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    offset += SRTP_MASTER_KEY_SALT_LEN;
+    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
 
-	client_key = client_master_key + client_master_salt;
-	server_key = server_master_key + server_master_salt;
+    client_key = client_master_key + client_master_salt;
+    server_key = server_master_key + server_master_salt;
 
     if ((err = srtp_send_init()) != srs_success) {
         return srs_error_wrap(err, "srtp send init failed");
@@ -497,7 +497,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 {
     srs_error_t err = srs_success;
 
-	SrsSource* source = NULL;
+    SrsSource* source = NULL;
 
     // TODO: FIXME: Should refactor it, directly use http server as handler.
     ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
@@ -508,7 +508,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     srs_trace("source url=%s, source_id=[%d][%d], encrypt=%d",
         rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id(), rtc_session->encrypt);
 
-	SrsConsumer* consumer = NULL;
+    SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", rtc_session->request.get_stream_url().c_str());
@@ -525,13 +525,13 @@ srs_error_t SrsRtcSenderThread::cycle()
     SrsAutoFree(SrsPithyPrint, pprint);
 
     while (true) {
-		if ((err = trd->pull()) != srs_success) {
+        if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
         }
 
         pprint->elapse();
 
-		if (pprint->can_print()) {
+        if (pprint->can_print()) {
             // TODO: FIXME:
             // Print stat like frame/s, packet/s, loss_packets.
         } 
@@ -577,7 +577,7 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
     srs_error_t err = srs_success;
 
     vector<mmsghdr> mhdrs;
-	for (int i = 0; i < nb_msgs; i++) {
+    for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
         for (int i = 0; i < (int)msg->rtp_packets.size(); ++i) {
@@ -771,7 +771,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
 
     // @see: https://tools.ietf.org/html/rfc4585#section-6.1
     /*
-		0                   1                   2                   3
+        0                   1                   2                   3
         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
        |V=2|P|   FMT   |       PT      |          length               |
@@ -794,12 +794,12 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
     /*uint32_t ssrc_of_media_source = */stream->read_4bytes();
 
     /*
-		 0                   1                   2                   3
+         0                   1                   2                   3
          0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         |            PID                |             BLP               |
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
+    */
 
     uint16_t pid = stream->read_2bytes();
     int blp = stream->read_2bytes();
@@ -910,7 +910,7 @@ srs_error_t SrsRtcSession::on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdp
 
     // @see: https://tools.ietf.org/html/rfc3550#section-6.4.2
     /*
-		0                   1                   2                   3
+        0                   1                   2                   3
         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 header |V=2|P|    RC   |   PT=RR=201   |             length            |

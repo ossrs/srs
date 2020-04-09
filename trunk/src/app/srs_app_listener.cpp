@@ -223,9 +223,9 @@ srs_error_t SrsTcpListener::cycle()
             return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd));
         }
         
-	    if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
-	        return srs_error_wrap(err, "set closeexec");
-	    }
+        if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
+            return srs_error_wrap(err, "set closeexec");
+        }
         
         if ((err = handler->on_tcp_client(fd)) != srs_success) {
             return srs_error_wrap(err, "handle fd=%d", srs_netfd_fileno(fd));
@@ -283,7 +283,7 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 
     if (nread > 0) {
         // TODO: FIXME: Maybe we should not covert to string for each packet.
-	    char address_string[64];
+        char address_string[64];
         char port_string[16];
         if (getnameinfo((sockaddr*)&from, fromlen, 
                        (char*)&address_string, sizeof(address_string),
@@ -293,7 +293,7 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         }
 
         peer_ip = std::string(address_string);
-        peer_port = atoi(port_string);	
+        peer_port = atoi(port_string);    
     }
 
     return nread;
@@ -305,7 +305,7 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
 
     int nb_write = srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
 
-	if (nb_write <= 0) {
+    if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "sendto timeout %d ms", srsu2msi(timeout));
         }   
@@ -421,7 +421,7 @@ void SrsUdpMuxListener::set_socket_buffer()
 
 srs_error_t SrsUdpMuxListener::cycle()
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {

@@ -973,7 +973,7 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
 
 srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
     local_sdp.version_ = "0";
 
     local_sdp.username_        = RTMP_SIG_SRS_SERVER;
