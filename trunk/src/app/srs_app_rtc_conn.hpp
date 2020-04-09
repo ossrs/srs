@@ -211,6 +211,9 @@ private:
     srs_error_t on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
+// Internal only.
+public:
+    void send_and_free_messages(srs_netfd_t stfd, sockaddr_in* addr, socklen_t addrlen, char* buf, int length);
 };
 
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsCoroutineHandler
@@ -255,7 +258,7 @@ public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 // Internal only.
 public:
-    srs_error_t send_and_free_messages(srs_netfd_t stfd, const std::vector<mmsghdr>& msgs);
+    void send_and_free_messages(srs_netfd_t stfd, sockaddr_in* addr, socklen_t addrlen, char* buf, int length);
     void free_messages(std::vector<mmsghdr>& hdrs);
     virtual srs_error_t cycle();
 };
