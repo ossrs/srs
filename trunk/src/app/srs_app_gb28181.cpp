@@ -645,8 +645,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
     sip_auto_play = _srs_config->get_stream_caster_gb28181_sip_auto_play(c);
     sip_ack_timeout = _srs_config->get_stream_caster_gb28181_ack_timeout(c);
     sip_keepalive_timeout = _srs_config->get_stream_caster_gb28181_keepalive_timeout(c);
-    //print_sip_message = _srs_config->get_stream_caster_gb28181_print_sip_message(c);
-    sip_invite_port_fixed = _srs_config->get_stream_caster_gb28181_sip_invite_port_fixed(c); 
+    sip_invite_port_fixed = _srs_config->get_stream_caster_gb28181_sip_invite_port_fixed(c);
 }
 
 SrsGb28181Config::~SrsGb28181Config()

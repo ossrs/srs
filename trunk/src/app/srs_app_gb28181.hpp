@@ -311,7 +311,6 @@ public:
     bool sip_enable;
     srs_utime_t sip_ack_timeout;
     srs_utime_t sip_keepalive_timeout;
-    bool print_sip_message;
     bool sip_auto_play;
     bool sip_invite_port_fixed;
  
