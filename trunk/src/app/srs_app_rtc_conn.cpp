@@ -255,7 +255,7 @@ srs_error_t SrsDtlsSession::on_dtls(SrsUdpMuxSocket* udp_mux_skt)
 srs_error_t SrsDtlsSession::on_dtls_handshake_done(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_error_t err = srs_success;
-    srs_trace("dtls handshake done");
+    srs_trace("rtc session=%s, DTLS handshake done.", rtc_session->id().c_str());
 
     handshake_done = true;
     if ((err = srtp_initialize()) != srs_success) {
@@ -529,6 +529,8 @@ srs_error_t SrsRtcSenderThread::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
+    srs_trace("rtc session=%s, start play", rtc_session->id().c_str());
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
@@ -570,7 +572,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 
 void SrsRtcSenderThread::update_sendonly_socket(SrsUdpMuxSocket* ukt) 
 {
-    srs_trace("session %s address changed, update %s -> %s", 
+    srs_trace("rtc session=%s address changed, update %s -> %s", 
         rtc_session->id().c_str(), sendonly_ukt->get_peer_id().c_str(), ukt->get_peer_id().c_str());
 
     srs_freep(sendonly_ukt);
@@ -746,10 +748,11 @@ srs_error_t SrsRtcSession::on_binding_request(SrsUdpMuxSocket* udp_mux_skt, SrsS
     send_and_free_messages(stfd, addr, addrlen, buf, stream->pos());
 
     if (get_session_state() == WAITING_STUN) {
-        set_session_state(DOING_DTLS_HANDSHAKE);
-
         peer_id = udp_mux_skt->get_peer_id();
         rtc_server->insert_into_id_sessions(peer_id, this);
+
+        set_session_state(DOING_DTLS_HANDSHAKE);
+        srs_trace("rtc session=%s, STUN done, waitting DTLS handshake.", id().c_str());
     }
 
     return err;
@@ -970,6 +973,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 srs_error_t SrsRtcSession::on_connection_established(SrsUdpMuxSocket* udp_mux_skt)
 {
     srs_trace("rtc session=%s, timeout=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
+    set_session_state(ESTABLISHED);
     return start_play(udp_mux_skt);
 }
 
@@ -1333,7 +1337,7 @@ void SrsRtcServer::check_and_clean_timeout_session()
             // to make all logs write to the "correct" pid+cid.
             session->switch_to_context();
 
-            srs_trace("rtc session=%s, stun timeout", session->id().c_str());
+            srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
             map_username_session.erase(iter++);
             map_id_session.erase(session->get_peer_id());
             delete session;

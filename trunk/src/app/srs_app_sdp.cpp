@@ -361,6 +361,8 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
            << iter->ip_ << " " << iter->port_
            << " typ " << iter->type_ 
            << " generation 0" << kCRLF;
+
+        srs_trace("local SDP candidate line=%s", os.str().c_str());
     }
 
     return err;
@@ -641,7 +643,7 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
     std::istringstream is(sdp_str);
     std::string line;
     while (getline(is, line)) {
-        srs_trace("%s", line.c_str());
+        srs_verbose("%s", line.c_str());
         if (line.size() < 2 || line[1] != '=') {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
         }
