@@ -144,6 +144,7 @@ public:
     void update_sendonly_socket(SrsUdpMuxSocket* ukt);
 private:
     void send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* udp_mux_skt);
+    void send_and_free_message(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpSharedPacket* pkt, SrsUdpMuxSocket* udp_mux_skt);
 };
 
 class SrsRtcSession
@@ -224,7 +225,12 @@ private:
     bool waiting_msgs;
     // TODO: FIXME: Support multiple stfd.
     srs_netfd_t mmstfd;
-    std::vector<mmsghdr> mmhdrs;
+    // Hotspot msgs, we are working on it.
+    // @remark We will wait util all messages are ready.
+    std::vector<mmsghdr> hotspot;
+    // Cache msgs, for other coroutines to fill it.
+    std::vector<mmsghdr> cache;
+    int cache_pos;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -255,8 +261,9 @@ public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 // Internal only.
 public:
-    srs_error_t send_and_free_messages(srs_netfd_t stfd, const std::vector<mmsghdr>& msgs);
-    void free_messages(std::vector<mmsghdr>& hdrs);
+    mmsghdr* fetch();
+    void sendmmsg(srs_netfd_t stfd, mmsghdr* hdr);
+    void free_mhdrs(std::vector<mmsghdr>& mhdrs);
     virtual srs_error_t cycle();
 };
 
