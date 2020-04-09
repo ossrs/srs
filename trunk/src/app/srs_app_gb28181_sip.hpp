@@ -33,6 +33,7 @@
 #include <srs_app_log.hpp>
 #include <srs_sip_stack.hpp>
 #include <srs_app_gb28181.hpp>
+#include <srs_app_pithy_print.hpp>
 
 
 class SrsConfDirective;
@@ -41,7 +42,7 @@ class SrsGb28181Config;
 class SrsSipStack;
 class SrsGb28181SipService;
 
-enum SrsGb28281SipSessionStatusType{
+enum SrsGb28181SipSessionStatusType{
      SrsGb28181SipSessionUnkonw = 0,
      SrsGb28181SipSessionRegisterOk = 1,
      SrsGb28181SipSessionAliveOk = 2,
@@ -50,62 +51,75 @@ enum SrsGb28281SipSessionStatusType{
      SrsGb28181SipSessionBye = 5,
 };
 
-class SrsGb28181SipSession
+class SrsGb28181SipSession: public ISrsCoroutineHandler, public ISrsConnection
 {
 private:
     //SrsSipRequest *req;
-    SrsGb28181SipService *caster;
-    std::string   session_id;
+    SrsGb28181SipService *servcie;
+    std::string   _session_id;
+    SrsCoroutine* trd;
+    SrsPithyPrint* pprint;
 private:
-    SrsGb28281SipSessionStatusType _register_status;
-    SrsGb28281SipSessionStatusType _alive_status;
-    SrsGb28281SipSessionStatusType _invite_status;
+    SrsGb28181SipSessionStatusType _register_status;
+    SrsGb28181SipSessionStatusType _alive_status;
+    SrsGb28181SipSessionStatusType _invite_status;
     srs_utime_t _register_time;
     srs_utime_t _alive_time;
     srs_utime_t _invite_time;
-    srs_utime_t _recv_rtp_time;
-    int  _reg_expires;
+    srs_utime_t _reg_expires;
 
     std::string _peer_ip;
     int _peer_port;
 
-    sockaddr *_from;
+    sockaddr  _from;
     int _fromlen;
     SrsSipRequest *req;
-
-public:
-    void set_register_status(SrsGb28281SipSessionStatusType s) { _register_status = s;}
-    void set_alive_status(SrsGb28281SipSessionStatusType s) { _alive_status = s;}
-    void set_invite_status(SrsGb28281SipSessionStatusType s) { _invite_status = s;}
-    void set_register_time(srs_utime_t t) { _register_time = t;}
-    void set_alive_time(srs_utime_t t) { _alive_time = t;}
-    void set_invite_time(srs_utime_t t) { _invite_time = t;}
-    void set_recv_rtp_time(srs_utime_t t) { _recv_rtp_time = t;}
-    void set_reg_expires(int e) { _reg_expires = e;}
-    void set_peer_ip(std::string i) { _peer_ip = i;}
-    void set_peer_port(int o) { _peer_port = o;}
-    void set_sockaddr(sockaddr *f) { _from = f;}
-    void set_sockaddr_len(int l) { _fromlen = l;}
-    void set_request(SrsSipRequest *r) { req->copy(r);}
-
-    SrsGb28281SipSessionStatusType register_status() { return _register_status;}
-    SrsGb28281SipSessionStatusType alive_status() { return  _alive_status;}
-    SrsGb28281SipSessionStatusType invite_status() { return  _invite_status;}
-    srs_utime_t register_time() { return  _register_time;}
-    srs_utime_t alive_time() { return _alive_time;}
-    srs_utime_t invite_time() { return _invite_time;}
-    srs_utime_t recv_rtp_time() { return _recv_rtp_time;}
-    int reg_expires() { return _reg_expires;}
-    std::string peer_ip() { return _peer_ip;}
-    int peer_port() { return _peer_port;}
-    sockaddr* sockaddr_from() { return _from;}
-    int sockaddr_fromlen() { return _fromlen;}
-    SrsSipRequest request() { return *req;}
 
 public:
     SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipRequest* r);
     virtual ~SrsGb28181SipSession();
 
+public:
+    void set_register_status(SrsGb28181SipSessionStatusType s) { _register_status = s;}
+    void set_alive_status(SrsGb28181SipSessionStatusType s) { _alive_status = s;}
+    void set_invite_status(SrsGb28181SipSessionStatusType s) { _invite_status = s;}
+    void set_register_time(srs_utime_t t) { _register_time = t;}
+    void set_alive_time(srs_utime_t t) { _alive_time = t;}
+    void set_invite_time(srs_utime_t t) { _invite_time = t;}
+    //void set_recv_rtp_time(srs_utime_t t) { _recv_rtp_time = t;}
+    void set_reg_expires(int e) { _reg_expires = e*SRS_UTIME_SECONDS;}
+    void set_peer_ip(std::string i) { _peer_ip = i;}
+    void set_peer_port(int o) { _peer_port = o;}
+    void set_sockaddr(sockaddr  f) { _from = f;}
+    void set_sockaddr_len(int l) { _fromlen = l;}
+    void set_request(SrsSipRequest *r) { req->copy(r);}
+
+
+    SrsGb28181SipSessionStatusType register_status() { return _register_status;}
+    SrsGb28181SipSessionStatusType alive_status() { return  _alive_status;}
+    SrsGb28181SipSessionStatusType invite_status() { return  _invite_status;}
+    srs_utime_t register_time() { return  _register_time;}
+    srs_utime_t alive_time() { return _alive_time;}
+    srs_utime_t invite_time() { return _invite_time;}
+    //srs_utime_t recv_rtp_time() { return _recv_rtp_time;}
+    int reg_expires() { return _reg_expires;}
+    std::string peer_ip() { return _peer_ip;}
+    int peer_port() { return _peer_port;}
+    sockaddr  sockaddr_from() { return _from;}
+    int sockaddr_fromlen() { return _fromlen;}
+    SrsSipRequest request() { return *req;}
+
+    std::string session_id() { return _session_id;}
+
+public:
+    virtual srs_error_t serve();
+    
+// Interface ISrsOneCycleThreadHandler
+public:
+    virtual srs_error_t cycle();   
+    virtual std::string remote_ip();
+private:
+    virtual srs_error_t do_cycle();
 };
 
 class SrsGb28181SipService : public ISrsUdpHandler
@@ -152,9 +166,12 @@ public:
     //
     int send_sip_raw_data(SrsSipRequest *req, std::string data);
 
-    SrsGb28181SipSession* create_sip_session(SrsSipRequest *req);
+public:
+    srs_error_t fetch_or_create_sip_session(SrsSipRequest *req,  SrsGb28181SipSession** sess);
     SrsGb28181SipSession* fetch(std::string id);
     void remove_session(std::string id);
+    SrsGb28181Config* get_config();
+    
 };
 
 #endif

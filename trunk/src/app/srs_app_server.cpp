@@ -696,7 +696,7 @@ void SrsServer::destroy()
     srs_freep(conn_manager);
 
 #ifdef SRS_AUTO_GB28181
-    //free global gb28281 manager
+    //free global gb28181 manager
     srs_freep(_srs_gb28181);
 #endif
 }
@@ -1360,7 +1360,7 @@ srs_error_t SrsServer::listen_http_stream()
 }
 
 #ifdef SRS_AUTO_GB28181
-srs_error_t SrsServer::listen_gb28281_sip(SrsConfDirective* stream_caster)
+srs_error_t SrsServer::listen_gb28181_sip(SrsConfDirective* stream_caster)
 { 
     srs_error_t err = srs_success;
 
@@ -1411,7 +1411,7 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else if (srs_stream_caster_is_gb28181(caster)) {
 #ifdef SRS_AUTO_GB28181
-            //init global gb28281 manger
+            //init global gb28181 manger
             if (_srs_gb28181 == NULL){
                 _srs_gb28181 = new SrsGb28181Manger(stream_caster);
                 if ((err = _srs_gb28181->initialize()) != srs_success){
@@ -1421,12 +1421,12 @@ srs_error_t SrsServer::listen_stream_caster()
 
             //sip listener
             if (_srs_config->get_stream_caster_gb28181_sip_enable(stream_caster)){
-                if ((err = listen_gb28281_sip(stream_caster)) != srs_success){
+                if ((err = listen_gb28181_sip(stream_caster)) != srs_success){
                     return err;
                 }
             }
 
-            //gb28281 stream listener
+            //gb28181 stream listener
             listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
 #else
             srs_warn("gb28181 is disabled, please enable it by: ./configure --with-gb28181");

@@ -65,6 +65,7 @@ class SrsGb28181Config;
 class SrsGb28181PsRtpProcessor;
 class SrsGb28181SipService;
 class SrsGb28181StreamChannel;
+class SrsGb28181SipSession;
 
 //ps rtp header packet parse
 class SrsPsRtpPacket: public SrsRtpPacket
@@ -76,7 +77,7 @@ public:
     virtual srs_error_t decode(SrsBuffer* stream);
 };
 
-//randomly assigned ports receive gb28281 device streams
+//randomly assigned ports receive gb28181 device streams
 class SrsPsRtpListener: public ISrsUdpHandler
 {
 private:
@@ -94,7 +95,7 @@ public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
-//multiplexing service, single port receiving all gb28281 device streams
+//multiplexing service, single port receiving all gb28181 device streams
 class SrsGb28181RtpMuxService : public ISrsUdpHandler
 {
 private:
@@ -110,7 +111,7 @@ public:
 };
 
 
-//process gb28281 RTP package, generate a completed PS stream data, 
+//process gb28181 RTP package, generate a completed PS stream data, 
 //call the PS stream parser, parse the original video and audio
 class SrsGb28181PsRtpProcessor: public ISrsUdpHandler
 {
@@ -127,6 +128,7 @@ public:
 private:
     bool can_send_ps_av_packet();
     void dispose();
+    void clear_pre_packet();
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
@@ -188,6 +190,7 @@ private:
     SrsFileWriter ps_fw;
     SrsFileWriter video_fw;
     SrsFileWriter audio_fw;
+    SrsFileWriter unknow_fw;
 
     bool first_keyframe_flag;
     bool wait_first_keyframe;
@@ -234,9 +237,6 @@ private:
     SrsRawH264Stream* avc;
     std::string h264_sps;
     std::string h264_pps;
-    bool h264_sps_changed;
-    bool h264_pps_changed;
-    bool h264_sps_pps_sent;
 
     SrsRawAacStream* aac;
     std::string aac_specific_config;
@@ -262,6 +262,7 @@ public:
     virtual void set_rtmp_url(std::string url);
     virtual std::string rtmp_url();
     virtual SrsGb28181StreamChannel get_channel();
+    srs_utime_t get_recv_stream_time();
 
 private:
     virtual srs_error_t do_cycle();
@@ -288,7 +289,7 @@ public:
     virtual void rtmp_close();
 };
 
-//system parameter configuration of gb28281 module,
+//system parameter configuration of gb28181 module,
 //read file from configuration file to generate
 class SrsGb28181Config
 {
@@ -301,14 +302,15 @@ public:
     int rtp_port_min;
     int rtp_port_max;
     int rtp_mux_port;
+    bool auto_create_channel;
 
     //sip config
     int  sip_port;
     std::string sip_serial;
     std::string sip_realm;
     bool sip_enable;
-    int sip_ack_timeout;
-    int sip_keepalive_timeout;
+    srs_utime_t sip_ack_timeout;
+    srs_utime_t sip_keepalive_timeout;
     bool print_sip_message;
     bool sip_auto_play;
     bool sip_invite_port_fixed;
@@ -325,11 +327,14 @@ private:
     std::string port_mode;
     std::string app;
     std::string stream;
+    std::string rtmp_url;
     
     std::string ip;
     int rtp_port;
     int rtmp_port;
     uint32_t ssrc;
+    srs_utime_t recv_time;
+    std::string recv_time_str;
     
     //send rtp stream client local port
     int rtp_peer_port;
@@ -350,6 +355,9 @@ public:
     uint32_t get_ssrc() const { return ssrc; }
     uint32_t get_rtp_peer_port() const { return rtp_peer_port; }
     std::string get_rtp_peer_ip() const { return rtp_peer_ip; }
+    std::string get_rtmp_url() const { return rtmp_url; }
+    srs_utime_t get_recv_time() const { return recv_time; }
+    std::string get_recv_time_str() const { return recv_time_str; }
 
     void set_channel_id(const std::string &i) { channel_id = i; }
     void set_port_mode(const std::string &p) { port_mode = p; }
@@ -361,6 +369,9 @@ public:
     void set_ssrc( const int &s) { ssrc = s;}
     void set_rtp_peer_ip( const std::string &p) { rtp_peer_ip = p; }
     void set_rtp_peer_port( const int &s) { rtp_peer_port = s;}
+    void set_rtmp_url( const std::string &u) { rtmp_url = u; }
+    void set_recv_time( const srs_utime_t &u) { recv_time = u; }
+    void set_recv_time_str( const std::string &u) { recv_time_str = u; }
 
     void copy(const SrsGb28181StreamChannel *s);
     void dumps(SrsJsonObject* obj);
@@ -429,7 +440,7 @@ public:
 
 public:
     void remove(SrsGb28181RtmpMuxer* conn);
-   
+    void remove_sip_session(SrsGb28181SipSession* sess);
 };
 
 #endif

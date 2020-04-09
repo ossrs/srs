@@ -22,11 +22,7 @@
  */
 
 #include <srs_app_gb28181.hpp>
-
-#include <algorithm>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 
 using namespace std;
@@ -54,11 +50,10 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_sip_stack.hpp>
 
-
-
 //#define W_PS_FILE
 //#define W_VIDEO_FILE
 //#define W_AUDIO_FILE
+//#define W_UNKONW_FILE
 
 SrsPsRtpPacket::SrsPsRtpPacket()
 { 
@@ -181,7 +176,18 @@ void SrsGb28181PsRtpProcessor::dispose()
     }
     cache_ps_rtp_packet.clear();
 
+    clear_pre_packet();
+
     return;
+}
+
+void SrsGb28181PsRtpProcessor::clear_pre_packet()
+{
+    map<std::string, SrsPsRtpPacket*>::iterator it;
+    for (it = pre_packet.begin(); it != pre_packet.end(); ++it) {
+        srs_freep(it->second);
+    }
+    pre_packet.clear();
 }
 
 srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
@@ -231,15 +237,16 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         
         //get previous timestamp by ssrc
         uint32_t pre_timestamp = pre_packet[pre_pkt_key]->timestamp;
-        //uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
+        uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
 
         //TODO:  check sequence number out of order
         //it may be out of order, or multiple streaming ssrc are the same
-        // if (pre_sequence_number > pkt.sequence_number){
-        //     srs_info("gb28281: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, addr=%s,port=%s",
-        //       pkt.ssrc, pre_sequence_number, pkt.sequence_number, address_string, port_string);
-        //     //return err;
-        // }
+        if (pre_sequence_number + 1 != pkt.sequence_number && 
+            pre_sequence_number != pkt.sequence_number){
+            srs_warn("gb28181: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, peer(%s, %s)",
+              pkt.ssrc, pre_sequence_number, pkt.sequence_number, address_string, port_string);
+            //return err;
+        }
 
         //copy header to cache
         cache_ps_rtp_packet[pkt_key]->copy(&pkt);
@@ -261,8 +268,9 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         }
 
         if (pprint->can_print()) {
-            srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " gb28181: client_id %s, ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
-                        channel_id.c_str(), nb_buf, pprint->age(), pkt.version, pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
+            srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " gb28181: client_id %s, peer(%s, %d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
+                        channel_id.c_str(),  address_string, peer_port, nb_buf, pprint->age(), pkt.version, 
+                        pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
                         pkt.payload->length()
                         );
         }
@@ -291,9 +299,24 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                 muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
             }else {
                 muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
-               
             }
 
+            //auto crate channel
+            if (!muxer && config->auto_create_channel){
+                //auto create channel generated id
+                std::stringstream ss, ss1;
+                ss << "chid" << pkt.ssrc;
+                std::string tmp_id = ss.str();
+
+                SrsGb28181StreamChannel channel;
+                channel.set_channel_id(tmp_id);
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+                channel.set_ssrc(pkt.ssrc);
+                _srs_gb28181->create_stream_channel(&channel);
+
+                muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+            }
+          
             if (muxer){
                 //TODO: fixme: the same device uses the same SSRC to send with different local ports
                 //record the first peer port
@@ -305,11 +328,11 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                         muxer->get_channel_id().c_str(), pkt.ssrc, muxer->channel_peer_port(), peer_port);
                     srs_freep(key->second);
                 }else {
-                    //put it in queue, wait for conn to process, and then free
+                    //put it in queue, wait for consumer to process, and then free
                     muxer->ps_packet_enqueue(key->second);
                 }
             }else{
-                //no connection process it, discarded
+                //no consumer process it, discarded
                 srs_freep(key->second);
             }
             cache_ps_rtp_packet.erase(pkt_key);
@@ -461,7 +484,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             //in a frame of data, pts is obtained from the first PSE packet
             if (pse_index == 0 && pts_dts_flags > 0) {
 				video_pts = parse_ps_timestamp((unsigned char*)next_ps_pack + 9);
-                srs_info("gb28181: ps stream video ts=%u pkt_ts=%u", pts, timestamp);
+                srs_info("gb28181: ps stream video ts=%u pkt_ts=%u", video_pts, timestamp);
 			}
             pse_index +=1;
 
@@ -544,15 +567,40 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
 		}
         else
         {
-			srs_trace("gb28181: client_id %s, unkonw ps data %02x %02x %02x %02x\n", 
-               channel_id.c_str(), next_ps_pack[0], next_ps_pack[1], next_ps_pack[2], next_ps_pack[3]);
+
+#ifdef W_UNKONW_FILE            
+            if (!unknow_fw.is_open()) {
+                 std::string filename = "test_unknow_" + channel_id + ".mpg";
+                 unknow_fw.open(filename.c_str());
+            }
+            unknow_fw.write(next_ps_pack,  incomplete_len, NULL);          
+#endif      
+            //TODO: fixme unkonw ps data parse
+            if (next_ps_pack
+            && next_ps_pack[0] == (char)0x00
+			&& next_ps_pack[1] == (char)0x00
+			&& next_ps_pack[2] == (char)0x00
+			&& next_ps_pack[3] == (char)0x01){
+                //dahua's PS header may lose packets. It is sent by an RTP packet of Dahua's PS header
+                //dahua rtp send format:
+                //ts=1000 seq=1 mark=false payload= ps header
+                //ts=1000 seq=2 mark=false payload= video
+                //ts=1000 seq=3 mark=true payload= video
+                //ts=1000 seq=4 mark=true payload= audio
+                incomplete_len = ps_size - complete_len; 
+                complete_len = complete_len + incomplete_len;
+            }
+
+            srs_trace("gb28181: client_id %s, unkonw ps data (%#x/%u) %02x %02x %02x %02x\n", 
+                channel_id.c_str(), ssrc, timestamp,  
+                next_ps_pack[0], next_ps_pack[1], next_ps_pack[2], next_ps_pack[3]);
             break;
         }
     }
 
     if (complete_len != ps_size){
-         srs_trace("gb28181:  client_id %s decode ps packet error! ps_size=%d  complete=%d \n", 
-                     channel_id.c_str(), ps_size, complete_len);
+         srs_trace("gb28181:  client_id %s decode ps packet error (%#x/%u)! ps_size=%d  complete=%d \n", 
+                     channel_id.c_str(), ssrc, timestamp, ps_size, complete_len);
     }else if (hander && video_stream.length() && can_send_ps_av_packet()) {
          if ((err = hander->on_rtp_video(&video_stream, video_pts)) != srs_success) {
              return srs_error_wrap(err, "process ps video packet");
@@ -562,12 +610,23 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
     return err;
 }
 
+static std::string get_host_candidate_ips(SrsConfDirective* c)
+{
+    string candidate = _srs_config->get_stream_caster_gb28181_host(c);
+    if (candidate == "*" || candidate == "0.0.0.0") {
+        std::vector<std::string> ips = srs_get_local_ips();
+        int index = _srs_config->get_stats_network();
+        return ips.at(index);
+    } else {
+        return candidate;
+    }
+}
 
 //Gb28181 Config
 SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
-    host = _srs_config->get_stream_caster_gb28181_host(c);
+    host = get_host_candidate_ips(c);
     output = _srs_config->get_stream_caster_output(c);
     rtp_mux_port = _srs_config->get_stream_caster_listen(c);
     rtp_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
@@ -576,6 +635,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
 
     wait_keyframe = _srs_config->get_stream_caster_gb28181_wait_keyframe(c);
     audio_enable = _srs_config->get_stream_caster_gb28181_audio_enable(c);
+    auto_create_channel = _srs_config->get_stream_caster_gb28181_auto_create_channel(c);
 
     //sip config
     sip_enable = _srs_config->get_stream_caster_gb28181_sip_enable(c);
@@ -585,7 +645,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
     sip_auto_play = _srs_config->get_stream_caster_gb28181_sip_auto_play(c);
     sip_ack_timeout = _srs_config->get_stream_caster_gb28181_ack_timeout(c);
     sip_keepalive_timeout = _srs_config->get_stream_caster_gb28181_keepalive_timeout(c);
-    print_sip_message = _srs_config->get_stream_caster_gb28181_print_sip_message(c);
+    //print_sip_message = _srs_config->get_stream_caster_gb28181_print_sip_message(c);
     sip_invite_port_fixed = _srs_config->get_stream_caster_gb28181_sip_invite_port_fixed(c); 
 }
 
@@ -615,14 +675,15 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     ps_demixer = new SrsPsStreamDemixer(this, id, a, k);
     wait_ps_queue = srs_cond_new();
 
-    h264_sps_changed = false;
-    h264_pps_changed = false;
-    h264_sps_pps_sent = false;
-
     stream_idle_timeout = -1;
     recv_stream_time = 0;
 
     _rtmp_url = "";
+
+    h264_sps = "";
+    h264_pps = "";
+    aac_specific_config = "";
+
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
@@ -681,6 +742,8 @@ void SrsGb28181RtmpMuxer::set_channel_peer_ip(std::string ip)
 void SrsGb28181RtmpMuxer::set_channel_peer_port(int port)
 {
     if (channel->get_rtp_peer_port() == 0){
+        channel->set_recv_time_str(srs_sip_get_utc_date());
+        channel->set_recv_time(srs_get_system_time());
         channel->set_rtp_peer_port(port);
     }
 }
@@ -702,6 +765,11 @@ void SrsGb28181RtmpMuxer::set_rtmp_url(std::string url)
 std::string SrsGb28181RtmpMuxer::rtmp_url()
 {
     return _rtmp_url;
+}
+
+srs_utime_t SrsGb28181RtmpMuxer::get_recv_stream_time()
+{
+    return recv_stream_time;
 }
 
 
@@ -745,11 +813,25 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
         }
 
         if (pprint->can_print()) {
-            srs_trace("gb28181: client id=%s, rtmp muxer is alive", channel_id.c_str());
+            srs_trace("gb28181: client id=%s,  ssrc=%#x, peer(%s, %d), rtmp muxer is alive",
+                channel_id.c_str(),  channel->get_ssrc(), 
+                channel->get_rtp_peer_ip().c_str(),
+                channel->get_rtp_peer_port());
         }
         
         srs_utime_t now = srs_get_system_time();
         srs_utime_t duration = now - recv_stream_time;
+
+        //if no RTP data is received within 2 seconds, 
+        //the peer-port and peer-ip will be cleared and 
+        //other port data will be received again
+        if (duration > (2 * SRS_UTIME_SECONDS) && channel->get_rtp_peer_port() != 0){
+            srs_warn("gb28181: client id=%s ssrc=%#x, peer(%s, %d), no rtp data %d in seconds, clean it, wait other port!", 
+                channel_id.c_str(), channel->get_ssrc(), channel->get_rtp_peer_ip().c_str(),
+                channel->get_rtp_peer_port(), duration/SRS_UTIME_SECONDS);
+            channel->set_rtp_peer_port(0);
+            channel->set_rtp_peer_ip("");
+        }
         
         SrsGb28181Config config = gb28181_manger->get_gb28181_config();
         if (duration > config.rtp_idle_timeout){
@@ -757,8 +839,11 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
             break;
         }
 
-       srs_cond_timedwait(wait_ps_queue, 5 * SRS_UTIME_MILLISECONDS);
-       //srs_usleep(1000 * 5);
+        if (ps_queue.empty()){
+           srs_cond_timedwait(wait_ps_queue, 200 * SRS_UTIME_MILLISECONDS);
+        }else {
+           srs_cond_timedwait(wait_ps_queue, 10 * SRS_UTIME_MILLISECONDS);
+        }
     }
     
     return err;
@@ -777,6 +862,8 @@ void SrsGb28181RtmpMuxer::stop()
 void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
 {
     srs_assert(pkt);
+   
+    recv_stream_time = srs_get_system_time();
 
     //prevent consumers from being unable to process data 
     //and accumulating in the queue
@@ -870,7 +957,6 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
             if (h264_sps == sps) {
                 continue;
             }
-            h264_sps_changed = true;
             h264_sps = sps;
             
             if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
@@ -889,7 +975,6 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
             if (h264_pps == pps) {
                 continue;
             }
-            h264_pps_changed = true;
             h264_pps = pps;
             
             if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
@@ -1003,10 +1088,6 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
-    if (!h264_sps_changed || !h264_pps_changed) {
-        return err;
-    }
-
     // h264 raw to h264 packet.
     std::string sh;
     if ((err = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != srs_success) {
@@ -1028,10 +1109,6 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "write packet");
     }
 
-    // reset sps and pps.
-    h264_sps_changed = false;
-    h264_pps_changed = false;
-    h264_sps_pps_sent = true;
     
     return err;
 }
@@ -1140,6 +1217,12 @@ srs_error_t SrsGb28181RtmpMuxer::connect()
 void SrsGb28181RtmpMuxer::close()
 {
     srs_freep(sdk);
+  
+    // cleared and sequence header will be sent again next time.
+    // RTMP close may stop through API(rtmp_close)
+    h264_sps = "";
+    h264_pps = "";
+    aac_specific_config = "";
 }
 
 void SrsGb28181RtmpMuxer::rtmp_close(){
@@ -1157,6 +1240,9 @@ SrsGb28181StreamChannel::SrsGb28181StreamChannel(){
     ssrc = 0;
     rtp_peer_port = 0;
     rtp_peer_ip = "";
+    rtmp_url = "";
+    recv_time = 0;
+    recv_time_str = "";
 }
 
 SrsGb28181StreamChannel::~SrsGb28181StreamChannel()
@@ -1177,6 +1263,12 @@ void SrsGb28181StreamChannel::copy(const SrsGb28181StreamChannel *s){
 
     rtp_peer_ip = s->get_rtp_peer_ip();
     rtp_peer_port = s->get_rtp_peer_port();
+
+    rtmp_url = s->get_rtmp_url();
+    
+    recv_time_str = s->get_recv_time_str();
+    recv_time = s->get_recv_time();
+
 }
 
 void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
@@ -1186,12 +1278,16 @@ void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
     obj->set("rtmp_port", SrsJsonAny::integer(rtmp_port));
     obj->set("app", SrsJsonAny::str(app.c_str()));
     obj->set("stream", SrsJsonAny::str(stream.c_str()));
+    obj->set("rtmp_url", SrsJsonAny::str(rtmp_url.c_str()));
    
     obj->set("ssrc", SrsJsonAny::integer(ssrc));
     obj->set("rtp_port", SrsJsonAny::integer(rtp_port));
     obj->set("port_mode", SrsJsonAny::str(port_mode.c_str()));
     obj->set("rtp_peer_port", SrsJsonAny::integer(rtp_peer_port));
     obj->set("rtp_peer_ip", SrsJsonAny::str(rtp_peer_ip.c_str()));
+    obj->set("recv_time", SrsJsonAny::integer(recv_time/SRS_UTIME_SECONDS));
+    obj->set("recv_time_str", SrsJsonAny::str(recv_time_str.c_str()));
+    
 }
 
 
@@ -1272,10 +1368,12 @@ uint32_t SrsGb28181Manger::hash_code(std::string str)
 uint32_t SrsGb28181Manger::generate_ssrc(std::string id)
 {
     srand(uint(time(0)));
-    // TODO: SSRC rules can be customized, 
-    //uint8_t  index = uint8_t(rand() % (0x0F - 0x01 + 1) + 0x01);
-    //uint32_t ssrc = 0x00FFFFF0 & (hash_code(id) << 4) | index;
-    uint32_t ssrc = 0x00FFFFFF & (hash_code(id));
+    // TODO: SSRC rules can be customized,
+    //gb28281 live ssrc max value 0999999999(3B9AC9FF)  
+    //gb28281 vod ssrc max value 1999999999(773593FF)
+    uint8_t  index = uint8_t(rand() % (0x0F - 0x01 + 1) + 0x01);
+    uint32_t ssrc = 0x2FFFF00 & (hash_code(id) << 8) | index;
+    //uint32_t ssrc = 0x00FFFFFF & (hash_code(id));
     srs_trace("gb28181: generate ssrc id=%s, ssrc=%u", id.c_str(), ssrc);
     return  ssrc;
 }
@@ -1292,7 +1390,7 @@ srs_error_t SrsGb28181Manger::fetch_or_create_rtmpmuxer(std::string id,  SrsGb28
     
     muxer = new SrsGb28181RtmpMuxer(this, id, config->audio_enable, config->wait_keyframe);
     if ((err = muxer->serve()) != srs_success) {
-        return srs_error_wrap(err, "gb28281: rtmp muxer serve %s", id.c_str());
+        return srs_error_wrap(err, "gb28181: rtmp muxer serve %s", id.c_str());
     }
     rtmpmuxers[id] = muxer;
     *gb28181 = muxer;
@@ -1373,6 +1471,10 @@ void SrsGb28181Manger::remove(SrsGb28181RtmpMuxer* muxer)
     manager->remove(muxer);
 }
 
+void SrsGb28181Manger::remove_sip_session(SrsGb28181SipSession* sess)
+{
+    manager->remove(sess);
+}
 
 srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
 {
@@ -1441,24 +1543,12 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
        return ERROR_SUCCESS;
     }
 
-    if (channel->get_stream().empty()){
-        channel->set_stream("[stream]");
-    }
-
-    if (channel->get_app().empty()){
-        channel->set_stream("[app]");
-    }
-
-    if (channel->get_port_mode().empty()){
-        channel->set_port_mode(RTP_PORT_MODE_FIXED);
-    }
-   
-    //create on rtmp muxer, gb28281 stream to rtmp
+    //create on rtmp muxer, gb28181 stream to rtmp
     srs_error_t err = srs_success;
     if ((err = fetch_or_create_rtmpmuxer(id, &muxer)) != srs_success){
         srs_warn("gb28181: create rtmp muxer error, %s", srs_error_desc(err).c_str());
         srs_freep(err);
-        return ERROR_GB28281_CREATER_RTMPMUXER_FAILED;
+        return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
     }
 
     //Start RTP listening port, receive gb28181 stream, 
@@ -1466,6 +1556,11 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
     //random is random allocation port
     int rtp_port = 0;
     std::string port_mode = channel->get_port_mode();
+    
+    if (port_mode.empty()){
+        port_mode = RTP_PORT_MODE_FIXED;
+        channel->set_port_mode(port_mode);
+    }
    
     if (port_mode == RTP_PORT_MODE_RANDOM){
         alloc_port(&rtp_port);
@@ -1477,7 +1572,7 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
             srs_warn("gb28181: start ps rtp listen error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
             free_port(rtp_port, rtp_port + 1);
-            return ERROR_GB28281_CREATER_RTMPMUXER_FAILED;
+            return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
         }
     }
     else if(port_mode == RTP_PORT_MODE_FIXED) {
@@ -1487,38 +1582,75 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
         return ERROR_GB28181_PORT_MODE_INVALID;
     }
 
-    //Generate SSRC according to the hash code, 
-    //of the string value of the id
-    uint32_t ssrc = generate_ssrc(id);
+    uint32_t ssrc = channel->get_ssrc();
+    if (ssrc == 0){
+        //auto generate SSRC according to the hash code, 
+        //of the string value of the id
+        ssrc = generate_ssrc(id);
+    }
     rtmpmuxer_map_by_ssrc(muxer, ssrc);
 
-    //Generate RTMP push stream address,
-    std::string app = channel->get_app();
-    std::string stream = channel->get_stream();
-    app = srs_string_replace(app, "[app]", "live");
-    stream = srs_string_replace(stream, "[stream]", id);
-
-    std::string url = "rtmp://" + config->output + "/" + app + "/" + stream;
+    //generate RTMP push stream address,
+    //if the app and stream in the API are empty, 
+    //RTMP URL is generated using the output template parameter
+    std::string url = "";
     int rtmp_port;
+    string app = channel->get_app();
+    string stream = channel->get_stream();
+
     if (true) {
-        std::string schema, host, vhost, param, _app, _stream;
-        srs_discovery_tc_url(url, schema, host, vhost, _app, _stream, rtmp_port, param);
-        url = srs_generate_rtmp_url(host, rtmp_port, "", "", app, stream, "");
+        string tcUrl, stream_name;
+
+        //get template rtmp url configuration
+        std::string output = config->output;
+        srs_parse_rtmp_url(output, tcUrl, stream_name);
+        
+        string _schema, _host, _vhost, _param, _app, _stream;
+        srs_discovery_tc_url(tcUrl, _schema, _host, _vhost, _app, _stream, rtmp_port, _param);
+
+        //if the stream name is not parameterized, 
+        //it needs to be parameterized to ensure that the stream name is different
+        if (!srs_string_contains(stream_name, "[stream]") &&
+            !srs_string_contains(stream_name, "[timestamp]") &&
+            !srs_string_contains(stream_name, "[ssrc]")){
+            stream_name = stream_name + "_[stream]";
+        }
+
+        if (app.empty()){
+            app = _app;
+        }
+
+        if (stream.empty())
+        {
+            stream = stream_name;
+        }
+
+        url = srs_generate_rtmp_url(_host, rtmp_port, "", "", app, stream, "");
+        url = srs_string_replace(url, "[app]", "live");
+        url = srs_string_replace(url, "[stream]", id);
         std::stringstream ss;
         ss << ssrc;
         url = srs_string_replace(url, "[ssrc]", ss.str());
         url = srs_path_build_timestamp(url);
-    }
-    muxer->set_rtmp_url(url);
-    srs_trace("gb28181: create new stream channel id:%s rtmp url=%s", id.c_str(), muxer->rtmp_url().c_str());
+        
+        //update channel app stream value
+        srs_parse_rtmp_url(url, tcUrl, stream_name);
+        srs_discovery_tc_url(tcUrl, _schema, _host, _vhost, _app, _stream, rtmp_port, _param);
+        
+        //generate the value returned to the api response
+        channel->set_rtp_port(rtp_port);
+        channel->set_ssrc(ssrc);
 
-    //generate the value returned to the api response
-    channel->set_app(app);
-    channel->set_stream(stream);
-    channel->set_rtp_port(rtp_port);
-    channel->set_rtmp_port(rtmp_port);
-    channel->set_ip(config->host);
-    channel->set_ssrc(ssrc);
+        channel->set_app(_app);
+        channel->set_stream(stream_name);
+        channel->set_rtmp_port(rtmp_port);
+        channel->set_ip(config->host);
+        std::string play_url = srs_generate_rtmp_url(config->host, rtmp_port, "", "", app, stream_name, "");
+        channel->set_rtmp_url(play_url);
+    }
+
+    muxer->set_rtmp_url(url);
+    srs_trace("gb28181: create new stream channel id:%s rtmp url=%s", id.c_str(), url.c_str());
 
     muxer->copy_channel(channel);
 
@@ -1580,8 +1712,6 @@ uint32_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, int
              //channel not exist
             SrsGb28181StreamChannel channel;
             channel.set_channel_id(id);
-            channel.set_app("live");
-            channel.set_stream(id);
             int code = create_stream_channel(&channel);
             if (code != ERROR_SUCCESS){
                 return code;

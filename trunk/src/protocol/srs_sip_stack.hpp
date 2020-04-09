@@ -55,6 +55,8 @@ enum SrsSipCmdType{
     SrsSipCmdRespone=1
 };
 
+std::string srs_sip_get_utc_date();
+
 class SrsSipRequest
 {
 public:
@@ -130,12 +132,22 @@ public:
 protected:
     virtual srs_error_t do_parse_request(SrsSipRequest* req, const char *recv_msg);
 
+private:
+    //response from
+    virtual std::string get_sip_from(SrsSipRequest const *req);
+    //response to
+    virtual std::string get_sip_to(SrsSipRequest const *req);
+    //response via
+    virtual std::string get_sip_via(SrsSipRequest const *req);
+
 public:
+    //response:  request sent by the sip-agent, wait for sip-server response
     virtual void resp_status(std::stringstream& ss, SrsSipRequest *req);
     virtual void resp_keepalive(std::stringstream& ss, SrsSipRequest *req);
-    virtual void resp_ack(std::stringstream& ss, SrsSipRequest *req);
-     
+  
+    //request:  request sent by the sip-server, wait for sip-agent response
     virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, int port, uint32_t ssrc);
+    virtual void req_ack(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);
    

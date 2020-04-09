@@ -345,7 +345,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                             }
                         } 
                         else if (!strcasecmp(phead, "via:")) {
-                            std::vector<std::string> vec_seq = srs_string_split(content, ";");
+                            //std::vector<std::string> vec_via = srs_string_split(content, ";");
                             req->via = content;
                             req->branch = srs_sip_get_param(content.c_str(), "branch");
                         } 
@@ -417,7 +417,52 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     return err;
 }
 
-void SrsSipStack::resp_keepalive(std::stringstream& ss, SrsSipRequest *req){
+std::string SrsSipStack::get_sip_from(SrsSipRequest const *req)
+{
+    std::string from_tag;
+    if (req->from_tag.empty()){
+        from_tag = "";
+    }else {
+        from_tag = ";tag=" + req->from_tag;
+    }
+
+    return  "<sip:" + req->from + ">" + from_tag;
+}
+
+std::string SrsSipStack::get_sip_to(SrsSipRequest const *req)
+{
+    std::string to_tag;
+    if (req->to_tag.empty()){
+        to_tag = "";
+    }else {
+        to_tag = ";tag=" + req->to_tag;
+    }
+
+    return  "<sip:" + req->to + ">" + to_tag;
+}
+
+std::string SrsSipStack::get_sip_via(SrsSipRequest const *req)
+{
+    std::string via = srs_string_replace(req->via, SRS_SIP_VERSION"/UDP ", "");
+    std::vector<std::string> vec_via = srs_string_split(via, ";");
+    std::string ip_port = vec_via.at(0);
+    std::vector<std::string> vec_ip_port = srs_string_split(ip_port, ":");
+    
+    std::string branch, rport, received;
+    if (req->branch.empty()){
+        branch = "";
+    }else {
+        branch = ";branch=" + req->branch;
+    }
+
+    received = ";received=" + vec_ip_port.at(0);
+    rport = ";rport=" + vec_ip_port.at(1);
+
+    return SRS_SIP_VERSION"/UDP " + ip_port + rport + received + branch;
+}
+
+void SrsSipStack::resp_keepalive(std::stringstream& ss, SrsSipRequest *req)
+{
     ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";branch=" << req->branch << SRS_RTSP_CRLF
     << "From: <sip:" << req->from.c_str() << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
@@ -466,9 +511,9 @@ void SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
         }
 
         ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
-        << "Via: " << req->via << SRS_RTSP_CRLF
-        << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
-        << "To: <sip:"<< req->to << ">" << SRS_RTSP_CRLF
+        << "Via: " << get_sip_via(req) << SRS_RTSP_CRLF
+        << "From: "<< get_sip_from(req) << SRS_RTSP_CRLF
+        << "To: "<<  get_sip_to(req) << SRS_RTSP_CRLF
         << "CSeq: "<< req->seq << " " << req->method <<  SRS_RTSP_CRLF
         << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
         << "Contact: " << req->contact << SRS_RTSP_CRLF
@@ -511,9 +556,9 @@ void SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
         */
 
         ss << SRS_SIP_VERSION <<" 200 OK" << SRS_RTSP_CRLF
-        << "Via: " << req->via << SRS_RTSP_CRLF
-        << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
-        << "To: <sip:"<< req->to << ">" << SRS_RTSP_CRLF
+        << "Via: " << get_sip_via(req) << SRS_RTSP_CRLF
+        << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+        << "To: "<< get_sip_to(req) << SRS_RTSP_CRLF
         << "CSeq: "<< req->seq << " " << req->method <<  SRS_RTSP_CRLF
         << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
         << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
@@ -635,8 +680,8 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
 
     ss << "INVITE " << req->uri << " " << SRS_SIP_VERSION << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
-    << "From: <sip:" << req->from << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
-    << "To: <sip:" << req->to << ">" << SRS_RTSP_CRLF
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
     << "Call-ID: 20000" << rand <<SRS_RTSP_CRLF
     << "CSeq: 20 INVITE" << SRS_RTSP_CRLF
     << "Content-Type: Application/SDP" << SRS_RTSP_CRLF
@@ -666,9 +711,9 @@ void SrsSipStack::req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req
 
     ss << SRS_SIP_VERSION <<" 401 Unauthorized" << SRS_RTSP_CRLF
     //<< "Via: " << req->via << SRS_RTSP_CRLF
-    << "Via: " << req->via << ";rport=" << req->peer_port << ";received=" << req->peer_ip << ";branch=" << req->branch << SRS_RTSP_CRLF
-    << "From: <sip:"<< req->from << ">" << SRS_RTSP_CRLF
-    << "To: <sip:"<< req->to << ">" << SRS_RTSP_CRLF
+    << "Via: " << get_sip_via(req) << SRS_RTSP_CRLF
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
     << "CSeq: "<< req->seq << " " << req->method <<  SRS_RTSP_CRLF
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
     << "Contact: " << req->contact << SRS_RTSP_CRLF
@@ -678,7 +723,7 @@ void SrsSipStack::req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req
     return;
 }
 
-void SrsSipStack::resp_ack(std::stringstream& ss, SrsSipRequest *req){
+void SrsSipStack::req_ack(std::stringstream& ss, SrsSipRequest *req){
     /*
     //request: sip-agent <------ ACK ------- sip-server
     ACK sip:34020000001320000003@3402000000 SIP/2.0
@@ -738,31 +783,13 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
     req->to   = to.str();
     req->uri  = uri.str();
 
-    string to_tag, from_tag, branch;
-
-    if (req->branch.empty()){
-        branch = "";
-    }else {
-        branch = ";branch=" + req->branch;
-    }
-
-    if (req->from_tag.empty()){
-        from_tag = "";
-    }else {
-        from_tag = ";tag=" + req->from_tag;
-    }
-    
-    if (req->to_tag.empty()){
-        to_tag = "";
-    }else {
-        to_tag = ";tag=" + req->to_tag;
-    }
-
     int seq = srs_sip_random(22, 99);
     ss << "BYE " << req->uri << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
-    << "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport" << branch << SRS_RTSP_CRLF
-    << "From: <sip:" << req->from << ">" << from_tag << SRS_RTSP_CRLF
-    << "To: <sip:" << req->to << ">" << to_tag << SRS_RTSP_CRLF
+    //<< "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport" << branch << SRS_RTSP_CRLF
+    << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
+    //bye callid is inivte callid
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
     << "CSeq: "<< seq <<" BYE" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
