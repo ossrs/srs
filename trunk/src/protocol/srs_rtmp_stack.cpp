@@ -4539,6 +4539,11 @@ srs_error_t SrsOnMetaDataPacket::decode(SrsBuffer* stream)
             return srs_error_wrap(err, "name");
         }
     }
+
+    // Allows empty body metadata.
+    if (stream->empty()) {
+        return err;
+    }
     
     // the metadata maybe object or ecma array
     SrsAmf0Any* any = NULL;
