@@ -1398,11 +1398,11 @@ srs_error_t SrsRtcServer::cycle()
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Use pithy print.
-    uint32_t cnt = 1;
     uint64_t nn_msgs = 0;
-
     SrsStatistic* stat = SrsStatistic::instance();
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
+    SrsAutoFree(SrsPithyPrint, pprint);
 
     // TODO: FIXME: Support reload.
     int max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
@@ -1439,8 +1439,8 @@ srs_error_t SrsRtcServer::cycle()
         // Increase total messages.
         nn_msgs += pos;
 
-        // TODO: FIXME: Use pithy print.
-        if ((cnt++ % 100) == 0) {
+        pprint->elapse();
+        if (pprint->can_print()) {
             // TODO: FIXME: Support reload.
             max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
             srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 " msgs", pos, max_sendmmsg, nn_msgs);
