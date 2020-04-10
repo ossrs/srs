@@ -1098,10 +1098,14 @@ SrsRtcServer::SrsRtcServer()
     trd = new SrsDummyCoroutine();
 
     cache_pos = 0;
+
+    _srs_config->subscribe(this);
 }
 
 SrsRtcServer::~SrsRtcServer()
 {
+    _srs_config->unsubscribe(this);
+
     srs_freep(listener);
     srs_freep(timer);
 
@@ -1132,6 +1136,9 @@ srs_error_t SrsRtcServer::initialize()
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start coroutine");
     }
+
+    max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
+    srs_trace("RTC server init ok, max_sendmmsg=%d", max_sendmmsg);
 
     return err;
 }
@@ -1351,6 +1358,17 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     return srs_success;
 }
 
+srs_error_t SrsRtcServer::on_reload_rtc_server()
+{
+    int v = _srs_config->get_rtc_server_sendmmsg();
+    if (max_sendmmsg != v) {
+        max_sendmmsg = v;
+        srs_trace("Reload max_sendmmsg=%d", max_sendmmsg);
+    }
+
+    return srs_success;
+}
+
 mmsghdr* SrsRtcServer::fetch()
 {
     // TODO: FIXME: Maybe need to shrink?
@@ -1404,9 +1422,6 @@ srs_error_t SrsRtcServer::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
     SrsAutoFree(SrsPithyPrint, pprint);
 
-    // TODO: FIXME: Support reload.
-    int max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return err;
@@ -1441,8 +1456,6 @@ srs_error_t SrsRtcServer::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
-            // TODO: FIXME: Support reload.
-            max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
             srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 " msgs", pos, max_sendmmsg, nn_msgs);
         }
     }

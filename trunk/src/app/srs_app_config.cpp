@@ -1540,6 +1540,11 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     if ((err = reload_http_stream(old_root)) != srs_success) {
         return srs_error_wrap(err, "http steram");;
     }
+
+    // Merge config: rtc_server
+    if ((err = reload_rtc_server(old_root)) != srs_success) {
+        return srs_error_wrap(err, "http steram");;
+    }
     
     // TODO: FIXME: support reload stream_caster.
     
@@ -1694,6 +1699,40 @@ srs_error_t SrsConfig::reload_http_stream(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http stream success, nothing changed.");
+    return err;
+}
+
+srs_error_t SrsConfig::reload_rtc_server(SrsConfDirective* old_root)
+{
+    srs_error_t err = srs_success;
+
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+
+    // state graph
+    //      old_rtc_server     new_rtc_server
+    //      ENABLED     =>      ENABLED (modified)
+
+    SrsConfDirective* new_rtc_server = root->get("rtc_server");
+    SrsConfDirective* old_rtc_server = old_root->get("rtc_server");
+
+    // TODO: FIXME: Support disable or enable reloading.
+
+    //      ENABLED     =>  ENABLED (modified)
+    if (get_rtc_server_enabled(old_rtc_server) && get_rtc_server_enabled(new_rtc_server)
+        && !srs_directive_equals(old_rtc_server, new_rtc_server)
+        ) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((err = subscribe->on_reload_rtc_server()) != srs_success) {
+                return srs_error_wrap(err, "rtc server enabled");
+            }
+        }
+        srs_trace("reload rtc server success.");
+        return err;
+    }
+
+    srs_trace("reload rtc server success, nothing changed.");
     return err;
 }
 

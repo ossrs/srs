@@ -32,6 +32,7 @@
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_sdp.hpp>
+#include <srs_app_reload.hpp>
 
 #include <string>
 #include <map>
@@ -214,7 +215,8 @@ private:
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* udp_mux_skt);
 };
 
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsCoroutineHandler
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass,
+    virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 private:
     SrsUdpMuxListener* listener;
@@ -231,6 +233,8 @@ private:
     // Cache msgs, for other coroutines to fill it.
     std::vector<mmsghdr> cache;
     int cache_pos;
+    // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
+    int max_sendmmsg;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -259,6 +263,9 @@ private:
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_rtc_server();
 // Internal only.
 public:
     mmsghdr* fetch();
