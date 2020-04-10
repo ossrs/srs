@@ -69,7 +69,7 @@ public:
     virtual ~ISrsUdpMuxHandler();
 public:
     virtual srs_error_t on_stfd_change(srs_netfd_t fd);
-    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* udp_mux_skt) = 0;
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt) = 0;
 };
 
 // The tcp connection handler.

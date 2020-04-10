@@ -428,9 +428,9 @@ srs_error_t SrsUdpMuxListener::cycle()
             return srs_error_wrap(err, "udp listener");
         }   
 
-        SrsUdpMuxSocket udp_mux_skt(lfd);
+        SrsUdpMuxSocket skt(lfd);
 
-        int nread = udp_mux_skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
+        int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
             if (nread < 0) {
                 srs_warn("udp recv error");
@@ -439,7 +439,7 @@ srs_error_t SrsUdpMuxListener::cycle()
             continue;
         }   
     
-        if ((err = handler->on_udp_packet(&udp_mux_skt)) != srs_success) {
+        if ((err = handler->on_udp_packet(&skt)) != srs_success) {
             // remux udp never return
             srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
             continue;
