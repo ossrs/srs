@@ -970,7 +970,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 srs_error_t SrsRtcSession::on_connection_established(SrsUdpMuxSocket* udp_mux_skt)
 {
-    srs_trace("rtc session=%s, timeout=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
+    srs_trace("rtc session=%s, to=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
     return start_play(udp_mux_skt);
 }
 
@@ -1400,6 +1400,7 @@ srs_error_t SrsRtcServer::cycle()
 
     // TODO: FIXME: Use pithy print.
     uint32_t cnt = 1;
+    uint64_t nn_msgs = 0;
 
     SrsStatistic* stat = SrsStatistic::instance();
 
@@ -1435,11 +1436,14 @@ srs_error_t SrsRtcServer::cycle()
             stat->perf_mw_on_packets(vlen);
         }
 
+        // Increase total messages.
+        nn_msgs += pos;
+
         // TODO: FIXME: Use pithy print.
         if ((cnt++ % 100) == 0) {
             // TODO: FIXME: Support reload.
             max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-            srs_trace("-> RTC SEND %d msgs, by sendmmsg %d", pos, max_sendmmsg);
+            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 " msgs", pos, max_sendmmsg, nn_msgs);
         }
     }
 
