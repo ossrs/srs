@@ -1143,7 +1143,8 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
 
     // TODO: FIXME: Refactor to move to rtp?
     // Save the RTP packets for find_rtp_packet() to rtx or restore it.
-    source->rtp_queue->push(msg->rtp_packets);
+    // TODO: FIXME: Remove dead code.
+    //source->rtp_queue->push(msg->rtp_packets);
 #endif
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
@@ -2717,5 +2718,10 @@ string SrsSource::get_curr_origin()
 SrsRtpSharedPacket* SrsSource::find_rtp_packet(const uint16_t& seq)
 {
     return rtp_queue->find(seq);
+}
+
+SrsMetaCache* SrsSource::cached_meta()
+{
+    return meta;
 }
 #endif

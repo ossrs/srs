@@ -288,9 +288,6 @@ public:
     // @remark, not all message payload can be decoded to packet. for example,
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
-#ifdef SRS_AUTO_RTC
-    std::vector<SrsRtpSharedPacket*> rtp_packets;
-#endif
 
 private:
     class SrsSharedPtrPayload
@@ -305,15 +302,19 @@ private:
         int size;
         // The reference count
         int shared_count;
+#ifdef SRS_AUTO_RTC
     public:
         // For RTC video, we need to know the NALU structures,
         // because the RTP STAP-A or FU-A based on NALU.
         SrsSample* samples;
-        int nb_samples;
+        int nn_samples;
+        // For RTC video, whether NALUs has IDR.
+        bool has_idr;
         // For RTC audio, we may need to transcode AAC to opus,
         // so there must be an extra payloads, which is transformed from payload.
         SrsSample* extra_payloads;
         int nn_extra_payloads;
+#endif
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();
@@ -357,13 +358,18 @@ public:
     virtual SrsSharedPtrMessage* copy();
 public:
 #ifdef SRS_AUTO_RTC
-    virtual void set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts);
     // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
     // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
     void set_extra_payloads(SrsSample* payloads, int nn_payloads);
-    // Get the extra payloads and the number of it.
     int nn_extra_payloads() { return ptr->nn_extra_payloads; }
     SrsSample* extra_payloads() { return ptr->extra_payloads; }
+    // Whether samples has idr.
+    bool has_idr() { return ptr->has_idr; }
+    void set_has_idr(bool v) { ptr->has_idr = v; }
+    // Set samples, each sample points to the address of payload.
+    void set_samples(SrsSample* samples, int nn_samples);
+    int nn_samples() { return ptr->nn_samples; }
+    SrsSample* samples() { return ptr->samples; }
 #endif
 };
 

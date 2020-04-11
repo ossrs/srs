@@ -69,21 +69,13 @@ const uint32_t kVideoSSRC       = 2;
 // TODO: Define interface class like ISrsRtpMuxer
 class SrsRtpH264Muxer
 {
-private:
-    uint16_t sequence;
-    std::string sps;
-    std::string pps;
 public:
     bool discard_bframe;
 public:
     SrsRtpH264Muxer();
     virtual ~SrsRtpH264Muxer();
 public:
-    srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
-    srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packets);
+    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 // TODO: FIXME: It's not a muxer, but a transcoder.

@@ -327,6 +327,7 @@ public:
 
 #ifdef SRS_AUTO_RTC
 // To find the RTP packet for RTX or restore.
+// TODO: FIXME: Should queue RTP packets in connection level.
 class SrsRtpPacketQueue
 {
 private:
@@ -634,6 +635,8 @@ public:
 #ifdef SRS_AUTO_RTC
     // Find rtp packet by sequence
     SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
+    // Get the cached meta, as such the sps/pps.
+    SrsMetaCache* cached_meta();
 #endif
 };
 

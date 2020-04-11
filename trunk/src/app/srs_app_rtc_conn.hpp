@@ -130,6 +130,8 @@ private:
     // TODO: FIXME: How to handle timestamp overflow?
     uint32_t audio_timestamp;
     uint16_t audio_sequence;
+private:
+    uint16_t video_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
 public:
@@ -148,10 +150,14 @@ public:
 public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 private:
-    void send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
-    void send_and_free_message(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpSharedPacket* pkt, SrsUdpMuxSocket* skt);
+    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
+    srs_error_t send_message(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpSharedPacket* pkt, SrsUdpMuxSocket* skt);
 private:
     srs_error_t packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
+private:
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
+    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packets);
 };
 
 class SrsRtcSession

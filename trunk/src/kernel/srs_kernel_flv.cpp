@@ -211,11 +211,14 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     size = 0;
     shared_count = 0;
 
+#ifdef SRS_AUTO_RTC
     samples = NULL;
-    nb_samples = 0;
+    nn_samples = 0;
+    has_idr = false;
 
     extra_payloads = NULL;
     nn_extra_payloads = 0;
+#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
@@ -226,12 +229,14 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_freepa(payload);
     srs_freepa(samples);
 
+#ifdef SRS_AUTO_RTC
     for (int i = 0; i < nn_extra_payloads; i++) {
         SrsSample* p = extra_payloads + i;
         srs_freep(p->bytes);
     }
     srs_freepa(extra_payloads);
     nn_extra_payloads = 0;
+#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
@@ -248,12 +253,6 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
             ptr->shared_count--;
         }
     }
-
-#ifdef SRS_AUTO_RTC
-    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
-        srs_freep(rtp_packets[i]);
-    }
-#endif
 }
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -372,21 +371,10 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 
-#ifdef SRS_AUTO_RTC
-    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
-        copy->rtp_packets.push_back(rtp_packets[i]->copy());
-    }
-#endif
-
     return copy;
 }
 
 #ifdef SRS_AUTO_RTC
-void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
-{
-    rtp_packets = pkts;
-}
-
 void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payloads)
 {
     srs_assert(nn_payloads);
@@ -396,6 +384,17 @@ void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payload
 
     ptr->extra_payloads = new SrsSample[nn_payloads];
     memcpy(ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
+}
+
+void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
+{
+    srs_assert(nn_samples);
+    srs_assert(!ptr->samples);
+
+    ptr->nn_samples = nn_samples;
+
+    ptr->samples = new SrsSample[nn_samples];
+    memcpy(ptr->samples, samples, nn_samples * sizeof(SrsSample));
 }
 #endif
 
