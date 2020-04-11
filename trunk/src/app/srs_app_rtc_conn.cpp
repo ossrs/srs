@@ -641,6 +641,23 @@ srs_error_t SrsRtcSenderThread::send_messages(
                 *pnn_rtp_pkts += 1;
             }
         } else {
+            // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
+            if (msg->has_idr()) {
+                SrsRtpPacket2* packet = NULL;
+                if ((err = packet_stap_a(source, msg, &packet)) != srs_success) {
+                    return srs_error_wrap(err, "packet stap-a");
+                }
+
+                err = send_message2(msg, is_video, is_audio, packet, skt);
+                srs_freep(packet);
+                if (err != srs_success) {
+                    return srs_error_wrap(err, "send message");
+                }
+
+                *pnn_rtp_pkts += 1;
+            }
+
+            vector<SrsRtpPacket2*> packets;
             for (int i = 0; i < msg->nn_samples(); i++) {
                 SrsSample* sample = msg->samples() + i;
 
@@ -650,23 +667,6 @@ srs_error_t SrsRtcSenderThread::send_messages(
                     continue;
                 }
 
-                // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
-                if (msg->has_idr()) {
-                    SrsRtpPacket2* packet = NULL;
-                    if ((err = packet_stap_a(source, msg, &packet)) != srs_success) {
-                        return srs_error_wrap(err, "packet stap-a");
-                    }
-
-                    err = send_message2(msg, is_video, is_audio, packet, skt);
-                    srs_freep(packet);
-                    if (err != srs_success) {
-                        return srs_error_wrap(err, "send message");
-                    }
-
-                    *pnn_rtp_pkts += 1;
-                }
-
-                vector<SrsRtpPacket2*> packets;
                 if (sample->size <= kRtpMaxPayloadSize) {
                     SrsRtpPacket2* packet = NULL;
                     if ((err = packet_single_nalu(msg, sample, &packet)) != srs_success) {
@@ -678,21 +678,21 @@ srs_error_t SrsRtcSenderThread::send_messages(
                         return srs_error_wrap(err, "packet fu-a");
                     }
                 }
-
-                if (i == msg->nn_samples() - 1) {
-                    packets.back()->rtp_header.set_marker(true);
-                }
-
-                for (int j = 0; j < (int)packets.size(); j++) {
-                    SrsRtpPacket2* packet = packets[j];
-                    err = send_message2(msg, is_video, is_audio, packet, skt);
-                    srs_freep(packet);
-                    if (err != srs_success) {
-                        return srs_error_wrap(err, "send message");
-                    }
-                }
-                *pnn_rtp_pkts += (int)packets.size();
             }
+
+            if (!packets.empty()) {
+                packets.back()->rtp_header.set_marker(true);
+            }
+
+            for (int j = 0; j < (int)packets.size(); j++) {
+                SrsRtpPacket2* packet = packets[j];
+                err = send_message2(msg, is_video, is_audio, packet, skt);
+                srs_freep(packet);
+                if (err != srs_success) {
+                    return srs_error_wrap(err, "send message");
+                }
+            }
+            *pnn_rtp_pkts += (int)packets.size();
         }
     }
 
