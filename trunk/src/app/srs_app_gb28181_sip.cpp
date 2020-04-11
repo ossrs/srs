@@ -65,6 +65,18 @@ std::string srs_get_sip_session_status_str(SrsGb28181SipSessionStatusType status
     }
 }
 
+SrsGb28181Device::SrsGb28181Device()
+{
+    device_id = ""; 
+    invite_status = SrsGb28181SipSessionUnkonw;
+    invite_time = 0;
+    device_status = "";
+    
+}
+
+SrsGb28181Device::~SrsGb28181Device()
+{}
+
 SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipRequest* r)
 {
     servcie = c;
@@ -82,6 +94,7 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
     _register_time = 0;
     _alive_time = 0;
     _invite_time = 0;
+    _query_catalog_time = 0;
   
     _peer_ip = "";
     _peer_port = 0;
@@ -91,6 +104,8 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
 
 SrsGb28181SipSession::~SrsGb28181SipSession()
 {
+    destroy();
+
     srs_freep(req);
     srs_freep(trd);
     srs_freep(pprint);
@@ -107,12 +122,25 @@ srs_error_t SrsGb28181SipSession::serve()
     return err;
 }
 
+void SrsGb28181SipSession::destroy()
+{
+    //destory all device
+    std::map<std::string, SrsGb28181Device*>::iterator it;
+    for (it = _device_list.begin(); it != _device_list.end(); ++it) {
+        srs_freep(it->second);
+    }
+
+    _device_list.clear();
+}
+
 srs_error_t SrsGb28181SipSession::do_cycle()
 {
     srs_error_t err = srs_success;
     _register_time = srs_get_system_time();
     _alive_time = srs_get_system_time();
     _invite_time = srs_get_system_time();
+    //call it immediately after alive ok;
+    _query_catalog_time = 0;
   
     while (true) {
 
@@ -121,14 +149,77 @@ srs_error_t SrsGb28181SipSession::do_cycle()
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "gb28181 sip session cycle");
         }
-
+        
+        SrsGb28181Config *config = servcie->get_config();
         srs_utime_t now = srs_get_system_time();
         srs_utime_t reg_duration = now - _register_time;
         srs_utime_t alive_duration = now - _alive_time;
-        srs_utime_t invite_duration = now - _invite_time;
-        SrsGb28181Config *config = servcie->get_config();
+        srs_utime_t query_duration = now - _query_catalog_time;
 
-        
+        //send invite, play client av
+        //start ps rtp listen, recv ps stream
+        if (_register_status == SrsGb28181SipSessionRegisterOk &&
+            _alive_status == SrsGb28181SipSessionAliveOk)
+        {
+            std::map<std::string, SrsGb28181Device*>::iterator it;
+            for (it = _device_list.begin(); it != _device_list.end(); it++) {
+                SrsGb28181Device *device = it->second;
+                std::string chid = it->first;
+
+                //update device invite time
+                srs_utime_t invite_duration = 0;
+                if (device->invite_time != 0){
+                    invite_duration = srs_get_system_time() - device->invite_time;
+                }
+
+                //It is possible that the camera head keeps pushing and opening, 
+                //and the duration will be very large. It will take 1 day to update
+                if (invite_duration > 24 * SRS_UTIME_HOURS){
+                    device->invite_time = srs_get_system_time();
+                }
+
+                if (device->invite_status == SrsGb28181SipSessionTrying &&
+                    invite_duration > config->sip_ack_timeout){
+                    device->invite_status = SrsGb28181SipSessionUnkonw;
+                }
+
+                if (!config->sip_auto_play) continue;
+                
+                //offline or already invite device does not need to send invite
+                if (device->device_status != "ON" || 
+                    device->invite_status != SrsGb28181SipSessionUnkonw) continue;
+
+                SrsGb28181StreamChannel ch;
+               
+                ch.set_channel_id(_session_id + "@" + chid);
+                ch.set_ip(config->host);
+
+                if (config->sip_invite_port_fixed){
+                    ch.set_port_mode(RTP_PORT_MODE_FIXED);
+                }else {
+                    ch.set_port_mode(RTP_PORT_MODE_RANDOM);
+                }
+
+                //create stream channel, ready for recv device av stream
+                int code = _srs_gb28181->create_stream_channel(&ch);
+
+                if (code == ERROR_SUCCESS){
+                    SrsSipRequest req;
+                    req.sip_auth_id = _session_id;
+                   
+                    //send invite to device, req push av stream
+                    code = servcie->send_invite(&req, ch.get_ip(),
+                            ch.get_rtp_port(), ch.get_ssrc(), chid);
+                                       
+                     //the same device can't be sent too fast. the device can't handle it
+                     srs_usleep(1*SRS_UTIME_SECONDS);
+                }
+             
+                srs_trace("gb28181: %s clients device=%s send invite code=%d", 
+                    _session_id.c_str(), chid.c_str(), code);
+            }//end for (it)
+        }//end if (config)
+
         if (_register_status == SrsGb28181SipSessionRegisterOk &&
             reg_duration > _reg_expires){
             srs_trace("gb28181: sip session=%s register expire", _session_id.c_str());
@@ -142,29 +233,43 @@ srs_error_t SrsGb28181SipSession::do_cycle()
             break;
         }
 
-        if (_invite_status == SrsGb28181SipSessionTrying &&
-            invite_duration > config->sip_ack_timeout){
-                _invite_status == SrsGb28181SipSessionUnkonw;
-            }
+        //query device channel
+        if (_alive_status == SrsGb28181SipSessionAliveOk &&
+            query_duration >= config->sip_query_catalog_interval) {
+            SrsSipRequest req;
+            req.sip_auth_id = _session_id;
+            servcie->send_query_catalog(&req);
+            _query_catalog_time = srs_get_system_time();
 
-        if (pprint->can_print()){
-            srs_trace("gb28181: sip session=%s peer(%s, %d) status(%s,%s,%s) duration(%u,%u,%u)",
+            //print device status
+            srs_trace("gb28181: sip session=%s peer(%s, %d) status(%s,%s) duration(%u,%u)",
                 _session_id.c_str(), _peer_ip.c_str(), _peer_port, 
                 srs_get_sip_session_status_str(_register_status).c_str(),
                 srs_get_sip_session_status_str(_alive_status).c_str(),
-                srs_get_sip_session_status_str(_invite_status).c_str(),
                 (reg_duration / SRS_UTIME_SECONDS), 
-                (alive_duration / SRS_UTIME_SECONDS),
-                (invite_duration / SRS_UTIME_SECONDS));
+                (alive_duration / SRS_UTIME_SECONDS));
+     
+            std::map<std::string, SrsGb28181Device*>::iterator it;
+            for (it = _device_list.begin(); it != _device_list.end(); it++) {
+                SrsGb28181Device *device = it->second;
+                std::string chid = it->first;
             
-            //It is possible that the camera head keeps pushing and opening, 
-            //and the duration will be very large. It will take 1 day to update
-            if (invite_duration > 24 * SRS_UTIME_HOURS){
-                _invite_time = srs_get_system_time();
+                srs_utime_t invite_duration = srs_get_system_time() - device->invite_time;
+
+                if (device->invite_status != SrsGb28181SipSessionTrying &&
+                    device->invite_status != SrsGb28181SipSessionInviteOk){
+                        invite_duration = 0;
+                }
+
+                srs_trace("gb28181: sip session=%s device=%s status(%s, %s), duration(%u)",
+                    _session_id.c_str(), chid.c_str(), device->device_status.c_str(), 
+                    srs_get_sip_session_status_str(device->invite_status).c_str(),
+                    (invite_duration / SRS_UTIME_SECONDS));
             }
         }
-        srs_usleep(5* SRS_UTIME_SECONDS);
-    }
+
+        srs_usleep(1 * SRS_UTIME_SECONDS);
+    }//end while
     
     return err;
 }
@@ -189,6 +294,72 @@ srs_error_t SrsGb28181SipSession::cycle()
     }
    
     return err;
+}
+
+void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string> lst)
+{
+    std::map<std::string, std::string>::iterator it;
+    for (it = lst.begin(); it != lst.end(); ++it) {
+        std::string id = it->first;
+        std::string status = it->second;
+
+        if  (_device_list.find(id) == _device_list.end()){
+            SrsGb28181Device *device = new SrsGb28181Device();
+            device->device_id = id;
+            device->device_status = status;
+            device->invite_status = SrsGb28181SipSessionUnkonw;
+            device->invite_time = 0;
+            _device_list[id] = device;
+
+        }else {
+            SrsGb28181Device *device = _device_list[id];
+            device->device_status = status;
+        }
+
+        // srs_trace("gb28181: sip session %s, deviceid=%s status=(%s,%s)", 
+        //     _session_id.c_str(), id.c_str(), status.c_str(),  
+        //     srs_get_sip_session_status_str(device.invite_status).c_str());
+    }
+}
+
+SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
+{
+    if (_device_list.find(chid) != _device_list.end()){
+        return _device_list[chid];
+    }
+    return NULL;
+}
+
+void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
+{
+    obj->set("id", SrsJsonAny::str(_session_id.c_str()));
+    obj->set("device_sumnum", SrsJsonAny::integer(_device_list.size()));
+    
+    SrsJsonArray* arr = SrsJsonAny::array();
+    obj->set("devices", arr);
+    std::map<std::string, SrsGb28181Device*>::iterator it;
+    for (it = _device_list.begin(); it != _device_list.end(); ++it) {
+        SrsGb28181Device *device = it->second;
+        SrsJsonObject* obj = SrsJsonAny::object();
+        arr->append(obj);
+        obj->set("device_id", SrsJsonAny::str(device->device_id.c_str()));
+        obj->set("device_status", SrsJsonAny::str(device->device_status.c_str()));
+        obj->set("invite_status", SrsJsonAny::str(srs_get_sip_session_status_str(device->invite_status).c_str()));
+        obj->set("invite_time", SrsJsonAny::integer(device->invite_time/SRS_UTIME_SECONDS));
+    }
+
+    //obj->set("rtmp_port", SrsJsonAny::integer(rtmp_port));
+    // obj->set("app", SrsJsonAny::str(app.c_str()));
+    // obj->set("stream", SrsJsonAny::str(stream.c_str()));
+    // obj->set("rtmp_url", SrsJsonAny::str(rtmp_url.c_str()));
+   
+    // obj->set("ssrc", SrsJsonAny::integer(ssrc));
+    // obj->set("rtp_port", SrsJsonAny::integer(rtp_port));
+    // obj->set("port_mode", SrsJsonAny::str(port_mode.c_str()));
+    // obj->set("rtp_peer_port", SrsJsonAny::integer(rtp_peer_port));
+    // obj->set("rtp_peer_ip", SrsJsonAny::str(rtp_peer_ip.c_str()));
+    // obj->set("recv_time", SrsJsonAny::integer(recv_time/SRS_UTIME_SECONDS));
+    // obj->set("recv_time_str", SrsJsonAny::str(recv_time_str.c_str()));
 }
 
 //gb28181 sip Service
@@ -232,8 +403,9 @@ srs_error_t SrsGb28181SipService::on_udp_packet(const sockaddr* from, const int 
     }
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
-    
-    srs_error_t err = on_udp_sip(peer_ip, peer_port, buf, nb_buf, (sockaddr*)from, fromlen);
+
+    std::string recv_msg(buf, nb_buf);
+    srs_error_t err = on_udp_sip(peer_ip, peer_port, recv_msg, (sockaddr*)from, fromlen);
     if (err != srs_success) {
         return srs_error_wrap(err, "process udp");
     }
@@ -241,20 +413,23 @@ srs_error_t SrsGb28181SipService::on_udp_packet(const sockaddr* from, const int 
 }
 
 srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port, 
-        char* buf, int nb_buf, sockaddr* from, const int fromlen)
+        std::string recv_msg, sockaddr* from, const int fromlen)
 {
     srs_error_t err = srs_success;
 
-    srs_info("gb28181: request peer(%s, %d) nbbuf=%d", peer_ip.c_str(), peer_port, nb_buf);
-    srs_info("gb28181: request recv message=%s", buf);
+    int recv_len = recv_msg.size();
+    char* recv_data = (char*)recv_msg.c_str();
+
+    srs_info("gb28181: request peer(%s, %d) nbbuf=%d", peer_ip.c_str(), peer_port, recv_len);
+    srs_info("gb28181: request recv message=%s", recv_data);
     
-    if (nb_buf < 10) {
+    if (recv_len < 10) {
         return err;
     }
 
     SrsSipRequest* req = NULL;
 
-    if ((err = sip->parse_request(&req, buf, nb_buf)) != srs_success) {
+    if ((err = sip->parse_request(&req, recv_data, recv_len)) != srs_success) {
         return srs_error_wrap(err, "parse sip request");
     }
  
@@ -273,7 +448,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         }
 
         srs_trace("gb28181: request client id=%s peer(%s, %d)", req->sip_auth_id.c_str(), peer_ip.c_str(), peer_port);
-        srs_trace("gb28181: request %s method=%s, uri=%s, version=%s  expires=%d", 
+        srs_trace("gb28181: %s method=%s, uri=%s, version=%s expires=%d", 
             req->get_cmdtype_str().c_str(), req->method.c_str(),
             req->uri.c_str(), req->version.c_str(), req->expires);
 
@@ -301,62 +476,33 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
        
         //reponse status 
         send_status(req, from, fromlen);
-        //sip_session->set_register_status(SrsGb28181SipSessionRegisterOk);
-        //sip_session->set_register_time(srs_get_system_time());
         sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
         sip_session->set_alive_time(srs_get_system_time());
         sip_session->set_sockaddr((sockaddr)*from);
         sip_session->set_sockaddr_len(fromlen);
         sip_session->set_peer_port(peer_port);
         sip_session->set_peer_ip(peer_ip);
-
-        //send invite, play client av
-        //start ps rtp listen, recv ps stream
-        if (config->sip_auto_play && sip_session->register_status() == SrsGb28181SipSessionRegisterOk &&
-            sip_session->alive_status() == SrsGb28181SipSessionAliveOk &&
-            sip_session->invite_status() == SrsGb28181SipSessionUnkonw)
-        {
-            srs_trace("gb28181: request client id=%s, peer(%s, %d)", req->sip_auth_id.c_str(), 
-                        peer_ip.c_str(), peer_port);
-            srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", req->get_cmdtype_str().c_str(), 
-                        req->method.c_str(), req->uri.c_str(), req->version.c_str());
-
-            SrsGb28181StreamChannel ch;
-            ch.set_channel_id(session_id);
-            ch.set_ip(config->host);
-            if (config->sip_invite_port_fixed){
-               ch.set_port_mode(RTP_PORT_MODE_FIXED);
-            }else {
-               ch.set_port_mode(RTP_PORT_MODE_RANDOM);
-            }
-
-            int code = _srs_gb28181->create_stream_channel(&ch);
-            if (code == ERROR_SUCCESS){
-                code = send_invite(req, ch.get_ip(),
-                        ch.get_rtp_port(), ch.get_ssrc());
-            }
-
-            if (code == ERROR_SUCCESS){
-                sip_session->set_invite_status(SrsGb28181SipSessionTrying);
-                sip_session->set_invite_time(srs_get_system_time());
-            }
-          
+        
+        //update device list
+        if (req->device_list_map.size() > 0){
+            sip_session->update_device_list(req->device_list_map);
         }
+       
     }else if (req->is_invite()) {
-        SrsGb28181SipSession* sip_session = fetch(session_id);
+        SrsGb28181SipSession* sip_session = fetch_session_by_callid(req->call_id);
 
         srs_trace("gb28181: request client id=%s, peer(%s, %d)", req->sip_auth_id.c_str(), 
                         peer_ip.c_str(), peer_port);
-        srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", 
+        srs_trace("gb28181: %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
        
         if (!sip_session){
-            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
+            srs_trace("gb28181: call_id %s not map %s client ", req->call_id.c_str(), req->sip_auth_id.c_str());
             return err;
         }
         
-        sip_session->set_sockaddr((sockaddr)*from);
-        sip_session->set_sockaddr_len(fromlen);
+        // sip_session->set_sockaddr((sockaddr)*from);
+        // sip_session->set_sockaddr_len(fromlen);
 
         if (sip_session->register_status() == SrsGb28181SipSessionUnkonw ||
             sip_session->alive_status() == SrsGb28181SipSessionUnkonw) {
@@ -364,37 +510,59 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             return err;
         }
         
-        if (req->cmdtype == SrsSipCmdRespone && req->status == "200") {
+        if (req->cmdtype == SrsSipCmdRespone){
             srs_trace("gb28181: INVITE response %s client status=%s", req->sip_auth_id.c_str(), req->status.c_str());
-            send_ack(req, from, fromlen);
-            sip_session->set_invite_status(SrsGb28181SipSessionInviteOk);
-            sip_session->set_invite_time(srs_get_system_time());
-            //Record tag and branch, which are required by the 'bye' command,
-            sip_session->set_request(req);
-        }else{
-            sip_session->set_invite_status(SrsGb28181SipSessionUnkonw);
-            sip_session->set_invite_time(srs_get_system_time());
+
+            if (req->status == "200") {
+                send_ack(req, from, fromlen);
+                SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);
+                if (device){
+                    device->invite_status = SrsGb28181SipSessionInviteOk;
+                    device->req_inivate.copy(req);
+                    device->invite_time = srs_get_system_time();
+                }
+            }else{
+                send_ack(req, from, fromlen);
+                SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);
+                if (device){
+                    device->req_inivate.copy(req);
+                    device->invite_status = SrsGb28181SipSessionUnkonw;
+                    device->invite_time = srs_get_system_time();
+                }
+            }
         }
+       
     }else if (req->is_bye()) {
         srs_trace("gb28181: request client id=%s, peer(%s, %d)", req->sip_auth_id.c_str(), 
                         peer_ip.c_str(), peer_port);
-        srs_trace("gb28181: request %s method=%s, uri=%s, version=%s ", 
+        srs_trace("gb28181: %s method=%s, uri=%s, version=%s ", 
             req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
       
-        SrsGb28181SipSession* sip_session = fetch(session_id);
         send_status(req, from, fromlen);
 
+        SrsGb28181SipSession* sip_session = fetch_session_by_callid(req->call_id);
+        srs_trace("gb28181: request client id=%s, peer(%s, %d)", req->sip_auth_id.c_str(), 
+                        peer_ip.c_str(), peer_port);
+        srs_trace("gb28181: %s method=%s, uri=%s, version=%s ", 
+            req->get_cmdtype_str().c_str(), req->method.c_str(), req->uri.c_str(), req->version.c_str());
+       
         if (!sip_session){
-            srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
+            srs_trace("gb28181: call_id %s not map %s client ", req->call_id.c_str(), req->sip_auth_id.c_str());
             return err;
         }
 
-        sip_session->set_sockaddr((sockaddr)*from);
-        sip_session->set_sockaddr_len(fromlen);
-       
-        sip_session->set_invite_status(SrsGb28181SipSessionBye);
-        sip_session->set_invite_time(srs_get_system_time());
-   
+        if (req->cmdtype == SrsSipCmdRespone){
+            srs_trace("gb28181: BYE  %s client status=%s", req->sip_auth_id.c_str(), req->status.c_str());
+
+            if (req->status == "200") {
+                srs_trace("gb28181: BYE response %s client status=%s", req->sip_auth_id.c_str(), req->status.c_str());
+                SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);
+                if (device){
+                    device->invite_status = SrsGb28181SipSessionBye;
+                    device->invite_time = srs_get_system_time();
+                }
+            }
+        }
     }else{
         srs_trace("gb28181: ingor request method=%s", req->method.c_str());
     }
@@ -427,6 +595,7 @@ int SrsGb28181SipService::send_ack(SrsSipRequest *req, sockaddr *f, int l)
     req->host_port = config->sip_port;
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
+    req->chid = req->sip_auth_id;
 
     sip->req_ack(ss, req);
     return send_message(f, l, ss);
@@ -448,7 +617,7 @@ int SrsGb28181SipService::send_status(SrsSipRequest *req,  sockaddr *f, int l)
 }
 
 
-int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port, uint32_t ssrc)
+int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port, uint32_t ssrc, std::string chid)
 {
     srs_assert(req);
 
@@ -460,19 +629,25 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
     
     //if you are inviting or succeed in invite, 
     //you cannot invite again. you need to 'bye' and try again
-    if (sip_session->invite_status() == SrsGb28181SipSessionTrying ||
-        sip_session->invite_status() == SrsGb28181SipSessionInviteOk){
+    SrsGb28181Device *device = sip_session->get_device_info(chid);
+    if (!device || device->device_status != "ON"){
+        return ERROR_GB28181_SIP_CH_OFFLINE;
+    }
+
+    if (device->invite_status  == SrsGb28181SipSessionTrying ||
+        device->invite_status  == SrsGb28181SipSessionInviteOk){
         return ERROR_GB28181_SIP_IS_INVITING;   
     }
-   
+
     req->host =  config->host;
     req->host_port = config->sip_port;
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
+    req->chid = chid;
 
     std::stringstream ss;
     sip->req_invite(ss, req, ip, port, ssrc);
-
+   
     sockaddr addr = sip_session->sockaddr_from();
 
     if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
@@ -480,13 +655,19 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
         return ERROR_GB28181_SIP_INVITE_FAILED;
     }
 
-    sip_session->set_invite_status(SrsGb28181SipSessionTrying);
+    //prame branch, from_tag, to_tag, call_id, 
+    //The parameter of 'bye' must be the same as 'invite'
+    device->req_inivate.copy(req);
+    device->invite_time = srs_get_system_time();
+    device->invite_status = SrsGb28181SipSessionTrying;
+
+    //call_id map sip_session
+    sip_session_map_by_callid(sip_session, req->call_id);
 
     return ERROR_SUCCESS;
-
 }
 
-int SrsGb28181SipService::send_bye(SrsSipRequest *req)
+int SrsGb28181SipService::send_bye(SrsSipRequest *req, std::string chid)
 {
     srs_assert(req);
 
@@ -496,15 +677,26 @@ int SrsGb28181SipService::send_bye(SrsSipRequest *req)
         return ERROR_GB28181_SESSION_IS_NOTEXIST;
     }
 
+    SrsGb28181Device *device = sip_session->get_device_info(chid);
+    if (!device){
+        return ERROR_GB28181_SIP_CH_NOTEXIST;
+    }
+    // if (status == SrsGb28181SipSessionTrying ||
+    //     status == SrsGb28181SipSessionInviteOk){
+    //     return ERROR_GB28181_SIP_IS_INVITING;   
+    // }
+   
     //prame branch, from_tag, to_tag, call_id, 
     //The parameter of 'bye' must be the same as 'invite'
-    SrsSipRequest r = sip_session->request();
-    req->copy(&r);
+    //SrsSipRequest r = sip_session->request();
 
-    req->host =  config->host;
+    req->copy(&device->req_inivate);
+
+    req->host = config->host;
     req->host_port = config->sip_port;
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
+    req->chid = chid;
 
     //get protocol stack 
     std::stringstream ss;
@@ -535,7 +727,45 @@ int SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string dat
     sockaddr addr = sip_session->sockaddr_from();
     if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28181_SIP_BYE_FAILED;
+        return ERROR_GB28181_SIP_RAW_DATA_FAILED;
+    }
+
+    return ERROR_SUCCESS;
+}
+
+int SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
+{
+    req->host = config->host;
+    req->host_port = config->sip_port;
+    req->realm = config->sip_realm;
+    req->serial = config->sip_serial;
+    req->chid = req->sip_auth_id;
+
+    //get protocol stack 
+    std::stringstream ss;
+    sip->req_query_catalog(ss, req);
+
+    return send_sip_raw_data(req, ss.str());
+}
+
+int SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArray* arr)
+{
+    if (!sid.empty()){
+        SrsGb28181SipSession* sess = fetch(sid);
+        if (!sess){
+            return ERROR_GB28181_SESSION_IS_NOTEXIST;
+        }
+        SrsJsonObject* obj = SrsJsonAny::object();
+        arr->append(obj);
+        sess->dumps(obj);
+    }else {
+        std::map<std::string, SrsGb28181SipSession*>::iterator it;
+        for (it = sessions.begin(); it != sessions.end(); ++it) {
+            SrsGb28181SipSession* sess = it->second;
+            SrsJsonObject* obj = SrsJsonAny::object();
+            arr->append(obj);
+            sess->dumps(obj);
+        }
     }
 
     return ERROR_SUCCESS;
@@ -594,6 +824,32 @@ void SrsGb28181SipService::destroy()
         _srs_gb28181->remove_sip_session(it->second);
     }
     sessions.clear();
+}
+
+void SrsGb28181SipService::sip_session_map_by_callid(SrsGb28181SipSession *sess, std::string call_id)
+{
+    if (sessions_by_callid.find(call_id) == sessions_by_callid.end()) {
+        sessions_by_callid[call_id] = sess;
+    }
+}
+
+void SrsGb28181SipService::sip_session_unmap_by_callid(std::string call_id)
+{
+    std::map<std::string, SrsGb28181SipSession*>::iterator it = sessions_by_callid.find(call_id);
+    if (it != sessions_by_callid.end()) {
+        sessions_by_callid.erase(it);
+    }
+}
+
+SrsGb28181SipSession* SrsGb28181SipService::fetch_session_by_callid(std::string call_id)
+{
+    SrsGb28181SipSession* session = NULL;
+    if (sessions_by_callid.find(call_id) == sessions_by_callid.end()) {
+        return NULL;
+    }
+    
+    session = sessions_by_callid[call_id];
+    return session;
 }
 
 
