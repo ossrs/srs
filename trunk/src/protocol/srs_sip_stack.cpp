@@ -156,6 +156,8 @@ SrsSipRequest::SrsSipRequest()
     sip_username = "";
     peer_ip = "";
     peer_port = 0;
+
+    chid = "";
 }
 
 SrsSipRequest::~SrsSipRequest()
@@ -203,43 +205,48 @@ std::string SrsSipRequest::get_cmdtype_str()
 
 void SrsSipRequest::copy(SrsSipRequest* src)
 {
-     if (!src){
-         return;
-     }
-     
-     method = src->method;
-     uri = src->uri;
-     version = src->version;
-     seq = src->seq;
-     content_type = src->content_type;
-     content_length = src->content_length;
-     call_id = src->call_id;
-     from = src->from;
-     to = src->to;
-     via = src->via;
-     from_tag = src->from_tag;
-     to_tag = src->to_tag;
-     contact = src->contact;
-     user_agent = src->user_agent;
-     branch = src->branch;
-     status = src->status;
-     expires = src->expires;
-     max_forwards = src->max_forwards;
-     www_authenticate = src->www_authenticate;
-     authorization = src->authorization;
-     cmdtype = src->cmdtype;
+    if (!src){
+        return;
+    }
+    
+    method = src->method;
+    uri = src->uri;
+    version = src->version;
+    seq = src->seq;
+    content_type = src->content_type;
+    content_length = src->content_length;
+    call_id = src->call_id;
+    from = src->from;
+    to = src->to;
+    via = src->via;
+    from_tag = src->from_tag;
+    to_tag = src->to_tag;
+    contact = src->contact;
+    user_agent = src->user_agent;
+    branch = src->branch;
+    status = src->status;
+    expires = src->expires;
+    max_forwards = src->max_forwards;
+    www_authenticate = src->www_authenticate;
+    authorization = src->authorization;
+    cmdtype = src->cmdtype;
 
-     host = src->host;
-     host_port = src->host_port;
+    host = src->host;
+    host_port = src->host_port;
 
-     serial = src->serial;
-     realm = src->realm;
-     
-     sip_auth_id = src->sip_auth_id;
-     sip_auth_pwd = src->sip_auth_pwd;
-     sip_username = src->sip_username;
-     peer_ip = src->peer_ip;
-     peer_port = src->peer_port;
+    serial = src->serial;
+    realm = src->realm;
+    
+    sip_auth_id = src->sip_auth_id;
+    sip_auth_pwd = src->sip_auth_pwd;
+    sip_username = src->sip_username;
+    peer_ip = src->peer_ip;
+    peer_port = src->peer_port;
+
+    chid = src->chid;
+
+    xml_body_map = src->xml_body_map;
+    device_list_map = src->device_list_map;
 }
 
 SrsSipStack::SrsSipStack()
@@ -265,6 +272,138 @@ srs_error_t SrsSipStack::parse_request(SrsSipRequest** preq, const char* recv_ms
     *preq = req;
     
     return err;
+}
+
+srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map)
+{
+    /*
+    <?xml version="1.0" encoding="gb2312"?>
+    <Notify>
+    <CmdType>Keepalive</CmdType>
+    <SN>2034</SN>
+    <DeviceID>34020000001110000001</DeviceID>
+    <Status>OK</Status>
+    <Info>
+    <DeviceID>34020000001320000002</DeviceID>
+    <DeviceID>34020000001320000003</DeviceID>
+    <DeviceID>34020000001320000005</DeviceID>
+    <DeviceID>34020000001320000006</DeviceID>
+    <DeviceID>34020000001320000007</DeviceID>
+    <DeviceID>34020000001320000008</DeviceID>
+    </Info>
+    </Notify>
+    */
+   
+    const char* start = xml_msg.c_str();
+    const char* end = start + xml_msg.size();
+    char* p = (char*)start;
+    
+    char* value_start = NULL;
+
+    std::string xml_header;
+    int xml_layer = 0;
+
+    //std::map<string, string> json_map;
+    std::map<int, string> json_key;
+    while (p < end) {
+        if (p[0] == '\n'){
+            p +=1;
+            value_start = NULL;
+        } else if (p[0] == '\r' && p[1] == '\n') {
+            p +=2;
+            value_start = NULL;
+        } else if (p[0] == '<' && p[1] == '/') { //</Notify> xml item end flag
+            std::string value = "";
+            if (value_start) {
+                value = std::string(value_start, p-value_start);
+            }
+            
+            //skip </
+            p += 2;
+            
+            //</Notify> get Notify
+            char *s = p;
+            while (p[0] != '>') {p++;}
+            std::string key(s, p-s);
+
+            //<DeviceList Num="2"> get DeviceList
+            std::vector<string> vec = srs_string_split(key, " ");
+            key = vec.at(0);
+
+            /*xml element to map
+                <Notify>
+                    <info>
+                        <DeviceID>34020000001320000001</DeviceID>
+                        <DeviceID>34020000001320000002</DeviceID>
+                    </info>
+                </Notify>
+            to map is: Notify@Info@DeviceID:34020000001320000001,34020000001320000002
+            */
+           
+            //get map key
+            std::string mkey = "";
+            for (int i = 0; i < xml_layer ; i++){
+                if (mkey.empty()) {
+                    mkey = json_key[i];
+                }else{
+                    mkey =  mkey + "@" + json_key[i];     
+                }
+            }
+ 
+            //set map value
+            if (!mkey.empty()){
+                if (json_map.find(mkey) == json_map.end()){
+                    json_map[mkey] = value;         
+                }else{
+                    json_map[mkey] = json_map[mkey] + ","+ value;
+                }    
+            }
+          
+            value_start = NULL;
+            xml_layer--;
+
+        } else if (p[0] == '<') { //<Notify>  xml item begin flag
+            //skip <
+            p +=1;
+
+            //<Notify> get Notify
+            char *s = p;
+            while (p[0] != '>') {p++;}
+            std::string key(s, p-s);
+
+            if (srs_string_contains(key, "?xml")){
+                //xml header
+                xml_header = key;
+                json_map["XmlHeader"] = xml_header;
+            }else {
+                //<DeviceList Num="2"> get DeviceList
+                std::vector<string> vec = srs_string_split(key, " ");
+                key = vec.at(0);
+
+                //key to map by xml_layer
+                //<Notify>
+                //  <info>
+                //  </info>
+                //</Notify>
+                //json_key[0] = "Notify"
+                //json_key[1] = "info"
+                json_key[xml_layer] = key; 
+                xml_layer++;  
+            }
+
+            p +=1;
+            value_start = p;
+        } else {
+          p++;
+        }
+    }
+
+    // std::map<string, string>::iterator it2;
+    // for (it2 = json_map.begin(); it2 != json_map.end(); ++it2) {
+    //     srs_trace("========%s:%s", it2->first.c_str(), it2->second.c_str());
+    // }
+
+    return srs_success;
 }
 
 srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_msg)
@@ -399,6 +538,47 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     }
 
     req->sip_username =  req->sip_auth_id;
+
+    //Content-Type: Application/MANSCDP+xml
+    if (!strcasecmp(req->content_type.c_str(),"application/manscdp+xml")){
+        std::map<std::string, std::string> body_map;
+        //xml to map
+        if ((err = parse_xml(body, body_map)) != srs_success) {
+            return srs_error_wrap(err, "sip parse xml");
+        };
+        
+        //Response Cmd
+        if (body_map.find("Response") != body_map.end()){
+            std::string cmdtype = body_map["Response@CmdType"];
+            if (cmdtype == "Catalog"){
+                //Response@DeviceList@Item@DeviceID:3000001,3000002
+                std::vector<std::string> vec_device_id = srs_string_split(body_map["Response@DeviceList@Item@DeviceID"], ",");
+                //Response@DeviceList@Item@Status:ON,OFF
+                std::vector<std::string> vec_device_status = srs_string_split(body_map["Response@DeviceList@Item@Status"], ",");
+                 
+                //map key:devicd_id value:status 
+                for(int i=0 ; i<vec_device_id.size(); i++){
+                    req->device_list_map[vec_device_id.at(i)] = vec_device_status.at(i);
+                }
+            }else{
+                //TODO: fixme
+                srs_trace("sip: Response cmdtype=%s not processed", cmdtype.c_str());
+            }
+        } //Notify Cmd
+        else if (body_map.find("Notify") !=  body_map.end()){
+            std::string cmdtype = body_map["Notify@CmdType"];
+            if (cmdtype == "Keepalive"){
+                //TODO: ????
+                std::vector<std::string> vec_device_id = srs_string_split(body_map["Notify@Info@DeviceID"], ",");
+                for(int i=0; i<vec_device_id.size(); i++){
+                    //req->device_list_map[vec_device_id.at(i)] = "OFF";
+                }
+            }else{
+               //TODO: fixme
+               srs_trace("sip: Notify cmdtype=%s not processed", cmdtype.c_str());
+            }
+        }// end if(body_map)
+    }//end if (!strcasecmp)
    
     srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
            req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
@@ -640,10 +820,12 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     User-Agent: SRS/4.0.4(Leo)
     Content-Length: 0
     */
-
+    char _ssrc[11];
+    sprintf(_ssrc, "%010d", ssrc);
+  
     std::stringstream sdp;
     sdp << "v=0" << SRS_RTSP_CRLF
-    << "o=" << req->sip_auth_id << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
+    << "o=" << req->chid << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
     << "s=Play" << SRS_RTSP_CRLF
     << "c=IN IP4 " << ip << SRS_RTSP_CRLF
     << "t=0 0" << SRS_RTSP_CRLF
@@ -658,20 +840,22 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     //<< "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
     //<< "a=streamMode:MAIN\r\n"
     //<< "a=filesize:0\r\n"
-    << "y=" << ssrc << SRS_RTSP_CRLF;
+    << "y=" << _ssrc << SRS_RTSP_CRLF;
 
     
     int rand = srs_sip_random(1000, 9999);
-    std::stringstream from, to, uri, branch, from_tag;
+    std::stringstream from, to, uri, branch, from_tag, call_id;
     //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
-    uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
+    uri << "sip:" <<   req->chid << "@" << req->realm;
     //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
     from << req->serial << "@" << req->host << ":"  << req->host_port;
-    to << req->sip_auth_id <<  "@" << req->realm;
+    to <<  req->chid <<  "@" << req->realm;
+    call_id << "2020" << rand ;
 
     req->from = from.str();
     req->to   = to.str();
     req->uri  = uri.str();
+    req->call_id = call_id.str();
 
     branch << "z9hG4bK3420" << rand;
     from_tag << "51235" << rand;
@@ -682,13 +866,13 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
     << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
     << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
-    << "Call-ID: 20000" << rand <<SRS_RTSP_CRLF
+    << "Call-ID: " << req->call_id <<SRS_RTSP_CRLF
     << "CSeq: 20 INVITE" << SRS_RTSP_CRLF
     << "Content-Type: Application/SDP" << SRS_RTSP_CRLF
     << "Contact: <sip:" << req->to << ">" << SRS_RTSP_CRLF
-    << "Max-Forwards: 70" << " \r\n"
+    << "Max-Forwards: 70" << SRS_RTSP_CRLF
     << "User-Agent: " << SRS_SIP_USER_AGENT <<SRS_RTSP_CRLF
-    << "Subject: "<< req->sip_auth_id << ":" << ssrc << "," << req->serial << ":0" << SRS_RTSP_CRLF
+    << "Subject: "<< req->chid << ":" << _ssrc << "," << req->serial << ":0" << SRS_RTSP_CRLF
     << "Content-Length: " << sdp.str().length() << SRS_RTSP_CRLFCRLF
     << sdp.str();
 }
@@ -703,7 +887,7 @@ void SrsSipStack::req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req
     To: <sip:34020000001320000004@192.168.137.92:5061>;tag=102092689
     CSeq: 1 REGISTER
     Call-ID: 1650345118
-    User-Agent: LiveGBS v200228
+    User-Agent: SRS/4.0.4(Leo)
     Contact: <sip:34020000002000000001@192.168.1.23:15060>
     Content-Length: 0
     WWW-Authenticate: Digest realm="3402000000",qop="auth",nonce="f1da98bd160f3e2efe954c6eedf5f75a"
@@ -737,10 +921,10 @@ void SrsSipStack::req_ack(std::stringstream& ss, SrsSipRequest *req){
     Content-Length: 0
     */
   
-    ss << "ACK " << "sip:" <<  req->sip_auth_id << "@" << req->realm << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
+    ss << "ACK " << "sip:" <<  req->chid << "@" << req->realm << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
     << "From: <sip:" << req->serial << "@" << req->host + ":" << req->host_port << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
-    << "To: <sip:"<< req->sip_auth_id <<  "@" << req->realm << ">\r\n"
+    << "To: <sip:"<< req->chid <<  "@" << req->realm << ">\r\n"
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
     << "CSeq: " << req->seq << " ACK"<< SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
@@ -775,9 +959,9 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
     */
 
     std::stringstream from, to, uri;
-    uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
+    uri << "sip:" <<  req->chid << "@" << req->realm;
     from << req->serial << "@"  << req->realm;
-    to << req->sip_auth_id <<  "@" <<  req->realm;
+    to << req->chid <<  "@" <<  req->realm;
 
     req->from = from.str();
     req->to   = to.str();
@@ -796,6 +980,143 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
     << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
     << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
    
+}
+
+void SrsSipStack::req_query_catalog(std::stringstream& ss, SrsSipRequest *req)
+{
+    /*
+    //request: sip-agent <----MESSAGE Query Catalog--- sip-server
+    MESSAGE sip:34020000001110000001@192.168.1.21:5060 SIP/2.0
+    Via: SIP/2.0/UDP 192.168.1.17:5060;rport;branch=z9hG4bK563315752
+    From: <sip:34020000001110000001@3402000000>;tag=387315752
+    To: <sip:34020000001110000001@192.168.1.21:5060>
+    Call-ID: 728315752
+    CSeq: 32 MESSAGE
+    Content-Type: Application/MANSCDP+xml
+    Max-Forwards: 70
+    User-Agent: SRS/4.0.20(Leo)
+    Content-Length: 162
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Query>
+        <CmdType>Catalog</CmdType>
+        <SN>419315752</SN>
+        <DeviceID>34020000001110000001</DeviceID>
+    </Query>
+    SIP/2.0 200 OK
+    Via: SIP/2.0/UDP 192.168.1.17:5060;rport=5060;branch=z9hG4bK563315752
+    From: <sip:34020000001110000001@3402000000>;tag=387315752
+    To: <sip:34020000001110000001@192.168.1.21:5060>;tag=1420696981
+    Call-ID: 728315752
+    CSeq: 32 MESSAGE
+    User-Agent: Embedded Net DVR/NVR/DVS
+    Content-Length: 0
+
+    //response: sip-agent ----MESSAGE Query Catalog---> sip-server
+    SIP/2.0 200 OK
+    Via: SIP/2.0/UDP 192.168.1.17:5060;rport=5060;received=192.168.1.17;branch=z9hG4bK563315752
+    From: <sip:34020000001110000001@3402000000>;tag=387315752
+    To: <sip:34020000001110000001@192.168.1.21:5060>;tag=1420696981
+    CSeq: 32 MESSAGE
+    Call-ID: 728315752
+    User-Agent: SRS/4.0.20(Leo)
+    Content-Length: 0
+
+    //request: sip-agent ----MESSAGE Response Catalog---> sip-server
+    MESSAGE sip:34020000001110000001@3402000000.spvmn.cn SIP/2.0
+    Via: SIP/2.0/UDP 192.168.1.21:5060;rport;branch=z9hG4bK1681502633
+    From: <sip:34020000001110000001@3402000000.spvmn.cn>;tag=1194168247
+    To: <sip:34020000001110000001@3402000000.spvmn.cn>
+    Call-ID: 685380150
+    CSeq: 20 MESSAGE
+    Content-Type: Application/MANSCDP+xml
+    Max-Forwards: 70
+    User-Agent: Embedded Net DVR/NVR/DVS
+    Content-Length:   909
+
+    <?xml version="1.0" encoding="gb2312"?>
+    <Response>
+    <CmdType>Catalog</CmdType>
+    <SN>419315752</SN>
+    <DeviceID>34020000001110000001</DeviceID>
+    <SumNum>8</SumNum>
+    <DeviceList Num="2">
+    <Item>
+    <DeviceID>34020000001320000001</DeviceID>
+    <Name>Camera 01</Name>
+    <Manufacturer>Manufacturer</Manufacturer>
+    <Model>Camera</Model>
+    <Owner>Owner</Owner>
+    <CivilCode>CivilCode</CivilCode>
+    <Address>192.168.254.18</Address>
+    <Parental>0</Parental>
+    <SafetyWay>0</SafetyWay>
+    <RegisterWay>1</RegisterWay>
+    <Secrecy>0</Secrecy>
+    <Status>ON</Status>
+    </Item>
+    <Item>
+    <DeviceID>34020000001320000002</DeviceID>
+    <Name>IPCamera 02</Name>
+    <Manufacturer>Manufacturer</Manufacturer>
+    <Model>Camera</Model>
+    <Owner>Owner</Owner>
+    <CivilCode>CivilCode</CivilCode>
+    <Address>192.168.254.14</Address>
+    <Parental>0</Parental>
+    <SafetyWay>0</SafetyWay>
+    <RegisterWay>1</RegisterWay>
+    <Secrecy>0</Secrecy>
+    <Status>OFF</Status>
+    </Item>
+    </DeviceList>
+    </Response>
+
+    */
+
+    std::stringstream xml;
+    std::string xmlbody;
+
+    int sn = srs_sip_random(10000000, 99999999);
+    xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << SRS_RTSP_CRLF
+    << "<Query>" << SRS_RTSP_CRLF
+    << "<CmdType>Catalog</CmdType>" << SRS_RTSP_CRLF
+    << "<SN>" << sn << "</SN>" << SRS_RTSP_CRLF
+    << "<DeviceID>" << req->sip_auth_id << "</DeviceID>" << SRS_RTSP_CRLF
+    << "</Query>" << SRS_RTSP_CRLF;
+    xmlbody = xml.str();
+
+    int rand = srs_sip_random(1000, 9999);
+    std::stringstream from, to, uri, branch, from_tag, call_id;
+    //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
+    uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
+    //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
+    from << req->serial << "@" << req->host << ":"  << req->host_port;
+    to << req->sip_auth_id <<  "@" << req->realm;
+    call_id << "2020" << rand;
+
+    req->from = from.str();
+    req->to   = to.str();
+    req->uri  = uri.str();
+    req->call_id = call_id.str();
+
+    branch << "z9hG4bK3420" << rand;
+    from_tag << "51235" << rand;
+    req->branch = branch.str();
+    req->from_tag = from_tag.str();
+
+    ss << "MESSAGE " << req->uri << " " << SRS_SIP_VERSION << SRS_RTSP_CRLF
+    << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
+    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
+    << "CSeq: 25 MESSAGE" << SRS_RTSP_CRLF
+    << "Content-Type: Application/MANSCDP+xml" << SRS_RTSP_CRLF
+    << "Max-Forwards: 70" << SRS_RTSP_CRLF
+    << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
+    << "Content-Length: " << xmlbody.length() << SRS_RTSP_CRLFCRLF
+    << xmlbody;
+
 }
 
 #endif
