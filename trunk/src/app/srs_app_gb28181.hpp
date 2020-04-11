@@ -218,7 +218,8 @@ private:
     SrsPithyPrint* pprint;
     SrsGb28181StreamChannel *channel;
     int stream_idle_timeout;
-    srs_utime_t recv_stream_time;
+    srs_utime_t recv_rtp_stream_time;
+    srs_utime_t send_rtmp_stream_time;
 private:
     std::string channel_id;
     std::string _rtmp_url;
@@ -313,6 +314,7 @@ public:
     srs_utime_t sip_keepalive_timeout;
     bool sip_auto_play;
     bool sip_invite_port_fixed;
+    srs_utime_t sip_query_catalog_interval;
  
 public:
     SrsGb28181Config(SrsConfDirective* c);
@@ -392,9 +394,7 @@ private:
     std::map<uint32_t, SrsGb28181RtmpMuxer*> rtmpmuxers_ssrc;
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
     SrsCoroutineManager* manager;
-
     SrsGb28181SipService* sip_service;
-
 public:
     SrsGb28181Manger(SrsConfDirective* c);
     virtual ~SrsGb28181Manger();
@@ -415,12 +415,14 @@ public:
     //stream channel api
     uint32_t create_stream_channel(SrsGb28181StreamChannel *channel);
     uint32_t delete_stream_channel(std::string id);
-    uint32_t queue_stream_channel(std::string id, SrsJsonArray* arr);
+    uint32_t query_stream_channel(std::string id, SrsJsonArray* arr);
     //sip api
-    uint32_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc);
-    uint32_t notify_sip_bye(std::string id);
+    uint32_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
+    uint32_t notify_sip_bye(std::string id, std::string chid);
     uint32_t notify_sip_raw_data(std::string id, std::string data);
     uint32_t notify_sip_unregister(std::string id);
+    uint32_t notify_sip_query_catalog(std::string id);
+    uint32_t query_sip_session(std::string id, SrsJsonArray* arr);
 
 private:
     void destroy();
