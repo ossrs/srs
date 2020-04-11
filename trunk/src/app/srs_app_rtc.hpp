@@ -61,8 +61,6 @@ const uint8_t kEnd              = 0x40; // Fu-header end bit
 
 const int kChannel              = 2;
 const int kSamplerate           = 48000;
-const int kArrayLength          = 8;
-const int kArrayBuffer          = 4096;
 
 // SSRC will rewrite in srs_app_rtc_conn.cpp when send to client.
 const uint32_t kAudioSSRC       = 1;

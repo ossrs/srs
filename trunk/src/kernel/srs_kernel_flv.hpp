@@ -311,9 +311,9 @@ private:
         SrsSample* samples;
         int nb_samples;
         // For RTC audio, we may need to transcode AAC to opus,
-        // so there must be an extra payload, which is transformed from payload.
-        char* extra_payload;
-        int extra_size;
+        // so there must be an extra payloads, which is transformed from payload.
+        SrsSample* extra_payloads;
+        int nn_extra_payloads;
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();

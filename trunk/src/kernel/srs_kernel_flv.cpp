@@ -214,8 +214,8 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     samples = NULL;
     nb_samples = 0;
 
-    extra_payload = NULL;
-    extra_size = 0;
+    extra_payloads = NULL;
+    nn_extra_payloads = 0;
 }
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
@@ -225,7 +225,12 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 #endif
     srs_freepa(payload);
     srs_freepa(samples);
-    srs_freepa(extra_payload);
+
+    for (int i = 0; i < nn_extra_payloads; i++) {
+        SrsSample* p = extra_payloads + i;
+        srs_freep(p->bytes);
+    }
+    srs_freep(extra_payloads);
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)

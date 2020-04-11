@@ -532,7 +532,7 @@ class SrsSample
 public:
     // The size of unit.
     int size;
-    // The ptr of unit, user must manage it.
+    // The ptr of unit, user must free it.
     char* bytes;
     // Whether is B frame.
     bool bframe;

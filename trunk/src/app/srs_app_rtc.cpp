@@ -208,7 +208,6 @@ srs_error_t SrsRtpH264Muxer::packet_single_nalu(SrsSharedPtrMessage* shared_fram
 {
     srs_error_t err = srs_success;
 
-    uint8_t header = sample->bytes[0];
     srs_verbose("rtp single nalu, size=%u, seq=%u, timestamp=%lu", sample->size, sequence, (shared_frame->timestamp * 90));
 
     SrsRtpSharedPacket* packet = new SrsRtpSharedPacket();
@@ -287,32 +286,47 @@ srs_error_t SrsRtpOpusMuxer::initialize()
     return err;
 }
 
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
 srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char* adts_audio, int nn_adts_audio)
 {
     srs_error_t err = srs_success;
 
-    vector<SrsRtpSharedPacket*> rtp_packets;
+    // Opus packet cache.
+    static char* opus_payloads[kMaxOpusPackets];
 
-    char* data_ptr[kArrayLength];
-    static char data_array[kArrayLength][kArrayBuffer];
-    int elen[kArrayLength], number = 0;
+    static bool initialized = false;
+    if (!initialized) {
+        initialized = true;
 
-    data_ptr[0] = &data_array[0][0];
-    for (int i = 1; i < kArrayLength; i++) {
-       data_ptr[i] = data_array[i];
+        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
+        opus_payloads[0] = &opus_packets_cache[0][0];
+        for (int i = 1; i < kMaxOpusPackets; i++) {
+           opus_payloads[i] = opus_packets_cache[i];
+        }
     }
 
-    SrsSample pkt;
-    pkt.bytes = adts_audio;
-    pkt.size = nn_adts_audio;
-    if ((err = transcode->recode(&pkt, data_ptr, elen, number)) != srs_success) {
+    // Transcode aac packet to opus packets.
+    SrsSample aac;
+    aac.bytes = adts_audio;
+    aac.size = nn_adts_audio;
+
+    int nn_opus_packets = 0;
+    int opus_sizes[kMaxOpusPackets];
+    if ((err = transcode->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
-    for (int i = 0; i < number; i++) {
+    // Package opus packets to RTP packets.
+    vector<SrsRtpSharedPacket*> rtp_packets;
+
+    for (int i = 0; i < nn_opus_packets; i++) {
         SrsSample sample;
-        sample.size = elen[i];
-        sample.bytes = data_ptr[i];
+        sample.size = opus_sizes[i];
+        sample.bytes = opus_payloads[i];
         if ((err = packet_opus(shared_audio, &sample, rtp_packets)) != srs_success) {
             return srs_error_wrap(err, "packet as opus");
         }
