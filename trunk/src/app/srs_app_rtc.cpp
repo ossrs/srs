@@ -125,31 +125,13 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
     for (int i = 0; i < format->video->nb_samples; ++i) {
         SrsSample* sample = &format->video->samples[i];
 
-        uint8_t header = sample->bytes[0];
-        uint8_t nal_type = header & kNalTypeMask;
-
         // Because RTC does not support B-frame, so we will drop them.
         // TODO: Drop B-frame in better way, which not cause picture corruption.
-        if (discard_bframe && (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR)) {
-            SrsBuffer* stream = new SrsBuffer(sample->bytes, sample->size);
-            SrsAutoFree(SrsBuffer, stream);
-
-            // Skip nalu header.
-            stream->skip(1);
-
-            SrsBitBuffer bitstream(stream);
-            int32_t first_mb_in_slice = 0;
-            if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
-                return srs_error_wrap(err, "nalu read uev");
+        if (discard_bframe) {
+            if ((err = sample->parse_bframe()) != srs_success) {
+                return srs_error_wrap(err, "parse bframe");
             }
-
-            int32_t slice_type = 0;
-            if ((err = srs_avc_nalu_read_uev(&bitstream, slice_type)) != srs_success) {
-                return srs_error_wrap(err, "nalu read uev");
-            }
-
-            srs_verbose("nal_type=%d, slice type=%d", nal_type, slice_type);
-            if (slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1) {
+            if (sample->bframe) {
                 continue;
             }
         }
