@@ -488,6 +488,13 @@ SrsVideoFrame::~SrsVideoFrame()
 {
 }
 
+srs_error_t SrsVideoFrame::initialize(SrsCodecConfig* c)
+{
+    first_nalu_type = SrsAvcNaluTypeForbidden;
+    has_idr = has_sps_pps = has_aud = false;
+    return SrsFrame::initialize(c);
+}
+
 srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
 {
     srs_error_t err = srs_success;

@@ -115,16 +115,23 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
 
     vector<SrsRtpSharedPacket*> rtp_packets;
 
-    for (int i = 0; i < format->video->nb_samples; ++i) {
-        SrsSample sample = format->video->samples[i];
+    // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
+    if (format->video && format->video->has_idr) {
+        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packets)) != srs_success) {
+            return srs_error_wrap(err, "packet stap-a");
+        }
+    }
 
-        uint8_t header = sample.bytes[0];
+    for (int i = 0; i < format->video->nb_samples; ++i) {
+        SrsSample* sample = &format->video->samples[i];
+
+        uint8_t header = sample->bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
         // Because RTC does not support B-frame, so we will drop them.
         // TODO: Drop B-frame in better way, which not cause picture corruption.
         if (discard_bframe && (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR)) {
-            SrsBuffer* stream = new SrsBuffer(sample.bytes, sample.size);
+            SrsBuffer* stream = new SrsBuffer(sample->bytes, sample->size);
             SrsAutoFree(SrsBuffer, stream);
 
             // Skip nalu header.
@@ -147,12 +154,12 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
             }
         }
 
-        if (sample.size <= kRtpMaxPayloadSize) {
-            if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packets)) != srs_success) {
+        if (sample->size <= kRtpMaxPayloadSize) {
+            if ((err = packet_single_nalu(shared_frame, format, sample, rtp_packets)) != srs_success) {
                 return srs_error_wrap(err, "packet single nalu");
             }
         } else {
-            if ((err = packet_fu_a(shared_frame, format, &sample, rtp_packets)) != srs_success) {
+            if ((err = packet_fu_a(shared_frame, format, sample, rtp_packets)) != srs_success) {
                 return srs_error_wrap(err, "packet fu-a");
             }
         }
@@ -179,12 +186,6 @@ srs_error_t SrsRtpH264Muxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsF
     int nb_left = sample->size - 1;
     uint8_t header = sample->bytes[0];
     uint8_t nal_type = header & kNalTypeMask;
-
-    if (nal_type == SrsAvcNaluTypeIDR) {
-        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packets)) != srs_success) {
-            return srs_error_wrap(err, "packet stap-a");
-        }
-    }
 
     int num_of_packet = (sample->size - 1 + kRtpMaxPayloadSize) / kRtpMaxPayloadSize;
     for (int i = 0; i < num_of_packet; ++i) {
@@ -223,18 +224,13 @@ srs_error_t SrsRtpH264Muxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsF
     return err;
 }
 
+// Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
 srs_error_t SrsRtpH264Muxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packets)
 {
     srs_error_t err = srs_success;
 
     uint8_t header = sample->bytes[0];
     uint8_t nal_type = header & kNalTypeMask;
-
-    if (nal_type == SrsAvcNaluTypeIDR) {
-        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packets)) != srs_success) {
-            return srs_error_wrap(err, "packet stap-a");
-        }
-    }
 
     srs_verbose("rtp single nalu, size=%u, seq=%u, timestamp=%lu", sample->size, sequence, (shared_frame->timestamp * 90));
 

@@ -703,6 +703,8 @@ public:
     SrsVideoFrame();
     virtual ~SrsVideoFrame();
 public:
+    // Initialize the frame, to parse sampels.
+    virtual srs_error_t initialize(SrsCodecConfig* c);
     // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
     virtual srs_error_t add_sample(char* bytes, int size);
 public:
