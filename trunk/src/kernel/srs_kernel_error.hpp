@@ -363,6 +363,9 @@
 #define ERROR_GB28181_SIP_BYE_FAILED        6009
 #define ERROR_GB28181_SIP_IS_INVITING       6010
 #define ERROR_GB28181_CREATER_RTMPMUXER_FAILED 6011
+#define ERROR_GB28181_SIP_CH_OFFLINE        6012
+#define ERROR_GB28181_SIP_CH_NOTEXIST       6013
+#define ERROR_GB28181_SIP_RAW_DATA_FAILED   6014
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
