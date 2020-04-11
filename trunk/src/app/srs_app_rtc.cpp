@@ -105,8 +105,10 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
     srs_error_t err = srs_success;
 
     if (format->is_avc_sequence_header()) {
+        // It is ok when size is 0, @see http://www.cplusplus.com/reference/string/string/assign/
         sps.assign(format->vcodec->sequenceParameterSetNALUnit.data(), format->vcodec->sequenceParameterSetNALUnit.size());
         pps.assign(format->vcodec->pictureParameterSetNALUnit.data(), format->vcodec->pictureParameterSetNALUnit.size());
+
         // only collect SPS/PPS.
         return err;
     }
