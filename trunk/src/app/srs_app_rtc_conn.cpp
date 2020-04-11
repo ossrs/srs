@@ -398,7 +398,7 @@ srs_error_t SrsDtlsSession::protect_rtp2(char* buf, int* pnn_buf, SrsRtpPacket2*
     if ((err = pkt->encode(&stream)) != srs_success) {
         return srs_error_wrap(err, "encode packet");
     }
-    
+
     *pnn_buf = stream.pos();
 
     if (srtp_protect(srtp_send, buf, pnn_buf) != 0) {
@@ -654,9 +654,18 @@ srs_error_t SrsRtcSenderThread::send_messages(
 
                 // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
                 if (msg->has_idr()) {
-                    if ((err = packet_stap_a(source, msg, rtp_packets)) != srs_success) {
+                    SrsRtpPacket2* packet = NULL;
+                    if ((err = packet_stap_a(source, msg, &packet)) != srs_success) {
                         return srs_error_wrap(err, "packet stap-a");
                     }
+
+                    err = send_message2(msg, is_video, is_audio, packet, skt);
+                    srs_freep(packet);
+                    if (err != srs_success) {
+                        return srs_error_wrap(err, "send message");
+                    }
+
+                    *pnn_rtp_pkts += 1;
                 }
 
                 if (sample->size <= kRtpMaxPayloadSize) {
@@ -778,8 +787,10 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtpPacket2** p
     packet->rtp_header.set_ssrc(audio_ssrc);
     packet->rtp_header.set_payload_type(audio_payload_type);
 
-    packet->payload = sample->bytes;
-    packet->nn_payload = sample->size;
+    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    raw->payload = sample->bytes;
+    raw->nn_payload = sample->size;
+    packet->payload = raw;
 
     // TODO: FIXME: Why 960? Need Refactoring?
     audio_timestamp += 960;
@@ -852,7 +863,7 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* shared_f
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMessage* shared_frame, vector<SrsRtpSharedPacket*>& rtp_packets)
+srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMessage* shared_frame, SrsRtpPacket2** ppacket)
 {
     srs_error_t err = srs_success;
 
@@ -872,32 +883,34 @@ srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMes
         return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
     }
 
+    srs_verbose("rtp stap-a nalu, size=%u, seq=%u, timestamp=%lu",
+        (sps.size() + pps.size()), video_sequence, (shared_frame->timestamp * 90));
+
+    SrsRtpPacket2* packet = new SrsRtpPacket2();
+    packet->rtp_header.set_marker(false);
+    packet->rtp_header.set_timestamp(shared_frame->timestamp * 90);
+    packet->rtp_header.set_sequence(video_sequence++);
+    packet->rtp_header.set_ssrc(video_ssrc);
+    packet->rtp_header.set_payload_type(video_payload_type);
+
+    SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
+
     uint8_t header = sps[0];
     uint8_t nal_type = header & kNalTypeMask;
 
-    char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
-    SrsAutoFree(SrsBuffer, stream);
+    stap->nri = (SrsAvcNaluType)nal_type;
+    stap->nn_nalus = 2;
+    stap->nalus = new SrsSample[stap->nn_nalus];
 
-    // stap-a header
-    uint8_t stap_a_header = kStapA;
-    stap_a_header |= (nal_type & (~kNalTypeMask));
-    stream->write_1bytes(stap_a_header);
+    stap->nalus[0].bytes = (char*)&sps[0];
+    stap->nalus[0].size = (int)sps.size();
 
-    stream->write_2bytes(sps.size());
-    stream->write_bytes((char*)sps.data(), sps.size());
+    stap->nalus[1].bytes = (char*)&pps[0];
+    stap->nalus[1].size = (int)pps.size();
 
-    stream->write_2bytes(pps.size());
-    stream->write_bytes((char*)pps.data(), pps.size());
+    packet->payload = stap;
 
-    srs_verbose("rtp stap-a nalu, size=%u, seq=%u, timestamp=%lu", (sps.size() + pps.size()), video_sequence, (shared_frame->timestamp * 90));
-
-    SrsRtpSharedPacket* packet = new SrsRtpSharedPacket();
-    if ((err = packet->create((shared_frame->timestamp * 90), video_sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos())) != srs_success) {
-        return srs_error_wrap(err, "rtp packet encode");
-    }
-
-    rtp_packets.push_back(packet);
+    *ppacket = packet;
 
     return err;
 }

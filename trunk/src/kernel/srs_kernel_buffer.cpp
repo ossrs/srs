@@ -29,6 +29,14 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
+ISrsEncoder::ISrsEncoder()
+{
+}
+
+ISrsEncoder::~ISrsEncoder()
+{
+}
+
 ISrsCodec::ISrsCodec()
 {
 }

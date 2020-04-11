@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_rtp.hpp>
 
 string srs_video_codec_id2str(SrsVideoCodecId codec)
 {
@@ -374,9 +375,6 @@ SrsSample::~SrsSample()
 srs_error_t SrsSample::parse_bframe()
 {
     srs_error_t err = srs_success;
-
-    // H.264 nalu header type mask.
-    static uint8_t kNalTypeMask      = 0x1F;
 
     uint8_t header = bytes[0];
     SrsAvcNaluType nal_type = (SrsAvcNaluType)(header & kNalTypeMask);

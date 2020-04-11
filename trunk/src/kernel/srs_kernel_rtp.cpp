@@ -32,6 +32,8 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 
+// @see: https://tools.ietf.org/html/rfc6184#section-5.2
+const uint8_t kStapA            = 24;
 
 SrsRtpHeader::SrsRtpHeader()
 {
@@ -148,32 +150,106 @@ void SrsRtpHeader::set_ssrc(uint32_t ssrc)
 SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
-    nn_payload = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
+    srs_freep(payload);
 }
 
-srs_error_t SrsRtpPacket2::encode(SrsBuffer* stream)
+srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    if ((err = rtp_header.encode(stream)) != srs_success) {
+    if ((err = rtp_header.encode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp header");
     }
 
-    if (nn_payload <= 0) {
-        return 0;
+    if (payload && (err = payload->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode payload");
     }
 
-    if (!stream->require(nn_payload)) {
+    return err;
+}
+
+SrsRtpRawPayload::SrsRtpRawPayload()
+{
+    payload = NULL;
+    nn_payload = 0;
+}
+
+SrsRtpRawPayload::~SrsRtpRawPayload()
+{
+}
+
+int SrsRtpRawPayload::nb_bytes()
+{
+    return nn_payload;
+}
+
+srs_error_t SrsRtpRawPayload::encode(SrsBuffer* buf)
+{
+    if (nn_payload <= 0) {
+        return srs_success;
+    }
+
+    if (!buf->require(nn_payload)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", nn_payload);
     }
 
-    stream->write_bytes(payload, nn_payload);
+    buf->write_bytes(payload, nn_payload);
 
-    return err;
+    return srs_success;
+}
+
+SrsRtpSTAPPayload::SrsRtpSTAPPayload()
+{
+    nri = (SrsAvcNaluType)0;
+    nalus = NULL;
+    nn_nalus = 0;
+}
+
+SrsRtpSTAPPayload::~SrsRtpSTAPPayload()
+{
+    srs_freepa(nalus);
+}
+
+int SrsRtpSTAPPayload::nb_bytes()
+{
+    int size = 1;
+
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus + i;
+        size += 2 + p->size;
+    }
+
+    return size;
+}
+
+srs_error_t SrsRtpSTAPPayload::encode(SrsBuffer* buf)
+{
+    if (!buf->require(1)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    // STAP header, RTP payload format for aggregation packets
+    // @see https://tools.ietf.org/html/rfc6184#section-5.7
+    uint8_t v = kStapA;
+    v |= (nri & (~kNalTypeMask));
+    buf->write_1bytes(v);
+
+    // NALUs.
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus + i;
+        if (!buf->require(2 + p->size)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2 + p->size);
+        }
+
+        buf->write_2bytes(p->size);
+        buf->write_bytes(p->bytes, p->size);
+    }
+
+    return srs_success;
 }
 
 SrsRtpSharedPacket::SrsRtpSharedPacketPayload::SrsRtpSharedPacketPayload()

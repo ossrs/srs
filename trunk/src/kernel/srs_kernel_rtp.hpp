@@ -26,10 +26,16 @@
 
 #include <srs_core.hpp>
 
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_codec.hpp>
+
 #include <string>
 
 const int kRtpHeaderFixedSize = 12;
 const uint8_t kRtpMarker = 0x80;
+
+// H.264 nalu header type mask.
+const uint8_t kNalTypeMask      = 0x1F;
 
 class SrsBuffer;
 
@@ -74,14 +80,45 @@ class SrsRtpPacket2
 {
 public:
     SrsRtpHeader rtp_header;
-    // @remark We only refer to the memory, user must free it.
-    char* payload;
-    int nn_payload;
+    ISrsEncoder* payload;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
-    virtual srs_error_t encode(SrsBuffer* stream);
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
+class SrsRtpRawPayload : public ISrsEncoder
+{
+public:
+    // @remark We only refer to the memory, user must free it.
+    char* payload;
+    int nn_payload;
+public:
+    SrsRtpRawPayload();
+    virtual ~SrsRtpRawPayload();
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
+class SrsRtpSTAPPayload : public ISrsEncoder
+{
+public:
+    // The NRI in NALU type.
+    SrsAvcNaluType nri;
+    // The NALU samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    SrsSample* nalus;
+    int nn_nalus;
+public:
+    SrsRtpSTAPPayload();
+    virtual ~SrsRtpSTAPPayload();
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
 };
 
 class SrsRtpSharedPacket

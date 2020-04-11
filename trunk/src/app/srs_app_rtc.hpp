@@ -48,11 +48,7 @@ const int kRtpPacketSize        = 1500;
 const uint8_t kOpusPayloadType  = 111;
 const uint8_t kH264PayloadType  = 102;
 
-// H.264 nalu header type mask.
-const uint8_t kNalTypeMask      = 0x1F;
-
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
-const uint8_t kStapA            = 24;
 const uint8_t kFuA              = 28;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.8
