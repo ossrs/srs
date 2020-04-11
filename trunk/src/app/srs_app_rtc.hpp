@@ -48,13 +48,6 @@ const int kRtpPacketSize        = 1500;
 const uint8_t kOpusPayloadType  = 111;
 const uint8_t kH264PayloadType  = 102;
 
-// @see: https://tools.ietf.org/html/rfc6184#section-5.2
-const uint8_t kFuA              = 28;
-
-// @see: https://tools.ietf.org/html/rfc6184#section-5.8
-const uint8_t kStart            = 0x80; // Fu-header start bit
-const uint8_t kEnd              = 0x40; // Fu-header end bit
-
 const int kChannel              = 2;
 const int kSamplerate           = 48000;
 

@@ -35,6 +35,13 @@ using namespace std;
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
 const uint8_t kStapA            = 24;
 
+// @see: https://tools.ietf.org/html/rfc6184#section-5.2
+const uint8_t kFuA              = 28;
+
+// @see: https://tools.ietf.org/html/rfc6184#section-5.8
+const uint8_t kStart            = 0x80; // Fu-header start bit
+const uint8_t kEnd              = 0x40; // Fu-header end bit
+
 SrsRtpHeader::SrsRtpHeader()
 {
     padding          = false;
@@ -246,6 +253,69 @@ srs_error_t SrsRtpSTAPPayload::encode(SrsBuffer* buf)
         }
 
         buf->write_2bytes(p->size);
+        buf->write_bytes(p->bytes, p->size);
+    }
+
+    return srs_success;
+}
+
+SrsRtpFUAPayload::SrsRtpFUAPayload()
+{
+    start = end = false;
+    nri = nalu_type = (SrsAvcNaluType)0;
+}
+
+SrsRtpFUAPayload::~SrsRtpFUAPayload()
+{
+    vector<SrsSample*>::iterator it;
+    for (it = nalus.begin(); it != nalus.end(); ++it) {
+        SrsSample* p = *it;
+        srs_freep(p);
+    }
+}
+
+int SrsRtpFUAPayload::nb_bytes()
+{
+    int size = 2;
+
+    vector<SrsSample*>::iterator it;
+    for (it = nalus.begin(); it != nalus.end(); ++it) {
+        SrsSample* p = *it;
+        size += p->size;
+    }
+
+    return size;
+}
+
+srs_error_t SrsRtpFUAPayload::encode(SrsBuffer* buf)
+{
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t fu_indicate = kFuA;
+    fu_indicate |= (nri & (~kNalTypeMask));
+    buf->write_1bytes(fu_indicate);
+
+    // FU header, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t fu_header = nalu_type;
+    if (start) {
+        fu_header |= kStart;
+    }
+    if (end) {
+        fu_header |= kEnd;
+    }
+    buf->write_1bytes(fu_header);
+
+    // FU payload, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    vector<SrsSample*>::iterator it;
+    for (it = nalus.begin(); it != nalus.end(); ++it) {
+        SrsSample* p = *it;
+        if (!buf->require(p->size)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2 + p->size);
+        }
+
         buf->write_bytes(p->bytes, p->size);
     }
 

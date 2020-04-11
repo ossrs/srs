@@ -153,14 +153,13 @@ public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 private:
     srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
-    srs_error_t send_message(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpSharedPacket* pkt, SrsUdpMuxSocket* skt);
     srs_error_t send_message2(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
-    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* shared_frame, SrsRtpPacket2** ppacket);
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& packets);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
+    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
 };
 
 class SrsRtcSession

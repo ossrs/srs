@@ -121,6 +121,27 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 
+class SrsRtpFUAPayload : public ISrsEncoder
+{
+public:
+    // The NRI in NALU type.
+    SrsAvcNaluType nri;
+    // The FUA header.
+    bool start;
+    bool end;
+    SrsAvcNaluType nalu_type;
+    // The NALU samples.
+    // @remark We only refer to the memory, user must free its bytes.
+    std::vector<SrsSample*> nalus;
+public:
+    SrsRtpFUAPayload();
+    virtual ~SrsRtpFUAPayload();
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
 class SrsRtpSharedPacket
 {
 private:
