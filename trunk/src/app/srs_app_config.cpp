@@ -2152,8 +2152,34 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "auto_create_channel") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
-                }
-            }
+                } else if (sdir->name == "sip"){
+                    SrsJsonObject* ssobj = SrsJsonAny::object();
+                    sobj->set(sdir->name, ssobj);
+                    
+                    for (int j = 0; j < (int)sdir->directives.size(); j++) {
+                        SrsConfDirective* ssdir = sdir->directives.at(j);
+                        if (ssdir->name == "enabled") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "listen") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_integer());
+                        } else if (ssdir->name == "serial") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_str());
+                        } else if (ssdir->name == "realm") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_str());
+                        } else if (ssdir->name == "ack_timeout") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_integer());
+                        } else if (ssdir->name == "keepalive_timeout") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_integer());
+                        } else if (ssdir->name == "auto_play") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "invite_port_fixed") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_boolean());
+                        } else if (ssdir->name == "query_catalog_interval") {
+                            ssobj->set(ssdir->name, ssdir->dumps_arg0_to_integer());
+                        }
+                    }
+                }//end if
+            }//end for
             obj->set(dir->name, sobj);
         } else {
             continue;
@@ -3686,7 +3712,8 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled"  && m != "listen" && m != "ack_timeout" && m != "keepalive_timeout"
-                        && m != "host" && m != "serial" && m != "realm" && m != "auto_play" && m != "invite_port_fixed") {
+                        && m != "host" && m != "serial" && m != "realm" && m != "auto_play" && m != "invite_port_fixed"
+                        && m != "query_catalog_interval") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", m.c_str());
                     }
                 }
@@ -4583,6 +4610,28 @@ bool SrsConfig::get_stream_caster_gb28181_auto_create_channel(SrsConfDirective* 
     }
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_stream_caster_gb28181_sip_query_catalog_interval(SrsConfDirective* conf)
+{
+    static srs_utime_t DEFAULT = 60 * SRS_UTIME_SECONDS;
+
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sip");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("query_catalog_interval");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_rtc_server_enabled()
