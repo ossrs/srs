@@ -40,6 +40,7 @@ class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
 class SrsRtpSharedPacket;
+class SrsSample;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -287,7 +288,6 @@ public:
     // @remark, not all message payload can be decoded to packet. for example,
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
-
 #ifdef SRS_AUTO_RTC
     std::vector<SrsRtpSharedPacket*> rtp_packets;
 #endif
@@ -305,6 +305,15 @@ private:
         int size;
         // The reference count
         int shared_count;
+    public:
+        // For RTC video, we need to know the NALU structures,
+        // because the RTP STAP-A or FU-A based on NALU.
+        SrsSample* samples;
+        int nb_samples;
+        // For RTC audio, we may need to transcode AAC to opus,
+        // so there must be an extra payload, which is transformed from payload.
+        char* extra_payload;
+        int extra_size;
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();

@@ -194,8 +194,11 @@ srs_error_t SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int 
     return srs_success;
 }
 
-SrsSharedMessageHeader::SrsSharedMessageHeader() : payload_length(0), message_type(0), perfer_cid(0)
+SrsSharedMessageHeader::SrsSharedMessageHeader()
 {
+    payload_length = 0;
+    message_type = 0;
+    perfer_cid = 0;
 }
 
 SrsSharedMessageHeader::~SrsSharedMessageHeader()
@@ -207,6 +210,12 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     payload = NULL;
     size = 0;
     shared_count = 0;
+
+    samples = NULL;
+    nb_samples = 0;
+
+    extra_payload = NULL;
+    extra_size = 0;
 }
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
@@ -215,6 +224,8 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
+    srs_freepa(samples);
+    srs_freepa(extra_payload);
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
