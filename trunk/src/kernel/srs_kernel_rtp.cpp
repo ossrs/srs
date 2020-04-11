@@ -77,7 +77,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
 
-    // TODO:
+    // TODO: FIXME: Implements it.
 
     return err;
 }
@@ -86,19 +86,21 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
 
-    uint8_t first = 0x80 | cc;
+    uint8_t v = 0x80 | cc;
     if (padding) {
-        first |= 0x40;
+        v |= 0x40;
     }
     if (extension) {
-        first |= 0x10;
+        v |= 0x10;
     }
-    stream->write_1bytes(first);
-    uint8_t second = payload_type;
+    stream->write_1bytes(v);
+
+    v = payload_type;
     if (marker) {
-        payload_type |= kRtpMarker;
+        v |= kRtpMarker;
     }
-    stream->write_1bytes(second);
+    stream->write_1bytes(v);
+
     stream->write_2bytes(sequence);
     stream->write_4bytes(timestamp);
     stream->write_4bytes(ssrc);
@@ -141,6 +143,37 @@ void SrsRtpHeader::set_timestamp(int64_t timestamp)
 void SrsRtpHeader::set_ssrc(uint32_t ssrc)
 {
     this->ssrc = ssrc;
+}
+
+SrsRtpPacket2::SrsRtpPacket2()
+{
+    payload = NULL;
+    nn_payload = 0;
+}
+
+SrsRtpPacket2::~SrsRtpPacket2()
+{
+}
+
+srs_error_t SrsRtpPacket2::encode(SrsBuffer* stream)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = rtp_header.encode(stream)) != srs_success) {
+        return srs_error_wrap(err, "rtp header");
+    }
+
+    if (nn_payload <= 0) {
+        return 0;
+    }
+
+    if (!stream->require(nn_payload)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", nn_payload);
+    }
+
+    stream->write_bytes(payload, nn_payload);
+
+    return err;
 }
 
 SrsRtpSharedPacket::SrsRtpSharedPacketPayload::SrsRtpSharedPacketPayload()

@@ -70,6 +70,20 @@ public:
     uint32_t get_ssrc() const { return ssrc; }
 };
 
+class SrsRtpPacket2
+{
+public:
+    SrsRtpHeader rtp_header;
+    // @remark We only refer to the memory, user must free it.
+    char* payload;
+    int nn_payload;
+public:
+    SrsRtpPacket2();
+    virtual ~SrsRtpPacket2();
+public:
+    virtual srs_error_t encode(SrsBuffer* stream);
+};
+
 class SrsRtpSharedPacket
 {
 private:
