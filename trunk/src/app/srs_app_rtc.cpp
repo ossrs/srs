@@ -121,8 +121,9 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
         uint8_t header = sample.bytes[0];
         uint8_t nal_type = header & kNalTypeMask;
 
-        // TODO: Use config to determine should check avc stream.
-        if (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR) {
+        // Because RTC does not support B-frame, so we will drop them.
+        // TODO: Drop B-frame in better way, which not cause picture corruption.
+        if (discard_bframe && (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR)) {
             SrsBuffer* stream = new SrsBuffer(sample.bytes, sample.size);
             SrsAutoFree(SrsBuffer, stream);
 
@@ -142,9 +143,7 @@ srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, 
 
             srs_verbose("nal_type=%d, slice type=%d", nal_type, slice_type);
             if (slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1) {
-                if (discard_bframe) {
-                    continue;
-                }
+                continue;
             }
         }
 
