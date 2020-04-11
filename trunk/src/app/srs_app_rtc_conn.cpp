@@ -812,9 +812,10 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, Srs
     packet->rtp_header.set_payload_type(video_payload_type);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    packet->payload = raw;
+
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
-    packet->payload = raw;
 
     *ppacket = packet;
 
@@ -849,20 +850,24 @@ srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMes
     packet->rtp_header.set_payload_type(video_payload_type);
 
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
+    packet->payload = stap;
 
     uint8_t header = sps[0];
-
     stap->nri = (SrsAvcNaluType)header;
-    stap->nn_nalus = 2;
-    stap->nalus = new SrsSample[stap->nn_nalus];
 
-    stap->nalus[0].bytes = (char*)&sps[0];
-    stap->nalus[0].size = (int)sps.size();
+    if (true) {
+        SrsSample* sample = new SrsSample();
+        sample->bytes = (char*)&sps[0];
+        sample->size = (int)sps.size();
+        stap->nalus.push_back(sample);
+    }
 
-    stap->nalus[1].bytes = (char*)&pps[0];
-    stap->nalus[1].size = (int)pps.size();
-
-    packet->payload = stap;
+    if (true) {
+        SrsSample* sample = new SrsSample();
+        sample->bytes = (char*)&pps[0];
+        sample->size = (int)pps.size();
+        stap->nalus.push_back(sample);
+    }
 
     *ppacket = packet;
 
