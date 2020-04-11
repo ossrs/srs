@@ -1725,7 +1725,7 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             SrsJsonArray* arr = SrsJsonAny::array();
             data->set("channels", arr);
            
-            uint32_t code = _srs_gb28181->queue_stream_channel(id, arr);
+            uint32_t code = _srs_gb28181->query_stream_channel(id, arr);
             if (code != ERROR_SUCCESS) {
                 return srs_api_response_code(w, r, code);
             }
@@ -1733,7 +1733,8 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             return srs_api_response(w, r, obj->dumps());
         }
         else if(action == "sip_invite"){
-            if (id.empty()){
+            string chid = r->query_get("chid");
+            if (id.empty() || chid.empty()){
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
 
@@ -1746,15 +1747,16 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
            
 
-            int code = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc);
+            int code = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc, chid);
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_bye"){
-            if (id.empty()){
+            string chid = r->query_get("chid");
+            if (id.empty() || chid.empty()){
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
 
-            int code = _srs_gb28181->notify_sip_bye(id);
+            int code = _srs_gb28181->notify_sip_bye(id, chid);
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_raw_data"){
@@ -1774,6 +1776,25 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             
             int code = _srs_gb28181->notify_sip_unregister(id);
             return srs_api_response_code(w, r, code);
+        }
+        else if(action == "sip_query_catalog"){
+            if (id.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+            
+            int code = _srs_gb28181->notify_sip_query_catalog(id);
+            return srs_api_response_code(w, r, code);
+        }
+        else if(action == "sip_query_session"){
+            SrsJsonArray* arr = SrsJsonAny::array();
+            data->set("sessions", arr);
+           
+            uint32_t code = _srs_gb28181->query_sip_session(id, arr);
+            if (code != ERROR_SUCCESS) {
+                return srs_api_response_code(w, r, code);
+            }
+
+            return srs_api_response(w, r, obj->dumps());
         }
         else
         {
