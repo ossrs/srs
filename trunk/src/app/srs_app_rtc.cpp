@@ -260,23 +260,26 @@ srs_error_t SrsRtpH264Muxer::packet_stap_a(const string &sps, const string& pps,
 
 SrsRtpOpusMuxer::SrsRtpOpusMuxer()
 {
-    transcode = NULL;
+    codec = NULL;
 }
 
 SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
 {
-    srs_freep(transcode);
+    srs_freep(codec);
 }
 
 srs_error_t SrsRtpOpusMuxer::initialize()
 {
     srs_error_t err = srs_success;
 
-    transcode = new SrsAudioRecode(kChannel, kSamplerate);
-    if (!transcode) {
+    codec = new SrsAudioRecode(kChannel, kSamplerate);
+    if (!codec) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAacOpus init failed");
     }
-    transcode->initialize();
+
+    if ((err = codec->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init codec");
+    }
 
     return err;
 }
@@ -286,7 +289,7 @@ const int kMaxOpusPackets = 8;
 // The max size for each OPUS packet.
 const int kMaxOpusPacketSize = 4096;
 
-srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char* adts_audio, int nn_adts_audio)
+srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
 {
     srs_error_t err = srs_success;
 
@@ -311,7 +314,7 @@ srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, 
 
     int nn_opus_packets = 0;
     int opus_sizes[kMaxOpusPackets];
-    if ((err = transcode->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
+    if ((err = codec->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
@@ -459,7 +462,7 @@ srs_error_t SrsRtc::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     }
 
     if (adts_audio) {
-        err = rtp_opus_muxer->frame_to_packet(shared_audio, format, adts_audio, nn_adts_audio);
+        err = rtp_opus_muxer->transcode(shared_audio, adts_audio, nn_adts_audio);
         srs_freep(adts_audio);
     }
 

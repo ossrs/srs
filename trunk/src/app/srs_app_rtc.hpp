@@ -90,13 +90,13 @@ private:
 class SrsRtpOpusMuxer
 {
 private:
-    SrsAudioRecode* transcode;
+    SrsAudioRecode* codec;
 public:
     SrsRtpOpusMuxer();
     virtual ~SrsRtpOpusMuxer();
     virtual srs_error_t initialize();
 public:
-    srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char* adts_audio, int nn_adts_audio);
+    srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
 };
 
 class SrsRtc
