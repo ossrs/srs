@@ -653,6 +653,7 @@ srs_error_t SrsRtcSenderThread::send_messages(
             if ((err = send_message(msg, is_video, is_audio, pkt, skt)) != srs_success) {
                 return srs_error_wrap(err, "send message");
             }
+            srs_freep(pkt);
         }
 
         *pnn += msg->size;
