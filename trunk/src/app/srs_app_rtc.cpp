@@ -260,17 +260,12 @@ srs_error_t SrsRtpH264Muxer::packet_stap_a(const string &sps, const string& pps,
 
 SrsRtpOpusMuxer::SrsRtpOpusMuxer()
 {
-    sequence = 0;
-    timestamp = 0;
     transcode = NULL;
 }
 
 SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
 {
-    if (transcode) {
-        delete transcode;
-        transcode = NULL;
-    }
+    srs_freep(transcode);
 }
 
 srs_error_t SrsRtpOpusMuxer::initialize()
@@ -309,7 +304,7 @@ srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, 
         }
     }
 
-    // Transcode aac packet to opus packets.
+    // Transcode an aac packet to many opus packets.
     SrsSample aac;
     aac.bytes = adts_audio;
     aac.size = nn_adts_audio;
@@ -320,37 +315,20 @@ srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, 
         return srs_error_wrap(err, "recode error");
     }
 
-    // Package opus packets to RTP packets.
-    vector<SrsRtpSharedPacket*> rtp_packets;
+    // Save OPUS packets in shared message.
+    if (nn_opus_packets <= 0) {
+        return err;
+    }
 
+    SrsSample samples[nn_opus_packets];
     for (int i = 0; i < nn_opus_packets; i++) {
-        SrsSample sample;
-        sample.size = opus_sizes[i];
-        sample.bytes = opus_payloads[i];
-        if ((err = packet_opus(shared_audio, &sample, rtp_packets)) != srs_success) {
-            return srs_error_wrap(err, "packet as opus");
-        }
+        SrsSample* p = samples + i;
+        p->size = opus_sizes[i];
+        p->bytes = new char[p->size];
+        memcpy(p->bytes, opus_payloads[i], p->size);
     }
 
-    shared_audio->set_rtp_packets(rtp_packets);
-
-    return err;
-}
-
-srs_error_t SrsRtpOpusMuxer::packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpSharedPacket* packet = new SrsRtpSharedPacket();
-    packet->rtp_header.set_marker(true);
-    if ((err = packet->create(timestamp, sequence++, kAudioSSRC, kOpusPayloadType, sample->bytes, sample->size)) != srs_success) {
-        return srs_error_wrap(err, "rtp packet encode");
-    }
-
-    // TODO: FIXME: Why 960? Need Refactoring?
-    timestamp += 960;
-
-    rtp_packets.push_back(packet);
+    shared_audio->set_extra_payloads(samples, nn_opus_packets);
 
     return err;
 }

@@ -90,9 +90,6 @@ private:
 class SrsRtpOpusMuxer
 {
 private:
-    // TODO: FIXME: How to handle timestamp overflow?
-    uint32_t timestamp;
-    uint16_t sequence;
     SrsAudioRecode* transcode;
 public:
     SrsRtpOpusMuxer();
@@ -100,8 +97,6 @@ public:
     virtual srs_error_t initialize();
 public:
     srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char* adts_audio, int nn_adts_audio);
-private:
-    srs_error_t packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
 };
 
 class SrsRtc

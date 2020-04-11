@@ -442,6 +442,9 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int
 
     rtc_session = s;
     sendonly_ukt = u->copy_sendonly();
+
+    timestamp = 0;
+    sequence = 0;
 }
 
 SrsRtcSenderThread::~SrsRtcSenderThread()
@@ -575,6 +578,8 @@ void SrsRtcSenderThread::update_sendonly_socket(SrsUdpMuxSocket* skt)
 
 void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts)
 {
+    srs_error_t err = srs_success;
+
     if (!rtc_session->dtls_session) {
         return;
     }
@@ -584,14 +589,35 @@ void SrsRtcSenderThread::send_and_free_messages(SrsSharedPtrMessage** msgs, int 
         bool is_video = msg->is_video();
         bool is_audio = msg->is_audio();
 
-        int nn_rtp_pkts = (int)msg->rtp_packets.size();
-        for (int j = 0; j < nn_rtp_pkts; j++) {
-            SrsRtpSharedPacket* pkt = msg->rtp_packets[j];
-            send_and_free_message(msg, is_video, is_audio, pkt, skt);
-        }
+        if (is_audio) {
+            // Package opus packets to RTP packets.
+            vector<SrsRtpSharedPacket*> rtp_packets;
 
-        *pnn += msg->size;
-        *pnn_rtp_pkts += nn_rtp_pkts;
+            for (int i = 0; i < msg->nn_extra_payloads(); i++) {
+                SrsSample* sample = msg->extra_payloads() + i;
+                if ((err = packet_opus(msg, sample, rtp_packets)) != srs_success) {
+                    srs_warn("packet opus err %s", srs_error_summary(err).c_str()); srs_error_reset(err);
+                }
+            }
+
+            int nn_rtp_pkts = (int)rtp_packets.size();
+            for (int j = 0; j < nn_rtp_pkts; j++) {
+                SrsRtpSharedPacket* pkt = rtp_packets[j];
+                send_and_free_message(msg, is_video, is_audio, pkt, skt);
+            }
+
+            *pnn += msg->size;
+            *pnn_rtp_pkts += nn_rtp_pkts;
+        } else {
+            int nn_rtp_pkts = (int)msg->rtp_packets.size();
+            for (int j = 0; j < nn_rtp_pkts; j++) {
+                SrsRtpSharedPacket* pkt = msg->rtp_packets[j];
+                send_and_free_message(msg, is_video, is_audio, pkt, skt);
+            }
+
+            *pnn += msg->size;
+            *pnn_rtp_pkts += nn_rtp_pkts;
+        }
 
         srs_freep(msg);
     }
@@ -634,6 +660,24 @@ void SrsRtcSenderThread::send_and_free_message(SrsSharedPtrMessage* msg, bool is
     mhdr->msg_len = 0;
 
     rtc_session->rtc_server->sendmmsg(skt->stfd(), mhdr);
+}
+
+srs_error_t SrsRtcSenderThread::packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpSharedPacket* packet = new SrsRtpSharedPacket();
+    packet->rtp_header.set_marker(true);
+    if ((err = packet->create(timestamp, sequence++, kAudioSSRC, kOpusPayloadType, sample->bytes, sample->size)) != srs_success) {
+        return srs_error_wrap(err, "rtp packet encode");
+    }
+
+    // TODO: FIXME: Why 960? Need Refactoring?
+    timestamp += 960;
+
+    rtp_packets.push_back(packet);
+
+    return err;
 }
 
 SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id)

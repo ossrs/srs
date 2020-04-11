@@ -126,6 +126,10 @@ private:
     uint32_t audio_ssrc;
     uint16_t video_payload_type;
     uint16_t audio_payload_type;
+private:
+    // TODO: FIXME: How to handle timestamp overflow?
+    uint32_t timestamp;
+    uint16_t sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
 public:
@@ -146,6 +150,8 @@ public:
 private:
     void send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
     void send_and_free_message(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpSharedPacket* pkt, SrsUdpMuxSocket* skt);
+private:
+    srs_error_t packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packets);
 };
 
 class SrsRtcSession

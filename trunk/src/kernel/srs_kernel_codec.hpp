@@ -538,10 +538,10 @@ public:
     bool bframe;
 public:
     SrsSample();
-    virtual ~SrsSample();
+    ~SrsSample();
 public:
     // If we need to know whether sample is bframe, we have to parse the NALU payload.
-    virtual srs_error_t parse_bframe();
+    srs_error_t parse_bframe();
 };
 
 /**

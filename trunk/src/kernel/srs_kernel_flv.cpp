@@ -230,7 +230,8 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
         SrsSample* p = extra_payloads + i;
         srs_freep(p->bytes);
     }
-    srs_freep(extra_payloads);
+    srs_freepa(extra_payloads);
+    nn_extra_payloads = 0;
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
@@ -384,6 +385,17 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
 {
     rtp_packets = pkts;
+}
+
+void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payloads)
+{
+    srs_assert(nn_payloads);
+    srs_assert(!ptr->extra_payloads);
+    
+    ptr->nn_extra_payloads = nn_payloads;
+
+    ptr->extra_payloads = new SrsSample[nn_payloads];
+    memcpy(ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
 }
 #endif
 

@@ -358,6 +358,12 @@ public:
 public:
 #ifdef SRS_AUTO_RTC
     virtual void set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts);
+    // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
+    // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
+    void set_extra_payloads(SrsSample* payloads, int nn_payloads);
+    // Get the extra payloads and the number of it.
+    int nn_extra_payloads() { return ptr->nn_extra_payloads; }
+    SrsSample* extra_payloads() { return ptr->extra_payloads; }
 #endif
 };
 
