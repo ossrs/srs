@@ -443,8 +443,8 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int
     rtc_session = s;
     sendonly_ukt = u->copy_sendonly();
 
-    timestamp = 0;
-    sequence = 0;
+    audio_timestamp = 0;
+    audio_sequence = 0;
 }
 
 SrsRtcSenderThread::~SrsRtcSenderThread()
@@ -668,12 +668,12 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSharedPtrMessage* shared_frame, S
 
     SrsRtpSharedPacket* packet = new SrsRtpSharedPacket();
     packet->rtp_header.set_marker(true);
-    if ((err = packet->create(timestamp, sequence++, kAudioSSRC, kOpusPayloadType, sample->bytes, sample->size)) != srs_success) {
+    if ((err = packet->create(audio_timestamp, audio_sequence++, kAudioSSRC, kOpusPayloadType, sample->bytes, sample->size)) != srs_success) {
         return srs_error_wrap(err, "rtp packet encode");
     }
 
     // TODO: FIXME: Why 960? Need Refactoring?
-    timestamp += 960;
+    audio_timestamp += 960;
 
     rtp_packets.push_back(packet);
 

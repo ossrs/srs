@@ -128,8 +128,8 @@ private:
     uint16_t audio_payload_type;
 private:
     // TODO: FIXME: How to handle timestamp overflow?
-    uint32_t timestamp;
-    uint16_t sequence;
+    uint32_t audio_timestamp;
+    uint16_t audio_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
 public:
