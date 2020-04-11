@@ -851,7 +851,6 @@ srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMes
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
 
     uint8_t header = sps[0];
-    uint8_t nal_type = header & kNalTypeMask;
 
     stap->nri = (SrsAvcNaluType)header;
     stap->nn_nalus = 2;
