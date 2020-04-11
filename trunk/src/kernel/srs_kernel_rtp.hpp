@@ -110,8 +110,7 @@ public:
     SrsAvcNaluType nri;
     // The NALU samples.
     // @remark We only refer to the memory, user must free its bytes.
-    SrsSample* nalus;
-    int nn_nalus;
+    std::vector<SrsSample*> nalus;
 public:
     SrsRtpSTAPPayload();
     virtual ~SrsRtpSTAPPayload();
