@@ -1719,7 +1719,8 @@ srs_error_t SrsRtcServer::cycle()
                     pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
                 }
             }
-            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 ", pps %d/%d", pos, max_sendmmsg, nn_msgs, pps_average, pps_last);
+            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 ", pps %d/%d, sessions %d/%d",
+                pos, max_sendmmsg, nn_msgs, pps_average, pps_last, (int)map_username_session.size(), (int)map_id_session.size());
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
         }
     }
