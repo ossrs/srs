@@ -1737,7 +1737,7 @@ srs_error_t SrsRtcServer::cycle()
             if (pps_last > 10000 || pps_average > 10000) {
                 pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
             } else if (pps_last > 1000 || pps_average > 1000) {
-                pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
+                pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
             }
 
             srs_trace("-> RTC #%d SEND %d, pps %d/%d%s, schedule %d/%d/%d, sessions %d by sendmmsg %d",
