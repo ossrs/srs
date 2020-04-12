@@ -240,7 +240,7 @@ private:
     srs_cond_t cond;
     bool waiting_msgs;
     // TODO: FIXME: Support multiple stfd.
-    srs_netfd_t mmstfd;
+    std::vector<srs_netfd_t> stfds;
     // Hotspot msgs, we are working on it.
     // @remark We will wait util all messages are ready.
     std::vector<mmsghdr> hotspot;
