@@ -1670,6 +1670,9 @@ srs_error_t SrsRtcServer::cycle()
 
     uint64_t nn_msgs = 0;
     uint64_t nn_msgs_last = 0;
+    uint64_t nn_msgs_max = 0;
+    uint64_t nn_loop = 0;
+    uint64_t nn_wait = 0;
     srs_utime_t time_last = srs_get_system_time();
     SrsStatistic* stat = SrsStatistic::instance();
 
@@ -1681,9 +1684,12 @@ srs_error_t SrsRtcServer::cycle()
             return err;
         }
 
+        nn_loop++;
+
         int pos = cache_pos;
         if (pos <= 0) {
             waiting_msgs = true;
+            nn_wait++;
             srs_cond_wait(cond);
             continue;
         }
@@ -1693,11 +1699,13 @@ srs_error_t SrsRtcServer::cycle()
         cache_pos = 0;
 
         mmsghdr* p = &hotspot[0];
-        for (mmsghdr* end = p + pos; p < end; p += max_sendmmsg) {
+        mmsghdr* end = p + pos;
+        srs_netfd_t stfd = mmstfd;
+        for (; p < end; p += max_sendmmsg) {
             int vlen = (int)(end - p);
             vlen = srs_min(max_sendmmsg, vlen);
 
-            int r0 = srs_sendmmsg(mmstfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
+            int r0 = srs_sendmmsg(stfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
             if (r0 != vlen) {
                 srs_warn("sendmsg %d msgs, %d done", vlen, r0);
             }
@@ -1707,6 +1715,7 @@ srs_error_t SrsRtcServer::cycle()
 
         // Increase total messages.
         nn_msgs += pos;
+        nn_msgs_max = srs_max(pos, nn_msgs_max);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -1719,9 +1728,11 @@ srs_error_t SrsRtcServer::cycle()
                     pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
                 }
             }
-            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 ", pps %d/%d, sessions %d/%d",
-                pos, max_sendmmsg, nn_msgs, pps_average, pps_last, (int)map_username_session.size(), (int)map_id_session.size());
+
+            srs_trace("-> RTC #%d SEND %d by sendmmsg %d, pps %d/%d, sessions %d, schedule %" PRId64 "/%" PRId64 "/%"PRId64,
+                srs_netfd_fileno(stfd), pos, max_sendmmsg, pps_average, pps_last, (int)map_username_session.size(), nn_loop, nn_wait, nn_msgs_max);
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
+            nn_loop = nn_wait = nn_msgs_max = 0;
         }
     }
 

@@ -114,6 +114,8 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_RTC_PLAY 12
 // for the rtc send
 #define SRS_CONSTS_STAGE_RTC_SEND 13
+// for the rtc recv
+#define SRS_CONSTS_STAGE_RTC_RECV 14
 
 SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
 {
@@ -178,6 +180,11 @@ SrsPithyPrint* SrsPithyPrint::create_rtc_play()
 SrsPithyPrint* SrsPithyPrint::create_rtc_send()
 {
     return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_SEND);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_rtc_recv()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_RECV);
 }
 
 SrsPithyPrint::~SrsPithyPrint()

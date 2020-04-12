@@ -89,6 +89,7 @@ public:
     static SrsPithyPrint* create_http_stream_cache();
     static SrsPithyPrint* create_rtc_play();
     static SrsPithyPrint* create_rtc_send();
+    static SrsPithyPrint* create_rtc_recv();
     virtual ~SrsPithyPrint();
 private:
     // Enter the specified stage, return the client id.

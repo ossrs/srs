@@ -431,11 +431,18 @@ void SrsUdpMuxListener::set_socket_buffer()
 srs_error_t SrsUdpMuxListener::cycle()
 {
     srs_error_t err = srs_success;
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_recv();
+    SrsAutoFree(SrsPithyPrint, pprint);
+
+    uint64_t nn_loop = 0;
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
-        }   
+        }
+
+        nn_loop++;
 
         SrsUdpMuxSocket skt(lfd);
 
@@ -452,8 +459,13 @@ srs_error_t SrsUdpMuxListener::cycle()
             // remux udp never return
             srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
-            continue;
-        }   
+        }
+
+        pprint->elapse();
+        if (pprint->can_print()) {
+            srs_trace("-> RTC #%d RECV schedule %" PRId64, srs_netfd_fileno(lfd), nn_loop);
+            nn_loop = 0;
+        }
     
         if (SrsUdpPacketRecvCycleInterval > 0) {
             srs_usleep(SrsUdpPacketRecvCycleInterval);
