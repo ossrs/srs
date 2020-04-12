@@ -1729,8 +1729,15 @@ srs_error_t SrsRtcServer::cycle()
                 }
             }
 
-            srs_trace("-> RTC #%d SEND %d by sendmmsg %d, pps %d/%d, sessions %d, schedule %" PRId64 "/%" PRId64 "/%"PRId64,
-                srs_netfd_fileno(stfd), pos, max_sendmmsg, pps_average, pps_last, (int)map_username_session.size(), nn_loop, nn_wait, nn_msgs_max);
+            string pps_unit = "";
+            if (pps_last > 10000 || pps_average > 10000) {
+                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
+            } else if (pps_last > 1000 || pps_average > 1000) {
+                pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
+            }
+
+            srs_trace("-> RTC #%d SEND %d, pps %d/%d%s, schedule %" PRId64 "/%" PRId64 "/%" PRId64 ", sessions %d by sendmmsg %d",
+                srs_netfd_fileno(stfd), pos, pps_average, pps_last, pps_unit.c_str(), nn_loop, nn_wait, nn_msgs_max, (int)map_username_session.size(), max_sendmmsg);
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = nn_wait = nn_msgs_max = 0;
         }

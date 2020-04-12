@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
@@ -435,7 +436,11 @@ srs_error_t SrsUdpMuxListener::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_recv();
     SrsAutoFree(SrsPithyPrint, pprint);
 
+    uint64_t nn_msgs = 0;
+    uint64_t nn_msgs_stage = 0;
+    uint64_t nn_msgs_last = 0;
     uint64_t nn_loop = 0;
+    srs_utime_t time_last = srs_get_system_time();
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -453,7 +458,10 @@ srs_error_t SrsUdpMuxListener::cycle()
             }
             // remux udp never return
             continue;
-        }   
+        }
+
+        nn_msgs++;
+        nn_msgs_stage++;
     
         if ((err = handler->on_udp_packet(&skt)) != srs_success) {
             // remux udp never return
@@ -463,8 +471,27 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
-            srs_trace("-> RTC #%d RECV schedule %" PRId64, srs_netfd_fileno(lfd), nn_loop);
-            nn_loop = 0;
+            int pps_average = 0; int pps_last = 0;
+            if (true) {
+                if (srs_get_system_time() > srs_get_system_startup_time()) {
+                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
+                }
+                if (srs_get_system_time() > time_last) {
+                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
+                }
+            }
+
+            string pps_unit = "";
+            if (pps_last > 10000 || pps_average > 10000) {
+                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
+            } else if (pps_last > 1000 || pps_average > 1000) {
+                pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
+            }
+
+            srs_trace("-> RTC #%d RECV %" PRId64 ", pps %d/%d%s, schedule %" PRId64,
+                srs_netfd_fileno(lfd), nn_msgs_stage, pps_average, pps_last, pps_unit.c_str(), nn_loop);
+            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
+            nn_loop = 0; nn_msgs_stage = 0;
         }
     
         if (SrsUdpPacketRecvCycleInterval > 0) {
