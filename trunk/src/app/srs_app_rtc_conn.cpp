@@ -1660,6 +1660,8 @@ srs_error_t SrsRtcServer::cycle()
     srs_error_t err = srs_success;
 
     uint64_t nn_msgs = 0;
+    uint64_t nn_msgs_last = 0;
+    srs_utime_t time_last = srs_get_system_time();
     SrsStatistic* stat = SrsStatistic::instance();
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
@@ -1699,7 +1701,17 @@ srs_error_t SrsRtcServer::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
-            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 " msgs", pos, max_sendmmsg, nn_msgs);
+            int pps_average = 0; int pps_last = 0;
+            if (true) {
+                if (srs_get_system_time() > srs_get_system_startup_time()) {
+                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
+                }
+                if (srs_get_system_time() > time_last) {
+                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
+                }
+            }
+            srs_trace("-> RTC SEND %d by sendmmsg %d, total %" PRId64 ", pps %d/%d", pos, max_sendmmsg, nn_msgs, pps_average, pps_last);
+            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
         }
     }
 

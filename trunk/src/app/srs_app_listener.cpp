@@ -442,6 +442,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         if ((err = handler->on_udp_packet(&skt)) != srs_success) {
             // remux udp never return
             srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
             continue;
         }   
     
