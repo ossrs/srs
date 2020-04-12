@@ -233,7 +233,7 @@ class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGl
     virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 private:
-    SrsUdpMuxListener* listener;
+    std::vector<SrsUdpMuxListener*> listeners;
     SrsHourGlass* timer;
 private:
     SrsCoroutine* trd;

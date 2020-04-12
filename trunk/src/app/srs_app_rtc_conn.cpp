@@ -1332,7 +1332,6 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* skt)
 
 SrsRtcServer::SrsRtcServer()
 {
-    listener = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 
     mmstfd = NULL;
@@ -1349,7 +1348,12 @@ SrsRtcServer::~SrsRtcServer()
 {
     _srs_config->unsubscribe(this);
 
-    srs_freep(listener);
+    vector<SrsUdpMuxListener*>::iterator it;
+    for (it = listeners.begin(); it != listeners.end(); ++it) {
+        SrsUdpMuxListener* listener = *it;
+        srs_freep(listener);
+    }
+
     srs_freep(timer);
 
     srs_freep(trd);
@@ -1400,15 +1404,20 @@ srs_error_t SrsRtcServer::listen_udp()
     }
 
     string ip = srs_any_address_for_listener();
+    srs_assert(listeners.empty());
 
-    srs_freep(listener);
-    listener = new SrsUdpMuxListener(this, ip, port);
+    int nn_listeners = _srs_config->get_rtc_server_reuseport();
+    for (int i = 0; i < nn_listeners; i++) {
+        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
 
-    if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+        if ((err = listener->listen()) != srs_success) {
+            srs_freep(listener);
+            return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+        }
+
+        srs_trace("rtc listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
+        listeners.push_back(listener);
     }
-
-    srs_trace("rtc listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
 
     return err;
 }

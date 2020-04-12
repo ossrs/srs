@@ -391,6 +391,7 @@ srs_error_t SrsUdpMuxListener::listen()
 void SrsUdpMuxListener::set_socket_buffer()
 {
     int default_sndbuf = 0;
+    // TODO: FIXME: Config it.
     int expect_sndbuf = 1024*1024*10; // 10M
     int actual_sndbuf = expect_sndbuf;
     int r0_sndbuf = 0;
@@ -407,6 +408,7 @@ void SrsUdpMuxListener::set_socket_buffer()
     }
 
     int default_rcvbuf = 0;
+    // TODO: FIXME: Config it.
     int expect_rcvbuf = 1024*1024*10; // 10M
     int actual_rcvbuf = expect_rcvbuf;
     int r0_rcvbuf = 0;
