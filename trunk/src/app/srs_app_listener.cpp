@@ -390,33 +390,40 @@ srs_error_t SrsUdpMuxListener::listen()
 
 void SrsUdpMuxListener::set_socket_buffer()
 {
-    int sndbuf_size = 0;
-    socklen_t opt_len = sizeof(sndbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
-    srs_trace("default udp remux socket sndbuf=%d", sndbuf_size);
+    int default_sndbuf = 0;
+    int expect_sndbuf = 1024*1024*10; // 10M
+    int actual_sndbuf = expect_sndbuf;
+    int r0_sndbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&default_sndbuf, &opt_len);
 
-    sndbuf_size = 1024*1024*10; // 10M
-    if (setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, sizeof(sndbuf_size)) < 0) {
-        srs_warn("set sock opt SO_SNDBUFFORCE failed");
+        if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
+            srs_warn("set SO_SNDBUF failed, expect=%d, r0=%d", expect_sndbuf, r0_sndbuf);
+        }
+
+        opt_len = sizeof(actual_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, &opt_len);
     }
 
-    opt_len = sizeof(sndbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
-    srs_trace("udp remux socket sndbuf=%d", sndbuf_size);
+    int default_rcvbuf = 0;
+    int expect_rcvbuf = 1024*1024*10; // 10M
+    int actual_rcvbuf = expect_rcvbuf;
+    int r0_rcvbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&default_rcvbuf, &opt_len);
 
-    int rcvbuf_size = 0;
-    opt_len = sizeof(rcvbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
-    srs_trace("default udp remux socket rcvbuf=%d", rcvbuf_size);
+        if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
+            srs_warn("set SO_RCVBUF failed, expect=%d, r0=%d", expect_rcvbuf, r0_rcvbuf);
+        }
 
-    rcvbuf_size = 1024*1024*10; // 10M
-    if (setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, sizeof(rcvbuf_size)) < 0) {
-        srs_warn("set sock opt SO_RCVBUFFORCE failed");
+        opt_len = sizeof(actual_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, &opt_len);
     }
 
-    opt_len = sizeof(rcvbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
-    srs_trace("udp remux socket rcvbuf=%d", rcvbuf_size);
+    srs_trace("UDP #%d LISTEN at %s:%d, SO_SNDBUF(default=%d, expect=%d, actual=%d, r0=%d), SO_RCVBUF(default=%d, expect=%d, actual=%d, r0=%d)",
+        srs_netfd_fileno(lfd), ip.c_str(), port, default_sndbuf, expect_sndbuf, actual_sndbuf, r0_sndbuf, default_rcvbuf, expect_rcvbuf, actual_rcvbuf, r0_rcvbuf);
 }
 
 srs_error_t SrsUdpMuxListener::cycle()
