@@ -74,6 +74,7 @@ public:
     int64_t get_timestamp() const { return timestamp; }
     void set_ssrc(uint32_t ssrc);
     uint32_t get_ssrc() const { return ssrc; }
+    void set_padding(bool v) { padding = v; }
 };
 
 class SrsRtpPacket2
@@ -81,10 +82,16 @@ class SrsRtpPacket2
 public:
     SrsRtpHeader rtp_header;
     ISrsEncoder* payload;
+    int padding;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
+    // Append size of bytes as padding.
+    virtual void set_padding(int size);
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 

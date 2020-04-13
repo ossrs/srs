@@ -157,11 +157,23 @@ void SrsRtpHeader::set_ssrc(uint32_t ssrc)
 SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
+    padding = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
     srs_freep(payload);
+}
+
+void SrsRtpPacket2::set_padding(int size)
+{
+    rtp_header.set_padding(size > 0);
+    padding = size;
+}
+
+int SrsRtpPacket2::nb_bytes()
+{
+    return rtp_header.header_size() + (payload? payload->nb_bytes():0) + padding;
 }
 
 srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
@@ -174,6 +186,14 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
 
     if (payload && (err = payload->encode(buf)) != srs_success) {
         return srs_error_wrap(err, "encode payload");
+    }
+
+    if (padding) {
+        if (!buf->require(padding)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
+        }
+        memset(buf->data(), padding, padding);
+        buf->skip(padding);
     }
 
     return err;
