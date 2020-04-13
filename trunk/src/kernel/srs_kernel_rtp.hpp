@@ -95,6 +95,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 
+// Single payload data.
 class SrsRtpRawPayload : public ISrsEncoder
 {
 public:
@@ -110,6 +111,28 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 
+// Multiple NALUs, automatically insert 001 between NALUs.
+class SrsRtpRawNALUs : public ISrsEncoder
+{
+private:
+    std::vector<SrsSample*> nalus;
+    int nn_bytes;
+    int cursor;
+public:
+    SrsRtpRawNALUs();
+    virtual ~SrsRtpRawNALUs();
+public:
+    void push_back(SrsSample* sample);
+public:
+    uint8_t skip_first_byte();
+    srs_error_t read_samples(std::vector<SrsSample*>& samples, int size);
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
+// STAP-A, for multiple NALUs.
 class SrsRtpSTAPPayload : public ISrsEncoder
 {
 public:
@@ -127,6 +150,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 
+// FU-A, for one NALU with multiple fragments.
 class SrsRtpFUAPayload : public ISrsEncoder
 {
 public:

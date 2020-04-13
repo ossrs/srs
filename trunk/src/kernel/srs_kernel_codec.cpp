@@ -409,6 +409,14 @@ srs_error_t SrsSample::parse_bframe()
     return err;
 }
 
+SrsSample* SrsSample::copy()
+{
+    SrsSample* p = new SrsSample();
+    p->bytes = bytes;
+    p->size = size;
+    return p;
+}
+
 SrsCodecConfig::SrsCodecConfig()
 {
 }

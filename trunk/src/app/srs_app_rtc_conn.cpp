@@ -727,7 +727,7 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
         }
 
         // By default, we package each NALU(sample) to a RTP or FUA packet.
-        for (int i = 0; i < msg->nn_samples(); i++) {
+        for (int i = 0; i < nn_samples; i++) {
             SrsSample* sample = msg->samples() + i;
 
             // We always ignore bframe here, if config to discard bframe,
@@ -810,6 +810,81 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets
 srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
+
+    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
+
+    for (int i = 0; i < msg->nn_samples(); i++) {
+        SrsSample* sample = msg->samples() + i;
+
+        // We always ignore bframe here, if config to discard bframe,
+        // the bframe flag will not be set.
+        if (sample->bframe) {
+            continue;
+        }
+
+        raw->push_back(sample->copy());
+    }
+
+    // Ignore empty.
+    int nn_bytes = raw->nb_bytes();
+    if (nn_bytes <= 0) {
+        srs_freep(raw);
+        return err;
+    }
+
+    const int kRtpMaxPayloadSize = 1200;
+    if (nn_bytes < kRtpMaxPayloadSize) {
+        // Package NALUs in a single RTP packet.
+        SrsRtpPacket2* packet = new SrsRtpPacket2();
+        packet->rtp_header.set_timestamp(msg->timestamp * 90);
+        packet->rtp_header.set_sequence(video_sequence++);
+        packet->rtp_header.set_ssrc(video_ssrc);
+        packet->rtp_header.set_payload_type(video_payload_type);
+        packet->payload = raw;
+        packets.packets.push_back(packet);
+    } else {
+        SrsAutoFree(SrsRtpRawNALUs, raw);
+
+        // Package NALUs in FU-A RTP packets.
+        int fu_payload_size = kRtpMaxPayloadSize;
+
+        // The first byte is store in FU-A header.
+        uint8_t header = raw->skip_first_byte();
+        uint8_t nal_type = header & kNalTypeMask;
+        int nb_left = nn_bytes - 1;
+
+        int num_of_packet = 1 + (nn_bytes - 1) / fu_payload_size;
+        for (int i = 0; i < num_of_packet; ++i) {
+            int packet_size = srs_min(nb_left, fu_payload_size);
+
+            SrsRtpPacket2* packet = new SrsRtpPacket2();
+            packets.packets.push_back(packet);
+
+            packet->rtp_header.set_timestamp(msg->timestamp * 90);
+            packet->rtp_header.set_sequence(video_sequence++);
+            packet->rtp_header.set_ssrc(video_ssrc);
+            packet->rtp_header.set_payload_type(video_payload_type);
+
+            SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
+            packet->payload = fua;
+
+            fua->nri = (SrsAvcNaluType)header;
+            fua->nalu_type = (SrsAvcNaluType)nal_type;
+            fua->start = bool(i == 0);
+            fua->end = bool(i == num_of_packet - 1);
+
+            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
+                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
+            }
+
+            nb_left -= packet_size;
+        }
+    }
+
+    if (!packets.packets.empty()) {
+        packets.packets.back()->rtp_header.set_marker(true);
+    }
+
     return err;
 }
 
@@ -866,10 +941,10 @@ srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample*
         fua->start = bool(i == 0);
         fua->end = bool(i == num_of_packet - 1);
 
-        SrsSample* sample = new SrsSample();
-        sample->bytes = p;
-        sample->size = packet_size;
-        fua->nalus.push_back(sample);
+        SrsSample* fragment_sample = new SrsSample();
+        fragment_sample->bytes = p;
+        fragment_sample->size = packet_size;
+        fua->nalus.push_back(fragment_sample);
 
         p += packet_size;
         nb_left -= packet_size;
@@ -889,11 +964,13 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, Srs
     packet->rtp_header.set_ssrc(video_ssrc);
     packet->rtp_header.set_payload_type(video_payload_type);
 
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
     packet->payload = raw;
 
-    raw->payload = sample->bytes;
-    raw->nn_payload = sample->size;
+    SrsSample* p = new SrsSample();
+    p->bytes = sample->bytes;
+    p->size = sample->size;
+    raw->push_back(p);
 
     *ppacket = packet;
 

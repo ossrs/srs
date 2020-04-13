@@ -4774,7 +4774,7 @@ int SrsConfig::get_rtc_server_reuseport()
 
 bool SrsConfig::get_rtc_server_merge_nalus()
 {
-    static int DEFAULT = false;
+    static int DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4786,7 +4786,7 @@ bool SrsConfig::get_rtc_server_merge_nalus()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_server_gso()
