@@ -31,6 +31,24 @@
 
 class SrsBuffer;
 
+// Encoder.
+class ISrsEncoder
+{
+public:
+    ISrsEncoder();
+    virtual ~ISrsEncoder();
+public:
+    /**
+     * get the number of bytes to code to.
+     */
+    // TODO: FIXME: change to uint64_t.
+    virtual int nb_bytes() = 0;
+    /**
+     * encode object to bytes in SrsBuffer.
+     */
+    virtual srs_error_t encode(SrsBuffer* buf) = 0;
+};
+
 /**
  * the srs codec, to code and decode object with bytes:
  *      code: to encode/serialize object to bytes in buffer,
@@ -56,21 +74,11 @@ class SrsBuffer;
  * @remark protocol or amf0 or json should implements this interface.
  */
 // TODO: FIXME: protocol, amf0, json should implements it.
-class ISrsCodec
+class ISrsCodec : public ISrsEncoder
 {
 public:
     ISrsCodec();
     virtual ~ISrsCodec();
-public:
-    /**
-     * get the number of bytes to code to.
-     */
-    // TODO: FIXME: change to uint64_t.
-    virtual int nb_bytes() = 0;
-    /**
-     * encode object to bytes in SrsBuffer.
-     */
-    virtual srs_error_t encode(SrsBuffer* buf) = 0;
 public:
     /**
      * decode object from bytes in SrsBuffer.

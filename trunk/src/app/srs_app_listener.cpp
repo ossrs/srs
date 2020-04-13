@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
@@ -235,12 +236,21 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
-SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
+ISrsUdpSender::ISrsUdpSender()
+{
+}
+
+ISrsUdpSender::~ISrsUdpSender()
+{
+}
+
+SrsUdpMuxSocket::SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd)
 {
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     nread = 0;
 
+    handler = h;
     lfd = fd;
 
     fromlen = 0;
@@ -253,7 +263,7 @@ SrsUdpMuxSocket::~SrsUdpMuxSocket()
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
 {
-    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(lfd);
+    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(handler, lfd);
 
     // Don't copy buffer
     srs_freepa(sendonly->buf);
@@ -339,16 +349,18 @@ std::string SrsUdpMuxSocket::get_peer_id()
     return string(id_buf, len);
 }
 
-SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
+SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p)
 {
     handler = h;
+    sender = s;
+
     ip = i;
     port = p;
     lfd = NULL;
     
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
-    
+
     trd = new SrsDummyCoroutine();
 }
 
@@ -390,60 +402,108 @@ srs_error_t SrsUdpMuxListener::listen()
 
 void SrsUdpMuxListener::set_socket_buffer()
 {
-    int sndbuf_size = 0;
-    socklen_t opt_len = sizeof(sndbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
-    srs_trace("default udp remux socket sndbuf=%d", sndbuf_size);
+    int default_sndbuf = 0;
+    // TODO: FIXME: Config it.
+    int expect_sndbuf = 1024*1024*10; // 10M
+    int actual_sndbuf = expect_sndbuf;
+    int r0_sndbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&default_sndbuf, &opt_len);
 
-    sndbuf_size = 1024*1024*10; // 10M
-    if (setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, sizeof(sndbuf_size)) < 0) {
-        srs_warn("set sock opt SO_SNDBUFFORCE failed");
+        if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
+            srs_warn("set SO_SNDBUF failed, expect=%d, r0=%d", expect_sndbuf, r0_sndbuf);
+        }
+
+        opt_len = sizeof(actual_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, &opt_len);
     }
 
-    opt_len = sizeof(sndbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&sndbuf_size, &opt_len);
-    srs_trace("udp remux socket sndbuf=%d", sndbuf_size);
+    int default_rcvbuf = 0;
+    // TODO: FIXME: Config it.
+    int expect_rcvbuf = 1024*1024*10; // 10M
+    int actual_rcvbuf = expect_rcvbuf;
+    int r0_rcvbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&default_rcvbuf, &opt_len);
 
-    int rcvbuf_size = 0;
-    opt_len = sizeof(rcvbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
-    srs_trace("default udp remux socket rcvbuf=%d", rcvbuf_size);
+        if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
+            srs_warn("set SO_RCVBUF failed, expect=%d, r0=%d", expect_rcvbuf, r0_rcvbuf);
+        }
 
-    rcvbuf_size = 1024*1024*10; // 10M
-    if (setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, sizeof(rcvbuf_size)) < 0) {
-        srs_warn("set sock opt SO_RCVBUFFORCE failed");
+        opt_len = sizeof(actual_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, &opt_len);
     }
 
-    opt_len = sizeof(rcvbuf_size);
-    getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&rcvbuf_size, &opt_len);
-    srs_trace("udp remux socket rcvbuf=%d", rcvbuf_size);
+    srs_trace("UDP #%d LISTEN at %s:%d, SO_SNDBUF(default=%d, expect=%d, actual=%d, r0=%d), SO_RCVBUF(default=%d, expect=%d, actual=%d, r0=%d)",
+        srs_netfd_fileno(lfd), ip.c_str(), port, default_sndbuf, expect_sndbuf, actual_sndbuf, r0_sndbuf, default_rcvbuf, expect_rcvbuf, actual_rcvbuf, r0_rcvbuf);
 }
 
 srs_error_t SrsUdpMuxListener::cycle()
 {
     srs_error_t err = srs_success;
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_recv(srs_netfd_fileno(lfd));
+    SrsAutoFree(SrsPithyPrint, pprint);
+
+    uint64_t nn_msgs = 0;
+    uint64_t nn_msgs_stage = 0;
+    uint64_t nn_msgs_last = 0;
+    uint64_t nn_loop = 0;
+    srs_utime_t time_last = srs_get_system_time();
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
-        }   
+        }
 
-        SrsUdpMuxSocket udp_mux_skt(lfd);
+        nn_loop++;
 
-        int nread = udp_mux_skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
+        SrsUdpMuxSocket skt(sender, lfd);
+
+        int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
             if (nread < 0) {
                 srs_warn("udp recv error");
             }
             // remux udp never return
             continue;
-        }   
+        }
+
+        nn_msgs++;
+        nn_msgs_stage++;
     
-        if ((err = handler->on_udp_packet(&udp_mux_skt)) != srs_success) {
+        if ((err = handler->on_udp_packet(&skt)) != srs_success) {
             // remux udp never return
             srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
-            continue;
-        }   
+            srs_error_reset(err);
+        }
+
+        pprint->elapse();
+        if (pprint->can_print()) {
+            int pps_average = 0; int pps_last = 0;
+            if (true) {
+                if (srs_get_system_time() > srs_get_system_startup_time()) {
+                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
+                }
+                if (srs_get_system_time() > time_last) {
+                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
+                }
+            }
+
+            string pps_unit = "";
+            if (pps_last > 10000 || pps_average > 10000) {
+                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
+            } else if (pps_last > 1000 || pps_average > 1000) {
+                pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
+            }
+
+            srs_trace("<- RTC #%d RECV %" PRId64 ", pps %d/%d%s, schedule %" PRId64,
+                srs_netfd_fileno(lfd), nn_msgs_stage, pps_average, pps_last, pps_unit.c_str(), nn_loop);
+            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
+            nn_loop = 0; nn_msgs_stage = 0;
+        }
     
         if (SrsUdpPacketRecvCycleInterval > 0) {
             srs_usleep(SrsUdpPacketRecvCycleInterval);

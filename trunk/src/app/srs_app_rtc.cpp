@@ -54,16 +54,12 @@ using namespace std;
 #include <srs_app_audio_recode.hpp>
 
 // TODO: Add this function into SrsRtpMux class.
-srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, SrsBuffer** stream_ptr)
+srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)
 {
     srs_error_t err = srs_success;
 
     if (format->is_aac_sequence_header()) {
         return err;
-    }
-
-    if (stream_ptr == NULL) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
     }
 
     if (format->audio->nb_samples != 1) {
@@ -72,27 +68,27 @@ srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFor
 
     int nb_buf = format->audio->samples[0].size + 7;
     char* buf = new char[nb_buf];
-    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsBuffer stream(buf, nb_buf);
 
     // TODO: Add comment.
-    stream->write_1bytes(0xFF);
-    stream->write_1bytes(0xF9);
-    stream->write_1bytes(((format->acodec->aac_object - 1) << 6) | ((format->acodec->aac_sample_rate & 0x0F) << 2) | ((format->acodec->aac_channels & 0x04) >> 2));
-    stream->write_1bytes(((format->acodec->aac_channels & 0x03) << 6) | ((nb_buf >> 11) & 0x03));
-    stream->write_1bytes((nb_buf >> 3) & 0xFF);
-    stream->write_1bytes(((nb_buf & 0x07) << 5) | 0x1F);
-    stream->write_1bytes(0xFC);
+    stream.write_1bytes(0xFF);
+    stream.write_1bytes(0xF9);
+    stream.write_1bytes(((format->acodec->aac_object - 1) << 6) | ((format->acodec->aac_sample_rate & 0x0F) << 2) | ((format->acodec->aac_channels & 0x04) >> 2));
+    stream.write_1bytes(((format->acodec->aac_channels & 0x03) << 6) | ((nb_buf >> 11) & 0x03));
+    stream.write_1bytes((nb_buf >> 3) & 0xFF);
+    stream.write_1bytes(((nb_buf & 0x07) << 5) | 0x1F);
+    stream.write_1bytes(0xFC);
 
-    stream->write_bytes(format->audio->samples[0].bytes, format->audio->samples[0].size);
+    stream.write_bytes(format->audio->samples[0].bytes, format->audio->samples[0].size);
 
-    *stream_ptr = stream;
+    *pbuf = buf;
+    *pnn_buf = nb_buf;
 
     return err;
 }
 
 SrsRtpH264Muxer::SrsRtpH264Muxer()
 {
-    sequence = 0;
     discard_bframe = false;
 }
 
@@ -100,269 +96,114 @@ SrsRtpH264Muxer::~SrsRtpH264Muxer()
 {
 }
 
-srs_error_t SrsRtpH264Muxer::frame_to_packet(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
+srs_error_t SrsRtpH264Muxer::filter(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
 {
     srs_error_t err = srs_success;
 
-    if (format->is_avc_sequence_header()) {
-        sps.assign(format->vcodec->sequenceParameterSetNALUnit.data(), format->vcodec->sequenceParameterSetNALUnit.size());
-        pps.assign(format->vcodec->pictureParameterSetNALUnit.data(), format->vcodec->pictureParameterSetNALUnit.size());
-        // only collect SPS/PPS.
+    // If IDR, we will insert SPS/PPS before IDR frame.
+    if (format->video && format->video->has_idr) {
+        shared_frame->set_has_idr(true);
+    }
+
+    // Update samples to shared frame.
+    for (int i = 0; i < format->video->nb_samples; ++i) {
+        SrsSample* sample = &format->video->samples[i];
+
+        // Because RTC does not support B-frame, so we will drop them.
+        // TODO: Drop B-frame in better way, which not cause picture corruption.
+        if (discard_bframe) {
+            if ((err = sample->parse_bframe()) != srs_success) {
+                return srs_error_wrap(err, "parse bframe");
+            }
+            if (sample->bframe) {
+                continue;
+            }
+        }
+    }
+
+    if (format->video->nb_samples <= 0) {
         return err;
     }
 
-    vector<SrsRtpSharedPacket*> rtp_packet_vec;
-
-    for (int i = 0; i < format->video->nb_samples; ++i) {
-        SrsSample sample = format->video->samples[i];
-
-        uint8_t header = sample.bytes[0];
-        uint8_t nal_type = header & kNalTypeMask;
-
-        // TODO: Use config to determine should check avc stream.
-        if (nal_type == SrsAvcNaluTypeNonIDR || nal_type == SrsAvcNaluTypeDataPartitionA || nal_type == SrsAvcNaluTypeIDR) {
-            SrsBuffer* stream = new SrsBuffer(sample.bytes, sample.size);
-            SrsAutoFree(SrsBuffer, stream);
-
-            // Skip nalu header.
-            stream->skip(1);
-
-            SrsBitBuffer bitstream(stream);
-            int32_t first_mb_in_slice = 0;
-            if ((err = srs_avc_nalu_read_uev(&bitstream, first_mb_in_slice)) != srs_success) {
-                return srs_error_wrap(err, "nalu read uev");
-            }
-
-            int32_t slice_type = 0;
-            if ((err = srs_avc_nalu_read_uev(&bitstream, slice_type)) != srs_success) {
-                return srs_error_wrap(err, "nalu read uev");
-            }
-
-            srs_verbose("nal_type=%d, slice type=%d", nal_type, slice_type);
-            if (slice_type == SrsAvcSliceTypeB || slice_type == SrsAvcSliceTypeB1) {
-                if (discard_bframe) {
-                    continue;
-                }
-            }
-        }
-
-        if (sample.size <= kRtpMaxPayloadSize) {
-            if ((err = packet_single_nalu(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
-                return srs_error_wrap(err, "packet single nalu");
-            }
-        } else {
-            if ((err = packet_fu_a(shared_frame, format, &sample, rtp_packet_vec)) != srs_success) {
-                return srs_error_wrap(err, "packet fu-a");
-            }
-        }
-    }
-
-    if (! rtp_packet_vec.empty()) {
-        // At the end of the frame, set marker bit.
-        // One frame may have multi nals. Set the marker bit in the last nal end, no the end of the nal.
-        if ((err = rtp_packet_vec.back()->modify_rtp_header_marker(true)) != srs_success) {
-            return srs_error_wrap(err, "set marker");
-        }
-    }
-
-    shared_frame->set_rtp_packets(rtp_packet_vec);
-
-    return err;
-}
-
-srs_error_t SrsRtpH264Muxer::packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
-{
-    srs_error_t err = srs_success;
-
-    char* p = sample->bytes + 1;
-    int nb_left = sample->size - 1;
-    uint8_t header = sample->bytes[0];
-    uint8_t nal_type = header & kNalTypeMask;
-
-    if (nal_type == SrsAvcNaluTypeIDR) {
-        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
-            return srs_error_wrap(err, "packet stap-a");
-        }
-    }
-
-    int num_of_packet = (sample->size - 1 + kRtpMaxPayloadSize) / kRtpMaxPayloadSize;
-    for (int i = 0; i < num_of_packet; ++i) {
-        char buf[kRtpPacketSize];
-        SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
-        SrsAutoFree(SrsBuffer, stream);
-
-        int packet_size = min(nb_left, kRtpMaxPayloadSize);
-
-        // fu-indicate
-        uint8_t fu_indicate = kFuA;
-        fu_indicate |= (header & (~kNalTypeMask));
-        stream->write_1bytes(fu_indicate);
-
-        uint8_t fu_header = nal_type;
-        if (i == 0)
-            fu_header |= kStart;
-        if (i == num_of_packet - 1)
-            fu_header |= kEnd;
-        stream->write_1bytes(fu_header);
-
-        stream->write_bytes(p, packet_size);
-        p += packet_size;
-        nb_left -= packet_size;
-
-        srs_verbose("rtp fu-a nalu, size=%u, seq=%u, timestamp=%lu", sample->size, sequence, (shared_frame->timestamp * 90));
-
-        SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
-        if ((err = rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos())) != srs_success) {
-            return srs_error_wrap(err, "rtp packet encode");
-        }
-
-        rtp_packet_vec.push_back(rtp_shared_pkt);
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtpH264Muxer::packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
-{
-    srs_error_t err = srs_success;
-
-    uint8_t header = sample->bytes[0];
-    uint8_t nal_type = header & kNalTypeMask;
-
-
-    if (nal_type == SrsAvcNaluTypeIDR) {
-        if ((err = packet_stap_a(sps, pps, shared_frame, rtp_packet_vec)) != srs_success) {
-            return srs_error_wrap(err, "packet stap-a");
-        }
-    }
-
-    srs_verbose("rtp single nalu, size=%u, seq=%u, timestamp=%lu", sample->size, sequence, (shared_frame->timestamp * 90));
-
-    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
-    if ((err = rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, sample->bytes, sample->size)) != srs_success) {
-        return srs_error_wrap(err, "rtp packet encode");
-    }
-
-    rtp_packet_vec.push_back(rtp_shared_pkt);
-
-    return err;
-}
-
-srs_error_t SrsRtpH264Muxer::packet_stap_a(const string &sps, const string& pps, SrsSharedPtrMessage* shared_frame, vector<SrsRtpSharedPacket*>& rtp_packet_vec)
-{
-    srs_error_t err = srs_success;
-
-    if (sps.empty() || pps.empty()) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
-    }
-
-    uint8_t header = sps[0];
-    uint8_t nal_type = header & kNalTypeMask;
-
-    char buf[kRtpPacketSize];
-    SrsBuffer* stream = new SrsBuffer(buf, kRtpPacketSize);
-    SrsAutoFree(SrsBuffer, stream);
-
-    // stap-a header
-    uint8_t stap_a_header = kStapA;
-    stap_a_header |= (nal_type & (~kNalTypeMask));
-    stream->write_1bytes(stap_a_header);
-
-    stream->write_2bytes(sps.size());
-    stream->write_bytes((char*)sps.data(), sps.size());
-
-    stream->write_2bytes(pps.size());
-    stream->write_bytes((char*)pps.data(), pps.size());
-
-    srs_verbose("rtp stap-a nalu, size=%u, seq=%u, timestamp=%lu", (sps.size() + pps.size()), sequence, (shared_frame->timestamp * 90));
-
-    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
-    if ((err = rtp_shared_pkt->create((shared_frame->timestamp * 90), sequence++, kVideoSSRC, kH264PayloadType, stream->data(), stream->pos())) != srs_success) {
-        return srs_error_wrap(err, "rtp packet encode");
-    }
-
-    rtp_packet_vec.push_back(rtp_shared_pkt);
+    shared_frame->set_samples(format->video->samples, format->video->nb_samples);
 
     return err;
 }
 
 SrsRtpOpusMuxer::SrsRtpOpusMuxer()
 {
-    sequence = 0;
-    timestamp = 0;
-    transcode = NULL;
+    codec = NULL;
 }
 
 SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
 {
-    if (transcode) {
-        delete transcode;
-        transcode = NULL;
-    }
+    srs_freep(codec);
 }
 
 srs_error_t SrsRtpOpusMuxer::initialize()
 {
     srs_error_t err = srs_success;
 
-    transcode = new SrsAudioRecode(kChannel, kSamplerate);
-    if (!transcode) {
+    codec = new SrsAudioRecode(kChannel, kSamplerate);
+    if (!codec) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAacOpus init failed");
     }
-    transcode->initialize();
+
+    if ((err = codec->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init codec");
+    }
 
     return err;
 }
 
-srs_error_t SrsRtpOpusMuxer::frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, SrsBuffer* stream)
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
+srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
 {
     srs_error_t err = srs_success;
 
-    vector<SrsRtpSharedPacket*> rtp_packet_vec;
+    // Opus packet cache.
+    static char* opus_payloads[kMaxOpusPackets];
 
-    char* data_ptr[kArrayLength];
-    static char data_array[kArrayLength][kArrayBuffer];
-    int elen[kArrayLength], number = 0;
+    static bool initialized = false;
+    if (!initialized) {
+        initialized = true;
 
-    data_ptr[0] = &data_array[0][0];
-    for (int i = 1; i < kArrayLength; i++) {
-       data_ptr[i] = data_array[i];
+        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
+        opus_payloads[0] = &opus_packets_cache[0][0];
+        for (int i = 1; i < kMaxOpusPackets; i++) {
+           opus_payloads[i] = opus_packets_cache[i];
+        }
     }
 
-    SrsSample pkt;
-    pkt.bytes = stream->data();
-    pkt.size = stream->pos();
+    // Transcode an aac packet to many opus packets.
+    SrsSample aac;
+    aac.bytes = adts_audio;
+    aac.size = nn_adts_audio;
 
-    if ((err = transcode->recode(&pkt, data_ptr, elen, number)) != srs_success) {
+    int nn_opus_packets = 0;
+    int opus_sizes[kMaxOpusPackets];
+    if ((err = codec->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
-    for (int i = 0; i < number; i++) {
-        SrsSample sample;
-        sample.size = elen[i];
-        sample.bytes = data_ptr[i];
-        packet_opus(shared_audio, &sample, rtp_packet_vec);
+    // Save OPUS packets in shared message.
+    if (nn_opus_packets <= 0) {
+        return err;
     }
 
-    shared_audio->set_rtp_packets(rtp_packet_vec);
-
-    return err;
-}
-
-srs_error_t SrsRtpOpusMuxer::packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
-    rtp_shared_pkt->rtp_header.set_marker(true);
-    if ((err = rtp_shared_pkt->create(timestamp, sequence++, kAudioSSRC, kOpusPayloadType, sample->bytes, sample->size)) != srs_success) {
-        return srs_error_wrap(err, "rtp packet encode");
+    SrsSample samples[nn_opus_packets];
+    for (int i = 0; i < nn_opus_packets; i++) {
+        SrsSample* p = samples + i;
+        p->size = opus_sizes[i];
+        p->bytes = new char[p->size];
+        memcpy(p->bytes, opus_payloads[i], p->size);
     }
 
-    // TODO: FIXME: Why 960? Need Refactoring?
-    timestamp += 960;
-
-    rtp_packet_vec.push_back(rtp_shared_pkt);
+    shared_audio->set_extra_payloads(samples, nn_opus_packets);
 
     return err;
 }
@@ -485,17 +326,16 @@ srs_error_t SrsRtc::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // ignore sequence header
     srs_assert(format->audio);
 
-    SrsBuffer* stream = NULL;
-    SrsAutoFree(SrsBuffer, stream);
-    if ((err = aac_raw_append_adts_header(shared_audio, format, &stream)) != srs_success) {
+    char* adts_audio = NULL;
+    int nn_adts_audio = 0;
+    // TODO: FIXME: Reserve 7 bytes header when create shared message.
+    if ((err = aac_raw_append_adts_header(shared_audio, format, &adts_audio, &nn_adts_audio)) != srs_success) {
         return srs_error_wrap(err, "aac append header");
     }
 
-    if (stream) {
-        char* stream_data = stream->data();
-        SrsAutoFreeA(char, stream_data);
-
-        return rtp_opus_muxer->frame_to_packet(shared_audio, format, stream);
+    if (adts_audio) {
+        err = rtp_opus_muxer->transcode(shared_audio, adts_audio, nn_adts_audio);
+        srs_freep(adts_audio);
     }
 
     return err;
@@ -522,5 +362,5 @@ srs_error_t SrsRtc::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video);
-    return rtp_h264_muxer->frame_to_packet(shared_video, format);
+    return rtp_h264_muxer->filter(shared_video, format);
 }

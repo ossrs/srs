@@ -532,11 +532,16 @@ class SrsSample
 public:
     // The size of unit.
     int size;
-    // The ptr of unit, user must manage it.
+    // The ptr of unit, user must free it.
     char* bytes;
+    // Whether is B frame.
+    bool bframe;
 public:
     SrsSample();
-    virtual ~SrsSample();
+    ~SrsSample();
+public:
+    // If we need to know whether sample is bframe, we have to parse the NALU payload.
+    srs_error_t parse_bframe();
 };
 
 /**
@@ -703,6 +708,8 @@ public:
     SrsVideoFrame();
     virtual ~SrsVideoFrame();
 public:
+    // Initialize the frame, to parse sampels.
+    virtual srs_error_t initialize(SrsCodecConfig* c);
     // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
     virtual srs_error_t add_sample(char* bytes, int size);
 public:

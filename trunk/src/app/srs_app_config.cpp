@@ -1540,6 +1540,11 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     if ((err = reload_http_stream(old_root)) != srs_success) {
         return srs_error_wrap(err, "http steram");;
     }
+
+    // Merge config: rtc_server
+    if ((err = reload_rtc_server(old_root)) != srs_success) {
+        return srs_error_wrap(err, "http steram");;
+    }
     
     // TODO: FIXME: support reload stream_caster.
     
@@ -1694,6 +1699,40 @@ srs_error_t SrsConfig::reload_http_stream(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http stream success, nothing changed.");
+    return err;
+}
+
+srs_error_t SrsConfig::reload_rtc_server(SrsConfDirective* old_root)
+{
+    srs_error_t err = srs_success;
+
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+
+    // state graph
+    //      old_rtc_server     new_rtc_server
+    //      ENABLED     =>      ENABLED (modified)
+
+    SrsConfDirective* new_rtc_server = root->get("rtc_server");
+    SrsConfDirective* old_rtc_server = old_root->get("rtc_server");
+
+    // TODO: FIXME: Support disable or enable reloading.
+
+    //      ENABLED     =>  ENABLED (modified)
+    if (get_rtc_server_enabled(old_rtc_server) && get_rtc_server_enabled(new_rtc_server)
+        && !srs_directive_equals(old_rtc_server, new_rtc_server)
+        ) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((err = subscribe->on_reload_rtc_server()) != srs_success) {
+                return srs_error_wrap(err, "rtc server enabled");
+            }
+        }
+        srs_trace("reload rtc server success.");
+        return err;
+    }
+
+    srs_trace("reload rtc server success, nothing changed.");
     return err;
 }
 
@@ -3575,7 +3614,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt") {
+                && n != "sendmmsg" && n != "encrypt" && n != "reuseport") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4704,6 +4743,33 @@ int SrsConfig::get_rtc_server_sendmmsg()
 
     return ::atoi(conf->arg0().c_str());
 #endif
+}
+
+int SrsConfig::get_rtc_server_reuseport()
+{
+#if defined(SO_REUSEPORT)
+    static int DEFAULT = 4;
+#else
+    static int DEFAULT = 1;
+#endif
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("reuseport");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int reuseport = ::atoi(conf->arg0().c_str());
+#if !defined(SO_REUSEPORT)
+    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
+    reuseport = DEFAULT
+#endif
+
+    return reuseport;
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)

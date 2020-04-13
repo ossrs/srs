@@ -333,6 +333,8 @@ private:
     // Reload  the http_stream section of config.
     // TODO: FIXME: rename to http_server.
     virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
+    // Reload the rtc_server section of config.
+    virtual srs_error_t reload_rtc_server(SrsConfDirective* old_root);
     // Reload  the transcode section of vhost of config.
     virtual srs_error_t reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     // Reload  the ingest section of vhost of config.
@@ -525,6 +527,7 @@ public:
     virtual bool get_rtc_server_ecdsa();
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
+    virtual int get_rtc_server_reuseport();
 
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);

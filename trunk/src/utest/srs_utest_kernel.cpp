@@ -4869,20 +4869,20 @@ VOID TEST(KernelMP4Test, CoverMP4CodecSingleFrame)
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         // Frame group #0
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(87, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(87, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
     }
 
@@ -4984,20 +4984,20 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleVideos)
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         // Frames order by dts asc.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(40, (int)dts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(40, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
     }
 }
@@ -5082,24 +5082,24 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleCTTs)
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         // Frames order by dts asc.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(40, (int)dts); EXPECT_EQ(80, (int)pts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(40, (int)dts); EXPECT_EQ(80, (int)pts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(80, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(80, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
     }
 }
@@ -5194,28 +5194,28 @@ VOID TEST(KernelMP4Test, CoverMP4MultipleAVs)
 
         // Sequence header.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(41, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(2, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_EQ(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         // Frames order by dts asc.
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(0, (int)dts); EXPECT_EQ(87, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(0, (int)dts); EXPECT_EQ(87, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(20, (int)dts); EXPECT_EQ(87, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(20, (int)dts); EXPECT_EQ(87, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeSOUN, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
 
         HELPER_EXPECT_SUCCESS(dec.read_sample(&ht, &ft, &ct, &dts, &pts, &sample, &nb_sample));
-        EXPECT_EQ(40, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
+        EXPECT_EQ(40, (int)dts); EXPECT_EQ(40, (int)pts); EXPECT_EQ(127, (int)nb_sample); EXPECT_EQ(SrsMp4HandlerTypeVIDE, ht); EXPECT_NE(SrsAudioAacFrameTraitSequenceHeader, ct);
         srs_freepa(sample);
     }
 }
@@ -5336,5 +5336,18 @@ VOID TEST(KernelMP4Test, CoverMP4M2tsSegmentEncoder)
     
     uint64_t dts = 0;
     HELPER_EXPECT_SUCCESS(enc.flush(dts));
+}
+
+VOID TEST(KernelUtilityTest, CoverStringAssign)
+{
+    string sps = "SRS";
+    ASSERT_STREQ("SRS", sps.c_str());
+
+    sps.assign("Hello", 5);
+    ASSERT_STREQ("Hello", sps.c_str());
+
+    sps.assign("World", 0);
+    ASSERT_EQ(0, (int)sps.length());
+    ASSERT_STREQ("", sps.c_str());
 }
 

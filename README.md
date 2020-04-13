@@ -149,7 +149,6 @@ For previous versions, please read:
 - [ ] Support publishing stream by WebRTC, [#307][bug #307].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
-- [ ] Support playing stream by WebRTC.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
