@@ -444,7 +444,7 @@ srs_error_t SrsUdpMuxListener::cycle()
 {
     srs_error_t err = srs_success;
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_recv();
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_recv(srs_netfd_fileno(lfd));
     SrsAutoFree(SrsPithyPrint, pprint);
 
     uint64_t nn_msgs = 0;

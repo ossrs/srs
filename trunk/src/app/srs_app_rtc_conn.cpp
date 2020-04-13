@@ -1439,7 +1439,7 @@ srs_error_t SrsUdpMuxSender::cycle()
     srs_utime_t time_last = srs_get_system_time();
     SrsStatistic* stat = SrsStatistic::instance();
 
-    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send(srs_netfd_fileno(lfd));
     SrsAutoFree(SrsPithyPrint, pprint);
 
     while (true) {

@@ -177,14 +177,14 @@ SrsPithyPrint* SrsPithyPrint::create_rtc_play()
     return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_PLAY);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtc_send()
+SrsPithyPrint* SrsPithyPrint::create_rtc_send(int fd)
 {
-    return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_SEND);
+    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_SEND);
 }
 
-SrsPithyPrint* SrsPithyPrint::create_rtc_recv()
+SrsPithyPrint* SrsPithyPrint::create_rtc_recv(int fd)
 {
-    return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_RECV);
+    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_RECV);
 }
 
 SrsPithyPrint::~SrsPithyPrint()
