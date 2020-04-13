@@ -148,16 +148,16 @@ public:
     virtual void stop();
     virtual void stop_loop();
 public:
-    virtual srs_error_t cycle();
-public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+public:
+    virtual srs_error_t cycle();
 private:
     srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
-    srs_error_t send_message2(SrsSharedPtrMessage* msg, bool is_video, bool is_audio, SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt);
+    srs_error_t send_packet(SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& packets);
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& packets);
     srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
     srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
 };

@@ -39,9 +39,7 @@ class SrsOriginHub;
 class SrsAudioRecode;
 class SrsBuffer;
 
-// Rtp packet max payload size, not include rtp header.
-// Must left some bytes to payload header, rtp header, udp header, ip header.
-const int kRtpMaxPayloadSize    = 1200;
+// The RTP packet max size, should never exceed this size.
 const int kRtpPacketSize        = 1500;
 
 // Payload type will rewrite in srs_app_rtc_conn.cpp when send to client.
