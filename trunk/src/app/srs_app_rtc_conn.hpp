@@ -117,7 +117,24 @@ private:
     srs_error_t srtp_recv_init();
 };
 
-class SrsRtcSenderThread : public ISrsCoroutineHandler
+class SrsRtcPackets
+{
+public:
+    bool is_gso;
+    bool should_merge_nalus;
+public:
+    int nn_bytes;
+    int nn_rtp_pkts;
+    int nn_samples;
+    int nn_audios;
+    int nn_videos;
+    std::vector<SrsRtpPacket2*> packets;
+public:
+    SrsRtcPackets(bool gso, bool merge_nalus);
+    virtual ~SrsRtcPackets();
+};
+
+class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
     SrsCoroutine* trd;
@@ -136,11 +153,16 @@ private:
     uint16_t video_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
+    bool merge_nalus;
+    bool gso;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
+// interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_rtc_server();
 public:
     virtual int cid();
 public:
@@ -152,13 +174,13 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, int* pnn_rtp_pkts);
-    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, std::vector<SrsRtpPacket2*>& packets);
-    srs_error_t send_packets(SrsUdpMuxSocket* skt, std::vector<SrsRtpPacket2*>& packets);
+    srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
+    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
+    srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& packets);
+    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
     srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
     srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
 };

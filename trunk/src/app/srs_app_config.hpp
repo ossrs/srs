@@ -528,6 +528,8 @@ public:
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
     virtual int get_rtc_server_reuseport();
+    virtual bool get_rtc_server_merge_nalus();
+    virtual bool get_rtc_server_gso();
 
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
