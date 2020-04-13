@@ -152,9 +152,9 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn_rtp_pkts);
+    srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, int* pnn_rtp_pkts);
     srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, std::vector<SrsRtpPacket2*>& packets);
-    srs_error_t send_packet(SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt);
+    srs_error_t send_packets(SrsUdpMuxSocket* skt, std::vector<SrsRtpPacket2*>& packets);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:
