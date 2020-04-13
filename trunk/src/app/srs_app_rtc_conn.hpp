@@ -120,7 +120,7 @@ private:
 class SrsRtcPackets
 {
 public:
-    bool is_gso;
+    bool use_gso;
     bool should_merge_nalus;
 public:
     int nn_bytes;
@@ -129,6 +129,7 @@ public:
     int nn_extras;
     int nn_audios;
     int nn_videos;
+public:
     std::vector<SrsRtpPacket2*> packets;
 public:
     SrsRtcPackets(bool gso, bool merge_nalus);
@@ -178,6 +179,7 @@ private:
     srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
+    srs_error_t send_packets2(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:

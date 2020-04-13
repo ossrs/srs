@@ -4803,7 +4803,15 @@ bool SrsConfig::get_rtc_server_gso()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    bool v = SRS_CONF_PERFER_FALSE(conf->arg0());
+
+#ifdef SRS_AUTO_OSX
+    if (v) {
+        srs_warn("GSO is for Linux only");
+    }
+    v = false;
+#endif
+    return v;
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
