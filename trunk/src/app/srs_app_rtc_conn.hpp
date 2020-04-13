@@ -105,7 +105,7 @@ public:
     srs_error_t on_dtls_application_data(const char* data, const int len);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
-    srs_error_t protect_rtp2(char* buf, int* pnn_buf, SrsRtpPacket2* pkt);
+    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
     srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
     srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
@@ -152,7 +152,8 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts);
+    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsUdpMuxSocket* skt, int* pnn_rtp_pkts);
+    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, std::vector<SrsRtpPacket2*>& packets);
     srs_error_t send_packet(SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
