@@ -131,9 +131,22 @@ public:
     virtual srs_error_t cycle();
 };
 
+class ISrsUdpSender
+{
+public:
+    ISrsUdpSender();
+    virtual ~ISrsUdpSender();
+public:
+    // Fetch a mmsghdr from sender's cache.
+    virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
+    // Notify the sender to send out the msg.
+    virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
+};
+
 class SrsUdpMuxSocket
 {
 private:
+    ISrsUdpSender* handler;
     char* buf;
     int nb_buf;
     int nread;
@@ -143,7 +156,7 @@ private:
     std::string peer_ip;
     int peer_port;
 public:
-    SrsUdpMuxSocket(srs_netfd_t fd);
+    SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
 
     int recvfrom(srs_utime_t timeout);
@@ -160,6 +173,7 @@ public:
     std::string get_peer_id();
 public:
     SrsUdpMuxSocket* copy_sendonly();
+    ISrsUdpSender* sender() { return handler; };
 private:
     // Don't allow copy, user copy_sendonly instead
     SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
@@ -170,6 +184,7 @@ class SrsUdpMuxListener : public ISrsCoroutineHandler
 {
 protected:
     srs_netfd_t lfd;
+    ISrsUdpSender* sender;
     SrsCoroutine* trd;
 protected:
     char* buf;
@@ -179,7 +194,7 @@ protected:
     std::string ip;
     int port;
 public:
-    SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p);
+    SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p);
     virtual ~SrsUdpMuxListener();
 public:
     virtual int fd();

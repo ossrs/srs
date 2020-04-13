@@ -236,12 +236,21 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
-SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
+ISrsUdpSender::ISrsUdpSender()
+{
+}
+
+ISrsUdpSender::~ISrsUdpSender()
+{
+}
+
+SrsUdpMuxSocket::SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd)
 {
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     nread = 0;
 
+    handler = h;
     lfd = fd;
 
     fromlen = 0;
@@ -254,7 +263,7 @@ SrsUdpMuxSocket::~SrsUdpMuxSocket()
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
 {
-    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(lfd);
+    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(handler, lfd);
 
     // Don't copy buffer
     srs_freepa(sendonly->buf);
@@ -340,16 +349,18 @@ std::string SrsUdpMuxSocket::get_peer_id()
     return string(id_buf, len);
 }
 
-SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
+SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p)
 {
     handler = h;
+    sender = s;
+
     ip = i;
     port = p;
     lfd = NULL;
     
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
-    
+
     trd = new SrsDummyCoroutine();
 }
 
@@ -449,7 +460,7 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         nn_loop++;
 
-        SrsUdpMuxSocket skt(lfd);
+        SrsUdpMuxSocket skt(sender, lfd);
 
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {

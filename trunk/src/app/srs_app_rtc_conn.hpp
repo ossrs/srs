@@ -229,18 +229,15 @@ private:
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
 };
 
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass,
-    virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class SrsUdpMuxSender : virtual public ISrsUdpSender, virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 private:
-    std::vector<SrsUdpMuxListener*> listeners;
-    SrsHourGlass* timer;
-private:
+    srs_netfd_t lfd;
+    SrsRtcServer* server;
     SrsCoroutine* trd;
+private:
     srs_cond_t cond;
     bool waiting_msgs;
-    // TODO: FIXME: Support multiple stfd.
-    std::vector<srs_netfd_t> stfds;
     // Hotspot msgs, we are working on it.
     // @remark We will wait util all messages are ready.
     std::vector<mmsghdr> hotspot;
@@ -249,6 +246,28 @@ private:
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
+public:
+    SrsUdpMuxSender(SrsRtcServer* s);
+    virtual ~SrsUdpMuxSender();
+public:
+    virtual srs_error_t initialize(srs_netfd_t fd);
+private:
+    void free_mhdrs(std::vector<mmsghdr>& mhdrs);
+public:
+    virtual srs_error_t fetch(mmsghdr** pphdr);
+    virtual srs_error_t sendmmsg(mmsghdr* hdr);
+    virtual srs_error_t cycle();
+// interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_rtc_server();
+};
+
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
+{
+private:
+    SrsHourGlass* timer;
+    std::vector<SrsUdpMuxListener*> listeners;
+    std::vector<SrsUdpMuxSender*> senders;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
@@ -267,6 +286,7 @@ public:
     SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip);
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
+    int nn_sessions() { return (int)map_username_session.size(); }
 private:
     srs_error_t on_stun(SrsUdpMuxSocket* skt);
     srs_error_t on_dtls(SrsUdpMuxSocket* skt);
@@ -277,15 +297,6 @@ private:
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
-// interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_rtc_server();
-// Internal only.
-public:
-    mmsghdr* fetch();
-    void sendmmsg(srs_netfd_t stfd, mmsghdr* hdr);
-    void free_mhdrs(std::vector<mmsghdr>& mhdrs);
-    virtual srs_error_t cycle();
 };
 
 // The RTC server adapter.

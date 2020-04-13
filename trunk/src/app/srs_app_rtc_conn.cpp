@@ -703,9 +703,14 @@ srs_error_t SrsRtcSenderThread::send_message2(SrsSharedPtrMessage* msg, bool is_
 {
     srs_error_t err = srs_success;
 
+    ISrsUdpSender* sender = skt->sender();
+
     // Fetch a cached message from queue.
     // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
-    mmsghdr* mhdr = rtc_session->rtc_server->fetch();
+    mmsghdr* mhdr = NULL;
+    if ((err = sender->fetch(&mhdr)) != srs_success) {
+        return srs_error_wrap(err, "fetch msghdr");
+    }
     char* buf = (char*)mhdr->msg_hdr.msg_iov->iov_base;
 
     // Length of iov, default size.
@@ -731,7 +736,9 @@ srs_error_t SrsRtcSenderThread::send_message2(SrsSharedPtrMessage* msg, bool is_
     mhdr->msg_hdr.msg_iov->iov_len = length;
     mhdr->msg_len = 0;
 
-    rtc_session->rtc_server->sendmmsg(skt->stfd(), mhdr);
+    if ((err = sender->sendmmsg(mhdr)) != srs_success) {
+        return srs_error_wrap(err, "send msghdr");
+    }
     return err;
 }
 
@@ -1330,9 +1337,10 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* skt)
     return err;
 }
 
-SrsRtcServer::SrsRtcServer()
+SrsUdpMuxSender::SrsUdpMuxSender(SrsRtcServer* s)
 {
-    timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
+    lfd = NULL;
+    server = s;
 
     waiting_msgs = false;
     cond = srs_cond_new();
@@ -1343,17 +1351,9 @@ SrsRtcServer::SrsRtcServer()
     _srs_config->subscribe(this);
 }
 
-SrsRtcServer::~SrsRtcServer()
+SrsUdpMuxSender::~SrsUdpMuxSender()
 {
     _srs_config->unsubscribe(this);
-
-    vector<SrsUdpMuxListener*>::iterator it;
-    for (it = listeners.begin(); it != listeners.end(); ++it) {
-        SrsUdpMuxListener* listener = *it;
-        srs_freep(listener);
-    }
-
-    srs_freep(timer);
 
     srs_freep(trd);
     srs_cond_destroy(cond);
@@ -1363,6 +1363,187 @@ SrsRtcServer::~SrsRtcServer()
 
     free_mhdrs(cache);
     cache.clear();
+}
+
+srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd)
+{
+    srs_error_t err = srs_success;
+
+    lfd = fd;
+
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("udp", this);
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "start coroutine");
+    }
+
+    max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
+    srs_trace("UDP sender #%d init ok, max_sendmmsg=%d", srs_netfd_fileno(fd), max_sendmmsg);
+
+    return err;
+}
+
+void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
+{
+    for (int i = 0; i < (int)mhdrs.size(); i++) {
+        mmsghdr* hdr = &mhdrs[i];
+
+        for (int j = (int)hdr->msg_hdr.msg_iovlen - 1; j >= 0 ; j--) {
+            iovec* iov = hdr->msg_hdr.msg_iov + j;
+            char* data = (char*)iov->iov_base;
+            srs_freep(data);
+            srs_freep(iov);
+        }
+    }
+}
+
+srs_error_t SrsUdpMuxSender::fetch(mmsghdr** pphdr)
+{
+    // TODO: FIXME: Maybe need to shrink?
+    if (cache_pos >= (int)cache.size()) {
+        mmsghdr mhdr;
+        memset(&mhdr, 0, sizeof(mmsghdr));
+
+        mhdr.msg_hdr.msg_iovlen = 1;
+        mhdr.msg_hdr.msg_iov = new iovec();
+        mhdr.msg_hdr.msg_iov->iov_base = new char[kRtpPacketSize];
+        mhdr.msg_hdr.msg_iov->iov_len = kRtpPacketSize;
+        mhdr.msg_len = 0;
+
+        cache.push_back(mhdr);
+    }
+
+    *pphdr = &cache[cache_pos++];
+    return srs_success;
+}
+
+srs_error_t SrsUdpMuxSender::sendmmsg(mmsghdr* hdr)
+{
+    if (waiting_msgs) {
+        waiting_msgs = false;
+        srs_cond_signal(cond);
+    }
+
+    return srs_success;
+}
+
+srs_error_t SrsUdpMuxSender::cycle()
+{
+    srs_error_t err = srs_success;
+
+    uint64_t nn_msgs = 0;
+    uint64_t nn_msgs_last = 0;
+    int nn_msgs_max = 0;
+    int nn_loop = 0;
+    int nn_wait = 0;
+    srs_utime_t time_last = srs_get_system_time();
+    SrsStatistic* stat = SrsStatistic::instance();
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
+    SrsAutoFree(SrsPithyPrint, pprint);
+
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return err;
+        }
+
+        nn_loop++;
+
+        int pos = cache_pos;
+        if (pos <= 0) {
+            waiting_msgs = true;
+            nn_wait++;
+            srs_cond_wait(cond);
+            continue;
+        }
+
+        // We are working on hotspot now.
+        cache.swap(hotspot);
+        cache_pos = 0;
+
+        mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+        for (; p < end; p += max_sendmmsg) {
+            int vlen = (int)(end - p);
+            vlen = srs_min(max_sendmmsg, vlen);
+
+            int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
+            if (r0 != vlen) {
+                srs_warn("sendmsg %d msgs, %d done", vlen, r0);
+            }
+
+            stat->perf_mw_on_packets(vlen);
+        }
+
+        // Increase total messages.
+        nn_msgs += pos;
+        nn_msgs_max = srs_max(pos, nn_msgs_max);
+
+        pprint->elapse();
+        if (pprint->can_print()) {
+            // TODO: FIXME: Extract a PPS calculator.
+            int pps_average = 0; int pps_last = 0;
+            if (true) {
+                if (srs_get_system_time() > srs_get_system_startup_time()) {
+                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
+                }
+                if (srs_get_system_time() > time_last) {
+                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
+                }
+            }
+
+            string pps_unit = "";
+            if (pps_last > 10000 || pps_average > 10000) {
+                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
+            } else if (pps_last > 1000 || pps_average > 1000) {
+                pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
+            }
+
+            srs_trace("-> RTC #%d SEND %d/%d/%" PRId64 ", pps %d/%d%s, schedule %d/%d, sessions %d, cache %d/%d by sendmmsg %d",
+                srs_netfd_fileno(lfd), pos, nn_msgs_max, nn_msgs, pps_average, pps_last, pps_unit.c_str(), nn_loop, nn_wait,
+                (int)server->nn_sessions(), (int)cache.size(), (int)hotspot.size(), max_sendmmsg);
+            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
+            nn_loop = nn_wait = nn_msgs_max = 0;
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsUdpMuxSender::on_reload_rtc_server()
+{
+    int v = _srs_config->get_rtc_server_sendmmsg();
+    if (max_sendmmsg != v) {
+        max_sendmmsg = v;
+        srs_trace("Reload max_sendmmsg=%d", max_sendmmsg);
+    }
+
+    return srs_success;
+}
+
+SrsRtcServer::SrsRtcServer()
+{
+    timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
+}
+
+SrsRtcServer::~SrsRtcServer()
+{
+    srs_freep(timer);
+
+    if (true) {
+        vector<SrsUdpMuxListener*>::iterator it;
+        for (it = listeners.begin(); it != listeners.end(); ++it) {
+            SrsUdpMuxListener* listener = *it;
+            srs_freep(listener);
+        }
+    }
+
+    if (true) {
+        vector<SrsUdpMuxSender*>::iterator it;
+        for (it = senders.begin(); it != senders.end(); ++it) {
+            SrsUdpMuxSender* sender = *it;
+            srs_freep(sender);
+        }
+    }
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -1377,14 +1558,7 @@ srs_error_t SrsRtcServer::initialize()
         return srs_error_wrap(err, "start timer");
     }
 
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("udp", this);
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "start coroutine");
-    }
-
-    max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-    srs_trace("RTC server init ok, max_sendmmsg=%d", max_sendmmsg);
+    srs_trace("RTC server init ok");
 
     return err;
 }
@@ -1407,18 +1581,21 @@ srs_error_t SrsRtcServer::listen_udp()
 
     int nn_listeners = _srs_config->get_rtc_server_reuseport();
     for (int i = 0; i < nn_listeners; i++) {
-        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
+        SrsUdpMuxSender* sender = new SrsUdpMuxSender(this);
+        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, sender, ip, port);
 
         if ((err = listener->listen()) != srs_success) {
             srs_freep(listener);
             return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
         }
 
-        // We will use all FDs to sendmmsg.
-        stfds.push_back(listener->stfd());
+        if ((err = sender->initialize(listener->stfd())) != srs_success) {
+            return srs_error_wrap(err, "init sender");
+        }
 
         srs_trace("rtc listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
         listeners.push_back(listener);
+        senders.push_back(sender);
     }
 
     return err;
@@ -1610,145 +1787,6 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 {
     check_and_clean_timeout_session();
     return srs_success;
-}
-
-srs_error_t SrsRtcServer::on_reload_rtc_server()
-{
-    int v = _srs_config->get_rtc_server_sendmmsg();
-    if (max_sendmmsg != v) {
-        max_sendmmsg = v;
-        srs_trace("Reload max_sendmmsg=%d", max_sendmmsg);
-    }
-
-    return srs_success;
-}
-
-mmsghdr* SrsRtcServer::fetch()
-{
-    // TODO: FIXME: Maybe need to shrink?
-    if (cache_pos >= (int)cache.size()) {
-        mmsghdr mhdr;
-        memset(&mhdr, 0, sizeof(mmsghdr));
-
-        mhdr.msg_hdr.msg_iovlen = 1;
-        mhdr.msg_hdr.msg_iov = new iovec();
-        mhdr.msg_hdr.msg_iov->iov_base = new char[kRtpPacketSize];
-        mhdr.msg_hdr.msg_iov->iov_len = kRtpPacketSize;
-        mhdr.msg_len = 0;
-
-        cache.push_back(mhdr);
-    }
-
-    return &cache[cache_pos++];
-}
-
-void SrsRtcServer::sendmmsg(srs_netfd_t stfd, mmsghdr* /*hdr*/)
-{
-    if (waiting_msgs) {
-        waiting_msgs = false;
-        srs_cond_signal(cond);
-    }
-}
-
-void SrsRtcServer::free_mhdrs(std::vector<mmsghdr>& mhdrs)
-{
-    for (int i = 0; i < (int)mhdrs.size(); i++) {
-        mmsghdr* hdr = &mhdrs[i];
-
-        for (int j = (int)hdr->msg_hdr.msg_iovlen - 1; j >= 0 ; j--) {
-            iovec* iov = hdr->msg_hdr.msg_iov + j;
-            char* data = (char*)iov->iov_base;
-            srs_freep(data);
-            srs_freep(iov);
-        }
-    }
-}
-
-srs_error_t SrsRtcServer::cycle()
-{
-    srs_error_t err = srs_success;
-
-    uint64_t nn_msgs = 0;
-    uint64_t nn_msgs_last = 0;
-    int nn_msgs_max = 0;
-    int nn_loop = 0;
-    int nn_wait = 0;
-    srs_utime_t time_last = srs_get_system_time();
-    SrsStatistic* stat = SrsStatistic::instance();
-
-    // We use FDs to send out messages, by round-trip algorithm.
-    uint32_t fd_index = 0;
-
-    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send();
-    SrsAutoFree(SrsPithyPrint, pprint);
-
-    while (true) {
-        if ((err = trd->pull()) != srs_success) {
-            return err;
-        }
-
-        nn_loop++;
-
-        int pos = cache_pos;
-        if (pos <= 0) {
-            waiting_msgs = true;
-            nn_wait++;
-            srs_cond_wait(cond);
-            continue;
-        }
-
-        // We are working on hotspot now.
-        cache.swap(hotspot);
-        cache_pos = 0;
-
-        srs_netfd_t stfd = NULL;
-        mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
-        for (; p < end; p += max_sendmmsg) {
-            int vlen = (int)(end - p);
-            vlen = srs_min(max_sendmmsg, vlen);
-            stfd = stfds.at((fd_index++) % stfds.size());
-
-            int r0 = srs_sendmmsg(stfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
-            if (r0 != vlen) {
-                srs_warn("sendmsg %d msgs, %d done", vlen, r0);
-            }
-
-            stat->perf_mw_on_packets(vlen);
-        }
-
-        // Increase total messages.
-        nn_msgs += pos;
-        nn_msgs_max = srs_max(pos, nn_msgs_max);
-
-        pprint->elapse();
-        if (pprint->can_print()) {
-            // TODO: FIXME: Extract a PPS calculator.
-            int pps_average = 0; int pps_last = 0;
-            if (true) {
-                if (srs_get_system_time() > srs_get_system_startup_time()) {
-                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
-                }
-                if (srs_get_system_time() > time_last) {
-                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
-                }
-            }
-
-            string pps_unit = "";
-            if (pps_last > 10000 || pps_average > 10000) {
-                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
-            } else if (pps_last > 1000 || pps_average > 1000) {
-                pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
-            }
-
-            srs_trace("-> RTC #%d SEND %d/%d/%" PRId64 ", pps %d/%d%s, schedule %d/%d, sessions %d, cache %d/%d by sendmmsg %d",
-                srs_netfd_fileno(stfd), pos, nn_msgs_max, nn_msgs, pps_average, pps_last, pps_unit.c_str(), nn_loop, nn_wait,
-                (int)map_username_session.size(), (int)cache.size(), (int)hotspot.size(), max_sendmmsg);
-            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
-            nn_loop = nn_wait = nn_msgs_max = 0;
-        }
-    }
-
-    return err;
 }
 
 RtcServerAdapter::RtcServerAdapter()
