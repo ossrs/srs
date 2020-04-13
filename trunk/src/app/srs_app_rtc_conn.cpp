@@ -782,8 +782,6 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets
     for (it = packets.packets.begin(); it != packets.packets.end(); ++it) {
         SrsRtpPacket2* packet = *it;
 
-        int nn_packet = packet->nb_bytes();
-
         // Fetch a cached message from queue.
         // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
         mmsghdr* mhdr = NULL;
