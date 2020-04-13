@@ -454,8 +454,9 @@ SrsRtcPackets::SrsRtcPackets(bool gso, bool merge_nalus)
     is_gso = gso;
     should_merge_nalus = merge_nalus;
 
-    nn_rtp_pkts = nn_samples = 0;
-    nn_audios = nn_videos = 0;
+    nn_rtp_pkts = 0;
+    nn_audios = nn_extras = 0;
+    nn_videos = nn_samples = 0;
 }
 
 SrsRtcPackets::~SrsRtcPackets()
@@ -644,8 +645,8 @@ srs_error_t SrsRtcSenderThread::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d samples, %d packets, %d audios, %d videos, %d bytes",
-                msg_count, pkts.nn_samples, pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_videos, pkts.nn_bytes);
+            srs_trace("-> RTC PLAY %d msgs, %d packets, %d audios, %d extras, %d videos, %d samples, %d bytes",
+                msg_count, pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes);
         }
     }
 }
@@ -682,14 +683,21 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
+        // Update stats.
         packets.nn_bytes += msg->size;
-        packets.nn_samples += msg->nn_extra_payloads() + msg->nn_samples();
 
+        int nn_extra_payloads = msg->nn_extra_payloads();
+        packets.nn_extras += nn_extra_payloads;
+
+        int nn_samples = msg->nn_samples();
+        packets.nn_samples += nn_samples;
+
+        // For audio, we transcoded AAC to opus in extra payloads.
         SrsRtpPacket2* packet = NULL;
         if (msg->is_audio()) {
             packets.nn_audios++;
 
-            for (int i = 0; i < msg->nn_extra_payloads(); i++) {
+            for (int i = 0; i < nn_extra_payloads; i++) {
                 SrsSample* sample = msg->extra_payloads() + i;
                 if ((err = packet_opus(sample, &packet)) != srs_success) {
                     return srs_error_wrap(err, "opus package");
@@ -699,6 +707,7 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
             continue;
         }
 
+        // For video, we should process all NALUs in samples.
         packets.nn_videos++;
 
         // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
@@ -709,6 +718,15 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
             packets.packets.push_back(packet);
         }
 
+        // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
+        if (packets.should_merge_nalus && nn_samples > 1) {
+            if ((err = packet_nalus(msg, packets)) != srs_success) {
+                return srs_error_wrap(err, "packet stap-a");
+            }
+            continue;
+        }
+
+        // By default, we package each NALU(sample) to a RTP or FUA packet.
         for (int i = 0; i < msg->nn_samples(); i++) {
             SrsSample* sample = msg->samples() + i;
 
@@ -723,19 +741,15 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
                 if ((err = packet_single_nalu(msg, sample, &packet)) != srs_success) {
                     return srs_error_wrap(err, "packet single nalu");
                 }
-
-                if (i == msg->nn_samples() - 1) {
-                    packet->rtp_header.set_marker(true);
-                }
                 packets.packets.push_back(packet);
             } else {
                 if ((err = packet_fu_a(msg, sample, kRtpMaxPayloadSize, packets)) != srs_success) {
                     return srs_error_wrap(err, "packet fu-a");
                 }
+            }
 
-                if (i == msg->nn_samples() - 1) {
-                    packets.packets.back()->rtp_header.set_marker(true);
-                }
+            if (i == nn_samples - 1) {
+                packets.packets.back()->rtp_header.set_marker(true);
             }
         }
     }
@@ -790,6 +804,12 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets
         }
     }
 
+    return err;
+}
+
+srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+{
+    srs_error_t err = srs_success;
     return err;
 }
 

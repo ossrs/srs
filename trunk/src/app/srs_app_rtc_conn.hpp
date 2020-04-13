@@ -126,6 +126,7 @@ public:
     int nn_bytes;
     int nn_rtp_pkts;
     int nn_samples;
+    int nn_extras;
     int nn_audios;
     int nn_videos;
     std::vector<SrsRtpPacket2*> packets;
@@ -181,6 +182,7 @@ private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:
     srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
+    srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
     srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
     srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
 };
