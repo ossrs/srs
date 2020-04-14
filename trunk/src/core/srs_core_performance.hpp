@@ -129,10 +129,10 @@
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // For RTMP, use larger wait queue.
     #define SRS_PERF_MW_MIN_MSGS 8
-    #define SRS_PERF_MW_MIN_MSGS_REALTIME 4
+    #define SRS_PERF_MW_MIN_MSGS_REALTIME 0
     // For RTC, use smaller wait queue.
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 3
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME 1
+    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 2
+    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME 0
 #endif
 /**
  * the default value of vhost for
