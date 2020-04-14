@@ -25,8 +25,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import urllib, sys, json
 
 url = "http://localhost:1985/api/v1/perf"
-if len(sys.argv) > 1:
-    url = sys.argv[1]
+if len(sys.argv) < 2:
+    print "Usage: %s <url>"%(sys.argv[0])
+    print "For example:"
+    print "     %s http://localhost:1985/api/v1/perf"%(sys.argv[0])
+    sys.exit(-1)
+
+url = sys.argv[1]
 print "Open %s"%(url)
 
 f = urllib.urlopen(url)
