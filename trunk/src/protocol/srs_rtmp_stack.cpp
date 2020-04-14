@@ -548,7 +548,8 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
 
                 // Notify about perf stat.
                 if (perf) {
-                    perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+                    perf->perf_on_msgs(nb_msgs_merged_written);
+                    perf->perf_on_writev_iovs(iov_index);
                     nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
                 }
                 
@@ -576,7 +577,8 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
 
     // Notify about perf stat.
     if (perf) {
-        perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+        perf->perf_on_msgs(nb_msgs_merged_written);
+        perf->perf_on_writev_iovs(iov_index);
         nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
     }
 

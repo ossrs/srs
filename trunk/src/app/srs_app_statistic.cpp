@@ -267,6 +267,8 @@ SrsStatistic::SrsStatistic()
     perf_msgs = new SrsStatisticCategory();
     perf_sendmmsg = new SrsStatisticCategory();
     perf_gso = new SrsStatisticCategory();
+    perf_rtp = new SrsStatisticCategory();
+    perf_rtc = new SrsStatisticCategory();
 }
 
 SrsStatistic::~SrsStatistic()
@@ -305,6 +307,8 @@ SrsStatistic::~SrsStatistic()
     srs_freep(perf_msgs);
     srs_freep(perf_sendmmsg);
     srs_freep(perf_gso);
+    srs_freep(perf_rtp);
+    srs_freep(perf_rtc);
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -585,272 +589,131 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray* arr, int start, int count)
     return err;
 }
 
-void SrsStatistic::perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs)
+void SrsStatistic::perf_on_msgs(int nb_msgs)
 {
-    // For perf msgs, the nb_msgs stat.
-    //      a: <3
-    //      b: <5
-    //      c: <9
-    //      d: <16
-    //      e: <32
-    //      f: <64
-    //      g: <128
-    //      h: <256
-    //      i: <1000
-    //      j: >=1000
-    if (nb_msgs < 3) {
-        perf_msgs->a++;
-    } else if (nb_msgs < 5) {
-        perf_msgs->b++;
-    } else if (nb_msgs < 9) {
-        perf_msgs->c++;
-    } else if (nb_msgs < 16) {
-        perf_msgs->d++;
-    } else if (nb_msgs < 32) {
-        perf_msgs->e++;
-    } else if (nb_msgs < 64) {
-        perf_msgs->f++;
-    } else if (nb_msgs < 128) {
-        perf_msgs->g++;
-    } else if (nb_msgs < 256) {
-        perf_msgs->h++;
-    } else if (nb_msgs < 1000) {
-        perf_msgs->i++;
-    } else {
-        perf_msgs->j++;
-    }
-
-    // For perf iovs, the nb_iovs stat.
-    //      a: <3
-    //      b: <5
-    //      c: <9
-    //      d: <16
-    //      e: <32
-    //      f: <64
-    //      g: <128
-    //      h: <256
-    //      i: <1000
-    //      j: >=1000
-    if (nb_iovs < 3) {
-        perf_iovs->a++;
-    } else if (nb_iovs < 5) {
-        perf_iovs->b++;
-    } else if (nb_iovs < 9) {
-        perf_iovs->c++;
-    } else if (nb_iovs < 16) {
-        perf_iovs->d++;
-    } else if (nb_iovs < 32) {
-        perf_iovs->e++;
-    } else if (nb_iovs < 64) {
-        perf_iovs->f++;
-    } else if (nb_iovs < 128) {
-        perf_iovs->g++;
-    } else if (nb_iovs < 256) {
-        perf_iovs->h++;
-    } else if (nb_iovs < 1000) {
-        perf_iovs->i++;
-    } else {
-        perf_iovs->j++;
-    }
+    perf_on_packets(perf_msgs, nb_msgs);
 }
 
-srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
+srs_error_t SrsStatistic::dumps_perf_msgs(SrsJsonObject* obj)
 {
-    srs_error_t err = srs_success;
-
-    if (true) {
-        SrsJsonObject* p = SrsJsonAny::object();
-        obj->set("msgs", p);
-
-        // For perf msgs, the nb_msgs stat.
-        //      a: <3
-        //      b: <5
-        //      c: <9
-        //      d: <16
-        //      e: <32
-        //      f: <64
-        //      g: <128
-        //      h: <256
-        //      i: <1000
-        //      j: >=1000
-        if (perf_msgs->a) p->set("lt_3",        SrsJsonAny::integer(perf_msgs->a));
-        if (perf_msgs->b) p->set("lt_5",        SrsJsonAny::integer(perf_msgs->b));
-        if (perf_msgs->c) p->set("lt_9",        SrsJsonAny::integer(perf_msgs->c));
-        if (perf_msgs->d) p->set("lt_16",       SrsJsonAny::integer(perf_msgs->d));
-        if (perf_msgs->e) p->set("lt_32",       SrsJsonAny::integer(perf_msgs->e));
-        if (perf_msgs->f) p->set("lt_64",       SrsJsonAny::integer(perf_msgs->f));
-        if (perf_msgs->g) p->set("lt_128",      SrsJsonAny::integer(perf_msgs->g));
-        if (perf_msgs->h) p->set("lt_256",      SrsJsonAny::integer(perf_msgs->h));
-        if (perf_msgs->i) p->set("lt_1000",     SrsJsonAny::integer(perf_msgs->i));
-        if (perf_msgs->j) p->set("gt_1000",     SrsJsonAny::integer(perf_msgs->j));
-    }
-
-    if (true) {
-        SrsJsonObject* p = SrsJsonAny::object();
-        obj->set("iovs", p);
-
-        // For perf iovs, the nb_iovs stat.
-        //      a: <3
-        //      b: <5
-        //      c: <9
-        //      d: <16
-        //      e: <32
-        //      f: <64
-        //      g: <128
-        //      h: <256
-        //      i: <1000
-        //      j: >=1000
-        if (perf_iovs->a) p->set("lt_3",        SrsJsonAny::integer(perf_iovs->a));
-        if (perf_iovs->b) p->set("lt_5",        SrsJsonAny::integer(perf_iovs->b));
-        if (perf_iovs->c) p->set("lt_9",        SrsJsonAny::integer(perf_iovs->c));
-        if (perf_iovs->d) p->set("lt_16",       SrsJsonAny::integer(perf_iovs->d));
-        if (perf_iovs->e) p->set("lt_32",       SrsJsonAny::integer(perf_iovs->e));
-        if (perf_iovs->f) p->set("lt_64",       SrsJsonAny::integer(perf_iovs->f));
-        if (perf_iovs->g) p->set("lt_128",      SrsJsonAny::integer(perf_iovs->g));
-        if (perf_iovs->h) p->set("lt_256",      SrsJsonAny::integer(perf_iovs->h));
-        if (perf_iovs->i) p->set("lt_1000",     SrsJsonAny::integer(perf_iovs->i));
-        if (perf_iovs->j) p->set("gt_1000",     SrsJsonAny::integer(perf_iovs->j));
-    }
-
-    return err;
+    return dumps_perf(perf_msgs, obj);
 }
 
-void SrsStatistic::perf_sendmmsg_on_packets(int nb_msgs)
+void SrsStatistic::perf_on_rtc_packets(int nb_packets)
 {
-    // For perf msgs, the nb_msgs stat.
-    //      a: =1
-    //      b: <10
-    //      c: <100
-    //      d: <200
-    //      e: <300
-    //      f: <400
-    //      g: <500
-    //      h: <600
-    //      i: <1000
-    //      j: >=1000
-    if (nb_msgs == 1) {
-        perf_sendmmsg->a++;
-    } else if (nb_msgs < 10) {
-        perf_sendmmsg->b++;
-    } else if (nb_msgs < 100) {
-        perf_sendmmsg->c++;
-    } else if (nb_msgs < 200) {
-        perf_sendmmsg->d++;
-    } else if (nb_msgs < 300) {
-        perf_sendmmsg->e++;
-    } else if (nb_msgs < 400) {
-        perf_sendmmsg->f++;
-    } else if (nb_msgs < 500) {
-        perf_sendmmsg->g++;
-    } else if (nb_msgs < 600) {
-        perf_sendmmsg->h++;
-    } else if (nb_msgs < 1000) {
-        perf_sendmmsg->i++;
-    } else {
-        perf_sendmmsg->j++;
-    }
+    perf_on_packets(perf_rtc, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_rtc_packets(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_rtc, obj);
+}
+
+void SrsStatistic::perf_on_rtp_packets(int nb_packets)
+{
+    perf_on_packets(perf_rtp, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_rtp_packets(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_rtp, obj);
+}
+
+void SrsStatistic::perf_gso_on_packets(int nb_packets)
+{
+    perf_on_packets(perf_gso, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_gso(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_gso, obj);
+}
+
+void SrsStatistic::perf_on_writev_iovs(int nb_iovs)
+{
+    perf_on_packets(perf_iovs, nb_iovs);
+}
+
+srs_error_t SrsStatistic::dumps_perf_writev_iovs(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_iovs, obj);
+}
+
+void SrsStatistic::perf_sendmmsg_on_packets(int nb_packets)
+{
+    perf_on_packets(perf_sendmmsg, nb_packets);
 }
 
 srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
 {
-    srs_error_t err = srs_success;
-
-    if (true) {
-        SrsJsonObject* p = SrsJsonAny::object();
-        obj->set("msgs", p);
-
-        // For perf msgs, the nb_msgs stat.
-        //      a: =1
-        //      b: <10
-        //      c: <100
-        //      d: <200
-        //      e: <300
-        //      f: <400
-        //      g: <500
-        //      h: <600
-        //      i: <1000
-        //      j: >=1000
-        if (perf_sendmmsg->a) p->set("lt_2",      SrsJsonAny::integer(perf_sendmmsg->a));
-        if (perf_sendmmsg->b) p->set("lt_10",     SrsJsonAny::integer(perf_sendmmsg->b));
-        if (perf_sendmmsg->c) p->set("lt_100",    SrsJsonAny::integer(perf_sendmmsg->c));
-        if (perf_sendmmsg->d) p->set("lt_200",    SrsJsonAny::integer(perf_sendmmsg->d));
-        if (perf_sendmmsg->e) p->set("lt_300",    SrsJsonAny::integer(perf_sendmmsg->e));
-        if (perf_sendmmsg->f) p->set("lt_400",    SrsJsonAny::integer(perf_sendmmsg->f));
-        if (perf_sendmmsg->g) p->set("lt_500",    SrsJsonAny::integer(perf_sendmmsg->g));
-        if (perf_sendmmsg->h) p->set("lt_600",    SrsJsonAny::integer(perf_sendmmsg->h));
-        if (perf_sendmmsg->i) p->set("lt_1000",   SrsJsonAny::integer(perf_sendmmsg->i));
-        if (perf_sendmmsg->j) p->set("gt_1000",   SrsJsonAny::integer(perf_sendmmsg->j));
-    }
-
-    return err;
+    return dumps_perf(perf_sendmmsg, obj);
 }
 
-void SrsStatistic::perf_gso_on_packets(int nb_msgs)
+void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)
 {
-    // For perf msgs, the nb_msgs stat.
-    //      a: =1
+    // The range for stat:
+    //      2, 3, 5, 9, 16, 32, 64, 128, 256
+    // that is:
+    //      a: <2
     //      b: <3
-    //      c: <6
+    //      c: <5
     //      d: <9
     //      e: <16
     //      f: <32
     //      g: <64
     //      h: <128
-    //      i: <512
-    //      j: >=512
-    if (nb_msgs == 1) {
-        perf_gso->a++;
+    //      i: <256
+    //      j: >=256
+    if (nb_msgs < 2) {
+        p->a++;
     } else if (nb_msgs < 3) {
-        perf_gso->b++;
-    } else if (nb_msgs < 6) {
-        perf_gso->c++;
+        p->b++;
+    } else if (nb_msgs < 5) {
+        p->c++;
     } else if (nb_msgs < 9) {
-        perf_gso->d++;
+        p->d++;
     } else if (nb_msgs < 16) {
-        perf_gso->e++;
+        p->e++;
     } else if (nb_msgs < 32) {
-        perf_gso->f++;
+        p->f++;
     } else if (nb_msgs < 64) {
-        perf_gso->g++;
+        p->g++;
     } else if (nb_msgs < 128) {
-        perf_gso->h++;
-    } else if (nb_msgs < 512) {
-        perf_gso->i++;
+        p->h++;
+    } else if (nb_msgs < 256) {
+        p->i++;
     } else {
-        perf_gso->j++;
+        p->j++;
     }
 }
 
-srs_error_t SrsStatistic::dumps_perf_gso(SrsJsonObject* obj)
+srs_error_t SrsStatistic::dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj)
 {
     srs_error_t err = srs_success;
 
-    if (true) {
-        SrsJsonObject* p = SrsJsonAny::object();
-        obj->set("msgs", p);
-
-        // For perf msgs, the nb_msgs stat.
-        //      a: =1
-        //      b: <3
-        //      c: <6
-        //      d: <9
-        //      e: <16
-        //      f: <32
-        //      g: <64
-        //      h: <128
-        //      i: <512
-        //      j: >=512
-        if (perf_gso->a) p->set("lt_2",     SrsJsonAny::integer(perf_gso->a));
-        if (perf_gso->b) p->set("lt_3",     SrsJsonAny::integer(perf_gso->b));
-        if (perf_gso->c) p->set("lt_6",     SrsJsonAny::integer(perf_gso->c));
-        if (perf_gso->d) p->set("lt_9",     SrsJsonAny::integer(perf_gso->d));
-        if (perf_gso->e) p->set("lt_16",    SrsJsonAny::integer(perf_gso->e));
-        if (perf_gso->f) p->set("lt_32",    SrsJsonAny::integer(perf_gso->f));
-        if (perf_gso->g) p->set("lt_64",    SrsJsonAny::integer(perf_gso->g));
-        if (perf_gso->h) p->set("lt_128",   SrsJsonAny::integer(perf_gso->h));
-        if (perf_gso->i) p->set("lt_512",   SrsJsonAny::integer(perf_gso->i));
-        if (perf_gso->j) p->set("gt_512",   SrsJsonAny::integer(perf_gso->j));
-    }
+    // The range for stat:
+    //      2, 3, 5, 9, 16, 32, 64, 128, 256
+    // that is:
+    //      a: <2
+    //      b: <3
+    //      c: <5
+    //      d: <9
+    //      e: <16
+    //      f: <32
+    //      g: <64
+    //      h: <128
+    //      i: <256
+    //      j: >=256
+    if (p->a) obj->set("lt_2",    SrsJsonAny::integer(p->a));
+    if (p->b) obj->set("lt_3",    SrsJsonAny::integer(p->b));
+    if (p->c) obj->set("lt_5",    SrsJsonAny::integer(p->c));
+    if (p->d) obj->set("lt_9",    SrsJsonAny::integer(p->d));
+    if (p->e) obj->set("lt_16",   SrsJsonAny::integer(p->e));
+    if (p->f) obj->set("lt_32",   SrsJsonAny::integer(p->f));
+    if (p->g) obj->set("lt_64",   SrsJsonAny::integer(p->g));
+    if (p->h) obj->set("lt_128",  SrsJsonAny::integer(p->h));
+    if (p->i) obj->set("lt_256",  SrsJsonAny::integer(p->i));
+    if (p->j) obj->set("gt_256",  SrsJsonAny::integer(p->j));
 
     return err;
 }

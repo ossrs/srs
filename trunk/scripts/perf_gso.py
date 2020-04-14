@@ -35,16 +35,25 @@ f.close()
 print "Repsonse %s"%(s)
 
 obj = json.loads(s)
-keys = [1, 3, 5, 9, 16, 32, 64, 256, 1000]
+
+# 2, 3, 5, 9, 16, 32, 64, 128, 256
+keys = ['lt_2', 'lt_3', 'lt_5', 'lt_9', 'lt_16', 'lt_32', 'lt_64', 'lt_128', 'lt_256', 'gt_256']
 
 print ""
 print("AV---Frames"),
 for k in keys:
-    k2 = 'lt_%s'%(k)
-    if 'frames' in obj['data']:
-        p = obj['data']['frames']['msgs']
+    k2 = '%s'%(k)
+    p = obj['data']['avframes']
+    if k2 in p:
+        print(p[k2]),
     else:
-        p = obj['data']['writev']['msgs']
+        print(0),
+
+print ""
+print("RTC--Frames"),
+for k in keys:
+    k2 = '%s'%(k)
+    p = obj['data']['rtc']
     if k2 in p:
         print(p[k2]),
     else:
@@ -53,11 +62,18 @@ for k in keys:
 print ""
 print("RTP-Packets"),
 for k in keys:
-    k2 = 'lt_%s'%(k)
-    if 'frames' in obj['data']:
-        p = obj['data']['frames']['iovs']
+    k2 = '%s'%(k)
+    p = obj['data']['rtp']
+    if k2 in p:
+        print(p[k2]),
     else:
-        p = obj['data']['writev']['iovs']
+        print(0),
+
+print ""
+print("GSO-Packets"),
+for k in keys:
+    k2 = '%s'%(k)
+    p = obj['data']['gso']
     if k2 in p:
         print(p[k2]),
     else:

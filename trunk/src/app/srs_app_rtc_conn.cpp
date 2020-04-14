@@ -649,7 +649,14 @@ srs_error_t SrsRtcSenderThread::cycle()
             srs_freep(msg);
         }
 
-        stat->perf_mw_on_msgs(msg_count, pkts.nn_bytes, pkts.nn_rtp_pkts);
+        // Stat the original RAW AV frame, maybe h264+aac.
+        stat->perf_on_msgs(msg_count);
+        // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
+        stat->perf_on_rtc_packets(srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos);
+        // Stat the RAW RTP packets, which maybe group by GSO.
+        stat->perf_on_rtp_packets(pkts.packets.size());
+        // Stat the RTP packets going into kernel.
+        stat->perf_gso_on_packets(pkts.nn_rtp_pkts);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -957,6 +964,9 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* iov = mhdr->msg_hdr.msg_iov + j;
+                if (iov->iov_len <= 0) {
+                    break;
+                }
                 srs_trace("%s #%d/%d/%d, %d bytes, size %d/%d", (use_gso? "GSO":"RAW"), j, gso_cursor + 1,
                     mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
             }
@@ -1004,7 +1014,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("GSO packets, rtp %d/%d, videos %d/%d", packets.packets.size(),
+    srs_trace("Summary packets, rtp %d/%d, videos %d/%d, audios %d/%d", packets.packets.size(),
         packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras);
 #endif
 
