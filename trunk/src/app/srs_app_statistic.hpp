@@ -125,6 +125,8 @@ public:
 class SrsStatisticCategory
 {
 public:
+    uint64_t nn;
+public:
     uint64_t a;
     uint64_t b;
     uint64_t c;

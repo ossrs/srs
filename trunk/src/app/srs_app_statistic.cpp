@@ -236,6 +236,8 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
 
 SrsStatisticCategory::SrsStatisticCategory()
 {
+    nn = 0;
+
     a = 0;
     b = 0;
     c = 0;
@@ -685,6 +687,8 @@ void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)
     } else {
         p->j++;
     }
+
+    p->nn += nb_msgs;
 }
 
 srs_error_t SrsStatistic::dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj)
@@ -714,6 +718,8 @@ srs_error_t SrsStatistic::dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj
     if (p->h) obj->set("lt_128",  SrsJsonAny::integer(p->h));
     if (p->i) obj->set("lt_256",  SrsJsonAny::integer(p->i));
     if (p->j) obj->set("gt_256",  SrsJsonAny::integer(p->j));
+
+    obj->set("nn",  SrsJsonAny::integer(p->nn));
 
     return err;
 }

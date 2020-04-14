@@ -46,41 +46,45 @@ keys = ['lt_2', 'lt_3', 'lt_5', 'lt_9', 'lt_16', 'lt_32', 'lt_64', 'lt_128', 'lt
 
 print ""
 print("AV---Frames"),
+p = obj['data']['avframes']
 for k in keys:
     k2 = '%s'%(k)
-    p = obj['data']['avframes']
     if k2 in p:
         print(p[k2]),
     else:
         print(0),
+print(p['nn']),
 
 print ""
 print("RTC--Frames"),
+p = obj['data']['rtc']
 for k in keys:
     k2 = '%s'%(k)
-    p = obj['data']['rtc']
     if k2 in p:
         print(p[k2]),
     else:
         print(0),
+print(p['nn']),
 
 print ""
 print("RTP-Packets"),
+p = obj['data']['rtp']
 for k in keys:
     k2 = '%s'%(k)
-    p = obj['data']['rtp']
     if k2 in p:
         print(p[k2]),
     else:
         print(0),
+print(p['nn']),
 
 print ""
 print("GSO-Packets"),
+p = obj['data']['gso']
 for k in keys:
     k2 = '%s'%(k)
-    p = obj['data']['gso']
     if k2 in p:
         print(p[k2]),
     else:
         print(0),
+print(p['nn']),
 

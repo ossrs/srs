@@ -652,11 +652,17 @@ srs_error_t SrsRtcSenderThread::cycle()
         // Stat the original RAW AV frame, maybe h264+aac.
         stat->perf_on_msgs(msg_count);
         // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
-        stat->perf_on_rtc_packets(srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos);
+        int nn_rtc_packets = srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos;
+        stat->perf_on_rtc_packets(nn_rtc_packets);
         // Stat the RAW RTP packets, which maybe group by GSO.
         stat->perf_on_rtp_packets(pkts.packets.size());
         // Stat the RTP packets going into kernel.
         stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
+#if defined(SRS_DEBUG)
+        srs_trace("RTC PLAY packets, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d bytes",
+            msg_count, nn_rtc_packets, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
+            pkts.nn_samples, pkts.nn_bytes);
+#endif
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -1014,7 +1020,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("Summary packets, rtp %d/%d, videos %d/%d, audios %d/%d", packets.packets.size(),
+    srs_trace("RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d", packets.packets.size(),
         packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras);
 #endif
 
