@@ -41,7 +41,10 @@ print ""
 print("AVFrames"),
 for k in keys:
     k2 = 'lt_%s'%(k)
-    p = obj['data']['writev']['msgs']
+    if 'frames' in obj['data']:
+        p = obj['data']['frames']['msgs']
+    else:
+        p = obj['data']['writev']['msgs']
     if k2 in p:
         print(p[k2]),
     else:
@@ -51,7 +54,10 @@ print ""
 print("RTP-Packets"),
 for k in keys:
     k2 = 'lt_%s'%(k)
-    p = obj['data']['writev']['iovs']
+    if 'frames' in obj['data']:
+        p = obj['data']['frames']['iovs']
+    else:
+        p = obj['data']['writev']['iovs']
     if k2 in p:
         print(p[k2]),
     else:
