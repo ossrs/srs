@@ -732,7 +732,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // @see https://github.com/ossrs/srs/issues/257
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, mw_sleep);
+            consumer->wait(SRS_PERF_MW_MIN_MSGS_REALTIME, mw_sleep);
         } else {
             // for no-realtime, got some msgs then send.
             consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);

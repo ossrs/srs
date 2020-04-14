@@ -588,31 +588,31 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray* arr, int start, int count)
 void SrsStatistic::perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs)
 {
     // For perf msgs, the nb_msgs stat.
-    //      a: =1
-    //      b: <3
-    //      c: <6
-    //      d: <12
-    //      e: <128
-    //      f: <256
-    //      g: <512
-    //      h: <600
+    //      a: <3
+    //      b: <5
+    //      c: <9
+    //      d: <16
+    //      e: <32
+    //      f: <64
+    //      g: <128
+    //      h: <256
     //      i: <1000
     //      j: >=1000
-    if (nb_msgs == 1) {
+    if (nb_msgs < 3) {
         perf_msgs->a++;
-    } else if (nb_msgs < 3) {
+    } else if (nb_msgs < 5) {
         perf_msgs->b++;
-    } else if (nb_msgs < 6) {
+    } else if (nb_msgs < 9) {
         perf_msgs->c++;
-    } else if (nb_msgs < 12) {
+    } else if (nb_msgs < 16) {
         perf_msgs->d++;
-    } else if (nb_msgs < 128) {
+    } else if (nb_msgs < 32) {
         perf_msgs->e++;
-    } else if (nb_msgs < 256) {
+    } else if (nb_msgs < 64) {
         perf_msgs->f++;
-    } else if (nb_msgs < 512) {
+    } else if (nb_msgs < 128) {
         perf_msgs->g++;
-    } else if (nb_msgs < 600) {
+    } else if (nb_msgs < 256) {
         perf_msgs->h++;
     } else if (nb_msgs < 1000) {
         perf_msgs->i++;
@@ -663,24 +663,24 @@ srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
         obj->set("msgs", p);
 
         // For perf msgs, the nb_msgs stat.
-        //      a: =1
-        //      b: <3
-        //      c: <6
-        //      d: <12
-        //      e: <128
-        //      f: <256
-        //      g: <512
-        //      h: <600
+        //      a: <3
+        //      b: <5
+        //      c: <9
+        //      d: <16
+        //      e: <32
+        //      f: <64
+        //      g: <128
+        //      h: <256
         //      i: <1000
         //      j: >=1000
-        p->set("lt_2",      SrsJsonAny::integer(perf_msgs->a));
-        p->set("lt_3",     SrsJsonAny::integer(perf_msgs->b));
-        p->set("lt_6",    SrsJsonAny::integer(perf_msgs->c));
-        p->set("lt_12",    SrsJsonAny::integer(perf_msgs->d));
-        p->set("lt_128",    SrsJsonAny::integer(perf_msgs->e));
-        p->set("lt_256",    SrsJsonAny::integer(perf_msgs->f));
-        p->set("lt_512",    SrsJsonAny::integer(perf_msgs->g));
-        p->set("lt_600",    SrsJsonAny::integer(perf_msgs->h));
+        p->set("lt_3",      SrsJsonAny::integer(perf_msgs->a));
+        p->set("lt_5",     SrsJsonAny::integer(perf_msgs->b));
+        p->set("lt_9",    SrsJsonAny::integer(perf_msgs->c));
+        p->set("lt_16",    SrsJsonAny::integer(perf_msgs->d));
+        p->set("lt_32",    SrsJsonAny::integer(perf_msgs->e));
+        p->set("lt_64",    SrsJsonAny::integer(perf_msgs->f));
+        p->set("lt_128",    SrsJsonAny::integer(perf_msgs->g));
+        p->set("lt_256",    SrsJsonAny::integer(perf_msgs->h));
         p->set("lt_1000",   SrsJsonAny::integer(perf_msgs->i));
         p->set("gt_1000",   SrsJsonAny::integer(perf_msgs->j));
     }

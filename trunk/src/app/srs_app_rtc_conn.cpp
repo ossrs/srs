@@ -619,7 +619,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, mw_sleep);
+            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME, mw_sleep);
         } else {
             // for no-realtime, got some msgs then send.
             consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
