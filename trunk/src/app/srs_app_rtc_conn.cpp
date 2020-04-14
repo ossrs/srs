@@ -654,8 +654,9 @@ srs_error_t SrsRtcSenderThread::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d packets, %d audios, %d extras, %d videos, %d samples, %d bytes",
-                msg_count, pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes);
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d bytes",
+                msg_count, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
+                pkts.nn_samples, pkts.nn_bytes);
         }
     }
 }
@@ -673,8 +674,6 @@ srs_error_t SrsRtcSenderThread::send_messages(
     if ((err = messages_to_packets(source, msgs, nb_msgs, packets)) != srs_success) {
         return srs_error_wrap(err, "messages to packets");
     }
-
-    packets.nn_rtp_pkts = (int)packets.packets.size();
 
 #ifndef SRS_AUTO_OSX
     // If enabled GSO, send out some packets in a msghdr.
@@ -820,6 +819,9 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets
         mhdr->msg_hdr.msg_controllen = 0;
         mhdr->msg_len = 0;
 
+        // When we send out a packet, we commit a RTP packet.
+        packets.nn_rtp_pkts++;
+
         if ((err = sender->sendmmsg(mhdr)) != srs_success) {
             return srs_error_wrap(err, "send msghdr");
         }
@@ -833,13 +835,12 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 {
     srs_error_t err = srs_success;
 
-    ISrsUdpSender* sender = skt->sender();
-
     // Previous handler, if has the same size, we can use GSO.
     mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
     // GSO, N packets has same length, the final one may not.
     bool use_gso = false; bool gso_final = false;
 
+    ISrsUdpSender* sender = skt->sender();
     int nn_packets = (int)packets.packets.size();
     for (int i = 0; i < nn_packets; i++) {
         SrsRtpPacket2* packet = packets.packets[i];
@@ -950,7 +951,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         bool do_send = (i == nn_packets - 1 || gso_final || !use_gso);
 
 #if defined(SRS_DEBUG)
-        srs_trace("packet SSRC=%d, SN=%d, %d bytes", packet->rtp_header.get_ssrc(),
+        bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
+        srs_trace("Packet %s SSRC=%d, SN=%d, %d bytes", is_video? "Video":"Audio", packet->rtp_header.get_ssrc(),
             packet->rtp_header.get_sequence(), nn_packet);
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
@@ -988,6 +990,9 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             }
 #endif
 
+            // When we send out a packet, we commit a RTP packet.
+            packets.nn_rtp_pkts++;
+
             if ((err = sender->sendmmsg(mhdr)) != srs_success) {
                 return srs_error_wrap(err, "send msghdr");
             }
@@ -997,6 +1002,11 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             use_gso = gso_final = false;
         }
     }
+
+#if defined(SRS_DEBUG)
+    srs_trace("GSO packets, rtp %d/%d, videos %d/%d", packets.packets.size(),
+        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras);
+#endif
 
     return err;
 }
@@ -1816,6 +1826,7 @@ srs_error_t SrsUdpMuxSender::cycle()
             mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
             for (p = &hotspot[0]; p < end; p++) {
                 if (!p->msg_len) {
+                    stat->perf_gso_on_packets(1);
                     continue;
                 }
 

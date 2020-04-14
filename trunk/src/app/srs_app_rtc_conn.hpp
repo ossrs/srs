@@ -117,17 +117,26 @@ private:
     srs_error_t srtp_recv_init();
 };
 
+// A group of RTP packets.
 class SrsRtcPackets
 {
 public:
     bool use_gso;
     bool should_merge_nalus;
 public:
+    // The total bytes of RTP packets.
     int nn_bytes;
+    // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
+    // one msghdr by GSO, it's only one RTP packet, because we only send once.
     int nn_rtp_pkts;
+    // For video, the samples or NALUs.
     int nn_samples;
+    // For audio, the generated extra audio packets.
+    // For example, when transcoding AAC to opus, may many extra payloads for a audio.
     int nn_extras;
+    // The original audio messages.
     int nn_audios;
+    // The original video messages.
     int nn_videos;
 public:
     std::vector<SrsRtpPacket2*> packets;
