@@ -4751,11 +4751,19 @@ int SrsConfig::get_rtc_server_sendmmsg()
 
 int SrsConfig::get_rtc_server_reuseport()
 {
-#if defined(SO_REUSEPORT)
-    static int DEFAULT = 4;
-#else
-    static int DEFAULT = 1;
+    int v = get_rtc_server_reuseport2();
+
+#if !defined(SO_REUSEPORT)
+    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
+    v = 1
 #endif
+
+    return v;
+}
+
+int SrsConfig::get_rtc_server_reuseport2()
+{
+    static int DEFAULT = 4;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4767,13 +4775,7 @@ int SrsConfig::get_rtc_server_reuseport()
         return DEFAULT;
     }
 
-    int reuseport = ::atoi(conf->arg0().c_str());
-#if !defined(SO_REUSEPORT)
-    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
-    reuseport = DEFAULT
-#endif
-
-    return reuseport;
+    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_rtc_server_merge_nalus()
@@ -4795,19 +4797,7 @@ bool SrsConfig::get_rtc_server_merge_nalus()
 
 bool SrsConfig::get_rtc_server_gso()
 {
-    static int DEFAULT = true;
-
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("gso");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    bool v = SRS_CONF_PERFER_TRUE(conf->arg0());
+    bool v = get_rtc_server_gso2();
 
     bool gso_disabled = false;
 #if !defined(__linux__)
@@ -4831,6 +4821,23 @@ bool SrsConfig::get_rtc_server_gso()
     }
 
     return v;
+}
+
+bool SrsConfig::get_rtc_server_gso2()
+{
+    static int DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("gso");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
