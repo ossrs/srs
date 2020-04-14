@@ -33,6 +33,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <linux/version.h>
+#include <sys/utsname.h>
+#endif
 
 #include <vector>
 #include <algorithm>
@@ -4805,12 +4809,25 @@ bool SrsConfig::get_rtc_server_gso()
 
     bool v = SRS_CONF_PERFER_FALSE(conf->arg0());
 
-#ifdef SRS_AUTO_OSX
-    if (v) {
-        srs_warn("GSO is for Linux only");
-    }
-    v = false;
+    bool gso_disabled = false;
+#if !defined(__linux__)
+    gso_disabled = true;
+    srs_warn("GSO is for Linux 4.18+ only");
+#else
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+        utsname un = {0};
+        int r0 = uname(&un);
+        if (r0 || strcmp(un.release, "4.18.0") < 0) {
+            gso_disabled = true;
+        }
+        srs_warn("GSO is for Linux 4.18+ only, r0=%d, %s", r0, un.release);
+    #endif
 #endif
+
+    if (v && gso_disabled) {
+        v = false;
+    }
+
     return v;
 }
 
