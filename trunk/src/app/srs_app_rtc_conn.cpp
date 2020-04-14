@@ -656,7 +656,7 @@ srs_error_t SrsRtcSenderThread::cycle()
         // Stat the RAW RTP packets, which maybe group by GSO.
         stat->perf_on_rtp_packets(pkts.packets.size());
         // Stat the RTP packets going into kernel.
-        stat->perf_gso_on_packets(pkts.nn_rtp_pkts);
+        stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -1836,7 +1836,6 @@ srs_error_t SrsUdpMuxSender::cycle()
             mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
             for (p = &hotspot[0]; p < end; p++) {
                 if (!p->msg_len) {
-                    stat->perf_gso_on_packets(1);
                     continue;
                 }
 
@@ -1845,7 +1844,6 @@ srs_error_t SrsUdpMuxSender::cycle()
                 p->msg_len = 0;
 
                 gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
-                stat->perf_gso_on_packets(real_iovs);
             }
         }
 

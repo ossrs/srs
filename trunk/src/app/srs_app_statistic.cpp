@@ -619,7 +619,7 @@ srs_error_t SrsStatistic::dumps_perf_rtp_packets(SrsJsonObject* obj)
     return dumps_perf(perf_rtp, obj);
 }
 
-void SrsStatistic::perf_gso_on_packets(int nb_packets)
+void SrsStatistic::perf_on_gso_packets(int nb_packets)
 {
     perf_on_packets(perf_gso, nb_packets);
 }

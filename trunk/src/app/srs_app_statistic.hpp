@@ -248,7 +248,7 @@ public:
 public:
     // Stat for packets UDP GSO, nb_packets is the merged RTP packets.
     // For example, three RTP/audio packets maybe GSO to one msghdr.
-    virtual void perf_gso_on_packets(int nb_packets);
+    virtual void perf_on_gso_packets(int nb_packets);
     // Dumps the perf statistic data for UDP GSO, for performance analysis.
     virtual srs_error_t dumps_perf_gso(SrsJsonObject* obj);
 public:
