@@ -35,7 +35,7 @@ f.close()
 print "Repsonse %s"%(s)
 
 obj = json.loads(s)
-keys = [3, 5, 9, 16, 32, 64, 128, 256, 1000]
+keys = [1, 3, 5, 9, 16, 32, 64, 256, 1000]
 
 print ""
 print("AV---Frames"),

@@ -171,6 +171,12 @@ else
     srs_undefine_macro "SRS_AUTO_HAS_SENDMMSG" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_DEBUG = YES ]; then
+    srs_define_macro "SRS_AUTO_DEBUG" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_DEBUG" $SRS_AUTO_HEADERS_H
+fi
+
 # prefix
 echo "" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
