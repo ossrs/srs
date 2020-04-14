@@ -207,6 +207,14 @@ function build_default_hls_url() {
 }
 
 function build_default_rtc_url(query) {
+    // Use target to overwrite server, vhost and eip.
+    console.log('?target=x.x.x.x to overwrite server, vhost and eip.');
+    if (query.target) {
+        query.server = query.vhost = query.eip = query.target;
+        query.user_query.eip = query.target;
+        delete query.target;
+    }
+
     var server = (!query.server)? window.location.hostname:query.server;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
