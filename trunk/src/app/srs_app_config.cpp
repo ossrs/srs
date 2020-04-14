@@ -4795,7 +4795,7 @@ bool SrsConfig::get_rtc_server_merge_nalus()
 
 bool SrsConfig::get_rtc_server_gso()
 {
-    static int DEFAULT = false;
+    static int DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4807,7 +4807,7 @@ bool SrsConfig::get_rtc_server_gso()
         return DEFAULT;
     }
 
-    bool v = SRS_CONF_PERFER_FALSE(conf->arg0());
+    bool v = SRS_CONF_PERFER_TRUE(conf->arg0());
 
     bool gso_disabled = false;
 #if !defined(__linux__)
