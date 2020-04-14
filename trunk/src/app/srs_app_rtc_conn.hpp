@@ -273,15 +273,6 @@ private:
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
-    // Whether GSO shares the same mmsghdr cache.
-    // If not shared, use dedicated cache for GSO.
-    bool gso_dedicated;
-private:
-    // For Linux kernel 3.*, we must use isolate queue for GSO,
-    // that is, sendmmsg does not work with GSO.
-    std::vector<mmsghdr> gso_hotspot;
-    std::vector<mmsghdr> gso_cache;
-    int gso_cache_pos;
 public:
     SrsUdpMuxSender(SrsRtcServer* s);
     virtual ~SrsUdpMuxSender();
@@ -291,7 +282,6 @@ private:
     void free_mhdrs(std::vector<mmsghdr>& mhdrs);
 public:
     virtual srs_error_t fetch(mmsghdr** pphdr);
-    virtual srs_error_t gso_fetch(mmsghdr** pphdr);
     virtual srs_error_t sendmmsg(mmsghdr* hdr);
     virtual srs_error_t cycle();
 // interface ISrsReloadHandler
