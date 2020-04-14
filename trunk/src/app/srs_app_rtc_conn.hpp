@@ -179,7 +179,7 @@ private:
     srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
-    srs_error_t send_packets2(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
+    srs_error_t send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
 private:

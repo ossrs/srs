@@ -675,7 +675,7 @@ srs_error_t SrsRtcSenderThread::send_messages(
 #ifndef SRS_AUTO_OSX
     // If enabled GSO, send out some packets in a msghdr.
     if (packets.use_gso) {
-        if ((err = send_packets2(skt, packets)) != srs_success) {
+        if ((err = send_packets_gso(skt, packets)) != srs_success) {
             return srs_error_wrap(err, "gso send");
         }
         return err;
@@ -825,7 +825,7 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets
 }
 
 // TODO: FIXME: We can gather and pad audios, because they have similar size.
-srs_error_t SrsRtcSenderThread::send_packets2(SrsUdpMuxSocket* skt, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1867,9 +1867,9 @@ srs_error_t SrsUdpMuxSender::cycle()
                 pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
             }
 
-            srs_trace("-> RTC #%d SEND %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", gso-iovs %d/%d/%" PRId64 ", pps %d/%d%s, schedule %d/%d, sessions %d, cache %d, sendmmsg %d",
-                srs_netfd_fileno(lfd), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs, nn_gso_iovs_max, nn_gso_iovs, pps_average, pps_last, pps_unit.c_str(),
-                nn_loop, nn_wait, (int)server->nn_sessions(), (int)cache.size(), max_sendmmsg);
+            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s",
+                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs, nn_gso_iovs_max, nn_gso_iovs,
+                pps_average, pps_last, pps_unit.c_str());
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = nn_wait = nn_msgs_max = 0;
             nn_gso_msgs_max = 0; nn_gso_iovs_max = 0;
