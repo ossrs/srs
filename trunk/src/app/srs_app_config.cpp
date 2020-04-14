@@ -4812,16 +4812,18 @@ bool SrsConfig::get_rtc_server_gso()
     bool gso_disabled = false;
 #if !defined(__linux__)
     gso_disabled = true;
-    srs_warn("GSO is disabled, for Linux 4.18+ only");
-#else
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+    if (v) {
+        srs_warn("GSO is disabled, for Linux 4.18+ only");
+    }
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+    if (v) {
         utsname un = {0};
         int r0 = uname(&un);
         if (r0 || strcmp(un.release, "4.18.0") < 0) {
             gso_disabled = true;
+            srs_warn("GSO is disabled, for Linux 4.18+ only, r0=%d, kernel=%s", r0, un.release);
         }
-        srs_warn("GSO is disabled, for Linux 4.18+ only, r0=%d, kernel=%s", r0, un.release);
-    #endif
+    }
 #endif
 
     if (v && gso_disabled) {
