@@ -1622,12 +1622,12 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         data->set("query", p);
 
         p->set("target", SrsJsonAny::str(target.c_str()));
-        p->set("help", SrsJsonAny::str("?target=writev|sendmmsg|gso"));
+        p->set("help", SrsJsonAny::str("?target=frames|sendmmsg|gso"));
     }
 
-    if (target.empty() || target == "writev") {
+    if (target.empty() || target == "frames") {
         SrsJsonObject* p = SrsJsonAny::object();
-        data->set("writev", p);
+        data->set("frames", p);
         if ((err = stat->dumps_perf_writev(p)) != srs_success) {
             int code = srs_error_code(err); srs_error_reset(err);
             return srs_api_response_code(w, r, code);

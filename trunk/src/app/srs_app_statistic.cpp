@@ -621,33 +621,33 @@ void SrsStatistic::perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs)
     }
 
     // For perf iovs, the nb_iovs stat.
-    //      a: <=2
-    //      b: <10
-    //      c: <20
-    //      d: <200
-    //      e: <300
-    //      f: <500
-    //      g: <700
-    //      h: <900
-    //      i: <1024
-    //      j: >=1024
-    if (nb_iovs <= 2) {
+    //      a: <3
+    //      b: <5
+    //      c: <9
+    //      d: <16
+    //      e: <32
+    //      f: <64
+    //      g: <128
+    //      h: <256
+    //      i: <1000
+    //      j: >=1000
+    if (nb_iovs < 3) {
         perf_iovs->a++;
-    } else if (nb_iovs < 10) {
+    } else if (nb_iovs < 5) {
         perf_iovs->b++;
-    } else if (nb_iovs < 20) {
+    } else if (nb_iovs < 9) {
         perf_iovs->c++;
-    } else if (nb_iovs < 200) {
+    } else if (nb_iovs < 16) {
         perf_iovs->d++;
-    } else if (nb_iovs < 300) {
+    } else if (nb_iovs < 32) {
         perf_iovs->e++;
-    } else if (nb_iovs < 500) {
+    } else if (nb_iovs < 64) {
         perf_iovs->f++;
-    } else if (nb_iovs < 700) {
+    } else if (nb_iovs < 128) {
         perf_iovs->g++;
-    } else if (nb_iovs < 900) {
+    } else if (nb_iovs < 256) {
         perf_iovs->h++;
-    } else if (nb_iovs < 1024) {
+    } else if (nb_iovs < 1000) {
         perf_iovs->i++;
     } else {
         perf_iovs->j++;
@@ -690,26 +690,26 @@ srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
         obj->set("iovs", p);
 
         // For perf iovs, the nb_iovs stat.
-        //      a: <=2
-        //      b: <10
-        //      c: <20
-        //      d: <200
-        //      e: <300
-        //      f: <500
-        //      g: <700
-        //      h: <900
-        //      i: <1024
-        //      j: >=1024
+        //      a: <3
+        //      b: <5
+        //      c: <9
+        //      d: <16
+        //      e: <32
+        //      f: <64
+        //      g: <128
+        //      h: <256
+        //      i: <1000
+        //      j: >=1000
         if (perf_iovs->a) p->set("lt_3",      SrsJsonAny::integer(perf_iovs->a));
-        if (perf_iovs->b) p->set("lt_10",     SrsJsonAny::integer(perf_iovs->b));
-        if (perf_iovs->c) p->set("lt_20",     SrsJsonAny::integer(perf_iovs->c));
-        if (perf_iovs->d) p->set("lt_200",    SrsJsonAny::integer(perf_iovs->d));
-        if (perf_iovs->e) p->set("lt_300",    SrsJsonAny::integer(perf_iovs->e));
-        if (perf_iovs->f) p->set("lt_500",    SrsJsonAny::integer(perf_iovs->f));
-        if (perf_iovs->g) p->set("lt_700",    SrsJsonAny::integer(perf_iovs->g));
-        if (perf_iovs->h) p->set("lt_900",    SrsJsonAny::integer(perf_iovs->h));
-        if (perf_iovs->i) p->set("lt_1024",   SrsJsonAny::integer(perf_iovs->i));
-        if (perf_iovs->j) p->set("gt_1024",   SrsJsonAny::integer(perf_iovs->j));
+        if (perf_iovs->b) p->set("lt_5",     SrsJsonAny::integer(perf_iovs->b));
+        if (perf_iovs->c) p->set("lt_9",     SrsJsonAny::integer(perf_iovs->c));
+        if (perf_iovs->d) p->set("lt_16",    SrsJsonAny::integer(perf_iovs->d));
+        if (perf_iovs->e) p->set("lt_32",    SrsJsonAny::integer(perf_iovs->e));
+        if (perf_iovs->f) p->set("lt_64",    SrsJsonAny::integer(perf_iovs->f));
+        if (perf_iovs->g) p->set("lt_128",    SrsJsonAny::integer(perf_iovs->g));
+        if (perf_iovs->h) p->set("lt_256",    SrsJsonAny::integer(perf_iovs->h));
+        if (perf_iovs->i) p->set("lt_1000",   SrsJsonAny::integer(perf_iovs->i));
+        if (perf_iovs->j) p->set("gt_1000",   SrsJsonAny::integer(perf_iovs->j));
     }
 
     return err;
