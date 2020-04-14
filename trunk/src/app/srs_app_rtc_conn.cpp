@@ -947,7 +947,21 @@ srs_error_t SrsRtcSenderThread::send_packets2(SrsUdpMuxSocket* skt, SrsRtcPacket
         }
 
         // For last message, or final gso, or determined not using GSO, send it now.
-        if (i == nn_packets - 1 || gso_final || !use_gso) {
+        bool do_send = (i == nn_packets - 1 || gso_final || !use_gso);
+
+#if defined(SRS_DEBUG)
+        srs_trace("packet SSRC=%d, SN=%d, %d bytes", packet->rtp_header.get_ssrc(),
+            packet->rtp_header.get_sequence(), nn_packet);
+        if (do_send) {
+            for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
+                iovec* iov = mhdr->msg_hdr.msg_iov + j;
+                srs_trace("%s #%d/%d/%d, %d bytes, size %d/%d", (use_gso? "GSO":"RAW"), j, gso_cursor + 1,
+                    mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
+            }
+        }
+#endif
+
+        if (do_send) {
             sockaddr_in* addr = (sockaddr_in*)skt->peer_addr();
             socklen_t addrlen = (socklen_t)skt->peer_addrlen();
 
@@ -977,15 +991,6 @@ srs_error_t SrsRtcSenderThread::send_packets2(SrsUdpMuxSocket* skt, SrsRtcPacket
             if ((err = sender->sendmmsg(mhdr)) != srs_success) {
                 return srs_error_wrap(err, "send msghdr");
             }
-
-#ifdef SRS_DEBUG
-            srs_warn("packet SN=%d %d bytes", nn_packet, packet->rtp_header.get_sequence());
-            for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
-                iovec* iov = mhdr->msg_hdr.msg_iov + j;
-                srs_warn("%s #%d/%d/%d, %d bytes, size %d/%d", (use_gso? "GSO":"RAW"), j, gso_cursor + 1,
-                    mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
-            }
-#endif
 
             // Reset the GSO flag.
             gso_mhdr = NULL; gso_size = 0; gso_encrypt = 0; gso_cursor = 0;
@@ -1847,6 +1852,41 @@ srs_error_t SrsUdpMuxSender::cycle()
             gso_cache_pos = 0;
         }
 
+        // Collect informations for GSO
+        if (!gso_dedicated && pos > 0) {
+            // For shared GSO cache, stat the messages.
+            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+            for (p = &hotspot[0]; p < end; p++) {
+                if (!p->msg_len) {
+                    continue;
+                }
+
+                // Private message, use it to store the cursor.
+                int real_iovs = p->msg_len;
+                p->msg_len = 0;
+
+                gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
+                stat->perf_gso_on_packets(real_iovs);
+            }
+        }
+
+        // Send out all messages, may GSO if shared cache.
+        if (false && pos > 0) {
+            // Send out all messages.
+            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+            for (p = &hotspot[0]; p < end; p += max_sendmmsg) {
+                int vlen = (int)(end - p);
+                vlen = srs_min(max_sendmmsg, vlen);
+
+                int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
+                if (r0 != vlen) {
+                    srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
+                }
+
+                stat->perf_sendmmsg_on_packets(vlen);
+            }
+        }
+
         // Send out GSO in dedicated queue.
         if (gso_dedicated && gso_pos > 0) {
             mmsghdr* p = &gso_hotspot[0]; mmsghdr* end = p + gso_pos;
@@ -1863,40 +1903,6 @@ srs_error_t SrsUdpMuxSender::cycle()
 
                 nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
                 stat->perf_gso_on_packets(real_iovs);
-            }
-        }
-
-        // Send out all messages, may GSO if shared cache.
-        if (pos > 0) {
-            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
-
-            // For shared GSO cache, stat the messages.
-            if (!gso_dedicated) {
-                for (p = &hotspot[0]; p < end; p++) {
-                    if (!p->msg_len) {
-                        continue;
-                    }
-
-                    // Private message, use it to store the cursor.
-                    int real_iovs = p->msg_len;
-                    p->msg_len = 0;
-
-                    gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
-                    stat->perf_gso_on_packets(real_iovs);
-                }
-            }
-
-            // Send out all messages.
-            for (p = &hotspot[0]; p < end; p += max_sendmmsg) {
-                int vlen = (int)(end - p);
-                vlen = srs_min(max_sendmmsg, vlen);
-
-                int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
-                if (r0 != vlen) {
-                    srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
-                }
-
-                stat->perf_sendmmsg_on_packets(vlen);
             }
         }
 
