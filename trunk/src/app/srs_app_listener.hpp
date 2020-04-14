@@ -139,6 +139,10 @@ public:
 public:
     // Fetch a mmsghdr from sender's cache.
     virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
+    // For Linux kernel 3.*, we must use isolate APIs for GSO,
+    // that is, sendmmsg does not work with GSO.
+    // Fetch a mmsghdr from sender's cache.
+    virtual srs_error_t gso_fetch(mmsghdr** pphdr) = 0;
     // Notify the sender to send out the msg.
     virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
 };

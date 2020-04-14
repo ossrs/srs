@@ -170,6 +170,7 @@ private:
     SrsStatisticCategory* perf_msgs;
     SrsStatisticCategory* perf_sys;
     SrsStatisticCategory* perf_sendmmsg;
+    SrsStatisticCategory* perf_gso;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
@@ -238,9 +239,14 @@ public:
     virtual srs_error_t dumps_perf_writev(SrsJsonObject* obj);
 public:
     // Stat for packets UDP sendmmsg, nb_msgs is the vlen for sendmmsg.
-    virtual void perf_mw_on_packets(int nb_msgs);
+    virtual void perf_sendmmsg_on_packets(int nb_msgs);
     // Dumps the perf statistic data for UDP sendmmsg, for performance analysis.
     virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
+public:
+    // Stat for packets UDP GSO, nb_msgs is the vlen for sendmmsg.
+    virtual void perf_gso_on_packets(int nb_msgs);
+    // Dumps the perf statistic data for UDP GSO, for performance analysis.
+    virtual srs_error_t dumps_perf_gso(SrsJsonObject* obj);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

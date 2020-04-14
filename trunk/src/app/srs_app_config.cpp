@@ -3614,7 +3614,8 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus") {
+                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus"
+                && n != "gso_dedicated") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4811,6 +4812,31 @@ bool SrsConfig::get_rtc_server_gso()
     }
     v = false;
 #endif
+    return v;
+}
+
+bool SrsConfig::get_rtc_server_gso_dedicated()
+{
+    static int DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("gso_dedicated");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    bool v = SRS_CONF_PERFER_FALSE(conf->arg0());
+
+#ifdef SRS_AUTO_OSX
+    if (v != DEFAULT) {
+        srs_warn("GSO is for Linux only");
+    }
+#endif
+
     return v;
 }
 
