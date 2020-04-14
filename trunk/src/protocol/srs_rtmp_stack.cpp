@@ -627,11 +627,6 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
             if ((er = skt->writev(iovs, 2, NULL)) != srs_success) {
                 return srs_error_wrap(err, "writev");
             }
-
-            // Notify about perf stat.
-            if (perf) {
-                perf->perf_mw_on_packets(1, payload_size, 2);
-            }
         }
     }
     

@@ -609,6 +609,8 @@ srs_error_t SrsRtcSenderThread::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
+    SrsStatistic* stat = SrsStatistic::instance();
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
@@ -646,6 +648,8 @@ srs_error_t SrsRtcSenderThread::cycle()
             SrsSharedPtrMessage* msg = msgs.msgs[i];
             srs_freep(msg);
         }
+
+        stat->perf_mw_on_msgs(msg_count, pkts.nn_bytes, pkts.nn_rtp_pkts);
 
         pprint->elapse();
         if (pprint->can_print()) {

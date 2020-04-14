@@ -1622,7 +1622,7 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         data->set("query", p);
 
         p->set("target", SrsJsonAny::str(target.c_str()));
-        p->set("help", SrsJsonAny::str("?target=writev|sendmmsg|gso|udp"));
+        p->set("help", SrsJsonAny::str("?target=writev|sendmmsg|gso"));
     }
 
     if (target.empty() || target == "writev") {
@@ -1634,7 +1634,7 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         }
     }
 
-    if (target.empty() || target == "sendmmsg" || target == "udp") {
+    if (target.empty() || target == "sendmmsg") {
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("sendmmsg", p);
         if ((err = stat->dumps_perf_sendmmsg(p)) != srs_success) {
@@ -1643,7 +1643,7 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         }
     }
 
-    if (target.empty() || target == "gso" || target == "udp") {
+    if (target.empty() || target == "gso") {
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("gso", p);
         if ((err = stat->dumps_perf_gso(p)) != srs_success) {

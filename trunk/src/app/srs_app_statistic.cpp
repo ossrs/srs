@@ -265,7 +265,6 @@ SrsStatistic::SrsStatistic()
 
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
-    perf_sys = new SrsStatisticCategory();
     perf_sendmmsg = new SrsStatisticCategory();
     perf_gso = new SrsStatisticCategory();
 }
@@ -304,7 +303,6 @@ SrsStatistic::~SrsStatistic()
 
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
-    srs_freep(perf_sys);
     srs_freep(perf_sendmmsg);
     srs_freep(perf_gso);
 }
@@ -591,28 +589,28 @@ void SrsStatistic::perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs)
 {
     // For perf msgs, the nb_msgs stat.
     //      a: =1
-    //      b: <10
-    //      c: <100
-    //      d: <200
-    //      e: <300
-    //      f: <400
-    //      g: <500
+    //      b: <3
+    //      c: <6
+    //      d: <12
+    //      e: <128
+    //      f: <256
+    //      g: <512
     //      h: <600
     //      i: <1000
     //      j: >=1000
     if (nb_msgs == 1) {
         perf_msgs->a++;
-    } else if (nb_msgs < 10) {
+    } else if (nb_msgs < 3) {
         perf_msgs->b++;
-    } else if (nb_msgs < 100) {
+    } else if (nb_msgs < 6) {
         perf_msgs->c++;
-    } else if (nb_msgs < 200) {
+    } else if (nb_msgs < 12) {
         perf_msgs->d++;
-    } else if (nb_msgs < 300) {
+    } else if (nb_msgs < 128) {
         perf_msgs->e++;
-    } else if (nb_msgs < 400) {
+    } else if (nb_msgs < 256) {
         perf_msgs->f++;
-    } else if (nb_msgs < 500) {
+    } else if (nb_msgs < 512) {
         perf_msgs->g++;
     } else if (nb_msgs < 600) {
         perf_msgs->h++;
@@ -654,18 +652,6 @@ void SrsStatistic::perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs)
     } else {
         perf_iovs->j++;
     }
-
-    // Stat the syscalls.
-    //      a: number of syscalls of msgs.
-    perf_sys->a++;
-}
-
-void SrsStatistic::perf_mw_on_packets(int nb_pkts, int bytes_pkts, int nb_iovs)
-{
-    // Stat the syscalls.
-    //      a: number of syscalls of msgs.
-    //      b: number of syscalls of pkts.
-    perf_sys->b++;
 }
 
 srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
@@ -678,22 +664,22 @@ srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
 
         // For perf msgs, the nb_msgs stat.
         //      a: =1
-        //      b: <10
-        //      c: <100
-        //      d: <200
-        //      e: <300
-        //      f: <400
-        //      g: <500
+        //      b: <3
+        //      c: <6
+        //      d: <12
+        //      e: <128
+        //      f: <256
+        //      g: <512
         //      h: <600
         //      i: <1000
         //      j: >=1000
         p->set("lt_2",      SrsJsonAny::integer(perf_msgs->a));
-        p->set("lt_10",     SrsJsonAny::integer(perf_msgs->b));
-        p->set("lt_100",    SrsJsonAny::integer(perf_msgs->c));
-        p->set("lt_200",    SrsJsonAny::integer(perf_msgs->d));
-        p->set("lt_300",    SrsJsonAny::integer(perf_msgs->e));
-        p->set("lt_400",    SrsJsonAny::integer(perf_msgs->f));
-        p->set("lt_500",    SrsJsonAny::integer(perf_msgs->g));
+        p->set("lt_3",     SrsJsonAny::integer(perf_msgs->b));
+        p->set("lt_6",    SrsJsonAny::integer(perf_msgs->c));
+        p->set("lt_12",    SrsJsonAny::integer(perf_msgs->d));
+        p->set("lt_128",    SrsJsonAny::integer(perf_msgs->e));
+        p->set("lt_256",    SrsJsonAny::integer(perf_msgs->f));
+        p->set("lt_512",    SrsJsonAny::integer(perf_msgs->g));
         p->set("lt_600",    SrsJsonAny::integer(perf_msgs->h));
         p->set("lt_1000",   SrsJsonAny::integer(perf_msgs->i));
         p->set("gt_1000",   SrsJsonAny::integer(perf_msgs->j));
@@ -724,17 +710,6 @@ srs_error_t SrsStatistic::dumps_perf_writev(SrsJsonObject* obj)
         p->set("lt_900",    SrsJsonAny::integer(perf_iovs->h));
         p->set("lt_1024",   SrsJsonAny::integer(perf_iovs->i));
         p->set("gt_1024",   SrsJsonAny::integer(perf_iovs->j));
-    }
-
-    if (true) {
-        SrsJsonObject* p = SrsJsonAny::object();
-        obj->set("sys", p);
-
-        // Stat the syscalls.
-        //      a: number of syscalls of msgs.
-        //      b: number of syscalls of pkts.
-        p->set("msgs",  SrsJsonAny::integer(perf_sys->a));
-        p->set("pkts",  SrsJsonAny::integer(perf_sys->b));
     }
 
     return err;

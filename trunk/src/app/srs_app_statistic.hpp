@@ -168,7 +168,6 @@ private:
     // The perf stat for mw(merged write).
     SrsStatisticCategory* perf_iovs;
     SrsStatisticCategory* perf_msgs;
-    SrsStatisticCategory* perf_sys;
     SrsStatisticCategory* perf_sendmmsg;
     SrsStatisticCategory* perf_gso;
 private:
@@ -232,9 +231,6 @@ public:
     // Stat for packets merged written, nb_msgs is the number of RTMP messages,
     // bytes_msgs is the total bytes of RTMP messages, nb_iovs is the total number of iovec.
     virtual void perf_mw_on_msgs(int nb_msgs, int bytes_msgs, int nb_iovs);
-    // Stat for packets merged written, nb_pkts is the number of or chunk packets,
-    // bytes_pkts is the total bytes of or chunk packets, nb_iovs is the total number of iovec.
-    virtual void perf_mw_on_packets(int nb_pkts, int bytes_pkts, int nb_iovs);
     // Dumps the perf statistic data for TCP writev, for performance analysis.
     virtual srs_error_t dumps_perf_writev(SrsJsonObject* obj);
 public:
