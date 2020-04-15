@@ -262,6 +262,9 @@ public:
     virtual void perf_sendmmsg_on_packets(int nb_packets);
     // Dumps the perf statistic data for UDP sendmmsg, for performance analysis.
     virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
+public:
+    // Reset all perf stat data.
+    virtual void reset_perf();
 private:
     virtual void perf_on_packets(SrsStatisticCategory* p, int nb_msgs);
     virtual srs_error_t dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj);

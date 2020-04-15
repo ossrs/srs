@@ -1615,14 +1615,22 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
     SrsStatistic* stat = SrsStatistic::instance();
 
     string target = r->query_get("target");
-    srs_trace("query target=%s", target.c_str());
+    string reset = r->query_get("reset");
+    srs_trace("query target=%s, reset=%s", target.c_str(), reset.c_str());
 
     if (true) {
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("query", p);
 
         p->set("target", SrsJsonAny::str(target.c_str()));
+        p->set("reset", SrsJsonAny::str(reset.c_str()));
         p->set("help", SrsJsonAny::str("?target=avframes|rtc|rtp|gso|writev_iovs|sendmmsg"));
+        p->set("help2", SrsJsonAny::str("?reset=all"));
+    }
+
+    if (!reset.empty()) {
+        stat->reset_perf();
+        return srs_api_response(w, r, obj->dumps());
     }
 
     if (target.empty() || target == "avframes") {
