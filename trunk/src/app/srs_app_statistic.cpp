@@ -651,6 +651,23 @@ srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
     return dumps_perf(perf_sendmmsg, obj);
 }
 
+void SrsStatistic::reset_perf()
+{
+    srs_freep(perf_iovs);
+    srs_freep(perf_msgs);
+    srs_freep(perf_sendmmsg);
+    srs_freep(perf_gso);
+    srs_freep(perf_rtp);
+    srs_freep(perf_rtc);
+
+    perf_iovs = new SrsStatisticCategory();
+    perf_msgs = new SrsStatisticCategory();
+    perf_sendmmsg = new SrsStatisticCategory();
+    perf_gso = new SrsStatisticCategory();
+    perf_rtp = new SrsStatisticCategory();
+    perf_rtc = new SrsStatisticCategory();
+}
+
 void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)
 {
     // The range for stat:
