@@ -542,6 +542,8 @@ public:
 public:
     // If we need to know whether sample is bframe, we have to parse the NALU payload.
     srs_error_t parse_bframe();
+    // Copy sample, share the bytes pointer.
+    SrsSample* copy();
 };
 
 /**

@@ -33,6 +33,11 @@ using namespace std;
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <netinet/udp.h>
+#ifndef UDP_SEGMENT
+#define UDP_SEGMENT             103
+#endif
+
 #include <sstream>
 
 #include <srs_core_autofree.hpp>
@@ -386,7 +391,7 @@ srs_error_t SrsDtlsSession::protect_rtp(char* out_buf, const char* in_buf, int& 
     return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
 }
 
-srs_error_t SrsDtlsSession::protect_rtp2(char* buf, int* pnn_buf, SrsRtpPacket2* pkt)
+srs_error_t SrsDtlsSession::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
     srs_error_t err = srs_success;
 
@@ -394,14 +399,7 @@ srs_error_t SrsDtlsSession::protect_rtp2(char* buf, int* pnn_buf, SrsRtpPacket2*
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
 
-    SrsBuffer stream(buf, *pnn_buf);
-    if ((err = pkt->encode(&stream)) != srs_success) {
-        return srs_error_wrap(err, "encode packet");
-    }
-
-    *pnn_buf = stream.pos();
-
-    if (srtp_protect(srtp_send, buf, pnn_buf) != 0) {
+    if (srtp_protect(srtp_send, rtp_hdr, len_ptr) != 0) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
 
@@ -456,6 +454,26 @@ srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, in
     return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
 }
 
+SrsRtcPackets::SrsRtcPackets(bool gso, bool merge_nalus)
+{
+    use_gso = gso;
+    should_merge_nalus = merge_nalus;
+
+    nn_rtp_pkts = 0;
+    nn_audios = nn_extras = 0;
+    nn_videos = nn_samples = 0;
+}
+
+SrsRtcPackets::~SrsRtcPackets()
+{
+    vector<SrsRtpPacket2*>::iterator it;
+    for (it = packets.begin(); it != packets.end(); ++it ) {
+        SrsRtpPacket2* packet = *it;
+        srs_freep(packet);
+    }
+    packets.clear();
+}
+
 SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid)
     : sendonly_ukt(NULL)
 {
@@ -464,15 +482,21 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int
 
     rtc_session = s;
     sendonly_ukt = u->copy_sendonly();
+    gso = false;
+    merge_nalus = false;
 
     audio_timestamp = 0;
     audio_sequence = 0;
 
     video_sequence = 0;
+
+    _srs_config->subscribe(this);
 }
 
 SrsRtcSenderThread::~SrsRtcSenderThread()
 {
+    _srs_config->unsubscribe(this);
+
     srs_freep(trd);
     srs_freep(sendonly_ukt);
 }
@@ -487,7 +511,33 @@ srs_error_t SrsRtcSenderThread::initialize(const uint32_t& vssrc, const uint32_t
     video_payload_type = v_pt;
     audio_payload_type = a_pt;
 
+    gso = _srs_config->get_rtc_server_gso();
+    merge_nalus = _srs_config->get_rtc_server_merge_nalus();
+    srs_trace("RTC sender video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d)",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus);
+
     return err;
+}
+
+srs_error_t SrsRtcSenderThread::on_reload_rtc_server()
+{
+    if (true) {
+        bool v = _srs_config->get_rtc_server_gso();
+        if (gso != v) {
+            srs_trace("Reload gso %d=>%d", gso, v);
+            gso = v;
+        }
+    }
+
+    if (true) {
+        bool v = _srs_config->get_rtc_server_merge_nalus();
+        if (merge_nalus != v) {
+            srs_trace("Reload merge_nalus %d=>%d", merge_nalus, v);
+            merge_nalus = v;
+        }
+    }
+
+    return srs_success;
 }
 
 int SrsRtcSenderThread::cid()
@@ -560,6 +610,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     SrsAutoFree(SrsPithyPrint, pprint);
 
     srs_trace("rtc session=%s, start play", rtc_session->id().c_str());
+    SrsStatistic* stat = SrsStatistic::instance();
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -569,7 +620,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         if (realtime) {
             // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, mw_sleep);
+            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME, mw_sleep);
         } else {
             // for no-realtime, got some msgs then send.
             consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
@@ -589,9 +640,8 @@ srs_error_t SrsRtcSenderThread::cycle()
             continue;
         }
 
-        int nn = 0;
-        int nn_rtp_pkts = 0;
-        if ((err = send_messages(source, msgs.msgs, msg_count, sendonly_ukt, &nn, &nn_rtp_pkts)) != srs_success) {
+        SrsRtcPackets pkts(gso, merge_nalus);
+        if ((err = send_messages(sendonly_ukt, source, msgs.msgs, msg_count, pkts)) != srs_success) {
             srs_warn("send err %s", srs_error_summary(err).c_str()); srs_error_reset(err);
         }
 
@@ -600,17 +650,33 @@ srs_error_t SrsRtcSenderThread::cycle()
             srs_freep(msg);
         }
 
+        // Stat the original RAW AV frame, maybe h264+aac.
+        stat->perf_on_msgs(msg_count);
+        // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
+        int nn_rtc_packets = srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos;
+        stat->perf_on_rtc_packets(nn_rtc_packets);
+        // Stat the RAW RTP packets, which maybe group by GSO.
+        stat->perf_on_rtp_packets(pkts.packets.size());
+        // Stat the RTP packets going into kernel.
+        stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
+#if defined(SRS_DEBUG)
+        srs_trace("RTC PLAY packets, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d bytes",
+            msg_count, nn_rtc_packets, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
+            pkts.nn_samples, pkts.nn_bytes);
+#endif
+
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d packets, %d bytes", msg_count, nn_rtp_pkts, nn);
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d bytes",
+                msg_count, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
+                pkts.nn_samples, pkts.nn_bytes);
         }
     }
 }
 
 srs_error_t SrsRtcSenderThread::send_messages(
-    SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs,
-    SrsUdpMuxSocket* skt, int* pnn, int* pnn_rtp_pkts
+    SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets
 ) {
     srs_error_t err = srs_success;
 
@@ -619,34 +685,81 @@ srs_error_t SrsRtcSenderThread::send_messages(
     }
 
     // Covert kernel messages to RTP packets.
-    vector<SrsRtpPacket2*> packets;
+    if ((err = messages_to_packets(source, msgs, nb_msgs, packets)) != srs_success) {
+        return srs_error_wrap(err, "messages to packets");
+    }
+
+#ifndef SRS_AUTO_OSX
+    // If enabled GSO, send out some packets in a msghdr.
+    if (packets.use_gso) {
+        if ((err = send_packets_gso(skt, packets)) != srs_success) {
+            return srs_error_wrap(err, "gso send");
+        }
+        return err;
+    }
+#endif
+
+    // By default, we send packets by sendmmsg.
+    if ((err = send_packets(skt, packets)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSenderThread::messages_to_packets(
+    SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets
+) {
+    srs_error_t err = srs_success;
 
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
-        *pnn += msg->size;
 
+        // Update stats.
+        packets.nn_bytes += msg->size;
+
+        int nn_extra_payloads = msg->nn_extra_payloads();
+        packets.nn_extras += nn_extra_payloads;
+
+        int nn_samples = msg->nn_samples();
+        packets.nn_samples += nn_samples;
+
+        // For audio, we transcoded AAC to opus in extra payloads.
         SrsRtpPacket2* packet = NULL;
         if (msg->is_audio()) {
-            for (int i = 0; i < msg->nn_extra_payloads(); i++) {
+            packets.nn_audios++;
+
+            for (int i = 0; i < nn_extra_payloads; i++) {
                 SrsSample* sample = msg->extra_payloads() + i;
                 if ((err = packet_opus(sample, &packet)) != srs_success) {
                     return srs_error_wrap(err, "opus package");
                 }
-                packets.push_back(packet);
+                packets.packets.push_back(packet);
             }
-
             continue;
         }
+
+        // For video, we should process all NALUs in samples.
+        packets.nn_videos++;
 
         // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
         if (msg->has_idr()) {
             if ((err = packet_stap_a(source, msg, &packet)) != srs_success) {
                 return srs_error_wrap(err, "packet stap-a");
             }
-            packets.push_back(packet);
+            packets.packets.push_back(packet);
         }
 
-        for (int i = 0; i < msg->nn_samples(); i++) {
+        // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
+        if (packets.should_merge_nalus && nn_samples > 1) {
+            if ((err = packet_nalus(msg, packets)) != srs_success) {
+                return srs_error_wrap(err, "packet stap-a");
+            }
+            continue;
+        }
+
+        // By default, we package each NALU(sample) to a RTP or FUA packet.
+        for (int i = 0; i < nn_samples; i++) {
             SrsSample* sample = msg->samples() + i;
 
             // We always ignore bframe here, if config to discard bframe,
@@ -660,76 +773,339 @@ srs_error_t SrsRtcSenderThread::send_messages(
                 if ((err = packet_single_nalu(msg, sample, &packet)) != srs_success) {
                     return srs_error_wrap(err, "packet single nalu");
                 }
-
-                if (i == msg->nn_samples() - 1) {
-                    packet->rtp_header.set_marker(true);
-                }
-                packets.push_back(packet);
+                packets.packets.push_back(packet);
             } else {
                 if ((err = packet_fu_a(msg, sample, kRtpMaxPayloadSize, packets)) != srs_success) {
                     return srs_error_wrap(err, "packet fu-a");
                 }
+            }
 
-                if (i == msg->nn_samples() - 1) {
-                    packets.back()->rtp_header.set_marker(true);
-                }
+            if (i == nn_samples - 1) {
+                packets.packets.back()->rtp_header.set_marker(true);
             }
         }
-    }
-
-    *pnn_rtp_pkts += (int)packets.size();
-
-    for (int j = 0; j < (int)packets.size(); j++) {
-        SrsRtpPacket2* packet = packets[j];
-        if ((err = send_packet(packet, skt)) != srs_success) {
-            srs_warn("send err %s", srs_error_summary(err).c_str()); srs_error_reset(err);
-        }
-        srs_freep(packet);
     }
 
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::send_packet(SrsRtpPacket2* pkt, SrsUdpMuxSocket* skt)
+srs_error_t SrsRtcSenderThread::send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
     ISrsUdpSender* sender = skt->sender();
 
-    // Fetch a cached message from queue.
-    // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
-    mmsghdr* mhdr = NULL;
-    if ((err = sender->fetch(&mhdr)) != srs_success) {
-        return srs_error_wrap(err, "fetch msghdr");
-    }
-    char* buf = (char*)mhdr->msg_hdr.msg_iov->iov_base;
+    vector<SrsRtpPacket2*>::iterator it;
+    for (it = packets.packets.begin(); it != packets.packets.end(); ++it) {
+        SrsRtpPacket2* packet = *it;
 
-    // Length of iov, default size.
-    int length = kRtpPacketSize;
-
-    if (rtc_session->encrypt) {
-        if ((err = rtc_session->dtls_session->protect_rtp2(buf, &length, pkt)) != srs_success) {
-            return srs_error_wrap(err, "srtp protect");
+        // Fetch a cached message from queue.
+        // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
+        mmsghdr* mhdr = NULL;
+        if ((err = sender->fetch(&mhdr)) != srs_success) {
+            return srs_error_wrap(err, "fetch msghdr");
         }
+        char* buf = (char*)mhdr->msg_hdr.msg_iov->iov_base;
+        int length = kRtpPacketSize;
+
+        // Marshal packet to bytes.
+        if (true) {
+            SrsBuffer stream(buf, length);
+            if ((err = packet->encode(&stream)) != srs_success) {
+                return srs_error_wrap(err, "encode packet");
+            }
+            length = stream.pos();
+        }
+
+        // Whether encrypt the RTP bytes.
+        if (rtc_session->encrypt) {
+            if ((err = rtc_session->dtls_session->protect_rtp2(buf, &length)) != srs_success) {
+                return srs_error_wrap(err, "srtp protect");
+            }
+        }
+
+        sockaddr_in* addr = (sockaddr_in*)skt->peer_addr();
+        socklen_t addrlen = (socklen_t)skt->peer_addrlen();
+
+        mhdr->msg_hdr.msg_name = (sockaddr_in*)addr;
+        mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
+        mhdr->msg_hdr.msg_iov->iov_len = length;
+        mhdr->msg_hdr.msg_controllen = 0;
+        mhdr->msg_len = 0;
+
+        // When we send out a packet, we commit a RTP packet.
+        packets.nn_rtp_pkts++;
+
+        if ((err = sender->sendmmsg(mhdr)) != srs_success) {
+            return srs_error_wrap(err, "send msghdr");
+        }
+    }
+
+    return err;
+}
+
+// TODO: FIXME: We can gather and pad audios, because they have similar size.
+srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets)
+{
+    srs_error_t err = srs_success;
+
+    // Previous handler, if has the same size, we can use GSO.
+    mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
+    // GSO, N packets has same length, the final one may not.
+    bool use_gso = false; bool gso_final = false;
+
+    ISrsUdpSender* sender = skt->sender();
+    int nn_packets = (int)packets.packets.size();
+    for (int i = 0; i < nn_packets; i++) {
+        SrsRtpPacket2* packet = packets.packets[i];
+
+        // The handler to send message.
+        mmsghdr* mhdr = NULL;
+
+        // Check whether we can use GSO to send it.
+        int nn_packet = packet->nb_bytes();
+
+        if ((gso_size && gso_size == nn_packet) || (use_gso && !gso_final)) {
+            use_gso = true;
+            gso_final = (gso_size && gso_size != nn_packet);
+            mhdr = gso_mhdr;
+
+            // We need to increase the iov and cursor.
+            int nb_iovs = mhdr->msg_hdr.msg_iovlen;
+            if (gso_cursor >= nb_iovs - 1) {
+                int nn_new_iovs = nb_iovs;
+                mhdr->msg_hdr.msg_iovlen = nb_iovs + nn_new_iovs;
+                mhdr->msg_hdr.msg_iov = (iovec*)realloc(mhdr->msg_hdr.msg_iov, sizeof(iovec) * (nb_iovs + nn_new_iovs));
+                memset(mhdr->msg_hdr.msg_iov + nb_iovs, 0, sizeof(iovec) * nn_new_iovs);
+            }
+            gso_cursor++;
+
+            // Create payload cache for RTP packet.
+            iovec* p = mhdr->msg_hdr.msg_iov + gso_cursor;
+            if (!p->iov_base) {
+                p->iov_base = new char[kRtpPacketSize];
+                p->iov_len = kRtpPacketSize;
+            }
+        }
+
+        // Change the state according to the next packet.
+        if (i < nn_packets - 1) {
+            SrsRtpPacket2* next_packet = (i < nn_packets - 1)? packets.packets[i + 1]:NULL;
+            int nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
+
+            // If GSO, but next is bigger than this one, we must enter the final state.
+            if (use_gso && !gso_final) {
+                gso_final = (nn_packet < nn_next_packet);
+            }
+
+            // If not GSO, maybe the first fresh packet, we should see whether the next packet is smaller than this one,
+            // if smaller, we can still enter GSO.
+            if (!use_gso) {
+                use_gso = (nn_packet >= nn_next_packet);
+            }
+        }
+
+        // Now, we fetch the msg from cache.
+        if (!mhdr) {
+            // Fetch a cached message from queue.
+            // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
+            if ((err = sender->fetch(&mhdr)) != srs_success) {
+                return srs_error_wrap(err, "fetch msghdr");
+            }
+
+            // Reset the iovec, we should never change the msg_iovlen.
+            for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
+                iovec* p = mhdr->msg_hdr.msg_iov + j;
+                p->iov_len = 0;
+            }
+
+            // Now, GSO will use this message and size.
+            if (use_gso) {
+                gso_mhdr = mhdr;
+                gso_size = nn_packet;
+            }
+        }
+
+        // Marshal packet to bytes.
+        iovec* iov = mhdr->msg_hdr.msg_iov + gso_cursor;
+        iov->iov_len = kRtpPacketSize;
+
+        if (true) {
+            SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
+            if ((err = packet->encode(&stream)) != srs_success) {
+                return srs_error_wrap(err, "encode packet");
+            }
+            iov->iov_len = stream.pos();
+        }
+
+        // Whether encrypt the RTP bytes.
+        if (rtc_session->encrypt) {
+            int nn_encrypt = (int)iov->iov_len;
+            if ((err = rtc_session->dtls_session->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
+                return srs_error_wrap(err, "srtp protect");
+            }
+            iov->iov_len = (size_t)nn_encrypt;
+        }
+
+        // If GSO, they must has same size, except the final one.
+        if (use_gso && !gso_final && gso_encrypt && gso_encrypt != (int)iov->iov_len) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "GSO size=%d/%d, encrypt=%d/%d", gso_size, nn_packet, gso_encrypt, iov->iov_len);
+        }
+
+        if (use_gso && !gso_final) {
+            gso_encrypt = iov->iov_len;
+        }
+
+        // If exceed the max GSO size, set to final.
+        if (use_gso && gso_cursor > 64) {
+            gso_final = true;
+        }
+
+        // For last message, or final gso, or determined not using GSO, send it now.
+        bool do_send = (i == nn_packets - 1 || gso_final || !use_gso);
+
+#if defined(SRS_DEBUG)
+        bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
+        srs_trace("Packet %s SSRC=%d, SN=%d, %d bytes", is_video? "Video":"Audio", packet->rtp_header.get_ssrc(),
+            packet->rtp_header.get_sequence(), nn_packet);
+        if (do_send) {
+            for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
+                iovec* iov = mhdr->msg_hdr.msg_iov + j;
+                if (iov->iov_len <= 0) {
+                    break;
+                }
+                srs_trace("%s #%d/%d/%d, %d bytes, size %d/%d", (use_gso? "GSO":"RAW"), j, gso_cursor + 1,
+                    mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
+            }
+        }
+#endif
+
+        if (do_send) {
+            sockaddr_in* addr = (sockaddr_in*)skt->peer_addr();
+            socklen_t addrlen = (socklen_t)skt->peer_addrlen();
+
+            mhdr->msg_hdr.msg_name = (sockaddr_in*)addr;
+            mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
+            mhdr->msg_hdr.msg_controllen = 0;
+            mhdr->msg_len = 0;
+
+#ifndef SRS_AUTO_OSX
+            if (use_gso) {
+                mhdr->msg_hdr.msg_controllen = CMSG_SPACE(sizeof(uint16_t));
+                if (!mhdr->msg_hdr.msg_control) {
+                    mhdr->msg_hdr.msg_control = new char[mhdr->msg_hdr.msg_controllen];
+                }
+
+                cmsghdr* cm = CMSG_FIRSTHDR(&mhdr->msg_hdr);
+                cm->cmsg_level = SOL_UDP;
+                cm->cmsg_type = UDP_SEGMENT;
+                cm->cmsg_len = CMSG_LEN(sizeof(uint16_t));
+                *((uint16_t*)CMSG_DATA(cm)) = gso_encrypt;
+
+                // Private message, use it to store the cursor.
+                mhdr->msg_len = gso_cursor + 1;
+            }
+#endif
+
+            // When we send out a packet, we commit a RTP packet.
+            packets.nn_rtp_pkts++;
+
+            if ((err = sender->sendmmsg(mhdr)) != srs_success) {
+                return srs_error_wrap(err, "send msghdr");
+            }
+
+            // Reset the GSO flag.
+            gso_mhdr = NULL; gso_size = 0; gso_encrypt = 0; gso_cursor = 0;
+            use_gso = gso_final = false;
+        }
+    }
+
+#if defined(SRS_DEBUG)
+    srs_trace("RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d", packets.packets.size(),
+        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras);
+#endif
+
+    return err;
+}
+
+srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
+
+    for (int i = 0; i < msg->nn_samples(); i++) {
+        SrsSample* sample = msg->samples() + i;
+
+        // We always ignore bframe here, if config to discard bframe,
+        // the bframe flag will not be set.
+        if (sample->bframe) {
+            continue;
+        }
+
+        raw->push_back(sample->copy());
+    }
+
+    // Ignore empty.
+    int nn_bytes = raw->nb_bytes();
+    if (nn_bytes <= 0) {
+        srs_freep(raw);
+        return err;
+    }
+
+    const int kRtpMaxPayloadSize = 1200;
+    if (nn_bytes < kRtpMaxPayloadSize) {
+        // Package NALUs in a single RTP packet.
+        SrsRtpPacket2* packet = new SrsRtpPacket2();
+        packet->rtp_header.set_timestamp(msg->timestamp * 90);
+        packet->rtp_header.set_sequence(video_sequence++);
+        packet->rtp_header.set_ssrc(video_ssrc);
+        packet->rtp_header.set_payload_type(video_payload_type);
+        packet->payload = raw;
+        packets.packets.push_back(packet);
     } else {
-        SrsBuffer stream(buf, length);
-        if ((err = pkt->encode(&stream)) != srs_success) {
-            return srs_error_wrap(err, "encode packet");
+        SrsAutoFree(SrsRtpRawNALUs, raw);
+
+        // Package NALUs in FU-A RTP packets.
+        int fu_payload_size = kRtpMaxPayloadSize;
+
+        // The first byte is store in FU-A header.
+        uint8_t header = raw->skip_first_byte();
+        uint8_t nal_type = header & kNalTypeMask;
+        int nb_left = nn_bytes - 1;
+
+        int num_of_packet = 1 + (nn_bytes - 1) / fu_payload_size;
+        for (int i = 0; i < num_of_packet; ++i) {
+            int packet_size = srs_min(nb_left, fu_payload_size);
+
+            SrsRtpPacket2* packet = new SrsRtpPacket2();
+            packets.packets.push_back(packet);
+
+            packet->rtp_header.set_timestamp(msg->timestamp * 90);
+            packet->rtp_header.set_sequence(video_sequence++);
+            packet->rtp_header.set_ssrc(video_ssrc);
+            packet->rtp_header.set_payload_type(video_payload_type);
+
+            SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
+            packet->payload = fua;
+
+            fua->nri = (SrsAvcNaluType)header;
+            fua->nalu_type = (SrsAvcNaluType)nal_type;
+            fua->start = bool(i == 0);
+            fua->end = bool(i == num_of_packet - 1);
+
+            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
+                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
+            }
+
+            nb_left -= packet_size;
         }
-        length = stream.pos();
     }
 
-    sockaddr_in* addr = (sockaddr_in*)skt->peer_addr();
-    socklen_t addrlen = (socklen_t)skt->peer_addrlen();
-
-    mhdr->msg_hdr.msg_name = (sockaddr_in*)addr;
-    mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
-    mhdr->msg_hdr.msg_iov->iov_len = length;
-    mhdr->msg_len = 0;
-
-    if ((err = sender->sendmmsg(mhdr)) != srs_success) {
-        return srs_error_wrap(err, "send msghdr");
+    if (!packets.packets.empty()) {
+        packets.packets.back()->rtp_header.set_marker(true);
     }
+
     return err;
 }
 
@@ -757,7 +1133,7 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtpPacket2** p
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, vector<SrsRtpPacket2*>& packets)
+srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -771,7 +1147,7 @@ srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample*
         int packet_size = srs_min(nb_left, fu_payload_size);
 
         SrsRtpPacket2* packet = new SrsRtpPacket2();
-        packets.push_back(packet);
+        packets.packets.push_back(packet);
 
         packet->rtp_header.set_timestamp(msg->timestamp * 90);
         packet->rtp_header.set_sequence(video_sequence++);
@@ -786,10 +1162,10 @@ srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample*
         fua->start = bool(i == 0);
         fua->end = bool(i == num_of_packet - 1);
 
-        SrsSample* sample = new SrsSample();
-        sample->bytes = p;
-        sample->size = packet_size;
-        fua->nalus.push_back(sample);
+        SrsSample* fragment_sample = new SrsSample();
+        fragment_sample->bytes = p;
+        fragment_sample->size = packet_size;
+        fua->nalus.push_back(fragment_sample);
 
         p += packet_size;
         nb_left -= packet_size;
@@ -809,11 +1185,13 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, Srs
     packet->rtp_header.set_ssrc(video_ssrc);
     packet->rtp_header.set_payload_type(video_payload_type);
 
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
     packet->payload = raw;
 
-    raw->payload = sample->bytes;
-    raw->nn_payload = sample->size;
+    SrsSample* p = new SrsSample();
+    p->bytes = sample->bytes;
+    p->size = sample->size;
+    raw->push_back(p);
 
     *ppacket = packet;
 
@@ -1372,7 +1750,8 @@ srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd)
     }
 
     max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-    srs_trace("UDP sender #%d init ok, max_sendmmsg=%d", srs_netfd_fileno(fd), max_sendmmsg);
+    bool gso = _srs_config->get_rtc_server_gso();
+    srs_trace("UDP sender #%d init ok, max_sendmmsg=%d, gso=%d", srs_netfd_fileno(fd), max_sendmmsg, gso);
 
     return err;
 }
@@ -1382,6 +1761,11 @@ void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
     for (int i = 0; i < (int)mhdrs.size(); i++) {
         mmsghdr* hdr = &mhdrs[i];
 
+        // Free control for GSO.
+        char* msg_control = (char*)hdr->msg_hdr.msg_control;
+        srs_freep(msg_control);
+
+        // Free iovec.
         for (int j = (int)hdr->msg_hdr.msg_iovlen - 1; j >= 0 ; j--) {
             iovec* iov = hdr->msg_hdr.msg_iov + j;
             char* data = (char*)iov->iov_base;
@@ -1389,6 +1773,7 @@ void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
             srs_freep(iov);
         }
     }
+    mhdrs.clear();
 }
 
 srs_error_t SrsUdpMuxSender::fetch(mmsghdr** pphdr)
@@ -1425,11 +1810,9 @@ srs_error_t SrsUdpMuxSender::cycle()
 {
     srs_error_t err = srs_success;
 
-    uint64_t nn_msgs = 0;
-    uint64_t nn_msgs_last = 0;
-    int nn_msgs_max = 0;
-    int nn_loop = 0;
-    int nn_wait = 0;
+    uint64_t nn_msgs = 0; uint64_t nn_msgs_last = 0; int nn_msgs_max = 0;
+    uint64_t nn_gso_msgs = 0; uint64_t nn_gso_iovs = 0; int nn_gso_msgs_max = 0; int nn_gso_iovs_max = 0;
+    int nn_loop = 0; int nn_wait = 0;
     srs_utime_t time_last = srs_get_system_time();
     SrsStatistic* stat = SrsStatistic::instance();
 
@@ -1444,7 +1827,9 @@ srs_error_t SrsUdpMuxSender::cycle()
         nn_loop++;
 
         int pos = cache_pos;
-        if (pos <= 0) {
+        int gso_pos = 0;
+        int gso_iovs = 0;
+        if (pos <= 0 && gso_pos == 0) {
             waiting_msgs = true;
             nn_wait++;
             srs_cond_wait(cond);
@@ -1455,22 +1840,45 @@ srs_error_t SrsUdpMuxSender::cycle()
         cache.swap(hotspot);
         cache_pos = 0;
 
-        mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
-        for (; p < end; p += max_sendmmsg) {
-            int vlen = (int)(end - p);
-            vlen = srs_min(max_sendmmsg, vlen);
+        // Collect informations for GSO
+        if (pos > 0) {
+            // For shared GSO cache, stat the messages.
+            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+            for (p = &hotspot[0]; p < end; p++) {
+                if (!p->msg_len) {
+                    continue;
+                }
 
-            int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
-            if (r0 != vlen) {
-                srs_warn("sendmsg %d msgs, %d done", vlen, r0);
+                // Private message, use it to store the cursor.
+                int real_iovs = p->msg_len;
+                p->msg_len = 0;
+
+                gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
             }
+        }
 
-            stat->perf_mw_on_packets(vlen);
+        // Send out all messages, may GSO if shared cache.
+        if (pos > 0) {
+            // Send out all messages.
+            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+            for (p = &hotspot[0]; p < end; p += max_sendmmsg) {
+                int vlen = (int)(end - p);
+                vlen = srs_min(max_sendmmsg, vlen);
+
+                int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
+                if (r0 != vlen) {
+                    srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
+                }
+
+                stat->perf_sendmmsg_on_packets(vlen);
+            }
         }
 
         // Increase total messages.
         nn_msgs += pos;
         nn_msgs_max = srs_max(pos, nn_msgs_max);
+        nn_gso_msgs_max = srs_max(gso_pos, nn_gso_msgs_max);
+        nn_gso_iovs_max = srs_max(gso_iovs, nn_gso_iovs_max);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -1492,11 +1900,12 @@ srs_error_t SrsUdpMuxSender::cycle()
                 pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
             }
 
-            srs_trace("-> RTC #%d SEND %d/%d/%" PRId64 ", pps %d/%d%s, schedule %d/%d, sessions %d, cache %d/%d by sendmmsg %d",
-                srs_netfd_fileno(lfd), pos, nn_msgs_max, nn_msgs, pps_average, pps_last, pps_unit.c_str(), nn_loop, nn_wait,
-                (int)server->nn_sessions(), (int)cache.size(), (int)hotspot.size(), max_sendmmsg);
+            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s",
+                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs, nn_gso_iovs_max, nn_gso_iovs,
+                pps_average, pps_last, pps_unit.c_str());
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = nn_wait = nn_msgs_max = 0;
+            nn_gso_msgs_max = 0; nn_gso_iovs_max = 0;
         }
     }
 
@@ -1505,10 +1914,12 @@ srs_error_t SrsUdpMuxSender::cycle()
 
 srs_error_t SrsUdpMuxSender::on_reload_rtc_server()
 {
-    int v = _srs_config->get_rtc_server_sendmmsg();
-    if (max_sendmmsg != v) {
-        max_sendmmsg = v;
-        srs_trace("Reload max_sendmmsg=%d", max_sendmmsg);
+    if (true) {
+        int v = _srs_config->get_rtc_server_sendmmsg();
+        if (max_sendmmsg != v) {
+            srs_trace("Reload max_sendmmsg %d=>%d", max_sendmmsg, v);
+            max_sendmmsg = v;
+        }
     }
 
     return srs_success;

@@ -680,6 +680,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             err = streaming_send_messages(enc, msgs.msgs, count);
         }
 
+        // TODO: FIXME: Update the stat.
+
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];

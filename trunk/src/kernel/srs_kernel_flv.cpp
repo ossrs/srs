@@ -383,7 +383,7 @@ void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payload
     ptr->nn_extra_payloads = nn_payloads;
 
     ptr->extra_payloads = new SrsSample[nn_payloads];
-    memcpy(ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
+    memcpy((void*)ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
 }
 
 void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
@@ -394,7 +394,7 @@ void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
     ptr->nn_samples = nn_samples;
 
     ptr->samples = new SrsSample[nn_samples];
-    memcpy(ptr->samples, samples, nn_samples * sizeof(SrsSample));
+    memcpy((void*)ptr->samples, samples, nn_samples * sizeof(SrsSample));
 }
 #endif
 

@@ -33,6 +33,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <linux/version.h>
+#include <sys/utsname.h>
+#endif
 
 #include <vector>
 #include <algorithm>
@@ -3614,7 +3618,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt" && n != "reuseport") {
+                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4747,11 +4751,19 @@ int SrsConfig::get_rtc_server_sendmmsg()
 
 int SrsConfig::get_rtc_server_reuseport()
 {
-#if defined(SO_REUSEPORT)
-    static int DEFAULT = 4;
-#else
-    static int DEFAULT = 1;
+    int v = get_rtc_server_reuseport2();
+
+#if !defined(SO_REUSEPORT)
+    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
+    v = 1
 #endif
+
+    return v;
+}
+
+int SrsConfig::get_rtc_server_reuseport2()
+{
+    static int DEFAULT = 4;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4763,13 +4775,69 @@ int SrsConfig::get_rtc_server_reuseport()
         return DEFAULT;
     }
 
-    int reuseport = ::atoi(conf->arg0().c_str());
-#if !defined(SO_REUSEPORT)
-    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
-    reuseport = DEFAULT
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_rtc_server_merge_nalus()
+{
+    static int DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("merge_nalus");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_gso()
+{
+    bool v = get_rtc_server_gso2();
+
+    bool gso_disabled = false;
+#if !defined(__linux__)
+    gso_disabled = true;
+    if (v) {
+        srs_warn("GSO is disabled, for Linux 4.18+ only");
+    }
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+    if (v) {
+        utsname un = {0};
+        int r0 = uname(&un);
+        if (r0 || strcmp(un.release, "4.18.0") < 0) {
+            gso_disabled = true;
+            srs_warn("GSO is disabled, for Linux 4.18+ only, r0=%d, kernel=%s", r0, un.release);
+        }
+    }
 #endif
 
-    return reuseport;
+    if (v && gso_disabled) {
+        v = false;
+    }
+
+    return v;
+}
+
+bool SrsConfig::get_rtc_server_gso2()
+{
+    static int DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("gso");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)

@@ -499,7 +499,7 @@ srs_error_t SrsUdpMuxListener::cycle()
                 pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
             }
 
-            srs_trace("<- RTC #%d RECV %" PRId64 ", pps %d/%d%s, schedule %" PRId64,
+            srs_trace("<- RTC RECV #%d, udp %" PRId64 ", pps %d/%d%s, schedule %" PRId64,
                 srs_netfd_fileno(lfd), nn_msgs_stage, pps_average, pps_last, pps_unit.c_str(), nn_loop);
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = 0; nn_msgs_stage = 0;

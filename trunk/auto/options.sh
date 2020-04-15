@@ -122,6 +122,7 @@ SRS_NASM=YES
 SRS_SRTP_ASM=YES
 SRS_SENDMMSG=YES
 SRS_HAS_SENDMMSG=YES
+SRS_DEBUG=NO
 
 #####################################################################################
 # menu
@@ -162,6 +163,7 @@ Features:
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
   --gcov                    Whether enable the GCOV compiler options.
+  --debug                   Whether enable the debug code, may hurt performance.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             Used for make in the configure, for example, to make ffmpeg.
   --log-verbose             Whether enable the log verbose level. default: no.
@@ -293,6 +295,7 @@ function parse_user_option() {
         --log-info)                     SRS_LOG_INFO=YES            ;;
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         --gcov)                         SRS_GCOV=YES                ;;
+        --debug)                        SRS_DEBUG=YES               ;;
 
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
@@ -623,6 +626,7 @@ function regenerate_options() {
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
+    if [ $SRS_DEBUG = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug"; fi
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi

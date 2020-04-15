@@ -110,7 +110,11 @@ function Ubuntu_prepare()
             echo "The valgrind-dev is installed."
         fi
     fi
-    
+
+    pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install pkg-config"; exit -1;
+    fi
+
     echo "Tools for Ubuntu are installed."
     return 0
 }
@@ -190,6 +194,10 @@ function Centos_prepare()
             sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The valgrind-devel is installed."
         fi
+    fi
+
+    pkg-config --version --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install pkg-config"; exit -1;
     fi
     
     echo "Tools for Centos are installed."
