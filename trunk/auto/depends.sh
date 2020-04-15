@@ -214,14 +214,15 @@ function OSX_prepare()
     fi
 
     OS_IS_OSX=YES
-    echo "OSX detected, install tools if needed"
     # requires the osx when os
     if [ $OS_IS_OSX = YES ]; then
         if [ $SRS_OSX = NO ]; then
-            echo "OSX detected, must specifies the --osx"
+            echo "OSX detected, please use: ./configure --osx"
             exit 1
         fi
     fi
+
+    echo "OSX detected, install tools if needed"
 
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install brew"

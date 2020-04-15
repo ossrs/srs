@@ -143,8 +143,10 @@ public:
 public:
     std::vector<SrsRtpPacket2*> packets;
 public:
-    SrsRtcPackets(bool gso, bool merge_nalus);
+    SrsRtcPackets();
     virtual ~SrsRtcPackets();
+public:
+    void reset(bool gso, bool merge_nalus);
 };
 
 class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler

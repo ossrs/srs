@@ -460,10 +460,10 @@ srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, in
     return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
 }
 
-SrsRtcPackets::SrsRtcPackets(bool gso, bool merge_nalus)
+SrsRtcPackets::SrsRtcPackets()
 {
-    use_gso = gso;
-    should_merge_nalus = merge_nalus;
+    use_gso = false;
+    should_merge_nalus = false;
 
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
@@ -473,6 +473,14 @@ SrsRtcPackets::SrsRtcPackets(bool gso, bool merge_nalus)
 
 SrsRtcPackets::~SrsRtcPackets()
 {
+    reset(use_gso, should_merge_nalus);
+}
+
+void SrsRtcPackets::reset(bool gso, bool merge_nalus)
+{
+    use_gso = gso;
+    should_merge_nalus = merge_nalus;
+
     vector<SrsRtpPacket2*>::iterator it;
     for (it = packets.begin(); it != packets.end(); ++it ) {
         SrsRtpPacket2* packet = *it;
@@ -621,6 +629,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     bool realtime = _srs_config->get_realtime_enabled(req->vhost, true);
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);
 
+    SrsRtcPackets pkts;
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
@@ -656,11 +665,14 @@ srs_error_t SrsRtcSenderThread::cycle()
             continue;
         }
 
-        SrsRtcPackets pkts(gso, merge_nalus);
+        // Transmux and send out messages.
+        pkts.reset(gso, merge_nalus);
+
         if ((err = send_messages(sendonly_ukt, source, msgs.msgs, msg_count, pkts)) != srs_success) {
             srs_warn("send err %s", srs_error_summary(err).c_str()); srs_error_reset(err);
         }
 
+        // Do cleanup messages.
         for (int i = 0; i < msg_count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];
             srs_freep(msg);
