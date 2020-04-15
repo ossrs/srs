@@ -140,13 +140,18 @@ public:
     int nn_videos;
     // The number of padded packet.
     int nn_paddings;
-public:
+private:
+    int cursor;
     std::vector<SrsRtpPacket2*> packets;
 public:
     SrsRtcPackets();
     virtual ~SrsRtcPackets();
 public:
     void reset(bool gso, bool merge_nalus);
+    SrsRtpPacket2* fetch();
+    SrsRtpPacket2* back();
+    int size();
+    SrsRtpPacket2* at(int index);
 };
 
 class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
@@ -195,12 +200,12 @@ private:
     srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
     srs_error_t send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
 private:
-    srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
+    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets);
 private:
     srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
     srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
-    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets);
+    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
 class SrsRtcSession

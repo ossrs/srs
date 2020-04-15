@@ -171,6 +171,13 @@ void SrsRtpPacket2::set_padding(int size)
     padding = size;
 }
 
+void SrsRtpPacket2::reset()
+{
+    memset((void*)&rtp_header, 0, sizeof(SrsRtpHeader));
+    padding = 0;
+    srs_freep(payload);
+}
+
 int SrsRtpPacket2::nb_bytes()
 {
     return rtp_header.header_size() + (payload? payload->nb_bytes():0) + padding;

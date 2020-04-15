@@ -88,7 +88,9 @@ public:
     virtual ~SrsRtpPacket2();
 public:
     // Append size of bytes as padding.
-    virtual void set_padding(int size);
+    void set_padding(int size);
+    // Reset RTP packet.
+    void reset();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
