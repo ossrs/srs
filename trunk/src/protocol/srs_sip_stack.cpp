@@ -328,6 +328,10 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
 
             //<DeviceList Num="2"> get DeviceList
             std::vector<string> vec = srs_string_split(key, " ");
+            if (vec.empty()){
+                return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "prase xml"); 
+            }
+
             key = vec.at(0);
 
             /*xml element to map
@@ -378,6 +382,10 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
             }else {
                 //<DeviceList Num="2"> get DeviceList
                 std::vector<string> vec = srs_string_split(key, " ");
+                if (vec.empty()){
+                    return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "prase xml"); 
+                }
+
                 key = vec.at(0);
 
                 //key to map by xml_layer
@@ -411,7 +419,13 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     srs_error_t err = srs_success;
 
     std::vector<std::string> header_body = srs_string_split(recv_msg, SRS_RTSP_CRLFCRLF);
+    if (header_body.empty()){
+        return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse reques message"); 
+    }
+
     std::string header = header_body.at(0);
+    //Must be added SRS_RTSP_CRLFCRLF in order to handle the last line header
+    header += SRS_RTSP_CRLFCRLF; 
     std::string body = "";
 
     if (header_body.size() > 1){
@@ -435,7 +449,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
             newline_start = p;
 
             if (firstline == ""){
-                firstline = oneline;
+                firstline = srs_string_replace(oneline, "\r\n", "");
                 srs_info("sip: first line=%s", firstline.c_str());
             }else{
                 size_t pos = oneline.find(":");
@@ -450,7 +464,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                         
                         if (!strcasecmp(phead, "call-id:")) {
                             std::vector<std::string> vec_callid = srs_string_split(content, " ");
-                            req->call_id = vec_callid.at(0);
+                            req->call_id = vec_callid.empty() ? "" : vec_callid.at(0);
                         } 
                         else if (!strcasecmp(phead, "contact:")) {
                             req->contact = content;
@@ -466,8 +480,9 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                         } 
                         else if (!strcasecmp(phead, "cseq:")) {
                             std::vector<std::string> vec_seq = srs_string_split(content, " ");
-                            req->seq =  strtoul(vec_seq.at(0).c_str(), NULL, 10);
-                            req->method = vec_seq.at(1);
+                            std::string seq = vec_seq.empty() ? "" : vec_seq.at(0);
+                            req->seq =  strtoul(seq.c_str(), NULL, 10);
+                            req->method = vec_seq.size() > 0 ? vec_seq.at(1) : "";
                         } 
                         else if (!strcasecmp(phead, "from:")) {
                             content = srs_string_replace(content, "sip:", "");
@@ -484,7 +499,6 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                             }
                         } 
                         else if (!strcasecmp(phead, "via:")) {
-                            //std::vector<std::string> vec_via = srs_string_split(content, ";");
                             req->via = content;
                             req->branch = srs_sip_get_param(content.c_str(), "branch");
                         } 
@@ -516,25 +530,32 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     }
    
     std::vector<std::string>  method_uri_ver = srs_string_split(firstline, " ");
+
+    if (method_uri_ver.empty()) {
+        return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse request firstline is empty"); 
+    }
+
     //respone first line text:SIP/2.0 200 OK
     if (!strcasecmp(method_uri_ver.at(0).c_str(), "sip/2.0")) {
         req->cmdtype = SrsSipCmdRespone;
         //req->method= vec_seq.at(1);
-        req->status = method_uri_ver.at(1);
+        req->status = method_uri_ver.size() > 0 ? method_uri_ver.at(1) : "";
         req->version = method_uri_ver.at(0);
         req->uri = req->from;
 
         vector<string> str = srs_string_split(req->to, "@");
-        req->sip_auth_id = srs_string_replace(str.at(0), "sip:", "");
+        std::string ss = str.empty() ? "" : str.at(0);
+        req->sip_auth_id = srs_string_replace(ss, "sip:", "");
   
     }else {//request first line text :MESSAGE sip:34020000002000000001@3402000000 SIP/2.0
         req->cmdtype = SrsSipCmdRequest;
         req->method= method_uri_ver.at(0);
-        req->uri = method_uri_ver.at(1);
-        req->version = method_uri_ver.at(2);
+        req->uri = method_uri_ver.size() > 0 ? method_uri_ver.at(1) : "";
+        req->version = method_uri_ver.size() > 1 ? method_uri_ver.at(2) : "";
 
         vector<string> str = srs_string_split(req->from, "@");
-        req->sip_auth_id = srs_string_replace(str.at(0), "sip:", "");
+        std::string ss = str.empty() ? "" : str.at(0);
+        req->sip_auth_id = srs_string_replace(ss, "sip:", "");
     }
 
     req->sip_username =  req->sip_auth_id;
@@ -625,8 +646,12 @@ std::string SrsSipStack::get_sip_via(SrsSipRequest const *req)
 {
     std::string via = srs_string_replace(req->via, SRS_SIP_VERSION"/UDP ", "");
     std::vector<std::string> vec_via = srs_string_split(via, ";");
-    std::string ip_port = vec_via.at(0);
+
+    std::string ip_port = vec_via.empty() ? "" : vec_via.at(0);
     std::vector<std::string> vec_ip_port = srs_string_split(ip_port, ":");
+
+    std::string ip = vec_ip_port.empty() ? "" : vec_ip_port.at(0);
+    std::string port = vec_ip_port.size() > 0 ? vec_ip_port.at(1) : "";
     
     std::string branch, rport, received;
     if (req->branch.empty()){
@@ -635,8 +660,8 @@ std::string SrsSipStack::get_sip_via(SrsSipRequest const *req)
         branch = ";branch=" + req->branch;
     }
 
-    received = ";received=" + vec_ip_port.at(0);
-    rport = ";rport=" + vec_ip_port.at(1);
+    received = ";received=" + ip;
+    rport = ";rport=" + port;
 
     return SRS_SIP_VERSION"/UDP " + ip_port + rport + received + branch;
 }

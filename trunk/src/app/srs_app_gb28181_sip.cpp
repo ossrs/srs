@@ -441,6 +441,10 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
 
     if (req->is_register()) {
         std::vector<std::string> serial =  srs_string_split(srs_string_replace(req->uri,"sip:", ""), "@");
+        if (serial.empty()){
+            return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "register string split");
+        }
+
         if (serial.at(0) != config->sip_serial){
             srs_warn("gb28181: client:%s request serial and server serial inconformity(%s:%s)",
              req->sip_auth_id.c_str(), serial.at(0).c_str(), config->sip_serial.c_str());
