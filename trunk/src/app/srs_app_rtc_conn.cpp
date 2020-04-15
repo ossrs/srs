@@ -925,7 +925,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             // We need to increase the iov and cursor.
             int nb_iovs = mhdr->msg_hdr.msg_iovlen;
             if (gso_cursor >= nb_iovs - 1) {
-                int nn_new_iovs = nb_iovs;
+                int nn_new_iovs = 1;
                 mhdr->msg_hdr.msg_iovlen = nb_iovs + nn_new_iovs;
                 mhdr->msg_hdr.msg_iov = (iovec*)realloc(mhdr->msg_hdr.msg_iov, sizeof(iovec) * (nb_iovs + nn_new_iovs));
                 memset(mhdr->msg_hdr.msg_iov + nb_iovs, 0, sizeof(iovec) * nn_new_iovs);
@@ -965,6 +965,10 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             // Reset the iovec, we should never change the msg_iovlen.
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* p = mhdr->msg_hdr.msg_iov + j;
+
+                if (!p->iov_len) {
+                    break;
+                }
                 p->iov_len = 0;
             }
 
@@ -1020,6 +1024,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* iov = mhdr->msg_hdr.msg_iov + j;
+
                 if (iov->iov_len <= 0) {
                     break;
                 }
@@ -1815,7 +1820,7 @@ void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
             iovec* iov = hdr->msg_hdr.msg_iov + j;
             char* data = (char*)iov->iov_base;
             srs_freep(data);
-            srs_freep(iov);
+            srs_freepa(iov);
         }
     }
     mhdrs.clear();
@@ -1828,11 +1833,17 @@ srs_error_t SrsUdpMuxSender::fetch(mmsghdr** pphdr)
         mmsghdr mhdr;
         memset(&mhdr, 0, sizeof(mmsghdr));
 
-        mhdr.msg_hdr.msg_iovlen = 1;
-        mhdr.msg_hdr.msg_iov = new iovec();
-        mhdr.msg_hdr.msg_iov->iov_base = new char[kRtpPacketSize];
-        mhdr.msg_hdr.msg_iov->iov_len = kRtpPacketSize;
         mhdr.msg_len = 0;
+
+        mhdr.msg_hdr.msg_iovlen = SRS_PERF_RTC_GSO_IOVS;
+        mhdr.msg_hdr.msg_iov = new iovec[mhdr.msg_hdr.msg_iovlen];
+
+        for (int i = 0; i < (int)mhdr.msg_hdr.msg_iovlen; i++) {
+            iovec* p = mhdr.msg_hdr.msg_iov + i;
+
+            p->iov_base = new char[kRtpPacketSize];
+            p->iov_len = kRtpPacketSize;
+        }
 
         cache.push_back(mhdr);
     }

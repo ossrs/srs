@@ -192,5 +192,8 @@
 #define SRS_PERF_GLIBC_MEMORY_CHECK
 #undef SRS_PERF_GLIBC_MEMORY_CHECK
 
+// For RTC, how many iovs we alloc for each mmsghdr for GSO.
+#define SRS_PERF_RTC_GSO_IOVS 4
+
 #endif
 
