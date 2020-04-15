@@ -468,6 +468,7 @@ SrsRtcPackets::SrsRtcPackets(bool gso, bool merge_nalus)
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
+    nn_paddings = 0;
 }
 
 SrsRtcPackets::~SrsRtcPackets()
@@ -490,6 +491,7 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int
     sendonly_ukt = u->copy_sendonly();
     gso = false;
     merge_nalus = false;
+    max_padding = 0;
 
     audio_timestamp = 0;
     audio_sequence = 0;
@@ -519,8 +521,9 @@ srs_error_t SrsRtcSenderThread::initialize(const uint32_t& vssrc, const uint32_t
 
     gso = _srs_config->get_rtc_server_gso();
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
-    srs_trace("RTC sender video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d)",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus);
+    max_padding = _srs_config->get_rtc_server_padding();
+    srs_trace("RTC sender video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d), padding=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus, max_padding);
 
     return err;
 }
@@ -540,6 +543,14 @@ srs_error_t SrsRtcSenderThread::on_reload_rtc_server()
         if (merge_nalus != v) {
             srs_trace("Reload merge_nalus %d=>%d", merge_nalus, v);
             merge_nalus = v;
+        }
+    }
+
+    if (true) {
+        bool v = _srs_config->get_rtc_server_padding();
+        if (max_padding != v) {
+            srs_trace("Reload padding %d=>%d", max_padding, v);
+            max_padding = v;
         }
     }
 
@@ -665,7 +676,7 @@ srs_error_t SrsRtcSenderThread::cycle()
         // Stat the RTP packets going into kernel.
         stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
 #if defined(SRS_DEBUG)
-        srs_trace("RTC PLAY packets, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d bytes",
+        srs_trace("RTC PLAY done, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d bytes",
             msg_count, nn_rtc_packets, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
             pkts.nn_samples, pkts.nn_bytes);
 #endif
@@ -673,9 +684,9 @@ srs_error_t SrsRtcSenderThread::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d bytes",
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d bytes, %d pad",
                 msg_count, pkts.packets.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
-                pkts.nn_samples, pkts.nn_bytes);
+                pkts.nn_samples, pkts.nn_bytes, pkts.nn_paddings);
         }
     }
 }
@@ -862,13 +873,28 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     int nn_packets = (int)packets.packets.size();
     for (int i = 0; i < nn_packets; i++) {
         SrsRtpPacket2* packet = packets.packets[i];
-
-        // The handler to send message.
-        mmsghdr* mhdr = NULL;
-
-        // Check whether we can use GSO to send it.
         int nn_packet = packet->nb_bytes();
 
+        SrsRtpPacket2* next_packet = NULL;
+        int nn_next_packet = 0;
+        if (i < nn_packets - 1) {
+            next_packet = (i < nn_packets - 1)? packets.packets[i + 1]:NULL;
+            nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
+        }
+
+        // Padding the first packet if size is similar to the next one.
+        if (i == 0 && max_padding > 0 && next_packet && nn_packet < nn_next_packet && nn_next_packet - nn_packet < max_padding) {
+#if defined(SRS_DEBUG)
+            srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", nn_next_packet - nn_packet,
+                nn_packet, nn_next_packet, nn_packets, max_padding);
+#endif
+            packet->set_padding(nn_next_packet - nn_packet);
+            nn_packet = nn_next_packet;
+            packets.nn_paddings++;
+        }
+
+        // Check whether we can use GSO to send it.
+        mmsghdr* mhdr = NULL;
         if ((gso_size && gso_size == nn_packet) || (use_gso && !gso_final)) {
             use_gso = true;
             gso_final = (gso_size && gso_size != nn_packet);
@@ -893,10 +919,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         }
 
         // Change the state according to the next packet.
-        if (i < nn_packets - 1) {
-            SrsRtpPacket2* next_packet = (i < nn_packets - 1)? packets.packets[i + 1]:NULL;
-            int nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
-
+        if (next_packet) {
             // If GSO, but next is bigger than this one, we must enter the final state.
             if (use_gso && !gso_final) {
                 gso_final = (nn_packet < nn_next_packet);
@@ -1025,8 +1048,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d", packets.packets.size(),
-        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras);
+    srs_trace("RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d", packets.packets.size(), packets.nn_rtp_pkts,
+        packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings);
 #endif
 
     return err;

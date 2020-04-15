@@ -138,6 +138,8 @@ public:
     int nn_audios;
     // The original video messages.
     int nn_videos;
+    // The number of padded packet.
+    int nn_paddings;
 public:
     std::vector<SrsRtpPacket2*> packets;
 public:
@@ -166,6 +168,7 @@ public:
     SrsUdpMuxSocket* sendonly_ukt;
     bool merge_nalus;
     bool gso;
+    int max_padding;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
