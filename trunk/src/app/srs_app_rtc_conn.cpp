@@ -64,7 +64,7 @@ using namespace std;
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
 // For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
 // which reserves 100 bytes for SRTP or paddings.
-const int kRtpMaxPayloadSize = kRtpPacketSize - 100;
+const int kRtpMaxPayloadSize = kRtpPacketSize - 200;
 
 static bool is_stun(const uint8_t* data, const int size) 
 {
