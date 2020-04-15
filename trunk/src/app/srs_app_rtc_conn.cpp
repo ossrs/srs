@@ -882,15 +882,25 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
         }
 
-        // Padding the first packet if size is similar to the next one.
-        if (i == 0 && max_padding > 0 && next_packet && nn_packet < nn_next_packet && nn_next_packet - nn_packet < max_padding) {
+        // Padding the packet to next or GSO size.
+        if (max_padding > 0 && next_packet) {
+            // Padding to the next packet to merge with it.
+            int padding = nn_next_packet - nn_packet;
+
+            // If the next one could merge to this GSO stage, padding current to GSO size.
+            if (use_gso && nn_next_packet < gso_size) {
+                padding = gso_size - nn_packet;
+            }
+
+            if (padding > 0 && padding < max_padding) {
 #if defined(SRS_DEBUG)
-            srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", nn_next_packet - nn_packet,
-                nn_packet, nn_next_packet, nn_packets, max_padding);
+                srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", padding, nn_packet + padding,
+                    nn_next_packet, nn_packets, max_padding);
 #endif
-            packet->set_padding(nn_next_packet - nn_packet);
-            nn_packet = nn_next_packet;
-            packets.nn_paddings++;
+                packet->set_padding(padding);
+                nn_packet += padding;
+                packets.nn_paddings++;
+            }
         }
 
         // Check whether we can use GSO to send it.
