@@ -60,6 +60,12 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
 
+// The RTP payload max size, reserved some paddings for SRTP as such:
+//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
+// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
+// which reserves 100 bytes for SRTP or paddings.
+const int kRtpMaxPayloadSize = kRtpPacketSize - 100;
+
 static bool is_stun(const uint8_t* data, const int size) 
 {
     return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1); 
@@ -767,7 +773,6 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
                 continue;
             }
 
-            const int kRtpMaxPayloadSize = 1200;
             if (sample->size <= kRtpMaxPayloadSize) {
                 if ((err = packet_single_nalu(msg, sample, &packet)) != srs_success) {
                     return srs_error_wrap(err, "packet single nalu");
@@ -1052,7 +1057,6 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
         return err;
     }
 
-    const int kRtpMaxPayloadSize = 1200;
     if (nn_bytes < kRtpMaxPayloadSize) {
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* packet = new SrsRtpPacket2();
