@@ -227,9 +227,10 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
-    srs_freepa(samples);
 
 #ifdef SRS_AUTO_RTC
+    srs_freepa(samples);
+    
     for (int i = 0; i < nn_extra_payloads; i++) {
         SrsSample* p = extra_payloads + i;
         srs_freep(p->bytes);
