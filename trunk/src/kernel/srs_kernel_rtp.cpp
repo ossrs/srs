@@ -97,7 +97,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
 
     uint8_t v = 0x80 | cc;
     if (padding) {
-        v |= 0x40;
+        v |= 0x20;
     }
     if (extension) {
         v |= 0x10;
@@ -192,7 +192,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
-        memset(buf->data(), padding, padding);
+        memset(buf->data() + buf->pos(), padding, padding);
         buf->skip(padding);
     }
 
