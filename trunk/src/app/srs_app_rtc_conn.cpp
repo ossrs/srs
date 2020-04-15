@@ -701,8 +701,17 @@ srs_error_t SrsRtcSenderThread::send_messages(
     }
 
     // Covert kernel messages to RTP packets.
-    if ((err = messages_to_packets(source, msgs, nb_msgs, packets)) != srs_success) {
-        return srs_error_wrap(err, "messages to packets");
+    // For GSO and small amount of packets, process video then audio.
+    // TODO: FIXME: Magic number.
+    if (packets.use_gso && nb_msgs <= 6) {
+        if ((err = messages_to_packets_gso(source, msgs, nb_msgs, packets)) != srs_success) {
+            return srs_error_wrap(err, "messages to packets");
+        }
+    } else {
+        // By default, we process the packets in its original sequence.
+        if ((err = messages_to_packets(source, msgs, nb_msgs, packets)) != srs_success) {
+            return srs_error_wrap(err, "messages to packets");
+        }
     }
 
 #ifndef SRS_AUTO_OSX
@@ -798,6 +807,104 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
             if (i == nn_samples - 1) {
                 packets.packets.back()->rtp_header.set_marker(true);
             }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSenderThread::messages_to_packets_gso(
+    SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets
+) {
+    srs_error_t err = srs_success;
+
+    SrsRtpPacket2* packet = NULL;
+
+    // For GSO, process video first.
+    for (int i = 0; i < nb_msgs; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+
+        // Ignore audio when processing video.
+        if (msg->is_audio()) {
+            continue;
+        }
+
+        // Update stats.
+        packets.nn_bytes += msg->size;
+
+        int nn_samples = msg->nn_samples();
+        packets.nn_samples += nn_samples;
+
+        // For video, we should process all NALUs in samples.
+        packets.nn_videos++;
+
+        // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
+        if (msg->has_idr()) {
+            if ((err = packet_stap_a(source, msg, &packet)) != srs_success) {
+                return srs_error_wrap(err, "packet stap-a");
+            }
+            packets.packets.push_back(packet);
+        }
+
+        // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
+        if (packets.should_merge_nalus && nn_samples > 1) {
+            if ((err = packet_nalus(msg, packets)) != srs_success) {
+                return srs_error_wrap(err, "packet stap-a");
+            }
+            continue;
+        }
+
+        // By default, we package each NALU(sample) to a RTP or FUA packet.
+        for (int i = 0; i < nn_samples; i++) {
+            SrsSample* sample = msg->samples() + i;
+
+            // We always ignore bframe here, if config to discard bframe,
+            // the bframe flag will not be set.
+            if (sample->bframe) {
+                continue;
+            }
+
+            if (sample->size <= kRtpMaxPayloadSize) {
+                if ((err = packet_single_nalu(msg, sample, &packet)) != srs_success) {
+                    return srs_error_wrap(err, "packet single nalu");
+                }
+                packets.packets.push_back(packet);
+            } else {
+                if ((err = packet_fu_a(msg, sample, kRtpMaxPayloadSize, packets)) != srs_success) {
+                    return srs_error_wrap(err, "packet fu-a");
+                }
+            }
+
+            if (i == nn_samples - 1) {
+                packets.packets.back()->rtp_header.set_marker(true);
+            }
+        }
+    }
+
+    // For GSO, process audio after video.
+    for (int i = 0; i < nb_msgs; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+
+        // Ignore video when processing audio.
+        if (!msg->is_audio()) {
+            continue;
+        }
+
+        // Update stats.
+        packets.nn_bytes += msg->size;
+
+        int nn_extra_payloads = msg->nn_extra_payloads();
+        packets.nn_extras += nn_extra_payloads;
+
+        // For audio, we transcoded AAC to opus in extra payloads.
+        packets.nn_audios++;
+
+        for (int i = 0; i < nn_extra_payloads; i++) {
+            SrsSample* sample = msg->extra_payloads() + i;
+            if ((err = packet_opus(sample, &packet)) != srs_success) {
+                return srs_error_wrap(err, "opus package");
+            }
+            packets.packets.push_back(packet);
         }
     }
 
