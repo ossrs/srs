@@ -162,13 +162,6 @@ function Centos_prepare()
         echo "The unzip is installed."
     fi
 
-    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing nasm."
-        require_sudoer "sudo yum install -y nasm"
-        sudo yum install -y nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The nasm is installed."
-    fi
-
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
