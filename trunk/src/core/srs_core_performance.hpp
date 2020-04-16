@@ -201,7 +201,14 @@
 //      = 715MB                                 # For SRS_PERF_RTC_GSO_IOVS = 1
 //      = 1402MB                                # For SRS_PERF_RTC_GSO_IOVS = 2
 //      = 2775MB                                # For SRS_PERF_RTC_GSO_IOVS = 4
-#define SRS_PERF_RTC_GSO_IOVS 2
+#if defined(__linux__)
+    #define SRS_PERF_RTC_GSO_IOVS 2
+#else
+    #define SRS_PERF_RTC_GSO_IOVS 1
+#endif
+
+// For RTC, the max iovs in msghdr, the max packets sent in a msghdr.
+#define SRS_PERF_RTC_GSO_MAX 64
 
 #endif
 
