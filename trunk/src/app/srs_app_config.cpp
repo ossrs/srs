@@ -4860,7 +4860,7 @@ int SrsConfig::get_rtc_server_padding()
 
 bool SrsConfig::get_rtc_server_perf_stat()
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4872,7 +4872,7 @@ bool SrsConfig::get_rtc_server_perf_stat()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
