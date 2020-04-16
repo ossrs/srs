@@ -462,6 +462,10 @@ srs_error_t SrsDtlsSession::unprotect_rtcp(char* out_buf, const char* in_buf, in
 
 SrsRtcPackets::SrsRtcPackets()
 {
+#if defined(SRS_DEBUG)
+    debug_id = 0;
+#endif
+
     use_gso = false;
     should_merge_nalus = false;
 
@@ -489,6 +493,10 @@ void SrsRtcPackets::reset(bool gso, bool merge_nalus)
         SrsRtpPacket2* packet = packets[i];
         packet->reset();
     }
+
+#if defined(SRS_DEBUG)
+    debug_id++;
+#endif
 
     use_gso = gso;
     should_merge_nalus = merge_nalus;
@@ -951,7 +959,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
             if (padding > 0 && padding < max_padding) {
 #if defined(SRS_DEBUG)
-                srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
+                srs_trace("#%d, Padding %d bytes %d=>%d, packets %d, max_padding %d", packets.debug_id,
+                    padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
 #endif
                 packet->set_padding(padding);
                 nn_packet += padding;
@@ -1063,8 +1072,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
 #if defined(SRS_DEBUG)
         bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
-        srs_trace("Packet %s SSRC=%d, SN=%d, %d bytes", is_video? "Video":"Audio", packet->rtp_header.get_ssrc(),
-            packet->rtp_header.get_sequence(), nn_packet);
+        srs_trace("#%d, Packet %s SSRC=%d, SN=%d, %d bytes", packets.debug_id, is_video? "Video":"Audio",
+            packet->rtp_header.get_ssrc(), packet->rtp_header.get_sequence(), nn_packet);
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* iov = mhdr->msg_hdr.msg_iov + j;
@@ -1072,8 +1081,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
                 if (iov->iov_len <= 0) {
                     break;
                 }
-                srs_trace("%s #%d/%d/%d, %d bytes, size %d/%d", (use_gso? "GSO":"RAW"), j, gso_cursor + 1,
-                    mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
+                srs_trace("#%d, %s #%d/%d/%d, %d bytes, size %d/%d", packets.debug_id, (use_gso? "GSO":"RAW"), j,
+                    gso_cursor + 1, mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
             }
         }
 #endif
@@ -1119,8 +1128,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d", packets.size(), packets.nn_rtp_pkts,
-        packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings);
+    srs_trace("#%d, RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d", packets.debug_id, packets.size(),
+        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings);
 #endif
 
     return err;

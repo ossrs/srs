@@ -124,6 +124,10 @@ public:
     bool use_gso;
     bool should_merge_nalus;
 public:
+#if defined(SRS_DEBUG)
+    // Debug id.
+    uint32_t debug_id;
+#endif
     // The total bytes of RTP packets.
     int nn_bytes;
     // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
