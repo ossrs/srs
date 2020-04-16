@@ -472,7 +472,7 @@ SrsRtcPackets::SrsRtcPackets()
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
-    nn_paddings = 0;
+    nn_padding_bytes = nn_paddings = 0;
 
     cursor = 0;
 }
@@ -504,7 +504,7 @@ void SrsRtcPackets::reset(bool gso, bool merge_nalus)
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
-    nn_paddings = 0;
+    nn_padding_bytes = nn_paddings = 0;
 
     cursor = 0;
 }
@@ -733,18 +733,20 @@ srs_error_t SrsRtcSenderThread::cycle()
         stat->perf_on_rtp_packets(pkts.size());
         // Stat the RTP packets going into kernel.
         stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
+        // Stat the bytes and paddings.
+        stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
 #if defined(SRS_DEBUG)
-        srs_trace("RTC PLAY done, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d bytes",
+        srs_trace("RTC PLAY done, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
             msg_count, nn_rtc_packets, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
-            pkts.nn_samples, pkts.nn_bytes);
+            pkts.nn_samples, pkts.nn_bytes, pkts.nn_padding_bytes);
 #endif
 
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d bytes, %d pad",
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad",
                 msg_count, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
-                pkts.nn_samples, pkts.nn_bytes, pkts.nn_paddings);
+                pkts.nn_samples, pkts.nn_bytes, pkts.nn_padding_bytes, pkts.nn_paddings);
         }
     }
 }
@@ -965,6 +967,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
                 packet->set_padding(padding);
                 nn_packet += padding;
                 packets.nn_paddings++;
+                packets.nn_padding_bytes += padding;
             }
         }
 
@@ -1128,8 +1131,9 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("#%d, RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d", packets.debug_id, packets.size(),
-        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings);
+    srs_trace("#%d, RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d/%d", packets.debug_id, packets.size(),
+        packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings,
+        packets.nn_padding_bytes);
 #endif
 
     return err;
@@ -1971,7 +1975,7 @@ srs_error_t SrsUdpMuxSender::cycle()
                     srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
                 }
 
-                stat->perf_sendmmsg_on_packets(vlen);
+                stat->perf_on_sendmmsg_packets(vlen);
             }
         }
 

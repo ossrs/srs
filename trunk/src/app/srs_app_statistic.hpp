@@ -174,6 +174,7 @@ private:
     SrsStatisticCategory* perf_gso;
     SrsStatisticCategory* perf_rtp;
     SrsStatisticCategory* perf_rtc;
+    SrsStatisticCategory* perf_bytes;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
@@ -245,13 +246,11 @@ public:
     // Stat for packets merged written, nb_packets is the number of RTP packets.
     // For example, a RTC/opus packet maybe package to three RTP packets.
     virtual void perf_on_rtp_packets(int nb_packets);
-    // Dumps the perf statistic data for RTP packets, for performance analysis.
     virtual srs_error_t dumps_perf_rtp_packets(SrsJsonObject* obj);
 public:
     // Stat for packets UDP GSO, nb_packets is the merged RTP packets.
     // For example, three RTP/audio packets maybe GSO to one msghdr.
     virtual void perf_on_gso_packets(int nb_packets);
-    // Dumps the perf statistic data for UDP GSO, for performance analysis.
     virtual srs_error_t dumps_perf_gso(SrsJsonObject* obj);
 public:
     // Stat for TCP writev, nb_iovs is the total number of iovec.
@@ -259,9 +258,12 @@ public:
     virtual srs_error_t dumps_perf_writev_iovs(SrsJsonObject* obj);
 public:
     // Stat for packets UDP sendmmsg, nb_packets is the vlen for sendmmsg.
-    virtual void perf_sendmmsg_on_packets(int nb_packets);
-    // Dumps the perf statistic data for UDP sendmmsg, for performance analysis.
+    virtual void perf_on_sendmmsg_packets(int nb_packets);
     virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
+public:
+    // Stat for bytes, nn_bytes is the size of bytes, nb_padding is padding bytes.
+    virtual void perf_on_rtc_bytes(int nn_bytes, int nn_padding);
+    virtual srs_error_t dumps_perf_bytes(SrsJsonObject* obj);
 public:
     // Reset all perf stat data.
     virtual void reset_perf();

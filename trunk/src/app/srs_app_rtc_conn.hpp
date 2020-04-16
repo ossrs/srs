@@ -128,8 +128,12 @@ public:
     // Debug id.
     uint32_t debug_id;
 #endif
+public:
     // The total bytes of RTP packets.
     int nn_bytes;
+    // The total padded bytes.
+    int nn_padding_bytes;
+public:
     // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
     // one msghdr by GSO, it's only one RTP packet, because we only send once.
     int nn_rtp_pkts;

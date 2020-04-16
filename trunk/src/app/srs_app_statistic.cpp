@@ -271,6 +271,7 @@ SrsStatistic::SrsStatistic()
     perf_gso = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
+    perf_bytes = new SrsStatisticCategory();
 }
 
 SrsStatistic::~SrsStatistic()
@@ -311,6 +312,7 @@ SrsStatistic::~SrsStatistic()
     srs_freep(perf_gso);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
+    srs_freep(perf_bytes);
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -641,7 +643,7 @@ srs_error_t SrsStatistic::dumps_perf_writev_iovs(SrsJsonObject* obj)
     return dumps_perf(perf_iovs, obj);
 }
 
-void SrsStatistic::perf_sendmmsg_on_packets(int nb_packets)
+void SrsStatistic::perf_on_sendmmsg_packets(int nb_packets)
 {
     perf_on_packets(perf_sendmmsg, nb_packets);
 }
@@ -649,6 +651,26 @@ void SrsStatistic::perf_sendmmsg_on_packets(int nb_packets)
 srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
 {
     return dumps_perf(perf_sendmmsg, obj);
+}
+
+void SrsStatistic::perf_on_rtc_bytes(int nn_bytes, int nn_padding)
+{
+    // a: RTC bytes.
+    // b: RTC paddings.
+    perf_bytes->a += nn_bytes;
+    perf_bytes->b += nn_padding;
+
+    perf_bytes->nn += nn_bytes + nn_padding;
+}
+
+srs_error_t SrsStatistic::dumps_perf_bytes(SrsJsonObject* obj)
+{
+    obj->set("rtc_bytes", SrsJsonAny::integer(perf_bytes->a));
+    obj->set("rtc_padding", SrsJsonAny::integer(perf_bytes->b));
+
+    obj->set("nn",  SrsJsonAny::integer(perf_bytes->nn));
+
+    return srs_success;
 }
 
 void SrsStatistic::reset_perf()
@@ -659,6 +681,7 @@ void SrsStatistic::reset_perf()
     srs_freep(perf_gso);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
+    srs_freep(perf_bytes);
 
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
@@ -666,6 +689,7 @@ void SrsStatistic::reset_perf()
     perf_gso = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
+    perf_bytes = new SrsStatisticCategory();
 }
 
 void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)
