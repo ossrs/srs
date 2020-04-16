@@ -952,20 +952,24 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
         // Padding the packet to next or GSO size.
         if (max_padding > 0 && next_packet) {
-            // Padding to the next packet to merge with it.
-            padding = nn_next_packet - nn_packet;
-
-            if (use_gso) {
-                // If the next one could merge to this GSO stage, padding current to GSO size.
+            if (!use_gso) {
+                // Padding to the next packet to merge with it.
+                if (nn_next_packet > nn_packet) {
+                    padding = nn_next_packet - nn_packet;
+                }
+            } else {
+                // Padding to GSO size for next one to merge with us.
                 if (nn_next_packet < gso_size) {
                     padding = gso_size - nn_packet;
-                } else {
-                    // If the next one could not merge to this GSO stage, never padding.
-                    padding = 0;
                 }
             }
 
-            if (padding > 0 && padding < max_padding) {
+            // Reset padding if exceed max.
+            if (padding > max_padding) {
+                padding = 0;
+            }
+
+            if (padding > 0) {
 #if defined(SRS_DEBUG)
                 srs_trace("#%d, Padding %d bytes %d=>%d, packets %d, max_padding %d", packets.debug_id,
                     padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
