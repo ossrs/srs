@@ -951,8 +951,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
             if (padding > 0 && padding < max_padding) {
 #if defined(SRS_DEBUG)
-                srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", padding, nn_packet + padding,
-                    nn_next_packet, nn_packets, max_padding);
+                srs_trace("Padding %d bytes %d=>%d, packets %d, max_padding %d", padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
 #endif
                 packet->set_padding(padding);
                 nn_packet += padding;
