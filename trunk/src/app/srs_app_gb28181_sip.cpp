@@ -201,20 +201,25 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 }
 
                 //create stream channel, ready for recv device av stream
-                int code = _srs_gb28181->create_stream_channel(&ch);
+                srs_error_t err = _srs_gb28181->create_stream_channel(&ch);
 
-                if (code == ERROR_SUCCESS){
+                if ((err = _srs_gb28181->create_stream_channel(&ch)) == srs_success){
                     SrsSipRequest req;
                     req.sip_auth_id = _session_id;
                    
                     //send invite to device, req push av stream
-                    code = servcie->send_invite(&req, ch.get_ip(),
-                            ch.get_rtp_port(), ch.get_ssrc(), chid);
-                                       
-                     //the same device can't be sent too fast. the device can't handle it
-                     srs_usleep(1*SRS_UTIME_SECONDS);
+                    err = servcie->send_invite(&req, ch.get_ip(),
+                                ch.get_rtp_port(), ch.get_ssrc(), chid);
                 }
-             
+
+                int code = srs_error_code(err);
+                if (err != srs_success){
+                    srs_error_reset(err);
+                }
+                                       
+                //the same device can't be sent too fast. the device can't handle it
+                srs_usleep(1*SRS_UTIME_SECONDS);
+               
                 srs_trace("gb28181: %s clients device=%s send invite code=%d", 
                     _session_id.c_str(), chid.c_str(), code);
             }//end for (it)
@@ -238,8 +243,13 @@ srs_error_t SrsGb28181SipSession::do_cycle()
             query_duration >= config->sip_query_catalog_interval) {
             SrsSipRequest req;
             req.sip_auth_id = _session_id;
-            servcie->send_query_catalog(&req);
             _query_catalog_time = srs_get_system_time();
+
+            srs_error_t err = servcie->send_query_catalog(&req);
+            if (err != srs_success){
+                srs_trace("gb28181: sip query catalog error %s",srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            }
 
             //print device status
             srs_trace("gb28181: sip session=%s peer(%s, %d) status(%s,%s) duration(%u,%u)",
@@ -621,26 +631,28 @@ int SrsGb28181SipService::send_status(SrsSipRequest *req,  sockaddr *f, int l)
 }
 
 
-int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port, uint32_t ssrc, std::string chid)
+srs_error_t  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port, uint32_t ssrc, std::string chid)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(req);
 
     SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
 
     if (!sip_session){
-        return ERROR_GB28181_SESSION_IS_NOTEXIST;
+        return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
     }
     
     //if you are inviting or succeed in invite, 
     //you cannot invite again. you need to 'bye' and try again
     SrsGb28181Device *device = sip_session->get_device_info(chid);
     if (!device || device->device_status != "ON"){
-        return ERROR_GB28181_SIP_CH_OFFLINE;
+        return srs_error_new(ERROR_GB28181_SIP_CH_OFFLINE, "sip device channel offline");
     }
 
     if (device->invite_status  == SrsGb28181SipSessionTrying ||
         device->invite_status  == SrsGb28181SipSessionInviteOk){
-        return ERROR_GB28181_SIP_IS_INVITING;   
+        return srs_error_new(ERROR_GB28181_SIP_IS_INVITING, "sip device channel inviting");   
     }
 
     req->host =  config->host;
@@ -656,7 +668,7 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
 
     if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28181_SIP_INVITE_FAILED;
+        return srs_error_new(ERROR_GB28181_SIP_INVITE_FAILED, "sip device invite failed");
     }
 
     //prame branch, from_tag, to_tag, call_id, 
@@ -668,27 +680,25 @@ int  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, int port,
     //call_id map sip_session
     sip_session_map_by_callid(sip_session, req->call_id);
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
-int SrsGb28181SipService::send_bye(SrsSipRequest *req, std::string chid)
+srs_error_t SrsGb28181SipService::send_bye(SrsSipRequest *req, std::string chid)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(req);
 
     SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
 
     if (!sip_session){
-        return ERROR_GB28181_SESSION_IS_NOTEXIST;
+        return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
     }
 
     SrsGb28181Device *device = sip_session->get_device_info(chid);
     if (!device){
-        return ERROR_GB28181_SIP_CH_NOTEXIST;
+        return srs_error_new(ERROR_GB28181_SIP_CH_NOTEXIST, "sip device channel not exist");
     }
-    // if (status == SrsGb28181SipSessionTrying ||
-    //     status == SrsGb28181SipSessionInviteOk){
-    //     return ERROR_GB28181_SIP_IS_INVITING;   
-    // }
    
     //prame branch, from_tag, to_tag, call_id, 
     //The parameter of 'bye' must be the same as 'invite'
@@ -709,20 +719,22 @@ int SrsGb28181SipService::send_bye(SrsSipRequest *req, std::string chid)
     sockaddr addr = sip_session->sockaddr_from();
     if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28181_SIP_BYE_FAILED;
+        return srs_error_new(ERROR_GB28181_SIP_BYE_FAILED, "sip bye failed");
     }
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
-int SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string data)
+srs_error_t SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string data)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(req);
 
     SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
 
     if (!sip_session){
-        return ERROR_GB28181_SESSION_IS_NOTEXIST;
+        return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session no exist");
     }
     
     std::stringstream ss;
@@ -731,13 +743,13 @@ int SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::string dat
     sockaddr addr = sip_session->sockaddr_from();
     if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
     {
-        return ERROR_GB28181_SIP_RAW_DATA_FAILED;
+        return srs_error_new(ERROR_GB28181_SIP_RAW_DATA_FAILED, "sip raw data failed");
     }
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
-int SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
+srs_error_t SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
 {
     req->host = config->host;
     req->host_port = config->sip_port;
@@ -752,12 +764,14 @@ int SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
     return send_sip_raw_data(req, ss.str());
 }
 
-int SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArray* arr)
+srs_error_t SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArray* arr)
 {
+    srs_error_t err = srs_success;
+
     if (!sid.empty()){
         SrsGb28181SipSession* sess = fetch(sid);
         if (!sess){
-            return ERROR_GB28181_SESSION_IS_NOTEXIST;
+            return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
         }
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
@@ -772,7 +786,7 @@ int SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArray* arr)
         }
     }
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
 srs_error_t SrsGb28181SipService::fetch_or_create_sip_session(SrsSipRequest *req,  SrsGb28181SipSession** sip_session)

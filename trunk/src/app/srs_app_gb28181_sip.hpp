@@ -172,9 +172,9 @@ public:
     int send_ack(SrsSipRequest *req, sockaddr *f, int l);
     int send_status(SrsSipRequest *req, sockaddr *f, int l);
 
-    int send_invite(SrsSipRequest *req, std::string ip, int port, uint32_t ssrc, std::string chid);
-    int send_bye(SrsSipRequest *req, std::string chid);
-    int send_query_catalog(SrsSipRequest *req);
+    srs_error_t send_invite(SrsSipRequest *req, std::string ip, int port, uint32_t ssrc, std::string chid);
+    srs_error_t send_bye(SrsSipRequest *req, std::string chid);
+    srs_error_t send_query_catalog(SrsSipRequest *req);
 
     // The SIP command is transmitted through HTTP API, 
     // and the body content is transmitted to the device, 
@@ -190,8 +190,8 @@ public:
     // Content-Length: 0
     //
     //
-    int send_sip_raw_data(SrsSipRequest *req, std::string data);
-    int query_sip_session(std::string sid,  SrsJsonArray* arr);
+    srs_error_t send_sip_raw_data(SrsSipRequest *req, std::string data);
+    srs_error_t query_sip_session(std::string sid,  SrsJsonArray* arr);
 
 public:
     srs_error_t fetch_or_create_sip_session(SrsSipRequest *req,  SrsGb28181SipSession** sess);

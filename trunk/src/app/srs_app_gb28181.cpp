@@ -312,7 +312,12 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                 channel.set_channel_id(tmp_id);
                 channel.set_port_mode(RTP_PORT_MODE_FIXED);
                 channel.set_ssrc(pkt.ssrc);
-                _srs_gb28181->create_stream_channel(&channel);
+              
+                srs_error_t err2 = srs_success;
+                if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success){
+                    srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
+                    srs_error_reset(err2);
+                };
 
                 muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
             }
@@ -1547,8 +1552,9 @@ void SrsGb28181Manger::stop_rtp_listen(std::string id)
 }
 
 //api
-uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channel)
+srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channel)
 {
+    srs_error_t err = srs_success;
     srs_assert(channel);
 
     std::string id = channel->get_channel_id();
@@ -1559,15 +1565,14 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
        SrsGb28181StreamChannel s = muxer->get_channel();
        channel->copy(&s);
        //return ERROR_GB28181_SESSION_IS_EXIST;
-       return ERROR_SUCCESS;
+       return err;
     }
 
     //create on rtmp muxer, gb28181 stream to rtmp
-    srs_error_t err = srs_success;
+   
     if ((err = fetch_or_create_rtmpmuxer(id, &muxer)) != srs_success){
         srs_warn("gb28181: create rtmp muxer error, %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
+        return err;
     }
 
     //Start RTP listening port, receive gb28181 stream, 
@@ -1584,21 +1589,19 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
     if (port_mode == RTP_PORT_MODE_RANDOM){
         alloc_port(&rtp_port);
         if (rtp_port <= 0){
-           return ERROR_GB28181_RTP_PORT_FULL;
+           return srs_error_new(ERROR_GB28181_RTP_PORT_FULL, "gb28181: rtp port full");
         }
-        srs_error_t err = srs_success;
+     
         if ((err = start_ps_rtp_listen(id, rtp_port)) != srs_success){
-            srs_warn("gb28181: start ps rtp listen error, %s", srs_error_desc(err).c_str());
-            srs_freep(err);
             free_port(rtp_port, rtp_port + 1);
-            return ERROR_GB28181_CREATER_RTMPMUXER_FAILED;
+            return  err;
         }
     }
     else if(port_mode == RTP_PORT_MODE_FIXED) {
         rtp_port = config->rtp_mux_port;
     }
     else{
-        return ERROR_GB28181_PORT_MODE_INVALID;
+        return srs_error_new(ERROR_GB28181_PORT_MODE_INVALID, "gb28181: port mode invalid");
     }
 
     uint32_t ssrc = channel->get_ssrc();
@@ -1673,11 +1676,13 @@ uint32_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *channe
 
     muxer->copy_channel(channel);
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
-uint32_t SrsGb28181Manger::delete_stream_channel(std::string id)
+srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id)
 {
+    srs_error_t err = srs_success;
+
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
     notify_sip_bye(id, id);
@@ -1686,19 +1691,21 @@ uint32_t SrsGb28181Manger::delete_stream_channel(std::string id)
     if (muxer){
         stop_rtp_listen(id);
         muxer->stop();
-       return ERROR_SUCCESS;
+       return err;
     }else {
-       return ERROR_GB28181_SESSION_IS_NOTEXIST;
+       return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "stream channel is not exists");
     }
 }
 
 
-uint32_t SrsGb28181Manger::query_stream_channel(std::string id, SrsJsonArray* arr)
+srs_error_t SrsGb28181Manger::query_stream_channel(std::string id, SrsJsonArray* arr)
 {
+    srs_error_t err = srs_success;
+
     if (!id.empty()){
         SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(id);
         if (!muxer){
-            return ERROR_GB28181_SESSION_IS_NOTEXIST;
+            return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "stream channel not exists");
         }
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
@@ -1713,13 +1720,15 @@ uint32_t SrsGb28181Manger::query_stream_channel(std::string id, SrsJsonArray* ar
         }
     }
 
-    return ERROR_SUCCESS;
+    return err;
 }
 
-uint32_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid)
+srs_error_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid)
 {
+    srs_error_t err = srs_success;
+    
     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
    
     //if RTMP Muxer does not exist, you need to create
@@ -1732,9 +1741,9 @@ uint32_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, int
              //channel not exist
             SrsGb28181StreamChannel channel;
             channel.set_channel_id(key);
-            int code = create_stream_channel(&channel);
-            if (code != ERROR_SUCCESS){
-                return code;
+            err =  create_stream_channel(&channel);
+            if (err != srs_success){
+                return err;
             }
 
             ip = channel.get_ip();
@@ -1754,10 +1763,10 @@ uint32_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, int
     return sip_service->send_invite(&req, ip, port, ssrc, chid);
 }
 
-uint32_t SrsGb28181Manger::notify_sip_bye(std::string id, std::string chid)
+srs_error_t SrsGb28181Manger::notify_sip_bye(std::string id, std::string chid)
 {
     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
 
     SrsSipRequest req;
@@ -1765,10 +1774,10 @@ uint32_t SrsGb28181Manger::notify_sip_bye(std::string id, std::string chid)
     return sip_service->send_bye(&req, chid);
 }
 
-uint32_t SrsGb28181Manger::notify_sip_raw_data(std::string id, std::string data)
+srs_error_t SrsGb28181Manger::notify_sip_raw_data(std::string id, std::string data)
 {
     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
 
     SrsSipRequest req;
@@ -1777,21 +1786,19 @@ uint32_t SrsGb28181Manger::notify_sip_raw_data(std::string id, std::string data)
 
 }
 
-uint32_t SrsGb28181Manger::notify_sip_unregister(std::string id)
+srs_error_t SrsGb28181Manger::notify_sip_unregister(std::string id)
 {
     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
-
-    delete_stream_channel(id);
     sip_service->remove_session(id);
-    return ERROR_SUCCESS;
+    return delete_stream_channel(id);
 }
 
-uint32_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
+srs_error_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
 {
-     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+    if (!sip_service){
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
 
     SrsSipRequest req;
@@ -1799,10 +1806,10 @@ uint32_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
     return sip_service->send_query_catalog(&req);
 }
 
-uint32_t SrsGb28181Manger::query_sip_session(std::string id, SrsJsonArray* arr)
+srs_error_t SrsGb28181Manger::query_sip_session(std::string id, SrsJsonArray* arr)
 {
-     if (!sip_service){
-        return ERROR_GB28181_SIP_NOT_RUN;
+    if (!sip_service){
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
     
     return sip_service->query_sip_session(id, arr);

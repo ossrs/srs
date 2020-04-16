@@ -1670,6 +1670,8 @@ SrsGoApiGb28181::~SrsGoApiGb28181()
 
 srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    srs_error_t err = srs_success;
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
@@ -1696,9 +1698,9 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             channel.set_app(app);
             channel.set_stream(stream);
             channel.set_port_mode(port_mode);
-
-            uint32_t code = _srs_gb28181->create_stream_channel(&channel);
-            if (code != ERROR_SUCCESS) {
+            
+            if ((err =_srs_gb28181->create_stream_channel(&channel)) != srs_success) {
+                int code = srs_error_code(err); srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
             }
            
@@ -1718,15 +1720,20 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
 
-            uint32_t code = _srs_gb28181->delete_stream_channel(id);
+            err =_srs_gb28181->delete_stream_channel(id);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
             return srs_api_response_code(w, r, code);
         }
         else if(action == "query_channel") {
             SrsJsonArray* arr = SrsJsonAny::array();
             data->set("channels", arr);
            
-            uint32_t code = _srs_gb28181->query_stream_channel(id, arr);
-            if (code != ERROR_SUCCESS) {
+            if ((err = _srs_gb28181->query_stream_channel(id, arr)) != srs_success) {
+                int code = srs_error_code(err); srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
             }
 
@@ -1745,9 +1752,12 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
             int _port = strtoul(rtp_port.c_str(), NULL, 10);
             uint32_t _ssrc = (uint32_t)(strtoul(ssrc.c_str(), NULL, 10));
 
-           
+            err = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc, chid);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
 
-            int code = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc, chid);
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_bye"){
@@ -1756,7 +1766,12 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
 
-            int code = _srs_gb28181->notify_sip_bye(id, chid);
+            err = _srs_gb28181->notify_sip_bye(id, chid);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_raw_data"){
@@ -1766,7 +1781,13 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
             std::string body;
             r->body_read_all(body);
-            int code = _srs_gb28181->notify_sip_raw_data(id, body);
+       
+            err = _srs_gb28181->notify_sip_raw_data(id, body);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_unregister"){
@@ -1774,7 +1795,12 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
             
-            int code = _srs_gb28181->notify_sip_unregister(id);
+            err = _srs_gb28181->notify_sip_unregister(id);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_query_catalog"){
@@ -1782,15 +1808,20 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
             }
             
-            int code = _srs_gb28181->notify_sip_query_catalog(id);
+            err = _srs_gb28181->notify_sip_query_catalog(id);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
             return srs_api_response_code(w, r, code);
         }
         else if(action == "sip_query_session"){
             SrsJsonArray* arr = SrsJsonAny::array();
             data->set("sessions", arr);
            
-            uint32_t code = _srs_gb28181->query_sip_session(id, arr);
-            if (code != ERROR_SUCCESS) {
+            if ((err = _srs_gb28181->query_sip_session(id, arr)) != srs_success) {
+                int code = srs_error_code(err); srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
             }
 

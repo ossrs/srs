@@ -413,16 +413,16 @@ public:
 
 public:
     //stream channel api
-    uint32_t create_stream_channel(SrsGb28181StreamChannel *channel);
-    uint32_t delete_stream_channel(std::string id);
-    uint32_t query_stream_channel(std::string id, SrsJsonArray* arr);
+    srs_error_t create_stream_channel(SrsGb28181StreamChannel *channel);
+    srs_error_t delete_stream_channel(std::string id);
+    srs_error_t query_stream_channel(std::string id, SrsJsonArray* arr);
     //sip api
-    uint32_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
-    uint32_t notify_sip_bye(std::string id, std::string chid);
-    uint32_t notify_sip_raw_data(std::string id, std::string data);
-    uint32_t notify_sip_unregister(std::string id);
-    uint32_t notify_sip_query_catalog(std::string id);
-    uint32_t query_sip_session(std::string id, SrsJsonArray* arr);
+    srs_error_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
+    srs_error_t notify_sip_bye(std::string id, std::string chid);
+    srs_error_t notify_sip_raw_data(std::string id, std::string data);
+    srs_error_t notify_sip_unregister(std::string id);
+    srs_error_t notify_sip_query_catalog(std::string id);
+    srs_error_t query_sip_session(std::string id, SrsJsonArray* arr);
 
 private:
     void destroy();
