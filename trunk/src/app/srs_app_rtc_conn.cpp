@@ -694,26 +694,24 @@ srs_error_t SrsRtcSenderThread::cycle()
             return srs_error_wrap(err, "rtc sender thread");
         }
 
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-        if (realtime) {
-            // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME, mw_sleep);
-        } else {
-            // for no-realtime, got some msgs then send.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
-        }
-#endif
-
         int msg_count = 0;
         if ((err = consumer->dump_packets(&msgs, msg_count)) != srs_success) {
             continue;
         }
 
-        if (msg_count <= 0) { 
-#ifndef SRS_PERF_QUEUE_COND_WAIT
+        // For RTC, we always try to read messages, only wait when no message.
+        if (msg_count <= 0) {
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+            if (realtime) {
+                // for realtime, min required msgs is 0, send when got one+ msgs.
+                consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME, mw_sleep);
+            } else {
+                // for no-realtime, got some msgs then send.
+                consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
+            }
+#else
             srs_usleep(mw_sleep);
 #endif
-            // ignore when nothing got.
             continue;
         }
 
