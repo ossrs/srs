@@ -940,6 +940,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
     mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
     // GSO, N packets has same length, the final one may not.
     bool using_gso = false; bool gso_final = false;
+    // The message will marshal in iovec.
+    iovec* iov = NULL;
 
     int nn_packets = packets.size();
     for (int i = 0; i < nn_packets; i++) {
@@ -986,28 +988,25 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
         }
 
         // Check whether we can use GSO to send it.
-        mmsghdr* mhdr = NULL;
-        if ((gso_size && gso_size == nn_packet) || (using_gso && !gso_final)) {
-            using_gso = true;
-            gso_final = (gso_size && gso_size != nn_packet);
-            mhdr = gso_mhdr;
+        if (using_gso && !gso_final) {
+            gso_final = (gso_size != nn_packet);
         }
 
-        // Change the state according to the next packet.
         if (next_packet) {
-            // If GSO, but next is bigger than this one, we must enter the final state.
-            if (using_gso && !gso_final) {
-                gso_final = (nn_packet < nn_next_packet);
-            }
-
             // If not GSO, maybe the first fresh packet, we should see whether the next packet is smaller than this one,
             // if smaller, we can still enter GSO.
             if (!using_gso) {
                 using_gso = (nn_packet >= nn_next_packet);
             }
+
+            // If GSO, but next is bigger than this one, we must enter the final state.
+            if (using_gso && !gso_final) {
+                gso_final = (nn_packet < nn_next_packet);
+            }
         }
 
-        // Now, we fetch the msg from cache.
+        // For GSO, reuse mhdr if possible.
+        mmsghdr* mhdr = gso_mhdr;
         if (!mhdr) {
             // Fetch a cached message from queue.
             // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
@@ -1016,18 +1015,20 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
             }
 
             // Now, GSO will use this message and size.
-            if (using_gso) {
-                gso_mhdr = mhdr;
-                gso_size = nn_packet;
-            }
+            gso_mhdr = mhdr;
+            gso_size = nn_packet;
         }
 
         // For this message, select a new iovec.
-        iovec* iov = mhdr->msg_hdr.msg_iov + gso_cursor;
-        mhdr->msg_hdr.msg_iovlen = gso_cursor + 1;
+        if (!iov) {
+            iov = mhdr->msg_hdr.msg_iov;
+        } else {
+            iov++;
+        }
         gso_cursor++;
+        mhdr->msg_hdr.msg_iovlen = gso_cursor;
 
-        if (!iov->iov_base) {
+        if (gso_cursor > SRS_PERF_RTC_GSO_IOVS && !iov->iov_base) {
             iov->iov_base = new char[kRtpPacketSize];
         }
         iov->iov_len = kRtpPacketSize;
@@ -1113,7 +1114,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
 
             // Reset the GSO flag.
             gso_mhdr = NULL; gso_size = 0; gso_encrypt = 0; gso_cursor = 0;
-            using_gso = gso_final = false;
+            using_gso = gso_final = false; iov = NULL;
         }
     }
 
