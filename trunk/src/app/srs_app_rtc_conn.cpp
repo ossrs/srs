@@ -1967,7 +1967,8 @@ srs_error_t SrsUdpMuxSender::cycle()
                 int real_iovs = p->msg_len;
                 p->msg_len = 0;
 
-                gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs; gso_iovs += real_iovs;
+                gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs;
+                gso_iovs += real_iovs;
             }
         }
 
@@ -2015,9 +2016,10 @@ srs_error_t SrsUdpMuxSender::cycle()
             }
 
             int nn_cache = 0;
-            for (vector<mmsghdr>::iterator it = hotspot.begin(); it < hotspot.end(); ++it) {
-                mmsghdr& hdr = *it;
-                nn_cache += hdr.msg_hdr.msg_iovlen;
+            int nn_hotspot_size = (int)hotspot.size();
+            for (int i = 0; i < nn_hotspot_size; i++) {
+                mmsghdr* hdr = &hotspot[i];
+                nn_cache += hdr->msg_hdr.msg_iovlen;
             }
 
             srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s, cache %d/%d",
