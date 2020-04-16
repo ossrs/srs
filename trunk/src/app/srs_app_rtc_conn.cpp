@@ -475,7 +475,12 @@ SrsRtcPackets::SrsRtcPackets()
 
 SrsRtcPackets::~SrsRtcPackets()
 {
-    reset(use_gso, should_merge_nalus);
+    vector<SrsRtpPacket2*>::iterator it;
+    for (it = packets.begin(); it != packets.end(); ++it) {
+        SrsRtpPacket2* p = *it;
+        srs_freep(p);
+    }
+    packets.clear();
 }
 
 void SrsRtcPackets::reset(bool gso, bool merge_nalus)
