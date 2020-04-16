@@ -4843,7 +4843,7 @@ bool SrsConfig::get_rtc_server_gso2()
 
 int SrsConfig::get_rtc_server_padding()
 {
-    static int DEFAULT = 0;
+    static int DEFAULT = 127;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
