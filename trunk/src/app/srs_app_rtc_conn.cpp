@@ -934,7 +934,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     // Previous handler, if has the same size, we can use GSO.
     mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
     // GSO, N packets has same length, the final one may not.
-    bool use_gso = false; bool gso_final = false;
+    bool using_gso = false; bool gso_final = false;
 
     ISrsUdpSender* sender = skt->sender();
     int nn_packets = packets.size();
@@ -952,7 +952,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
         // Padding the packet to next or GSO size.
         if (max_padding > 0 && next_packet) {
-            if (!use_gso) {
+            if (!using_gso) {
                 // Padding to the next packet to merge with it.
                 if (nn_next_packet > nn_packet) {
                     padding = nn_next_packet - nn_packet;
@@ -983,8 +983,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
         // Check whether we can use GSO to send it.
         mmsghdr* mhdr = NULL;
-        if ((gso_size && gso_size == nn_packet) || (use_gso && !gso_final)) {
-            use_gso = true;
+        if ((gso_size && gso_size == nn_packet) || (using_gso && !gso_final)) {
+            using_gso = true;
             gso_final = (gso_size && gso_size != nn_packet);
             mhdr = gso_mhdr;
 
@@ -1009,14 +1009,14 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         // Change the state according to the next packet.
         if (next_packet) {
             // If GSO, but next is bigger than this one, we must enter the final state.
-            if (use_gso && !gso_final) {
+            if (using_gso && !gso_final) {
                 gso_final = (nn_packet < nn_next_packet);
             }
 
             // If not GSO, maybe the first fresh packet, we should see whether the next packet is smaller than this one,
             // if smaller, we can still enter GSO.
-            if (!use_gso) {
-                use_gso = (nn_packet >= nn_next_packet);
+            if (!using_gso) {
+                using_gso = (nn_packet >= nn_next_packet);
             }
         }
 
@@ -1039,7 +1039,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             }
 
             // Now, GSO will use this message and size.
-            if (use_gso) {
+            if (using_gso) {
                 gso_mhdr = mhdr;
                 gso_size = nn_packet;
             }
@@ -1067,21 +1067,21 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         }
 
         // If GSO, they must has same size, except the final one.
-        if (use_gso && !gso_final && gso_encrypt && gso_encrypt != (int)iov->iov_len) {
+        if (using_gso && !gso_final && gso_encrypt && gso_encrypt != (int)iov->iov_len) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "GSO size=%d/%d, encrypt=%d/%d", gso_size, nn_packet, gso_encrypt, iov->iov_len);
         }
 
-        if (use_gso && !gso_final) {
+        if (using_gso && !gso_final) {
             gso_encrypt = iov->iov_len;
         }
 
         // If exceed the max GSO size, set to final.
-        if (use_gso && gso_cursor > 64) {
+        if (using_gso && gso_cursor > 64) {
             gso_final = true;
         }
 
         // For last message, or final gso, or determined not using GSO, send it now.
-        bool do_send = (i == nn_packets - 1 || gso_final || !use_gso);
+        bool do_send = (i == nn_packets - 1 || gso_final || !using_gso);
 
 #if defined(SRS_DEBUG)
         bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
@@ -1094,7 +1094,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
                 if (iov->iov_len <= 0) {
                     break;
                 }
-                srs_trace("#%d, %s #%d/%d/%d, %d/%d bytes, size %d/%d", packets.debug_id, (use_gso? "GSO":"RAW"), j,
+                srs_trace("#%d, %s #%d/%d/%d, %d/%d bytes, size %d/%d", packets.debug_id, (using_gso? "GSO":"RAW"), j,
                     gso_cursor + 1, mhdr->msg_hdr.msg_iovlen, iov->iov_len, padding, gso_size, gso_encrypt);
             }
         }
@@ -1110,7 +1110,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
             mhdr->msg_len = 0;
 
 #ifndef SRS_AUTO_OSX
-            if (use_gso) {
+            if (using_gso) {
                 mhdr->msg_hdr.msg_controllen = CMSG_SPACE(sizeof(uint16_t));
                 if (!mhdr->msg_hdr.msg_control) {
                     mhdr->msg_hdr.msg_control = new char[mhdr->msg_hdr.msg_controllen];
@@ -1136,7 +1136,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
             // Reset the GSO flag.
             gso_mhdr = NULL; gso_size = 0; gso_encrypt = 0; gso_cursor = 0;
-            use_gso = gso_final = false;
+            using_gso = gso_final = false;
         }
     }
 
