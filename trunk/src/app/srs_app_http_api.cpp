@@ -1616,7 +1616,8 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
 
     string target = r->query_get("target");
     string reset = r->query_get("reset");
-    srs_trace("query target=%s, reset=%s", target.c_str(), reset.c_str());
+    srs_trace("query target=%s, reset=%s, rtc_stat_enabled=%d", target.c_str(), reset.c_str(),
+        _srs_config->get_rtc_server_perf_stat());
 
     if (true) {
         SrsJsonObject* p = SrsJsonAny::object();

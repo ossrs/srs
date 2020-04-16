@@ -537,6 +537,7 @@ private:
     virtual bool get_rtc_server_gso2();
 public:
     virtual int get_rtc_server_padding();
+    virtual bool get_rtc_server_perf_stat();
 
 public:
     SrsConfDirective* get_rtc(std::string vhost);

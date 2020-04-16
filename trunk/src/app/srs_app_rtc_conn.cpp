@@ -686,6 +686,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
+    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
     SrsStatistic* stat = SrsStatistic::instance();
 
     while (true) {
@@ -729,17 +730,20 @@ srs_error_t SrsRtcSenderThread::cycle()
             srs_freep(msg);
         }
 
-        // Stat the original RAW AV frame, maybe h264+aac.
-        stat->perf_on_msgs(msg_count);
-        // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
-        int nn_rtc_packets = srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos;
-        stat->perf_on_rtc_packets(nn_rtc_packets);
-        // Stat the RAW RTP packets, which maybe group by GSO.
-        stat->perf_on_rtp_packets(pkts.size());
-        // Stat the RTP packets going into kernel.
-        stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
-        // Stat the bytes and paddings.
-        stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
+        // Stat for performance analysis.
+        if (stat_enabled) {
+            // Stat the original RAW AV frame, maybe h264+aac.
+            stat->perf_on_msgs(msg_count);
+            // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
+            int nn_rtc_packets = srs_max(pkts.nn_audios, pkts.nn_extras) + pkts.nn_videos;
+            stat->perf_on_rtc_packets(nn_rtc_packets);
+            // Stat the RAW RTP packets, which maybe group by GSO.
+            stat->perf_on_rtp_packets(pkts.size());
+            // Stat the RTP packets going into kernel.
+            stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
+            // Stat the bytes and paddings.
+            stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
+        }
 #if defined(SRS_DEBUG)
         srs_trace("RTC PLAY perf, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
             msg_count, nn_rtc_packets, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
@@ -1928,6 +1932,8 @@ srs_error_t SrsUdpMuxSender::cycle()
     uint64_t nn_gso_msgs = 0; uint64_t nn_gso_iovs = 0; int nn_gso_msgs_max = 0; int nn_gso_iovs_max = 0;
     int nn_loop = 0; int nn_wait = 0;
     srs_utime_t time_last = srs_get_system_time();
+
+    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
     SrsStatistic* stat = SrsStatistic::instance();
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send(srs_netfd_fileno(lfd));
@@ -1955,7 +1961,7 @@ srs_error_t SrsUdpMuxSender::cycle()
         cache_pos = 0;
 
         // Collect informations for GSO.
-        if (pos > 0) {
+        if (pos > 0 && stat_enabled) {
             // For shared GSO cache, stat the messages.
             mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
             for (p = &hotspot[0]; p < end; p++) {
@@ -1985,7 +1991,9 @@ srs_error_t SrsUdpMuxSender::cycle()
                     srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
                 }
 
-                stat->perf_on_sendmmsg_packets(vlen);
+                if (stat_enabled) {
+                    stat->perf_on_sendmmsg_packets(vlen);
+                }
             }
         }
 
