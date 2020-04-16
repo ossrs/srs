@@ -976,7 +976,9 @@
 
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
-                    $("#btn_sip_query_session").click();
+                    if (ret != undefined && ret.code == 0){
+                      $("#btn_sip_query_session").click();
+                    }
                 }
             });
 
@@ -993,7 +995,9 @@
                     var ret = http_get(apiurl);
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
-                    $("#btn_sip_query_session").click();
+                    if (ret != undefined && ret.code == 0){
+                      $("#btn_sip_query_session").click();
+                    }
                 }
             });
 
@@ -1010,7 +1014,9 @@
                     var ret = http_get(apiurl);
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
-                    $("#btn_sip_query_session").click();
+                    if (ret != undefined && ret.code == 0){
+                      $("#btn_sip_query_session").click();
+                    }
                 }
             });
 
@@ -1026,8 +1032,9 @@
                     var apiurl = url + "/api/v1/gb28181?action=sip_query_catalog&id=" + id + "&chid="+chid;
                     var ret = http_get(apiurl);
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
-
-                    $("#btn_sip_query_session").click();
+                    if (ret != undefined && ret.code == 0){
+                      $("#btn_sip_query_session").click();
+                    }
                 }
             });
 
