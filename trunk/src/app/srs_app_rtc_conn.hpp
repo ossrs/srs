@@ -50,6 +50,7 @@ class SrsRtcSession;
 class SrsSharedPtrMessage;
 class SrsSource;
 class SrsRtpPacket2;
+class ISrsUdpSender;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -182,6 +183,7 @@ private:
     uint16_t video_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
+    ISrsUdpSender* sender;
     bool merge_nalus;
     bool gso;
     int max_padding;
@@ -204,10 +206,10 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
+    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
-    srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
-    srs_error_t send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
+    srs_error_t send_packets(SrsRtcPackets& packets);
+    srs_error_t send_packets_gso(SrsRtcPackets& packets);
 private:
     srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets);
 private:
