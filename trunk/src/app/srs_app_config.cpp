@@ -4855,7 +4855,7 @@ int SrsConfig::get_rtc_server_padding()
         return DEFAULT;
     }
 
-    return srs_min(16, ::atoi(conf->arg0().c_str()));
+    return srs_min(127, ::atoi(conf->arg0().c_str()));
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)

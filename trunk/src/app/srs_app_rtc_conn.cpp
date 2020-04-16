@@ -489,7 +489,7 @@ void SrsRtcPackets::reset(bool gso, bool merge_nalus)
         SrsRtpPacket2* packet = packets[i];
         packet->reset();
     }
-    
+
     use_gso = gso;
     should_merge_nalus = merge_nalus;
 
