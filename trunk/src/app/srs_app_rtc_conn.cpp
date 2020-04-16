@@ -1960,7 +1960,7 @@ srs_error_t SrsUdpMuxSender::cycle()
         cache.swap(hotspot);
         cache_pos = 0;
 
-        // Collect informations for GSO
+        // Collect informations for GSO.
         if (pos > 0) {
             // For shared GSO cache, stat the messages.
             mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
@@ -1977,7 +1977,7 @@ srs_error_t SrsUdpMuxSender::cycle()
             }
         }
 
-        // Send out all messages, may GSO if shared cache.
+        // Send out all messages.
         if (pos > 0) {
             // Send out all messages.
             mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
@@ -2020,9 +2020,15 @@ srs_error_t SrsUdpMuxSender::cycle()
                 pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
             }
 
-            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s",
-                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs, nn_gso_iovs_max, nn_gso_iovs,
-                pps_average, pps_last, pps_unit.c_str());
+            int nn_cache = 0;
+            for (vector<mmsghdr>::iterator it = hotspot.begin(); it < hotspot.end(); ++it) {
+                mmsghdr& hdr = *it;
+                nn_cache += hdr.msg_hdr.msg_iovlen;
+            }
+
+            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s, cache %d/%d",
+                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs,
+                nn_gso_iovs_max, nn_gso_iovs, pps_average, pps_last, pps_unit.c_str(), (int)hotspot.size(), nn_cache);
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = nn_wait = nn_msgs_max = 0;
             nn_gso_msgs_max = 0; nn_gso_iovs_max = 0;
