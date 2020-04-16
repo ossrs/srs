@@ -83,6 +83,12 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
 
+    // Encode the RTP fix header, 12bytes.
+    // @see https://tools.ietf.org/html/rfc1889#section-5.1
+    char* op = stream->data() + stream->pos();
+    char* p = op;
+
+    // The version, padding, extension and cc, total 1 byte.
     uint8_t v = 0x80 | cc;
     if (padding) {
         v |= 0x20;
@@ -90,24 +96,49 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
     if (extension) {
         v |= 0x10;
     }
-    stream->write_1bytes(v);
+    *p++ = v;
 
+    // The marker and payload type, total 1 byte.
     v = payload_type;
     if (marker) {
         v |= kRtpMarker;
     }
-    stream->write_1bytes(v);
+    *p++ = v;
 
-    stream->write_2bytes(sequence);
-    stream->write_4bytes(timestamp);
-    stream->write_4bytes(ssrc);
+    // The sequence number, 2 bytes.
+    char* pp = (char*)&sequence;
+    *p++ = pp[1];
+    *p++ = pp[0];
+
+    // The timestamp, 4 bytes.
+    pp = (char*)&timestamp;
+    *p++ = pp[3];
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+
+    // The SSRC, 4 bytes.
+    pp = (char*)&ssrc;
+    *p++ = pp[3];
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+
+    // The CSRC list: 0 to 15 items, each is 4 bytes.
     for (size_t i = 0; i < cc; ++i) {
-        stream->write_4bytes(csrc[i]);
+        pp = (char*)&csrc[i];
+        *p++ = pp[3];
+        *p++ = pp[2];
+        *p++ = pp[1];
+        *p++ = pp[0];
     }
 
     // TODO: Write exteinsion field.
     if (extension) {
     }
+
+    // Consume the data.
+    stream->skip(p - op);
 
     return err;
 }
@@ -134,7 +165,7 @@ void SrsRtpHeader::set_sequence(uint16_t sequence)
 
 void SrsRtpHeader::set_timestamp(int64_t timestamp)
 {
-    this->timestamp = timestamp;
+    this->timestamp = (uint32_t)timestamp;
 }
 
 void SrsRtpHeader::set_ssrc(uint32_t ssrc)

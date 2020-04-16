@@ -50,7 +50,7 @@ private:
     bool marker;
     uint8_t payload_type;
     uint16_t sequence;
-    int64_t timestamp;
+    int32_t timestamp;
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
