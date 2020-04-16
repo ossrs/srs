@@ -56,8 +56,7 @@ private:
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
-    SrsRtpHeader(const SrsRtpHeader& rhs);
-    SrsRtpHeader& operator=(const SrsRtpHeader& rhs);
+    void reset();
 public:
     srs_error_t decode(SrsBuffer* stream);
     srs_error_t encode(SrsBuffer* stream);

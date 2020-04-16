@@ -55,27 +55,15 @@ SrsRtpHeader::SrsRtpHeader()
     extension_length = 0;
 }
 
-SrsRtpHeader::SrsRtpHeader(const SrsRtpHeader& rhs)
+void SrsRtpHeader::reset()
 {
-    operator=(rhs);
-}
-
-SrsRtpHeader& SrsRtpHeader::operator=(const SrsRtpHeader& rhs)
-{
-    padding          = rhs.padding;
-    extension        = rhs.extension;
-    cc               = rhs.cc;
-    marker           = rhs.marker;
-    payload_type     = rhs.payload_type;
-    sequence         = rhs.sequence;
-    timestamp        = rhs.timestamp;
-    ssrc             = rhs.ssrc;
-    for (size_t i = 0; i < cc; ++i) {
-        csrc[i] = rhs.csrc[i];
-    }
-    extension_length = rhs.extension_length;
-
-    return *this;
+    // We only reset the optional fields, the required field such as ssrc
+    // will always be set by user.
+    padding          = false;
+    extension        = false;
+    cc               = 0;
+    marker           = false;
+    extension_length = 0;
 }
 
 SrsRtpHeader::~SrsRtpHeader()
@@ -173,7 +161,7 @@ void SrsRtpPacket2::set_padding(int size)
 
 void SrsRtpPacket2::reset()
 {
-    memset((void*)&rtp_header, 0, sizeof(SrsRtpHeader));
+    rtp_header.reset();
     padding = 0;
     srs_freep(payload);
 }
