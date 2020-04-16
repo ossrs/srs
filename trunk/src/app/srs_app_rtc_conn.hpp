@@ -159,6 +159,7 @@ public:
     SrsRtpPacket2* fetch();
     SrsRtpPacket2* back();
     int size();
+    int capacity();
     SrsRtpPacket2* at(int index);
 };
 

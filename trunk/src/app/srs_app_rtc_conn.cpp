@@ -529,6 +529,11 @@ int SrsRtcPackets::size()
     return cursor;
 }
 
+int SrsRtcPackets::capacity()
+{
+    return (int)packets.size();
+}
+
 SrsRtpPacket2* SrsRtcPackets::at(int index)
 {
     srs_assert(index < cursor);
@@ -736,7 +741,7 @@ srs_error_t SrsRtcSenderThread::cycle()
         // Stat the bytes and paddings.
         stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
 #if defined(SRS_DEBUG)
-        srs_trace("RTC PLAY done, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
+        srs_trace("RTC PLAY perf, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
             msg_count, nn_rtc_packets, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
             pkts.nn_samples, pkts.nn_bytes, pkts.nn_padding_bytes);
 #endif
@@ -744,9 +749,9 @@ srs_error_t SrsRtcSenderThread::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad",
-                msg_count, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
-                pkts.nn_samples, pkts.nn_bytes, pkts.nn_padding_bytes, pkts.nn_paddings);
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad, %d/%d cache",
+                msg_count, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes,
+                pkts.nn_padding_bytes, pkts.nn_paddings, pkts.size(), pkts.capacity());
         }
     }
 }
