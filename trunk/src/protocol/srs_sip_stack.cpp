@@ -109,7 +109,7 @@ std::string srs_sip_get_param(std::string msg, std::string param)
 
         std::vector<std::string>  v_pram = srs_string_split(value, "=");
         
-        if (v_pram.size() > 0) {
+        if (v_pram.size() > 1) {
             return v_pram.at(1);
         }
     }
