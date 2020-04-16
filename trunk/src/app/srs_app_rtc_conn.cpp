@@ -941,6 +941,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
     for (int i = 0; i < nn_packets; i++) {
         SrsRtpPacket2* packet = packets.at(i);
         int nn_packet = packet->nb_bytes();
+        int padding = 0;
 
         SrsRtpPacket2* next_packet = NULL;
         int nn_next_packet = 0;
@@ -952,7 +953,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
         // Padding the packet to next or GSO size.
         if (max_padding > 0 && next_packet) {
             // Padding to the next packet to merge with it.
-            int padding = nn_next_packet - nn_packet;
+            padding = nn_next_packet - nn_packet;
 
             if (use_gso) {
                 // If the next one could merge to this GSO stage, padding current to GSO size.
@@ -1080,8 +1081,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
 
 #if defined(SRS_DEBUG)
         bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
-        srs_trace("#%d, Packet %s SSRC=%d, SN=%d, %d bytes", packets.debug_id, is_video? "Video":"Audio",
-            packet->rtp_header.get_ssrc(), packet->rtp_header.get_sequence(), nn_packet);
+        srs_trace("#%d, Packet %s SSRC=%d, SN=%d, %d/%d bytes", packets.debug_id, is_video? "Video":"Audio",
+            packet->rtp_header.get_ssrc(), packet->rtp_header.get_sequence(), nn_packet - padding, padding);
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* iov = mhdr->msg_hdr.msg_iov + j;
@@ -1089,8 +1090,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPac
                 if (iov->iov_len <= 0) {
                     break;
                 }
-                srs_trace("#%d, %s #%d/%d/%d, %d bytes, size %d/%d", packets.debug_id, (use_gso? "GSO":"RAW"), j,
-                    gso_cursor + 1, mhdr->msg_hdr.msg_iovlen, iov->iov_len, gso_size, gso_encrypt);
+                srs_trace("#%d, %s #%d/%d/%d, %d/%d bytes, size %d/%d", packets.debug_id, (use_gso? "GSO":"RAW"), j,
+                    gso_cursor + 1, mhdr->msg_hdr.msg_iovlen, iov->iov_len, padding, gso_size, gso_encrypt);
             }
         }
 #endif

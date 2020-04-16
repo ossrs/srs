@@ -195,7 +195,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "encode payload");
     }
 
-    if (padding) {
+    if (padding > 0) {
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
