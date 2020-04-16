@@ -1182,10 +1182,12 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
     if (nn_bytes < kRtpMaxPayloadSize) {
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* packet = packets.fetch();
+
         packet->rtp_header.set_timestamp(msg->timestamp * 90);
         packet->rtp_header.set_sequence(video_sequence++);
         packet->rtp_header.set_ssrc(video_ssrc);
         packet->rtp_header.set_payload_type(video_payload_type);
+
         packet->payload = raw;
     } else {
         SrsAutoFree(SrsRtpRawNALUs, raw);
@@ -1202,12 +1204,6 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
         for (int i = 0; i < num_of_packet; ++i) {
             int packet_size = srs_min(nb_left, fu_payload_size);
 
-            SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
-            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
-                srs_freep(fua);
-                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
-            }
-
             SrsRtpPacket2* packet = packets.fetch();
 
             packet->rtp_header.set_timestamp(msg->timestamp * 90);
@@ -1215,12 +1211,16 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
             packet->rtp_header.set_ssrc(video_ssrc);
             packet->rtp_header.set_payload_type(video_payload_type);
 
-            packet->payload = fua;
+            SrsRtpFUAPayload* fua = packet->reuse_fua();
 
             fua->nri = (SrsAvcNaluType)header;
             fua->nalu_type = (SrsAvcNaluType)nal_type;
             fua->start = bool(i == 0);
             fua->end = bool(i == num_of_packet - 1);
+
+            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
+                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
+            }
 
             nb_left -= packet_size;
         }
@@ -1274,8 +1274,7 @@ srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample*
         packet->rtp_header.set_ssrc(video_ssrc);
         packet->rtp_header.set_payload_type(video_payload_type);
 
-        SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
-        packet->payload = fua;
+        SrsRtpFUAPayload* fua = packet->reuse_fua();
 
         fua->nri = (SrsAvcNaluType)header;
         fua->nalu_type = (SrsAvcNaluType)nal_type;
@@ -1305,13 +1304,9 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, Srs
     packet->rtp_header.set_ssrc(video_ssrc);
     packet->rtp_header.set_payload_type(video_payload_type);
 
-    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
-    packet->payload = raw;
-
-    SrsSample* p = new SrsSample();
-    p->bytes = sample->bytes;
-    p->size = sample->size;
-    raw->push_back(p);
+    SrsRtpRawPayload* raw = packet->reuse_raw();
+    raw->payload = sample->bytes;
+    raw->nn_payload = sample->size;
 
     return err;
 }

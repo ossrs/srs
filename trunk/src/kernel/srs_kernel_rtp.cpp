@@ -148,12 +148,13 @@ SrsRtpPacket2::SrsRtpPacket2()
     padding = 0;
 
     cache_raw = new SrsRtpRawPayload();
+    cache_fua = new SrsRtpFUAPayload();
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
     // We may use the cache as payload.
-    if (payload == cache_raw) {
+    if (payload == cache_raw || payload == cache_fua) {
         payload = NULL;
     }
 
@@ -173,7 +174,7 @@ void SrsRtpPacket2::reset()
     padding = 0;
 
     // We may use the cache as payload.
-    if (payload == cache_raw) {
+    if (payload == cache_raw || payload == cache_fua) {
         payload = NULL;
     }
 
@@ -184,6 +185,13 @@ SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
 {
     payload = cache_raw;
     return cache_raw;
+}
+
+SrsRtpFUAPayload* SrsRtpPacket2::reuse_fua()
+{
+    payload = cache_fua;
+    cache_fua->reset();
+    return cache_fua;
 }
 
 int SrsRtpPacket2::nb_bytes()
@@ -412,6 +420,16 @@ SrsRtpFUAPayload::SrsRtpFUAPayload()
 }
 
 SrsRtpFUAPayload::~SrsRtpFUAPayload()
+{
+    vector<SrsSample*>::iterator it;
+    for (it = nalus.begin(); it != nalus.end(); ++it) {
+        SrsSample* p = *it;
+        srs_freep(p);
+    }
+    nalus.clear();
+}
+
+void SrsRtpFUAPayload::reset()
 {
     vector<SrsSample*>::iterator it;
     for (it = nalus.begin(); it != nalus.end(); ++it) {

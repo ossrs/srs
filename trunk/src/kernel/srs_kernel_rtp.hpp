@@ -39,6 +39,7 @@ const uint8_t kNalTypeMask      = 0x1F;
 
 class SrsBuffer;
 class SrsRtpRawPayload;
+class SrsRtpFUAPayload;
 
 class SrsRtpHeader
 {
@@ -85,6 +86,7 @@ public:
     int padding;
 private:
     SrsRtpRawPayload* cache_raw;
+    SrsRtpFUAPayload* cache_fua;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
@@ -95,6 +97,8 @@ public:
     void reset();
     // Reuse the cached raw message as payload.
     SrsRtpRawPayload* reuse_raw();
+    // Reuse the cached fua message as payload.
+    SrsRtpFUAPayload* reuse_fua();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -172,6 +176,8 @@ public:
 public:
     SrsRtpFUAPayload();
     virtual ~SrsRtpFUAPayload();
+public:
+    void reset();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
