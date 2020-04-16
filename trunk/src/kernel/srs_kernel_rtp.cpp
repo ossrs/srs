@@ -146,11 +146,19 @@ SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
     padding = 0;
+
+    cache_raw = new SrsRtpRawPayload();
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
+    // We may use the cache as payload.
+    if (payload == cache_raw) {
+        payload = NULL;
+    }
+
     srs_freep(payload);
+    srs_freep(cache_raw);
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -163,7 +171,19 @@ void SrsRtpPacket2::reset()
 {
     rtp_header.reset();
     padding = 0;
+
+    // We may use the cache as payload.
+    if (payload == cache_raw) {
+        payload = NULL;
+    }
+
     srs_freep(payload);
+}
+
+SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
+{
+    payload = cache_raw;
+    return cache_raw;
 }
 
 int SrsRtpPacket2::nb_bytes()

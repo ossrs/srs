@@ -1244,10 +1244,9 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& pa
     packet->rtp_header.set_ssrc(audio_ssrc);
     packet->rtp_header.set_payload_type(audio_payload_type);
 
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    SrsRtpRawPayload* raw = packet->reuse_raw();
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
-    packet->payload = raw;
 
     // TODO: FIXME: Why 960? Need Refactoring?
     audio_timestamp += 960;

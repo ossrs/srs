@@ -38,6 +38,7 @@ const uint8_t kRtpMarker = 0x80;
 const uint8_t kNalTypeMask      = 0x1F;
 
 class SrsBuffer;
+class SrsRtpRawPayload;
 
 class SrsRtpHeader
 {
@@ -82,6 +83,8 @@ public:
     SrsRtpHeader rtp_header;
     ISrsEncoder* payload;
     int padding;
+private:
+    SrsRtpRawPayload* cache_raw;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
@@ -90,6 +93,8 @@ public:
     void set_padding(int size);
     // Reset RTP packet.
     void reset();
+    // Reuse the cached raw message as payload.
+    SrsRtpRawPayload* reuse_raw();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
