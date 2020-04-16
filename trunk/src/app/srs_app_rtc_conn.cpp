@@ -485,13 +485,18 @@ SrsRtcPackets::~SrsRtcPackets()
 
 void SrsRtcPackets::reset(bool gso, bool merge_nalus)
 {
-    use_gso = gso;
-    should_merge_nalus = merge_nalus;
-
     for (int i = 0; i < cursor; i++) {
         SrsRtpPacket2* packet = packets[i];
         packet->reset();
     }
+    
+    use_gso = gso;
+    should_merge_nalus = merge_nalus;
+
+    nn_rtp_pkts = 0;
+    nn_audios = nn_extras = 0;
+    nn_videos = nn_samples = 0;
+    nn_paddings = 0;
 
     cursor = 0;
 }
