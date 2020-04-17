@@ -885,6 +885,9 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
+    // Cache the encrypt flag.
+    bool encrypt = rtc_session->encrypt;
+
     int nn_packets = packets.size();
     for (int i = 0; i < nn_packets; i++) {
         SrsRtpPacket2* packet = packets.at(i);
@@ -915,7 +918,7 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
         }
 
         // Whether encrypt the RTP bytes.
-        if (rtc_session->encrypt) {
+        if (encrypt) {
             int nn_encrypt = (int)iov->iov_len;
             if ((err = rtc_session->dtls_session->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
                 return srs_error_wrap(err, "srtp protect");
@@ -946,6 +949,9 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
 srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
+
+    // Cache the encrypt flag.
+    bool encrypt = rtc_session->encrypt;
 
     // Previous handler, if has the same size, we can use GSO.
     mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
@@ -1056,7 +1062,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
         }
 
         // Whether encrypt the RTP bytes.
-        if (rtc_session->encrypt) {
+        if (encrypt) {
             int nn_encrypt = (int)iov->iov_len;
             if ((err = rtc_session->dtls_session->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
                 return srs_error_wrap(err, "srtp protect");
