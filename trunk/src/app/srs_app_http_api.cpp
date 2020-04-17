@@ -1625,7 +1625,7 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
 
         p->set("target", SrsJsonAny::str(target.c_str()));
         p->set("reset", SrsJsonAny::str(reset.c_str()));
-        p->set("help", SrsJsonAny::str("?target=avframes|rtc|rtp|gso|writev_iovs|sendmmsg|bytes"));
+        p->set("help", SrsJsonAny::str("?target=avframes|rtc|rtp|gso|writev_iovs|sendmmsg|bytes|dropped"));
         p->set("help2", SrsJsonAny::str("?reset=all"));
     }
 
@@ -1692,6 +1692,15 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("bytes", p);
         if ((err = stat->dumps_perf_bytes(p)) != srs_success) {
+            int code = srs_error_code(err); srs_error_reset(err);
+            return srs_api_response_code(w, r, code);
+        }
+    }
+
+    if (target.empty() || target == "dropped") {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("dropped", p);
+        if ((err = stat->dumps_perf_dropped(p)) != srs_success) {
             int code = srs_error_code(err); srs_error_reset(err);
             return srs_api_response_code(w, r, code);
         }

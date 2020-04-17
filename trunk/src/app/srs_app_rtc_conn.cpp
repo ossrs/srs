@@ -473,6 +473,7 @@ SrsRtcPackets::SrsRtcPackets()
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
     nn_padding_bytes = nn_paddings = 0;
+    nn_dropped = 0;
 
     cursor = 0;
 }
@@ -505,6 +506,7 @@ void SrsRtcPackets::reset(bool gso, bool merge_nalus)
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
     nn_padding_bytes = nn_paddings = 0;
+    nn_dropped = 0;
 
     cursor = 0;
 }
@@ -744,6 +746,8 @@ srs_error_t SrsRtcSenderThread::cycle()
             stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
             // Stat the bytes and paddings.
             stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
+            // Stat the messages and dropped count.
+            stat->perf_on_dropped(msg_count, nn_rtc_packets, pkts.nn_dropped);
         }
 #if defined(SRS_DEBUG)
         srs_trace("RTC PLAY perf, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
@@ -754,8 +758,8 @@ srs_error_t SrsRtcSenderThread::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad, %d/%d cache",
-                msg_count, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes,
+            srs_trace("-> RTC PLAY %d/%d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad, %d/%d cache",
+                msg_count, pkts.nn_dropped, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes,
                 pkts.nn_padding_bytes, pkts.nn_paddings, pkts.size(), pkts.capacity());
         }
     }
@@ -766,6 +770,7 @@ srs_error_t SrsRtcSenderThread::send_messages(
 ) {
     srs_error_t err = srs_success;
 
+    // If DTLS is not OK, drop all messages.
     if (!rtc_session->dtls_session) {
         return err;
     }
@@ -800,6 +805,12 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
 
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
+
+        // If overflow, drop all messages.
+        if (sender->overflow()) {
+            packets.nn_dropped += nb_msgs - i;
+            return err;
+        }
 
         // Update stats.
         packets.nn_bytes += msg->size;
@@ -1802,6 +1813,8 @@ SrsUdpMuxSender::SrsUdpMuxSender(SrsRtcServer* s)
     trd = new SrsDummyCoroutine();
 
     cache_pos = 0;
+    max_sendmmsg = 0;
+    queue_length = 0;
 
     _srs_config->subscribe(this);
 }
@@ -1820,7 +1833,7 @@ SrsUdpMuxSender::~SrsUdpMuxSender()
     cache.clear();
 }
 
-srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd)
+srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd, int senders)
 {
     srs_error_t err = srs_success;
 
@@ -1834,7 +1847,9 @@ srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd)
 
     max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
     bool gso = _srs_config->get_rtc_server_gso();
-    srs_trace("UDP sender #%d init ok, max_sendmmsg=%d, gso=%d", srs_netfd_fileno(fd), max_sendmmsg, gso);
+    queue_length = srs_max(128, _srs_config->get_rtc_server_queue_length());
+    srs_trace("UDP sender #%d init ok, max_sendmmsg=%d, gso=%d, queue_max=%dx%d", srs_netfd_fileno(fd),
+        max_sendmmsg, gso, queue_length, senders);
 
     return err;
 }
@@ -1888,6 +1903,11 @@ srs_error_t SrsUdpMuxSender::fetch(mmsghdr** pphdr)
 
     *pphdr = &cache[cache_pos++];
     return srs_success;
+}
+
+bool SrsUdpMuxSender::overflow()
+{
+    return cache_pos > queue_length;
 }
 
 srs_error_t SrsUdpMuxSender::sendmmsg(mmsghdr* hdr)
@@ -2098,7 +2118,7 @@ srs_error_t SrsRtcServer::listen_udp()
             return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
         }
 
-        if ((err = sender->initialize(listener->stfd())) != srs_success) {
+        if ((err = sender->initialize(listener->stfd(), nn_listeners)) != srs_success) {
             return srs_error_wrap(err, "init sender");
         }
 

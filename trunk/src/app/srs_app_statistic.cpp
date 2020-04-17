@@ -272,6 +272,7 @@ SrsStatistic::SrsStatistic()
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();
+    perf_dropped = new SrsStatisticCategory();
 }
 
 SrsStatistic::~SrsStatistic()
@@ -313,6 +314,7 @@ SrsStatistic::~SrsStatistic()
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
+    srs_freep(perf_dropped);
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -673,6 +675,29 @@ srs_error_t SrsStatistic::dumps_perf_bytes(SrsJsonObject* obj)
     return srs_success;
 }
 
+void SrsStatistic::perf_on_dropped(int nn_msgs, int nn_rtc, int nn_dropped)
+{
+    // a: System AVFrames.
+    // b: RTC frames.
+    // c: Dropped frames.
+    perf_dropped->a += nn_msgs;
+    perf_dropped->b += nn_rtc;
+    perf_dropped->c += nn_dropped;
+
+    perf_dropped->nn += nn_dropped;
+}
+
+srs_error_t SrsStatistic::dumps_perf_dropped(SrsJsonObject* obj)
+{
+    obj->set("avframes", SrsJsonAny::integer(perf_dropped->a));
+    obj->set("rtc_frames", SrsJsonAny::integer(perf_dropped->b));
+    obj->set("rtc_dropeed", SrsJsonAny::integer(perf_dropped->c));
+
+    obj->set("nn",  SrsJsonAny::integer(perf_dropped->nn));
+
+    return srs_success;
+}
+
 void SrsStatistic::reset_perf()
 {
     srs_freep(perf_iovs);
@@ -682,6 +707,7 @@ void SrsStatistic::reset_perf()
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
+    srs_freep(perf_dropped);
 
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
@@ -690,6 +716,7 @@ void SrsStatistic::reset_perf()
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();
+    perf_dropped = new SrsStatisticCategory();
 }
 
 void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)

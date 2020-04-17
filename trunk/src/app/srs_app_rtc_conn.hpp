@@ -149,6 +149,8 @@ public:
     int nn_videos;
     // The number of padded packet.
     int nn_paddings;
+    // The number of dropped messages.
+    int nn_dropped;
 private:
     int cursor;
     std::vector<SrsRtpPacket2*> packets;
@@ -303,16 +305,19 @@ private:
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
+    // The total queue length, share with all senders.
+    int queue_length;
 public:
     SrsUdpMuxSender(SrsRtcServer* s);
     virtual ~SrsUdpMuxSender();
 public:
-    virtual srs_error_t initialize(srs_netfd_t fd);
+    virtual srs_error_t initialize(srs_netfd_t fd, int senders);
 private:
     void free_mhdrs(std::vector<mmsghdr>& mhdrs);
 public:
     virtual srs_error_t fetch(mmsghdr** pphdr);
     virtual srs_error_t sendmmsg(mmsghdr* hdr);
+    virtual bool overflow();
     virtual srs_error_t cycle();
 // interface ISrsReloadHandler
 public:
