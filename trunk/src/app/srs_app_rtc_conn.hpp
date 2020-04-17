@@ -193,7 +193,6 @@ private:
     bool merge_nalus;
     bool gso;
     int max_padding;
-
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
@@ -218,7 +217,7 @@ private:
     srs_error_t send_packets(SrsRtcPackets& packets);
     srs_error_t send_packets_gso(SrsRtcPackets& packets);
 private:
-    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets);
+    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload);
 private:
     srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
     srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);

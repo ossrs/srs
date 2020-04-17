@@ -310,10 +310,14 @@ private:
         int nn_samples;
         // For RTC video, whether NALUs has IDR.
         bool has_idr;
+    public:
         // For RTC audio, we may need to transcode AAC to opus,
         // so there must be an extra payloads, which is transformed from payload.
         SrsSample* extra_payloads;
         int nn_extra_payloads;
+        // The max size payload in extras.
+        // @remark For GSO to fast guess the best padding.
+        int nn_max_extra_payloads;
 #endif
     public:
         SrsSharedPtrPayload();
@@ -363,6 +367,9 @@ public:
     void set_extra_payloads(SrsSample* payloads, int nn_payloads);
     int nn_extra_payloads() { return ptr->nn_extra_payloads; }
     SrsSample* extra_payloads() { return ptr->extra_payloads; }
+    // The max extra payload size.
+    void set_max_extra_payload(int v) { ptr->nn_max_extra_payloads = v; }
+    int nn_max_extra_payloads() { return ptr->nn_max_extra_payloads; }
     // Whether samples has idr.
     bool has_idr() { return ptr->has_idr; }
     void set_has_idr(bool v) { ptr->has_idr = v; }

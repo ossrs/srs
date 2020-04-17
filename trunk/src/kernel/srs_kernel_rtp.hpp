@@ -91,8 +91,10 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
-    // Append size of bytes as padding.
+    // Set the padding of RTP packet.
     void set_padding(int size);
+    // Increase the padding of RTP packet.
+    void add_padding(int size);
     // Reset RTP packet.
     void reset();
     // Reuse the cached raw message as payload.

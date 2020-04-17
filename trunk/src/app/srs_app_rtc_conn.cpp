@@ -830,7 +830,7 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
 
             for (int i = 0; i < nn_extra_payloads; i++) {
                 SrsSample* sample = msg->extra_payloads() + i;
-                if ((err = packet_opus(sample, packets)) != srs_success) {
+                if ((err = packet_opus(sample, packets, msg->nn_max_extra_payloads())) != srs_success) {
                     return srs_error_wrap(err, "opus package");
                 }
             }
@@ -1003,7 +1003,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
                     srs_trace("#%d, Padding %d bytes %d=>%d, packets %d, max_padding %d", packets.debug_id,
                         padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
 #endif
-                    packet->set_padding(padding);
+                    packet->add_padding(padding);
                     nn_packet += padding;
                     packets.nn_paddings++;
                     packets.nn_padding_bytes += padding;
@@ -1232,7 +1232,7 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload)
 {
     srs_error_t err = srs_success;
 
@@ -1246,6 +1246,18 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& pa
     SrsRtpRawPayload* raw = packet->reuse_raw();
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
+
+    if (max_padding > 0) {
+        if (sample->size < nn_max_payload && nn_max_payload - sample->size < max_padding) {
+            int padding = nn_max_payload - sample->size;
+            packet->set_padding(padding);
+
+#if defined(SRS_DEBUG)
+            srs_trace("#%d, Fast Padding %d bytes %d=>%d, SN=%d, max_payload %d, max_padding %d", packets.debug_id,
+                padding, sample->size, sample->size + padding, packet->rtp_header.get_sequence(), nn_max_payload, max_padding);
+#endif
+        }
+    }
 
     // TODO: FIXME: Why 960? Need Refactoring?
     audio_timestamp += 960;

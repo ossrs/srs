@@ -218,6 +218,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
     extra_payloads = NULL;
     nn_extra_payloads = 0;
+    nn_max_extra_payloads = 0;
 #endif
 }
 

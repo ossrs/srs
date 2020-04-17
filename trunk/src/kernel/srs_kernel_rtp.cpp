@@ -199,6 +199,12 @@ void SrsRtpPacket2::set_padding(int size)
     padding = size;
 }
 
+void SrsRtpPacket2::add_padding(int size)
+{
+    rtp_header.set_padding(padding + size > 0);
+    padding += size;
+}
+
 void SrsRtpPacket2::reset()
 {
     rtp_header.reset();
