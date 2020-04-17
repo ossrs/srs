@@ -951,39 +951,41 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
 
         SrsRtpPacket2* next_packet = NULL;
         int nn_next_packet = 0;
-        if (i < nn_packets - 1) {
-            next_packet = (i < nn_packets - 1)? packets.at(i + 1):NULL;
-            nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
-        }
-
-        // Padding the packet to next or GSO size.
-        if (max_padding > 0 && next_packet) {
-            if (!using_gso) {
-                // Padding to the next packet to merge with it.
-                if (nn_next_packet > nn_packet) {
-                    padding = nn_next_packet - nn_packet;
-                }
-            } else {
-                // Padding to GSO size for next one to merge with us.
-                if (nn_next_packet < gso_size) {
-                    padding = gso_size - nn_packet;
-                }
+        if (max_padding > 0) {
+            if (i < nn_packets - 1) {
+                next_packet = (i < nn_packets - 1)? packets.at(i + 1):NULL;
+                nn_next_packet = next_packet? next_packet->nb_bytes() : 0;
             }
 
-            // Reset padding if exceed max.
-            if (padding > max_padding) {
-                padding = 0;
-            }
+            // Padding the packet to next or GSO size.
+            if (next_packet) {
+                if (!using_gso) {
+                    // Padding to the next packet to merge with it.
+                    if (nn_next_packet > nn_packet) {
+                        padding = nn_next_packet - nn_packet;
+                    }
+                } else {
+                    // Padding to GSO size for next one to merge with us.
+                    if (nn_next_packet < gso_size) {
+                        padding = gso_size - nn_packet;
+                    }
+                }
 
-            if (padding > 0) {
+                // Reset padding if exceed max.
+                if (padding > max_padding) {
+                    padding = 0;
+                }
+
+                if (padding > 0) {
 #if defined(SRS_DEBUG)
-                srs_trace("#%d, Padding %d bytes %d=>%d, packets %d, max_padding %d", packets.debug_id,
-                    padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
+                    srs_trace("#%d, Padding %d bytes %d=>%d, packets %d, max_padding %d", packets.debug_id,
+                        padding, nn_packet, nn_packet + padding, nn_packets, max_padding);
 #endif
-                packet->set_padding(padding);
-                nn_packet += padding;
-                packets.nn_paddings++;
-                packets.nn_padding_bytes += padding;
+                    packet->set_padding(padding);
+                    nn_packet += padding;
+                    packets.nn_paddings++;
+                    packets.nn_padding_bytes += padding;
+                }
             }
         }
 
@@ -1970,7 +1972,7 @@ srs_error_t SrsUdpMuxSender::cycle()
         }
 
         // Increase total messages.
-        nn_msgs += pos;
+        nn_msgs += pos + gso_iovs;
         nn_msgs_max = srs_max(pos, nn_msgs_max);
         nn_gso_msgs_max = srs_max(gso_pos, nn_gso_msgs_max);
         nn_gso_iovs_max = srs_max(gso_iovs, nn_gso_iovs_max);
