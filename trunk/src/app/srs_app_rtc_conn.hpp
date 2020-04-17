@@ -305,7 +305,7 @@ private:
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
-    // The total queue length, share with all senders.
+    // The total queue length, for each sender.
     int queue_length;
 public:
     SrsUdpMuxSender(SrsRtcServer* s);

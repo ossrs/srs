@@ -43,7 +43,7 @@ obj = json.loads(s)
 
 print ""
 p = obj['data']['dropped']
-print('RTC Frame Dropped: %s'%(100.0 * p['rtc_dropeed'] / p['rtc_frames']))
+print('RTC Frame Dropped: %s%s'%(10000.0 * p['rtc_dropeed'] / p['rtc_frames'], '%%'))
 
 # 2, 3, 5, 9, 16, 32, 64, 128, 256
 keys = ['lt_2', 'lt_3', 'lt_5', 'lt_9', 'lt_16', 'lt_32', 'lt_64', 'lt_128', 'lt_256', 'gt_256']
