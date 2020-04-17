@@ -130,8 +130,10 @@ public:
     uint32_t debug_id;
 #endif
 public:
-    // The total bytes of RTP packets.
+    // The total bytes of AVFrame packets.
     int nn_bytes;
+    // The total bytes of RTP packets.
+    int nn_rtp_bytes;
     // The total padded bytes.
     int nn_padding_bytes;
 public:

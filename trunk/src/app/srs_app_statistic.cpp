@@ -655,20 +655,23 @@ srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
     return dumps_perf(perf_sendmmsg, obj);
 }
 
-void SrsStatistic::perf_on_rtc_bytes(int nn_bytes, int nn_padding)
+void SrsStatistic::perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding)
 {
-    // a: RTC bytes.
-    // b: RTC paddings.
+    // a: AVFrame bytes.
+    // b: RTC bytes.
+    // c: RTC paddings.
     perf_bytes->a += nn_bytes;
-    perf_bytes->b += nn_padding;
+    perf_bytes->b += nn_rtp_bytes;
+    perf_bytes->c += nn_padding;
 
-    perf_bytes->nn += nn_bytes + nn_padding;
+    perf_bytes->nn += nn_rtp_bytes;
 }
 
 srs_error_t SrsStatistic::dumps_perf_bytes(SrsJsonObject* obj)
 {
-    obj->set("rtc_bytes", SrsJsonAny::integer(perf_bytes->a));
-    obj->set("rtc_padding", SrsJsonAny::integer(perf_bytes->b));
+    obj->set("avframe_bytes", SrsJsonAny::integer(perf_bytes->a));
+    obj->set("rtc_bytes", SrsJsonAny::integer(perf_bytes->b));
+    obj->set("rtc_padding", SrsJsonAny::integer(perf_bytes->c));
 
     obj->set("nn",  SrsJsonAny::integer(perf_bytes->nn));
 

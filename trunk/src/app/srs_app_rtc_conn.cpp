@@ -472,6 +472,7 @@ SrsRtcPackets::SrsRtcPackets()
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
+    nn_bytes = nn_rtp_bytes = 0;
     nn_padding_bytes = nn_paddings = 0;
     nn_dropped = 0;
 
@@ -505,6 +506,7 @@ void SrsRtcPackets::reset(bool gso, bool merge_nalus)
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
+    nn_bytes = nn_rtp_bytes = 0;
     nn_padding_bytes = nn_paddings = 0;
     nn_dropped = 0;
 
@@ -745,22 +747,23 @@ srs_error_t SrsRtcSenderThread::cycle()
             // Stat the RTP packets going into kernel.
             stat->perf_on_gso_packets(pkts.nn_rtp_pkts);
             // Stat the bytes and paddings.
-            stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_padding_bytes);
+            stat->perf_on_rtc_bytes(pkts.nn_bytes, pkts.nn_rtp_bytes, pkts.nn_padding_bytes);
             // Stat the messages and dropped count.
             stat->perf_on_dropped(msg_count, nn_rtc_packets, pkts.nn_dropped);
-        }
+
 #if defined(SRS_DEBUG)
-        srs_trace("RTC PLAY perf, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d bytes",
-            msg_count, nn_rtc_packets, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
-            pkts.nn_samples, pkts.nn_bytes, pkts.nn_padding_bytes);
+            srs_trace("RTC PLAY perf, msgs %d/%d, rtp %d, gso %d, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes",
+                msg_count, nn_rtc_packets, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos,
+                pkts.nn_samples, pkts.nn_bytes, pkts.nn_rtp_bytes, pkts.nn_padding_bytes);
 #endif
+        }
 
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d/%d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d bytes, %d pad, %d/%d cache",
+            srs_trace("-> RTC PLAY %d/%d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes, %d pad, %d/%d cache",
                 msg_count, pkts.nn_dropped, pkts.size(), pkts.nn_rtp_pkts, pkts.nn_audios, pkts.nn_extras, pkts.nn_videos, pkts.nn_samples, pkts.nn_bytes,
-                pkts.nn_padding_bytes, pkts.nn_paddings, pkts.size(), pkts.capacity());
+                pkts.nn_rtp_bytes, pkts.nn_padding_bytes, pkts.nn_paddings, pkts.size(), pkts.capacity());
         }
     }
 }
@@ -926,6 +929,8 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
             iov->iov_len = (size_t)nn_encrypt;
         }
 
+        packets.nn_rtp_bytes += (int)iov->iov_len;
+
         // Set the address and control information.
         sockaddr_in* addr = (sockaddr_in*)sendonly_ukt->peer_addr();
         socklen_t addrlen = (socklen_t)sendonly_ukt->peer_addrlen();
@@ -1070,6 +1075,8 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
             iov->iov_len = (size_t)nn_encrypt;
         }
 
+        packets.nn_rtp_bytes += (int)iov->iov_len;
+
         // If GSO, they must has same size, except the final one.
         if (using_gso && !gso_final && gso_encrypt && gso_encrypt != (int)iov->iov_len) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "GSO size=%d/%d, encrypt=%d/%d", gso_size, nn_packet, gso_encrypt, iov->iov_len);
@@ -1138,9 +1145,9 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
     }
 
 #if defined(SRS_DEBUG)
-    srs_trace("#%d, RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d/%d", packets.debug_id, packets.size(),
+    srs_trace("#%d, RTC PLAY summary, rtp %d/%d, videos %d/%d, audios %d/%d, pad %d/%d/%d", packets.debug_id, packets.size(),
         packets.nn_rtp_pkts, packets.nn_videos, packets.nn_samples, packets.nn_audios, packets.nn_extras, packets.nn_paddings,
-        packets.nn_padding_bytes);
+        packets.nn_padding_bytes, packets.nn_rtp_bytes);
 #endif
 
     return err;
