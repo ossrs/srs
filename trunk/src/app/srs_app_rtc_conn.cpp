@@ -1854,6 +1854,12 @@ srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd, int senders)
     max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
     bool gso = _srs_config->get_rtc_server_gso();
     queue_length = srs_max(128, _srs_config->get_rtc_server_queue_length());
+
+    // For no GSO, we need larger queue.
+    if (!gso) {
+        queue_length *= 2;
+    }
+
     srs_trace("UDP sender #%d init ok, max_sendmmsg=%d, gso=%d, queue_max=%dx%d", srs_netfd_fileno(fd),
         max_sendmmsg, gso, queue_length, senders);
 

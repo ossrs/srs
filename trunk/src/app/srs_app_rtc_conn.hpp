@@ -185,10 +185,13 @@ private:
     uint16_t video_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
+private:
     ISrsUdpSender* sender;
+private:
     bool merge_nalus;
     bool gso;
     int max_padding;
+
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
