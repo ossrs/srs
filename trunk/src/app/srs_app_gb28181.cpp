@@ -329,7 +329,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                 muxer->set_channel_peer_ip(address_string);
                 //not the first peer port's non processing
                 if (muxer->channel_peer_port() != peer_port){
-                    srs_warn("<- " SRS_CONSTS_LOG_STREAM_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
+                    srs_warn("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
                         muxer->get_channel_id().c_str(), pkt.ssrc, muxer->channel_peer_port(), peer_port);
                     srs_freep(key->second);
                 }else {
