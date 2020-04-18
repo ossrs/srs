@@ -158,6 +158,9 @@ SrsSipRequest::SrsSipRequest()
     peer_port = 0;
 
     chid = "";
+
+    from_realm = "";
+    to_realm = "";
 }
 
 SrsSipRequest::~SrsSipRequest()
@@ -247,6 +250,9 @@ void SrsSipRequest::copy(SrsSipRequest* src)
 
     xml_body_map = src->xml_body_map;
     device_list_map = src->device_list_map;
+
+    from_realm = src->from_realm;
+    to_realm  = src->to_realm;
 }
 
 SrsSipStack::SrsSipStack()
@@ -490,12 +496,22 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                             if (srs_string_contains(content, "tag")) {
                                 req->from_tag = srs_sip_get_param(content.c_str(), "tag");
                             }
+
+                            std::vector<std::string> vec = srs_string_split(req->from, "@");
+                            if (vec.size() > 1){
+                                req->from_realm = vec.at(1);
+                            }
                         } 
                         else if (!strcasecmp(phead, "to:")) {
                             content = srs_string_replace(content, "sip:", "");
                             req->to = srs_sip_get_form_to_uri(content.c_str());
                             if (srs_string_contains(content, "tag")) {
                                 req->to_tag = srs_sip_get_param(content.c_str(), "tag");
+                            }
+
+                            std::vector<std::string> vec = srs_string_split(req->to, "@");
+                            if (vec.size() > 1){
+                                req->to_realm = vec.at(1);
                             }
                         } 
                         else if (!strcasecmp(phead, "via:")) {
@@ -579,7 +595,12 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                  
                 //map key:devicd_id value:status 
                 for(int i=0 ; i<vec_device_id.size(); i++){
-                    req->device_list_map[vec_device_id.at(i)] = vec_device_status.at(i);
+                    std::string status = "";
+                    if (vec_device_id.size() > i) {
+                        status = vec_device_status.at(i);
+                    }
+              
+                    req->device_list_map[vec_device_id.at(i)] = status;
                 }
             }else{
                 //TODO: fixme
@@ -651,13 +672,21 @@ std::string SrsSipStack::get_sip_via(SrsSipRequest const *req)
     std::vector<std::string> vec_ip_port = srs_string_split(ip_port, ":");
 
     std::string ip = vec_ip_port.empty() ? "" : vec_ip_port.at(0);
-    std::string port = vec_ip_port.size() > 0 ? vec_ip_port.at(1) : "";
+    std::string port = vec_ip_port.size() > 1 ? vec_ip_port.at(1) : "";
     
     std::string branch, rport, received;
     if (req->branch.empty()){
         branch = "";
     }else {
         branch = ";branch=" + req->branch;
+    }
+
+    if (!req->peer_ip.empty()){
+        ip = req->peer_ip;
+
+        std::stringstream ss;
+        ss << req->peer_port;
+        port = ss.str();
     }
 
     received = ";received=" + ip;
@@ -850,7 +879,7 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
   
     std::stringstream sdp;
     sdp << "v=0" << SRS_RTSP_CRLF
-    << "o=" << req->chid << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
+    << "o=" << req->serial << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
     << "s=Play" << SRS_RTSP_CRLF
     << "c=IN IP4 " << ip << SRS_RTSP_CRLF
     << "t=0 0" << SRS_RTSP_CRLF
@@ -871,14 +900,23 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     int rand = srs_sip_random(1000, 9999);
     std::stringstream from, to, uri, branch, from_tag, call_id;
     //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
-    uri << "sip:" <<   req->chid << "@" << req->realm;
+    uri << "sip:" <<  req->chid << "@" << req->realm;
     //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
-    from << req->serial << "@" << req->host << ":"  << req->host_port;
+    from << req->serial << "@" << req->realm;
     to <<  req->chid <<  "@" << req->realm;
     call_id << "2020" << rand ;
 
     req->from = from.str();
-    req->to   = to.str();
+    req->to = to.str();
+
+    if (!req->to_realm.empty()){
+        req->to  =  req->chid + "@" + req->to_realm;
+    }
+
+    if (!req->from_realm.empty()){
+        req->from  =  req->serial + "@" + req->from_realm;
+    }
+
     req->uri  = uri.str();
     req->call_id = call_id.str();
 
@@ -948,8 +986,8 @@ void SrsSipStack::req_ack(std::stringstream& ss, SrsSipRequest *req){
   
     ss << "ACK " << "sip:" <<  req->chid << "@" << req->realm << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
-    << "From: <sip:" << req->serial << "@" << req->host + ":" << req->host_port << ">;tag=" << req->from_tag << SRS_RTSP_CRLF
-    << "To: <sip:"<< req->chid <<  "@" << req->realm << ">\r\n"
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: "<< get_sip_to(req) << SRS_RTSP_CRLF
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
     << "CSeq: " << req->seq << " ACK"<< SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
@@ -989,7 +1027,16 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
     to << req->chid <<  "@" <<  req->realm;
 
     req->from = from.str();
-    req->to   = to.str();
+    req->to = to.str();
+
+    if (!req->to_realm.empty()){
+        req->to  =  req->chid + "@" + req->to_realm;
+    }
+
+    if (!req->from_realm.empty()){
+        req->from  =  req->serial + "@" + req->from_realm;
+    }
+
     req->uri  = uri.str();
 
     int seq = srs_sip_random(22, 99);

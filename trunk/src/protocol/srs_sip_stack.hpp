@@ -106,6 +106,9 @@ public:
     int host_port;
     SrsSipCmdType cmdtype;
 
+    std::string from_realm;
+    std::string to_realm;
+
 public:
     SrsRtspSdp* sdp;
     SrsRtspTransport* transport;
