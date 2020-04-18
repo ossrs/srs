@@ -660,7 +660,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
             return srs_error_wrap(err, "consumer dump packets");
         }
-        
+
+        // TODO: FIXME: Support merged-write wait.
         if (count <= 0) {
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
             srs_usleep(mw_sleep);

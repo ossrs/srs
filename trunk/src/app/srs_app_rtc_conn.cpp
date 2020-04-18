@@ -563,6 +563,10 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int
 
     video_sequence = 0;
 
+    mw_sleep = 0;
+    mw_msgs = 0;
+    realtime = true;
+
     _srs_config->subscribe(this);
 }
 
@@ -595,31 +599,35 @@ srs_error_t SrsRtcSenderThread::initialize(const uint32_t& vssrc, const uint32_t
 
 srs_error_t SrsRtcSenderThread::on_reload_rtc_server()
 {
-    if (true) {
-        bool v = _srs_config->get_rtc_server_gso();
-        if (gso != v) {
-            srs_trace("Reload gso %d=>%d", gso, v);
-            gso = v;
-        }
-    }
+    gso = _srs_config->get_rtc_server_gso();
+    merge_nalus = _srs_config->get_rtc_server_merge_nalus();
+    max_padding = _srs_config->get_rtc_server_padding();
 
-    if (true) {
-        bool v = _srs_config->get_rtc_server_merge_nalus();
-        if (merge_nalus != v) {
-            srs_trace("Reload merge_nalus %d=>%d", merge_nalus, v);
-            merge_nalus = v;
-        }
-    }
-
-    if (true) {
-        bool v = _srs_config->get_rtc_server_padding();
-        if (max_padding != v) {
-            srs_trace("Reload padding %d=>%d", max_padding, v);
-            max_padding = v;
-        }
-    }
+    srs_trace("Reload rtc_server gso=%d, merge_nalus=%d, max_padding=%d", gso, merge_nalus, max_padding);
 
     return srs_success;
+}
+
+srs_error_t SrsRtcSenderThread::on_reload_vhost_play(string vhost)
+{
+    SrsRequest* req = &rtc_session->request;
+
+    if (req->vhost != vhost) {
+        return srs_success;
+    }
+
+    realtime = _srs_config->get_realtime_enabled(req->vhost, true);
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);
+
+    srs_trace("Reload play realtime=%d, mw_msgs=%d, mw_sleep=%d", realtime, mw_msgs, mw_sleep);
+
+    return srs_success;
+}
+
+srs_error_t SrsRtcSenderThread::on_reload_vhost_realtime(string vhost)
+{
+    return on_reload_vhost_play(vhost);
 }
 
 int SrsRtcSenderThread::cid()
@@ -673,9 +681,6 @@ srs_error_t SrsRtcSenderThread::cycle()
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    srs_trace("source url=%s, source_id=[%d][%d], encrypt=%d",
-        rtc_session->request.get_stream_url().c_str(), ::getpid(), source->source_id(), rtc_session->encrypt);
-
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
@@ -684,8 +689,12 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     // TODO: FIXME: Support reload.
     SrsRequest* req = &rtc_session->request;
-    bool realtime = _srs_config->get_realtime_enabled(req->vhost, true);
-    srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);
+    realtime = _srs_config->get_realtime_enabled(req->vhost, true);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
+
+    srs_trace("RTC source url=%s, source_id=[%d][%d], encrypt=%d, realtime=%d, mw_sleep=%dms, mw_msgs=%d", rtc_session->request.get_stream_url().c_str(),
+        ::getpid(), source->source_id(), rtc_session->encrypt, realtime, srsu2msi(mw_sleep), mw_msgs);
 
     SrsRtcPackets pkts;
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
@@ -703,13 +712,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // Wait for amount of messages or a duration.
-        if (realtime) {
-            // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME, mw_sleep);
-        } else {
-            // for no-realtime, got some msgs then send.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS_FOR_RTC, mw_sleep);
-        }
+        consumer->wait(mw_msgs, mw_sleep);
 #endif
 
         // Try to read some messages.

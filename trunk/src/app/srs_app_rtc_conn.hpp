@@ -193,6 +193,10 @@ private:
     bool merge_nalus;
     bool gso;
     int max_padding;
+private:
+    srs_utime_t mw_sleep;
+    int mw_msgs;
+    bool realtime;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
@@ -201,6 +205,8 @@ public:
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_rtc_server();
+    virtual srs_error_t on_reload_vhost_play(std::string vhost);
+    virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 public:
     virtual int cid();
 public:

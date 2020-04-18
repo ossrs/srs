@@ -102,8 +102,7 @@ private:
     srs_utime_t duration;
     // The MR(merged-write) sleep time in srs_utime_t.
     srs_utime_t mw_sleep;
-    // The MR(merged-write) only enabled for play.
-    int mw_enabled;
+    int mw_msgs;
     // For realtime
     // @see https://github.com/ossrs/srs/issues/257
     bool realtime;
@@ -149,7 +148,6 @@ private:
     virtual srs_error_t handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
     virtual srs_error_t process_publish_message(SrsSource* source, SrsCommonMessage* msg);
     virtual srs_error_t process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
-    virtual void change_mw_sleep(srs_utime_t sleep_v);
     virtual void set_sock_options();
 private:
     virtual srs_error_t check_edge_token_traverse_auth();

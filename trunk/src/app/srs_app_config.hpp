@@ -630,6 +630,10 @@ public:
     // @param vhost, the vhost to get the mw sleep time.
     // TODO: FIXME: add utest for mw config.
     virtual srs_utime_t get_mw_sleep(std::string vhost, bool is_rtc = false);
+    // Get the mw_msgs, mw wait time in packets for vhost.
+    // @param vhost, the vhost to get the mw sleep msgs.
+    // TODO: FIXME: add utest for mw config.
+    virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc = false);
     // Whether min latency mode enabled.
     // @param vhost, the vhost to get the min_latency.
     // TODO: FIXME: add utest for min_latency.
