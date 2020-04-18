@@ -113,7 +113,8 @@ public:
      * get data of stream, set by initialize.
      * current bytes = data() + pos()
      */
-    virtual char* data();
+    inline char* data() { return bytes; }
+    inline char* head() { return p; }
     /**
      * the total stream size, set by initialize.
      * left bytes = size() - pos().

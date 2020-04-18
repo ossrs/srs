@@ -5420,8 +5420,14 @@ srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (is_rtc && v > 0) {
+        srs_warn("For RTC, we ignore mw_latency");
+        return 0;
+    }
     
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+    return (srs_utime_t)(v * SRS_UTIME_MILLISECONDS);
 }
 
 int SrsConfig::get_mw_msgs(string vhost, bool is_realtime, bool is_rtc)

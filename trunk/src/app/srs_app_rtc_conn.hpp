@@ -155,9 +155,10 @@ public:
     int nn_dropped;
 private:
     int cursor;
-    std::vector<SrsRtpPacket2*> packets;
+    int nn_cache;
+    SrsRtpPacket2* cache;
 public:
-    SrsRtcPackets();
+    SrsRtcPackets(int nn_cache_max);
     virtual ~SrsRtcPackets();
 public:
     void reset(bool gso, bool merge_nalus);

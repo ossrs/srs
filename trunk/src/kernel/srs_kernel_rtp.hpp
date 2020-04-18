@@ -39,7 +39,7 @@ const uint8_t kNalTypeMask      = 0x1F;
 
 class SrsBuffer;
 class SrsRtpRawPayload;
-class SrsRtpFUAPayload;
+class SrsRtpFUAPayload2;
 
 class SrsRtpHeader
 {
@@ -65,17 +65,17 @@ public:
 public:
     size_t header_size();
 public:
-    void set_marker(bool marker);
+    inline void set_marker(bool v) { marker = v; }
     bool get_marker() const { return marker; }
-    void set_payload_type(uint8_t payload_type);
+    inline void set_payload_type(uint8_t v) { payload_type = v; }
     uint8_t get_payload_type() const { return payload_type; }
-    void set_sequence(uint16_t sequence);
+    inline void set_sequence(uint16_t v) { sequence = v; }
     uint16_t get_sequence() const  { return sequence; }
-    void set_timestamp(int64_t timestamp);
+    inline void set_timestamp(int64_t v) { timestamp = (uint32_t)v; }
     int64_t get_timestamp() const { return timestamp; }
-    void set_ssrc(uint32_t ssrc);
+    inline void set_ssrc(uint32_t v) { ssrc = v; }
     uint32_t get_ssrc() const { return ssrc; }
-    void set_padding(bool v) { padding = v; }
+    inline void set_padding(bool v) { padding = v; }
 };
 
 class SrsRtpPacket2
@@ -84,9 +84,16 @@ public:
     SrsRtpHeader rtp_header;
     ISrsEncoder* payload;
     int padding;
+public:
+    // User can set an extra payload, we will free it.
+    // For example, when reassemble NALUs by SrsRtpRawNALUs, we can set the extra payload to
+    // SrsRtpRawNALUs, then we can use SrsRtpFUAPayload which never free samples.
+    ISrsEncoder* extra_payload;
 private:
     SrsRtpRawPayload* cache_raw;
-    SrsRtpFUAPayload* cache_fua;
+    SrsRtpFUAPayload2* cache_fua;
+    bool using_cache;
+    int cache_payload;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
@@ -100,7 +107,7 @@ public:
     // Reuse the cached raw message as payload.
     SrsRtpRawPayload* reuse_raw();
     // Reuse the cached fua message as payload.
-    SrsRtpFUAPayload* reuse_fua();
+    SrsRtpFUAPayload2* reuse_fua();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -111,7 +118,8 @@ public:
 class SrsRtpRawPayload : public ISrsEncoder
 {
 public:
-    // @remark We only refer to the memory, user must free it.
+    // The RAW payload, directly point to the shared memory.
+    // @remark We only refer to the memory, user must free its bytes.
     char* payload;
     int nn_payload;
 public:
@@ -127,6 +135,9 @@ public:
 class SrsRtpRawNALUs : public ISrsEncoder
 {
 private:
+    // The returned samples.
+    std::vector<SrsSample*> extra_nalus;
+    // We will manage the samples, but the sample itself point to the shared memory.
     std::vector<SrsSample*> nalus;
     int nn_bytes;
     int cursor;
@@ -137,7 +148,8 @@ public:
     void push_back(SrsSample* sample);
 public:
     uint8_t skip_first_byte();
-    srs_error_t read_samples(std::vector<SrsSample*>& samples, int size);
+    // We will manage the returned samples, if user want to manage it, please copy it.
+    srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -163,6 +175,7 @@ public:
 };
 
 // FU-A, for one NALU with multiple fragments.
+// With more than one payload.
 class SrsRtpFUAPayload : public ISrsEncoder
 {
 public:
@@ -178,8 +191,29 @@ public:
 public:
     SrsRtpFUAPayload();
     virtual ~SrsRtpFUAPayload();
+// interface ISrsEncoder
 public:
-    void reset();
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
+// FU-A, for one NALU with multiple fragments.
+// With only one payload.
+class SrsRtpFUAPayload2 : public ISrsEncoder
+{
+public:
+    // The NRI in NALU type.
+    SrsAvcNaluType nri;
+    // The FUA header.
+    bool start;
+    bool end;
+    SrsAvcNaluType nalu_type;
+    // The payload and size,
+    char* payload;
+    int size;
+public:
+    SrsRtpFUAPayload2();
+    virtual ~SrsRtpFUAPayload2();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();

@@ -67,11 +67,6 @@ SrsBuffer::~SrsBuffer()
 {
 }
 
-char* SrsBuffer::data()
-{
-    return bytes;
-}
-
 int SrsBuffer::size()
 {
     return nb_bytes;

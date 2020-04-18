@@ -85,7 +85,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
 
     // Encode the RTP fix header, 12bytes.
     // @see https://tools.ietf.org/html/rfc1889#section-5.1
-    char* op = stream->data() + stream->pos();
+    char* op = stream->head();
     char* p = op;
 
     // The version, padding, extension and cc, total 1 byte.
@@ -148,60 +148,45 @@ size_t SrsRtpHeader::header_size()
     return kRtpHeaderFixedSize + cc * 4 + (extension ? (extension_length + 1) * 4 : 0);
 }
 
-void SrsRtpHeader::set_marker(bool marker)
-{
-    this->marker = marker;
-}
-
-void SrsRtpHeader::set_payload_type(uint8_t payload_type)
-{
-    this->payload_type = payload_type;
-}
-
-void SrsRtpHeader::set_sequence(uint16_t sequence)
-{
-    this->sequence = sequence;
-}
-
-void SrsRtpHeader::set_timestamp(int64_t timestamp)
-{
-    this->timestamp = (uint32_t)timestamp;
-}
-
-void SrsRtpHeader::set_ssrc(uint32_t ssrc)
-{
-    this->ssrc = ssrc;
-}
-
 SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
+    extra_payload = NULL;
     padding = 0;
 
     cache_raw = new SrsRtpRawPayload();
-    cache_fua = new SrsRtpFUAPayload();
+    cache_fua = new SrsRtpFUAPayload2();
+    cache_payload = 0;
+    using_cache = false;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
     // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
+    if (using_cache) {
         payload = NULL;
     }
 
     srs_freep(payload);
+    srs_freep(extra_payload);
     srs_freep(cache_raw);
 }
 
 void SrsRtpPacket2::set_padding(int size)
 {
     rtp_header.set_padding(size > 0);
+    if (cache_payload) {
+        cache_payload += size - padding;
+    }
     padding = size;
 }
 
 void SrsRtpPacket2::add_padding(int size)
 {
     rtp_header.set_padding(padding + size > 0);
+    if (cache_payload) {
+        cache_payload += size;
+    }
     padding += size;
 }
 
@@ -209,31 +194,39 @@ void SrsRtpPacket2::reset()
 {
     rtp_header.reset();
     padding = 0;
+    cache_payload = 0;
+    srs_freep(extra_payload);
 
     // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
+    if (using_cache) {
         payload = NULL;
+    } else {
+        srs_freep(payload);
     }
 
-    srs_freep(payload);
+    using_cache = false;
 }
 
 SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
 {
+    using_cache = true;
     payload = cache_raw;
     return cache_raw;
 }
 
-SrsRtpFUAPayload* SrsRtpPacket2::reuse_fua()
+SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 {
+    using_cache = true;
     payload = cache_fua;
-    cache_fua->reset();
     return cache_fua;
 }
 
 int SrsRtpPacket2::nb_bytes()
 {
-    return rtp_header.header_size() + (payload? payload->nb_bytes():0) + padding;
+    if (!cache_payload) {
+        cache_payload = rtp_header.header_size() + (payload? payload->nb_bytes():0) + padding;
+    }
+    return cache_payload;
 }
 
 srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
@@ -297,12 +290,20 @@ SrsRtpRawNALUs::SrsRtpRawNALUs()
 
 SrsRtpRawNALUs::~SrsRtpRawNALUs()
 {
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
-        srs_freep(p);
+    if (true) {
+        int nn_nalus = (int)nalus.size();
+        for (int i = 0; i < nn_nalus; i++) {
+            SrsSample* p = nalus[i];
+            srs_freep(p);
+        }
     }
-    nalus.clear();
+    if (true) {
+        int nn_nalus = (int)extra_nalus.size();
+        for (int i = 0; i < nn_nalus; i++) {
+            SrsSample* p = extra_nalus[i];
+            srs_freep(p);
+        }
+    }
 }
 
 void SrsRtpRawNALUs::push_back(SrsSample* sample)
@@ -330,19 +331,19 @@ uint8_t SrsRtpRawNALUs::skip_first_byte()
     return uint8_t(nalus[0]->bytes[0]);
 }
 
-srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int size)
+srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int packet_size)
 {
-    if (cursor + size < 0 || cursor + size > nn_bytes) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "cursor=%d, max=%d, size=%d", cursor, nn_bytes, size);
+    if (cursor + packet_size < 0 || cursor + packet_size > nn_bytes) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "cursor=%d, max=%d, size=%d", cursor, nn_bytes, packet_size);
     }
 
     int pos = cursor;
-    cursor += size;
-    int left = size;
+    cursor += packet_size;
+    int left = packet_size;
 
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end() && left > 0; ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
 
         // Ignore previous consumed samples.
         if (pos && pos - p->size >= 0) {
@@ -355,9 +356,11 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int size)
         srs_assert(nn > 0);
 
         SrsSample* sample = new SrsSample();
+        extra_nalus.push_back(sample);
+        samples.push_back(sample);
+
         sample->bytes = p->bytes + pos;
         sample->size = nn;
-        samples.push_back(sample);
 
         left -= nn;
         pos = 0;
@@ -370,9 +373,9 @@ int SrsRtpRawNALUs::nb_bytes()
 {
     int size = 0;
 
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
         size += p->size;
     }
 
@@ -381,9 +384,9 @@ int SrsRtpRawNALUs::nb_bytes()
 
 srs_error_t SrsRtpRawNALUs::encode(SrsBuffer* buf)
 {
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
 
         if (!buf->require(p->size)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", p->size);
@@ -402,21 +405,20 @@ SrsRtpSTAPPayload::SrsRtpSTAPPayload()
 
 SrsRtpSTAPPayload::~SrsRtpSTAPPayload()
 {
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
         srs_freep(p);
     }
-    nalus.clear();
 }
 
 int SrsRtpSTAPPayload::nb_bytes()
 {
     int size = 1;
 
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
         size += 2 + p->size;
     }
 
@@ -436,9 +438,10 @@ srs_error_t SrsRtpSTAPPayload::encode(SrsBuffer* buf)
     buf->write_1bytes(v);
 
     // NALUs.
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+
         if (!buf->require(2 + p->size)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2 + p->size);
         }
@@ -458,31 +461,20 @@ SrsRtpFUAPayload::SrsRtpFUAPayload()
 
 SrsRtpFUAPayload::~SrsRtpFUAPayload()
 {
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
         srs_freep(p);
     }
-    nalus.clear();
-}
-
-void SrsRtpFUAPayload::reset()
-{
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
-        srs_freep(p);
-    }
-    nalus.clear();
 }
 
 int SrsRtpFUAPayload::nb_bytes()
 {
     int size = 2;
 
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
         size += p->size;
     }
 
@@ -511,15 +503,67 @@ srs_error_t SrsRtpFUAPayload::encode(SrsBuffer* buf)
     buf->write_1bytes(fu_header);
 
     // FU payload, @see https://tools.ietf.org/html/rfc6184#section-5.8
-    vector<SrsSample*>::iterator it;
-    for (it = nalus.begin(); it != nalus.end(); ++it) {
-        SrsSample* p = *it;
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+
         if (!buf->require(p->size)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", p->size);
         }
 
         buf->write_bytes(p->bytes, p->size);
     }
+
+    return srs_success;
+}
+
+SrsRtpFUAPayload2::SrsRtpFUAPayload2()
+{
+    start = end = false;
+    nri = nalu_type = (SrsAvcNaluType)0;
+
+    payload = NULL;
+    size = 0;
+}
+
+SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
+{
+}
+
+int SrsRtpFUAPayload2::nb_bytes()
+{
+    return 2 + size;
+}
+
+srs_error_t SrsRtpFUAPayload2::encode(SrsBuffer* buf)
+{
+    if (!buf->require(2 + size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    // Fast encoding.
+    char* p = buf->head();
+
+    // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t fu_indicate = kFuA;
+    fu_indicate |= (nri & (~kNalTypeMask));
+    *p++ = fu_indicate;
+
+    // FU header, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t fu_header = nalu_type;
+    if (start) {
+        fu_header |= kStart;
+    }
+    if (end) {
+        fu_header |= kEnd;
+    }
+    *p++ = fu_header;
+
+    // FU payload, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    memcpy(p, payload, size);
+
+    // Consume bytes.
+    buf->skip(2 + size);
 
     return srs_success;
 }
