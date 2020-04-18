@@ -22,6 +22,8 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] Patch [st.osx10.14.build.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/6.st.osx10.14.build.patch), for osx 10.14 build.
 - [x] Support macro `MD_ST_NO_ASM` to disable ASM, [#8](https://github.com/ossrs/state-threads/issues/8).
 - [x] Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
+- [x] Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
+- [x] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## Docs
 
@@ -84,5 +86,11 @@ Important cli options:
 1. `--leak-check=<no|summary|yes|full> [default: summary]`, When enabled, search for memory leaks when the client program finishes. If set to summary, it says how many leaks occurred. If set to full or yes, each individual leak will be shown in detail and/or counted as an error, as specified by the options `--show-leak-kinds` and `--errors-for-leak-kinds`.
 1. `--track-origins=<yes|no> [default: no]`, Controls whether Memcheck tracks the origin of uninitialised values. By default, it does not, which means that although it can tell you that an uninitialised value is being used in a dangerous way, it cannot tell you where the uninitialised value came from. This often makes it difficult to track down the root problem.
 1. `--show-reachable=<yes|no> , --show-possibly-lost=<yes|no>`, to show the using memory.
+
+## Analysis
+
+1. About setjmp and longjmp, read [setjmp](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-setjmp.jpg).
+1. About the stack structure, read [stack](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-stack.jpg)
+1. About asm code comments, read [#91d530e](https://github.com/ossrs/state-threads/commit/91d530e#diff-ed9428b14ff6afda0e9ab04cc91d4445R25).
 
 Winlin 2016
