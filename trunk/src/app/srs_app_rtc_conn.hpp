@@ -307,6 +307,9 @@ private:
 private:
     srs_cond_t cond;
     bool waiting_msgs;
+    bool gso;
+    int nn_senders;
+private:
     // Hotspot msgs, we are working on it.
     // @remark We will wait util all messages are ready.
     std::vector<mmsghdr> hotspot;
@@ -317,6 +320,9 @@ private:
     int max_sendmmsg;
     // The total queue length, for each sender.
     int queue_length;
+    // The extra queue ratio.
+    int extra_ratio;
+    int extra_queue;
 public:
     SrsUdpMuxSender(SrsRtcServer* s);
     virtual ~SrsUdpMuxSender();
@@ -328,6 +334,8 @@ public:
     virtual srs_error_t fetch(mmsghdr** pphdr);
     virtual srs_error_t sendmmsg(mmsghdr* hdr);
     virtual bool overflow();
+    virtual void set_extra_ratio(int r);
+public:
     virtual srs_error_t cycle();
 // interface ISrsReloadHandler
 public:
