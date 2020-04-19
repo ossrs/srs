@@ -462,7 +462,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sound_rate = SrsAudioSampleRate44100;
         codec.sampling_frequency_index = 4;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
         EXPECT_EQ(0x08, (uint8_t)sh.at(1));
     }
@@ -475,7 +475,7 @@ VOID TEST(SrsAVCTest, AACMuxSequenceHeader)
         codec.sound_rate = SrsAudioSampleRate22050;
         codec.sampling_frequency_index = 4;
         HELPER_ASSERT_SUCCESS(h.mux_sequence_header(&codec, sh));
-        EXPECT_EQ(2, sh.length());
+        EXPECT_EQ(2, (int)sh.length());
         EXPECT_EQ(0x0a, (uint8_t)sh.at(0));
         EXPECT_EQ(0x08, (uint8_t)sh.at(1));
     }

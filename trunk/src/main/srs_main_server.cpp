@@ -209,7 +209,7 @@ srs_error_t do_main(int argc, char** argv)
 
 int main(int argc, char** argv) {
     srs_error_t err = do_main(argc, argv);
-    
+
     if (err != srs_success) {
         srs_error("Failed, %s", srs_error_desc(err).c_str());
     }

@@ -548,7 +548,8 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
 
                 // Notify about perf stat.
                 if (perf) {
-                    perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+                    perf->perf_on_msgs(nb_msgs_merged_written);
+                    perf->perf_on_writev_iovs(iov_index);
                     nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
                 }
                 
@@ -576,7 +577,8 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
 
     // Notify about perf stat.
     if (perf) {
-        perf->perf_mw_on_msgs(nb_msgs_merged_written, bytes_msgs_merged_written, iov_index);
+        perf->perf_on_msgs(nb_msgs_merged_written);
+        perf->perf_on_writev_iovs(iov_index);
         nb_msgs_merged_written = 0; bytes_msgs_merged_written = 0;
     }
 
@@ -626,11 +628,6 @@ srs_error_t SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msg
             
             if ((er = skt->writev(iovs, 2, NULL)) != srs_success) {
                 return srs_error_wrap(err, "writev");
-            }
-
-            // Notify about perf stat.
-            if (perf) {
-                perf->perf_mw_on_packets(1, payload_size, 2);
             }
         }
     }
@@ -4538,6 +4535,11 @@ srs_error_t SrsOnMetaDataPacket::decode(SrsBuffer* stream)
         if ((err = srs_amf0_read_string(stream, name)) != srs_success) {
             return srs_error_wrap(err, "name");
         }
+    }
+
+    // Allows empty body metadata.
+    if (stream->empty()) {
+        return err;
     }
     
     // the metadata maybe object or ecma array

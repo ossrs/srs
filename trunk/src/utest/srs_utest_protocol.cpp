@@ -5855,7 +5855,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		HELPER_EXPECT_SUCCESS(parser.parse("HelloGET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
 		EXPECT_EQ(80, (int)parser.parsed);
 		EXPECT_EQ(0, (int)parser.parser->nread);
-		EXPECT_EQ(0, parser.parser->content_length);
+		EXPECT_EQ(0, (int)parser.parser->content_length);
 	}
 
 	if (true) {
@@ -5864,7 +5864,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nHel"));
 		EXPECT_EQ(73, (int)parser.parsed);
 		EXPECT_EQ(0, (int)parser.parser->nread);
-		EXPECT_EQ(2, parser.parser->content_length);
+		EXPECT_EQ(2, (int)parser.parser->content_length);
 	}
 
 	if (true) {
@@ -5881,7 +5881,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 34, nparsed = 34, nread = 34
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHo"));
 		EXPECT_EQ(34, (int)parser.parsed);
-		EXPECT_EQ(34, parser.parser->nread);
+		EXPECT_EQ(34, (int)parser.parser->nread);
 
 		// size = 41, nparsed = 41, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("st: ossrs.net\r\nContent-Length: 5\r\n\r\nHello"));
@@ -5894,7 +5894,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 41, nparsed = 41, nread = 41
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: oss"));
 		EXPECT_EQ(41, (int)parser.parsed);
-		EXPECT_EQ(41, parser.parser->nread);
+		EXPECT_EQ(41, (int)parser.parser->nread);
 
 		// size = 34, nparsed = 34, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("rs.net\r\nContent-Length: 5\r\n\r\nHello"));
@@ -5907,7 +5907,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 48, nparsed = 48, nread = 48
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r"));
 		EXPECT_EQ(48, (int)parser.parsed);
-		EXPECT_EQ(48, parser.parser->nread);
+		EXPECT_EQ(48, (int)parser.parser->nread);
 
 		// size = 27, nparsed = 27, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("\nContent-Length: 5\r\n\r\nHello"));
@@ -5920,7 +5920,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 68, nparsed = 68, nread = 68
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n"));
 		EXPECT_EQ(68, (int)parser.parsed);
-		EXPECT_EQ(68, parser.parser->nread);
+		EXPECT_EQ(68, (int)parser.parser->nread);
 
 		// size = 7, nparsed = 7, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("\r\nHello"));
@@ -5933,7 +5933,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 69, nparsed = 69, nread = 69
 		HELPER_EXPECT_SUCCESS(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r"));
 		EXPECT_EQ(69, (int)parser.parsed);
-		EXPECT_EQ(69, parser.parser->nread);
+		EXPECT_EQ(69, (int)parser.parser->nread);
 
 		// size = 6, nparsed = 6, nread = 0
 		HELPER_EXPECT_SUCCESS(parser.parse("\nHello"));
@@ -5954,12 +5954,12 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// nparsed = 2, size = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
 		EXPECT_EQ(2, (int)parser.parsed);
-		EXPECT_EQ(2, parser.parser->nread);
+		EXPECT_EQ(2, (int)parser.parser->nread);
 
 		// size = 0, nparsed = 1, nread=2
 		HELPER_EXPECT_FAILED(parser.parse(""));
 		EXPECT_EQ(1, (int)parser.parsed);
-		EXPECT_EQ(2, parser.parser->nread);
+		EXPECT_EQ(2, (int)parser.parser->nread);
 	}
 
 	if (true) {
@@ -5967,12 +5967,12 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 2, nparsed = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
 		EXPECT_EQ(2, (int)parser.parsed);
-		EXPECT_EQ(2, parser.parser->nread);
+		EXPECT_EQ(2, (int)parser.parser->nread);
 
 		// size = 1, nparsed = 0, nread = 3
 		HELPER_EXPECT_FAILED(parser.parse("X"));
 		EXPECT_EQ(0, (int)parser.parsed);
-		EXPECT_EQ(3, parser.parser->nread);
+		EXPECT_EQ(3, (int)parser.parser->nread);
 	}
 
 	if (true) {
@@ -5980,12 +5980,12 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 2, nparsed = 2, nread = 2
 		HELPER_EXPECT_SUCCESS(parser.parse("GE"));
 		EXPECT_EQ(2, (int)parser.parsed);
-		EXPECT_EQ(2, parser.parser->nread);
+		EXPECT_EQ(2, (int)parser.parser->nread);
 
 		// size = 1, nparsed = 1, nread = 3
 		HELPER_EXPECT_SUCCESS(parser.parse("T"));
 		EXPECT_EQ(1, (int)parser.parsed);
-		EXPECT_EQ(3, parser.parser->nread);
+		EXPECT_EQ(3, (int)parser.parser->nread);
 	}
 
 	if (true) {
@@ -5993,7 +5993,7 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 		// size = 3, nparsed = 3, nread = 3
 		HELPER_EXPECT_SUCCESS(parser.parse("GET"));
 		EXPECT_EQ(3, (int)parser.parsed);
-		EXPECT_EQ(3, parser.parser->nread);
+		EXPECT_EQ(3, (int)parser.parser->nread);
 	}
 }
 

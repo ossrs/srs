@@ -39,30 +39,15 @@ class SrsOriginHub;
 class SrsAudioRecode;
 class SrsBuffer;
 
-// Rtp packet max payload size, not include rtp header.
-// Must left some bytes to payload header, rtp header, udp header, ip header.
-const int kRtpMaxPayloadSize    = 1200;
+// The RTP packet max size, should never exceed this size.
 const int kRtpPacketSize        = 1500;
 
 // Payload type will rewrite in srs_app_rtc_conn.cpp when send to client.
 const uint8_t kOpusPayloadType  = 111;
 const uint8_t kH264PayloadType  = 102;
 
-// H.264 nalu header type mask.
-const uint8_t kNalTypeMask      = 0x1F;
-
-// @see: https://tools.ietf.org/html/rfc6184#section-5.2
-const uint8_t kStapA            = 24;
-const uint8_t kFuA              = 28;
-
-// @see: https://tools.ietf.org/html/rfc6184#section-5.8
-const uint8_t kStart            = 0x80; // Fu-header start bit
-const uint8_t kEnd              = 0x40; // Fu-header end bit
-
 const int kChannel              = 2;
 const int kSamplerate           = 48000;
-const int kArrayLength          = 8;
-const int kArrayBuffer          = 4096;
 
 // SSRC will rewrite in srs_app_rtc_conn.cpp when send to client.
 const uint32_t kAudioSSRC       = 1;
@@ -71,39 +56,26 @@ const uint32_t kVideoSSRC       = 2;
 // TODO: Define interface class like ISrsRtpMuxer
 class SrsRtpH264Muxer
 {
-private:
-    uint16_t sequence;
-    std::string sps;
-    std::string pps;
 public:
     bool discard_bframe;
 public:
     SrsRtpH264Muxer();
     virtual ~SrsRtpH264Muxer();
 public:
-    srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* shared_frame, SrsFormat* format, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
-    srs_error_t packet_stap_a(const std::string &sps, const std::string& pps, SrsSharedPtrMessage* shared_frame, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
+    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 // TODO: FIXME: It's not a muxer, but a transcoder.
 class SrsRtpOpusMuxer
 {
 private:
-    // TODO: FIXME: How to handle timestamp overflow?
-    uint32_t timestamp;
-    uint16_t sequence;
-    SrsAudioRecode* transcode;
+    SrsAudioRecode* codec;
 public:
     SrsRtpOpusMuxer();
     virtual ~SrsRtpOpusMuxer();
     virtual srs_error_t initialize();
 public:
-    srs_error_t frame_to_packet(SrsSharedPtrMessage* shared_audio, SrsFormat* format, SrsBuffer* stream);
-private:
-    srs_error_t packet_opus(SrsSharedPtrMessage* shared_frame, SrsSample* sample, std::vector<SrsRtpSharedPacket*>& rtp_packet_vec);
+    srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
 };
 
 class SrsRtc

@@ -116,7 +116,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip) : SrsConnect
     wakable = NULL;
     
     mw_sleep = SRS_PERF_MW_SLEEP;
-    mw_enabled = false;
+    mw_msgs = 0;
     realtime = SRS_PERF_MIN_LATENCY_ENABLED;
     send_min_interval = 0;
     tcp_nodelay = false;
@@ -264,6 +264,10 @@ srs_error_t SrsRtmpConn::on_reload_vhost_play(string vhost)
             send_min_interval = v;
         }
     }
+
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    set_socket_buffer(mw_sleep);
     
     return err;
 }
@@ -298,6 +302,10 @@ srs_error_t SrsRtmpConn::on_reload_vhost_realtime(string vhost)
         srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
         realtime = realtime_enabled;
     }
+
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    set_socket_buffer(mw_sleep);
     
     return err;
 }
@@ -689,18 +697,19 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
-    
+
     // setup the realtime.
     realtime = _srs_config->get_realtime_enabled(req->vhost);
     // setup the mw config.
     // when mw_sleep changed, resize the socket send buffer.
-    mw_enabled = true;
-    change_mw_sleep(_srs_config->get_mw_sleep(req->vhost));
+    mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
+    mw_sleep = _srs_config->get_mw_sleep(req->vhost);
+    set_socket_buffer(mw_sleep);
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     
-    srs_trace("start play smi=%dms, mw_sleep=%d, mw_enabled=%d, realtime=%d, tcp_nodelay=%d",
-        srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
+    srs_trace("start play smi=%dms, mw_sleep=%d, mw_msgs=%d, realtime=%d, tcp_nodelay=%d",
+        srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_msgs, realtime, tcp_nodelay);
     
     while (true) {
         // when source is set to expired, disconnect it.
@@ -730,13 +739,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // wait for message to incoming.
         // @see https://github.com/ossrs/srs/issues/251
         // @see https://github.com/ossrs/srs/issues/257
-        if (realtime) {
-            // for realtime, min required msgs is 0, send when got one+ msgs.
-            consumer->wait(0, mw_sleep);
-        } else {
-            // for no-realtime, got some msgs then send.
-            consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
-        }
+        consumer->wait(mw_msgs, mw_sleep);
 #endif
         
         // get messages from consumer.
@@ -750,9 +753,9 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         // reportable
         if (pprint->can_print()) {
             kbps->sample();
-            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
+            srs_trace("-> " SRS_CONSTS_LOG_PLAY " time=%d, msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d/%d",
                 (int)pprint->age(), count, kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), srsu2msi(mw_sleep));
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(), srsu2msi(mw_sleep), mw_msgs);
         }
         
         if (count <= 0) {
@@ -1112,16 +1115,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsComm
     
     // other msg.
     return err;
-}
-
-void SrsRtmpConn::change_mw_sleep(srs_utime_t sleep_v)
-{
-    if (!mw_enabled) {
-        return;
-    }
-    
-    set_socket_buffer(sleep_v);
-    mw_sleep = sleep_v;
 }
 
 void SrsRtmpConn::set_sock_options()

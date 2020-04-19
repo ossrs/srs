@@ -333,6 +333,8 @@ private:
     // Reload  the http_stream section of config.
     // TODO: FIXME: rename to http_server.
     virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
+    // Reload the rtc_server section of config.
+    virtual srs_error_t reload_rtc_server(SrsConfDirective* old_root);
     // Reload  the transcode section of vhost of config.
     virtual srs_error_t reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     // Reload  the ingest section of vhost of config.
@@ -525,7 +527,20 @@ public:
     virtual bool get_rtc_server_ecdsa();
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
+    virtual int get_rtc_server_reuseport();
+private:
+    virtual int get_rtc_server_reuseport2();
+public:
+    virtual bool get_rtc_server_merge_nalus();
+    virtual bool get_rtc_server_gso();
+private:
+    virtual bool get_rtc_server_gso2();
+public:
+    virtual int get_rtc_server_padding();
+    virtual bool get_rtc_server_perf_stat();
+    virtual int get_rtc_server_queue_length();
 
+public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
     bool get_rtc_bframe_discard(std::string vhost);
@@ -615,6 +630,10 @@ public:
     // @param vhost, the vhost to get the mw sleep time.
     // TODO: FIXME: add utest for mw config.
     virtual srs_utime_t get_mw_sleep(std::string vhost, bool is_rtc = false);
+    // Get the mw_msgs, mw wait time in packets for vhost.
+    // @param vhost, the vhost to get the mw sleep msgs.
+    // TODO: FIXME: add utest for mw config.
+    virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc = false);
     // Whether min latency mode enabled.
     // @param vhost, the vhost to get the min_latency.
     // TODO: FIXME: add utest for min_latency.

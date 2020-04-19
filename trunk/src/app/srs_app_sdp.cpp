@@ -78,6 +78,14 @@ srs_error_t parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_par
             if (kv[0] == "profile-level-id") {
                 h264_param.profile_level_id = kv[1];
             } else if (kv[0] == "packetization-mode") {
+                // 6.3.  Non-Interleaved Mode
+                // This mode is in use when the value of the OPTIONAL packetization-mode
+                // media type parameter is equal to 1.  This mode SHOULD be supported.
+                // It is primarily intended for low-delay applications.  Only single NAL
+                // unit packets, STAP-As, and FU-As MAY be used in this mode.  STAP-Bs,
+                // MTAPs, and FU-Bs MUST NOT be used.  The transmission order of NAL
+                // units MUST comply with the NAL unit decoding order.
+                // @see https://tools.ietf.org/html/rfc6184#section-6.3
                 h264_param.packetization_mode = kv[1];
             } else if (kv[0] == "level-asymmetry-allowed") {
                 h264_param.level_asymmerty_allow = kv[1];

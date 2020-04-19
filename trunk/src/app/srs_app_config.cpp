@@ -33,6 +33,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <linux/version.h>
+#include <sys/utsname.h>
+#endif
 
 #include <vector>
 #include <algorithm>
@@ -1540,6 +1544,11 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     if ((err = reload_http_stream(old_root)) != srs_success) {
         return srs_error_wrap(err, "http steram");;
     }
+
+    // Merge config: rtc_server
+    if ((err = reload_rtc_server(old_root)) != srs_success) {
+        return srs_error_wrap(err, "http steram");;
+    }
     
     // TODO: FIXME: support reload stream_caster.
     
@@ -1694,6 +1703,40 @@ srs_error_t SrsConfig::reload_http_stream(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http stream success, nothing changed.");
+    return err;
+}
+
+srs_error_t SrsConfig::reload_rtc_server(SrsConfDirective* old_root)
+{
+    srs_error_t err = srs_success;
+
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+
+    // state graph
+    //      old_rtc_server     new_rtc_server
+    //      ENABLED     =>      ENABLED (modified)
+
+    SrsConfDirective* new_rtc_server = root->get("rtc_server");
+    SrsConfDirective* old_rtc_server = old_root->get("rtc_server");
+
+    // TODO: FIXME: Support disable or enable reloading.
+
+    //      ENABLED     =>  ENABLED (modified)
+    if (get_rtc_server_enabled(old_rtc_server) && get_rtc_server_enabled(new_rtc_server)
+        && !srs_directive_equals(old_rtc_server, new_rtc_server)
+        ) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((err = subscribe->on_reload_rtc_server()) != srs_success) {
+                return srs_error_wrap(err, "rtc server enabled");
+            }
+        }
+        srs_trace("reload rtc server success.");
+        return err;
+    }
+
+    srs_trace("reload rtc server success, nothing changed.");
     return err;
 }
 
@@ -3575,7 +3618,8 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt") {
+                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus"
+                && n != "padding" && n != "perf_stat" && n != "queue_length") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -3741,7 +3785,8 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency"
-                        && m != "gop_cache" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header") {
+                        && m != "gop_cache" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header"
+                        && m != "mw_msgs") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.play.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4706,6 +4751,148 @@ int SrsConfig::get_rtc_server_sendmmsg()
 #endif
 }
 
+int SrsConfig::get_rtc_server_reuseport()
+{
+    int v = get_rtc_server_reuseport2();
+
+#if !defined(SO_REUSEPORT)
+    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
+    v = 1
+#endif
+
+    return v;
+}
+
+int SrsConfig::get_rtc_server_reuseport2()
+{
+    static int DEFAULT = 4;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("reuseport");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_rtc_server_merge_nalus()
+{
+    static int DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("merge_nalus");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_gso()
+{
+    bool v = get_rtc_server_gso2();
+
+    bool gso_disabled = false;
+#if !defined(__linux__)
+    gso_disabled = true;
+    if (v) {
+        srs_warn("GSO is disabled, for Linux 4.18+ only");
+    }
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+    if (v) {
+        utsname un = {0};
+        int r0 = uname(&un);
+        if (r0 || strcmp(un.release, "4.18.0") < 0) {
+            gso_disabled = true;
+            srs_warn("GSO is disabled, for Linux 4.18+ only, r0=%d, kernel=%s", r0, un.release);
+        }
+    }
+#endif
+
+    if (v && gso_disabled) {
+        v = false;
+    }
+
+    return v;
+}
+
+bool SrsConfig::get_rtc_server_gso2()
+{
+    static int DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("gso");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_server_padding()
+{
+    static int DEFAULT = 127;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("padding");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return srs_min(127, ::atoi(conf->arg0().c_str()));
+}
+
+bool SrsConfig::get_rtc_server_perf_stat()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("perf_stat");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_rtc_server_queue_length()
+{
+    static int DEFAULT = 2000;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("queue_length");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
@@ -5233,8 +5420,48 @@ srs_utime_t SrsConfig::get_mw_sleep(string vhost, bool is_rtc)
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (is_rtc && v > 0) {
+        srs_warn("For RTC, we ignore mw_latency");
+        return 0;
+    }
     
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+    return (srs_utime_t)(v * SRS_UTIME_MILLISECONDS);
+}
+
+int SrsConfig::get_mw_msgs(string vhost, bool is_realtime, bool is_rtc)
+{
+    int DEFAULT = SRS_PERF_MW_MIN_MSGS;
+    if (is_rtc) {
+        DEFAULT = SRS_PERF_MW_MIN_MSGS_FOR_RTC;
+    }
+    if (is_realtime) {
+        DEFAULT = SRS_PERF_MW_MIN_MSGS_REALTIME;
+    }
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("play");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("mw_msgs");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v > SRS_PERF_MW_MSGS) {
+        srs_warn("reset mw_msgs %d to max %d", v, SRS_PERF_MW_MSGS);
+        v = SRS_PERF_MW_MSGS;
+    }
+
+    return v;
 }
 
 bool SrsConfig::get_realtime_enabled(string vhost, bool is_rtc)

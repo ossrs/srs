@@ -151,12 +151,13 @@ public:
     // Enqueue the message, the timestamp always monotonically.
     // @param msg, the msg to enqueue, user never free it whatever the return code.
     // @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
+    // @remark If pass_timestamp, we never shrink and never care about the timestamp or duration.
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL, bool pass_timestamp = false);
     // Get packets in consumer queue.
     // @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
     // @count the count in array, output param.
     // @max_count the max count to dequeue, must be positive.
-    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count, bool pass_timestamp = false);
     // Dumps packets to consumer, use specified args.
     // @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
     virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
@@ -203,10 +204,17 @@ private:
     int mw_min_msgs;
     srs_utime_t mw_duration;
 #endif
+private:
+    // For RTC, we never use jitter to correct timestamp.
+    // But we should not change the atc or time_jitter for source or RTMP.
+    // @remark In this mode, we also never check the queue by timstamp, but only by count.
+    bool pass_timestamp;
 public:
     SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
+    // Use pass timestamp mode.
+    void enable_pass_timestamp() { pass_timestamp = true; }
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
@@ -327,6 +335,7 @@ public:
 
 #ifdef SRS_AUTO_RTC
 // To find the RTP packet for RTX or restore.
+// TODO: FIXME: Should queue RTP packets in connection level.
 class SrsRtpPacketQueue
 {
 private:
@@ -634,6 +643,8 @@ public:
 #ifdef SRS_AUTO_RTC
     // Find rtp packet by sequence
     SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
+    // Get the cached meta, as such the sps/pps.
+    SrsMetaCache* cached_meta();
 #endif
 };
 

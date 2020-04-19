@@ -194,8 +194,11 @@ srs_error_t SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int 
     return srs_success;
 }
 
-SrsSharedMessageHeader::SrsSharedMessageHeader() : payload_length(0), message_type(0), perfer_cid(0)
+SrsSharedMessageHeader::SrsSharedMessageHeader()
 {
+    payload_length = 0;
+    message_type = 0;
+    perfer_cid = 0;
 }
 
 SrsSharedMessageHeader::~SrsSharedMessageHeader()
@@ -207,6 +210,16 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     payload = NULL;
     size = 0;
     shared_count = 0;
+
+#ifdef SRS_AUTO_RTC
+    samples = NULL;
+    nn_samples = 0;
+    has_idr = false;
+
+    extra_payloads = NULL;
+    nn_extra_payloads = 0;
+    nn_max_extra_payloads = 0;
+#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
@@ -215,6 +228,17 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
+
+#ifdef SRS_AUTO_RTC
+    srs_freepa(samples);
+    
+    for (int i = 0; i < nn_extra_payloads; i++) {
+        SrsSample* p = extra_payloads + i;
+        srs_freep(p->bytes);
+    }
+    srs_freepa(extra_payloads);
+    nn_extra_payloads = 0;
+#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
@@ -231,12 +255,6 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
             ptr->shared_count--;
         }
     }
-
-#ifdef SRS_AUTO_RTC
-    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
-        srs_freep(rtp_packets[i]);
-    }
-#endif
 }
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -355,19 +373,30 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 
-#ifdef SRS_AUTO_RTC
-    for (int i = 0; i < (int)rtp_packets.size(); ++i) {
-        copy->rtp_packets.push_back(rtp_packets[i]->copy());
-    }
-#endif
-
     return copy;
 }
 
 #ifdef SRS_AUTO_RTC
-void SrsSharedPtrMessage::set_rtp_packets(const std::vector<SrsRtpSharedPacket*>& pkts)
+void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payloads)
 {
-    rtp_packets = pkts;
+    srs_assert(nn_payloads);
+    srs_assert(!ptr->extra_payloads);
+    
+    ptr->nn_extra_payloads = nn_payloads;
+
+    ptr->extra_payloads = new SrsSample[nn_payloads];
+    memcpy((void*)ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
+}
+
+void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
+{
+    srs_assert(nn_samples);
+    srs_assert(!ptr->samples);
+
+    ptr->nn_samples = nn_samples;
+
+    ptr->samples = new SrsSample[nn_samples];
+    memcpy((void*)ptr->samples, samples, nn_samples * sizeof(SrsSample));
 }
 #endif
 

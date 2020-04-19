@@ -388,16 +388,13 @@ srs_error_t SrsAudioRecode::initialize()
 srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int &n)
 {
     srs_error_t err = srs_success;
-
-    static char decode_buffer[kPacketBufMax];
-    static char resample_buffer[kFrameBufMax];
-    static char encode_buffer[kPacketBufMax];
     
     if (!dec_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "dec_ nullptr");
     }
 
     int decode_len = kPacketBufMax;
+    static char decode_buffer[kPacketBufMax];
     if ((err = dec_->decode(pkt, decode_buffer, decode_len)) != srs_success) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
     }
@@ -412,15 +409,18 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
         if (!resample_) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAudioResample failed");
         }
-        resample_->initialize();
+        if ((err = resample_->initialize()) != srs_success) {
+            return srs_error_wrap(err, "init resample");
+        }
     }
 
     SrsSample pcm;
     pcm.bytes = decode_buffer;
     pcm.size = decode_len;
     int resample_len = kFrameBufMax;
+    static char resample_buffer[kFrameBufMax];
     if ((err = resample_->resample(&pcm, resample_buffer, resample_len)) != srs_success) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "resample error");
     }
 
     n = 0;
@@ -445,8 +445,9 @@ srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int
             int encode_len;
             pcm.bytes = (char *)data_;
             pcm.size = size_;
+            static char encode_buffer[kPacketBufMax];
             if ((err = enc_->encode(&pcm, encode_buffer, encode_len)) != srs_success) {
-                return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "encode error");
             }
 
             memcpy(buf[n], encode_buffer, encode_len);
