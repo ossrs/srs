@@ -92,7 +92,6 @@ public:
 private:
     SrsRtpRawPayload* cache_raw;
     SrsRtpFUAPayload2* cache_fua;
-    bool using_cache;
     int cache_payload;
 public:
     SrsRtpPacket2();

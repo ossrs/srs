@@ -157,19 +157,19 @@ SrsRtpPacket2::SrsRtpPacket2()
     cache_raw = new SrsRtpRawPayload();
     cache_fua = new SrsRtpFUAPayload2();
     cache_payload = 0;
-    using_cache = false;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
     // We may use the cache as payload.
-    if (using_cache) {
+    if (payload == cache_raw || payload == cache_fua) {
         payload = NULL;
     }
 
     srs_freep(payload);
     srs_freep(extra_payload);
     srs_freep(cache_raw);
+    srs_freep(cache_fua);
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -198,25 +198,20 @@ void SrsRtpPacket2::reset()
     srs_freep(extra_payload);
 
     // We may use the cache as payload.
-    if (using_cache) {
+    if (payload == cache_raw || payload == cache_fua) {
         payload = NULL;
-    } else {
-        srs_freep(payload);
     }
-
-    using_cache = false;
+    srs_freep(payload);
 }
 
 SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
 {
-    using_cache = true;
     payload = cache_raw;
     return cache_raw;
 }
 
 SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 {
-    using_cache = true;
     payload = cache_fua;
     return cache_fua;
 }

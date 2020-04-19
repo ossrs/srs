@@ -1212,8 +1212,6 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
 
         packet->payload = raw;
     } else {
-        SrsAutoFree(SrsRtpRawNALUs, raw);
-
         // Package NALUs in FU-A RTP packets.
         int fu_payload_size = kRtpMaxPayloadSize;
 
