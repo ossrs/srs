@@ -84,11 +84,6 @@ public:
     SrsRtpHeader rtp_header;
     ISrsEncoder* payload;
     int padding;
-public:
-    // User can set an extra payload, we will free it.
-    // For example, when reassemble NALUs by SrsRtpRawNALUs, we can set the extra payload to
-    // SrsRtpRawNALUs, then we can use SrsRtpFUAPayload which never free samples.
-    ISrsEncoder* extra_payload;
 private:
     SrsRtpRawPayload* cache_raw;
     SrsRtpFUAPayload2* cache_fua;

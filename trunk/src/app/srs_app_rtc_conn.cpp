@@ -1212,6 +1212,10 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
 
         packet->payload = raw;
     } else {
+        // We must free it, should never use RTP packets to free it,
+        // because more than one RTP packet will refer to it.
+        SrsAutoFree(SrsRtpRawNALUs, raw);
+
         // Package NALUs in FU-A RTP packets.
         int fu_payload_size = kRtpMaxPayloadSize;
 
@@ -1229,7 +1233,6 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
                 srs_freep(raw);
                 return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
             }
-            packet->extra_payload = raw;
 
             packet->rtp_header.set_timestamp(msg->timestamp * 90);
             packet->rtp_header.set_sequence(video_sequence++);

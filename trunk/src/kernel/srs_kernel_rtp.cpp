@@ -151,7 +151,6 @@ size_t SrsRtpHeader::header_size()
 SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
-    extra_payload = NULL;
     padding = 0;
 
     cache_raw = new SrsRtpRawPayload();
@@ -167,7 +166,6 @@ SrsRtpPacket2::~SrsRtpPacket2()
     }
 
     srs_freep(payload);
-    srs_freep(extra_payload);
     srs_freep(cache_raw);
     srs_freep(cache_fua);
 }
@@ -195,7 +193,6 @@ void SrsRtpPacket2::reset()
     rtp_header.reset();
     padding = 0;
     cache_payload = 0;
-    srs_freep(extra_payload);
 
     // We may use the cache as payload.
     if (payload == cache_raw || payload == cache_fua) {
@@ -330,7 +327,7 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int packet
     int left = packet_size;
 
     int nn_nalus = (int)nalus.size();
-    for (int i = 0; i < nn_nalus; i++) {
+    for (int i = 0; left > 0 && i < nn_nalus; i++) {
         SrsSample* p = nalus[i];
 
         // Ignore previous consumed samples.
