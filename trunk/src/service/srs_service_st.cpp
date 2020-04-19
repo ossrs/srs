@@ -436,6 +436,8 @@ int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, in
             }
             msgvec->msg_len = r0;
         #else
+            msgvec->msg_len = 0;
+
             int tolen = (int)msgvec->msg_hdr.msg_namelen;
             const struct sockaddr* to = (const struct sockaddr*)msgvec->msg_hdr.msg_name;
             for (int i = 0; i < (int)msgvec->msg_hdr.msg_iovlen; i++) {

@@ -129,10 +129,10 @@
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // For RTMP, use larger wait queue.
     #define SRS_PERF_MW_MIN_MSGS 8
-    #define SRS_PERF_MW_MIN_MSGS_REALTIME 0
     // For RTC, use smaller wait queue.
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 2
-    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC_REALTIME 0
+    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 1
+    // For Real-Time, never wait messages.
+    #define SRS_PERF_MW_MIN_MSGS_REALTIME 0
 #endif
 /**
  * the default value of vhost for
@@ -191,6 +191,28 @@
  */
 #define SRS_PERF_GLIBC_MEMORY_CHECK
 #undef SRS_PERF_GLIBC_MEMORY_CHECK
+
+// For RTC, how many iovs we alloc for each mmsghdr for GSO.
+// Assume that there are 3300 clients, say, 10000 msgs in queue to send, the memory is:
+//      2                                       # We have two queue, cache and hotspot.
+//      * 4                                     # We have reuseport, each have msg cache queue.
+//      * (64 + 16*SRS_PERF_RTC_GSO_MAX + SRS_PERF_RTC_GSO_IOVS * 1500)   # Each message size.
+//      * 10000                                 # Total messages.
+//      = 197MB                                 # For SRS_PERF_RTC_GSO_IOVS = 1
+//      = 311MB                                 # For SRS_PERF_RTC_GSO_IOVS = 2
+//      = 540MB                                 # For SRS_PERF_RTC_GSO_IOVS = 4
+//      = 998MB                                 # For SRS_PERF_RTC_GSO_IOVS = 8
+#if defined(__linux__)
+    #define SRS_PERF_RTC_GSO_IOVS 4
+#else
+    #define SRS_PERF_RTC_GSO_IOVS 1
+#endif
+
+// For RTC, the max iovs in msghdr, the max packets sent in a msghdr.
+#define SRS_PERF_RTC_GSO_MAX 64
+
+// For RTC, the max count of RTP packets we process in one loop.
+#define SRS_PERF_RTC_RTP_PACKETS 1024
 
 #endif
 

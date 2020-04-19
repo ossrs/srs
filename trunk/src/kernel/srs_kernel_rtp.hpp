@@ -38,6 +38,8 @@ const uint8_t kRtpMarker = 0x80;
 const uint8_t kNalTypeMask      = 0x1F;
 
 class SrsBuffer;
+class SrsRtpRawPayload;
+class SrsRtpFUAPayload2;
 
 class SrsRtpHeader
 {
@@ -48,7 +50,7 @@ private:
     bool marker;
     uint8_t payload_type;
     uint16_t sequence;
-    int64_t timestamp;
+    int32_t timestamp;
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
@@ -56,25 +58,24 @@ private:
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
-    SrsRtpHeader(const SrsRtpHeader& rhs);
-    SrsRtpHeader& operator=(const SrsRtpHeader& rhs);
+    void reset();
 public:
     srs_error_t decode(SrsBuffer* stream);
     srs_error_t encode(SrsBuffer* stream);
 public:
     size_t header_size();
 public:
-    void set_marker(bool marker);
+    inline void set_marker(bool v) { marker = v; }
     bool get_marker() const { return marker; }
-    void set_payload_type(uint8_t payload_type);
+    inline void set_payload_type(uint8_t v) { payload_type = v; }
     uint8_t get_payload_type() const { return payload_type; }
-    void set_sequence(uint16_t sequence);
+    inline void set_sequence(uint16_t v) { sequence = v; }
     uint16_t get_sequence() const  { return sequence; }
-    void set_timestamp(int64_t timestamp);
+    inline void set_timestamp(int64_t v) { timestamp = (uint32_t)v; }
     int64_t get_timestamp() const { return timestamp; }
-    void set_ssrc(uint32_t ssrc);
+    inline void set_ssrc(uint32_t v) { ssrc = v; }
     uint32_t get_ssrc() const { return ssrc; }
-    void set_padding(bool v) { padding = v; }
+    inline void set_padding(bool v) { padding = v; }
 };
 
 class SrsRtpPacket2
@@ -83,12 +84,24 @@ public:
     SrsRtpHeader rtp_header;
     ISrsEncoder* payload;
     int padding;
+private:
+    SrsRtpRawPayload* cache_raw;
+    SrsRtpFUAPayload2* cache_fua;
+    int cache_payload;
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
-    // Append size of bytes as padding.
-    virtual void set_padding(int size);
+    // Set the padding of RTP packet.
+    void set_padding(int size);
+    // Increase the padding of RTP packet.
+    void add_padding(int size);
+    // Reset RTP packet.
+    void reset();
+    // Reuse the cached raw message as payload.
+    SrsRtpRawPayload* reuse_raw();
+    // Reuse the cached fua message as payload.
+    SrsRtpFUAPayload2* reuse_fua();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -99,7 +112,8 @@ public:
 class SrsRtpRawPayload : public ISrsEncoder
 {
 public:
-    // @remark We only refer to the memory, user must free it.
+    // The RAW payload, directly point to the shared memory.
+    // @remark We only refer to the memory, user must free its bytes.
     char* payload;
     int nn_payload;
 public:
@@ -115,6 +129,7 @@ public:
 class SrsRtpRawNALUs : public ISrsEncoder
 {
 private:
+    // We will manage the samples, but the sample itself point to the shared memory.
     std::vector<SrsSample*> nalus;
     int nn_bytes;
     int cursor;
@@ -125,7 +140,8 @@ public:
     void push_back(SrsSample* sample);
 public:
     uint8_t skip_first_byte();
-    srs_error_t read_samples(std::vector<SrsSample*>& samples, int size);
+    // We will manage the returned samples, if user want to manage it, please copy it.
+    srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -138,7 +154,7 @@ class SrsRtpSTAPPayload : public ISrsEncoder
 public:
     // The NRI in NALU type.
     SrsAvcNaluType nri;
-    // The NALU samples.
+    // The NALU samples, we will manage the samples.
     // @remark We only refer to the memory, user must free its bytes.
     std::vector<SrsSample*> nalus;
 public:
@@ -151,6 +167,7 @@ public:
 };
 
 // FU-A, for one NALU with multiple fragments.
+// With more than one payload.
 class SrsRtpFUAPayload : public ISrsEncoder
 {
 public:
@@ -160,12 +177,35 @@ public:
     bool start;
     bool end;
     SrsAvcNaluType nalu_type;
-    // The NALU samples.
+    // The NALU samples, we manage the samples.
     // @remark We only refer to the memory, user must free its bytes.
     std::vector<SrsSample*> nalus;
 public:
     SrsRtpFUAPayload();
     virtual ~SrsRtpFUAPayload();
+// interface ISrsEncoder
+public:
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer* buf);
+};
+
+// FU-A, for one NALU with multiple fragments.
+// With only one payload.
+class SrsRtpFUAPayload2 : public ISrsEncoder
+{
+public:
+    // The NRI in NALU type.
+    SrsAvcNaluType nri;
+    // The FUA header.
+    bool start;
+    bool end;
+    SrsAvcNaluType nalu_type;
+    // The payload and size,
+    char* payload;
+    int size;
+public:
+    SrsRtpFUAPayload2();
+    virtual ~SrsRtpFUAPayload2();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();

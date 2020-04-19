@@ -569,6 +569,7 @@ function apply_user_detail_options() {
 
     # Detect whether has sendmmsg.
     # @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    mkdir -p ${SRS_OBJS} &&
     echo "#include <sys/socket.h>" > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
     echo "int main(int argc, char** argv) {" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
     echo "  struct mmsghdr hdr;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c

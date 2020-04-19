@@ -195,15 +195,19 @@ srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* 
         return err;
     }
 
+    int nn_max_extra_payload = 0;
     SrsSample samples[nn_opus_packets];
     for (int i = 0; i < nn_opus_packets; i++) {
         SrsSample* p = samples + i;
         p->size = opus_sizes[i];
         p->bytes = new char[p->size];
         memcpy(p->bytes, opus_payloads[i], p->size);
+
+        nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
     }
 
     shared_audio->set_extra_payloads(samples, nn_opus_packets);
+    shared_audio->set_max_extra_payload(nn_max_extra_payload);
 
     return err;
 }

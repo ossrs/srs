@@ -50,6 +50,7 @@ class SrsRtcSession;
 class SrsSharedPtrMessage;
 class SrsSource;
 class SrsRtpPacket2;
+class ISrsUdpSender;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -124,8 +125,18 @@ public:
     bool use_gso;
     bool should_merge_nalus;
 public:
-    // The total bytes of RTP packets.
+#if defined(SRS_DEBUG)
+    // Debug id.
+    uint32_t debug_id;
+#endif
+public:
+    // The total bytes of AVFrame packets.
     int nn_bytes;
+    // The total bytes of RTP packets.
+    int nn_rtp_bytes;
+    // The total padded bytes.
+    int nn_padding_bytes;
+public:
     // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
     // one msghdr by GSO, it's only one RTP packet, because we only send once.
     int nn_rtp_pkts;
@@ -138,11 +149,24 @@ public:
     int nn_audios;
     // The original video messages.
     int nn_videos;
+    // The number of padded packet.
+    int nn_paddings;
+    // The number of dropped messages.
+    int nn_dropped;
+private:
+    int cursor;
+    int nn_cache;
+    SrsRtpPacket2* cache;
 public:
-    std::vector<SrsRtpPacket2*> packets;
-public:
-    SrsRtcPackets(bool gso, bool merge_nalus);
+    SrsRtcPackets(int nn_cache_max);
     virtual ~SrsRtcPackets();
+public:
+    void reset(bool gso, bool merge_nalus);
+    SrsRtpPacket2* fetch();
+    SrsRtpPacket2* back();
+    int size();
+    int capacity();
+    SrsRtpPacket2* at(int index);
 };
 
 class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
@@ -164,8 +188,16 @@ private:
     uint16_t video_sequence;
 public:
     SrsUdpMuxSocket* sendonly_ukt;
+private:
+    ISrsUdpSender* sender;
+private:
     bool merge_nalus;
     bool gso;
+    int max_padding;
+private:
+    srs_utime_t mw_sleep;
+    int mw_msgs;
+    bool realtime;
 public:
     SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
     virtual ~SrsRtcSenderThread();
@@ -174,6 +206,8 @@ public:
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_rtc_server();
+    virtual srs_error_t on_reload_vhost_play(std::string vhost);
+    virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 public:
     virtual int cid();
 public:
@@ -185,17 +219,17 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsUdpMuxSocket* skt, SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
+    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
     srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
-    srs_error_t send_packets(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
-    srs_error_t send_packets_gso(SrsUdpMuxSocket* skt, SrsRtcPackets& packets);
+    srs_error_t send_packets(SrsRtcPackets& packets);
+    srs_error_t send_packets_gso(SrsRtcPackets& packets);
 private:
-    srs_error_t packet_opus(SrsSample* sample, SrsRtpPacket2** ppacket);
+    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload);
 private:
     srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
     srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtpPacket2** ppacket);
-    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppacket);
+    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets);
+    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
 class SrsRtcSession
@@ -274,6 +308,9 @@ private:
 private:
     srs_cond_t cond;
     bool waiting_msgs;
+    bool gso;
+    int nn_senders;
+private:
     // Hotspot msgs, we are working on it.
     // @remark We will wait util all messages are ready.
     std::vector<mmsghdr> hotspot;
@@ -282,16 +319,24 @@ private:
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
+    // The total queue length, for each sender.
+    int queue_length;
+    // The extra queue ratio.
+    int extra_ratio;
+    int extra_queue;
 public:
     SrsUdpMuxSender(SrsRtcServer* s);
     virtual ~SrsUdpMuxSender();
 public:
-    virtual srs_error_t initialize(srs_netfd_t fd);
+    virtual srs_error_t initialize(srs_netfd_t fd, int senders);
 private:
     void free_mhdrs(std::vector<mmsghdr>& mhdrs);
 public:
     virtual srs_error_t fetch(mmsghdr** pphdr);
     virtual srs_error_t sendmmsg(mmsghdr* hdr);
+    virtual bool overflow();
+    virtual void set_extra_ratio(int r);
+public:
     virtual srs_error_t cycle();
 // interface ISrsReloadHandler
 public:

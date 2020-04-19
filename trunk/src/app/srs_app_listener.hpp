@@ -141,6 +141,11 @@ public:
     virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
     // Notify the sender to send out the msg.
     virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
+    // Whether sender exceed the max queue, that is, overflow.
+    virtual bool overflow() = 0;
+    // Set the queue extra ratio, for example, when mw_msgs > 0, we need larger queue.
+    // For r, 100 means x1, 200 means x2.
+    virtual void set_extra_ratio(int r) = 0;
 };
 
 class SrsUdpMuxSocket

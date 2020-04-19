@@ -84,15 +84,6 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
-    if [[ $SRS_NASM == YES ]]; then
-      nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-          echo "Installing nasm."
-          require_sudoer "sudo apt-get install -y --force-yes nasm"
-          sudo apt-get install -y --force-yes nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-          echo "The nasm is installed."
-      fi
-    fi
-
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
@@ -171,13 +162,6 @@ function Centos_prepare()
         echo "The unzip is installed."
     fi
 
-    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing nasm."
-        require_sudoer "sudo yum install -y nasm"
-        sudo yum install -y nasm; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The nasm is installed."
-    fi
-
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
@@ -230,14 +214,15 @@ function OSX_prepare()
     fi
 
     OS_IS_OSX=YES
-    echo "OSX detected, install tools if needed"
     # requires the osx when os
     if [ $OS_IS_OSX = YES ]; then
         if [ $SRS_OSX = NO ]; then
-            echo "OSX detected, must specifies the --osx"
+            echo "OSX detected, please use: ./configure --osx"
             exit 1
         fi
     fi
+
+    echo "OSX detected, install tools if needed"
 
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install brew"
@@ -279,6 +264,10 @@ function OSX_prepare()
         echo "brew install unzip"
         brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install unzip success"
+    fi
+
+    pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install pkg-config"; exit -1;
     fi
 
     echo "OSX install tools success"
@@ -614,9 +603,16 @@ fi
 #####################################################################################
 if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     FFMPEG_OPTIONS=""
+
+    # If disable nasm, disable all ASMs.
     if [[ $SRS_NASM == NO ]]; then
         FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
     fi
+    # If no nasm, we disable the x86asm.
+    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        FFMPEG_OPTIONS="--disable-x86asm"
+    fi
+
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/lib/libavcodec.a ]]; then
         echo "The ffmpeg-4.2-fit is ok.";
     else

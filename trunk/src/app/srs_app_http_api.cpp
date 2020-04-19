@@ -869,6 +869,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         api = prop->to_str();
     }
 
+    // TODO: FIXME: Parse vhost.
     // Parse app and stream from streamurl.
     string app;
     string stream_name;
@@ -908,6 +909,13 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsRequest request;
     request.app = app;
     request.stream = stream_name;
+
+    // TODO: FIXME: Parse vhost.
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
+    if (parsed_vhost) {
+        request.vhost = parsed_vhost->arg0();
+    }
 
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
@@ -1615,14 +1623,23 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
     SrsStatistic* stat = SrsStatistic::instance();
 
     string target = r->query_get("target");
-    srs_trace("query target=%s", target.c_str());
+    string reset = r->query_get("reset");
+    srs_trace("query target=%s, reset=%s, rtc_stat_enabled=%d", target.c_str(), reset.c_str(),
+        _srs_config->get_rtc_server_perf_stat());
 
     if (true) {
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("query", p);
 
         p->set("target", SrsJsonAny::str(target.c_str()));
-        p->set("help", SrsJsonAny::str("?target=avframes|rtc|rtp|gso|writev_iovs|sendmmsg"));
+        p->set("reset", SrsJsonAny::str(reset.c_str()));
+        p->set("help", SrsJsonAny::str("?target=avframes|rtc|rtp|gso|writev_iovs|sendmmsg|bytes|dropped"));
+        p->set("help2", SrsJsonAny::str("?reset=all"));
+    }
+
+    if (!reset.empty()) {
+        stat->reset_perf();
+        return srs_api_response(w, r, obj->dumps());
     }
 
     if (target.empty() || target == "avframes") {
@@ -1674,6 +1691,24 @@ srs_error_t SrsGoApiPerf::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
         SrsJsonObject* p = SrsJsonAny::object();
         data->set("writev_iovs", p);
         if ((err = stat->dumps_perf_writev_iovs(p)) != srs_success) {
+            int code = srs_error_code(err); srs_error_reset(err);
+            return srs_api_response_code(w, r, code);
+        }
+    }
+
+    if (target.empty() || target == "bytes") {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("bytes", p);
+        if ((err = stat->dumps_perf_bytes(p)) != srs_success) {
+            int code = srs_error_code(err); srs_error_reset(err);
+            return srs_api_response_code(w, r, code);
+        }
+    }
+
+    if (target.empty() || target == "dropped") {
+        SrsJsonObject* p = SrsJsonAny::object();
+        data->set("dropped", p);
+        if ((err = stat->dumps_perf_dropped(p)) != srs_success) {
             int code = srs_error_code(err); srs_error_reset(err);
             return srs_api_response_code(w, r, code);
         }
