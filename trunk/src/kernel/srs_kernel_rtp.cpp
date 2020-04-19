@@ -297,13 +297,6 @@ SrsRtpRawNALUs::~SrsRtpRawNALUs()
             srs_freep(p);
         }
     }
-    if (true) {
-        int nn_nalus = (int)extra_nalus.size();
-        for (int i = 0; i < nn_nalus; i++) {
-            SrsSample* p = extra_nalus[i];
-            srs_freep(p);
-        }
-    }
 }
 
 void SrsRtpRawNALUs::push_back(SrsSample* sample)
@@ -356,7 +349,6 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int packet
         srs_assert(nn > 0);
 
         SrsSample* sample = new SrsSample();
-        extra_nalus.push_back(sample);
         samples.push_back(sample);
 
         sample->bytes = p->bytes + pos;

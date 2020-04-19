@@ -135,8 +135,6 @@ public:
 class SrsRtpRawNALUs : public ISrsEncoder
 {
 private:
-    // The returned samples.
-    std::vector<SrsSample*> extra_nalus;
     // We will manage the samples, but the sample itself point to the shared memory.
     std::vector<SrsSample*> nalus;
     int nn_bytes;
@@ -162,7 +160,7 @@ class SrsRtpSTAPPayload : public ISrsEncoder
 public:
     // The NRI in NALU type.
     SrsAvcNaluType nri;
-    // The NALU samples.
+    // The NALU samples, we will manage the samples.
     // @remark We only refer to the memory, user must free its bytes.
     std::vector<SrsSample*> nalus;
 public:
@@ -185,7 +183,7 @@ public:
     bool start;
     bool end;
     SrsAvcNaluType nalu_type;
-    // The NALU samples.
+    // The NALU samples, we manage the samples.
     // @remark We only refer to the memory, user must free its bytes.
     std::vector<SrsSample*> nalus;
 public:

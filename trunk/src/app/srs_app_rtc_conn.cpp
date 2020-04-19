@@ -478,6 +478,7 @@ SrsRtcPackets::SrsRtcPackets(int nn_cache_max)
 
     cursor = 0;
     nn_cache = nn_cache_max;
+    // TODO: FIXME: We should allocate a smaller cache, and increase it when exhausted.
     cache = new SrsRtpPacket2[nn_cache];
 }
 
