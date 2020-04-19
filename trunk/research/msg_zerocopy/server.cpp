@@ -29,10 +29,11 @@ int main(int argc, char** argv)
     sockaddr_in addr;
     memset(&addr, 0, sizeof(sockaddr_in));
 
-    int port = 8000;
+    int port = atoi(argv[2]);
+    char* host = argv[1];
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    addr.sin_addr.s_addr = inet_addr(host);
 
     r0 = bind(fd, (sockaddr *)&addr, sizeof(sockaddr_in));
     assert(!r0);
@@ -40,7 +41,7 @@ int main(int argc, char** argv)
     st_netfd_t stfd = st_netfd_open_socket(fd);
     assert(stfd);
 
-    printf("Listen at udp://%d\n", port);
+    printf("Listen at udp://%s:%d\n", host, port);
 
     msghdr msg;
     memset(&msg, 0, sizeof(msghdr));
