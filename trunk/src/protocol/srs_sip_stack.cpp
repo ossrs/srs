@@ -45,9 +45,50 @@ using namespace std;
 
 unsigned int srs_sip_random(int min,int max)  
 {  
-    srand(int(time(0)));
+    //it is possible to duplicate data with time(0)
+    srand(unsigned(srs_update_system_time()));
     return  rand() % (max - min + 1) + min;
 } 
+
+std::string srs_sip_generate_branch()
+{
+   int rand = srs_sip_random(10000000, 99999999);
+   std::stringstream branch; 
+   branch << "SrsGbB" << rand;
+   return branch.str();
+}
+
+std::string srs_sip_generate_to_tag()
+{
+   uint32_t rand = srs_sip_random(10000000, 99999999);
+   std::stringstream branch; 
+   branch << "SrsGbT" << rand;
+   return branch.str();
+}
+
+std::string srs_sip_generate_from_tag()
+{
+   uint32_t rand = srs_sip_random(10000000, 99999999);
+   std::stringstream branch; 
+   branch << "SrsGbF" << rand;
+   return branch.str();
+}
+
+std::string srs_sip_generate_call_id()
+{
+   uint32_t rand = srs_sip_random(10000000, 99999999);
+   std::stringstream branch; 
+   branch << "2020" << rand;
+   return branch.str();
+}
+
+std::string srs_sip_generate_sn()
+{
+   uint32_t rand = srs_sip_random(10000000, 99999999);
+   std::stringstream sn; 
+   sn << rand;
+   return sn.str();
+}
 
 std::string  srs_sip_get_form_to_uri(std::string  msg)
 {
@@ -897,15 +938,13 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     << "y=" << _ssrc << SRS_RTSP_CRLF;
 
     
-    int rand = srs_sip_random(1000, 9999);
-    std::stringstream from, to, uri, branch, from_tag, call_id;
+    std::stringstream from, to, uri;
     //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
     uri << "sip:" <<  req->chid << "@" << req->realm;
     //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
     from << req->serial << "@" << req->realm;
     to <<  req->chid <<  "@" << req->realm;
-    call_id << "2020" << rand ;
-
+   
     req->from = from.str();
     req->to = to.str();
 
@@ -918,19 +957,17 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     }
 
     req->uri  = uri.str();
-    req->call_id = call_id.str();
 
-    branch << "z9hG4bK3420" << rand;
-    from_tag << "51235" << rand;
-    req->branch = branch.str();
-    req->from_tag = from_tag.str();
+    req->call_id = srs_sip_generate_call_id();
+    req->branch = srs_sip_generate_branch();
+    req->from_tag = srs_sip_generate_from_tag();
 
     ss << "INVITE " << req->uri << " " << SRS_SIP_VERSION << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
     << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
     << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
     << "Call-ID: " << req->call_id <<SRS_RTSP_CRLF
-    << "CSeq: 20 INVITE" << SRS_RTSP_CRLF
+    << "CSeq: " << req->seq << " INVITE" << SRS_RTSP_CRLF
     << "Content-Type: Application/SDP" << SRS_RTSP_CRLF
     << "Contact: <sip:" << req->to << ">" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
@@ -1039,7 +1076,6 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
 
     req->uri  = uri.str();
 
-    int seq = srs_sip_random(22, 99);
     ss << "BYE " << req->uri << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
     //<< "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport" << branch << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
@@ -1047,7 +1083,7 @@ void SrsSipStack::req_bye(std::stringstream& ss, SrsSipRequest *req)
     << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
     //bye callid is inivte callid
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
-    << "CSeq: "<< seq <<" BYE" << SRS_RTSP_CRLF
+    << "CSeq: "<< req->seq <<" BYE" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
     << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
     << "Content-Length: 0" << SRS_RTSP_CRLFCRLF;
@@ -1149,40 +1185,134 @@ void SrsSipStack::req_query_catalog(std::stringstream& ss, SrsSipRequest *req)
     std::stringstream xml;
     std::string xmlbody;
 
-    int sn = srs_sip_random(10000000, 99999999);
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << SRS_RTSP_CRLF
     << "<Query>" << SRS_RTSP_CRLF
     << "<CmdType>Catalog</CmdType>" << SRS_RTSP_CRLF
-    << "<SN>" << sn << "</SN>" << SRS_RTSP_CRLF
+    << "<SN>" << srs_sip_generate_sn() << "</SN>" << SRS_RTSP_CRLF
     << "<DeviceID>" << req->sip_auth_id << "</DeviceID>" << SRS_RTSP_CRLF
     << "</Query>" << SRS_RTSP_CRLF;
     xmlbody = xml.str();
 
-    int rand = srs_sip_random(1000, 9999);
-    std::stringstream from, to, uri, branch, from_tag, call_id;
+    std::stringstream from, to, uri;
     //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
     uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
     //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
     from << req->serial << "@" << req->host << ":"  << req->host_port;
     to << req->sip_auth_id <<  "@" << req->realm;
-    call_id << "2020" << rand;
-
+ 
     req->from = from.str();
     req->to   = to.str();
     req->uri  = uri.str();
-    req->call_id = call_id.str();
-
-    branch << "z9hG4bK3420" << rand;
-    from_tag << "51235" << rand;
-    req->branch = branch.str();
-    req->from_tag = from_tag.str();
+   
+    req->call_id = srs_sip_generate_call_id();
+    req->branch = srs_sip_generate_branch();
+    req->from_tag = srs_sip_generate_from_tag();
 
     ss << "MESSAGE " << req->uri << " " << SRS_SIP_VERSION << SRS_RTSP_CRLF
     << "Via: " << SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
     << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
     << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
     << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
-    << "CSeq: 25 MESSAGE" << SRS_RTSP_CRLF
+    << "CSeq: " << req->seq << " MESSAGE" << SRS_RTSP_CRLF
+    << "Content-Type: Application/MANSCDP+xml" << SRS_RTSP_CRLF
+    << "Max-Forwards: 70" << SRS_RTSP_CRLF
+    << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF
+    << "Content-Length: " << xmlbody.length() << SRS_RTSP_CRLFCRLF
+    << xmlbody;
+
+}
+
+void SrsSipStack::req_ptz(std::stringstream& ss, SrsSipRequest *req, uint8_t cmd, uint8_t speed, int priority)
+{
+   
+    /*
+    <?xml version="1.0"?>  
+    <Control>  
+    <CmdType>DeviceControl</CmdType>  
+    <SN>11</SN>  
+    <DeviceID>34020000001310000053</DeviceID>  
+    <PTZCmd>A50F01021F0000D6</PTZCmd>  
+    </Control> 
+    */
+
+    uint8_t ptz_cmd[8] = {0};
+    ptz_cmd[0] = SRS_SIP_PTZ_START;
+    ptz_cmd[1] = 0x0F;
+    ptz_cmd[2] = 0x01;
+    ptz_cmd[3] = cmd;
+    switch(cmd){
+        case SrsSipPtzCmdStop: // = 0x00
+            ptz_cmd[4] = 0;
+            ptz_cmd[5] = 0;
+            ptz_cmd[6] = 0;
+            break;
+        case SrsSipPtzCmdRight: // = 0x01,
+        case SrsSipPtzCmdLeft: //  = 0x02,
+            ptz_cmd[4] = speed;
+            break;
+        case SrsSipPtzCmdDown: //  = 0x04,
+        case SrsSipPtzCmdUp: //    = 0x08,
+            ptz_cmd[5] = speed;
+            break;
+        case SrsSipPtzCmdZoomOut: //  = 0x10,
+        case SrsSipPtzCmdZoomIn: //   = 0x20
+            ptz_cmd[6] = (speed & 0x0F) << 4;
+            break;
+        default:
+            return;
+    }
+
+    uint32_t check = 0;
+    for (int i = 0; i < 7; i++){
+        check += ptz_cmd[i];
+    }
+
+    ptz_cmd[7] = (uint8_t)(check % 256);
+
+    std::stringstream ss_ptzcmd;
+    for (int i = 0; i < 8; i++){
+        char hex_cmd[3] = {0};
+        sprintf(hex_cmd, "%02X", ptz_cmd[i]);
+        ss_ptzcmd << hex_cmd;
+    }
+
+    std::stringstream xml;
+    std::string xmlbody;
+
+    xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << SRS_RTSP_CRLF
+    << "<Control>" << SRS_RTSP_CRLF
+    << "<CmdType>DeviceControl</CmdType>" << SRS_RTSP_CRLF
+    << "<SN>" << srs_sip_generate_sn() << "</SN>" << SRS_RTSP_CRLF
+    << "<DeviceID>" << req->sip_auth_id << "</DeviceID>" << SRS_RTSP_CRLF
+    << "<PTZCmd>" << ss_ptzcmd.str() << "</PTZCmd>" << SRS_RTSP_CRLF
+    << "<Info>" << SRS_RTSP_CRLF
+    << "<ControlPriority>" << priority << "</ControlPriority>" << SRS_RTSP_CRLF
+    << "</Info>" << SRS_RTSP_CRLF
+    << "</Control>" << SRS_RTSP_CRLF;
+    xmlbody = xml.str();
+
+    std::stringstream from, to, uri, call_id;
+    //"INVITE sip:34020000001320000001@3402000000 SIP/2.0\r\n
+    uri << "sip:" <<  req->sip_auth_id << "@" << req->realm;
+    //From: <sip:34020000002000000001@%s:%s>;tag=500485%d\r\n
+    from << req->serial << "@" << req->host << ":"  << req->host_port;
+    to << req->sip_auth_id <<  "@" << req->realm;
+   
+    req->from = from.str();
+    req->to   = to.str();
+    req->uri  = uri.str();
+
+    req->call_id = srs_sip_generate_call_id();
+    req->branch = srs_sip_generate_branch();
+    req->from_tag = srs_sip_generate_from_tag();
+
+    ss << "MESSAGE " << req->uri << " "<< SRS_SIP_VERSION << SRS_RTSP_CRLF
+    //<< "Via: "<< SRS_SIP_VERSION << "/UDP "<< req->host << ":" << req->host_port << ";rport" << branch << SRS_RTSP_CRLF
+    << "Via: " << SRS_SIP_VERSION << "/UDP " << req->host << ":" << req->host_port << ";rport;branch=" << req->branch << SRS_RTSP_CRLF
+    << "From: " << get_sip_from(req) << SRS_RTSP_CRLF
+    << "To: " << get_sip_to(req) << SRS_RTSP_CRLF
+    << "Call-ID: " << req->call_id << SRS_RTSP_CRLF
+    << "CSeq: "<< req->seq <<" MESSAGE" << SRS_RTSP_CRLF
     << "Content-Type: Application/MANSCDP+xml" << SRS_RTSP_CRLF
     << "Max-Forwards: 70" << SRS_RTSP_CRLF
     << "User-Agent: " << SRS_SIP_USER_AGENT << SRS_RTSP_CRLF

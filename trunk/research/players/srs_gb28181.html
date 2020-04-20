@@ -318,11 +318,21 @@
                     </div>
                 </div>
                 <div>
+                    <div class="btn-group dropup">
+                        <button class="btn btn-primary" id="btn_ptz_up"> 上↑ </button>
+                        <button class="btn btn-primary" id="btn_ptz_down"> 下↓ </button>
+                        <button class="btn btn-primary" id="btn_ptz_left"> ←左 </button>
+                        <button class="btn btn-primary" id="btn_ptz_right"> 右→ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomin"> 放大＋ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomout"> 缩小－ </button>
+                    </div>    
+                    [注意] !!! 云台控制需要启用内部sip功能
                     <div class="input-prepend" title="首播时间，点播放到开始播放的时间，秒">
                         <span class="add-on">@PST</span>
                         <input class="span1" style="width:60px" id="txt_pst" type="text" placeholder="N秒">
                     </div>
                 </div>
+              
             </div>
         </div>
 
@@ -335,6 +345,17 @@
                 <video id="rtc_media_player" controls autoplay ></video>
             </div>
             <div class="modal-footer" id="my_modal_footer">
+                <div>
+                    <div class="btn-group dropup">
+                        <button class="btn btn-primary" id="btn_ptz_up_rtc"> 上↑ </button>
+                        <button class="btn btn-primary" id="btn_ptz_down_rtc"> 下↓ </button>
+                        <button class="btn btn-primary" id="btn_ptz_left_rtc"> ←左 </button>
+                        <button class="btn btn-primary" id="btn_ptz_right_rtc"> 右→ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomin_rtc"> 放大＋ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomout_rtc"> 缩小－ </button>
+                    </div>    
+                    [注意] !!! 云台控制需要启用内部sip功能
+                   </div>
             </div>
         </div>
 
@@ -963,9 +984,13 @@
 
             });
 
+            var time_query = function(){
+                $("#btn_sip_query_session").click();
+                setTimeout(function () {$("#btn_sip_query_session").click()}, 1000);
+            }
+
             $("#btn_sip_unregister").click(function(){
                 var id = $("#sipSessionId").text();
-                alert(id);
 
                 if (id.indexOf("id:") != -1) {
                     var str = id.split(":")
@@ -977,7 +1002,7 @@
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
                     if (ret != undefined && ret.code == 0){
-                      $("#btn_sip_query_session").click();
+                        time_query();
                     }
                 }
             });
@@ -996,7 +1021,7 @@
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
                     if (ret != undefined && ret.code == 0){
-                      $("#btn_sip_query_session").click();
+                        time_query();
                     }
                 }
             });
@@ -1015,7 +1040,7 @@
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
 
                     if (ret != undefined && ret.code == 0){
-                      $("#btn_sip_query_session").click();
+                        time_query();
                     }
                 }
             });
@@ -1033,7 +1058,7 @@
                     var ret = http_get(apiurl);
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
                     if (ret != undefined && ret.code == 0){
-                      $("#btn_sip_query_session").click();
+                        time_query();
                     }
                 }
             });
@@ -1059,6 +1084,44 @@
                     $("#btn_query_channel").click();
                 }
             });
+
+            var call_ptz_cmd = function(cmd) {
+                var str = $("#gb28181ChannelId").text();
+                var str_array = str.split("@")
+                var chid = "";
+                var id = "";
+                if (str_array.length < 1){
+                    return;
+                }
+
+                var speed = "136";
+               
+                id = str_array[0];
+                chid = str_array[1];
+                
+                url = $("#txt_api_url").val();
+                var apiurl = url + "/api/v1/gb28181?action=sip_ptz&id=" + id + "&chid="+chid+ "&ptzcmd="+cmd + "&speed=" + speed;
+                var ret = http_get(apiurl);
+                $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+            };
+
+            var ptz_cmd = ["up", "down", "right", "left", "zoomin", "zoomout"]
+            for (var i=0; i<ptz_cmd.length; i++){
+                var bt_fun = function(id, cmd){
+                    $(bt_id).mousedown(function(){
+                        call_ptz_cmd(cmd);
+                    });
+                    $(bt_id).mouseup(function(){
+                        call_ptz_cmd("stop");
+                    });
+                };
+
+                var bt_id = "#btn_ptz_"+ptz_cmd[i]+ "_rtc";
+                bt_fun(bt_id, ptz_cmd[i]);
+
+                bt_id = "#btn_ptz_"+ptz_cmd[i];
+                bt_fun(bt_id, ptz_cmd[i]);
+            }
 
             $("#btn_create_channel").click(function(){
                 $("#create_channel_modal").modal({show: true, keyboard: false});
@@ -1100,7 +1163,6 @@
 
 
             $("#rtc_player_modal").on("hide", function(){
-                console.log("rtc stop");
                 if (pc) {
                     pc.close();
                  }

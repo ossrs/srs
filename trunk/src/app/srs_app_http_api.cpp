@@ -1774,6 +1774,26 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
             return srs_api_response_code(w, r, code);
         }
+        else if(action == "sip_ptz"){
+            string chid = r->query_get("chid");
+            string ptzcmd = r->query_get("ptzcmd");
+            string speed = r->query_get("speed");
+            string priority = r->query_get("priority");
+            if (id.empty() || chid.empty() || ptzcmd.empty() || speed.empty()){
+                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
+            }
+
+            uint8_t _speed = (uint8_t)(strtoul(speed.c_str(), NULL, 10));
+            int _priority = (int)(strtoul(priority.c_str(), NULL, 10));
+     
+            err = _srs_gb28181->notify_sip_ptz(id, chid, ptzcmd, _speed, _priority);
+            int code = srs_error_code(err);
+            if (err != srs_success) {
+               srs_error_reset(err);
+            }
+
+            return srs_api_response_code(w, r, code);
+        }
         else if(action == "sip_raw_data"){
             if (id.empty()){
                 return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);

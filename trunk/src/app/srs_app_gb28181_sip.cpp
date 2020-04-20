@@ -100,6 +100,7 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
     _peer_port = 0;
 
     _fromlen = 0;
+    _sip_cseq = 100;
 }
 
 SrsGb28181SipSession::~SrsGb28181SipSession()
@@ -485,23 +486,30 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
        
     }else if (req->is_message()) {
         SrsGb28181SipSession* sip_session = fetch(session_id);
+         
+        if (!sip_session){
+            sip_session = fetch_session_by_callid(req->call_id);
+        }
+     
         if (!sip_session || sip_session->register_status() == SrsGb28181SipSessionUnkonw){
             srs_trace("gb28181: %s client not registered", req->sip_auth_id.c_str());
             return err;
         }
        
         //reponse status 
-        send_status(req, from, fromlen);
-        sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
-        sip_session->set_alive_time(srs_get_system_time());
-        sip_session->set_sockaddr((sockaddr)*from);
-        sip_session->set_sockaddr_len(fromlen);
-        sip_session->set_peer_port(peer_port);
-        sip_session->set_peer_ip(peer_ip);
-        
-        //update device list
-        if (req->device_list_map.size() > 0){
-            sip_session->update_device_list(req->device_list_map);
+        if (req->cmdtype == SrsSipCmdRequest){
+            send_status(req, from, fromlen);
+            sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
+            sip_session->set_alive_time(srs_get_system_time());
+            sip_session->set_sockaddr((sockaddr)*from);
+            sip_session->set_sockaddr_len(fromlen);
+            sip_session->set_peer_port(peer_port);
+            sip_session->set_peer_ip(peer_ip);
+            
+            //update device list
+            if (req->device_list_map.size() > 0){
+                sip_session->update_device_list(req->device_list_map);
+            }
         }
        
     }else if (req->is_invite()) {
@@ -675,6 +683,7 @@ srs_error_t  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, i
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
     req->chid = chid;
+    req->seq = sip_session->sip_cseq();
 
     SrsSipRequest register_req = sip_session->request();
     req->to_realm = register_req.to_realm;
@@ -730,6 +739,7 @@ srs_error_t SrsGb28181SipService::send_bye(SrsSipRequest *req, std::string chid)
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
     req->chid = chid;
+    req->seq = sip_session->sip_cseq();
     
     SrsSipRequest register_req = sip_session->request();
     req->to_realm = register_req.to_realm;
@@ -774,17 +784,107 @@ srs_error_t SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::st
 
 srs_error_t SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
 {
+    srs_error_t err = srs_success;
+
+    srs_assert(req);
+
+    SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
+
+    if (!sip_session){
+        return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
+    }
+
     req->host = config->host;
     req->host_port = config->sip_port;
     req->realm = config->sip_realm;
     req->serial = config->sip_serial;
     req->chid = req->sip_auth_id;
+    req->seq = sip_session->sip_cseq();
 
     //get protocol stack 
     std::stringstream ss;
     sip->req_query_catalog(ss, req);
 
     return send_sip_raw_data(req, ss.str());
+}
+
+srs_error_t SrsGb28181SipService::send_ptz(SrsSipRequest *req, std::string chid, std::string cmd, 
+            uint8_t speed, int priority)
+{
+    srs_error_t err = srs_success;
+
+    srs_assert(req);
+
+    SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
+
+    if (!sip_session){
+        return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
+    }
+
+    SrsGb28181Device *device = sip_session->get_device_info(chid);
+    if (!device){
+        return srs_error_new(ERROR_GB28181_SIP_CH_NOTEXIST, "sip device channel not exist");
+    }
+
+    if (device->invite_status  != SrsGb28181SipSessionInviteOk){
+        return srs_error_new(ERROR_GB28181_SIP_NOT_INVITE, "sip device channel not inviting");   
+    }
+   
+    //prame branch, from_tag, to_tag, call_id, 
+    //The parameter of 'bye' must be the same as 'invite'
+    //SrsSipRequest r = sip_session->request();
+    req->copy(&device->req_inivate);
+
+    req->host = config->host;
+    req->host_port = config->sip_port;
+    req->realm = config->sip_realm;
+    req->serial = config->sip_serial;
+    req->chid = chid;
+    req->seq = sip_session->sip_cseq();
+    
+    SrsSipPtzCmdType ptzcmd = SrsSipPtzCmdRight;
+    const char *ss_cmd = cmd.c_str();
+    if (!strcasecmp(ss_cmd, "stop")){
+        ptzcmd = SrsSipPtzCmdStop;
+    }else if (!strcasecmp(ss_cmd, "right")){
+        ptzcmd = SrsSipPtzCmdRight;
+    }else if (!strcasecmp(ss_cmd, "left")){
+        ptzcmd = SrsSipPtzCmdLeft;
+    }else if (!strcasecmp(ss_cmd, "down")){
+        ptzcmd = SrsSipPtzCmdDown;
+    }else if (!strcasecmp(ss_cmd, "up")){
+        ptzcmd = SrsSipPtzCmdUp;
+    }else if (!strcasecmp(ss_cmd, "zoomout")){
+        ptzcmd = SrsSipPtzCmdZoomOut;
+    }else if (!strcasecmp(ss_cmd, "zoomin")){    
+        ptzcmd = SrsSipPtzCmdZoomIn;
+    }else{
+        return srs_error_new(ERROR_GB28181_SIP_PTZ_CMD_INVALID, "sip ptz cmd no support");  
+    }
+
+    if (speed < 0 || speed > 0xFF){
+        return srs_error_new(ERROR_GB28181_SIP_PTZ_CMD_INVALID, "sip ptz cmd speed out of range");  
+    }
+
+    if (priority <= 0 ){
+        priority = 5;
+    }
+
+    //get protocol stack 
+    std::stringstream ss;
+    sip->req_ptz(ss, req, ptzcmd, speed, priority);
+   
+    sockaddr addr = sip_session->sockaddr_from();
+    if (send_message(&addr, sip_session->sockaddr_fromlen(), ss) <= 0)
+    {
+        return srs_error_new(ERROR_GB28181_SIP_PTZ_FAILED, "sip ptz failed");
+    }
+
+    //call_id map sip_session
+    sip_session_map_by_callid(sip_session, req->call_id);
+
+    return err;
+
 }
 
 srs_error_t SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArray* arr)

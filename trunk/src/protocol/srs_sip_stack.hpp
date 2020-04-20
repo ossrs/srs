@@ -50,10 +50,22 @@ class SrsAudioFrame;
 #define SRS_SIP_VERSION "SIP/2.0"
 #define SRS_SIP_USER_AGENT RTMP_SIG_SRS_SERVER
 
+#define SRS_SIP_PTZ_START 0xA5
+
 
 enum SrsSipCmdType{
     SrsSipCmdRequest=0,
     SrsSipCmdRespone=1
+};
+
+enum SrsSipPtzCmdType{
+    SrsSipPtzCmdStop = 0x00,
+    SrsSipPtzCmdRight = 0x01,
+    SrsSipPtzCmdLeft  = 0x02,
+    SrsSipPtzCmdDown  = 0x04,
+    SrsSipPtzCmdUp    = 0x08,
+    SrsSipPtzCmdZoomIn  = 0x10,
+    SrsSipPtzCmdZoomOut   = 0x20
 };
 
 std::string srs_sip_get_utc_date();
@@ -162,6 +174,7 @@ public:
     virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_query_catalog(std::stringstream& ss, SrsSipRequest *req);
+    virtual void req_ptz(std::stringstream& ss, SrsSipRequest *req, uint8_t cmd, uint8_t speed,  int priority);
    
 };
 

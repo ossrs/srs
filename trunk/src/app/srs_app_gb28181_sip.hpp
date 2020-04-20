@@ -92,6 +92,7 @@ private:
 
     std::map<std::string, SrsGb28181Device*> _device_list;
     //std::map<std::string, int> _device_status;
+    int _sip_cseq;
 
 public:
     SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipRequest* r);
@@ -128,6 +129,7 @@ public:
     sockaddr  sockaddr_from() { return _from;}
     int sockaddr_fromlen() { return _fromlen;}
     SrsSipRequest request() { return *req;}
+    int sip_cseq(){ return _sip_cseq++;}
 
     std::string session_id() { return _session_id;}
 public:
@@ -175,6 +177,7 @@ public:
     srs_error_t send_invite(SrsSipRequest *req, std::string ip, int port, uint32_t ssrc, std::string chid);
     srs_error_t send_bye(SrsSipRequest *req, std::string chid);
     srs_error_t send_query_catalog(SrsSipRequest *req);
+    srs_error_t send_ptz(SrsSipRequest *req, std::string chid, std::string cmd, uint8_t speed, int priority);
 
     // The SIP command is transmitted through HTTP API, 
     // and the body content is transmitted to the device, 

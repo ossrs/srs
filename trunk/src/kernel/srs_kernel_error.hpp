@@ -367,6 +367,9 @@
 #define ERROR_GB28181_SIP_CH_NOTEXIST       6013
 #define ERROR_GB28181_SIP_RAW_DATA_FAILED   6014
 #define ERROR_GB28181_SIP_PRASE_FAILED      6015
+#define ERROR_GB28181_SIP_PTZ_FAILED        6016
+#define ERROR_GB28181_SIP_NOT_INVITE        6017
+#define ERROR_GB28181_SIP_PTZ_CMD_INVALID   6018
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

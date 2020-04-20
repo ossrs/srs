@@ -422,6 +422,7 @@ public:
     srs_error_t notify_sip_raw_data(std::string id, std::string data);
     srs_error_t notify_sip_unregister(std::string id);
     srs_error_t notify_sip_query_catalog(std::string id);
+    srs_error_t notify_sip_ptz(std::string id, std::string chid, std::string cmd, uint8_t speed, int priority);
     srs_error_t query_sip_session(std::string id, SrsJsonArray* arr);
 
 private:
