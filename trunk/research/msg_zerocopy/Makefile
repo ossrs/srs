@@ -4,10 +4,10 @@
 default: server client
 
 server: server.cpp ../../objs/st/libst.a
-	gcc -g -O0 -I../../objs/st/ $^ -o $@
+	g++ -g -O0 -I../../objs/st/ $^ -o $@
 
 client: client.cpp ../../objs/st/libst.a
-	gcc -g -O0 -I../../objs/st/ $^ -o $@
+	g++ -g -O0 -I../../objs/st/ $^ -o $@
 
 ../../objs/st/libst.a: ../../Makefile
 	(cd ../../ && $(MAKE) st)

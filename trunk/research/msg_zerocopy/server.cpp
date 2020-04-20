@@ -7,6 +7,46 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+struct message {
+    st_netfd_t stfd;
+    sockaddr_in peer;
+    int delay;
+};
+
+void* sender(void* arg)
+{
+    message* p = (message*)arg;
+
+    int delay = p->delay;
+    if (delay > 0) {
+        st_usleep(delay * 1000);
+    }
+
+    msghdr msg;
+    memset(&msg, 0, sizeof(msghdr));
+
+    sockaddr_in peer = p->peer;
+    msg.msg_name = (sockaddr_in*)&peer;
+    msg.msg_namelen = sizeof(sockaddr_in);
+
+    char buf[] = "World";
+
+    iovec iov;
+    memset(&iov, 0, sizeof(iovec));
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    st_netfd_t stfd = p->stfd;
+    int r0 = st_sendmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
+    assert(r0 > 0);
+    printf("Pong %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
+        msg.msg_flags, msg.msg_iov->iov_base);
+
+    return NULL;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 5) {
@@ -47,7 +87,7 @@ int main(int argc, char** argv)
     st_netfd_t stfd = st_netfd_open_socket(fd);
     assert(stfd);
 
-    printf("Listen at udp://%s:%d\n", host, port);
+    printf("Listen at udp://%s:%d, fd=%d\n", host, port, fd);
 
     msghdr msg;
     memset(&msg, 0, sizeof(msghdr));
@@ -73,18 +113,13 @@ int main(int argc, char** argv)
         printf("From %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
             msg.msg_flags, msg.msg_iov->iov_base);
 
-        memcpy(msg.msg_iov->iov_base, "World", 5);
-        msg.msg_iov->iov_len = 5;
-
         if (pong) {
-            if (delay > 0) {
-                st_usleep(delay * 1000);
-            }
-
-            r0 = st_sendmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
-            assert(r0 > 0);
-            printf("Pong %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
-                msg.msg_flags, msg.msg_iov->iov_base);
+            message* msg = new message();
+            msg->stfd = stfd;
+            msg->peer = peer;
+            msg->delay = delay;
+            st_thread_t r0 = st_thread_create(sender, msg, 0, 0);
+            assert(r0);
         }
     }
 
