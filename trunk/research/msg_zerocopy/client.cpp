@@ -9,12 +9,17 @@
 
 int main(int argc, char** argv)
 {
-    if (argc < 3) {
-        printf("Usage: %s <host> <port>\n", argv[0]);
+    if (argc < 4) {
+        printf("Usage: %s <host> <port> <pong>\n", argv[0]);
         printf("For example:\n");
-        printf("        %s 127.0.0.1 8000\n", argv[0]);
+        printf("        %s 127.0.0.1 8000 true\n", argv[0]);
         exit(-1);
     }
+
+    int port = atoi(argv[2]);
+    char* host = argv[1];
+    bool pong = !strcmp(argv[3], "pong");
+    printf("Server listen %s:%d, pong %d\n", host, port, pong);
 
     assert(!st_set_eventsys(ST_EVENTSYS_ALT));
     assert(!st_init());
@@ -28,8 +33,6 @@ int main(int argc, char** argv)
     sockaddr_in peer;
     memset(&peer, 0, sizeof(sockaddr_in));
 
-    int port = atoi(argv[2]);
-    char* host = argv[1];
     peer.sin_family = AF_INET;
     peer.sin_port = htons(port);
     peer.sin_addr.s_addr = inet_addr(host);
@@ -52,10 +55,12 @@ int main(int argc, char** argv)
     int r0 = st_sendmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
     printf("Ping %s:%d %d bytes, r0=%d, %s\n", host, port, iov.iov_len, r0, msg.msg_iov->iov_base);
 
-    r0 = st_recvmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
-    assert(r0 > 0);
-    printf("Pong %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
-        msg.msg_flags, msg.msg_iov->iov_base);
+    if (pong) {
+        r0 = st_recvmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
+        assert(r0 > 0);
+        printf("Pong %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
+            msg.msg_flags, msg.msg_iov->iov_base);
+    }
 
     return 0;
 }
