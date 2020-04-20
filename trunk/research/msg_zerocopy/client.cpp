@@ -16,9 +16,9 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
-    int port = atoi(argv[2]);
     char* host = argv[1];
-    bool pong = !strcmp(argv[3], "pong");
+    int port = atoi(argv[2]);
+    bool pong = !strcmp(argv[3], "true");
     printf("Server listen %s:%d, pong %d\n", host, port, pong);
 
     assert(!st_set_eventsys(ST_EVENTSYS_ALT));

@@ -9,17 +9,20 @@
 
 int main(int argc, char** argv)
 {
-    if (argc < 4) {
-        printf("Usage: %s <host> <port> <pong>\n", argv[0]);
+    if (argc < 5) {
+        printf("Usage: %s <host> <port> <pong> <delay>\n", argv[0]);
+        printf("    pong        Whether response pong, true|false\n");
+        printf("    delay       The delay in ms to response pong.\n");
         printf("For example:\n");
-        printf("        %s 0.0.0.0 8000 true\n", argv[0]);
+        printf("        %s 0.0.0.0 8000 true 100\n", argv[0]);
         exit(-1);
     }
 
-    int port = atoi(argv[2]);
     char* host = argv[1];
-    bool pong = !strcmp(argv[3], "pong");
-    printf("Server listen %s:%d, pong %d\n", host, port, pong);
+    int port = atoi(argv[2]);
+    bool pong = !strcmp(argv[3], "true");
+    int delay = ::atoi(argv[4]);
+    printf("Server listen %s:%d, pong %d, delay: %dms\n", host, port, pong, delay);
 
     assert(!st_set_eventsys(ST_EVENTSYS_ALT));
     assert(!st_init());
@@ -74,6 +77,10 @@ int main(int argc, char** argv)
         msg.msg_iov->iov_len = 5;
 
         if (pong) {
+            if (delay > 0) {
+                st_usleep(delay * 1000);
+            }
+
             r0 = st_sendmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
             assert(r0 > 0);
             printf("Pong %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
