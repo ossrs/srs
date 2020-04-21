@@ -94,7 +94,7 @@ srs_error_t srs_fd_closeexec(int fd)
     int flags = fcntl(fd, F_GETFD);
     flags |= FD_CLOEXEC;
     if (fcntl(fd, F_SETFD, flags) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%v", fd);
+        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%d", fd);
     }
 
     return srs_success;
@@ -104,7 +104,7 @@ srs_error_t srs_fd_reuseaddr(int fd)
 {
     int v = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%d", fd);
     }
 
     return srs_success;
@@ -119,7 +119,7 @@ srs_error_t srs_fd_reuseport(int fd)
             srs_warn("SO_REUSEPORT disabled for crossbuild");
             return srs_success;
         #else
-            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%d", fd);
         #endif
     }
 #else
@@ -400,6 +400,11 @@ int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, in
 int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr * to, int tolen, srs_utime_t timeout)
 {
     return st_sendto((st_netfd_t)stfd, buf, len, to, tolen, (st_utime_t)timeout);
+}
+
+int srs_recvmsg(srs_netfd_t stfd, struct msghdr *msg, int flags, srs_utime_t timeout)
+{
+    return st_recvmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
 }
 
 int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout)

@@ -438,6 +438,10 @@ fi
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    # Detect python or python2
+    python --version >/dev/null 2>&1 && SYS_PYTHON=python;
+    python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
+    # Install cherrypy for api server.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
@@ -445,7 +449,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         (
             rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-            python setup.py install --user --prefix=''
+            $SYS_PYTHON setup.py install --user --prefix=''
         )
     fi
     # check status
