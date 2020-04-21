@@ -1809,7 +1809,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "delete stream channel");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "query_channel") {
         SrsJsonArray* arr = SrsJsonAny::array();
         data->set("channels", arr);
@@ -1836,7 +1836,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip invite");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_bye"){
         string chid = r->query_get("chid");
         if (id.empty() || chid.empty()){
@@ -1847,7 +1847,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip bye");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_ptz"){
         string chid = r->query_get("chid");
         string ptzcmd = r->query_get("ptzcmd");
@@ -1864,7 +1864,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip ptz");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_raw_data"){
         if (id.empty()){
             return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
@@ -1877,7 +1877,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip raw data");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_unregister"){
         if (id.empty()){
             return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
@@ -1887,7 +1887,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip unregister");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_query_catalog"){
         if (id.empty()){
             return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
@@ -1897,7 +1897,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             return srs_error_wrap(err, "notify sip query catelog");
         }
 
-        return srs_api_response_code(w, r, code);
+        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_query_session"){
         SrsJsonArray* arr = SrsJsonAny::array();
         data->set("sessions", arr);
