@@ -4747,7 +4747,8 @@ int SrsConfig::get_rtc_server_sendmmsg()
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    int v = ::atoi(conf->arg0().c_str());
+    return srs_max(1, v);
 #endif
 }
 
