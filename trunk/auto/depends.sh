@@ -103,7 +103,10 @@ function Ubuntu_prepare()
     fi
 
     pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install pkg-config"; exit -1;
+        echo "Installing pkg-config."
+        require_sudoer "sudo apt-get install -y --force-yes pkg-config"
+        sudo apt-get install -y --force-yes pkg-config; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The pkg-config is installed."
     fi
 
     echo "Tools for Ubuntu are installed."
@@ -540,10 +543,10 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # For openssl-1.1.*, we should disable SRTP ASM, because SRTP only works with openssl-1.0.*
     if [[ $SRS_SRTP_ASM == YES ]]; then
-        echo "#include <openssl/ssl.h>" > ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "#if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "#error \"SRTP only works with openssl-1.0.*\"" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "#endif" >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "  #include <openssl/ssl.h>                              " > ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "  #if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x   " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "  #error \"SRTP only works with openssl-1.0.*\"         " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+        echo "  #endif                                                " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
         ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
