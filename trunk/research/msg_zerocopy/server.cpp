@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 struct message {
     st_netfd_t stfd;
@@ -47,22 +48,48 @@ void* sender(void* arg)
     return NULL;
 }
 
+void usage(int argc, char** argv)
+{
+    printf("Usage: %s <options>\n", argv[0]);
+    printf("Options:\n");
+    printf("    --help          Print this help and exit.\n");
+    printf("    --host=string   The host to send to.\n");
+    printf("    --port=int      The port to send to.\n");
+    printf("    --pong=bool     Whether response pong, true|false\n");
+    printf("    --delay=int     The delay in ms to response pong.\n");
+    printf("For example:\n");
+    printf("        %s --host=0.0.0.0 --port=8000 --pong --delay=100\n", argv[0]);
+}
+
 int main(int argc, char** argv)
 {
-    if (argc < 5) {
-        printf("Usage: %s <host> <port> <pong> <delay>\n", argv[0]);
-        printf("    pong        Whether response pong, true|false\n");
-        printf("    delay       The delay in ms to response pong.\n");
-        printf("For example:\n");
-        printf("        %s 0.0.0.0 8000 true 100\n", argv[0]);
-        exit(-1);
+    option longopts[] = {
+        { "host",       required_argument,      NULL,       'o' },
+        { "port",       required_argument,      NULL,       'p' },
+        { "pong",       required_argument,      NULL,       'n' },
+        { "delay",      required_argument,      NULL,       'd' },
+        { "help",       no_argument,            NULL,       'h' },
+        { NULL,         0,                      NULL,       0 }
+    };
+
+    char* host = NULL; char ch;
+    int port = 0; int delay = 0; bool pong = false;
+    while ((ch = getopt_long(argc, argv, "o:p:n:d:h", longopts, NULL)) != -1) {
+        switch (ch) {
+            case 'o': host = (char*)optarg; break;
+            case 'p': port = atoi(optarg); break;
+            case 'n': pong = !strcmp(optarg,"true"); break;
+            case 'd': delay = atoi(optarg); break;
+            case 'h': usage(argc, argv); exit(0);
+            default: usage(argc, argv); exit(-1);
+        }
     }
 
-    char* host = argv[1];
-    int port = atoi(argv[2]);
-    bool pong = !strcmp(argv[3], "true");
-    int delay = ::atoi(argv[4]);
     printf("Server listen %s:%d, pong %d, delay: %dms\n", host, port, pong, delay);
+    if (!host || !port) {
+        usage(argc, argv);
+        exit(-1);
+    }
 
     assert(!st_set_eventsys(ST_EVENTSYS_ALT));
     assert(!st_init());
@@ -107,11 +134,12 @@ int main(int argc, char** argv)
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
 
+    int nn_msgs = 0;
     while (true) {
         r0 = st_recvmsg(stfd, &msg, 0, ST_UTIME_NO_TIMEOUT);
         assert(r0 > 0);
-        printf("From %s:%d %d bytes, flags %#x, %s\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), r0,
-            msg.msg_flags, msg.msg_iov->iov_base);
+        printf("#%d, From %s:%d %d bytes, flags %#x, %s\n", nn_msgs++, inet_ntoa(peer.sin_addr), ntohs(peer.sin_port),
+            r0, msg.msg_flags, msg.msg_iov->iov_base);
 
         if (pong) {
             message* msg = new message();
