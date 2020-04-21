@@ -1741,6 +1741,21 @@ SrsGoApiGb28181::~SrsGoApiGb28181()
 
 srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
+    srs_error_t err = srs_success;
+
+    if ((err = do_serve_http(w, r)) != srs_success) {
+        srs_warn("Server GB28181 err %s", srs_error_desc(err).c_str());
+        int code = srs_error_code(err); srs_error_reset(err);
+        return srs_api_response_code(w, r, code);
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
@@ -1756,103 +1771,144 @@ srs_error_t SrsGoApiGb28181::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     //fixed, random
     string port_mode = r->query_get("port_mode");
    
-    if (_srs_gb28181) {
-        if(action == "create_channel"){
-            if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
+    if (!_srs_gb28181) {
+        return srs_error_new(ERROR_GB28181_SERVER_NOT_RUN, "no gb28181 engine");
+    }
 
-            SrsGb28181StreamChannel channel;
-            channel.set_channel_id(id);
-            channel.set_app(app);
-            channel.set_stream(stream);
-            channel.set_port_mode(port_mode);
-
-            uint32_t code = _srs_gb28181->create_stream_channel(&channel);
-            if (code != ERROR_SUCCESS) {
-                return srs_api_response_code(w, r, code);
-            }
-           
-            data->set("query", SrsJsonAny::object()
-              ->set("id", SrsJsonAny::str(channel.get_channel_id().c_str()))
-              ->set("ip", SrsJsonAny::str(channel.get_ip().c_str()))
-              ->set("rtmp_port", SrsJsonAny::integer(channel.get_rtmp_port()))
-              ->set("app", SrsJsonAny::str(channel.get_app().c_str()))
-              ->set("stream", SrsJsonAny::str(channel.get_stream().c_str()))
-              ->set("rtp_port", SrsJsonAny::integer(channel.get_rtp_port()))
-              ->set("ssrc", SrsJsonAny::integer(channel.get_ssrc())));
-            return srs_api_response(w, r, obj->dumps());
-       
-        }
-        else if(action == "delete_channel"){
-           if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
-
-            uint32_t code = _srs_gb28181->delete_stream_channel(id);
-            return srs_api_response_code(w, r, code);
-        }
-        else if(action == "query_channel") {
-            SrsJsonArray* arr = SrsJsonAny::array();
-            data->set("channels", arr);
-           
-            uint32_t code = _srs_gb28181->queue_stream_channel(id, arr);
-            if (code != ERROR_SUCCESS) {
-                return srs_api_response_code(w, r, code);
-            }
-
-            return srs_api_response(w, r, obj->dumps());
-        }
-        else if(action == "sip_invite"){
-            if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
-
-            string ssrc = r->query_get("ssrc");
-            string rtp_port = r->query_get("rtp_port");
-            string ip = r->query_get("ip");
-
-            int _port = strtoul(rtp_port.c_str(), NULL, 10);
-            uint32_t _ssrc = (uint32_t)(strtoul(ssrc.c_str(), NULL, 10));
-
-           
-
-            int code = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc);
-            return srs_api_response_code(w, r, code);
-        }
-        else if(action == "sip_bye"){
-            if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
-
-            int code = _srs_gb28181->notify_sip_bye(id);
-            return srs_api_response_code(w, r, code);
-        }
-        else if(action == "sip_raw_data"){
-            if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
-
-            std::string body;
-            r->body_read_all(body);
-            int code = _srs_gb28181->notify_sip_raw_data(id, body);
-            return srs_api_response_code(w, r, code);
-        }
-        else if(action == "sip_unregister"){
-            if (id.empty()){
-                return srs_api_response_code(w, r, ERROR_GB28181_VALUE_EMPTY);
-            }
-            
-            int code = _srs_gb28181->notify_sip_unregister(id);
-            return srs_api_response_code(w, r, code);
-        }
-        else
-        {
-            return srs_api_response_code(w, r, ERROR_GB28181_ACTION_INVALID);
+    if(action == "create_channel"){
+        if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
         }
 
-    }else {
-        return srs_api_response_code(w, r, ERROR_GB28181_SERVER_NOT_RUN);
+        SrsGb28181StreamChannel channel;
+        channel.set_channel_id(id);
+        channel.set_app(app);
+        channel.set_stream(stream);
+        channel.set_port_mode(port_mode);
+
+        if ((err = _srs_gb28181->create_stream_channel(&channel)) != srs_success) {
+            return srs_error_wrap(err, "create stream channel");
+        }
+
+        data->set("query", SrsJsonAny::object()
+          ->set("id", SrsJsonAny::str(channel.get_channel_id().c_str()))
+          ->set("ip", SrsJsonAny::str(channel.get_ip().c_str()))
+          ->set("rtmp_port", SrsJsonAny::integer(channel.get_rtmp_port()))
+          ->set("app", SrsJsonAny::str(channel.get_app().c_str()))
+          ->set("stream", SrsJsonAny::str(channel.get_stream().c_str()))
+          ->set("rtp_port", SrsJsonAny::integer(channel.get_rtp_port()))
+          ->set("ssrc", SrsJsonAny::integer(channel.get_ssrc())));
+        return srs_api_response(w, r, obj->dumps());
+
+    } else if(action == "delete_channel"){
+       if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
+        }
+
+        if ((err = _srs_gb28181->delete_stream_channel(id)) != srs_success) {
+            return srs_error_wrap(err, "delete stream channel");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "query_channel") {
+        SrsJsonArray* arr = SrsJsonAny::array();
+        data->set("channels", arr);
+
+        if ((err = _srs_gb28181->query_stream_channel(id, arr)) != srs_success) {
+            return srs_error_wrap(err, "query stream channel");
+        }
+
+        return srs_api_response(w, r, obj->dumps());
+    } else if(action == "sip_invite"){
+        string chid = r->query_get("chid");
+        if (id.empty() || chid.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id or chid");
+        }
+
+        string ssrc = r->query_get("ssrc");
+        string rtp_port = r->query_get("rtp_port");
+        string ip = r->query_get("ip");
+
+        int _port = strtoul(rtp_port.c_str(), NULL, 10);
+        uint32_t _ssrc = (uint32_t)(strtoul(ssrc.c_str(), NULL, 10));
+
+        if ((err = _srs_gb28181->notify_sip_invite(id, ip, _port, _ssrc, chid)) != srs_success) {
+            return srs_error_wrap(err, "notify sip invite");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_bye"){
+        string chid = r->query_get("chid");
+        if (id.empty() || chid.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id or chid");
+        }
+
+        if ((err = _srs_gb28181->notify_sip_bye(id, chid)) != srs_success) {
+            return srs_error_wrap(err, "notify sip bye");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_ptz"){
+        string chid = r->query_get("chid");
+        string ptzcmd = r->query_get("ptzcmd");
+        string speed = r->query_get("speed");
+        string priority = r->query_get("priority");
+        if (id.empty() || chid.empty() || ptzcmd.empty() || speed.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id or chid or ptzcmd or speed");
+        }
+
+        uint8_t _speed = (uint8_t)(strtoul(speed.c_str(), NULL, 10));
+        int _priority = (int)(strtoul(priority.c_str(), NULL, 10));
+
+        if ((err = _srs_gb28181->notify_sip_ptz(id, chid, ptzcmd, _speed, _priority)) != srs_success) {
+            return srs_error_wrap(err, "notify sip ptz");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_raw_data"){
+        if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
+        }
+
+        std::string body;
+        r->body_read_all(body);
+
+        if ((err = _srs_gb28181->notify_sip_raw_data(id, body)) != srs_success) {
+            return srs_error_wrap(err, "notify sip raw data");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_unregister"){
+        if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
+        }
+
+        if ((err = _srs_gb28181->notify_sip_unregister(id)) != srs_success) {
+            return srs_error_wrap(err, "notify sip unregister");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_query_catalog"){
+        if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
+        }
+
+        if ((err = _srs_gb28181->notify_sip_query_catalog(id)) != srs_success) {
+            return srs_error_wrap(err, "notify sip query catelog");
+        }
+
+        return srs_api_response_code(w, r, code);
+    } else if(action == "sip_query_session"){
+        SrsJsonArray* arr = SrsJsonAny::array();
+        data->set("sessions", arr);
+
+        if ((err = _srs_gb28181->query_sip_session(id, arr)) != srs_success) {
+            return srs_error_wrap(err, "notify sip session");
+        }
+
+        return srs_api_response(w, r, obj->dumps());
+    } else {
+        return srs_error_new(ERROR_GB28181_ACTION_INVALID, "action %s", action.c_str());
     }
 }
 #endif
