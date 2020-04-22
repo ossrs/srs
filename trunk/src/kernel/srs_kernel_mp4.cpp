@@ -510,7 +510,7 @@ srs_error_t SrsMp4Box::encode_header(SrsBuffer* buf)
     
     int lrsz = nb_header() - SrsMp4Box::nb_header();
     if (!buf->require(lrsz)) {
-        return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "box requires %v only %d bytes", lrsz, buf->left());
+        return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "box requires %d only %d bytes", lrsz, buf->left());
     }
     
     return err;
@@ -3602,19 +3602,19 @@ srs_error_t SrsMp4ES_Descriptor::decode_payload(SrsBuffer* buf)
     
     if (streamDependenceFlag) {
         if (!buf->require(2)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "ES requires 2 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "ES requires 2 only %d bytes", buf->left());
         }
         dependsOn_ES_ID = buf->read_2bytes();
     }
     
     if (URL_Flag) {
         if (!buf->require(1)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URLlength requires 1 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URLlength requires 1 only %d bytes", buf->left());
         }
         uint8_t URLlength = buf->read_1bytes();
         
         if (!buf->require(URLlength)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URL requires %d only %v bytes", URLlength, buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URL requires %d only %d bytes", URLlength, buf->left());
         }
         URLstring.resize(URLlength);
         buf->read_bytes(&URLstring[0], URLlength);
@@ -3622,7 +3622,7 @@ srs_error_t SrsMp4ES_Descriptor::decode_payload(SrsBuffer* buf)
     
     if (OCRstreamFlag) {
         if (!buf->require(2)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "OCR requires 2 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "OCR requires 2 only %d bytes", buf->left());
         }
         OCR_ES_Id = buf->read_2bytes();
     }

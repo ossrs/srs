@@ -34,6 +34,8 @@ using namespace std;
 #include <unistd.h>
 
 #include <netinet/udp.h>
+// Define macro for UDP GSO.
+// @see https://github.com/torvalds/linux/blob/master/tools/testing/selftests/net/udpgso.c
 #ifndef UDP_SEGMENT
 #define UDP_SEGMENT             103
 #endif

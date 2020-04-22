@@ -570,12 +570,12 @@ function apply_user_detail_options() {
     # Detect whether has sendmmsg.
     # @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     mkdir -p ${SRS_OBJS} &&
-    echo "#include <sys/socket.h>" > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-    echo "int main(int argc, char** argv) {" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-    echo "  struct mmsghdr hdr;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-    echo "  hdr.msg_len = 0;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-    echo "  return 0;" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-    echo "}" >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  #include <sys/socket.h>           " > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  int main(int argc, char** argv) { " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    struct mmsghdr hdr;             " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    hdr.msg_len = 0;                " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    return 0;                       " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  }                                 " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
     ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_sendmmsg_detect.c -D_GNU_SOURCE -o /dev/null >/dev/null 2>&1
     ret=$?; rm -f ${SRS_OBJS}/_tmp_sendmmsg_detect.c;
     if [[ $ret -ne 0 ]]; then
@@ -654,10 +654,6 @@ function check_option_conflicts() {
 
     if [[ $SRS_NGINX == YES ]]; then
         echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
-    fi
-
-    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
     # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869

@@ -517,6 +517,7 @@ public:
     virtual int get_stream_caster_gb28181_sip_listen(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_sip_invite_port_fixed(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_auto_create_channel(SrsConfDirective* conf);
+    virtual srs_utime_t get_stream_caster_gb28181_sip_query_catalog_interval(SrsConfDirective* conf);
 
 // rtc section
 public:
@@ -528,17 +529,14 @@ public:
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
     virtual int get_rtc_server_reuseport();
-private:
-    virtual int get_rtc_server_reuseport2();
-public:
     virtual bool get_rtc_server_merge_nalus();
     virtual bool get_rtc_server_gso();
-private:
-    virtual bool get_rtc_server_gso2();
-public:
     virtual int get_rtc_server_padding();
     virtual bool get_rtc_server_perf_stat();
     virtual int get_rtc_server_queue_length();
+private:
+    virtual int get_rtc_server_reuseport2();
+    virtual bool get_rtc_server_gso2();
 
 public:
     SrsConfDirective* get_rtc(std::string vhost);
