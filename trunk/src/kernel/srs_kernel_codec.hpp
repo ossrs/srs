@@ -771,6 +771,8 @@ private:
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
 	// Parse the HEVC SPS/PPS.
 	virtual srs_error_t hevc_demux_sps_pps(SrsBuffer* stream);
+	virtual srs_error_t hevc_demux_sps();
+	virtual srs_error_t hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
 private:
     // Parse the H.264 NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
