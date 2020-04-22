@@ -30,6 +30,7 @@
 
 #include <string>
 #include <sstream>
+#include <map>
 
 #include <srs_kernel_consts.hpp>
 #include <srs_rtsp_stack.hpp>
@@ -49,10 +50,22 @@ class SrsAudioFrame;
 #define SRS_SIP_VERSION "SIP/2.0"
 #define SRS_SIP_USER_AGENT RTMP_SIG_SRS_SERVER
 
+#define SRS_SIP_PTZ_START 0xA5
+
 
 enum SrsSipCmdType{
     SrsSipCmdRequest=0,
     SrsSipCmdRespone=1
+};
+
+enum SrsSipPtzCmdType{
+    SrsSipPtzCmdStop = 0x00,
+    SrsSipPtzCmdRight = 0x01,
+    SrsSipPtzCmdLeft  = 0x02,
+    SrsSipPtzCmdDown  = 0x04,
+    SrsSipPtzCmdUp    = 0x08,
+    SrsSipPtzCmdZoomIn  = 0x10,
+    SrsSipPtzCmdZoomOut   = 0x20
 };
 
 std::string srs_sip_get_utc_date();
@@ -88,6 +101,11 @@ public:
     std::string www_authenticate;
     std::string authorization;
 
+    std::string chid;
+
+    std::map<std::string, std::string> xml_body_map;
+    std::map<std::string, std::string> device_list_map;
+
 public:
     std::string serial;
     std::string realm;
@@ -99,6 +117,9 @@ public:
     std::string host;
     int host_port;
     SrsSipCmdType cmdtype;
+
+    std::string from_realm;
+    std::string to_realm;
 
 public:
     SrsRtspSdp* sdp;
@@ -131,6 +152,7 @@ public:
     virtual srs_error_t parse_request(SrsSipRequest** preq, const char *recv_msg, int nb_buf);
 protected:
     virtual srs_error_t do_parse_request(SrsSipRequest* req, const char *recv_msg);
+    virtual srs_error_t parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map);
 
 private:
     //response from
@@ -146,10 +168,13 @@ public:
     virtual void resp_keepalive(std::stringstream& ss, SrsSipRequest *req);
   
     //request:  request sent by the sip-server, wait for sip-agent response
-    virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, int port, uint32_t ssrc);
+    virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, 
+        int port, uint32_t ssrc);
     virtual void req_ack(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);
+    virtual void req_query_catalog(std::stringstream& ss, SrsSipRequest *req);
+    virtual void req_ptz(std::stringstream& ss, SrsSipRequest *req, uint8_t cmd, uint8_t speed,  int priority);
    
 };
 

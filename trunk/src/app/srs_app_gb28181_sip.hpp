@@ -41,6 +41,7 @@ class SrsSipRequest;
 class SrsGb28181Config;
 class SrsSipStack;
 class SrsGb28181SipService;
+class SrsGb28181Device;
 
 enum SrsGb28181SipSessionStatusType{
      SrsGb28181SipSessionUnkonw = 0,
@@ -49,6 +50,19 @@ enum SrsGb28181SipSessionStatusType{
      SrsGb28181SipSessionInviteOk = 3,
      SrsGb28181SipSessionTrying = 4,
      SrsGb28181SipSessionBye = 5,
+};
+
+class SrsGb28181Device
+{
+public:
+    SrsGb28181Device();
+    virtual ~SrsGb28181Device();
+public:
+    std::string device_id;
+    std::string device_status;
+    SrsGb28181SipSessionStatusType  invite_status; 
+    srs_utime_t  invite_time;
+    SrsSipRequest  req_inivate;
 };
 
 class SrsGb28181SipSession: public ISrsCoroutineHandler, public ISrsConnection
@@ -67,6 +81,7 @@ private:
     srs_utime_t _alive_time;
     srs_utime_t _invite_time;
     srs_utime_t _reg_expires;
+    srs_utime_t _query_catalog_time;
 
     std::string _peer_ip;
     int _peer_port;
@@ -75,9 +90,16 @@ private:
     int _fromlen;
     SrsSipRequest *req;
 
+    std::map<std::string, SrsGb28181Device*> _device_list;
+    //std::map<std::string, int> _device_status;
+    int _sip_cseq;
+
 public:
     SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipRequest* r);
     virtual ~SrsGb28181SipSession();
+
+private:
+    void destroy();
 
 public:
     void set_register_status(SrsGb28181SipSessionStatusType s) { _register_status = s;}
@@ -94,7 +116,6 @@ public:
     void set_sockaddr_len(int l) { _fromlen = l;}
     void set_request(SrsSipRequest *r) { req->copy(r);}
 
-
     SrsGb28181SipSessionStatusType register_status() { return _register_status;}
     SrsGb28181SipSessionStatusType alive_status() { return  _alive_status;}
     SrsGb28181SipSessionStatusType invite_status() { return  _invite_status;}
@@ -108,8 +129,13 @@ public:
     sockaddr  sockaddr_from() { return _from;}
     int sockaddr_fromlen() { return _fromlen;}
     SrsSipRequest request() { return *req;}
+    int sip_cseq(){ return _sip_cseq++;}
 
     std::string session_id() { return _session_id;}
+public:
+    void update_device_list(std::map<std::string, std::string> devlist);
+    SrsGb28181Device *get_device_info(std::string chid);
+    void dumps(SrsJsonObject* obj);
 
 public:
     virtual srs_error_t serve();
@@ -130,6 +156,7 @@ private:
     srs_netfd_t lfd;
 
     std::map<std::string, SrsGb28181SipSession*> sessions;
+    std::map<std::string, SrsGb28181SipSession*> sessions_by_callid;
 public:
     SrsGb28181SipService(SrsConfDirective* c);
     virtual ~SrsGb28181SipService();
@@ -140,15 +167,17 @@ public:
     virtual void set_stfd(srs_netfd_t fd);
 private:
     void destroy();
-    srs_error_t on_udp_sip(std::string host, int port, char* buf, int nb_buf, sockaddr* from, int fromlen);
+    srs_error_t on_udp_sip(std::string host, int port, std::string recv_msg, sockaddr* from, int fromlen);
 public:
     int send_message(sockaddr* f, int l, std::stringstream& ss);
    
     int send_ack(SrsSipRequest *req, sockaddr *f, int l);
     int send_status(SrsSipRequest *req, sockaddr *f, int l);
 
-    int send_invite(SrsSipRequest *req, std::string ip, int port, uint32_t ssrc);
-    int send_bye(SrsSipRequest *req);
+    srs_error_t send_invite(SrsSipRequest *req, std::string ip, int port, uint32_t ssrc, std::string chid);
+    srs_error_t send_bye(SrsSipRequest *req, std::string chid);
+    srs_error_t send_query_catalog(SrsSipRequest *req);
+    srs_error_t send_ptz(SrsSipRequest *req, std::string chid, std::string cmd, uint8_t speed, int priority);
 
     // The SIP command is transmitted through HTTP API, 
     // and the body content is transmitted to the device, 
@@ -164,7 +193,8 @@ public:
     // Content-Length: 0
     //
     //
-    int send_sip_raw_data(SrsSipRequest *req, std::string data);
+    srs_error_t send_sip_raw_data(SrsSipRequest *req, std::string data);
+    srs_error_t query_sip_session(std::string sid,  SrsJsonArray* arr);
 
 public:
     srs_error_t fetch_or_create_sip_session(SrsSipRequest *req,  SrsGb28181SipSession** sess);
@@ -172,6 +202,9 @@ public:
     void remove_session(std::string id);
     SrsGb28181Config* get_config();
     
+    void sip_session_map_by_callid(SrsGb28181SipSession *sess, std::string call_id);
+    void sip_session_unmap_by_callid(std::string call_id);
+    SrsGb28181SipSession* fetch_session_by_callid(std::string call_id);
 };
 
 #endif
