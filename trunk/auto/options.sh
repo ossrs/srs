@@ -656,10 +656,6 @@ function check_option_conflicts() {
         echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
-    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
-    fi
-
     # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
     if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
         echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
