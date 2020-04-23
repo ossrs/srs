@@ -388,6 +388,26 @@ string srs_avc_level2str(SrsAvcLevel level)
     }
 }
 
+string srs_hevc_level2str(SrsHEvcLevel level)
+{
+	switch (level) {
+		case SrsHEvcLevel_1: return "1";
+		case SrsHEvcLevel_2: return "2";
+		case SrsHEvcLevel_21: return "2.1";
+		case SrsHEvcLevel_3: return "3";
+		case SrsHEvcLevel_31: return "3.1";
+		case SrsHEvcLevel_4: return "4";
+		case SrsHEvcLevel_41: return "4.1";
+		case SrsHEvcLevel_5: return "5";
+		case SrsHEvcLevel_51: return "5.1";
+		case SrsHEvcLevel_52: return "5.2";
+		case SrsHEvcLevel_6: return "6";
+		case SrsHEvcLevel_61: return "6.1";
+		case SrsHEvcLevel_62: return "6.2";
+		default: return "Other";
+	}
+}
+
 SrsSample::SrsSample()
 {
     size = 0;
@@ -784,12 +804,12 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
 	int nal_type;
 	
     stream->read_1bytes(); // version
-    stream->read_1bytes(); // profile 2,1,5
-    vcodec->avc_profile = SrsAvcProfileHigh;
+    int8_t profile = stream->read_1bytes(); // profile 2,1,5
+    vcodec->hevc_profile = (SrsHEvcProfile)(profile & 0x1f);
     stream->read_4bytes(); // 32
 	stream->read_4bytes(); // 48
 	stream->read_2bytes();
-	vcodec->avc_level = (SrsAvcLevel)stream->read_1bytes(); // general_level_idc
+	vcodec->hevc_level = (SrsHEvcLevel)stream->read_1bytes(); // general_level_idc
 	stream->read_2bytes(); // min_spatial_segmentation_idc (12bit)
 	stream->read_1bytes(); // parallelismType (2bit) & 0x3
 	chromaFormat = stream->read_1bytes(); // chromaFormat (2bit) & 0x3
@@ -797,6 +817,9 @@ srs_error_t SrsFormat::hevc_demux_sps_pps(SrsBuffer* stream)
 	bitDepthChromaMinus8 = stream->read_1bytes(); // bitDepthChromaMinus8 (3bit) & 0x7
 	avgFrameRate = stream->read_2bytes();
 
+	srs_trace("hecv profile: %d(%s), level: %d(%s)", 
+		vcodec->hevc_profile, srs_hevc_profile2str(vcodec->hevc_profile).c_str(),
+		vcodec->hevc_level, srs_hevc_level2str(vcodec->hevc_level).c_str());
 	srs_trace("hevc avgFrameRate: %d", avgFrameRate);
 
 	chromaFormat &= 0x3;

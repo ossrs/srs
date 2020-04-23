@@ -545,6 +545,27 @@ enum SrsAvcLevel
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 
+enum SrsHEvcLevel
+{
+    SrsHEvcLevelReserved = 0,
+    
+    SrsHEvcLevel_1 = 10,
+    SrsHEvcLevel_2 = 20,
+    SrsHEvcLevel_21 = 21,
+    SrsHEvcLevel_3 = 30,
+    SrsHEvcLevel_31 = 31,
+    SrsHEvcLevel_4 = 40,
+    SrsHEvcLevel_41 = 41,
+    SrsHEvcLevel_5 = 50,
+    SrsHEvcLevel_51 = 51,
+    SrsHEvcLevel_52 = 52,
+    SrsHEvcLevel_6 = 60,
+    SrsHEvcLevel_61 = 61,
+    SrsHEvcLevel_62 = 62,
+};
+std::string srs_hevc_level2str(SrsHEvcLevel level);
+
+
 /**
  * A sample is the unit of frame.
  * It's a NALU for H.264.
@@ -651,6 +672,8 @@ public:
     SrsAvcProfile avc_profile;
     // level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
+	SrsHEvcProfile hevc_profile;
+	SrsHEvcLevel hevc_level;
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
 	std::vector<char> videoParameterSetNALUnit;

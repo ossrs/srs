@@ -81,6 +81,8 @@ public:
     SrsAvcProfile avc_profile;
     // The level_idc, ISO_IEC_14496-10-AVC-2003.pdf, page 45.
     SrsAvcLevel avc_level;
+	SrsHEvcProfile hevc_profile;
+	SrsHEvcLevel hevc_level;
     // The width and height in codec info.
     int width;
     int height;
@@ -158,8 +160,10 @@ public:
     virtual SrsStatisticClient* find_client(int cid);
 public:
     // When got video info for stream.
-    virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile,
-        SrsAvcLevel avc_level, int width, int height);
+    virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, 
+    	SrsAvcProfile avc_profile, SrsAvcLevel avc_level,
+    	SrsHEvcProfile hevc_profile, SrsHEvcLevel hevc_level,
+    	int width, int height);
     // When got audio info for stream.
     virtual srs_error_t on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate,
         SrsAudioChannels asound_type, SrsAacObjectType aac_object);
