@@ -252,9 +252,12 @@ private:
     srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
-class SrsRtcPublisher
+class SrsRtcPublisher : virtual public ISrsHourGlass
 {
-    friend class SrsRtcSession;
+private:
+    SrsHourGlass* report_timer;
+public:
+    SrsUdpMuxSocket* sendonly_ukt;
 private:
     SrsRtcSession* rtc_session;
     uint32_t video_ssrc;
@@ -268,15 +271,32 @@ private:
     SrsSource* source;
     std::string sps;
     std::string pps;
+private:
+    std::map<uint32_t, uint64_t> last_sender_report_sys_time;
+    std::map<uint32_t, SrsNtp> last_sender_report_ntp;
 public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    void initialize(uint32_t vssrc, uint32_t assrc, SrsRequest request);
+    srs_error_t initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, uint32_t assrc, SrsRequest request);
     srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
+    srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+    srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+private:
+    void check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc, SrsUdpMuxSocket* skt);
+    srs_error_t send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, SrsRtpQueue* rtp_queue);
+    srs_error_t send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ssrc);
 private:
     srs_error_t on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
     srs_error_t on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
+private:
+    srs_error_t collect_video_frame();
+    srs_error_t collect_audio_frame();
+public:
+    void update_sendonly_socket(SrsUdpMuxSocket* skt);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 };
 
 class SrsRtcSession

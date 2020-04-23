@@ -38,7 +38,7 @@ struct SrsNackOption
     SrsNackOption()
     {
         // Default nack option.
-        max_count = 5;
+        max_count = 10;
         max_alive_time = 2 * SRS_UTIME_SECONDS;
         first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
         nack_interval = 400 * SRS_UTIME_MILLISECONDS;
