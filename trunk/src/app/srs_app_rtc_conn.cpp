@@ -1614,6 +1614,10 @@ srs_error_t SrsRtcPublisher::on_rtcp_sender_report(char* buf, int nb_buf, SrsUdp
 {
     srs_error_t err = srs_success;
 
+    if (nb_buf < 28) {
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp sender report packet, nb_buf=%d", nb_buf);
+    }
+
     SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
     SrsAutoFree(SrsBuffer, stream);
 
@@ -2100,7 +2104,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const
     // TODO: FIXME: Support reload.
     sessionStunTimeout = _srs_config->get_rtc_stun_timeout(req.vhost);
 
-	rtc_publisher = new SrsRtcPublisher(this);
+	rtc_publisher = NULL;
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -2362,6 +2366,10 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxS
 
 srs_error_t SrsRtcSession::on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt)
 {
+    if (rtc_publisher == NULL) {
+        return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
+    }
+
     return rtc_publisher->on_rtcp_xr(buf, nb_buf, skt);
 }
 
@@ -2369,8 +2377,8 @@ srs_error_t SrsRtcSession::on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMu
 {
     srs_error_t err = srs_success;
 
-    if (nb_buf < 28) {
-        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp sender report packet, nb_buf=%d", nb_buf);
+    if (rtc_publisher == NULL) {
+        return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
     }
 
     return rtc_publisher->on_rtcp_sender_report(buf, nb_buf, skt);
@@ -2447,34 +2455,25 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 srs_error_t SrsRtcSession::on_connection_established(SrsUdpMuxSocket* skt)
 {
-	// FIXME:
-    if (true)
-    {
-        uint32_t video_ssrc = 0;
-        uint32_t audio_ssrc = 0;
-        uint16_t video_payload_type = 0;
-        uint16_t audio_payload_type = 0;
-        for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
-            const SrsMediaDesc& media_desc = remote_sdp.media_descs_[i];
-            if (media_desc.is_audio()) {
-                if (! media_desc.ssrc_infos_.empty()) {
-                    audio_ssrc = media_desc.ssrc_infos_[0].ssrc_;
-                    audio_payload_type = media_desc.payload_types_[0].payload_type_;
-                }
-            } else if (media_desc.is_video()) {
-                if (! media_desc.ssrc_infos_.empty()) {
-                    video_ssrc = media_desc.ssrc_infos_[0].ssrc_;
-                    video_payload_type = media_desc.payload_types_[0].payload_type_;
-                }
-            }
-        }
-
-        // FIXME: err process.
-        rtc_publisher->initialize(skt, video_ssrc, audio_ssrc, request);
-    }
+    srs_error_t err = srs_success;
 
     srs_trace("rtc session=%s, to=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
-    return start_play(skt);
+
+    if (! local_sdp.media_descs_.empty() && 
+        (local_sdp.media_descs_.back().recvonly_ || local_sdp.media_descs_.back().sendrecv_)) {
+        if ((err = start_publish(skt)) != srs_success) {
+            return srs_error_wrap(err, "start publish");
+        }
+    }
+
+    if (! local_sdp.media_descs_.empty() && 
+        (local_sdp.media_descs_.back().sendonly_ || local_sdp.media_descs_.back().sendrecv_)) {
+        if ((err = start_play(skt)) != srs_success) {
+            return srs_error_wrap(err, "start play");
+        }
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcSession::start_play(SrsUdpMuxSocket* skt)
@@ -2505,6 +2504,39 @@ srs_error_t SrsRtcSession::start_play(SrsUdpMuxSocket* skt)
 
     if ((err = strd->start()) != srs_success) {
         return srs_error_wrap(err, "start SrsRtcSenderThread");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSession::start_publish(SrsUdpMuxSocket* skt)
+{
+    srs_error_t err = srs_success;
+
+	rtc_publisher = new SrsRtcPublisher(this);
+
+    uint32_t video_ssrc = 0;
+    uint32_t audio_ssrc = 0;
+    uint16_t video_payload_type = 0;
+    uint16_t audio_payload_type = 0;
+    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& media_desc = remote_sdp.media_descs_[i];
+        if (media_desc.is_audio()) {
+            if (! media_desc.ssrc_infos_.empty()) {
+                audio_ssrc = media_desc.ssrc_infos_[0].ssrc_;
+                audio_payload_type = media_desc.payload_types_[0].payload_type_;
+            }
+        } else if (media_desc.is_video()) {
+            if (! media_desc.ssrc_infos_.empty()) {
+                video_ssrc = media_desc.ssrc_infos_[0].ssrc_;
+                video_payload_type = media_desc.payload_types_[0].payload_type_;
+            }
+        }
+    }
+
+    // FIXME: err process.
+    if ((err = rtc_publisher->initialize(skt, video_ssrc, audio_ssrc, request)) != srs_success) {
+        return srs_error_wrap(err, "rtc publisher init");
     }
 
     return err;
@@ -2598,6 +2630,10 @@ srs_error_t SrsRtcSession::on_rtcp(SrsUdpMuxSocket* skt)
 srs_error_t SrsRtcSession::on_rtp(SrsUdpMuxSocket* skt)
 {
     srs_error_t err = srs_success;
+
+    if (rtc_publisher == NULL) {
+        return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
+    }
 
     if (dtls_session == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");

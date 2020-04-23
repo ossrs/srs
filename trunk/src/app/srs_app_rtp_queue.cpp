@@ -127,8 +127,8 @@ void SrsRtpNackList::get_nack_seqs(vector<uint16_t>& seqs)
 
 void SrsRtpNackList::update_rtt(int rtt)
 {
-    rtt_ = rtt;
-    srs_verbose("NACK, update rtt from %ld to %d", opts_.nack_interval, rtt);
+    rtt_ = rtt * SRS_UTIME_MILLISECONDS;
+    srs_verbose("NACK, update rtt from %ld to %d", opts_.nack_interval, rtt_);
     // FIXME: limit min and max value.
     opts_.nack_interval = rtt_;
 }
@@ -182,7 +182,9 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
     } else {
         SrsRtpNackInfo* nack_info = NULL;
         if ((nack_info = nack_.find(seq)) != NULL) {
-            srs_verbose("seq=%u, alive time=%d, nack count=%d, rtx success", seq, now - nack_info->generate_time_, nack_info->req_nack_count_);
+            int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
+            srs_verbose("seq=%u, alive time=%d, nack count=%d, rtx success, resend use %dms", 
+                seq, now - nack_info->generate_time_, nack_info->req_nack_count_, nack_rtt);
             nack_.remove(seq);
         } else {
             // Calc jitter.

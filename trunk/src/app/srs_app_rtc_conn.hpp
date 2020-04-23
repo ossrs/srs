@@ -358,6 +358,7 @@ public:
     srs_error_t send_client_hello(SrsUdpMuxSocket* skt);
     srs_error_t on_connection_established(SrsUdpMuxSocket* skt);
     srs_error_t start_play(SrsUdpMuxSocket* skt);
+    srs_error_t start_publish(SrsUdpMuxSocket* skt);
 public:
     bool is_stun_timeout();
 private:

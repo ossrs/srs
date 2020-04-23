@@ -1086,11 +1086,13 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
         local_media_desc.rtcp_mux_ = true;
         local_media_desc.rtcp_rsize_ = true;
 
-        SrsSSRCInfo ssrc_info;
-        ssrc_info.ssrc_ = ++ssrc_num;
-        // TODO:use formated cname
-        ssrc_info.cname_ = "test_sdp_cname";
-        local_media_desc.ssrc_infos_.push_back(ssrc_info);
+        if (local_media_desc.recvonly_ || local_media_desc.sendrecv_) {
+            SrsSSRCInfo ssrc_info;
+            ssrc_info.ssrc_ = ++ssrc_num;
+            // TODO:use formated cname
+            ssrc_info.cname_ = "test_sdp_cname";
+            local_media_desc.ssrc_infos_.push_back(ssrc_info);
+        }
     }
 
     return err;
@@ -1381,10 +1383,12 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
 
         local_media_desc.rtcp_mux_ = true;
 
-        SrsSSRCInfo ssrc_info;
-        ssrc_info.ssrc_ = ++ssrc_num;
-        ssrc_info.cname_ = "test_sdp_cname";
-        local_media_desc.ssrc_infos_.push_back(ssrc_info);
+        if (local_media_desc.recvonly_ || local_media_desc.sendrecv_) {
+            SrsSSRCInfo ssrc_info;
+            ssrc_info.ssrc_ = ++ssrc_num;
+            ssrc_info.cname_ = "test_sdp_cname";
+            local_media_desc.ssrc_infos_.push_back(ssrc_info);
+        }
     }
 
     return err;
