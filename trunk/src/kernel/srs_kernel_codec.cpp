@@ -356,6 +356,17 @@ string srs_avc_profile2str(SrsAvcProfile profile)
     }
 }
 
+string srs_hevc_profile2str(SrsHEvcProfile profile)
+{
+	switch (profile) {
+        case SrsHEvcProfileMain: return "Main";
+        case SrsHEvcProfileMain10: return "Main10";
+		case SrsHEvcProfileMainStillPicture: return "MainStillPicture";
+		case SrsHEvcProfileRext: return "Rext";
+        default: return "Other";
+    }
+}
+
 string srs_avc_level2str(SrsAvcLevel level)
 {
     switch (level) {
@@ -1013,27 +1024,26 @@ srs_error_t SrsFormat::hevc_demux_sps()
 	// 7.4.1 NAL unit semantics
 	// ISO_IEC_14496-10-AVC-2012.pdf, page 61.
 	// nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-	SrsHEvcNaluType nal_unit_type = (SrsHEvcNaluType)((nutv >> 9) & 0x3f);
+	SrsHEvcNaluType nal_unit_type = (SrsHEvcNaluType)((nutv & 0x7e00) >> 9);
 	if (nal_unit_type != SrsHEvcNaluTypeSPS) {
-		return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 33");
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 33: %d", nal_unit_type);
 	}
 	
 	// decode the rbsp from sps.
 	// rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
 	std::vector<int8_t> rbsp(vcodec->sequenceParameterSetNALUnit.size());
 
-	SrsBuffer stream2(sps, nbsps);
 	int nb_rbsp = 0;
-	while (!stream2.empty()) {
-		rbsp[nb_rbsp] = stream2.read_1bytes();
+	while (!stream.empty()) {
+		rbsp[nb_rbsp] = stream.read_1bytes();
 		
 		// XX 00 00 03 XX, the 03 byte should be drop.
 		if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
 			// read 1byte more.
-			if (stream2.empty()) {
+			if (stream.empty()) {
 				break;
 			}
-			rbsp[nb_rbsp] = stream2.read_1bytes();
+			rbsp[nb_rbsp] = stream.read_1bytes();
 			nb_rbsp++;
 			
 			continue;
@@ -1050,7 +1060,7 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 {
 	srs_error_t err = srs_success;
 
-	if (vcodec->sequenceParameterSetNALUnit.empty()) {
+	if (!avc_parse_sps) {
         return err;
     }
 
@@ -1089,32 +1099,30 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 
 		int8_t general_level_idc = stream.read_1bytes();
 		srs_trace("general_level_idc: %d", general_level_idc);
-		int16_t flags = stream.read_2bytes();
-		uint8_t sub_layer_profile_present_flag[6] = {0};
-		uint8_t sub_layer_level_present_flag[6]   = {0};
-		for (int i = 0; i < sps_max_sub_layers_minus1; i++) {
-			sub_layer_profile_present_flag[i] = (flags >> (16 - i - 1)) & 0x1;
-			sub_layer_level_present_flag[i] = (flags >> (16 - i - 1 - 1)) & 0x1;
-		}
-		if (sps_max_sub_layers_minus1 > 0) 
-		{
+		if (sps_max_sub_layers_minus1 > 0) {
+			int16_t flags = stream.read_2bytes();
+			uint8_t sub_layer_profile_present_flag[6] = {0};
+			uint8_t sub_layer_level_present_flag[6]   = {0};
+			for (int i = 0; i < sps_max_sub_layers_minus1; i++) {
+				sub_layer_profile_present_flag[i] = (flags >> (16 - i - 1)) & 0x1;
+				sub_layer_level_present_flag[i] = (flags >> (16 - i - 1 - 1)) & 0x1;
+			}
 			for (int i = sps_max_sub_layers_minus1; i < 8; i++) {
 				//uint8_t reserved_zero_2bits = bs.GetWord(2);
 			}
-		}
-		for (int i = 0; i < sps_max_sub_layers_minus1; i++) 
-		{
-			if (sub_layer_profile_present_flag[i]) {
-				// 2 1 5
-				stream.read_1bytes();
-					// 32 
+			for (int i = 0; i < sps_max_sub_layers_minus1; i++) {
+				if (sub_layer_profile_present_flag[i]) {
+					// 2 1 5
+					stream.read_1bytes();
+						// 32 
+						stream.read_4bytes();
+					// 1 1 1 1 44
 					stream.read_4bytes();
-				// 1 1 1 1 44
-				stream.read_4bytes();
-				stream.read_2bytes();
-			}
-			if (sub_layer_level_present_flag[i]) {
-				stream.read_1bytes();// sub_layer_level_idc[i]
+					stream.read_2bytes();
+				}
+				if (sub_layer_level_present_flag[i]) {
+					stream.read_1bytes();// sub_layer_level_idc[i]
+				}
 			}
 		}
 	}
@@ -1125,18 +1133,19 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
     if ((err = srs_avc_nalu_read_uev(&bs, sps_seq_parameter_set_id)) != srs_success) {
         return srs_error_wrap(err, "read seq_parameter_set_id");
     }
-    //if (sps_seq_parameter_set_id > 15) {
-    //    return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the sps_seq_parameter_set_id invalid: %d", sps_seq_parameter_set_id);
-    //}
+    if (sps_seq_parameter_set_id > 15) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the sps_seq_parameter_set_id invalid: %d", sps_seq_parameter_set_id);
+    }
 	srs_trace("sps_seq_parameter_set_id %d", sps_seq_parameter_set_id);
 
 	int32_t chroma_format_idc = -1;
 	if ((err = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != srs_success) {
 		return srs_error_wrap(err, "read chroma_format_idc");
 	}
-	//if (chroma_format_idc > 3) {
-	//	return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the chroma_format_idc invalid: %d", chroma_format_idc);
-	//}
+	srs_trace("chroma_format_idc %d", chroma_format_idc);
+	if (chroma_format_idc > 3) {
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps the chroma_format_idc invalid: %d", chroma_format_idc);
+	}
 	if (chroma_format_idc == 3) {
 		// not supported
 		//bs.GetWord(1);
@@ -1153,6 +1162,13 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
 		return srs_error_wrap(err, "read height");
 	}
 
+	/*
+	sub_width_c  = ((1==chroma_format_idc)||(2 == chroma_format_idc))&&(0==separate_colour_plane_flag)?2:1;
+	sub_height_c = (1==chroma_format_idc)&& (0 == separate_colour_plane_flag)?2:1;
+	width  -= (sub_width_c*conf_win_right_offset + sub_width_c*conf_win_left_offset);
+	height -= (sub_height_c*conf_win_bottom_offset + sub_height_c*conf_win_top_offset);
+	*/
+	
 	srs_trace("hevc width %d, height %d", pic_width_in_luma_samples, pic_height_in_luma_samples);
 
 	vcodec->width = pic_width_in_luma_samples;

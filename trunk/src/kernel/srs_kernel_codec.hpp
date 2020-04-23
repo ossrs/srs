@@ -508,6 +508,18 @@ enum SrsAvcProfile
 };
 std::string srs_avc_profile2str(SrsAvcProfile profile);
 
+enum SrsHEvcProfile
+{
+	SrsHEvcProfileReserved = 0,
+    
+    // @see ffmpeg, libavcodec/avcodec.h:2713
+    SrsHEvcProfileMain = 1,
+    SrsHEvcProfileMain10 = 2,
+    SrsHEvcProfileMainStillPicture = 3,
+    SrsHEvcProfileRext = 4,
+};
+std::string srs_hevc_profile2str(SrsHEvcProfile profile);
+
 /**
  * the level for avc/h.264.
  * @see Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 207.
