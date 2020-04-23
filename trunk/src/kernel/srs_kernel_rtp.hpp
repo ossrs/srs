@@ -37,6 +37,17 @@ const uint8_t kRtpMarker = 0x80;
 // H.264 nalu header type mask.
 const uint8_t kNalTypeMask      = 0x1F;
 
+// @see: https://tools.ietf.org/html/rfc6184#section-5.2
+const uint8_t kStapA            = 24;
+
+// @see: https://tools.ietf.org/html/rfc6184#section-5.2
+const uint8_t kFuA              = 28;
+
+// @see: https://tools.ietf.org/html/rfc6184#section-5.8
+const uint8_t kStart            = 0x80; // Fu-header start bit
+const uint8_t kEnd              = 0x40; // Fu-header end bit
+
+
 class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
@@ -45,6 +56,7 @@ class SrsRtpHeader
 {
 private:
     bool padding;
+    uint8_t padding_length;
     bool extension;
     uint8_t cc;
     bool marker;
@@ -76,6 +88,8 @@ public:
     inline void set_ssrc(uint32_t v) { ssrc = v; }
     uint32_t get_ssrc() const { return ssrc; }
     inline void set_padding(bool v) { padding = v; }
+    inline void set_padding_length(uint8_t v) { padding_length = v; }
+    uint8_t get_padding_length() const { return padding_length; }
 };
 
 class SrsRtpPacket2
@@ -212,6 +226,40 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
 };
 
+class SrsRtpPayloadHeader
+{
+public:
+    bool is_first_packet_of_frame;
+    bool is_last_packet_of_frame;
+public:
+    SrsRtpPayloadHeader();
+    virtual ~SrsRtpPayloadHeader();
+    SrsRtpPayloadHeader(const SrsRtpPayloadHeader& rhs);
+    SrsRtpPayloadHeader& operator=(const SrsRtpPayloadHeader& rhs);
+};
+
+class SrsRtpOpusHeader : public SrsRtpPayloadHeader
+{
+public:
+    SrsRtpOpusHeader();
+    virtual ~SrsRtpOpusHeader();
+    SrsRtpOpusHeader(const SrsRtpOpusHeader& rhs);
+    SrsRtpOpusHeader& operator=(const SrsRtpOpusHeader& rhs);
+};
+
+class SrsRtpH264Header : public SrsRtpPayloadHeader
+{
+public:
+    uint8_t nalu_type;
+    uint8_t nalu_header;
+    std::vector<std::pair<size_t, size_t> > nalu_offset; // offset, size
+public:
+    SrsRtpH264Header();
+    virtual ~SrsRtpH264Header();
+    SrsRtpH264Header(const SrsRtpH264Header& rhs);
+    SrsRtpH264Header& operator=(const SrsRtpH264Header& rhs);
+};
+
 class SrsRtpSharedPacket
 {
 private:
@@ -230,14 +278,19 @@ private:
     SrsRtpSharedPacketPayload* payload_ptr;
 public:
     SrsRtpHeader rtp_header;
+    SrsRtpPayloadHeader* rtp_payload_header;
     char* payload;
     int size;
 public:
     SrsRtpSharedPacket();
     virtual ~SrsRtpSharedPacket();
 public:
-    srs_error_t create(int64_t timestamp, uint16_t sequence, uint32_t ssrc, uint16_t payload_type, char* payload, int size);
+    srs_error_t create(SrsRtpHeader* rtp_h, SrsRtpPayloadHeader* rtp_ph, char* p, int s);
+    srs_error_t decode(char* buf, int nb_buf);
     SrsRtpSharedPacket* copy();
+public:
+    char* rtp_payload() { return payload + rtp_header.header_size(); }
+    int rtp_payload_size() { return size - rtp_header.header_size() - rtp_header.get_padding_length(); }
 // Interface to modify rtp header 
 public:
     srs_error_t modify_rtp_header_marker(bool marker);

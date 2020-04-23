@@ -78,6 +78,15 @@ public:
     srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
 };
 
+class SrsRtpH264Demuxer
+{
+public:
+    SrsRtpH264Demuxer();
+    virtual ~SrsRtpH264Demuxer();
+public:
+    srs_error_t parse(SrsRtpSharedPacket* rtp_pkt);
+};
+
 class SrsRtc
 {
 private:

@@ -51,6 +51,8 @@ class SrsSharedPtrMessage;
 class SrsSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
+class SrsRtpQueue;
+class SrsRtpH264Demuxer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -61,12 +63,30 @@ const uint8_t kApp  = 204;
 // @see: https://tools.ietf.org/html/rfc4585#section-6.1
 const uint8_t kRtpFb = 205;
 const uint8_t kPsFb  = 206;
+const uint8_t kXR    = 207;
 
 // @see: https://tools.ietf.org/html/rfc4585#section-6.3
 const uint8_t kPLI  = 1;
 const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
+
+class SrsNtp
+{
+public:
+    uint64_t system_ms_;
+    uint64_t ntp_;
+    uint32_t ntp_second_;
+    uint32_t ntp_fractions_;
+public:
+    SrsNtp();
+    virtual ~SrsNtp();
+public:
+    static SrsNtp from_time_ms(uint64_t ms);
+    static SrsNtp to_time_ms(uint64_t ntp);
+public:
+    static uint64_t kMagicNtpFractionalUnit;
+};
 
 enum SrsRtcSessionStateType
 {
@@ -232,9 +252,37 @@ private:
     srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
+class SrsRtcPublisher
+{
+    friend class SrsRtcSession;
+private:
+    SrsRtcSession* rtc_session;
+    uint32_t video_ssrc;
+    uint32_t audio_ssrc;
+private:
+    SrsRtpH264Demuxer* rtp_h264_demuxer;
+    SrsRtpQueue* rtp_video_queue;
+    SrsRtpQueue* rtp_audio_queue;
+private:
+    SrsRequest request;
+    SrsSource* source;
+    std::string sps;
+    std::string pps;
+public:
+    SrsRtcPublisher(SrsRtcSession* session);
+    virtual ~SrsRtcPublisher();
+public:
+    void initialize(uint32_t vssrc, uint32_t assrc, SrsRequest request);
+    srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
+private:
+    srs_error_t on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
+    srs_error_t on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
+};
+
 class SrsRtcSession
 {
     friend class SrsRtcSenderThread;
+    friend class SrsRtcPublisher;
 private:
     SrsRtcServer* rtc_server;
     SrsSdp  remote_sdp;
@@ -258,6 +306,8 @@ private:
 public:
     SrsRequest request;
     SrsSource* source;
+private:
+    SrsRtcPublisher* rtc_publisher;
 public:
     SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
@@ -283,6 +333,7 @@ public:
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp(SrsUdpMuxSocket* skt);
+    srs_error_t on_rtp(SrsUdpMuxSocket* skt);
 public:
     srs_error_t send_client_hello(SrsUdpMuxSocket* skt);
     srs_error_t on_connection_established(SrsUdpMuxSocket* skt);
@@ -296,6 +347,8 @@ private:
 private:
     srs_error_t on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+    srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+    srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
 };
 

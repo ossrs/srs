@@ -212,6 +212,80 @@ srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* 
     return err;
 }
 
+SrsRtpH264Demuxer::SrsRtpH264Demuxer()
+{
+}
+
+SrsRtpH264Demuxer::~SrsRtpH264Demuxer()
+{
+}
+
+srs_error_t SrsRtpH264Demuxer::parse(SrsRtpSharedPacket* rtp_pkt)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpH264Header* rtp_h264_header = dynamic_cast<SrsRtpH264Header*>(rtp_pkt->rtp_payload_header);
+    if (rtp_h264_header == NULL) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid rtp packet");
+    }
+
+    uint8_t* rtp_payload = reinterpret_cast<uint8_t*>(rtp_pkt->rtp_payload());
+    int rtp_payload_size = rtp_pkt->rtp_payload_size();
+
+    if (rtp_payload_size == 0) {
+        srs_verbose("seq=%u, empty payload", rtp_pkt->rtp_header.get_sequence());
+        return err;
+    }
+
+    uint8_t nal_type = rtp_payload[0] & kNalTypeMask;
+
+    if (nal_type >= 1 && nal_type <= 23) {
+        srs_verbose("seq=%u, single nalu", rtp_pkt->rtp_header.get_sequence());
+        rtp_h264_header->is_first_packet_of_frame = true;
+        rtp_h264_header->is_last_packet_of_frame = true;
+        rtp_h264_header->nalu_type = nal_type;
+        rtp_h264_header->nalu_header = rtp_payload[0];
+        rtp_h264_header->nalu_offset.push_back(make_pair(0, rtp_payload_size));
+    } else if (nal_type == kFuA) {
+        srs_verbose("seq=%u, fu-a", rtp_pkt->rtp_header.get_sequence());
+        if ((rtp_payload[1] & kStart)) {
+            rtp_h264_header->is_first_packet_of_frame = true;
+        }
+        if ((rtp_payload[1] & kEnd)) {
+            rtp_h264_header->is_last_packet_of_frame = true;
+        }
+        rtp_h264_header->nalu_type = nal_type;
+        rtp_h264_header->nalu_header = (rtp_payload[0] & (~kNalTypeMask)) | (rtp_payload[1] & kNalTypeMask);
+        rtp_h264_header->nalu_offset.push_back(make_pair(2, rtp_payload_size - 2));
+    } else if (nal_type == kStapA) {
+        srs_verbose("seq=%u, stap-a", rtp_pkt->rtp_header.get_sequence());
+        int i = 1;
+        rtp_h264_header->is_first_packet_of_frame = true;
+        rtp_h264_header->is_last_packet_of_frame = true;
+        rtp_h264_header->nalu_type = nal_type;
+        while (i < rtp_payload_size) {
+            srs_verbose("stap-a cur index=%s", srs_string_dumps_hex(reinterpret_cast<const char*>(rtp_payload + i), 2).c_str());
+            uint16_t nal_len = (rtp_payload[i]) << 8 | rtp_payload[i + 1];
+            if (nal_len > rtp_payload_size - i) {
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid stap-a packet, nal len=%u, i=%d, rtp_payload_size=%d", nal_len, i, rtp_payload_size);
+            }
+
+            rtp_h264_header->nalu_offset.push_back(make_pair(i + 2, nal_len));
+
+            i += nal_len + 2;
+        }
+
+        if (i != rtp_payload_size) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid stap-a packet");
+        } 
+    } else {
+        srs_verbose("payload size=%d, payload=%s", rtp_payload_size, srs_string_dumps_hex(rtp_pkt->payload, rtp_pkt->size).c_str());
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid h264 rtp packet");
+    }
+
+    return err;
+}
+
 SrsRtc::SrsRtc()
 {
     req = NULL;

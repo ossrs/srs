@@ -32,19 +32,10 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 
-// @see: https://tools.ietf.org/html/rfc6184#section-5.2
-const uint8_t kStapA            = 24;
-
-// @see: https://tools.ietf.org/html/rfc6184#section-5.2
-const uint8_t kFuA              = 28;
-
-// @see: https://tools.ietf.org/html/rfc6184#section-5.8
-const uint8_t kStart            = 0x80; // Fu-header start bit
-const uint8_t kEnd              = 0x40; // Fu-header end bit
-
 SrsRtpHeader::SrsRtpHeader()
 {
     padding          = false;
+    padding_length   = 0;
     extension        = false;
     cc               = 0;
     marker           = false;
@@ -72,9 +63,70 @@ SrsRtpHeader::~SrsRtpHeader()
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
 {
-    srs_error_t err = srs_success;
+	srs_error_t err = srs_success;
 
-    // TODO: FIXME: Implements it.
+    if (stream->size() < kRtpHeaderFixedSize) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    }
+
+	/*   
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                           timestamp                           |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |           synchronization source (SSRC) identifier            |
+     +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+     |            contributing source (CSRC) identifiers             |
+     |                             ....                              |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
+
+    uint8_t first = stream->read_1bytes();
+    padding = (first & 0x20);
+    extension = (first & 0x10);
+    cc = (first & 0x0F);
+
+    uint8_t second = stream->read_1bytes();
+    marker = (second & 0x80);
+    payload_type = (second & 0x7F);
+
+    sequence = stream->read_2bytes();
+    timestamp = stream->read_4bytes();
+    ssrc = stream->read_4bytes();
+
+    if (stream->size() < header_size()) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    }
+
+    for (uint8_t i = 0; i < cc; ++i) {
+        csrc[i] = stream->read_4bytes();
+    }    
+
+    if (extension) {
+        // TODO:
+        uint16_t profile_id = stream->read_2bytes();
+        extension_length = stream->read_2bytes();
+        // @see: https://tools.ietf.org/html/rfc3550#section-5.3.1
+        stream->skip(extension_length * 4);
+
+        srs_verbose("extension, profile_id=%u, length=%u", profile_id, extension_length);
+
+        // @see: https://tools.ietf.org/html/rfc5285#section-4.2
+        if (profile_id == 0xBEDE) {
+        }    
+    }
+
+    if (padding) {
+        padding_length = *(reinterpret_cast<uint8_t*>(stream->data() + stream->size() - 1));
+        if (padding_length > (stream->size() - stream->pos())) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+        }
+
+        srs_verbose("offset=%d, padding_length=%u", stream->size(), padding_length);
+    }
 
     return err;
 }
@@ -173,6 +225,7 @@ SrsRtpPacket2::~SrsRtpPacket2()
 void SrsRtpPacket2::set_padding(int size)
 {
     rtp_header.set_padding(size > 0);
+    rtp_header.set_padding_length(size);
     if (cache_payload) {
         cache_payload += size - padding;
     }
@@ -182,6 +235,7 @@ void SrsRtpPacket2::set_padding(int size)
 void SrsRtpPacket2::add_padding(int size)
 {
     rtp_header.set_padding(padding + size > 0);
+    rtp_header.set_padding_length(rtp_header.get_padding_length() + size);
     if (cache_payload) {
         cache_payload += size;
     }
@@ -552,6 +606,69 @@ srs_error_t SrsRtpFUAPayload2::encode(SrsBuffer* buf)
     return srs_success;
 }
 
+SrsRtpPayloadHeader::SrsRtpPayloadHeader()
+{
+    is_first_packet_of_frame = false;
+    is_last_packet_of_frame = false;
+}
+
+SrsRtpPayloadHeader::~SrsRtpPayloadHeader()
+{
+}
+
+SrsRtpPayloadHeader::SrsRtpPayloadHeader(const SrsRtpPayloadHeader& rhs)
+{
+    operator=(rhs);
+}
+
+SrsRtpPayloadHeader& SrsRtpPayloadHeader::operator=(const SrsRtpPayloadHeader& rhs)
+{
+    is_first_packet_of_frame = rhs.is_first_packet_of_frame;
+    is_last_packet_of_frame = rhs.is_last_packet_of_frame;
+}
+
+SrsRtpH264Header::SrsRtpH264Header() : SrsRtpPayloadHeader()
+{
+}
+
+SrsRtpH264Header::~SrsRtpH264Header()
+{
+}
+
+SrsRtpH264Header::SrsRtpH264Header(const SrsRtpH264Header& rhs)
+{
+    operator=(rhs);
+}
+
+SrsRtpH264Header& SrsRtpH264Header::operator=(const SrsRtpH264Header& rhs)
+{
+    SrsRtpPayloadHeader::operator=(rhs);
+    nalu_type = rhs.nalu_type;
+    nalu_header = rhs.nalu_header;
+    nalu_offset = rhs.nalu_offset;
+
+    return *this;
+}
+
+SrsRtpOpusHeader::SrsRtpOpusHeader() : SrsRtpPayloadHeader()
+{
+}
+
+SrsRtpOpusHeader::~SrsRtpOpusHeader()
+{
+}
+
+SrsRtpOpusHeader::SrsRtpOpusHeader(const SrsRtpOpusHeader& rhs)
+{
+    operator=(rhs);
+}
+
+SrsRtpOpusHeader& SrsRtpOpusHeader::operator=(const SrsRtpOpusHeader& rhs)
+{
+    SrsRtpPayloadHeader::operator=(rhs);
+    return *this;
+}
+
 SrsRtpSharedPacket::SrsRtpSharedPacketPayload::SrsRtpSharedPacketPayload()
 {
     payload = NULL;
@@ -570,6 +687,8 @@ SrsRtpSharedPacket::SrsRtpSharedPacket()
 
     payload = NULL;
     size = 0;
+
+    rtp_payload_header = NULL;
 }
 
 SrsRtpSharedPacket::~SrsRtpSharedPacket()
@@ -581,9 +700,11 @@ SrsRtpSharedPacket::~SrsRtpSharedPacket()
             --payload_ptr->shared_count;
         }
     }
+
+    srs_freep(rtp_payload_header);
 }
 
-srs_error_t SrsRtpSharedPacket::create(int64_t timestamp, uint16_t sequence, uint32_t ssrc, uint16_t payload_type, char* p, int s)
+srs_error_t SrsRtpSharedPacket::create(SrsRtpHeader* rtp_h, SrsRtpPayloadHeader* rtp_ph, char* p, int s)
 {
     srs_error_t err = srs_success;
 
@@ -593,10 +714,8 @@ srs_error_t SrsRtpSharedPacket::create(int64_t timestamp, uint16_t sequence, uin
 
     srs_assert(!payload_ptr);
 
-    rtp_header.set_timestamp(timestamp);
-    rtp_header.set_sequence(sequence);
-    rtp_header.set_ssrc(ssrc);
-    rtp_header.set_payload_type(payload_type);
+    this->rtp_header = *rtp_h;
+    this->rtp_payload_header = rtp_ph;
 
     // TODO: rtp header padding.
     size_t buffer_size = rtp_header.header_size() + s;
@@ -619,6 +738,25 @@ srs_error_t SrsRtpSharedPacket::create(int64_t timestamp, uint16_t sequence, uin
     return err;
 }
 
+srs_error_t SrsRtpSharedPacket::decode(char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+
+    SrsBuffer stream(buf, nb_buf);
+    if ((err = rtp_header.decode(&stream)) != srs_success) {
+        return srs_error_wrap(err, "rtp header decode failed");
+    }
+
+    payload_ptr = new SrsRtpSharedPacketPayload();
+    payload_ptr->payload = buf;
+    payload_ptr->size = nb_buf;
+
+    this->payload = payload_ptr->payload;
+    this->size = payload_ptr->size;
+
+    return err;
+}
+
 SrsRtpSharedPacket* SrsRtpSharedPacket::copy()
 {
     SrsRtpSharedPacket* copy = new SrsRtpSharedPacket();
@@ -627,6 +765,11 @@ SrsRtpSharedPacket* SrsRtpSharedPacket::copy()
     payload_ptr->shared_count++;
 
     copy->rtp_header = rtp_header;
+    if (dynamic_cast<SrsRtpH264Header*>(rtp_payload_header)) {
+        copy->rtp_payload_header = new SrsRtpH264Header(*(dynamic_cast<SrsRtpH264Header*>(rtp_payload_header)));
+    } else if (dynamic_cast<SrsRtpOpusHeader*>(rtp_payload_header)) {
+        copy->rtp_payload_header = new SrsRtpOpusHeader(*(dynamic_cast<SrsRtpOpusHeader*>(rtp_payload_header)));
+    }
 
     copy->payload = payload;
     copy->size = size;
