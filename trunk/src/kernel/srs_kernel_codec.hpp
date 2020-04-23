@@ -548,20 +548,21 @@ std::string srs_avc_level2str(SrsAvcLevel level);
 enum SrsHEvcLevel
 {
     SrsHEvcLevelReserved = 0,
-    
-    SrsHEvcLevel_1 = 10,
-    SrsHEvcLevel_2 = 20,
-    SrsHEvcLevel_21 = 21,
-    SrsHEvcLevel_3 = 30,
-    SrsHEvcLevel_31 = 31,
-    SrsHEvcLevel_4 = 40,
-    SrsHEvcLevel_41 = 41,
-    SrsHEvcLevel_5 = 50,
-    SrsHEvcLevel_51 = 51,
-    SrsHEvcLevel_52 = 52,
-    SrsHEvcLevel_6 = 60,
-    SrsHEvcLevel_61 = 61,
-    SrsHEvcLevel_62 = 62,
+
+	// refer to https://gist.github.com/yohhoy/2abc28b611797e7b407ae98faa7430e7
+    SrsHEvcLevel_1 = 30,
+    SrsHEvcLevel_2 = 60,
+    SrsHEvcLevel_21 = 63,
+    SrsHEvcLevel_3 = 90,
+    SrsHEvcLevel_31 = 93,
+    SrsHEvcLevel_4 = 120,
+    SrsHEvcLevel_41 = 123,
+    SrsHEvcLevel_5 = 150,
+    SrsHEvcLevel_51 = 153,
+    SrsHEvcLevel_52 = 156,
+    SrsHEvcLevel_6 = 180,
+    SrsHEvcLevel_61 = 183,
+    SrsHEvcLevel_62 = 186,
 };
 std::string srs_hevc_level2str(SrsHEvcLevel level);
 
