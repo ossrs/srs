@@ -79,6 +79,8 @@ class SrsRtpNackList
 private:
     // Nack queue, seq order, oldest to newest.
     std::map<uint16_t, SrsRtpNackInfo, SeqComp> queue_;
+    // Max nack count.
+    size_t max_queue_size_;
     SrsRtpQueue* rtp_queue_;
     SrsNackOption opts_;
 private:
@@ -86,14 +88,13 @@ private:
 private:
     int rtt_;
 public:
-    SrsRtpNackList(SrsRtpQueue* rtp_queue);
+    SrsRtpNackList(SrsRtpQueue* rtp_queue, size_t queue_size);
     virtual ~SrsRtpNackList();
 public:
     void insert(uint16_t seq);
     void remove(uint16_t seq);
     SrsRtpNackInfo* find(uint16_t seq);
-public:
-    void dump();
+    void check_queue_size();
 public:
     void get_nack_seqs(std::vector<uint16_t>& seqs);
 public:
@@ -109,7 +110,7 @@ private:
      *                                        \___(no received, in nack list)
      */
     // Capacity of the ring-buffer.
-    size_t   capacity_;
+    uint16_t capacity_;
     // Thei highest sequence we have receive.
     uint16_t highest_sequence_;
     // The sequence waitting to read.
@@ -132,6 +133,7 @@ public:
     SrsRtpNackList nack_;
 private:
     std::vector<std::vector<SrsRtpSharedPacket*> > frames_;
+    bool request_key_frame_;
 public:
     SrsRtpQueue(size_t capacity = 1024, bool one_packet_per_frame = false);
     virtual ~SrsRtpQueue();
@@ -140,7 +142,9 @@ public:
     srs_error_t remove(uint16_t seq);
 public:
     void get_and_clean_collected_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
+    bool get_and_clean_if_needed_rqeuest_key_frame();
     void notify_drop_seq(uint16_t seq);
+    void notify_nack_list_full();
 public:
     uint32_t get_extended_highest_sequence();
     uint8_t get_fraction_lost();

@@ -1495,6 +1495,7 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 
     rtc_session = session;
     rtp_h264_demuxer = new SrsRtpH264Demuxer();
+    rtp_opus_demuxer = new SrsRtpOpusDemuxer();
     rtp_video_queue = new SrsRtpQueue(1000);
     rtp_audio_queue = new SrsRtpQueue(100, true);
 
@@ -1505,6 +1506,7 @@ SrsRtcPublisher::~SrsRtcPublisher()
 {
     srs_freep(report_timer);
     srs_freep(rtp_h264_demuxer);
+    srs_freep(rtp_opus_demuxer);
     srs_freep(rtp_video_queue);
     srs_freep(rtp_audio_queue);
 }
@@ -1718,10 +1720,11 @@ srs_error_t SrsRtcPublisher::on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* 
      */
 
     SrsBuffer stream(buf, nb_buf);
-    uint8_t first = stream.read_1bytes();
+    /*uint8_t first = */stream.read_1bytes();
     uint8_t pt = stream.read_1bytes();
+    srs_assert(pt == kXR);
     uint16_t length = (stream.read_2bytes() + 1) * 4;
-    uint32_t ssrc = stream.read_4bytes();
+    /*uint32_t ssrc = */stream.read_4bytes();
 
     if (length != nb_buf) {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid XR packet, length=%u, nb_buf=%d", length, nb_buf);
@@ -1865,17 +1868,45 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ss
     return err;
 }
 
+srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssrc)
+{
+    srs_error_t err = srs_success;
+
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+    stream.write_1bytes(0x81);
+    stream.write_1bytes(kPsFb);
+    stream.write_2bytes(2);
+    stream.write_4bytes(ssrc);
+    stream.write_4bytes(ssrc);
+    
+    srs_verbose("PLI ssrc=%u", ssrc);
+    
+    char protected_buf[kRtpPacketSize];
+    int nb_protected_buf = stream.pos();
+    if ((err = rtc_session->dtls_session->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+        return srs_error_wrap(err, "protect rtcp psfb pli");
+    }
+
+    skt->sendto(protected_buf, nb_protected_buf, 0);
+
+    return err;
+}
 
 srs_error_t SrsRtcPublisher::on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt)
 {
     srs_error_t err = srs_success;
 
-
     rtp_pkt->rtp_payload_header = new SrsRtpOpusHeader();
-    rtp_pkt->rtp_payload_header->is_first_packet_of_frame = true;
-    rtp_pkt->rtp_payload_header->is_last_packet_of_frame = true;
+    if ((err = rtp_opus_demuxer->parse(rtp_pkt)) != srs_success) {
+        return srs_error_wrap(err, "rtp opus demux failed");
+    }
 
     rtp_audio_queue->insert(rtp_pkt);
+
+    if (rtp_audio_queue->get_and_clean_if_needed_rqeuest_key_frame()) {
+        send_rtcp_fb_pli(skt, audio_ssrc);
+    }
 
     check_send_nacks(rtp_audio_queue, audio_ssrc, skt);
 
@@ -1914,6 +1945,10 @@ srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* 
     }
 
     rtp_video_queue->insert(rtp_pkt);
+
+    if (rtp_video_queue->get_and_clean_if_needed_rqeuest_key_frame()) {
+        send_rtcp_fb_pli(skt, video_ssrc);
+    }
 
     check_send_nacks(rtp_video_queue, video_ssrc, skt);
 
@@ -2375,8 +2410,6 @@ srs_error_t SrsRtcSession::on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* sk
 
 srs_error_t SrsRtcSession::on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt)
 {
-    srs_error_t err = srs_success;
-
     if (rtc_publisher == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
     }
@@ -2517,19 +2550,15 @@ srs_error_t SrsRtcSession::start_publish(SrsUdpMuxSocket* skt)
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
-    uint16_t video_payload_type = 0;
-    uint16_t audio_payload_type = 0;
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& media_desc = remote_sdp.media_descs_[i];
         if (media_desc.is_audio()) {
             if (! media_desc.ssrc_infos_.empty()) {
                 audio_ssrc = media_desc.ssrc_infos_[0].ssrc_;
-                audio_payload_type = media_desc.payload_types_[0].payload_type_;
             }
         } else if (media_desc.is_video()) {
             if (! media_desc.ssrc_infos_.empty()) {
                 video_ssrc = media_desc.ssrc_infos_[0].ssrc_;
-                video_payload_type = media_desc.payload_types_[0].payload_type_;
             }
         }
     }

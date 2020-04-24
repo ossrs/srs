@@ -87,6 +87,15 @@ public:
     srs_error_t parse(SrsRtpSharedPacket* rtp_pkt);
 };
 
+class SrsRtpOpusDemuxer
+{
+public:
+    SrsRtpOpusDemuxer();
+    virtual ~SrsRtpOpusDemuxer();
+public:
+    srs_error_t parse(SrsRtpSharedPacket* rtp_pkt);
+};
+
 class SrsRtc
 {
 private:

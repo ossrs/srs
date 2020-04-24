@@ -41,13 +41,14 @@ SrsRtpNackInfo::SrsRtpNackInfo()
     req_nack_count_ = 0;
 }
 
-SrsRtpNackList::SrsRtpNackList(SrsRtpQueue* rtp_queue)
+SrsRtpNackList::SrsRtpNackList(SrsRtpQueue* rtp_queue, size_t queue_size)
 {
+    max_queue_size_ = queue_size;
     rtp_queue_ = rtp_queue;
     pre_check_time_ = 0;
     
-    srs_info("nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%ld, nack_interval=%ld"
-        opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
+    srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%ld, nack_interval=%ld"
+        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
 }
 
 SrsRtpNackList::~SrsRtpNackList()
@@ -58,6 +59,7 @@ void SrsRtpNackList::insert(uint16_t seq)
 {
     // FIXME: full, drop packet, and request key frame.
     SrsRtpNackInfo& nack_info = queue_[seq];
+    (void)nack_info;
 }
 
 void SrsRtpNackList::remove(uint16_t seq)
@@ -76,12 +78,11 @@ SrsRtpNackInfo* SrsRtpNackList::find(uint16_t seq)
     return &(iter->second);
 }
 
-void SrsRtpNackList::dump()
+void SrsRtpNackList::check_queue_size()
 {
-    return;
-    srs_verbose("@debug, queue size=%u", queue_.size());
-    for (std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.begin(); iter != queue_.end(); ++iter) {
-        srs_verbose("@debug, nack seq=%u", iter->first);
+    if (queue_.size() >= max_queue_size_) {
+        srs_verbose("NACK list full, queue size=%u, max_queue_size=%u", queue_.size(), max_queue_size_);
+        rtp_queue_->notify_nack_list_full();
     }
 }
 
@@ -134,7 +135,7 @@ void SrsRtpNackList::update_rtt(int rtt)
 }
 
 SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
-    : nack_(this)
+    : nack_(this, capacity * 2 / 3)
 {
     capacity_ = capacity;
     head_sequence_ = 0;
@@ -155,6 +156,8 @@ SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
     number_of_packet_lossed_ = 0;
 
     one_packet_per_frame_ = one_packet_per_frame;
+
+    request_key_frame_ = false;
 }
 
 SrsRtpQueue::~SrsRtpQueue()
@@ -189,7 +192,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
         } else {
             // Calc jitter.
             {
-                int trans_time = now/1000 - rtp_pkt->rtp_header.get_timestamp()/90;
+                int trans_time = now / 1000 - rtp_pkt->rtp_header.get_timestamp() / 90;
 
                 int cur_jitter = trans_time - last_trans_time_;
                 if (cur_jitter < 0) {
@@ -214,7 +217,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
                 highest_sequence_ = seq;
             } else {
                 // Because we don't know the ISN(initiazlie sequence number), the first packet
-                // we received maybe no the first paacet client sented.
+                // we received maybe no the first packet client sented.
                 if (! start_collected_) {
                     if (seq_cmp(seq, head_sequence_)) {
                         srs_info("head seq=%u, cur seq=%u, update head seq because recv less than it.", head_sequence_, seq);
@@ -227,9 +230,6 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
             }
         }
     }
-
-    int delay = highest_sequence_ - head_sequence_ + 1;
-    srs_verbose("seqs range=[%u-%u], delay=%d", head_sequence_, highest_sequence_, delay);
 
     // Check seqs out of range.
     if (head_sequence_ + capacity_ < highest_sequence_) {
@@ -261,12 +261,12 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
         head_sequence_ = s;
     }
 
-    SrsRtpSharedPacket* old_pkt = queue_[seq % capacity_];
+    SrsRtpSharedPacket*& old_pkt = queue_[seq % capacity_];
     if (old_pkt) {
         delete old_pkt;
     }
 
-    queue_[seq % capacity_] = rtp_pkt->copy();
+    old_pkt = rtp_pkt->copy();
 
     // Marker bit means the last packet of frame received.
     if (rtp_pkt->rtp_header.get_marker() || (highest_sequence_ - head_sequence_ >= capacity_ / 2) || one_packet_per_frame_) {
@@ -294,6 +294,15 @@ void SrsRtpQueue::get_and_clean_collected_frames(std::vector<std::vector<SrsRtpS
     frames.swap(frames_);
 }
 
+bool SrsRtpQueue::get_and_clean_if_needed_rqeuest_key_frame()
+{
+    if (request_key_frame_) {
+        request_key_frame_ = false;
+    }
+
+    return request_key_frame_;
+}
+
 void SrsRtpQueue::notify_drop_seq(uint16_t seq)
 {
     uint16_t s = seq + 1;
@@ -306,6 +315,29 @@ void SrsRtpQueue::notify_drop_seq(uint16_t seq)
 
     srs_verbose("drop seq=%u, highest seq=%u, update head seq %u to %u", seq, highest_sequence_, head_sequence_, s);
     head_sequence_ = s;
+}
+
+void SrsRtpQueue::notify_nack_list_full()
+{
+    bool found_key_frame = false;
+    while (head_sequence_ <= highest_sequence_) {
+        SrsRtpSharedPacket* pkt = queue_[head_sequence_ % capacity_];
+        if (pkt && pkt->rtp_payload_header->is_key_frame && pkt->rtp_payload_header->is_first_packet_of_frame) {
+            found_key_frame = true;
+            srs_verbose("found firsr packet of key frame, seq=%u", head_sequence_);
+            break;
+        }
+
+        nack_.remove(head_sequence_);
+        remove(head_sequence_);
+        ++head_sequence_;
+    }
+
+    if (! found_key_frame) {
+        srs_verbose("no found first packet of key frame, request key frame");
+        request_key_frame_ = true;
+        head_sequence_ = highest_sequence_;
+    }
 }
 
 uint32_t SrsRtpQueue::get_extended_highest_sequence()
@@ -350,8 +382,7 @@ void SrsRtpQueue::insert_into_nack_list(uint16_t seq_start, uint16_t seq_end)
         ++number_of_packet_lossed_;
     }
 
-    // FIXME: Record key frame sequence.
-    // FIXME: When nack list too long, clear and send PLI.
+    nack_.check_queue_size();
 }
 
 void SrsRtpQueue::collect_packet()
@@ -359,8 +390,6 @@ void SrsRtpQueue::collect_packet()
     vector<SrsRtpSharedPacket*> frame;
     for (uint16_t s = head_sequence_; s != highest_sequence_; ++s) {
         SrsRtpSharedPacket* pkt = queue_[s % capacity_];
-
-        nack_.dump();
 
         if (nack_.find(s) != NULL) {
             srs_verbose("seq=%u, found in nack list when collect frame", s);

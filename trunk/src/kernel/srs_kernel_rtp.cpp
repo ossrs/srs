@@ -97,7 +97,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
     timestamp = stream->read_4bytes();
     ssrc = stream->read_4bytes();
 
-    if (stream->size() < header_size()) {
+    if ((size_t)stream->size() < header_size()) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
     }
 
@@ -610,6 +610,7 @@ SrsRtpPayloadHeader::SrsRtpPayloadHeader()
 {
     is_first_packet_of_frame = false;
     is_last_packet_of_frame = false;
+    is_key_frame = false;
 }
 
 SrsRtpPayloadHeader::~SrsRtpPayloadHeader()
@@ -625,6 +626,8 @@ SrsRtpPayloadHeader& SrsRtpPayloadHeader::operator=(const SrsRtpPayloadHeader& r
 {
     is_first_packet_of_frame = rhs.is_first_packet_of_frame;
     is_last_packet_of_frame = rhs.is_last_packet_of_frame;
+
+    return *this;
 }
 
 SrsRtpH264Header::SrsRtpH264Header() : SrsRtpPayloadHeader()

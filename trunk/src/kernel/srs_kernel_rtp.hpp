@@ -231,6 +231,7 @@ class SrsRtpPayloadHeader
 public:
     bool is_first_packet_of_frame;
     bool is_last_packet_of_frame;
+    bool is_key_frame;
 public:
     SrsRtpPayloadHeader();
     virtual ~SrsRtpPayloadHeader();
