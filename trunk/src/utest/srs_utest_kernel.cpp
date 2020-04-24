@@ -3843,7 +3843,11 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
 		off_t seeked = 0;
 		HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
+#ifdef SRS_AUTO_OSX
+		EXPECT_EQ(10, seeked);
+#else
 		EXPECT_EQ(0, seeked);
+#endif
 	}
 
 	// Always fail.
