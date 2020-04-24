@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+<meta charset="utf-8">
+</head>
+
+<body>
+
+local_media_player: <br>
+<video width="1280" height="720" id = "local_media_player" autoplay></video><br>
+rtc_media_player: <br>
+<video width="1280" height="720" id = "rtc_media_player" autoplay></video>
+
+</body>
+
+<script>
+var PeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription;
+
+var url = document.location.protocol + "//" + document.domain + "/rtc/v1/publish/";
+
+var method = "POST";
+var shouldBeAsync = true;
+
+var request = new XMLHttpRequest();
+
+request.open(method, url, shouldBeAsync);
+request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+var pc = new PeerConnection();
+
+// Plan-B
+//var constraints = {
+//    mandatory: {
+//        OfferToReceiveAudio: true,
+//        OfferToReceiveVideo: true
+//    }
+//};
+
+var sendViewerOfferFn = function(desc) {
+    console.log('sendViewerOfferFn:', desc);
+
+    pc.setLocalDescription(desc);
+
+    var sdp_json = {"sdp":desc.sdp, "app":"live", "stream":"livestream", "streamurl":"webrtc://hw.com:8000/live/livestream"};
+    request.send(JSON.stringify(sdp_json));
+};
+
+pc.addTransceiver("audio", {
+    direction: "sendonly"
+	}
+);
+
+pc.addTransceiver("video", {
+    direction: "sendonly"
+	}
+);
+
+var constraints = {
+    "audio": true,
+    "video": {
+        "width": {
+            "min": "1280",
+            "max": "1920"
+        },
+        "height": {
+            "min": "720",
+            "max": "1080"
+        },
+        "frameRate": {
+            "min": "30",
+            "max": "60"
+        }
+    }
+};
+
+navigator.mediaDevices.getUserMedia(constraints).then(
+  function(mediaStream) {
+    var video = document.getElementById('local_media_player');
+    video.srcObject = mediaStream;
+    video.onloadedmetadata = function(e) {
+      console.log('play');
+      video.play();
+    };
+
+    pc.addStream(mediaStream);
+    pc.createOffer(sendViewerOfferFn, 
+        function(error) { 
+            console.log('sendViewerOfferFn error:' + error); 
+        }, 
+    );
+}).catch(
+  function(err) {
+    console.log(err);
+    console.log(err.name + ": " + err.message); 
+  }
+);
+
+
+
+pc.ontrack = function(event) {
+    console.log('ontrack');
+    document.getElementById('rtc_media_player').srcObject = event.stream;
+    rtc_media_player.load();
+};
+
+pc.onicecandidate = function(event) {
+    console.log('onicecandidate');
+};
+
+pc.onconnectionstatechange = function(event) {
+    console.log('onconnectionstatechange');
+};
+
+pc.onicegatheringstatechange = function(event) {
+    console.log('onicegatheringstatechange');
+};
+
+pc.onsignalingstatechange = function(event) {
+    console.log('onsignalingstatechange');
+};
+
+request.onerror = function(event) {
+    console.log('http error');
+};
+
+request.onload = function () {
+    console.log('onload,' , request.responseText);
+    var json = JSON.parse(request.responseText);
+    console.log('onmessage viewerResponse:', json.sdp);
+
+    pc.setRemoteDescription(new SessionDescription({type:'answer', sdp:json.sdp}));
+}
+
+//let last_v = Object();
+//let last_a = Object();
+//
+//
+//window.setInterval(function() {
+//    pc.getSenders().forEach(sender => {
+//        sender.getStats().then(function(stats) {
+//         stats.forEach(report => {
+//           if (report.type == 'outbound-rtp') {
+//              if (report.kind == 'audio') {
+//                  packetsSent: 1812
+//                      retransmittedPacketsSent: 0
+//                      bytesSent: 119501
+//				console.log('[audio stat] packetsSent/s=', report.packetsSent - last_a.packetsSent, 
+//                    ', bytesSent/s=', report.bytesSent - last_a.bytesSent, 
+//                    ', retransmittedPacketsSent=', report.retransmittedPacketsSent);
+//                last_a = report;
+//              } else if (report.kind == 'video') {
+//				console.log('[video stat] packetsSent/s=', report.packetsSent - last_v.packetsSent, 
+//                    ', bytesSent/s=', report.bytesSent - last_v.bytesSent, 
+//                    ', nackCount=', report.nackCount, 
+//                    ',retransmittedPacketsSent=', report.retransmittedPacketsSent);
+//                last_v = report;
+//              }
+//            }
+//          });
+//        });
+//    });
+//}, 1000);
+
+</script>
+
+</html>
