@@ -15,7 +15,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtc'/>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcplayer'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -24,6 +24,7 @@
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
                     <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
@@ -67,6 +68,7 @@
 
             pc = new RTCPeerConnection(null);
             pc.onaddstream = function (event) {
+                console.log('Start play, event: ', event);
                 $('#rtc_media_player').prop('srcObject', event.stream);
             };
             new Promise(function(resolve, reject) {
@@ -103,13 +105,13 @@
                     var data = {
                         api: url, streamurl: urlObject.url, clientip: null, sdp: offer.sdp
                     };
-                    console.log("offer: " + JSON.stringify(data));
+                    console.log("Generated offer: ", data);
 
                     $.ajax({
                         type: "POST", url: url, data: JSON.stringify(data),
                         contentType:'application/json', dataType: 'json'
                     }).done(function(data) {
-                        console.log("answer: " + JSON.stringify(data));
+                        console.log("Got answer: ", data);
                         resolve(data.sdp);
                     }).fail(function(reason){
                         reject(reason);

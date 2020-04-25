@@ -1213,6 +1213,13 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     request.app = app;
     request.stream = stream_name;
 
+    // TODO: FIXME: Parse vhost.
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
+    if (parsed_vhost) {
+        request.vhost = parsed_vhost->arg0();
+    }
+
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp, "");
