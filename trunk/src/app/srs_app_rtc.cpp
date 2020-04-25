@@ -373,7 +373,7 @@ srs_error_t SrsRtc::on_publish()
         return err;
     }
 
-	if (!_srs_config->get_rtc_enabled(req->vhost)) {
+    if (!_srs_config->get_rtc_enabled(req->vhost)) {
         return err; 
     }
     

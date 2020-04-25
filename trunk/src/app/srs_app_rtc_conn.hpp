@@ -312,7 +312,7 @@ private:
     SrsSdp  local_sdp;
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
-    SrsRtcSenderThread* strd;
+    SrsRtcSenderThread* sender;
     std::string username;
     std::string peer_id;
     srs_utime_t last_stun_time;
@@ -330,7 +330,7 @@ public:
     SrsRequest request;
     SrsSource* source;
 private:
-    SrsRtcPublisher* rtc_publisher;
+    SrsRtcPublisher* publisher;
 public:
     SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
     virtual ~SrsRtcSession();

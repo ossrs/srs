@@ -63,13 +63,13 @@ SrsRtpHeader::~SrsRtpHeader()
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     if (stream->size() < kRtpHeaderFixedSize) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
     }
 
-	/*   
+    /*   
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

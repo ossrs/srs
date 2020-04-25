@@ -143,7 +143,7 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
     if (! ice_options_.empty()) {
         os << "a=ice-options:" << ice_options_ << kCRLF;
     } else {
-		// @see: https://webrtcglossary.com/trickle-ice/
+        // @see: https://webrtcglossary.com/trickle-ice/
         // Trickle ICE is an optimization of the ICE specification for NAT traversal.
         os << "a=ice-options:trickle" << kCRLF;
     }
@@ -362,7 +362,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
 
     int foundation = 0;
     int component_id = 1; /* RTP */
-	for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
+    for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-4.2
         uint32_t priority = (1<<24)*(126) + (1<<8)*(65535) + (1)*(256 - component_id);
 
@@ -424,7 +424,7 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
         sendrecv_ = true;
     } else if (attribute == "inactive") {
         inactive_ = true;
-	} else {
+    } else {
         return session_info_.parse_attribute(attribute, value);
     }
 
@@ -756,7 +756,7 @@ void SrsSdp::add_candidate(const std::string& ip, const int& port, const std::st
     candidate.type_ = type;
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-    	iter->candidates_.push_back(candidate);
+        iter->candidates_.push_back(candidate);
     }
 }
 
