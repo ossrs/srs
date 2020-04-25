@@ -347,6 +347,7 @@
 #define ERROR_RTC_RTCP_CHECK                5016
 #define ERROR_RTC_SOURCE_CHECK              5017
 #define ERROR_RTC_SDP_EXCHANGE              5018
+#define ERROR_RTC_API_BODY                  5019
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.

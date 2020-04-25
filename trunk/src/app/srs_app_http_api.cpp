@@ -841,7 +841,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
-            return srs_error_wrap(err, "not json");
+            return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
         }
 
         req = json->to_object();
@@ -1021,7 +1021,6 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             if (local_media_desc.payload_types_.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid opus payload type");
             }
-
         } else if (remote_media_desc.is_video()) {
             std::deque<SrsMediaPayloadType> backup_payloads;
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
@@ -1086,7 +1085,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
         local_media_desc.rtcp_mux_ = true;
         local_media_desc.rtcp_rsize_ = true;
 
-        if (local_media_desc.recvonly_ || local_media_desc.sendrecv_) {
+        if (local_media_desc.sendonly_ || local_media_desc.sendrecv_) {
             SrsSSRCInfo ssrc_info;
             ssrc_info.ssrc_ = ++ssrc_num;
             // TODO:use formated cname
@@ -1152,7 +1151,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
-            return srs_error_wrap(err, "not json");
+            return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
         }
 
         req = json->to_object();

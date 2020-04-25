@@ -1578,6 +1578,11 @@ srs_error_t SrsRtcPublisher::on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf)
 
 void SrsRtcPublisher::check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc, SrsUdpMuxSocket* skt)
 {
+    // If DTLS is not OK, drop all messages.
+    if (!rtc_session->dtls_session) {
+        return;
+    }
+
     vector<uint16_t> nack_seqs;
     rtp_queue->nack_.get_nack_seqs(nack_seqs);
     vector<uint16_t>::iterator iter = nack_seqs.begin();
@@ -1605,6 +1610,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc, Sr
 
         // FIXME: Merge nack rtcp into one packets.
         if (rtc_session->dtls_session->protect_rtcp(protected_buf, stream.data(), nb_protected_buf) == srs_success) {
+            // TODO: FIXME: Check error.
             skt->sendto(protected_buf, nb_protected_buf, 0);
         }
 
@@ -1769,6 +1775,11 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, S
 {
     srs_error_t err = srs_success;
 
+    // If DTLS is not OK, drop all messages.
+    if (!rtc_session->dtls_session) {
+        return err;
+    }
+
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
     stream.write_1bytes(0x81);
@@ -1810,6 +1821,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, S
         return srs_error_wrap(err, "protect rtcp rr");
     }
 
+    // TDOO: FIXME: Check error.
     skt->sendto(protected_buf, nb_protected_buf, 0);
     return err;
 }
@@ -1817,6 +1829,12 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, S
 srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ssrc)
 {
     srs_error_t err = srs_success;
+
+    // If DTLS is not OK, drop all messages.
+    if (!rtc_session->dtls_session) {
+        return err;
+    }
+
     /*
      @see: http://www.rfc-editor.org/rfc/rfc3611.html#section-2
 
@@ -1863,6 +1881,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ss
         return srs_error_wrap(err, "protect rtcp xr");
     }
 
+    // TDOO: FIXME: Check error.
     skt->sendto(protected_buf, nb_protected_buf, 0);
 
     return err;
@@ -1871,6 +1890,11 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ss
 srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssrc)
 {
     srs_error_t err = srs_success;
+
+    // If DTLS is not OK, drop all messages.
+    if (!rtc_session->dtls_session) {
+        return err;
+    }
 
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -1888,6 +1912,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssr
         return srs_error_wrap(err, "protect rtcp psfb pli");
     }
 
+    // TDOO: FIXME: Check error.
     skt->sendto(protected_buf, nb_protected_buf, 0);
 
     return err;
@@ -2123,6 +2148,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const
     rtc_server = rtc_svr;
     session_state = INIT;
     dtls_session = new SrsDtlsSession(this);
+    // TODO: FIXME: Check error.
     dtls_session->initialize(req);
     strd = NULL;
 
@@ -2344,6 +2370,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSock
 
             srs_verbose("resend pkt sequence=%u", resend_pkts[i]->rtp_header.get_sequence());
 
+            // TODO: FIXME: Check error.
             dtls_session->protect_rtp(protected_buf, resend_pkts[i]->payload, nb_protected_buf);
             skt->sendto(protected_buf, nb_protected_buf, 0);
         }

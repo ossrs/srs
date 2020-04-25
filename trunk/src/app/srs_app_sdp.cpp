@@ -226,8 +226,8 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
 
     if (! format_specific_param_.empty()) {
         os << "a=fmtp:" << payload_type_ << " " << format_specific_param_
-           // FIXME:test code.
-           << ";x-google-max-bitrate=6000;x-google-min-bitrate=5100;x-google-start-bitrate=5000" 
+           // TODO: FIXME: Remove the test code bellow.
+           // << ";x-google-max-bitrate=6000;x-google-min-bitrate=5100;x-google-start-bitrate=5000"
            << kCRLF;
     }
 
