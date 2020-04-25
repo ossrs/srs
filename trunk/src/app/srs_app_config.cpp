@@ -4543,7 +4543,7 @@ bool SrsConfig::get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf)
 
 bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     if (!conf) {
         return DEFAULT;
