@@ -2145,29 +2145,20 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
 
 SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id)
 {
-    rtc_server = s;
-    session_state = INIT;
-
-    dtls_session = new SrsDtlsSession(this);
-    // TODO: FIXME: Check error.
-    dtls_session->initialize(req);
-
-    sender = NULL;
-
     username = un;
-    
-    last_stun_time = srs_get_system_time();
-
     req = r->copy();
-    source = NULL;
-
     cid = context_id;
     encrypt = true;
 
-    // TODO: FIXME: Support reload.
-    sessionStunTimeout = _srs_config->get_rtc_stun_timeout(req->vhost);
-
+    source = NULL;
     publisher = NULL;
+    sender = NULL;
+    rtc_server = s;
+    dtls_session = new SrsDtlsSession(this);
+
+    session_state = INIT;
+    last_stun_time = 0;
+    sessionStunTimeout = 0;
 }
 
 SrsRtcSession::~SrsRtcSession()
@@ -2186,6 +2177,21 @@ void SrsRtcSession::set_local_sdp(const SrsSdp& sdp)
 void SrsRtcSession::switch_to_context()
 {
     _srs_context->set_id(cid);
+}
+
+srs_error_t SrsRtcSession::initialize()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = dtls_session->initialize(req)) != srs_success) {
+        return srs_error_wrap(err, "init");
+    }
+
+    // TODO: FIXME: Support reload.
+    sessionStunTimeout = _srs_config->get_rtc_stun_timeout(req->vhost);
+    last_stun_time = srs_get_system_time();
+
+    return err;
 }
 
 srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req)
@@ -3110,7 +3116,13 @@ srs_error_t SrsRtcServer::create_rtc_session(
 
     int cid = _srs_context->get_id();
     SrsRtcSession* session = new SrsRtcSession(this, req, username, cid);
+    if ((err = session->initialize()) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "init");
+    }
+
     map_username_session.insert(make_pair(username, session));
+    *psession = session;
 
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
@@ -3131,8 +3143,6 @@ srs_error_t SrsRtcServer::create_rtc_session(
     session->set_local_sdp(local_sdp);
 
     session->set_session_state(WAITING_STUN);
-
-    *psession = session;
 
     return err;
 }

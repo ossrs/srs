@@ -354,6 +354,7 @@ public:
 
     void switch_to_context();
 public:
+    srs_error_t initialize();
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
     srs_error_t on_dtls(SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp(SrsUdpMuxSocket* skt);
