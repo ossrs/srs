@@ -3,9 +3,6 @@ http-parser-2.1.zip
 
 nginx-1.5.7.zip
     for srs to support hls streaming.
-
-st-1.9.zip
-    basic framework for srs.
     
 openssl-1.1.0e.zip
 openssl-OpenSSL_1_0_2u.tar.gz
@@ -35,8 +32,11 @@ gtest-1.6.0.zip
 gperftools-2.1.zip
     gperf tools for performance benchmark.
 
-state-threads-1.9.1.tar.gz:
-    patched st from https://github.com/ossrs/state-threads/releases/tag/v1.9.1
+st-srs
+st-1.9.zip
+state-threads
+state-threads-1.9.1.tar.gz
+    Patched ST from https://github.com/ossrs/state-threads
 
 links:
     nginx:
@@ -44,7 +44,7 @@ links:
     http-parser:
         https://github.com/joyent/http-parser
     state-threads:
-        http://sourceforge.net/projects/state-threads
+        https://github.com/ossrs/state-threads
     ffmpeg: 
         http://ffmpeg.org/ 
         http://ffmpeg.org/releases/ffmpeg-3.2.4.tar.gz
