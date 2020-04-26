@@ -348,6 +348,7 @@
 #define ERROR_RTC_SOURCE_CHECK              5017
 #define ERROR_RTC_SDP_EXCHANGE              5018
 #define ERROR_RTC_API_BODY                  5019
+#define ERROR_RTC_SOURCE_BUSY               5020
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.

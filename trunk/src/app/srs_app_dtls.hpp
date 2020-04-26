@@ -43,7 +43,7 @@ private:
     SrsDtls();
     virtual ~SrsDtls();
 public:
-    srs_error_t init(const SrsRequest& req);
+    srs_error_t init(SrsRequest* r);
 public:
     static SrsDtls* instance();
     SSL_CTX* get_dtls_ctx() { return dtls_ctx; }

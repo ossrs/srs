@@ -120,7 +120,7 @@ public:
     SrsDtlsSession(SrsRtcSession* s);
     virtual ~SrsDtlsSession();
 
-    srs_error_t initialize(const SrsRequest& req);
+    srs_error_t initialize(SrsRequest* r);
 
     srs_error_t on_dtls(SrsUdpMuxSocket* skt);
     srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* skt);
@@ -190,6 +190,7 @@ public:
     SrsRtpPacket2* at(int index);
 };
 
+// TODO: FIXME: Rename to RTC player or subscriber.
 class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
@@ -269,7 +270,7 @@ private:
     SrsRtpQueue* rtp_video_queue;
     SrsRtpQueue* rtp_audio_queue;
 private:
-    SrsRequest request;
+    SrsRequest* req;
     SrsSource* source;
     std::string sps;
     std::string pps;
@@ -280,7 +281,7 @@ public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, uint32_t assrc, SrsRequest request);
+    srs_error_t initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, uint32_t assrc, SrsRequest* req);
     srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
     srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
@@ -327,12 +328,12 @@ private:
     // The timeout of session, keep alive by STUN ping pong.
     srs_utime_t sessionStunTimeout;
 public:
-    SrsRequest request;
+    SrsRequest* req;
     SrsSource* source;
 private:
     SrsRtcPublisher* publisher;
 public:
-    SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp() { return &local_sdp; }
@@ -364,8 +365,6 @@ public:
     srs_error_t start_publish(SrsUdpMuxSocket* skt);
 public:
     bool is_stun_timeout();
-private:
-    srs_error_t check_source();
 private:
     srs_error_t on_binding_request(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
 private:
@@ -441,7 +440,10 @@ public:
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
 public:
     virtual srs_error_t listen_api();
-    SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip);
+    srs_error_t create_rtc_session(
+        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+        SrsRtcSession** psession
+    );
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
     int nn_sessions() { return (int)map_username_session.size(); }

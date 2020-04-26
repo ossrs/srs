@@ -919,7 +919,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp, eip);
+    SrsRtcSession* rtc_session = NULL;
+    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, false, &rtc_session)) != srs_success) {
+        return srs_error_wrap(err, "create session");
+    }
     if (encrypt.empty()) {
         rtc_session->set_encrypt(_srs_config->get_rtc_server_encrypt());
     } else {
@@ -1191,8 +1194,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
     }
 
-    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length());
+    // For client to specifies the EIP of server.
+    string eip = r->query_get("eip");
+
+    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -1222,7 +1228,10 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = rtc_server->create_rtc_session(request, remote_sdp, local_sdp, "");
+    SrsRtcSession* rtc_session = NULL;
+    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, true, &rtc_session)) != srs_success) {
+        return srs_error_wrap(err, "create session");
+    }
 
     ostringstream os;
     if ((err = local_sdp.encode(os)) != srs_success) {

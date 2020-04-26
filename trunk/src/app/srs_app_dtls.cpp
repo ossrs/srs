@@ -69,7 +69,7 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-srs_error_t SrsDtls::init(const SrsRequest& req)
+srs_error_t SrsDtls::init(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
