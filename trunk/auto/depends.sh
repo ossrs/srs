@@ -338,7 +338,7 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
@@ -347,9 +347,12 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
     fi
     # For UDP sendmmsg, disable it if not suppported.
-    if [[ $SRS_SENDMMSG == YES ]]; then
+    if [[ $SRS_HAS_SENDMMSG == YES ]]; then
         echo "Build ST with UDP sendmmsg support."
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
+    else
+        echo "Build ST without UDP sendmmsg support."
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
     fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then

@@ -189,10 +189,6 @@ OTHER_FLAGS = -Wall
 ifeq ($(shell test -f /usr/include/sys/epoll.h && echo yes), yes)
 DEFINES     += -DMD_HAVE_EPOLL
 endif
-# For SRS, sendmmsg
-ifeq ($(shell grep -qs sendmmsg /usr/include/sys/socket.h && echo yes), yes)
-DEFINES     += -DMD_HAVE_SENDMMSG -D_GNU_SOURCE
-endif
 endif
 
 ifeq ($(OS), NETBSD)
