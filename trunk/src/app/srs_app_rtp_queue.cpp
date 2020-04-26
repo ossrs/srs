@@ -186,6 +186,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
         SrsRtpNackInfo* nack_info = NULL;
         if ((nack_info = nack_.find(seq)) != NULL) {
             int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
+            (void)nack_rtt;
             srs_verbose("seq=%u, alive time=%d, nack count=%d, rtx success, resend use %dms", 
                 seq, now - nack_info->generate_time_, nack_info->req_nack_count_, nack_rtt);
             nack_.remove(seq);
