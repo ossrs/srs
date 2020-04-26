@@ -743,6 +743,38 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
 }
 
 
+#if defined(MD_HAVE_SENDMMSG) && defined(_GNU_SOURCE)
+int st_sendmmsg(st_netfd_t fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
+{
+    int n;
+    int left;
+    struct mmsghdr *p;
+
+    left = (int)vlen;
+    while (left > 0) {
+        p = msgvec + (vlen - left);
+
+        if ((n = sendmmsg(fd->osfd, p, left, flags)) < 0) {
+            if (errno == EINTR)
+                continue;
+            if (!_IO_NOT_READY_ERROR)
+                break;
+            /* Wait until the socket becomes writable */
+            if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
+                break;
+        }
+
+        left -= n;
+    }
+
+    // An error is returned only if no datagrams could be sent.
+    if (left == (int)vlen) {
+        return n;
+    }
+    return (int)vlen - left;
+}
+#endif
+
 
 /*
  * To open FIFOs or other special files.

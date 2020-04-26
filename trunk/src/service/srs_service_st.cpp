@@ -94,7 +94,7 @@ srs_error_t srs_fd_closeexec(int fd)
     int flags = fcntl(fd, F_GETFD);
     flags |= FD_CLOEXEC;
     if (fcntl(fd, F_SETFD, flags) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%v", fd);
+        return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%d", fd);
     }
 
     return srs_success;
@@ -104,10 +104,10 @@ srs_error_t srs_fd_reuseaddr(int fd)
 {
     int v = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
-        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%v", fd);
+        return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%d", fd);
     }
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_error_t srs_fd_reuseport(int fd)
@@ -119,7 +119,7 @@ srs_error_t srs_fd_reuseport(int fd)
             srs_warn("SO_REUSEPORT disabled for crossbuild");
             return srs_success;
         #else
-            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%v", fd);
+            return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEPORT fd=%d", fd);
         #endif
     }
 #else
@@ -127,7 +127,7 @@ srs_error_t srs_fd_reuseport(int fd)
     srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
 #endif
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_error_t srs_fd_keepalive(int fd)
@@ -139,7 +139,7 @@ srs_error_t srs_fd_keepalive(int fd)
     }
 #endif
 
-	return srs_success;
+    return srs_success;
 }
 
 srs_thread_t srs_thread_self()
@@ -194,7 +194,7 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
 
 srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     // Detect alive for TCP connection.
     // @see https://github.com/ossrs/srs/issues/1044
@@ -231,7 +231,7 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 
 srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     char sport[8];
     snprintf(sport, sizeof(sport), "%d", port);
@@ -265,7 +265,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
 srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     if ((err = srs_fd_closeexec(fd)) != srs_success) {
         return srs_error_wrap(err, "set closeexec");
@@ -292,7 +292,7 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
 
 srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 {
-	srs_error_t err = srs_success;
+    srs_error_t err = srs_success;
 
     char sport[8];
     snprintf(sport, sizeof(sport), "%d", port);
@@ -310,7 +310,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
     }
 
-	int fd = 0;
+    int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
             r->ai_family, r->ai_socktype, r->ai_protocol);
@@ -395,6 +395,70 @@ srs_netfd_t srs_netfd_open(int osfd)
 int srs_recvfrom(srs_netfd_t stfd, void *buf, int len, struct sockaddr *from, int *fromlen, srs_utime_t timeout)
 {
     return st_recvfrom((st_netfd_t)stfd, buf, len, from, fromlen, (st_utime_t)timeout);
+}
+
+int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockaddr * to, int tolen, srs_utime_t timeout)
+{
+    return st_sendto((st_netfd_t)stfd, buf, len, to, tolen, (st_utime_t)timeout);
+}
+
+int srs_recvmsg(srs_netfd_t stfd, struct msghdr *msg, int flags, srs_utime_t timeout)
+{
+    return st_recvmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
+}
+
+int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout)
+{
+    return st_sendmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
+}
+
+int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
+{
+#if !defined(SRS_AUTO_HAS_SENDMMSG) || !defined(SRS_AUTO_SENDMMSG)
+    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    for (int i = 0; i < (int)vlen; ++i) {
+        struct mmsghdr* p = msgvec + i;
+        int n = srs_sendmsg(stfd, &p->msg_hdr, flags, timeout);
+        if (n < 0) {
+            // An error is returned only if no datagrams could be sent.
+            if (i == 0) {
+                return n;
+            }
+            return i + 1;
+        }
+
+        p->msg_len = n;
+    }
+    // Returns the number of messages sent from msgvec; if this is less than vlen, the caller can retry with a
+    // further sendmmsg() call to send the remaining messages.
+    return vlen;
+#else
+    if (vlen == 1) {
+        #if 1
+            int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
+            if (r0 < 0) {
+                return r0;
+            }
+            msgvec->msg_len = r0;
+        #else
+            msgvec->msg_len = 0;
+
+            int tolen = (int)msgvec->msg_hdr.msg_namelen;
+            const struct sockaddr* to = (const struct sockaddr*)msgvec->msg_hdr.msg_name;
+            for (int i = 0; i < (int)msgvec->msg_hdr.msg_iovlen; i++) {
+                iovec* iov = msgvec->msg_hdr.msg_iov + i;
+                int r0 = srs_sendto(stfd, (void*)iov->iov_base, (int)iov->iov_len, to, tolen, timeout);
+                if (r0 < 0) {
+                    return r0;
+                }
+                msgvec->msg_len += r0;
+            }
+        #endif
+
+        return 1;
+    }
+    return st_sendmmsg((st_netfd_t)stfd, msgvec, vlen, flags, (st_utime_t)timeout);
+#endif
 }
 
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)

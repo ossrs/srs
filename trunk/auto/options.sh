@@ -17,11 +17,13 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
+SRS_RTC=YES
+SRS_GB28181=NO
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
 SRS_RESEARCH=NO
-SRS_UTEST=YES
+SRS_UTEST=NO
 SRS_GPERF=NO # Performance test: tcmalloc
 SRS_GPERF_MC=NO # Performance test: gperf memory check
 SRS_GPERF_MD=NO # Performance test: gperf memory defence
@@ -63,6 +65,7 @@ SRS_LOG_TRACE=NO
 ################################################################
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
+# TODO: Use pkg-config to get the openssl path.
 SRS_USE_SYS_SSL=NO
 # enable memory watch, detect memory leak,
 # similar to gmc, should disable in release version for hurts performance.
@@ -73,6 +76,10 @@ SRS_EXPORT_LIBRTMP_PROJECT=NO
 SRS_EXPORT_LIBRTMP_SINGLE=NO
 # valgrind
 SRS_VALGRIND=NO
+# Set the object files tag name.
+SRS_BUILD_TAG=
+# Whether do "make clean" when configure.
+SRS_CLEAN=YES
 #
 ################################################################
 # presets
@@ -108,6 +115,14 @@ SRS_TOOL_AR=ar
 SRS_TOOL_LD=ld
 SRS_TOOL_RANDLIB=randlib
 SRS_EXTRA_FLAGS=
+#
+#####################################################################################
+# Performance optimize.
+SRS_NASM=YES
+SRS_SRTP_ASM=YES
+SRS_SENDMMSG=YES
+SRS_HAS_SENDMMSG=YES
+SRS_DEBUG=NO
 
 #####################################################################################
 # menu
@@ -130,20 +145,25 @@ Features:
   --with-librtmp            Enable srs-librtmp, library for client.
   --with-research           Build the research tools.
   --with-utest              Build the utest for SRS.
-  --with-srt                Build the srt for SRS.
+  --with-srt                Build the SRT support for SRS.
+  --with-rtc                Build the WebRTC support for SRS.
+  --with-gb28181            Build the GB28181 support for SRS.
 
   --without-ssl             Disable rtmp complex handshake.
   --without-hds             Disable hds, the adobe http dynamic streaming.
   --without-stream-caster   Disable stream caster, only listen and serve RTMP/HTTP.
   --without-stat            Disable the data statistic feature.
   --without-librtmp         Disable srs-librtmp, library for client.
-  --without-research        Do not build the research tools.
-  --without-utest           Do not build the utest for SRS.
-  --without-srt             Do not build the srt for SRS.
+  --without-research        Disable the research tools.
+  --without-utest           Disable the utest for SRS.
+  --without-srt             Disable the SRT support for SRS.
+  --without-rtc             Disable the WebRTC support for SRS.
+  --without-gb28181         Disable the GB28181 support for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --static                  Whether add '-static' to link options.
   --gcov                    Whether enable the GCOV compiler options.
+  --debug                   Whether enable the debug code, may hurt performance.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             Used for make in the configure, for example, to make ffmpeg.
   --log-verbose             Whether enable the log verbose level. default: no.
@@ -166,6 +186,13 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --without-gmp             Do not build memory profile for SRS with gperf tools.
   --without-gcp             Do not build cpu profile for SRS with gperf tools.
   --without-gprof           Do not build srs with gprof(GNU profile tool).
+
+  --with-nasm               Build FFMPEG for RTC with nasm support.
+  --without-nasm            Build FFMPEG for RTC without nasm support, for CentOS6 nasm is too old.
+  --with-srtp-nasm          Build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
+  --without-srtp-nasm       Disable SRTP ASM support.
+  --with-sendmmsg           Enable UDP sendmmsg support. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+  --without-sendmmsg        Disable UDP sendmmsg support.
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --arm                     Enable crossbuild for ARM.
@@ -191,6 +218,9 @@ Experts:
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
   --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
   --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
+  --build-tag=<TAG>         Set the build object directory suffix.
+  --with-clean              Configure SRS and do make clean if possible.
+  --without-clean           Configure SRS and never make clean even possible..
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
@@ -202,10 +232,6 @@ Remark:
   1. For performance improving, read https://blog.csdn.net/win_lin/article/details/53503869
 
 END
-}
-
-function ignore_option() {
-    echo "ignore option \"$option\""
 }
 
 function parse_user_option() {
@@ -225,6 +251,12 @@ function parse_user_option() {
         --with-research)                SRS_RESEARCH=YES            ;;
         --with-utest)                   SRS_UTEST=YES               ;;
         --with-srt)                     SRS_SRT=YES                 ;;
+        --with-rtc)                     SRS_RTC=YES                 ;;
+        --with-gb28181)                 SRS_GB28181=YES             ;;
+        --with-nasm)                    SRS_NASM=YES                ;;
+        --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
+        --with-sendmmsg)                SRS_SENDMMSG=YES            ;;
+        --with-clean)                   SRS_CLEAN=YES               ;;
         --with-gperf)                   SRS_GPERF=YES               ;;
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
@@ -240,7 +272,13 @@ function parse_user_option() {
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --without-utest)                SRS_UTEST=NO                ;;
-        --without-srt)                  SRS_SRT=NO                 ;;
+        --without-srt)                  SRS_SRT=NO                  ;;
+        --without-rtc)                  SRS_RTC=NO                  ;;
+        --without-gb28181)              SRS_GB28181=NO              ;;
+        --without-nasm)                 SRS_NASM=NO                 ;;
+        --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
+        --without-sendmmsg)             SRS_SENDMMSG=NO             ;;
+        --without-clean)                SRS_CLEAN=NO                ;;
         --without-gperf)                SRS_GPERF=NO                ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
@@ -257,6 +295,7 @@ function parse_user_option() {
         --log-info)                     SRS_LOG_INFO=YES            ;;
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         --gcov)                         SRS_GCOV=YES                ;;
+        --debug)                        SRS_DEBUG=YES               ;;
 
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
@@ -266,6 +305,7 @@ function parse_user_option() {
         --ld)                           SRS_TOOL_LD=${value}        ;;
         --randlib)                      SRS_TOOL_RANDLIB=${value}   ;;
         --extra-flags)                  SRS_EXTRA_FLAGS=${value}    ;;
+        --build-tag)                    SRS_BUILD_TAG=${value}      ;;
 
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
@@ -297,16 +337,16 @@ function parse_user_option() {
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
 
-        --without-stream-caster)        ignore_option               ;;
-        --without-ingest)               ignore_option               ;;
-        --without-ssl)                  ignore_option               ;;
-        --without-stat)                 ignore_option               ;;
-        --without-transcode)            ignore_option               ;;
-        --without-http-callback)        ignore_option               ;;
-        --without-http-server)          ignore_option               ;;
-        --without-http-api)             ignore_option               ;;
-        --without-hls)                  ignore_option               ;;
-        --without-dvr)                  ignore_option               ;;
+        --without-stream-caster)        echo "ignore option \"$option\"" ;;
+        --without-ingest)               echo "ignore option \"$option\"" ;;
+        --without-ssl)                  echo "ignore option \"$option\"" ;;
+        --without-stat)                 echo "ignore option \"$option\"" ;;
+        --without-transcode)            echo "ignore option \"$option\"" ;;
+        --without-http-callback)        echo "ignore option \"$option\"" ;;
+        --without-http-server)          echo "ignore option \"$option\"" ;;
+        --without-http-api)             echo "ignore option \"$option\"" ;;
+        --without-hls)                  echo "ignore option \"$option\"" ;;
+        --without-dvr)                  echo "ignore option \"$option\"" ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -397,7 +437,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
@@ -424,7 +464,7 @@ function apply_user_presets() {
         SRS_HDS=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
-        SRS_UTEST=YES
+        SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
@@ -516,6 +556,35 @@ function apply_user_detail_options() {
         SRS_GPROF=NO
         SRS_STATIC=NO
     fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
+        echo "Disable SRTP ASM, because RTC is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
+        echo "Disable SRTP ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    # Detect whether has sendmmsg.
+    # @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    mkdir -p ${SRS_OBJS} &&
+    echo "  #include <sys/socket.h>           " > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  int main(int argc, char** argv) { " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    struct mmsghdr hdr;             " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    hdr.msg_len = 0;                " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "    return 0;                       " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    echo "  }                                 " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
+    ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_sendmmsg_detect.c -D_GNU_SOURCE -o /dev/null >/dev/null 2>&1
+    ret=$?; rm -f ${SRS_OBJS}/_tmp_sendmmsg_detect.c;
+    if [[ $ret -ne 0 ]]; then
+        SRS_HAS_SENDMMSG=NO
+        if [[ $SRS_SENDMMSG == YES ]]; then
+          echo "Disable UDP sendmmsg automatically"
+          SRS_SENDMMSG=NO
+        fi
+    fi
 }
 apply_user_detail_options
 
@@ -539,6 +608,12 @@ function regenerate_options() {
     if [ $SRS_RESEARCH = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-research"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-research"; fi
     if [ $SRS_UTEST = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-utest"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-utest"; fi
     if [ $SRS_SRT = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srt"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srt"; fi
+    if [ $SRS_RTC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-rtc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-rtc"; fi
+    if [ $SRS_GB28181 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gb28181"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gb28181"; fi
+    if [ $SRS_NASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-nasm"; fi
+    if [ $SRS_SRTP_ASM = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-srtp-nasm"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-srtp-nasm"; fi
+    if [ $SRS_SENDMMSG = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-sendmmsg"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-sendmmsg"; fi
+    if [ $SRS_CLEAN = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-clean"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-clean"; fi
     if [ $SRS_GPERF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gperf"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gperf"; fi
     if [ $SRS_GPERF_MC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmc"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmc"; fi
     if [ $SRS_GPERF_MD = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gmd"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gmd"; fi
@@ -552,7 +627,9 @@ function regenerate_options() {
     if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
+    if [ $SRS_DEBUG = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug"; fi
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
+    if [[ $SRS_BUILD_TAG != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
     if [[ $SRS_TOOL_CXX != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx=$SRS_TOOL_CXX"; fi
     if [[ $SRS_TOOL_AR != '' ]]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ar=$SRS_TOOL_AR"; fi
@@ -575,16 +652,14 @@ function check_option_conflicts() {
         echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
     fi
 
-    if [ $SRS_OSX = YES ]; then
-        echo "We don't support OSX, please use docker https://github.com/ossrs/srs-docker"; exit -1
-    fi
-
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1
+        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
-    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1
+    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
+    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
+        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
+        exit -1
     fi
 
     # TODO: FIXME: check more os.

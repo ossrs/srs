@@ -37,6 +37,10 @@ using namespace std;
 #include <gperftools/profiler.h>
 #endif
 
+#ifdef SRS_AUTO_GPERF
+#include <gperftools/malloc_extension.h>
+#endif
+
 #include <unistd.h>
 using namespace std;
 
@@ -50,6 +54,9 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#ifdef SRS_AUTO_RTC
+#include <srs_app_rtc_conn.hpp>
+#endif
 
 #ifdef SRS_AUTO_SRT
 #include <srt_server.hpp>
@@ -59,7 +66,6 @@ using namespace std;
 srs_error_t run_directly_or_daemon();
 srs_error_t run_hybrid_server();
 void show_macro_features();
-string srs_getenv(const char* name);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsFastLog();
@@ -127,8 +133,8 @@ srs_error_t do_main(int argc, char** argv)
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
     srs_trace("contributors: %s", SRS_AUTO_CONSTRIBUTORS);
-    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s",
-        _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME);
+    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d",
+        _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME, SRS_AUTO_OSX_BOOL);
     srs_trace("configure detail: " SRS_AUTO_CONFIGURE);
 #ifdef SRS_AUTO_EMBEDED_TOOL_CHAIN
     srs_trace("crossbuild tool chain: " SRS_AUTO_EMBEDED_TOOL_CHAIN);
@@ -183,6 +189,16 @@ srs_error_t do_main(int argc, char** argv)
     
     // features
     show_macro_features();
+
+#ifdef SRS_AUTO_GPERF
+    // For tcmalloc, use slower release rate.
+    if (true) {
+        double trr = _srs_config->tcmalloc_release_rate();
+        double otrr = MallocExtension::instance()->GetMemoryReleaseRate();
+        MallocExtension::instance()->SetMemoryReleaseRate(trr);
+        srs_trace("tcmalloc: set release-rate %.2f=>%.2f", otrr, trr);
+    }
+#endif
     
     if ((err = run_directly_or_daemon()) != srs_success) {
         return srs_error_wrap(err, "run");
@@ -193,7 +209,7 @@ srs_error_t do_main(int argc, char** argv)
 
 int main(int argc, char** argv) {
     srs_error_t err = do_main(argc, argv);
-    
+
     if (err != srs_success) {
         srs_error("Failed, %s", srs_error_desc(err).c_str());
     }
@@ -335,24 +351,13 @@ void show_macro_features()
 #endif
     
 #if VERSION_MAJOR > VERSION_STABLE
-#warning "Current branch is unstable."
-    srs_warn("Develop is unstable, please use branch: git checkout -b %s origin/%s", VERSION_STABLE_BRANCH, VERSION_STABLE_BRANCH);
+    #warning "Current branch is develop."
+    srs_warn("%s/%s is develop", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
 #endif
     
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
 #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
-}
-
-string srs_getenv(const char* name)
-{
-    char* cv = ::getenv(name);
-    
-    if (cv) {
-        return cv;
-    }
-    
-    return "";
 }
 
 // Detect docker by https://stackoverflow.com/a/41559867
@@ -453,9 +458,15 @@ srs_error_t run_hybrid_server()
 {
     srs_error_t err = srs_success;
 
+    // Create servers and register them.
     _srs_hybrid->register_server(new SrsServerAdapter());
+
 #ifdef SRS_AUTO_SRT
     _srs_hybrid->register_server(new SrtServerAdapter());
+#endif
+
+#ifdef SRS_AUTO_RTC
+    _srs_hybrid->register_server(new RtcServerAdapter());
 #endif
 
     // Do some system initialize.

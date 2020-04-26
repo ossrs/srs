@@ -5,30 +5,30 @@
 [![](https://codecov.io/gh/ossrs/srs/branch/develop/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/develop)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
-SRS/4.0，[Leo][release4]，是一个流媒体直播集群，高效、稳定、易用，简单而快乐。<br/>
-SRS(Simple RTMP Server) is a live streaming cluster, high efficiency, stable and simple.
+SRS/4.0，[Leo][release4]，是一个流媒体集群，支持RTMP/HLS/WebRTC/SRT/GB28181，高效、稳定、易用，简单而快乐。<br/>
+SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable and simple.
 
 > Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
 
 <a name="product"></a>
 ## Usage
 
-**Step 1:** Get SRS.
+**>>> Step 1:** Get SRS.
 
 ```
-git clone https://github.com/ossrs/srs &&
-cd srs/trunk
+git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
-> Note: Repository too large? Please clone from these [mirrors](#mirrors) instead.
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
 
-**Step 2:** Build SRS.
+**>>> Step 2:** Build SRS.
 
 ```
 ./configure && make
 ```
 
-> Remark: Recommend Centos6 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
+> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]).
 
 > Note: You can also build SRS in docker, please read [docker][docker-dev].
 
@@ -38,13 +38,16 @@ cd srs/trunk
 ./objs/srs -c conf/srs.conf
 ```
 
-**Whatever**, you can also directly run SRS in [docker][docker-srs3]:
+**>>> Whatever**, you can also directly run SRS in [docker][docker-srs3]:
 
 ```
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
+docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
 
-**From here,** strongly recommend to read bellow wikis:
+> Note: Again, we use [ACR](https://cr.console.aliyun.com/) here, you can directly run in docker hub by `docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3`
+
+**>>> From here,** strongly recommend to read bellow wikis:
 
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * Usage: How to delivery RTMP-Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
@@ -132,6 +135,8 @@ For previous versions, please read:
 - [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
+- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
@@ -140,11 +145,10 @@ For previous versions, please read:
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
 - [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
-- [ ] Support H.264+Opus codec for WebRTC.
-- [ ] Support publishing stream by WebRTC.
+- [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
+- [ ] Support publishing stream by WebRTC, [#307][bug #307].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
-- [ ] Support playing stream by WebRTC.
 
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
@@ -153,6 +157,18 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-04-14, For [#307][bug #307], support sendmmsg, GSO and reuseport. 4.0.23
+* v4.0, 2020-04-05, For [#307][bug #307], SRTP ASM only works with openssl-1.0, auto detect it. 4.0.22
+* v4.0, 2020-04-04, Merge RTC and GB28181, with bugs fixed. 4.0.21
+* v4.0, 2020-04-04, For [#307][bug #307], refine RTC latency from 600ms to 200ms. 4.0.20
+* v4.0, 2020-04-03, For [#307][bug #307], build SRTP with openssl to improve performance. 4.0.19
+* v4.0, 2020-03-31, For [#1500][bug #1500], support push stream by GB28181. 4.0.18
+* v4.0, 2020-03-31, Play stream by WebRTC on iOS/Android/PC browser. 4.0.17
+* v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
+* v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.
+* v4.0, 2020-03-22, Welcome maintainers [Runner365](https://github.com/runner365), [John](https://github.com/xiaozhihong) and [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou). 4.0.15
+* v4.0, 2020-03-22, For [#307][bug #307], support play with WebRTC. 4.0.14
+* v4.0, 2020-03-13, For [#1636][bug #1636], fix bug for mux AAC to ADTS, never overwrite by RTMP sampling rate. 4.0.13
 * v4.0, 2020-03-07, For [#1612][bug #1612], fix crash bug for RTSP. 4.0.12
 * v4.0, 2020-03-07, For [#1631][bug #1631], support sei_filter for SRT. 4.0.11
 * v4.0, 2020-03-01, For [#1621][bug #1621], support mix_correct for aggregate aac for SRT. 4.0.10
@@ -168,6 +184,14 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-03-30, For [#1672][bug #1672], fix dvr close file failed bug. 3.0.140
+* <strong>v3.0, 2020-03-29, [3.0 beta4(3.0.139)][r3.0b4] released. 122674 lines.</strong>
+* v3.0, 2020-03-28, Support multiple OS/Platform build cache. 3.0.139
+* v3.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin. 3.0.138
+* v3.0, 2020-03-21, For [#1629][bug #1629], fix kickoff FLV client bug. 3.0.137
+* v3.0, 2020-03-21, For [#1619][bug #1619], configure without utest by default. 3.0.136
+* v3.0, 2020-03-21, For [#1651][bug #1651], fix return pnwrite of srs_write_large_iovs. 3.0.135
+* <strong>v3.0, 2020-03-18, [3.0 beta3(3.0.134)][r3.0b3] released. 122509 lines.</strong>
 * v3.0, 2020-03-12, For [#1635][bug #1635], inotify watch ConfigMap for reload. 3.0.134
 * v3.0, 2020-03-12, For [#1635][bug #1635], support auto reaload config by inotify. 3.0.129
 * v3.0, 2020-03-12, For [#1630][bug #1630], disable cache for stream changing, and drop dup header. 3.0.128
@@ -324,7 +348,6 @@ For previous versions, please read:
 * v3.0, 2016-12-15, fix [#717][bug #717], [#691][bug #691], http api/static/stream support cors. 3.0.9
 * v3.0, 2016-12-08, Fix [#105][bug #105], support log rotate signal SIGUSR1. 3.0.8
 * v3.0, 2016-12-07, fix typo and refine grammar. 3.0.7
-* v3.0, 2015-10-23, fix [#467][bug #467], support write log to kafka. 3.0.6
 * v3.0, 2015-10-20, fix [#502][bug #502], support snapshot with http-callback or transcoder. 3.0.5
 * v3.0, 2015-09-19, support amf0 and json to convert with each other.
 * v3.0, 2015-09-19, json objects support dumps to string.
@@ -775,6 +798,8 @@ For previous versions, please read:
 
 ## Releases
 
+* 2020-03-29, [Release v3.0-b3][r3.0b4], 3.0 beta4, 3.0.139, 122674 lines.
+* 2020-03-18, [Release v3.0-b3][r3.0b3], 3.0 beta3, 3.0.134, 122509 lines.
 * 2020-03-05, [Release v3.0-b2][r3.0b2], 3.0 beta2, 3.0.123, 122170 lines.
 * 2020-02-14, [Release v3.0-b1][r3.0b1], 3.0 beta1, 3.0.117, 121964 lines.
 * 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
@@ -875,7 +900,7 @@ Comparing with other media servers, SRS is much better and stronger, for details
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
-|MultipleProcess| Experiment|   Stable  |   X       |   X       |   X       |
+|MultipleProcess| [Stable][v3_CN_ReusePort] |   Stable  |   X       |   X       |   X       |
 |   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
 |   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
 
@@ -938,18 +963,18 @@ The data for playing RTMP was benchmarked by [SB][srs-bench]:
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
-|   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
-|   2014-07-12  |   0.9.156 |   2.7k(2700)  |   players     |   89%     |   61MB    |   [code][p6]  |
-|   2014-11-11  |   1.0.5   |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
-|   2014-11-11  |   2.0.12  |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
-|   2014-11-12  |   2.0.14  |   2.7k(2700)  |   players     |   69%     |   59MB    |   -           |
-|   2014-11-12  |   2.0.14  |   3.5k(3500)  |   players     |   95%     |   78MB    |   [code][p7]  |
-|   2014-11-13  |   2.0.15  |   6.0k(6000)  |   players     |   82%     |   203MB   |   [code][p8]  |
-|   2014-11-22  |   2.0.30  |   7.5k(7500)  |   players     |   87%     |   320MB   |   [code][p9]  |
-|   2014-12-05  |   2.0.55  |   8.0k(8000)  |   players     |   89%     |   360MB   |   [code][p10] |
-|   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
 |   2014-12-07  |   2.0.67  |   10k(10000)  |   players     |   95%     |   656MB   |   [code][p12] |
+|   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
+|   2014-12-05  |   2.0.55  |   8.0k(8000)  |   players     |   89%     |   360MB   |   [code][p10] |
+|   2014-11-22  |   2.0.30  |   7.5k(7500)  |   players     |   87%     |   320MB   |   [code][p9]  |
+|   2014-11-13  |   2.0.15  |   6.0k(6000)  |   players     |   82%     |   203MB   |   [code][p8]  |
+|   2014-11-12  |   2.0.14  |   3.5k(3500)  |   players     |   95%     |   78MB    |   [code][p7]  |
+|   2014-11-12  |   2.0.14  |   2.7k(2700)  |   players     |   69%     |   59MB    |   -           |
+|   2014-11-11  |   2.0.12  |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
+|   2014-11-11  |   1.0.5   |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
+|   2014-07-12  |   0.9.156 |   2.7k(2700)  |   players     |   89%     |   61MB    |   [code][p6]  |
+|   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
+|   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
 
 <a name="publish-rtmp-benchmark"></a>
 **Publish RTMP benchmark**
@@ -958,15 +983,15 @@ The data for publishing RTMP was benchmarked by [SB][srs-bench]:
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
-|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
-|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    |   [code][p1]  |
-|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -           |
-|   2014-12-03  |   2.0.48  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   [code][p2]  |
-|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -           |
-|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   [code][p3]  |
-|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
 |   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   [code][p5]  |
+|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
+|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   [code][p3]  |
+|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -           |
+|   2014-12-03  |   2.0.48  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   [code][p2]  |
+|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -           |
+|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    |   [code][p1]  |
+|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
+|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
 
 <a name="play-http-flv-benchmark"></a>
 **Play HTTP FLV benchmark**
@@ -976,11 +1001,11 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
-|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   [code][p17] |
-|   2014-05-24  |   2.0.169 |   3.0k(3000)  |   players     |   94%     |   188MB   |   [code][p18] |
-|   2014-05-24  |   2.0.170 |   3.0k(3000)  |   players     |   89%     |   96MB    |   [code][p19] |
 |   2014-05-25  |   2.0.171 |   6.0k(6000)  |   players     |   84%     |   297MB   |   [code][p20] |
+|   2014-05-24  |   2.0.170 |   3.0k(3000)  |   players     |   89%     |   96MB    |   [code][p19] |
+|   2014-05-24  |   2.0.169 |   3.0k(3000)  |   players     |   94%     |   188MB   |   [code][p18] |
+|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   [code][p17] |
+|   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**
@@ -990,9 +1015,9 @@ The latency between encoder and player with realtime config([CN][v3_CN_LowLatenc
 
 |   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
 | ------------- | --------- | --------- | --------- | --------- | --------  |
-|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
-|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
 |   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
+|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
+|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
 
 > 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
 
@@ -1134,6 +1159,9 @@ Maintainers of SRS project:
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHDS) module.
 * [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
+* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
 
 A big THANK YOU goes to:
 
@@ -1146,21 +1174,23 @@ A big THANK YOU goes to:
 OSChina: [https://gitee.com/winlinvip/srs.oschina][oschina], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git
+git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
 > Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
+
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
+
+```
+git clone https://gitlab.com/winlinvip/srs-gitlab.git srs &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
+```
 
 Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
 
 ```
 git clone https://github.com/ossrs/srs.git
-```
-
-Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v1_CN_Git], [EN][v1_EN_Git])
-
-```
-git clone https://gitlab.com/winlinvip/srs-gitlab.git
 ```
 
 | Branch | Cost | Size | CMD |
@@ -1382,6 +1412,8 @@ Winlin
 [v3_CN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v3_CN_LowLatency#merged-write
 [v3_CN_NgExec]:https://github.com/ossrs/srs/wiki/v3_CN_NgExec
 [v3_EN_NgExec]:https://github.com/ossrs/srs/wiki/v3_EN_NgExec
+[v3_CN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_CN_ReusePort
+[v3_EN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_EN_ReusePort
 
 [bug #213]: https://github.com/ossrs/srs/issues/213
 [bug #194]: https://github.com/ossrs/srs/issues/194
@@ -1704,14 +1736,20 @@ Winlin
 [bug #1594]: https://github.com/ossrs/srs/issues/1594
 [bug #1630]: https://github.com/ossrs/srs/issues/1630
 [bug #1635]: https://github.com/ossrs/srs/issues/1635
+[bug #1651]: https://github.com/ossrs/srs/issues/1651
+[bug #1619]: https://github.com/ossrs/srs/issues/1619
+[bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
 [bug #1612]: https://github.com/ossrs/srs/issues/1612
+[bug #1636]: https://github.com/ossrs/srs/issues/1636
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0b4]: https://github.com/ossrs/srs/releases/tag/v3.0-b4
+[r3.0b3]: https://github.com/ossrs/srs/releases/tag/v3.0-b3
 [r3.0b2]: https://github.com/ossrs/srs/releases/tag/v3.0-b2
 [r3.0b1]: https://github.com/ossrs/srs/releases/tag/v3.0-b1
 [r3.0b0]: https://github.com/ossrs/srs/releases/tag/v3.0-b0

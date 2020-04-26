@@ -120,25 +120,29 @@
     #define MD_ALWAYS_UNSERIALIZED_ACCEPT
     #define MD_HAVE_SOCKLEN_T
 
-    #define MD_SETJMP(env) _setjmp(env)
-    #define MD_LONGJMP(env, val) _longjmp(env, val)
+    #define MD_USE_BUILTIN_SETJMP
 
-    #if defined(__ppc__)
-        #define MD_JB_SP  0
-    #elif defined(__i386__)
-        #define MD_JB_SP  9
-    #elif defined(__x86_64__)
-        #define MD_JB_SP  4
+    #if defined(__amd64__) || defined(__x86_64__)
+        #define JB_SP  12
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
     #else
         #error Unknown CPU architecture
     #endif
-
-    #define MD_INIT_CONTEXT(_thread, _sp, _main)   \
-        ST_BEGIN_MACRO                               \
-        if (MD_SETJMP((_thread)->context))           \
-            _main();                                   \
-        *((long *)&((_thread)->context[MD_JB_SP])) = (long) (_sp); \
+    
+    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
+        ST_BEGIN_MACRO                             \
+        if (MD_SETJMP((_thread)->context))         \
+            _main();                                 \
+        MD_GET_SP(_thread) = (long) (_sp);         \
         ST_END_MACRO
+
+    #if defined(MD_USE_BUILTIN_SETJMP)
+        #define MD_SETJMP(env) _st_md_cxt_save(env)
+        #define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
+
+        extern int _st_md_cxt_save(jmp_buf env);
+        extern void _st_md_cxt_restore(jmp_buf env, int val);
+    #endif
 
     #define MD_GET_UTIME()            \
         struct timeval tv;              \

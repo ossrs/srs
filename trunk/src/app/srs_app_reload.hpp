@@ -55,6 +55,7 @@ public:
     virtual srs_error_t on_reload_http_stream_disabled();
     virtual srs_error_t on_reload_http_stream_updated();
     virtual srs_error_t on_reload_http_stream_crossdomain();
+    virtual srs_error_t on_reload_rtc_server();
 public:
     // TODO: FIXME: should rename to http_static
     virtual srs_error_t on_reload_vhost_http_updated();

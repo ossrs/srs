@@ -103,7 +103,7 @@ srs_error_t SrsConnection::set_tcp_nodelay(bool v)
     
     int iv = (v? 1:0);
     if ((r0 = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, nb_v)) != 0) {
-        return srs_error_new(ERROR_SOCKET_NO_NODELAY, "setsockopt fd=%d, r0=%v", fd, r0);
+        return srs_error_new(ERROR_SOCKET_NO_NODELAY, "setsockopt fd=%d, r0=%d", fd, r0);
     }
     if ((r0 = getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_NO_NODELAY, "getsockopt fd=%d, r0=%d", fd, r0);
@@ -155,7 +155,7 @@ srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
     
     // set the socket send buffer when required larger buffer
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, nb_v) < 0) {
-        return srs_error_new(ERROR_SOCKET_SNDBUF, "setsockopt fd=%d, r0=%v", fd, r0);
+        return srs_error_new(ERROR_SOCKET_SNDBUF, "setsockopt fd=%d, r0=%d", fd, r0);
     }
     if ((r0 = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_SNDBUF, "getsockopt fd=%d, r0=%d", fd, r0);
@@ -176,6 +176,13 @@ srs_error_t SrsConnection::cycle()
     // success.
     if (err == srs_success) {
         srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
         return err;
     }
     

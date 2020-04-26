@@ -54,6 +54,7 @@ class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
+class SrsRtc;
 class SrsDvr;
 class SrsDash;
 class SrsEncoder;
@@ -61,6 +62,7 @@ class SrsBuffer;
 #ifdef SRS_AUTO_HDS
 class SrsHds;
 #endif
+class SrsRtpSharedPacket;
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -149,12 +151,13 @@ public:
     // Enqueue the message, the timestamp always monotonically.
     // @param msg, the msg to enqueue, user never free it whatever the return code.
     // @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
+    // @remark If pass_timestamp, we never shrink and never care about the timestamp or duration.
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL, bool pass_timestamp = false);
     // Get packets in consumer queue.
     // @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
     // @count the count in array, output param.
     // @max_count the max count to dequeue, must be positive.
-    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count, bool pass_timestamp = false);
     // Dumps packets to consumer, use specified args.
     // @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
     virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
@@ -201,10 +204,17 @@ private:
     int mw_min_msgs;
     srs_utime_t mw_duration;
 #endif
+private:
+    // For RTC, we never use jitter to correct timestamp.
+    // But we should not change the atc or time_jitter for source or RTMP.
+    // @remark In this mode, we also never check the queue by timstamp, but only by count.
+    bool pass_timestamp;
 public:
     SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
+    // Use pass timestamp mode.
+    void enable_pass_timestamp() { pass_timestamp = true; }
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
@@ -323,6 +333,32 @@ public:
     virtual SrsSharedPtrMessage* pop();
 };
 
+#ifdef SRS_AUTO_RTC
+// To find the RTP packet for RTX or restore.
+// TODO: FIXME: Should queue RTP packets in connection level.
+class SrsRtpPacketQueue
+{
+private:
+    struct SeqComp
+    {
+        bool operator()(const uint16_t& l, const uint16_t& r) const
+        {
+            return ((int16_t)(r - l)) > 0;
+        }
+    };
+private:
+    std::map<uint16_t, SrsRtpSharedPacket*, SeqComp> pkt_queue;
+public:
+    SrsRtpPacketQueue();
+    virtual ~SrsRtpPacketQueue();
+public:
+    void clear();
+    void push(std::vector<SrsRtpSharedPacket*>& pkts);
+    void insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt);
+    SrsRtpSharedPacket* find(const uint16_t& sequence);
+};
+#endif
+
 // The hub for origin is a collection of utilities for origin only,
 // For example, DVR, HLS, Forward and Transcode are only available for origin,
 // they are meanless for edge server.
@@ -335,6 +371,10 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
+#ifdef SRS_AUTO_RTC
+    // rtc handler
+    SrsRtc* rtc;
+#endif
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -507,6 +547,10 @@ private:
     bool mix_correct;
     // The mix queue to implements the mix correct algorithm.
     SrsMixQueue* mix_queue;
+#ifdef SRS_AUTO_RTC
+    // rtp packet queue
+    SrsRtpPacketQueue* rtp_queue;
+#endif
     // For play, whether enabled atc.
     // The atc(use absolute time and donot adjust time),
     // directly use msg time and donot adjust if atc is true,
@@ -595,6 +639,13 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
+public:
+#ifdef SRS_AUTO_RTC
+    // Find rtp packet by sequence
+    SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
+    // Get the cached meta, as such the sps/pps.
+    SrsMetaCache* cached_meta();
+#endif
 };
 
 #endif

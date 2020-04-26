@@ -234,6 +234,27 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
     return err;
 }
 
+SrsStatisticCategory::SrsStatisticCategory()
+{
+    nn = 0;
+
+    a = 0;
+    b = 0;
+    c = 0;
+    d = 0;
+    e = 0;
+
+    f = 0;
+    g = 0;
+    h = 0;
+    i = 0;
+    j = 0;
+}
+
+SrsStatisticCategory::~SrsStatisticCategory()
+{
+}
+
 SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
@@ -243,6 +264,15 @@ SrsStatistic::SrsStatistic()
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
+
+    perf_iovs = new SrsStatisticCategory();
+    perf_msgs = new SrsStatisticCategory();
+    perf_sendmmsg = new SrsStatisticCategory();
+    perf_gso = new SrsStatisticCategory();
+    perf_rtp = new SrsStatisticCategory();
+    perf_rtc = new SrsStatisticCategory();
+    perf_bytes = new SrsStatisticCategory();
+    perf_dropped = new SrsStatisticCategory();
 }
 
 SrsStatistic::~SrsStatistic()
@@ -276,6 +306,15 @@ SrsStatistic::~SrsStatistic()
     rvhosts.clear();
     streams.clear();
     rstreams.clear();
+
+    srs_freep(perf_iovs);
+    srs_freep(perf_msgs);
+    srs_freep(perf_sendmmsg);
+    srs_freep(perf_gso);
+    srs_freep(perf_rtp);
+    srs_freep(perf_rtc);
+    srs_freep(perf_bytes);
+    srs_freep(perf_dropped);
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -553,6 +592,206 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray* arr, int start, int count)
         }
     }
     
+    return err;
+}
+
+void SrsStatistic::perf_on_msgs(int nb_msgs)
+{
+    perf_on_packets(perf_msgs, nb_msgs);
+}
+
+srs_error_t SrsStatistic::dumps_perf_msgs(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_msgs, obj);
+}
+
+void SrsStatistic::perf_on_rtc_packets(int nb_packets)
+{
+    perf_on_packets(perf_rtc, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_rtc_packets(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_rtc, obj);
+}
+
+void SrsStatistic::perf_on_rtp_packets(int nb_packets)
+{
+    perf_on_packets(perf_rtp, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_rtp_packets(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_rtp, obj);
+}
+
+void SrsStatistic::perf_on_gso_packets(int nb_packets)
+{
+    perf_on_packets(perf_gso, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_gso(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_gso, obj);
+}
+
+void SrsStatistic::perf_on_writev_iovs(int nb_iovs)
+{
+    perf_on_packets(perf_iovs, nb_iovs);
+}
+
+srs_error_t SrsStatistic::dumps_perf_writev_iovs(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_iovs, obj);
+}
+
+void SrsStatistic::perf_on_sendmmsg_packets(int nb_packets)
+{
+    perf_on_packets(perf_sendmmsg, nb_packets);
+}
+
+srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
+{
+    return dumps_perf(perf_sendmmsg, obj);
+}
+
+void SrsStatistic::perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding)
+{
+    // a: AVFrame bytes.
+    // b: RTC bytes.
+    // c: RTC paddings.
+    perf_bytes->a += nn_bytes;
+    perf_bytes->b += nn_rtp_bytes;
+    perf_bytes->c += nn_padding;
+
+    perf_bytes->nn += nn_rtp_bytes;
+}
+
+srs_error_t SrsStatistic::dumps_perf_bytes(SrsJsonObject* obj)
+{
+    obj->set("avframe_bytes", SrsJsonAny::integer(perf_bytes->a));
+    obj->set("rtc_bytes", SrsJsonAny::integer(perf_bytes->b));
+    obj->set("rtc_padding", SrsJsonAny::integer(perf_bytes->c));
+
+    obj->set("nn",  SrsJsonAny::integer(perf_bytes->nn));
+
+    return srs_success;
+}
+
+void SrsStatistic::perf_on_dropped(int nn_msgs, int nn_rtc, int nn_dropped)
+{
+    // a: System AVFrames.
+    // b: RTC frames.
+    // c: Dropped frames.
+    perf_dropped->a += nn_msgs;
+    perf_dropped->b += nn_rtc;
+    perf_dropped->c += nn_dropped;
+
+    perf_dropped->nn += nn_dropped;
+}
+
+srs_error_t SrsStatistic::dumps_perf_dropped(SrsJsonObject* obj)
+{
+    obj->set("avframes", SrsJsonAny::integer(perf_dropped->a));
+    obj->set("rtc_frames", SrsJsonAny::integer(perf_dropped->b));
+    obj->set("rtc_dropeed", SrsJsonAny::integer(perf_dropped->c));
+
+    obj->set("nn",  SrsJsonAny::integer(perf_dropped->nn));
+
+    return srs_success;
+}
+
+void SrsStatistic::reset_perf()
+{
+    srs_freep(perf_iovs);
+    srs_freep(perf_msgs);
+    srs_freep(perf_sendmmsg);
+    srs_freep(perf_gso);
+    srs_freep(perf_rtp);
+    srs_freep(perf_rtc);
+    srs_freep(perf_bytes);
+    srs_freep(perf_dropped);
+
+    perf_iovs = new SrsStatisticCategory();
+    perf_msgs = new SrsStatisticCategory();
+    perf_sendmmsg = new SrsStatisticCategory();
+    perf_gso = new SrsStatisticCategory();
+    perf_rtp = new SrsStatisticCategory();
+    perf_rtc = new SrsStatisticCategory();
+    perf_bytes = new SrsStatisticCategory();
+    perf_dropped = new SrsStatisticCategory();
+}
+
+void SrsStatistic::perf_on_packets(SrsStatisticCategory* p, int nb_msgs)
+{
+    // The range for stat:
+    //      2, 3, 5, 9, 16, 32, 64, 128, 256
+    // that is:
+    //      a: <2
+    //      b: <3
+    //      c: <5
+    //      d: <9
+    //      e: <16
+    //      f: <32
+    //      g: <64
+    //      h: <128
+    //      i: <256
+    //      j: >=256
+    if (nb_msgs < 2) {
+        p->a++;
+    } else if (nb_msgs < 3) {
+        p->b++;
+    } else if (nb_msgs < 5) {
+        p->c++;
+    } else if (nb_msgs < 9) {
+        p->d++;
+    } else if (nb_msgs < 16) {
+        p->e++;
+    } else if (nb_msgs < 32) {
+        p->f++;
+    } else if (nb_msgs < 64) {
+        p->g++;
+    } else if (nb_msgs < 128) {
+        p->h++;
+    } else if (nb_msgs < 256) {
+        p->i++;
+    } else {
+        p->j++;
+    }
+
+    p->nn += nb_msgs;
+}
+
+srs_error_t SrsStatistic::dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj)
+{
+    srs_error_t err = srs_success;
+
+    // The range for stat:
+    //      2, 3, 5, 9, 16, 32, 64, 128, 256
+    // that is:
+    //      a: <2
+    //      b: <3
+    //      c: <5
+    //      d: <9
+    //      e: <16
+    //      f: <32
+    //      g: <64
+    //      h: <128
+    //      i: <256
+    //      j: >=256
+    if (p->a) obj->set("lt_2",    SrsJsonAny::integer(p->a));
+    if (p->b) obj->set("lt_3",    SrsJsonAny::integer(p->b));
+    if (p->c) obj->set("lt_5",    SrsJsonAny::integer(p->c));
+    if (p->d) obj->set("lt_9",    SrsJsonAny::integer(p->d));
+    if (p->e) obj->set("lt_16",   SrsJsonAny::integer(p->e));
+    if (p->f) obj->set("lt_32",   SrsJsonAny::integer(p->f));
+    if (p->g) obj->set("lt_64",   SrsJsonAny::integer(p->g));
+    if (p->h) obj->set("lt_128",  SrsJsonAny::integer(p->h));
+    if (p->i) obj->set("lt_256",  SrsJsonAny::integer(p->i));
+    if (p->j) obj->set("gt_256",  SrsJsonAny::integer(p->j));
+
+    obj->set("nn",  SrsJsonAny::integer(p->nn));
+
     return err;
 }
 

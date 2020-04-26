@@ -128,6 +128,7 @@ OTHER_FLAGS = -Wall
 endif
 
 ifeq ($(OS), DARWIN)
+EXTRA_OBJS  = $(TARGETDIR)/md_darwin.o
 LD          = cc
 SFLAGS      = -fPIC -fno-common
 DSO_SUFFIX  = dylib
@@ -139,8 +140,8 @@ CFLAGS      += -arch ppc
 LDFLAGS     += -arch ppc
 endif
 ifeq ($(INTEL), yes)
-CFLAGS      += -arch i386 -arch x86_64
-LDFLAGS     += -arch i386 -arch x86_64
+CFLAGS      += -arch x86_64
+LDFLAGS     += -arch x86_64
 endif
 LDFLAGS     += -dynamiclib -install_name /sw/lib/libst.$(MAJOR).$(DSO_SUFFIX) -compatibility_version $(MAJOR) -current_version $(VERSION)
 OTHER_FLAGS = -Wall
@@ -187,6 +188,10 @@ LDFLAGS     = -shared -soname=$(SONAME) -lc
 OTHER_FLAGS = -Wall
 ifeq ($(shell test -f /usr/include/sys/epoll.h && echo yes), yes)
 DEFINES     += -DMD_HAVE_EPOLL
+endif
+# For SRS, sendmmsg
+ifeq ($(shell grep -qs sendmmsg /usr/include/sys/socket.h && echo yes), yes)
+DEFINES     += -DMD_HAVE_SENDMMSG -D_GNU_SOURCE
 endif
 endif
 
@@ -281,6 +286,10 @@ endif
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
+# or to enable sendmmsg(2) support:
+#
+# make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
+#
 ##########################
 
 CFLAGS      += $(DEFINES) $(OTHER_FLAGS) $(EXTRA_CFLAGS)
@@ -313,7 +322,9 @@ endif
 # for SRS
 # disable examples for ubuntu crossbuild failed.
 # @see https://github.com/winlinvip/simple-rtmp-server/issues/308
+ifeq ($(OS), LINUX)
 EXAMPLES =
+endif
 
 ifeq ($(OS), DARWIN)
 LINKNAME    = libst.$(DSO_SUFFIX)
@@ -369,10 +380,13 @@ $(HEADER): public.h
 $(TARGETDIR)/md.o: md.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(TARGETDIR)/md_darwin.o: md_darwin.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
 $(TARGETDIR)/%.o: %.c common.h md.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-examples::
+examples: $(SLIBRARY)
 	@echo Making $@
 	@cd $@; $(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" OS="$(OS)" TARGETDIR="$(TARGETDIR)"
 

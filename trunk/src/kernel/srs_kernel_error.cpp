@@ -69,14 +69,14 @@ std::string SrsCplxError::description() {
     if (desc.empty()) {
         stringstream ss;
         ss << "code=" << code;
-        
+
         SrsCplxError* next = this;
         while (next) {
             ss << " : " << next->msg;
             next = next->wrapped;
         }
         ss << endl;
-        
+
         next = this;
         while (next) {
             ss << "thread [" << getpid() << "][" << next->cid << "]: "
@@ -89,11 +89,27 @@ std::string SrsCplxError::description() {
                 ss << endl;
             }
         }
-        
+
         desc = ss.str();
     }
-    
+
     return desc;
+}
+
+std::string SrsCplxError::summary() {
+    if (_summary.empty()) {
+        stringstream ss;
+
+        SrsCplxError* next = this;
+        while (next) {
+            ss << " : " << next->msg;
+            next = next->wrapped;
+        }
+
+        _summary = ss.str();
+    }
+
+    return _summary;
 }
 
 SrsCplxError* SrsCplxError::create(const char* func, const char* file, int line, int code, const char* fmt, ...) {
@@ -176,6 +192,11 @@ SrsCplxError* SrsCplxError::copy(SrsCplxError* from)
 string SrsCplxError::description(SrsCplxError* err)
 {
     return err? err->description() : "Success";
+}
+
+string SrsCplxError::summary(SrsCplxError* err)
+{
+    return err? err->summary() : "Success";
 }
 
 int SrsCplxError::error_code(SrsCplxError* err)

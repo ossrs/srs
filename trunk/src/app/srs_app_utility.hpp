@@ -30,6 +30,7 @@
 #include <string>
 #include <sstream>
 
+#include <limits.h>
 #include <arpa/inet.h>
 #include <sys/resource.h>
 
@@ -648,6 +649,14 @@ extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
 extern void srs_api_dump_summaries(SrsJsonObject* obj);
+
+// Dump string(str in length) to hex, it will process min(limit, length) chars.
+extern std::string srs_string_dumps_hex(const std::string& str, const int& limit = INT_MAX);
+extern std::string srs_string_dumps_hex(const char* str, const int length, const int& limit = INT_MAX);
+
+// Get ENV variable, which may starts with $.
+//      srs_getenv("EIP") === srs_getenv("$EIP")
+extern std::string srs_getenv(std::string key);
 
 #endif
 

@@ -5,13 +5,19 @@ jobs:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure && make
+      - run: |
+          cd trunk &&
+          ./configure --without-rtc --without-gb28181 --without-utest --without-srtp-nasm && make &&
+          ./configure --with-rtc --with-gb28181 --with-utest --with-srtp-nasm && make clean && make
   test:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure --gcov && make && ./objs/srs_utest && bash auto/coverage.sh
+      - run: |
+          cd trunk &&
+          ./configure --with-rtc --with-gb28181 --with-srtp-nasm --with-utest --gcov && make &&
+          ./objs/srs_utest && bash auto/coverage.sh
 workflows:
   version: 2
   build_and_test:

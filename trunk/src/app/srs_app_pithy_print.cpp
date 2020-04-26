@@ -110,6 +110,12 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 #define SRS_CONSTS_STAGE_HTTP_STREAM_CACHE 10
 // for the ng-exec stage.
 #define SRS_CONSTS_STAGE_EXEC 11
+// for the rtc play
+#define SRS_CONSTS_STAGE_RTC_PLAY 12
+// for the rtc send
+#define SRS_CONSTS_STAGE_RTC_SEND 13
+// for the rtc recv
+#define SRS_CONSTS_STAGE_RTC_RECV 14
 
 SrsPithyPrint* SrsPithyPrint::create_rtmp_play()
 {
@@ -166,6 +172,21 @@ SrsPithyPrint* SrsPithyPrint::create_http_stream_cache()
     return new SrsPithyPrint(SRS_CONSTS_STAGE_HTTP_STREAM_CACHE);
 }
 
+SrsPithyPrint* SrsPithyPrint::create_rtc_play()
+{
+    return new SrsPithyPrint(SRS_CONSTS_STAGE_RTC_PLAY);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_rtc_send(int fd)
+{
+    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_SEND);
+}
+
+SrsPithyPrint* SrsPithyPrint::create_rtc_recv(int fd)
+{
+    return new SrsPithyPrint(fd<<16 | SRS_CONSTS_STAGE_RTC_RECV);
+}
+
 SrsPithyPrint::~SrsPithyPrint()
 {
     leave_stage();
@@ -186,8 +207,8 @@ int SrsPithyPrint::enter_stage()
     srs_assert(stage != NULL);
     client_id = stage->nb_clients++;
     
-    srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-                stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d",
+                stage->stage_id, client_id, stage->nb_clients);
     
     return client_id;
 }
@@ -199,8 +220,8 @@ void SrsPithyPrint::leave_stage()
     
     stage->nb_clients--;
     
-    srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-                stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d",
+                stage->stage_id, client_id, stage->nb_clients);
 }
 
 void SrsPithyPrint::elapse()

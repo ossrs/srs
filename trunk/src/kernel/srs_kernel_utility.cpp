@@ -124,7 +124,9 @@ srs_utime_t srs_get_system_startup_time()
 }
 
 // For utest to mock it.
+#ifndef SRS_AUTO_OSX
 _srs_gettimeofday_t _srs_gettimeofday = ::gettimeofday;
+#endif
 
 srs_utime_t srs_update_system_time()
 {
@@ -652,15 +654,20 @@ bool srs_path_exists(std::string path)
 string srs_path_dirname(string path)
 {
     std::string dirname = path;
+
+    // No slash, it must be current dir.
     size_t pos = string::npos;
-    
-    if ((pos = dirname.rfind("/")) != string::npos) {
-        if (pos == 0) {
-            return "/";
-        }
-        dirname = dirname.substr(0, pos);
+    if ((pos = dirname.rfind("/")) == string::npos) {
+        return "./";
     }
-    
+
+    // Path under root.
+    if (pos == 0) {
+        return "/";
+    }
+
+    // Fetch the directory.
+    dirname = dirname.substr(0, pos);
     return dirname;
 }
 

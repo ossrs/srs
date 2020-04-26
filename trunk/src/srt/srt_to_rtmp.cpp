@@ -1,3 +1,26 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2020 Runner365
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #include "srt_to_rtmp.hpp"
 #include "stringex.hpp"
 #include "time_help.h"
@@ -517,26 +540,13 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
     return err;
 }
 
-int rtmp_client::get_sample_rate(char sound_rate) {
+int rtmp_client::get_sample_rate(char sample_index) {
     int sample_rate = 44100;
 
-    switch (sound_rate)
-    {
-    case SrsAudioSampleRate44100:
-        sample_rate = 44100;
-        break;
-    case SrsAudioSampleRate22050:
-        sample_rate = 22050;
-        break;
-    case SrsAudioSampleRate11025:
-        sample_rate = 11025;
-        break;
-    case SrsAudioSampleRate5512:
-        sample_rate = 5512;
-        break;
-    default:
-        break;
+    if ((sample_index >= 0) && (sample_index < SrsAAcSampleRateNumbers)) {
+        sample_rate = srs_aac_srates[(uint8_t)sample_index];
     }
+
     return sample_rate;
 }
 

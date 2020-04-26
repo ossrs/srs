@@ -510,7 +510,7 @@ srs_error_t SrsMp4Box::encode_header(SrsBuffer* buf)
     
     int lrsz = nb_header() - SrsMp4Box::nb_header();
     if (!buf->require(lrsz)) {
-        return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "box requires %v only %d bytes", lrsz, buf->left());
+        return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "box requires %d only %d bytes", lrsz, buf->left());
     }
     
     return err;
@@ -2744,10 +2744,12 @@ SrsMp4DataEntryBox* SrsMp4DataReferenceBox::entry_at(int index)
     return entries.at(index);
 }
 
-SrsMp4DataReferenceBox* SrsMp4DataReferenceBox::append(SrsMp4DataEntryBox* v)
+void SrsMp4DataReferenceBox::append(SrsMp4Box* v)
 {
-    entries.push_back(v);
-    return this;
+    SrsMp4DataEntryBox* pv = dynamic_cast<SrsMp4DataEntryBox*>(v);
+    if (pv) {
+        entries.push_back(pv);
+    }
 }
 
 int SrsMp4DataReferenceBox::nb_header()
@@ -3600,19 +3602,19 @@ srs_error_t SrsMp4ES_Descriptor::decode_payload(SrsBuffer* buf)
     
     if (streamDependenceFlag) {
         if (!buf->require(2)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "ES requires 2 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "ES requires 2 only %d bytes", buf->left());
         }
         dependsOn_ES_ID = buf->read_2bytes();
     }
     
     if (URL_Flag) {
         if (!buf->require(1)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URLlength requires 1 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URLlength requires 1 only %d bytes", buf->left());
         }
         uint8_t URLlength = buf->read_1bytes();
         
         if (!buf->require(URLlength)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URL requires %d only %v bytes", URLlength, buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "URL requires %d only %d bytes", URLlength, buf->left());
         }
         URLstring.resize(URLlength);
         buf->read_bytes(&URLstring[0], URLlength);
@@ -3620,7 +3622,7 @@ srs_error_t SrsMp4ES_Descriptor::decode_payload(SrsBuffer* buf)
     
     if (OCRstreamFlag) {
         if (!buf->require(2)) {
-            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "OCR requires 2 only %v bytes", buf->left());
+            return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "OCR requires 2 only %d bytes", buf->left());
         }
         OCR_ES_Id = buf->read_2bytes();
     }
@@ -3765,10 +3767,12 @@ SrsMp4SampleEntry* SrsMp4SampleDescriptionBox::entrie_at(int index)
     return entries.at(index);
 }
 
-SrsMp4SampleDescriptionBox* SrsMp4SampleDescriptionBox::append(SrsMp4SampleEntry* v)
+void SrsMp4SampleDescriptionBox::append(SrsMp4Box* v)
 {
-    entries.push_back(v);
-    return this;
+    SrsMp4SampleEntry* pv = dynamic_cast<SrsMp4SampleEntry*>(v);
+    if (pv) {
+        entries.push_back(pv);
+    }
 }
 
 int SrsMp4SampleDescriptionBox::nb_header()

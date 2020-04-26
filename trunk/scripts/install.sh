@@ -23,7 +23,7 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 # check lsb_release
 ok_msg "check tools"
 lsb_release -v >/dev/null 2>&1; ret=$?
-if [[ $ret -ne 0 ]]; then failed_msg "abort, please install lsb_release"; exit $ret; fi
+if [[ $ret -ne 0 ]]; then failed_msg "no lsb_release, install: yum install -y redhat-lsb"; exit $ret; fi
 
 # user must stop service first.
 ok_msg "check previous install"
