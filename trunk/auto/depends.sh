@@ -338,13 +338,13 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # for osx, use darwin for st, donot use epoll.
     if [[ $SRS_OSX == YES ]]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
     fi
     # For UDP sendmmsg, disable it if not suppported.
     if [[ $SRS_SENDMMSG == YES ]]; then
