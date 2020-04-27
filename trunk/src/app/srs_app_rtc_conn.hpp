@@ -305,6 +305,7 @@ public:
 
 class SrsRtcSession
 {
+    friend class SrsDtlsSession;
     friend class SrsRtcSenderThread;
     friend class SrsRtcPublisher;
 private:
@@ -327,6 +328,10 @@ private:
     bool encrypt;
     // The timeout of session, keep alive by STUN ping pong.
     srs_utime_t sessionStunTimeout;
+private:
+    bool blackhole;
+    sockaddr_in* blackhole_addr;
+    srs_netfd_t blackhole_stfd;
 public:
     SrsRequest* req;
     SrsSource* source;
