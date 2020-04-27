@@ -743,7 +743,7 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
 }
 
 
-#if defined(MD_HAVE_SENDMMSG) && defined(_GNU_SOURCE)
+#if defined(MD_HAVE_SENDMMSG) && defined(__linux__) && defined(_GNU_SOURCE)
 int st_sendmmsg(st_netfd_t fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
 {
     int n;
