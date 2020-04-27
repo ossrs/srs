@@ -292,10 +292,11 @@ private:
     srs_error_t send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssrc);
 private:
     srs_error_t on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
+    srs_error_t collect_audio_frame();
+private:
     srs_error_t on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt);
 private:
     srs_error_t collect_video_frame();
-    srs_error_t collect_audio_frame();
 public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 // interface ISrsHourGlass

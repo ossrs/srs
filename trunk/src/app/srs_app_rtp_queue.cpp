@@ -171,16 +171,18 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
 
     uint16_t seq = rtp_pkt->rtp_header.get_sequence();
 
+    // TODO: FIXME: Update time for each packet, may hurt performance.
     srs_utime_t now = srs_update_system_time();
 
     // First packet recv, init head_sequence and highest_sequence.
-    if (! initialized_) {
+    if (!initialized_) {
         initialized_ = true;
         head_sequence_ = seq;
         highest_sequence_ = seq;
 
         ++num_of_packet_received_;
 
+        // TODO: FIXME: Covert time to srs_utime_t.
         last_trans_time_ = now/1000 - rtp_pkt->rtp_header.get_timestamp()/90;
     } else {
         SrsRtpNackInfo* nack_info = NULL;
@@ -219,7 +221,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
             } else {
                 // Because we don't know the ISN(initiazlie sequence number), the first packet
                 // we received maybe no the first packet client sented.
-                if (! start_collected_) {
+                if (!start_collected_) {
                     if (seq_cmp(seq, head_sequence_)) {
                         srs_info("head seq=%u, cur seq=%u, update head seq because recv less than it.", head_sequence_, seq);
                         head_sequence_ = seq;
@@ -267,6 +269,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
         delete old_pkt;
     }
 
+    // TODO: FIXME: Change to ptr of ptr.
     old_pkt = rtp_pkt->copy();
 
     // Marker bit means the last packet of frame received.
@@ -295,7 +298,7 @@ void SrsRtpQueue::get_and_clean_collected_frames(std::vector<std::vector<SrsRtpS
     frames.swap(frames_);
 }
 
-bool SrsRtpQueue::get_and_clean_if_needed_rqeuest_key_frame()
+bool SrsRtpQueue::get_and_clean_if_needed_request_key_frame()
 {
     if (request_key_frame_) {
         request_key_frame_ = false;
@@ -334,7 +337,7 @@ void SrsRtpQueue::notify_nack_list_full()
         ++head_sequence_;
     }
 
-    if (! found_key_frame) {
+    if (!found_key_frame) {
         srs_verbose("no found first packet of key frame, request key frame");
         request_key_frame_ = true;
         head_sequence_ = highest_sequence_;
@@ -398,13 +401,13 @@ void SrsRtpQueue::collect_packet()
         }
 
         // We must collect frame from first packet to last packet.
-        if (s == head_sequence_ && pkt->rtp_payload_size() != 0 && ! pkt->rtp_payload_header->is_first_packet_of_frame) {
+        if (s == head_sequence_ && pkt->rtp_payload_size() != 0 && !pkt->rtp_payload_header->is_first_packet_of_frame) {
             break;
         }
 
         frame.push_back(pkt->copy());
         if (pkt->rtp_header.get_marker() || one_packet_per_frame_) {
-            if (! start_collected_) {
+            if (!start_collected_) {
                 start_collected_ = true;
             }
             frames_.push_back(frame);

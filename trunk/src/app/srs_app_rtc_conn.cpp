@@ -1935,36 +1935,18 @@ srs_error_t SrsRtcPublisher::on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* 
         return srs_error_wrap(err, "rtp opus demux failed");
     }
 
+    // TODO: FIXME: Rename it.
+    // TODO: FIXME: Error check.
     rtp_audio_queue->insert(rtp_pkt);
 
-    if (rtp_audio_queue->get_and_clean_if_needed_rqeuest_key_frame()) {
+    if (rtp_audio_queue->get_and_clean_if_needed_request_key_frame()) {
+        // TODO: FIXME: Check error.
         send_rtcp_fb_pli(skt, audio_ssrc);
     }
 
     check_send_nacks(rtp_audio_queue, audio_ssrc, skt);
 
     return collect_audio_frame();
-}
-
-srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt)
-{
-    srs_error_t err = srs_success;
-
-    rtp_pkt->rtp_payload_header = new SrsRtpH264Header();
-
-    if ((err = rtp_h264_demuxer->parse(rtp_pkt)) != srs_success) {
-        return srs_error_wrap(err, "rtp h264 demux failed");
-    }
-
-    rtp_video_queue->insert(rtp_pkt);
-
-    if (rtp_video_queue->get_and_clean_if_needed_rqeuest_key_frame()) {
-        send_rtcp_fb_pli(skt, video_ssrc);
-    }
-
-    check_send_nacks(rtp_video_queue, video_ssrc, skt);
-
-    return collect_video_frame();
 }
 
 srs_error_t SrsRtcPublisher::collect_audio_frame()
@@ -1980,12 +1962,35 @@ srs_error_t SrsRtcPublisher::collect_audio_frame()
                 frames.size(), frames[i].front()->rtp_header.get_sequence(), frames[i].back()->rtp_header.get_sequence());
         }
 
+        // TODO: FIXME: Write audio frame to source.
+
         for (size_t n = 0; n < frames[i].size(); ++n) {
             srs_freep(frames[i][n]);
         }
     }
 
     return err;
+}
+
+srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt)
+{
+    srs_error_t err = srs_success;
+
+    rtp_pkt->rtp_payload_header = new SrsRtpH264Header();
+
+    if ((err = rtp_h264_demuxer->parse(rtp_pkt)) != srs_success) {
+        return srs_error_wrap(err, "rtp h264 demux failed");
+    }
+
+    rtp_video_queue->insert(rtp_pkt);
+
+    if (rtp_video_queue->get_and_clean_if_needed_request_key_frame()) {
+        send_rtcp_fb_pli(skt, video_ssrc);
+    }
+
+    check_send_nacks(rtp_video_queue, video_ssrc, skt);
+
+    return collect_video_frame();
 }
 
 srs_error_t SrsRtcPublisher::collect_video_frame()

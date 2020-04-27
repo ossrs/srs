@@ -142,7 +142,7 @@ public:
     srs_error_t remove(uint16_t seq);
 public:
     void get_and_clean_collected_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
-    bool get_and_clean_if_needed_rqeuest_key_frame();
+    bool get_and_clean_if_needed_request_key_frame();
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();
 public:
