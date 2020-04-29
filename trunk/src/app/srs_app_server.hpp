@@ -164,7 +164,7 @@ public:
     virtual ~SrsUdpCasterListener();
 };
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 
 // A UDP gb28181 listener, for sip and rtp stream mux server.
 class SrsGb28181Listener :  public SrsUdpStreamListener
@@ -323,7 +323,7 @@ private:
     virtual srs_error_t listen_http_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
     virtual srs_error_t listen_gb28181_sip(SrsConfDirective* c);
 #endif
     // Close the listeners for specified type,

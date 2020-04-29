@@ -3843,7 +3843,7 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
 		off_t seeked = 0;
 		HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		EXPECT_EQ(10, seeked);
 #else
 		EXPECT_EQ(0, seeked);
@@ -4212,7 +4212,7 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
     }
 }
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
 extern _srs_gettimeofday_t _srs_gettimeofday;
 int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
 	return -1;

@@ -92,7 +92,7 @@ extern int srs_sendto(srs_netfd_t stfd, void *buf, int len, const struct sockadd
 extern int srs_recvmsg(srs_netfd_t stfd, struct msghdr *msg, int flags, srs_utime_t timeout);
 extern int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout);
 
-#if !defined(SRS_AUTO_HAS_SENDMMSG)
+#if !defined(SRS_HAS_SENDMMSG)
     // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     #include <sys/socket.h>
     struct mmsghdr {
@@ -110,7 +110,7 @@ extern bool srs_is_never_timeout(srs_utime_t tm);
 
 // The mutex locker.
 #define SrsLocker(instance) \
-    impl__SrsLocker _srs_auto_free_##instance(&instance)
+    impl__SrsLocker _SRS_free_##instance(&instance)
 
 class impl__SrsLocker
 {

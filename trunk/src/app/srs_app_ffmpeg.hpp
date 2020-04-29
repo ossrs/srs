@@ -26,7 +26,7 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_FFMPEG_STUB
+#ifdef SRS_FFMPEG_STUB
 
 #include <vector>
 #include <string>

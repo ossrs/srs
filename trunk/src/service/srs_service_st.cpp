@@ -115,7 +115,7 @@ srs_error_t srs_fd_reuseport(int fd)
 #if defined(SO_REUSEPORT)
     int v = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
-        #ifdef SRS_AUTO_CROSSBUILD
+        #ifdef SRS_CROSSBUILD
             srs_warn("SO_REUSEPORT disabled for crossbuild");
             return srs_success;
         #else
@@ -414,7 +414,7 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
 
 int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
 {
-#if !defined(SRS_AUTO_HAS_SENDMMSG) || !defined(SRS_AUTO_SENDMMSG)
+#if !defined(SRS_HAS_SENDMMSG) || !defined(SRS_SENDMMSG)
     // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     for (int i = 0; i < (int)vlen; ++i) {
         struct mmsghdr* p = msgvec + i;

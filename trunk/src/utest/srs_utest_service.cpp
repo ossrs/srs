@@ -124,7 +124,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -146,7 +146,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -170,7 +170,7 @@ VOID TEST(TCPServerTest, PingPong)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -205,7 +205,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -227,7 +227,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -249,7 +249,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -382,7 +382,7 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"!1234567890";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
 #endif
         EXPECT_EQ(str, parsed);
@@ -400,7 +400,7 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
 #endif
         EXPECT_EQ(str, parsed);
@@ -429,7 +429,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -459,7 +459,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 
 		SrsStSocket skt;
 		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));

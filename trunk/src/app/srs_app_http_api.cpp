@@ -46,7 +46,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_coworkers.hpp>
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
 #endif
 
@@ -556,7 +556,7 @@ srs_error_t SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     obj->set("data", data);
     
     data->set("license", SrsJsonAny::str(RTMP_SIG_SRS_LICENSE));
-    data->set("contributors", SrsJsonAny::str(SRS_AUTO_CONSTRIBUTORS));
+    data->set("contributors", SrsJsonAny::str(SRS_CONSTRIBUTORS));
     
     return srs_api_response(w, r, obj->dumps());
 }
@@ -582,17 +582,17 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsJsonObject* data = SrsJsonAny::object();
     obj->set("data", data);
     
-    data->set("options", SrsJsonAny::str(SRS_AUTO_USER_CONFIGURE));
-    data->set("options2", SrsJsonAny::str(SRS_AUTO_CONFIGURE));
-    data->set("build", SrsJsonAny::str(SRS_AUTO_BUILD_DATE));
-    data->set("build2", SrsJsonAny::str(SRS_AUTO_BUILD_TS));
+    data->set("options", SrsJsonAny::str(SRS_USER_CONFIGURE));
+    data->set("options2", SrsJsonAny::str(SRS_CONFIGURE));
+    data->set("build", SrsJsonAny::str(SRS_BUILD_DATE));
+    data->set("build2", SrsJsonAny::str(SRS_BUILD_TS));
     
     SrsJsonObject* features = SrsJsonAny::object();
     data->set("features", features);
     
     features->set("ssl", SrsJsonAny::boolean(true));
     features->set("hls", SrsJsonAny::boolean(true));
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     features->set("hds", SrsJsonAny::boolean(true));
 #else
     features->set("hds", SrsJsonAny::boolean(false));
@@ -785,7 +785,7 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 uint32_t SrsGoApiRtcPlay::ssrc_num = 0;
 
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* rtc_svr)
@@ -2045,7 +2045,7 @@ srs_error_t SrsGoApiError::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return srs_api_response_code(w, r, 100);
 }
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 SrsGoApiGb28181::SrsGoApiGb28181()
 {
 }
@@ -2228,7 +2228,7 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 }
 #endif
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
 #include <gperftools/malloc_extension.h>
 
 SrsGoApiTcmalloc::SrsGoApiTcmalloc()

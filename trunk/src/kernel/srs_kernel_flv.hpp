@@ -302,7 +302,7 @@ private:
         int size;
         // The reference count
         int shared_count;
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     public:
         // For RTC video, we need to know the NALU structures,
         // because the RTP STAP-A or FU-A based on NALU.
@@ -361,7 +361,7 @@ public:
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
 public:
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
     // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
     void set_extra_payloads(SrsSample* payloads, int nn_payloads);

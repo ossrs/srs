@@ -59,7 +59,7 @@ class SrsDvr;
 class SrsDash;
 class SrsEncoder;
 class SrsBuffer;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
 class SrsHds;
 #endif
 class SrsRtpSharedPacket;
@@ -333,7 +333,7 @@ public:
     virtual SrsSharedPtrMessage* pop();
 };
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 // To find the RTP packet for RTX or restore.
 // TODO: FIXME: Should queue RTP packets in connection level.
 class SrsRtpPacketQueue
@@ -371,7 +371,7 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // rtc handler
     SrsRtc* rtc;
 #endif
@@ -383,7 +383,7 @@ private:
     SrsDvr* dvr;
     // transcoding handler.
     SrsEncoder* encoder;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     // adobe hds(http dynamic streaming).
     SrsHds *hds;
 #endif
@@ -547,7 +547,7 @@ private:
     bool mix_correct;
     // The mix queue to implements the mix correct algorithm.
     SrsMixQueue* mix_queue;
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // rtp packet queue
     SrsRtpPacketQueue* rtp_queue;
 #endif
@@ -640,7 +640,7 @@ public:
 public:
     virtual std::string get_curr_origin();
 public:
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // Find rtp packet by sequence
     SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
     // Get the cached meta, as such the sps/pps.

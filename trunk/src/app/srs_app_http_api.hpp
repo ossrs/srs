@@ -167,7 +167,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
 public:
@@ -258,7 +258,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 class SrsGoApiGb28181 : public ISrsHttpHandler
 {
 public:
@@ -271,7 +271,7 @@ private:
 };
 #endif
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
 class SrsGoApiTcmalloc : public ISrsHttpHandler
 {
 public:

@@ -890,7 +890,7 @@ srs_error_t SrsRtcSenderThread::send_messages(
         return srs_error_wrap(err, "messages to packets");
     }
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     // If enabled GSO, send out some packets in a msghdr.
     if (packets.use_gso) {
         if ((err = send_packets_gso(packets)) != srs_success) {
@@ -1223,7 +1223,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
             mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
             mhdr->msg_hdr.msg_controllen = 0;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
             if (using_gso) {
                 mhdr->msg_hdr.msg_controllen = CMSG_SPACE(sizeof(uint16_t));
                 if (!mhdr->msg_hdr.msg_control) {
@@ -2273,7 +2273,7 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req
     return err;
 }
 
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 // These functions are similar to the older byteorder(3) family of functions.
 // For example, be32toh() is identical to ntohl().
 // @see https://linux.die.net/man/3/be32toh

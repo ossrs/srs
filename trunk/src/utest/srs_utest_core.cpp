@@ -41,25 +41,25 @@ VOID TEST(CoreAutoFreeTest, Free)
 
 VOID TEST(CoreMacroseTest, Check)
 {
-#ifndef SRS_AUTO_BUILD_TS
+#ifndef SRS_BUILD_TS
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_BUILD_DATE
+#ifndef SRS_BUILD_DATE
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_UNAME
+#ifndef SRS_UNAME
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_USER_CONFIGURE
+#ifndef SRS_USER_CONFIGURE
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_CONFIGURE
+#ifndef SRS_CONFIGURE
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_PREFIX
+#ifndef SRS_PREFIX
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_AUTO_CONSTRIBUTORS
+#ifndef SRS_CONSTRIBUTORS
     EXPECT_TRUE(false);
 #endif
 }

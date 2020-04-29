@@ -50,7 +50,7 @@ using namespace std;
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 #include <srs_app_rtc.hpp>
 #endif
 
@@ -843,7 +843,7 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
     return msg;
 }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 SrsRtpPacketQueue::SrsRtpPacketQueue()
 {
 }
@@ -905,10 +905,10 @@ SrsOriginHub::SrsOriginHub()
     dash = new SrsDash();
     dvr = new SrsDvr();
     encoder = new SrsEncoder();
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     rtc = new SrsRtc();
 #endif
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
@@ -936,7 +936,7 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(dash);
     srs_freep(dvr);
     srs_freep(encoder);
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     srs_freep(hds);
 #endif
 }
@@ -952,7 +952,7 @@ srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
         return srs_error_wrap(err, "format initialize");
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     if ((err = rtc->initialize(this, req)) != srs_success) {
         return srs_error_wrap(err, "rtc initialize");
     }
@@ -1056,7 +1056,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   srs_flv_srates[c->sound_rate]);
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     if ((err = rtc->on_audio(msg, format)) != srs_success) {
         srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1095,7 +1095,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         dvr->on_unpublish();
     }
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_audio(msg)) != srs_success) {
         srs_warn("hds: ignore audio error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1157,7 +1157,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         return err;
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // Parse RTMP message to RTP packets, in FU-A if too large.
     if ((err = rtc->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
@@ -1204,7 +1204,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         dvr->on_unpublish();
     }
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_video(msg)) != srs_success) {
         srs_warn("hds: ignore video error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1240,7 +1240,7 @@ srs_error_t SrsOriginHub::on_publish()
         return srs_error_wrap(err, "encoder publish");
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     if ((err = rtc->on_publish()) != srs_success) {
         return srs_error_wrap(err, "rtc publish");
     }
@@ -1259,7 +1259,7 @@ srs_error_t SrsOriginHub::on_publish()
     }
     
     // TODO: FIXME: use initialize to set req.
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "hds publish");
     }
@@ -1283,14 +1283,14 @@ void SrsOriginHub::on_unpublish()
     destroy_forwarders();
     
     encoder->on_unpublish();
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     rtc->on_unpublish();
 #endif
     hls->on_unpublish();
     dash->on_unpublish();
     dvr->on_unpublish();
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds->on_unpublish();
 #endif
     
@@ -1479,7 +1479,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds->on_unpublish();
     
     // Don't start HDS when source is not active.
@@ -1947,7 +1947,7 @@ SrsSource::SrsSource()
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     mix_correct = false;
     mix_queue = new SrsMixQueue();
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     rtp_queue = new SrsRtpPacketQueue();
 #endif
     
@@ -1979,7 +1979,7 @@ SrsSource::~SrsSource()
     srs_freep(hub);
     srs_freep(meta);
     srs_freep(mix_queue);
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     srs_freep(rtp_queue);
 #endif
     
@@ -2739,7 +2739,7 @@ string SrsSource::get_curr_origin()
     return play_edge->get_curr_origin();
 }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 SrsRtpSharedPacket* SrsSource::find_rtp_packet(const uint16_t& seq)
 {
     return rtp_queue->find(seq);
