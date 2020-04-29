@@ -382,7 +382,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             # Build source code.
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
                 CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
-            cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
+            cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
         )
     fi
     # check status
@@ -576,13 +576,13 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
             ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
             make ${SRS_JOBS} && make install &&
-            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+            cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
+    (cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
     if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
 fi
 
@@ -604,7 +604,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
+    (cd ${SRS_OBJS} && rm -rf opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
 fi
 
