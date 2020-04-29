@@ -61,21 +61,24 @@ struct SrsRtpNackInfo
     int req_nack_count_;
 };
 
-inline bool seq_cmp(const uint16_t& l, const uint16_t& r)
+// The "distance" between two uint16 number, for example:
+//      distance(low=3, high=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
+//      distance(low=3, high=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
+//      distance(low=65532, high=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
+// For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
+inline bool srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
 {
-    return ((int16_t)(r - l)) > 0;
+    return ((int16_t)(high - low)) > 0;
 }
-
-struct SeqComp
-{   
-    bool operator()(const uint16_t& l, const uint16_t& r) const
-    {   
-        return seq_cmp(l, r);
-    }   
-};
 
 class SrsRtpNackList
 {
+private:
+    struct SeqComp {
+        bool operator()(const uint16_t& low, const uint16_t& high) const {
+            return srs_rtp_seq_distance(low, high);
+        }
+    };
 private:
     // Nack queue, seq order, oldest to newest.
     std::map<uint16_t, SrsRtpNackInfo, SeqComp> queue_;
@@ -101,27 +104,64 @@ public:
     void update_rtt(int rtt);
 };
 
+// For UDP, the packets sequence may present as bellow:
+//      [seq1(done)|seq2|seq3 ... seq10|seq11(lost)|seq12|seq13]
+//                   \___(head_sequence_)   \               \___(highest_sequence_)
+//                                           \___(no received, in nack list)
+//      * seq1: The packet is done, we already got the entire frame and processed it.
+//      * seq2,seq3,...,seq10,seq12,seq13: We are processing theses packets, for example, some FU-A or NALUs,
+//               but not an entire video frame right now.
+//      * seq10: This packet is lost or not received, we put it in the nack list.
+// We store the received packets in ring buffer.
+class SrsRtpRingBuffer
+{
+private:
+    // Capacity of the ring-buffer.
+    uint16_t capacity_;
+    // Ring bufer.
+    SrsRtpSharedPacket** queue_;
+    // Increase one when uint16 flip back, for get_extended_highest_sequence.
+    uint64_t nn_seq_flip_backs;
+    // Whether initialized, because we use uint16 so we can't use -1.
+    bool initialized_;
+private:
+    // Current position we are working at.
+    uint16_t low_;
+    uint16_t high_;
+public:
+    SrsRtpRingBuffer(size_t capacity);
+    virtual ~SrsRtpRingBuffer();
+public:
+    uint16_t low() { return low_; }
+    uint16_t high() { return high_; }
+    void advance_to(uint16_t seq) { low_ = seq; }
+    void set(uint16_t at, SrsRtpSharedPacket* pkt);
+    void remove(uint16_t at);
+    bool overflow() { return low_ + capacity_ < high_; }
+    bool is_heavy() { return high_ - low_ >= capacity_ / 2; }
+    // Get the next start packet of frame.
+    // @remark If not found, return the low_, which should never be the "next" one,
+    // because it MAY or NOT current start packet of frame but never be the next.
+    uint16_t next_start_of_frame();
+    // Get the next seq of keyframe.
+    // @remark Return low_ if not found.
+    uint16_t next_keyframe();
+    // The highest sequence number, calculate the flip back base.
+    uint32_t get_extended_highest_sequence();
+    // Update the sequence, got the nack range by [low, high].
+    void update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high);
+    // Get the packet by seq.
+    SrsRtpSharedPacket* at(uint16_t seq) { return queue_[seq % capacity_]; }
+};
+
 class SrsRtpQueue
 {
 private:
-    /*
-     *[seq1|seq2|seq3|seq4|seq5 ... seq10|seq11(loss)|seq12(loss)|seq13]
-     *             \___(head_sequence_)      \                      \___(highest_sequence_)
-     *                                        \___(no received, in nack list)
-     */
-    // Capacity of the ring-buffer.
-    uint16_t capacity_;
-    // Thei highest sequence we have receive.
-    uint16_t highest_sequence_;
-    // The sequence waitting to read.
-    uint16_t head_sequence_;
-    bool initialized_;
-    bool start_collected_;
-    // Ring bufer.
-    SrsRtpSharedPacket** queue_;
+    uint64_t nn_collected_frames;
+    SrsRtpRingBuffer* queue_;
 private:
-    uint64_t cycle_;
     double jitter_;
+    // TODO: FIXME: Covert time to srs_utime_t.
     int64_t last_trans_time_;
     uint64_t pre_number_of_packet_received_;
     uint64_t pre_number_of_packet_lossed_;
@@ -139,7 +179,6 @@ public:
     virtual ~SrsRtpQueue();
 public:
     srs_error_t insert(SrsRtpSharedPacket* rtp_pkt);
-    srs_error_t remove(uint16_t seq);
 public:
     void get_and_clean_collected_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
     bool get_and_clean_if_needed_request_key_frame();
