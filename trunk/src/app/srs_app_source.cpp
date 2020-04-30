@@ -1030,7 +1030,8 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
-    
+
+    // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume audio");
     }
@@ -1058,6 +1059,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     }
 
 #ifdef SRS_RTC
+    // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = rtc->on_audio(msg, format)) != srs_success) {
         srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -2760,5 +2762,12 @@ void SrsSource::request_keyframe()
     if (rtc_publisher) {
         rtc_publisher->request_keyframe();
     }
+}
+
+srs_error_t SrsSource::on_rtc_audio(SrsSharedPtrMessage* audio)
+{
+    // TODO: FIXME: Merge with on_audio.
+    // TODO: FIXME: Print key information.
+    return on_audio_imp(audio);
 }
 #endif

@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-04-30, For [#307][bug #307], support publish RTC with passing opus. 4.0.24
 * v4.0, 2020-04-14, For [#307][bug #307], support sendmmsg, GSO and reuseport. 4.0.23
 * v4.0, 2020-04-05, For [#307][bug #307], SRTP ASM only works with openssl-1.0, auto detect it. 4.0.22
 * v4.0, 2020-04-04, Merge RTC and GB28181, with bugs fixed. 4.0.21

@@ -603,7 +603,7 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     srs_error_t err = srs_success;
     
     if (!data || size <= 0) {
-        srs_trace("no audio present, ignore it.");
+        srs_info("no audio present, ignore it.");
         return err;
     }
     

@@ -769,6 +769,7 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
+    // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", req->get_stream_url().c_str());
     }
@@ -1967,8 +1968,26 @@ srs_error_t SrsRtcPublisher::collect_audio_frame()
 
         for (size_t j = 0; j < frames.size(); ++j) {
             SrsRtpSharedPacket* pkt = frames[j];
-            
-            // TODO: FIXME: Write audio frame to source.
+
+            if (pkt->rtp_payload_size() > 0) {
+                SrsMessageHeader header;
+                header.message_type = RTMP_MSG_AudioMessage;
+                // TODO: FIXME: Maybe the tbn is not 90k.
+                header.timestamp = pkt->rtp_header.get_timestamp() / 90;
+
+                SrsSharedPtrMessage msg;
+                // TODO: FIXME: Check error.
+                msg.create(&header, NULL, 0);
+
+                SrsSample sample;
+                sample.size = pkt->rtp_payload_size();
+                sample.bytes = new char[sample.size];
+                memcpy((void*)sample.bytes, pkt->rtp_payload(), sample.size);
+                msg.set_extra_payloads(&sample, 1);
+
+                // TODO: FIXME: Check error.
+                source->on_rtc_audio(&msg);
+            }
 
             srs_freep(pkt);
         }
@@ -2103,11 +2122,12 @@ srs_error_t SrsRtcPublisher::collect_video_frame()
             stream->write_string(pps);
 
             SrsMessageHeader header;
-            header.message_type = 9;
+            header.message_type = RTMP_MSG_VideoMessage;
             // TODO: FIXME: Maybe the tbn is not 90k.
             header.timestamp = timestamp / 90;
             SrsCommonMessage* shared_video = new SrsCommonMessage();
             SrsAutoFree(SrsCommonMessage, shared_video);
+            // TODO: FIXME: Check error.
             shared_video->create(&header, reinterpret_cast<char*>(video_header), stream->pos());
             srs_error_t e = source->on_video(shared_video);
             if (e != srs_success) {
@@ -2130,11 +2150,12 @@ srs_error_t SrsRtcPublisher::collect_video_frame()
             frame_buffer[4] = 0x00;
 
             SrsMessageHeader header;
-            header.message_type = 9;
+            header.message_type = RTMP_MSG_VideoMessage;
             // TODO: FIXME: Maybe the tbn is not 90k.
             header.timestamp = timestamp / 90;
             SrsCommonMessage* shared_video = new SrsCommonMessage();
             SrsAutoFree(SrsCommonMessage, shared_video);
+            // TODO: FIXME: Check error.
             shared_video->create(&header, reinterpret_cast<char*>(frame_buffer), frame_buffer_index);
             srs_error_t e = source->on_video(shared_video);
             if (e != srs_success) {

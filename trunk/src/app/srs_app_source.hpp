@@ -613,10 +613,12 @@ public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_audio(SrsCommonMessage* audio);
 private:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_video(SrsCommonMessage* video);
 private:
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
@@ -658,6 +660,7 @@ public:
     void request_keyframe();
     void set_rtc_publisher(SrsRtcPublisher* v) { rtc_publisher = v; }
     // When got RTC audio message, which is encoded in opus.
+    // TODO: FIXME: Merge with on_audio.
     srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
 #endif
 };

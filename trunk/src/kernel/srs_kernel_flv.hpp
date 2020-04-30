@@ -158,6 +158,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // 4bytes.
     // Four-byte field that identifies the stream of the message. These
@@ -245,6 +246,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // Get the perfered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
