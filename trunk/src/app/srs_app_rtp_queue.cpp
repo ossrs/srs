@@ -41,7 +41,7 @@ SrsRtpNackInfo::SrsRtpNackInfo()
     req_nack_count_ = 0;
 }
 
-SrsRtpNackList::SrsRtpNackList(SrsRtpQueue* rtp_queue, size_t queue_size)
+SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpQueue* rtp_queue, size_t queue_size)
 {
     max_queue_size_ = queue_size;
     rtp_queue_ = rtp_queue;
@@ -51,23 +51,23 @@ SrsRtpNackList::SrsRtpNackList(SrsRtpQueue* rtp_queue, size_t queue_size)
         max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
 }
 
-SrsRtpNackList::~SrsRtpNackList()
+SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
 {
 }
 
-void SrsRtpNackList::insert(uint16_t seq)
+void SrsRtpNackForReceiver::insert(uint16_t seq)
 {
     // FIXME: full, drop packet, and request key frame.
     SrsRtpNackInfo& nack_info = queue_[seq];
     (void)nack_info;
 }
 
-void SrsRtpNackList::remove(uint16_t seq)
+void SrsRtpNackForReceiver::remove(uint16_t seq)
 {
     queue_.erase(seq);
 }
 
-SrsRtpNackInfo* SrsRtpNackList::find(uint16_t seq)
+SrsRtpNackInfo* SrsRtpNackForReceiver::find(uint16_t seq)
 {
     std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.find(seq);
     
@@ -78,7 +78,7 @@ SrsRtpNackInfo* SrsRtpNackList::find(uint16_t seq)
     return &(iter->second);
 }
 
-void SrsRtpNackList::check_queue_size()
+void SrsRtpNackForReceiver::check_queue_size()
 {
     if (queue_.size() >= max_queue_size_) {
         srs_verbose("NACK list full, queue size=%u, max_queue_size=%u", queue_.size(), max_queue_size_);
@@ -86,7 +86,7 @@ void SrsRtpNackList::check_queue_size()
     }
 }
 
-void SrsRtpNackList::get_nack_seqs(vector<uint16_t>& seqs)
+void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
     srs_utime_t now = srs_update_system_time();
     int interval = now - pre_check_time_;
@@ -126,7 +126,7 @@ void SrsRtpNackList::get_nack_seqs(vector<uint16_t>& seqs)
     }
 }
 
-void SrsRtpNackList::update_rtt(int rtt)
+void SrsRtpNackForReceiver::update_rtt(int rtt)
 {
     rtt_ = rtt * SRS_UTIME_MILLISECONDS;
     srs_verbose("NACK, update rtt from %ld to %d", opts_.nack_interval, rtt_);
@@ -244,10 +244,10 @@ void SrsRtpRingBuffer::update(uint16_t seq, bool startup, uint16_t& nack_low, ui
 }
 
 SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
-    : nack_(this, capacity * 2 / 3)
 {
     nn_collected_frames = 0;
     queue_ = new SrsRtpRingBuffer(capacity);
+    nack_ = new SrsRtpNackForReceiver(this, capacity * 2 / 3);
 
     jitter_ = 0;
     last_trans_time_ = -1;
@@ -266,6 +266,7 @@ SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
 SrsRtpQueue::~SrsRtpQueue()
 {
     srs_freep(queue_);
+    srs_freep(nack_);
 }
 
 srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
@@ -276,13 +277,13 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
     srs_utime_t now = srs_update_system_time();
 
     uint16_t seq = rtp_pkt->rtp_header.get_sequence();
-    SrsRtpNackInfo* nack_info = nack_.find(seq);
+    SrsRtpNackInfo* nack_info = nack_->find(seq);
     if (nack_info) {
         int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
         (void)nack_rtt;
         srs_verbose("seq=%u, alive time=%d, nack count=%d, rtx success, resend use %dms",
             seq, now - nack_info->generate_time_, nack_info->req_nack_count_, nack_rtt);
-        nack_.remove(seq);
+        nack_->remove(seq);
     }
 
     // Calc jitter time, ignore nack packets.
@@ -328,7 +329,7 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
         srs_trace("seqs out of range, seq range [%u, %u]", queue_->low(), next);
 
         for (uint16_t s = queue_->low(); s != next; ++s) {
-            nack_.remove(s);
+            nack_->remove(s);
             queue_->remove(s);
         }
 
@@ -359,6 +360,7 @@ bool SrsRtpQueue::get_and_clean_if_needed_request_key_frame()
 {
     if (request_key_frame_) {
         request_key_frame_ = false;
+        return true;
     }
 
     return request_key_frame_;
@@ -421,20 +423,25 @@ uint32_t SrsRtpQueue::get_interarrival_jitter()
     return static_cast<uint32_t>(jitter_);
 }
 
+void SrsRtpQueue::get_nack_seqs(vector<uint16_t>& seqs)
+{
+    nack_->get_nack_seqs(seqs);
+}
+
 void SrsRtpQueue::update_rtt(int rtt)
 {
-    nack_.update_rtt(rtt);
+    nack_->update_rtt(rtt);
 }
 
 void SrsRtpQueue::insert_into_nack_list(uint16_t seq_start, uint16_t seq_end)
 {
     for (uint16_t s = seq_start; s != seq_end; ++s) {
         srs_verbose("loss seq=%u, insert into nack list", s);
-        nack_.insert(s);
+        nack_->insert(s);
         ++number_of_packet_lossed_;
     }
 
-    nack_.check_queue_size();
+    nack_->check_queue_size();
 }
 
 void SrsRtpQueue::collect_packet()
@@ -443,7 +450,7 @@ void SrsRtpQueue::collect_packet()
     for (uint16_t s = queue_->low(); s != queue_->high(); ++s) {
         SrsRtpSharedPacket* pkt = queue_->at(s);
 
-        if (nack_.find(s) != NULL) {
+        if (nack_->find(s) != NULL) {
             srs_verbose("seq=%u, found in nack list when collect frame", s);
             break;
         }

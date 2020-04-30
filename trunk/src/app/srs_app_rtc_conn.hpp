@@ -299,6 +299,7 @@ private:
     srs_error_t collect_video_frame();
 public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+    void request_keyframe();
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
@@ -359,6 +360,7 @@ public:
     void set_encrypt(bool v) { encrypt = v; }
 
     void switch_to_context();
+    int context_id() { return cid; }
 public:
     srs_error_t initialize();
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);

@@ -794,6 +794,9 @@ srs_error_t SrsRtcSenderThread::cycle()
     srs_trace("RTC source url=%s, source_id=[%d][%d], encrypt=%d, realtime=%d, mw_sleep=%dms, mw_msgs=%d", req->get_stream_url().c_str(),
         ::getpid(), source->source_id(), rtc_session->encrypt, realtime, srsu2msi(mw_sleep), mw_msgs);
 
+    // For RTC, notify the source to fetch keyframe for this client.
+    source->request_keyframe();
+
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     SrsRtcPackets pkts(SRS_PERF_RTC_RTP_PACKETS);
 
@@ -1517,6 +1520,8 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 
 SrsRtcPublisher::~SrsRtcPublisher()
 {
+    source->set_rtc_publisher(NULL);
+
     // TODO: FIXME: Do unpublish when session timeout.
     if (source) {
         source->on_unpublish();
@@ -1558,6 +1563,8 @@ srs_error_t SrsRtcPublisher::initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, ui
     if ((err = source->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");
     }
+
+    source->set_rtc_publisher(this);
 
     return err;
 }
@@ -1745,7 +1752,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc, Sr
     }
 
     vector<uint16_t> nack_seqs;
-    rtp_queue->nack_.get_nack_seqs(nack_seqs);
+    rtp_queue->get_nack_seqs(nack_seqs);
     vector<uint16_t>::iterator iter = nack_seqs.begin();
     while (iter != nack_seqs.end()) {
         char buf[kRtpPacketSize];
@@ -1912,7 +1919,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssr
     stream.write_4bytes(ssrc);
     stream.write_4bytes(ssrc);
     
-    srs_verbose("PLI ssrc=%u", ssrc);
+    srs_trace("RTC PLI ssrc=%u", ssrc);
     
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
@@ -1985,6 +1992,7 @@ srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* 
     rtp_video_queue->insert(rtp_pkt);
 
     if (rtp_video_queue->get_and_clean_if_needed_request_key_frame()) {
+        // TODO: FIXME: Check error.
         send_rtcp_fb_pli(skt, video_ssrc);
     }
 
@@ -2146,6 +2154,15 @@ void SrsRtcPublisher::update_sendonly_socket(SrsUdpMuxSocket* skt)
 
     srs_freep(sendonly_ukt);
     sendonly_ukt = skt->copy_sendonly();
+}
+
+void SrsRtcPublisher::request_keyframe()
+{
+    int scid = _srs_context->get_id();
+    int pcid = rtc_session->context_id();
+    srs_trace("RTC play=[%d][%d] request keyframe from publish=[%d][%d]", ::getpid(), scid, ::getpid(), pcid);
+
+    rtp_video_queue->request_keyframe();
 }
 
 srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t tick)
@@ -3172,7 +3189,7 @@ srs_error_t SrsRtcServer::create_rtc_session(
     }
 
     // TODO: FIXME: Refine the API for stream status manage.
-    if (!source->can_publish(false)) {
+    if (publish && !source->can_publish(false)) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 

@@ -63,6 +63,9 @@ class SrsBuffer;
 class SrsHds;
 #endif
 class SrsRtpSharedPacket;
+#ifdef SRS_RTC
+class SrsRtcPublisher;
+#endif
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -577,6 +580,10 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
+#ifdef SRS_RTC
+private:
+    SrsRtcPublisher* rtc_publisher;
+#endif
 public:
     SrsSource();
     virtual ~SrsSource();
@@ -639,12 +646,17 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
-public:
 #ifdef SRS_RTC
+public:
     // Find rtp packet by sequence
     SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
     // Get the cached meta, as such the sps/pps.
     SrsMetaCache* cached_meta();
+    // Request keyframe for new client.
+    // TODO: FIXME: Maybe we could cache the keyframe.
+    // TODO: FIXME: Maybe we should only response for the new clients.
+    void request_keyframe();
+    void set_rtc_publisher(SrsRtcPublisher* v) { rtc_publisher = v; }
 #endif
 };
 

@@ -71,7 +71,7 @@ inline bool srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
     return ((int16_t)(high - low)) > 0;
 }
 
-class SrsRtpNackList
+class SrsRtpNackForReceiver
 {
 private:
     struct SeqComp {
@@ -91,8 +91,8 @@ private:
 private:
     int rtt_;
 public:
-    SrsRtpNackList(SrsRtpQueue* rtp_queue, size_t queue_size);
-    virtual ~SrsRtpNackList();
+    SrsRtpNackForReceiver(SrsRtpQueue* rtp_queue, size_t queue_size);
+    virtual ~SrsRtpNackForReceiver();
 public:
     void insert(uint16_t seq);
     void remove(uint16_t seq);
@@ -159,6 +159,7 @@ class SrsRtpQueue
 private:
     uint64_t nn_collected_frames;
     SrsRtpRingBuffer* queue_;
+    SrsRtpNackForReceiver* nack_;
 private:
     double jitter_;
     // TODO: FIXME: Covert time to srs_utime_t.
@@ -169,8 +170,6 @@ private:
     uint64_t number_of_packet_lossed_;
 private:
     bool one_packet_per_frame_;
-public:
-    SrsRtpNackList nack_;
 private:
     std::vector<std::vector<SrsRtpSharedPacket*> > frames_;
     bool request_key_frame_;
@@ -184,12 +183,14 @@ public:
     bool get_and_clean_if_needed_request_key_frame();
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();
+    void request_keyframe() { request_key_frame_ = true; }
 public:
     uint32_t get_extended_highest_sequence();
     uint8_t get_fraction_lost();
     uint32_t get_cumulative_number_of_packets_lost();
     uint32_t get_interarrival_jitter();
 public:
+    void get_nack_seqs(std::vector<uint16_t>& seqs);
     void update_rtt(int rtt);
 private:
     void insert_into_nack_list(uint16_t seq_start, uint16_t seq_end);

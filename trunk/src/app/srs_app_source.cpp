@@ -52,6 +52,7 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc.hpp>
+#include <srs_app_rtc_conn.hpp>
 #endif
 
 #define CONST_MAX_JITTER_MS         250
@@ -1966,6 +1967,10 @@ SrsSource::SrsSource()
     
     _srs_config->subscribe(this);
     atc = false;
+
+#ifdef SRS_RTC
+    rtc_publisher = NULL;
+#endif
 }
 
 SrsSource::~SrsSource()
@@ -2748,5 +2753,12 @@ SrsRtpSharedPacket* SrsSource::find_rtp_packet(const uint16_t& seq)
 SrsMetaCache* SrsSource::cached_meta()
 {
     return meta;
+}
+
+void SrsSource::request_keyframe()
+{
+    if (rtc_publisher) {
+        rtc_publisher->request_keyframe();
+    }
 }
 #endif
