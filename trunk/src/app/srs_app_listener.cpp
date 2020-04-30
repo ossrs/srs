@@ -460,6 +460,10 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         nn_loop++;
 
+        // TODO: FIXME: Refactor the memory cache for receiver.
+        // Because we have to decrypt the cipher of received packet payload,
+        // and the size is not determined, so we think there is at least one copy,
+        // and we can reuse the plaintext h264/opus with players when got plaintext.
         SrsUdpMuxSocket skt(sender, lfd);
 
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);

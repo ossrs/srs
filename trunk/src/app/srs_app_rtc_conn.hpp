@@ -122,8 +122,8 @@ public:
 
     srs_error_t initialize(SrsRequest* r);
 
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* skt);
+    srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_application_data(const char* data, const int len);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
@@ -132,7 +132,7 @@ public:
     srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
 private:
-    srs_error_t handshake(SrsUdpMuxSocket* skt);
+    srs_error_t handshake();
 private:
     srs_error_t srtp_initialize();
     srs_error_t srtp_send_init();
@@ -208,8 +208,6 @@ private:
     uint16_t audio_sequence;
 private:
     uint16_t video_sequence;
-public:
-    SrsUdpMuxSocket* sendonly_ukt;
 private:
     ISrsUdpSender* sender;
 private:
@@ -221,10 +219,11 @@ private:
     int mw_msgs;
     bool realtime;
 public:
-    SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
+    SrsRtcSenderThread(SrsRtcSession* s, int parent_cid);
     virtual ~SrsRtcSenderThread();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
+    void update_sender(ISrsUdpSender* s) { sender = s; }
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_rtc_server();
@@ -236,8 +235,6 @@ public:
     virtual srs_error_t start();
     virtual void stop();
     virtual void stop_loop();
-public:
-    void update_sendonly_socket(SrsUdpMuxSocket* skt);
 public:
     virtual srs_error_t cycle();
 private:
@@ -258,8 +255,6 @@ class SrsRtcPublisher : virtual public ISrsHourGlass
 {
 private:
     SrsHourGlass* report_timer;
-public:
-    SrsUdpMuxSocket* sendonly_ukt;
 private:
     SrsRtcSession* rtc_session;
     uint32_t video_ssrc;
@@ -281,23 +276,22 @@ public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, uint32_t assrc, SrsRequest* req);
-    srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* req);
+    srs_error_t on_rtcp_sender_report(char* buf, int nb_buf);
+    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
 private:
-    void check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc, SrsUdpMuxSocket* skt);
-    srs_error_t send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, SrsRtpQueue* rtp_queue);
-    srs_error_t send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ssrc);
-    srs_error_t send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssrc);
+    void check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc);
+    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpQueue* rtp_queue);
+    srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
+    srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
-    srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
+    srs_error_t on_rtp(char* buf, int nb_buf);
 private:
-    srs_error_t on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt);
+    srs_error_t on_audio(SrsRtpSharedPacket* pkt);
     srs_error_t collect_audio_frame();
-    srs_error_t on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt);
+    srs_error_t on_video(SrsRtpSharedPacket* pkt);
     srs_error_t collect_video_frame();
 public:
-    void update_sendonly_socket(SrsUdpMuxSocket* skt);
     void request_keyframe();
 // interface ISrsHourGlass
 public:
@@ -311,13 +305,17 @@ class SrsRtcSession
     friend class SrsRtcPublisher;
 private:
     SrsRtcServer* rtc_server;
-    SrsSdp  remote_sdp;
-    SrsSdp  local_sdp;
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
     SrsRtcSenderThread* sender;
+    SrsRtcPublisher* publisher;
+private:
+    SrsUdpMuxSocket* sendonly_skt;
     std::string username;
     std::string peer_id;
+private:
+    // The timeout of session, keep alive by STUN ping pong.
+    srs_utime_t sessionStunTimeout;
     srs_utime_t last_stun_time;
 private:
     // For each RTC session, we use a specified cid for debugging logs.
@@ -327,17 +325,14 @@ private:
     //      Sepcifies by HTTP API, query encrypt, optional.
     // TODO: FIXME: Support reload.
     bool encrypt;
-    // The timeout of session, keep alive by STUN ping pong.
-    srs_utime_t sessionStunTimeout;
+    SrsRequest* req;
+    SrsSource* source;
+    SrsSdp remote_sdp;
+    SrsSdp local_sdp;
 private:
     bool blackhole;
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
-public:
-    SrsRequest* req;
-    SrsSource* source;
-private:
-    SrsRtcPublisher* publisher;
 public:
     SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
@@ -360,27 +355,28 @@ public:
 
     void switch_to_context();
     int context_id() { return cid; }
+
 public:
     srs_error_t initialize();
-    srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp(SrsUdpMuxSocket* skt);
-    srs_error_t on_rtp(SrsUdpMuxSocket* skt);
+    // The peer address may change, we can identify that by STUN messages.
+    srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
+    srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtp(char* data, int nb_data);
 public:
-    srs_error_t send_client_hello(SrsUdpMuxSocket* skt);
-    srs_error_t on_connection_established(SrsUdpMuxSocket* skt);
-    srs_error_t start_play(SrsUdpMuxSocket* skt);
-    srs_error_t start_publish(SrsUdpMuxSocket* skt);
-public:
+    srs_error_t send_client_hello();
+    srs_error_t on_connection_established();
+    srs_error_t start_play();
+    srs_error_t start_publish();
     bool is_stun_timeout();
+    void update_sendonly_socket(SrsUdpMuxSocket* skt);
 private:
-    srs_error_t on_binding_request(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
-private:
-    srs_error_t on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
+    srs_error_t on_binding_request(SrsStunPacket* r);
+    srs_error_t on_rtcp_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_xr(char* data, int nb_data);
+    srs_error_t on_rtcp_sender_report(char* data, int nb_data);
+    srs_error_t on_rtcp_receiver_report(char* data, int nb_data);
 };
 
 class SrsUdpMuxSender : virtual public ISrsUdpSender, virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
@@ -455,10 +451,6 @@ public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
     int nn_sessions() { return (int)map_username_session.size(); }
-private:
-    srs_error_t on_stun(SrsUdpMuxSocket* skt);
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_rtp_or_rtcp(SrsUdpMuxSocket* skt);
 private:
     SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
     SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
