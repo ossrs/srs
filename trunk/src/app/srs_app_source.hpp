@@ -657,6 +657,8 @@ public:
     // TODO: FIXME: Maybe we should only response for the new clients.
     void request_keyframe();
     void set_rtc_publisher(SrsRtcPublisher* v) { rtc_publisher = v; }
+    // When got RTC audio message, which is encoded in opus.
+    srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
 #endif
 };
 

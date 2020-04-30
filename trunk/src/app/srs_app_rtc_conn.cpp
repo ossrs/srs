@@ -940,7 +940,7 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
 
             for (int i = 0; i < nn_extra_payloads; i++) {
                 SrsSample* sample = msg->extra_payloads() + i;
-                if ((err = packet_opus(sample, packets, msg->nn_max_extra_payloads())) != srs_success) {
+                if ((err = package_opus(sample, packets, msg->nn_max_extra_payloads())) != srs_success) {
                     return srs_error_wrap(err, "opus package");
                 }
             }
@@ -952,14 +952,14 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
 
         // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
         if (msg->has_idr()) {
-            if ((err = packet_stap_a(source, msg, packets)) != srs_success) {
+            if ((err = package_stap_a(source, msg, packets)) != srs_success) {
                 return srs_error_wrap(err, "packet stap-a");
             }
         }
 
         // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
         if (packets.should_merge_nalus && nn_samples > 1) {
-            if ((err = packet_nalus(msg, packets)) != srs_success) {
+            if ((err = package_nalus(msg, packets)) != srs_success) {
                 return srs_error_wrap(err, "packet stap-a");
             }
             continue;
@@ -976,11 +976,11 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
             }
 
             if (sample->size <= kRtpMaxPayloadSize) {
-                if ((err = packet_single_nalu(msg, sample, packets)) != srs_success) {
+                if ((err = package_single_nalu(msg, sample, packets)) != srs_success) {
                     return srs_error_wrap(err, "packet single nalu");
                 }
             } else {
-                if ((err = packet_fu_a(msg, sample, kRtpMaxPayloadSize, packets)) != srs_success) {
+                if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, packets)) != srs_success) {
                     return srs_error_wrap(err, "packet fu-a");
                 }
             }
@@ -1263,7 +1263,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::package_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1353,7 +1353,7 @@ srs_error_t SrsRtcSenderThread::packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPac
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload)
+srs_error_t SrsRtcSenderThread::package_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload)
 {
     srs_error_t err = srs_success;
 
@@ -1389,7 +1389,7 @@ srs_error_t SrsRtcSenderThread::packet_opus(SrsSample* sample, SrsRtcPackets& pa
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1430,7 +1430,7 @@ srs_error_t SrsRtcSenderThread::packet_fu_a(SrsSharedPtrMessage* msg, SrsSample*
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1450,7 +1450,7 @@ srs_error_t SrsRtcSenderThread::packet_single_nalu(SrsSharedPtrMessage* msg, Srs
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+srs_error_t SrsRtcSenderThread::package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1567,27 +1567,6 @@ srs_error_t SrsRtcPublisher::initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, ui
     source->set_rtc_publisher(this);
 
     return err;
-}
-
-srs_error_t SrsRtcPublisher::on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpSharedPacket* pkt = new SrsRtpSharedPacket();
-    SrsAutoFree(SrsRtpSharedPacket, pkt);
-    if ((err = pkt->decode(buf, nb_buf)) != srs_success) {
-        return srs_error_wrap(err, "rtp packet decode failed");
-    }
-
-    uint32_t ssrc = pkt->rtp_header.get_ssrc();
-
-    if (ssrc == audio_ssrc) {
-        return on_audio(skt, pkt);
-    } else if (ssrc == video_ssrc) {
-        return on_video(skt, pkt);
-    }
-
-    return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
 }
 
 srs_error_t SrsRtcPublisher::on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt)
@@ -1933,6 +1912,27 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssr
     return err;
 }
 
+srs_error_t SrsRtcPublisher::on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpSharedPacket* pkt = new SrsRtpSharedPacket();
+    SrsAutoFree(SrsRtpSharedPacket, pkt);
+    if ((err = pkt->decode(buf, nb_buf)) != srs_success) {
+        return srs_error_wrap(err, "rtp packet decode failed");
+    }
+
+    uint32_t ssrc = pkt->rtp_header.get_ssrc();
+
+    if (ssrc == audio_ssrc) {
+        return on_audio(skt, pkt);
+    } else if (ssrc == video_ssrc) {
+        return on_video(skt, pkt);
+    }
+
+    return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
+}
+
 srs_error_t SrsRtcPublisher::on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt)
 {
     srs_error_t err = srs_success;
@@ -1959,19 +1959,18 @@ srs_error_t SrsRtcPublisher::collect_audio_frame()
 {
     srs_error_t err = srs_success;
 
-    std::vector<std::vector<SrsRtpSharedPacket*> > frames;
-    rtp_audio_queue->collect_frames(frames);
+    std::vector<std::vector<SrsRtpSharedPacket*> > framess;
+    rtp_audio_queue->collect_frames(framess);
 
-    for (size_t i = 0; i < frames.size(); ++i) {
-        if (!frames[i].empty()) {
-            srs_verbose("collect %d audio frames, seq range %u,%u",
-                frames.size(), frames[i].front()->rtp_header.get_sequence(), frames[i].back()->rtp_header.get_sequence());
-        }
+    for (size_t i = 0; i < framess.size(); ++i) {
+        vector<SrsRtpSharedPacket*> frames = framess[i];
 
-        // TODO: FIXME: Write audio frame to source.
+        for (size_t j = 0; j < frames.size(); ++j) {
+            SrsRtpSharedPacket* pkt = frames[j];
+            
+            // TODO: FIXME: Write audio frame to source.
 
-        for (size_t n = 0; n < frames[i].size(); ++n) {
-            srs_freep(frames[i][n]);
+            srs_freep(pkt);
         }
     }
 

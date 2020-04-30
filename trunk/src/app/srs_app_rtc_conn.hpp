@@ -246,12 +246,12 @@ private:
     srs_error_t send_packets(SrsRtcPackets& packets);
     srs_error_t send_packets_gso(SrsRtcPackets& packets);
 private:
-    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload);
+    srs_error_t package_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
-    srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets);
-    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets);
+    srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
 class SrsRtcPublisher : virtual public ISrsHourGlass
@@ -282,7 +282,6 @@ public:
     virtual ~SrsRtcPublisher();
 public:
     srs_error_t initialize(SrsUdpMuxSocket* skt, uint32_t vssrc, uint32_t assrc, SrsRequest* req);
-    srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
     srs_error_t on_rtcp_sender_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
     srs_error_t on_rtcp_xr(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
 private:
@@ -290,12 +289,12 @@ private:
     srs_error_t send_rtcp_rr(SrsUdpMuxSocket* skt, uint32_t ssrc, SrsRtpQueue* rtp_queue);
     srs_error_t send_rtcp_xr_rrtr(SrsUdpMuxSocket* skt, uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssrc);
+public:
+    srs_error_t on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf);
 private:
     srs_error_t on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt);
     srs_error_t collect_audio_frame();
-private:
     srs_error_t on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt);
-private:
     srs_error_t collect_video_frame();
 public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
