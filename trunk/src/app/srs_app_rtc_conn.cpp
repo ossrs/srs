@@ -1573,18 +1573,18 @@ srs_error_t SrsRtcPublisher::on_rtp(SrsUdpMuxSocket* skt, char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
 
-    SrsRtpSharedPacket* rtp_shared_pkt = new SrsRtpSharedPacket();
-    SrsAutoFree(SrsRtpSharedPacket, rtp_shared_pkt);
-    if ((err = rtp_shared_pkt->decode(buf, nb_buf)) != srs_success) {
+    SrsRtpSharedPacket* pkt = new SrsRtpSharedPacket();
+    SrsAutoFree(SrsRtpSharedPacket, pkt);
+    if ((err = pkt->decode(buf, nb_buf)) != srs_success) {
         return srs_error_wrap(err, "rtp packet decode failed");
     }
 
-    uint32_t ssrc = rtp_shared_pkt->rtp_header.get_ssrc();
+    uint32_t ssrc = pkt->rtp_header.get_ssrc();
 
     if (ssrc == audio_ssrc) {
-        return on_audio(skt, rtp_shared_pkt);
+        return on_audio(skt, pkt);
     } else if (ssrc == video_ssrc) {
-        return on_video(skt, rtp_shared_pkt);
+        return on_video(skt, pkt);
     }
 
     return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
@@ -1933,20 +1933,19 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(SrsUdpMuxSocket* skt, uint32_t ssr
     return err;
 }
 
-srs_error_t SrsRtcPublisher::on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt)
+srs_error_t SrsRtcPublisher::on_audio(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    rtp_pkt->rtp_payload_header = new SrsRtpOpusHeader();
-    if ((err = rtp_opus_demuxer->parse(rtp_pkt)) != srs_success) {
+    pkt->rtp_payload_header = new SrsRtpOpusHeader();
+    if ((err = rtp_opus_demuxer->parse(pkt)) != srs_success) {
         return srs_error_wrap(err, "rtp opus demux failed");
     }
 
-    // TODO: FIXME: Rename it.
     // TODO: FIXME: Error check.
-    rtp_audio_queue->insert(rtp_pkt);
+    rtp_audio_queue->consume(pkt);
 
-    if (rtp_audio_queue->get_and_clean_if_needed_request_key_frame()) {
+    if (rtp_audio_queue->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(skt, audio_ssrc);
     }
@@ -1961,7 +1960,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frame()
     srs_error_t err = srs_success;
 
     std::vector<std::vector<SrsRtpSharedPacket*> > frames;
-    rtp_audio_queue->get_and_clean_collected_frames(frames);
+    rtp_audio_queue->collect_frames(frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         if (!frames[i].empty()) {
@@ -1979,19 +1978,20 @@ srs_error_t SrsRtcPublisher::collect_audio_frame()
     return err;
 }
 
-srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* rtp_pkt)
+srs_error_t SrsRtcPublisher::on_video(SrsUdpMuxSocket* skt, SrsRtpSharedPacket* pkt)
 {
     srs_error_t err = srs_success;
 
-    rtp_pkt->rtp_payload_header = new SrsRtpH264Header();
+    pkt->rtp_payload_header = new SrsRtpH264Header();
 
-    if ((err = rtp_h264_demuxer->parse(rtp_pkt)) != srs_success) {
+    if ((err = rtp_h264_demuxer->parse(pkt)) != srs_success) {
         return srs_error_wrap(err, "rtp h264 demux failed");
     }
 
-    rtp_video_queue->insert(rtp_pkt);
+    // TODO: FIXME: Error check.
+    rtp_video_queue->consume(pkt);
 
-    if (rtp_video_queue->get_and_clean_if_needed_request_key_frame()) {
+    if (rtp_video_queue->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(skt, video_ssrc);
     }
@@ -2006,7 +2006,7 @@ srs_error_t SrsRtcPublisher::collect_video_frame()
     srs_error_t err = srs_success;
 
     std::vector<std::vector<SrsRtpSharedPacket*> > frames;
-    rtp_video_queue->get_and_clean_collected_frames(frames);
+    rtp_video_queue->collect_frames(frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         if (!frames[i].empty()) {

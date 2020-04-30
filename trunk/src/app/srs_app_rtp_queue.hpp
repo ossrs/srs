@@ -160,6 +160,7 @@ private:
     uint64_t nn_collected_frames;
     SrsRtpRingBuffer* queue_;
     SrsRtpNackForReceiver* nack_;
+    bool one_packet_per_frame_;
 private:
     double jitter_;
     // TODO: FIXME: Covert time to srs_utime_t.
@@ -169,18 +170,15 @@ private:
     uint64_t num_of_packet_received_;
     uint64_t number_of_packet_lossed_;
 private:
-    bool one_packet_per_frame_;
-private:
     std::vector<std::vector<SrsRtpSharedPacket*> > frames_;
     bool request_key_frame_;
 public:
     SrsRtpQueue(size_t capacity = 1024, bool one_packet_per_frame = false);
     virtual ~SrsRtpQueue();
 public:
-    srs_error_t insert(SrsRtpSharedPacket* rtp_pkt);
-public:
-    void get_and_clean_collected_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
-    bool get_and_clean_if_needed_request_key_frame();
+    srs_error_t consume(SrsRtpSharedPacket* pkt);
+    void collect_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
+    bool should_request_key_frame();
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();
     void request_keyframe() { request_key_frame_ = true; }
@@ -194,7 +192,6 @@ public:
     void update_rtt(int rtt);
 private:
     void insert_into_nack_list(uint16_t seq_start, uint16_t seq_end);
-private:
     void collect_packet();
 };
 

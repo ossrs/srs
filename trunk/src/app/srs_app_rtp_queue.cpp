@@ -269,14 +269,14 @@ SrsRtpQueue::~SrsRtpQueue()
     srs_freep(nack_);
 }
 
-srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
+srs_error_t SrsRtpQueue::consume(SrsRtpSharedPacket* pkt)
 {
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Update time for each packet, may hurt performance.
     srs_utime_t now = srs_update_system_time();
 
-    uint16_t seq = rtp_pkt->rtp_header.get_sequence();
+    uint16_t seq = pkt->rtp_header.get_sequence();
     SrsRtpNackInfo* nack_info = nack_->find(seq);
     if (nack_info) {
         int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
@@ -289,9 +289,9 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
     // Calc jitter time, ignore nack packets.
     // TODO: FIXME: Covert time to srs_utime_t.
     if (last_trans_time_ == -1) {
-        last_trans_time_ = now / 1000 - rtp_pkt->rtp_header.get_timestamp() / 90;
+        last_trans_time_ = now / 1000 - pkt->rtp_header.get_timestamp() / 90;
     } else if (!nack_info) {
-        int trans_time = now / 1000 - rtp_pkt->rtp_header.get_timestamp() / 90;
+        int trans_time = now / 1000 - pkt->rtp_header.get_timestamp() / 90;
 
         int cur_jitter = trans_time - last_trans_time_;
         if (cur_jitter < 0) {
@@ -338,25 +338,25 @@ srs_error_t SrsRtpQueue::insert(SrsRtpSharedPacket* rtp_pkt)
     }
 
     // TODO: FIXME: Change to ptr of ptr.
-    queue_->set(seq, rtp_pkt->copy());
+    queue_->set(seq, pkt->copy());
 
     // Collect packets to frame when:
     // 1. Marker bit means the last packet of frame received.
     // 2. Queue has lots of packets, the load is heavy.
     // 3. The frame contains only one packet for each frame.
-    if (rtp_pkt->rtp_header.get_marker() || queue_->is_heavy() || one_packet_per_frame_) {
+    if (pkt->rtp_header.get_marker() || queue_->is_heavy() || one_packet_per_frame_) {
         collect_packet();
     }
 
     return err;
 }
 
-void SrsRtpQueue::get_and_clean_collected_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames)
+void SrsRtpQueue::collect_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames)
 {
     frames.swap(frames_);
 }
 
-bool SrsRtpQueue::get_and_clean_if_needed_request_key_frame()
+bool SrsRtpQueue::should_request_key_frame()
 {
     if (request_key_frame_) {
         request_key_frame_ = false;
