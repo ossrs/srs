@@ -209,8 +209,6 @@ private:
 private:
     uint16_t video_sequence;
 private:
-    ISrsUdpSender* sender;
-private:
     bool merge_nalus;
     bool gso;
     int max_padding;
@@ -223,7 +221,6 @@ public:
     virtual ~SrsRtcSenderThread();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
-    void update_sender(ISrsUdpSender* s) { sender = s; }
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_rtc_server();

@@ -635,7 +635,6 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, int parent_cid)
     trd = new SrsDummyCoroutine();
 
     rtc_session = s;
-    sender = NULL;
 
     gso = false;
     merge_nalus = false;
@@ -773,6 +772,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
 
     // We merged write more messages, so we need larger queue.
+    ISrsUdpSender* sender = rtc_session->sendonly_skt->sender();
     if (mw_msgs > 2) {
         sender->set_extra_ratio(150);
     } else if (mw_msgs > 0) {
@@ -904,6 +904,8 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
 ) {
     srs_error_t err = srs_success;
 
+    ISrsUdpSender* sender = rtc_session->sendonly_skt->sender();
+
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
 
@@ -986,8 +988,9 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
-    // Cache the encrypt flag.
+    // Cache the encrypt flag and sender.
     bool encrypt = rtc_session->encrypt;
+    ISrsUdpSender* sender = rtc_session->sendonly_skt->sender();
 
     int nn_packets = packets.size();
     for (int i = 0; i < nn_packets; i++) {
@@ -1053,8 +1056,9 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
-    // Cache the encrypt flag.
+    // Cache the encrypt flag and sender.
     bool encrypt = rtc_session->encrypt;
+    ISrsUdpSender* sender = rtc_session->sendonly_skt->sender();
 
     // Previous handler, if has the same size, we can use GSO.
     mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
@@ -2596,7 +2600,6 @@ srs_error_t SrsRtcSession::start_play()
 
     srs_freep(sender);
     sender = new SrsRtcSenderThread(this, _srs_context->get_id());
-    sender->update_sender(sendonly_skt->sender());
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
@@ -2781,9 +2784,6 @@ void SrsRtcSession::update_sendonly_socket(SrsUdpMuxSocket* skt)
 
     srs_freep(sendonly_skt);
     sendonly_skt = skt->copy_sendonly();
-    if (sender) {
-        sender->update_sender(skt->sender());
-    }
 }
 
 SrsUdpMuxSender::SrsUdpMuxSender(SrsRtcServer* s)
