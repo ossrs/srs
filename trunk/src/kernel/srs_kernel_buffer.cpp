@@ -45,10 +45,10 @@ ISrsCodec::~ISrsCodec()
 {
 }
 
-SrsBuffer::SrsBuffer(char* b, int nb_b)
+SrsBuffer::SrsBuffer(char* b, int nn)
 {
     p = bytes = b;
-    nb_bytes = nb_b;
+    nb_bytes = nn;
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
