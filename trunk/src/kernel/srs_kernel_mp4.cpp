@@ -6276,7 +6276,6 @@ SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()
     writer = NULL;
     nb_audios = nb_videos = 0;
     samples = new SrsMp4SampleManager();
-    buffer = new SrsBuffer();
     sequence_number = 0;
     decode_basetime = 0;
     styp_bytes = 0;
@@ -6286,7 +6285,6 @@ SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()
 SrsMp4M2tsSegmentEncoder::~SrsMp4M2tsSegmentEncoder()
 {
     srs_freep(samples);
-    srs_freep(buffer);
 }
 
 srs_error_t SrsMp4M2tsSegmentEncoder::initialize(ISrsWriter* w, uint32_t sequence, srs_utime_t basetime, uint32_t tid)

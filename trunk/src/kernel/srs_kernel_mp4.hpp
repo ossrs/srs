@@ -2105,7 +2105,6 @@ class SrsMp4M2tsSegmentEncoder
 {
 private:
     ISrsWriter* writer;
-    SrsBuffer* buffer;
     uint32_t sequence_number;
     srs_utime_t decode_basetime;
     uint32_t track_id;
