@@ -26,6 +26,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <signal.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -994,7 +995,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
     local_sdp.addrtype_        = "IP4";
     local_sdp.unicast_address_ = "0.0.0.0";
 
-    local_sdp.session_name_ = "live_play_session";
+    local_sdp.session_name_ = "SRSPlaySession";
 
     local_sdp.msid_semantic_ = "WMS";
     local_sdp.msids_.push_back(app + "/" + stream);
@@ -1087,6 +1088,10 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
         local_media_desc.rtcp_mux_ = true;
         local_media_desc.rtcp_rsize_ = true;
+
+        if (!ssrc_num) {
+            ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
+        }
 
         if (local_media_desc.sendonly_ || local_media_desc.sendrecv_) {
             SrsSSRCInfo ssrc_info;
@@ -1298,7 +1303,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
     local_sdp.addrtype_        = "IP4";
     local_sdp.unicast_address_ = "0.0.0.0";
 
-    local_sdp.session_name_ = "live_publish_session";
+    local_sdp.session_name_ = "SRSPublishSession";
 
     local_sdp.msid_semantic_ = "WMS";
     local_sdp.msids_.push_back(app + "/" + stream);
@@ -1385,23 +1390,13 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
         }
 
         local_sdp.media_descs_.back().session_info_.ice_options_ = "trickle";
-    
-        if (remote_media_desc.sendonly_) {
-            local_media_desc.recvonly_ = true;
-        } else if (remote_media_desc.recvonly_) {
-            local_media_desc.sendonly_ = true;
-        } else if (remote_media_desc.sendrecv_) {
-            local_media_desc.sendrecv_ = true;
-        }
 
         local_media_desc.rtcp_mux_ = true;
 
-        if (local_media_desc.recvonly_ || local_media_desc.sendrecv_) {
-            SrsSSRCInfo ssrc_info;
-            ssrc_info.ssrc_ = ++ssrc_num;
-            ssrc_info.cname_ = "test_sdp_cname";
-            local_media_desc.ssrc_infos_.push_back(ssrc_info);
-        }
+        // For publisher, we are always sendonly.
+        local_media_desc.sendonly_ = false;
+        local_media_desc.recvonly_ = true;
+        local_media_desc.sendrecv_ = false;
     }
 
     return err;

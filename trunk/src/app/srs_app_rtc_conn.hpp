@@ -311,6 +311,7 @@ private:
     SrsDtlsSession* dtls_session;
     SrsRtcSenderThread* sender;
     SrsRtcPublisher* publisher;
+    bool is_publisher_;
 private:
     SrsUdpMuxSocket* sendonly_skt;
     std::string username;
@@ -336,7 +337,7 @@ private:
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
 public:
-    SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* s, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp();

@@ -749,6 +749,7 @@ srs_error_t SrsRtcSenderThread::cycle()
         ::getpid(), source->source_id(), rtc_session->encrypt, realtime, srsu2msi(mw_sleep), mw_msgs);
 
     // For RTC, notify the source to fetch keyframe for this client.
+    // TODO: FIXME: Should triggle by PLI from client.
     source->request_keyframe();
 
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
@@ -2240,7 +2241,7 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     return err;
 }
 
-SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id)
+SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
 {
     username = un;
     req = r->copy();
@@ -2250,6 +2251,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& 
     source = NULL;
     publisher = NULL;
     sender = NULL;
+    is_publisher_ = is_publisher;
     sendonly_skt = NULL;
     rtc_server = s;
     dtls_session = new SrsDtlsSession(this);
@@ -2522,17 +2524,14 @@ srs_error_t SrsRtcSession::on_connection_established()
 {
     srs_error_t err = srs_success;
 
-    srs_trace("rtc session=%s, to=%dms connection established", id().c_str(), srsu2msi(sessionStunTimeout));
+    srs_trace("RTC %s session=%s, to=%dms connection established", (is_publisher_? "Publisher":"Subscriber"),
+        id().c_str(), srsu2msi(sessionStunTimeout));
 
-    if (!local_sdp.media_descs_.empty() &&
-        (local_sdp.media_descs_.back().recvonly_ || local_sdp.media_descs_.back().sendrecv_)) {
+    if (is_publisher_) {
         if ((err = start_publish()) != srs_success) {
             return srs_error_wrap(err, "start publish");
         }
-    }
-
-    if (!local_sdp.media_descs_.empty() &&
-        (local_sdp.media_descs_.back().sendonly_ || local_sdp.media_descs_.back().sendrecv_)) {
+    } else {
         if ((err = start_play()) != srs_success) {
             return srs_error_wrap(err, "start play");
         }
@@ -2580,7 +2579,6 @@ srs_error_t SrsRtcSession::start_publish()
 
     srs_freep(publisher);
     publisher = new SrsRtcPublisher(this);
-    publisher->request_keyframe();
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
@@ -3361,7 +3359,7 @@ srs_error_t SrsRtcServer::create_rtc_session(
     }
 
     int cid = _srs_context->get_id();
-    SrsRtcSession* session = new SrsRtcSession(this, req, username, cid);
+    SrsRtcSession* session = new SrsRtcSession(this, req, publish, username, cid);
     if ((err = session->initialize()) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "init");
