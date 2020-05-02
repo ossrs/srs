@@ -1465,9 +1465,8 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
     rtc_session = session;
-    rtp_h264_demuxer = new SrsRtpH264Demuxer();
-    rtp_video_queue = new SrsRtpQueue(1000);
-    rtp_audio_queue = new SrsRtpQueue(100, true);
+    video_queue_ = new SrsRtpQueue(1000);
+    audio_queue_ = new SrsRtpQueue(100, true);
 
     source = NULL;
 }
@@ -1482,9 +1481,8 @@ SrsRtcPublisher::~SrsRtcPublisher()
     }
 
     srs_freep(report_timer);
-    srs_freep(rtp_h264_demuxer);
-    srs_freep(rtp_video_queue);
-    srs_freep(rtp_audio_queue);
+    srs_freep(video_queue_);
+    srs_freep(audio_queue_);
 }
 
 srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* r)
@@ -1663,9 +1661,9 @@ srs_error_t SrsRtcPublisher::on_rtcp_xr(char* buf, int nb_buf)
                     ssrc, compact_ntp, lrr, dlrr, rtt);
 
                 if (ssrc == video_ssrc) {
-                    rtp_video_queue->update_rtt(rtt);
+                    video_queue_->update_rtt(rtt);
                 } else if (ssrc == audio_ssrc) {
-                    rtp_audio_queue->update_rtt(rtt);
+                    audio_queue_->update_rtt(rtt);
                 }
             }
         }
@@ -1917,14 +1915,14 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
     pkt->is_key_frame = true;
 
     // TODO: FIXME: Error check.
-    rtp_audio_queue->consume(pkt);
+    audio_queue_->consume(pkt);
 
-    if (rtp_audio_queue->should_request_key_frame()) {
+    if (audio_queue_->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(audio_ssrc);
     }
 
-    check_send_nacks(rtp_audio_queue, audio_ssrc);
+    check_send_nacks(audio_queue_, audio_ssrc);
 
     return collect_audio_frames();
 }
@@ -1934,7 +1932,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frames()
     srs_error_t err = srs_success;
 
     std::vector<std::vector<SrsRtpPacket2*> > frames;
-    rtp_audio_queue->collect_frames(frames);
+    audio_queue_->collect_frames(frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         vector<SrsRtpPacket2*>& packets = frames[i];
@@ -2013,14 +2011,14 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
     }
 
     // TODO: FIXME: Error check.
-    rtp_video_queue->consume(pkt);
+    video_queue_->consume(pkt);
 
-    if (rtp_video_queue->should_request_key_frame()) {
+    if (video_queue_->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(video_ssrc);
     }
 
-    check_send_nacks(rtp_video_queue, video_ssrc);
+    check_send_nacks(video_queue_, video_ssrc);
 
     return collect_video_frames();
 }
@@ -2028,7 +2026,7 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 srs_error_t SrsRtcPublisher::collect_video_frames()
 {
     std::vector<std::vector<SrsRtpPacket2*> > frames;
-    rtp_video_queue->collect_frames(frames);
+    video_queue_->collect_frames(frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         vector<SrsRtpPacket2*>& packets = frames[i];
@@ -2224,7 +2222,7 @@ void SrsRtcPublisher::request_keyframe()
     int pcid = rtc_session->context_id();
     srs_trace("RTC play=[%d][%d] request keyframe from publish=[%d][%d]", ::getpid(), scid, ::getpid(), pcid);
 
-    rtp_video_queue->request_keyframe();
+    video_queue_->request_keyframe();
 }
 
 srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t tick)
@@ -2232,8 +2230,8 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Check error.
-    send_rtcp_rr(video_ssrc, rtp_video_queue);
-    send_rtcp_rr(audio_ssrc, rtp_audio_queue);
+    send_rtcp_rr(video_ssrc, video_queue_);
+    send_rtcp_rr(audio_ssrc, audio_queue_);
     send_rtcp_xr_rrtr(video_ssrc);
     send_rtcp_xr_rrtr(audio_ssrc);
 

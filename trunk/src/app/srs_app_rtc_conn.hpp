@@ -260,9 +260,8 @@ private:
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
 private:
-    SrsRtpH264Demuxer* rtp_h264_demuxer;
-    SrsRtpQueue* rtp_video_queue;
-    SrsRtpQueue* rtp_audio_queue;
+    SrsRtpQueue* video_queue_;
+    SrsRtpQueue* audio_queue_;
 private:
     SrsRequest* req;
     SrsSource* source;
