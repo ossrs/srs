@@ -754,7 +754,10 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     // For RTC, notify the source to fetch keyframe for this client.
     // TODO: FIXME: Should triggle by PLI from client.
-    source->request_keyframe();
+    SrsRtcPublisher* publisher = source->rtc_publisher();
+    if (publisher) {
+        publisher->request_keyframe();
+    }
 
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     SrsRtcPackets pkts(SRS_PERF_RTC_RTP_PACKETS);

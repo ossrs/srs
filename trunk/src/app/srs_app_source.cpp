@@ -1921,7 +1921,7 @@ SrsSource::SrsSource()
     atc = false;
 
 #ifdef SRS_RTC
-    rtc_publisher = NULL;
+    rtc_publisher_ = NULL;
 #endif
 }
 
@@ -2706,16 +2706,14 @@ SrsMetaCache* SrsSource::cached_meta()
     return meta;
 }
 
-void SrsSource::request_keyframe()
+SrsRtcPublisher* SrsSource::rtc_publisher()
 {
-    if (rtc_publisher) {
-        rtc_publisher->request_keyframe();
-    }
+    return rtc_publisher_;
 }
 
 void SrsSource::set_rtc_publisher(SrsRtcPublisher* v)
 {
-    rtc_publisher = v;
+    rtc_publisher_ = v;
 }
 
 srs_error_t SrsSource::on_rtc_audio(SrsSharedPtrMessage* audio)
