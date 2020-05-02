@@ -214,6 +214,9 @@ public:
 public:
     SrsRtpSTAPPayload();
     virtual ~SrsRtpSTAPPayload();
+public:
+    SrsSample* get_sps();
+    SrsSample* get_pps();
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();

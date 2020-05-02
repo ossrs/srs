@@ -129,7 +129,7 @@ private:
     uint16_t low_;
     uint16_t high_;
 public:
-    SrsRtpRingBuffer(size_t capacity);
+    SrsRtpRingBuffer(int capacity);
     virtual ~SrsRtpRingBuffer();
 public:
     // Move the position of buffer.
@@ -162,10 +162,6 @@ public:
 class SrsRtpQueue
 {
 private:
-    uint64_t nn_collected_frames;
-    SrsRtpRingBuffer* queue_;
-    bool one_packet_per_frame_;
-private:
     double jitter_;
     // TODO: FIXME: Covert time to srs_utime_t.
     int64_t last_trans_time_;
@@ -173,14 +169,18 @@ private:
     uint64_t pre_number_of_packet_lossed_;
     uint64_t num_of_packet_received_;
     uint64_t number_of_packet_lossed_;
-private:
+protected:
+    SrsRtpRingBuffer* queue_;
+    uint64_t nn_collected_frames;
     std::vector<std::vector<SrsRtpPacket2*> > frames_;
+    const char* tag_;
+private:
     bool request_key_frame_;
 public:
-    SrsRtpQueue(size_t capacity = 1024, bool one_packet_per_frame = false);
+    SrsRtpQueue(const char* tag, int capacity);
     virtual ~SrsRtpQueue();
 public:
-    srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     // TODO: FIXME: Should merge FU-A to RAW, then we can return RAW payloads.
     void collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames);
     bool should_request_key_frame();
@@ -194,7 +194,32 @@ public:
     uint32_t get_interarrival_jitter();
 private:
     void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t seq_start, uint16_t seq_end);
-    void collect_packet(SrsRtpNackForReceiver* nack);
+protected:
+    virtual void collect_packet(SrsRtpNackForReceiver* nack) = 0;
+};
+
+class SrsRtpAudioQueue : public SrsRtpQueue
+{
+public:
+    SrsRtpAudioQueue(int capacity);
+    virtual ~SrsRtpAudioQueue();
+public:
+    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+protected:
+    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+};
+
+class SrsRtpVideoQueue : public SrsRtpQueue
+{
+public:
+    SrsRtpVideoQueue(int capacity);
+    virtual ~SrsRtpVideoQueue();
+public:
+    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+protected:
+    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+private:
+    virtual void do_collect_packet(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
 };
 
 #endif

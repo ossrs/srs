@@ -1458,6 +1458,8 @@ srs_error_t SrsRtcSenderThread::package_stap_a(SrsSource* source, SrsSharedPtrMe
         stap->nalus.push_back(sample);
     }
 
+    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", packet->rtp_header.get_sequence(), sps.size(), pps.size());
+
     return err;
 }
 
@@ -1466,10 +1468,10 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
     rtc_session = session;
-    video_queue_ = new SrsRtpQueue(1000);
+    video_queue_ = new SrsRtpVideoQueue(1000);
     video_nack_ = new SrsRtpNackForReceiver(video_queue_, 1000 * 2 / 3);
-    audio_queue_ = new SrsRtpQueue(100, true);
-    audio_nack_ = new SrsRtpNackForReceiver(video_queue_, 100 * 2 / 3);
+    audio_queue_ = new SrsRtpAudioQueue(100);
+    audio_nack_ = new SrsRtpNackForReceiver(audio_queue_, 100 * 2 / 3);
 
     source = NULL;
 }
@@ -2055,10 +2057,10 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
     SrsAvcNaluType nalu_type = head->nalu_type;
     int64_t timestamp = head->rtp_header.get_timestamp();
 
+    // For FU-A or STAP-A, there must be more than one packets.
     if (nalu_type == (SrsAvcNaluType)kFuA) {
-        // For FU-A, there must be more than one packets.
         if (packets.size() < 2) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A %d packets", packets.size());
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A/STAP-A %#x %d packets", nalu_type, packets.size());
         }
     } else {
         // For others type, should be one packet for one frame.
@@ -2069,50 +2071,51 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
 
     // For FU-A, group packets to one video frame.
     if (nalu_type == (SrsAvcNaluType)kFuA) {
-        int nn_payload = 0;
+        int nn_nalus = 0;
         for (size_t i = 0; i < packets.size(); ++i) {
             SrsRtpPacket2* pkt = packets[i];
             SrsRtpFUAPayload2* payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload);
             if (!payload) {
                 return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A payload");
             }
-            nn_payload += payload->size;
+            nn_nalus += payload->size;
         }
-        if (!nn_payload) {
+        if (!nn_nalus) {
             return err;
         }
 
         // TODO: FIXME: Directly covert to sample for performance.
-        // 1 byte NALU header.
         // 5 bytes FLV tag header.
-        nn_payload += 1 + 5;
+        // 4 bytes NALU IBMF header, define by sequence header.
+        // 1 byte NALU header.
+        nn_nalus += 1;
+        int nn_payload = nn_nalus + 5 + 4;
         char* data = new char[nn_payload];
-        SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
+        SrsBuffer buf(data, nn_payload);
 
-        char* p = data + 5;
-        *p++ = head_payload->nri | head_payload->nalu_type;
+        SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
+        if (head_payload->nalu_type == SrsAvcNaluTypeIDR) {
+            buf.write_1bytes(0x17); // Keyframe.
+            srs_trace("RTC got IDR %d bytes", nn_nalus);
+        } else {
+            buf.write_1bytes(0x27); // Not Keyframe.
+        }
+        buf.write_1bytes(0x01); // Not Sequence header.
+        buf.write_3bytes(0x00); // CTS.
+        buf.write_4bytes(nn_nalus);
+
+        buf.write_1bytes(head_payload->nri | head_payload->nalu_type); // NALU header.
 
         for (size_t i = 0; i < packets.size(); ++i) {
             SrsRtpPacket2* pkt = packets[i];
             SrsRtpFUAPayload2* payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload);
-            memcpy(p, payload->payload, payload->size);
-            p += payload->size;
+            buf.write_bytes(payload->payload, payload->size);
         }
-
-        if (head_payload->nalu_type == SrsAvcNaluTypeIDR) {
-            data[0] = 0x17;
-        } else {
-            data[0] = 0x27;
-        }
-        data[1] = 0x01;
-        data[2] = 0x00;
-        data[3] = 0x00;
-        data[4] = 0x00;
 
         SrsMessageHeader header;
         header.message_type = RTMP_MSG_VideoMessage;
         // TODO: FIXME: Maybe the tbn is not 90k.
-        header.timestamp = timestamp / 90;
+        header.timestamp = (timestamp / 90) & 0x3fffffff;
         SrsCommonMessage* shared_video = new SrsCommonMessage();
         SrsAutoFree(SrsCommonMessage, shared_video);
         // TODO: FIXME: Check error.
@@ -2127,49 +2130,47 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
         if (!payload) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload");
         }
-        if (payload->nalus.size() != 2) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload %d nalus", payload->nalus.size());
-        }
 
-        SrsSample* sps = payload->nalus[0];
-        SrsSample* pps = payload->nalus[1];
-        if (!sps->size || !pps->size) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload %d sps, %d pps", sps->size, pps->size);
+        SrsSample* sps = payload->get_sps();
+        SrsSample* pps = payload->get_pps();
+        if (!sps || !sps->size) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload no sps");
+        }
+        if (!pps || !pps->size) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload no pps");
         }
 
         // TODO: FIXME: Directly covert to sample for performance.
         // 5 bytes flv tag header.
-        // 6 bytes sps/pps sequence header.
-        // 1 byte seperator between sps and pps.
-        int nn_payload = sps->size + pps->size + 5 + 6 + 1;
+        // 5 bytes sps/pps sequence header.
+        // 6 bytes size for sps/pps, each is 3 bytes.
+        int nn_payload = sps->size + pps->size + 5 + 5 + 6;
         char* data = new char[nn_payload];
         SrsBuffer buf(data, nn_payload);
-        buf.write_1bytes(0x17);
-        buf.write_1bytes(0x00);
-        buf.write_1bytes(0x00);
-        buf.write_1bytes(0x00);
-        buf.write_1bytes(0x00);
+
+        buf.write_1bytes(0x17); // Keyframe.
+        buf.write_1bytes(0x00); // Sequence header.
+        buf.write_3bytes(0x00); // CTS.
 
         // FIXME: Replace magic number for avc_demux_sps_pps.
-        buf.write_1bytes(0x01);
-        buf.write_1bytes(0x42);
-        buf.write_1bytes(0xC0);
-        buf.write_1bytes(0x1E);
-        buf.write_1bytes(0xFF);
-        buf.write_1bytes(0xE1);
+        buf.write_1bytes(0x01); // configurationVersion
+        buf.write_1bytes(0x42); // AVCProfileIndication, 0x42 = Baseline
+        buf.write_1bytes(0xC0); // profile_compatibility
+        buf.write_1bytes(0x1f); // AVCLevelIndication, 0x1f = Level3.1
+        buf.write_1bytes(0x03); // lengthSizeMinusOne, size of length for NALU.
 
-        buf.write_2bytes(sps->size);
-        buf.write_string(sps->bytes);
+        buf.write_1bytes(0x01); // numOfSequenceParameterSets
+        buf.write_2bytes(sps->size); // sequenceParameterSetLength
+        buf.write_bytes(sps->bytes, sps->size); // sps
 
-        buf.write_1bytes(0x01);
-
-        buf.write_2bytes(pps->size);
-        buf.write_string(pps->bytes);
+        buf.write_1bytes(0x01); // numOfPictureParameterSets
+        buf.write_2bytes(pps->size); // pictureParameterSetLength
+        buf.write_bytes(pps->bytes, pps->size); // pps
 
         SrsMessageHeader header;
         header.message_type = RTMP_MSG_VideoMessage;
         // TODO: FIXME: Maybe the tbn is not 90k.
-        header.timestamp = timestamp / 90;
+        header.timestamp = (timestamp / 90) & 0x3fffffff;
         SrsCommonMessage* shared_video = new SrsCommonMessage();
         SrsAutoFree(SrsCommonMessage, shared_video);
         // TODO: FIXME: Check error.
@@ -2188,27 +2189,28 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
     }
 
     // TODO: FIXME: Directly covert to sample for performance.
-    // 1 byte NALU header.
     // 5 bytes FLV tag header.
-    int nn_payload = payload->nn_payload + 1 + 5;
+    // 4 bytes NALU IBMF header, define by sequence header.
+    int nn_payload = payload->nn_payload + 5 + 4;
     char* data = new char[nn_payload];
+    SrsBuffer buf(data, nn_payload);
 
     if (nalu_type == SrsAvcNaluTypeIDR) {
-        data[0] = 0x17;
+        buf.write_1bytes(0x17); // Keyframe.
+        srs_trace("RTC got IDR %d bytes", nn_payload);
     } else {
-        data[0] = 0x27;
+        buf.write_1bytes(0x27); // Not-Keyframe.
     }
-    data[1] = 0x01;
-    data[2] = 0x00;
-    data[3] = 0x00;
-    data[4] = 0x00;
+    buf.write_1bytes(0x01); // Not-SequenceHeader.
+    buf.write_3bytes(0x00); // CTS.
 
-    memcpy(data + 5, payload->payload, payload->nn_payload);
+    buf.write_4bytes(payload->nn_payload); // Size of NALU.
+    buf.write_bytes(payload->payload, payload->nn_payload); // NALU.
 
     SrsMessageHeader header;
     header.message_type = RTMP_MSG_VideoMessage;
     // TODO: FIXME: Maybe the tbn is not 90k.
-    header.timestamp = timestamp / 90;
+    header.timestamp = (timestamp / 90) & 0x3fffffff;
     SrsCommonMessage* shared_video = new SrsCommonMessage();
     SrsAutoFree(SrsCommonMessage, shared_video);
     // TODO: FIXME: Check error.
@@ -2578,6 +2580,7 @@ srs_error_t SrsRtcSession::start_publish()
 
     srs_freep(publisher);
     publisher = new SrsRtcPublisher(this);
+    publisher->request_keyframe();
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
@@ -3382,6 +3385,7 @@ srs_error_t SrsRtcServer::create_rtc_session(
         }
     }
 
+    // TODO: FIXME: In answer, we should use the same SSRC as in offer.
     session->set_remote_sdp(remote_sdp);
     session->set_local_sdp(local_sdp);
 

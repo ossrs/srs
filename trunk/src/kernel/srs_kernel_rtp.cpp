@@ -409,7 +409,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // Try to parse the NALU type for video decoder.
     if (!buf->empty()) {
-        nalu_type = SrsAvcNaluType((uint8_t)(buf->head()[0] & 0x3f));
+        nalu_type = SrsAvcNaluType((uint8_t)(buf->head()[0] & kNalTypeMask));
     }
 
     // If user set the decode handler, call it to set the payload.
@@ -608,6 +608,42 @@ SrsRtpSTAPPayload::~SrsRtpSTAPPayload()
     }
 }
 
+SrsSample* SrsRtpSTAPPayload::get_sps()
+{
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        if (!p || !p->size) {
+            continue;
+        }
+
+        SrsAvcNaluType nalu_type = (SrsAvcNaluType)(p->bytes[0] & kNalTypeMask);
+        if (nalu_type == SrsAvcNaluTypeSPS) {
+            return p;
+        }
+    }
+
+    return NULL;
+}
+
+SrsSample* SrsRtpSTAPPayload::get_pps()
+{
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        if (!p || !p->size) {
+            continue;
+        }
+
+        SrsAvcNaluType nalu_type = (SrsAvcNaluType)(p->bytes[0] & kNalTypeMask);
+        if (nalu_type == SrsAvcNaluTypePPS) {
+            return p;
+        }
+    }
+
+    return NULL;
+}
+
 int SrsRtpSTAPPayload::nb_bytes()
 {
     int size = 1;
@@ -658,7 +694,7 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
     // STAP header, RTP payload format for aggregation packets
     // @see https://tools.ietf.org/html/rfc6184#section-5.7
     uint8_t v = buf->read_1bytes();
-    nri = SrsAvcNaluType(v & kNalTypeMask);
+    nri = SrsAvcNaluType(v & (~kNalTypeMask));
 
     // NALUs.
     while (!buf->empty()) {
@@ -754,13 +790,13 @@ srs_error_t SrsRtpFUAPayload::decode(SrsBuffer* buf)
 
     // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
     uint8_t v = buf->read_1bytes();
-    nri = SrsAvcNaluType(v & kNalTypeMask);
+    nri = SrsAvcNaluType(v & (~kNalTypeMask));
 
     // FU header, @see https://tools.ietf.org/html/rfc6184#section-5.8
     v = buf->read_1bytes();
     start = v & kStart;
     end = v & kEnd;
-    nalu_type = SrsAvcNaluType(v & 0x3f);
+    nalu_type = SrsAvcNaluType(v & kNalTypeMask);
 
     if (!buf->require(1)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
@@ -841,7 +877,7 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
     v = buf->read_1bytes();
     start = v & kStart;
     end = v & kEnd;
-    nalu_type = SrsAvcNaluType(v & 0x3f);
+    nalu_type = SrsAvcNaluType(v & kNalTypeMask);
 
     if (!buf->require(1)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
