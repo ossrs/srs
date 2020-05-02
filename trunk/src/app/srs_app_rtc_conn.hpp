@@ -33,6 +33,7 @@
 #include <srs_app_hourglass.hpp>
 #include <srs_app_sdp.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_kernel_rtp.hpp>
 
 #include <string>
 #include <map>
@@ -54,6 +55,8 @@ class ISrsUdpSender;
 class SrsRtpQueue;
 class SrsRtpH264Demuxer;
 class SrsRtpOpusDemuxer;
+class SrsRtpPacket2;
+class ISrsCodec;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -248,7 +251,7 @@ private:
     srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
 };
 
-class SrsRtcPublisher : virtual public ISrsHourGlass
+class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
 {
 private:
     SrsHourGlass* report_timer;
@@ -258,7 +261,6 @@ private:
     uint32_t audio_ssrc;
 private:
     SrsRtpH264Demuxer* rtp_h264_demuxer;
-    SrsRtpOpusDemuxer* rtp_opus_demuxer;
     SrsRtpQueue* rtp_video_queue;
     SrsRtpQueue* rtp_audio_queue;
 private:
@@ -283,11 +285,14 @@ private:
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
 private:
-    srs_error_t on_audio(SrsRtpSharedPacket* pkt);
-    srs_error_t collect_audio_frame();
-    srs_error_t on_video(SrsRtpSharedPacket* pkt);
-    srs_error_t collect_video_frame();
+    srs_error_t on_audio(SrsRtpPacket2* pkt);
+    srs_error_t collect_audio_frames();
+    srs_error_t do_collect_audio_frame(SrsRtpPacket2* packet);
+    srs_error_t on_video(SrsRtpPacket2* pkt);
+    srs_error_t collect_video_frames();
+    srs_error_t do_collect_video_frame(std::vector<SrsRtpPacket2*>& packets);
 public:
     void request_keyframe();
 // interface ISrsHourGlass
@@ -334,25 +339,18 @@ public:
     SrsRtcSession(SrsRtcServer* s, SrsRequest* r, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
-    SrsSdp* get_local_sdp() { return &local_sdp; }
+    SrsSdp* get_local_sdp();
     void set_local_sdp(const SrsSdp& sdp);
-
-    SrsSdp* get_remote_sdp() { return &remote_sdp; }
-    void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
-
-    SrsRtcSessionStateType get_session_state() { return session_state; }
-    void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
-
-    std::string id() const { return peer_id + "_" + username; }
-
-    std::string get_peer_id() const { return peer_id; }
-    void set_peer_id(const std::string& id) { peer_id = id; }
-
-    void set_encrypt(bool v) { encrypt = v; }
-
+    SrsSdp* get_remote_sdp();
+    void set_remote_sdp(const SrsSdp& sdp);
+    SrsRtcSessionStateType get_session_state();
+    void set_session_state(SrsRtcSessionStateType state);
+    std::string id() const;
+    std::string get_peer_id() const;
+    void set_peer_id(const std::string& id);
+    void set_encrypt(bool v);
     void switch_to_context();
-    int context_id() { return cid; }
-
+    int context_id();
 public:
     srs_error_t initialize();
     // The peer address may change, we can identify that by STUN messages.
@@ -361,7 +359,6 @@ public:
     srs_error_t on_rtcp(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
 public:
-    srs_error_t send_client_hello();
     srs_error_t on_connection_established();
     srs_error_t start_play();
     srs_error_t start_publish();

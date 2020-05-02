@@ -61,11 +61,11 @@ SrsRtpHeader::~SrsRtpHeader()
 {
 }
 
-srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
+srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    if (stream->size() < kRtpHeaderFixedSize) {
+    if (buf->size() < kRtpHeaderFixedSize) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
     }
 
@@ -84,60 +84,58 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* stream)
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     */
 
-    uint8_t first = stream->read_1bytes();
+    uint8_t first = buf->read_1bytes();
     padding = (first & 0x20);
     extension = (first & 0x10);
     cc = (first & 0x0F);
 
-    uint8_t second = stream->read_1bytes();
+    uint8_t second = buf->read_1bytes();
     marker = (second & 0x80);
     payload_type = (second & 0x7F);
 
-    sequence = stream->read_2bytes();
-    timestamp = stream->read_4bytes();
-    ssrc = stream->read_4bytes();
+    sequence = buf->read_2bytes();
+    timestamp = buf->read_4bytes();
+    ssrc = buf->read_4bytes();
 
-    if ((size_t)stream->size() < header_size()) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    if (!buf->require(nb_bytes())) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d+ bytes", nb_bytes());
     }
 
     for (uint8_t i = 0; i < cc; ++i) {
-        csrc[i] = stream->read_4bytes();
+        csrc[i] = buf->read_4bytes();
     }    
 
     if (extension) {
-        // TODO:
-        uint16_t profile_id = stream->read_2bytes();
-        extension_length = stream->read_2bytes();
-        // @see: https://tools.ietf.org/html/rfc3550#section-5.3.1
-        stream->skip(extension_length * 4);
+        uint16_t profile_id = buf->read_2bytes();
+        extension_length = buf->read_2bytes();
 
-        srs_verbose("extension, profile_id=%u, length=%u", profile_id, extension_length);
+        // TODO: FIXME: Read extensions.
+        // @see: https://tools.ietf.org/html/rfc3550#section-5.3.1
+        buf->skip(extension_length * 4);
 
         // @see: https://tools.ietf.org/html/rfc5285#section-4.2
         if (profile_id == 0xBEDE) {
+            // TODO: FIXME: Implements it.
         }    
     }
 
     if (padding) {
-        padding_length = *(reinterpret_cast<uint8_t*>(stream->data() + stream->size() - 1));
-        if (padding_length > (stream->size() - stream->pos())) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+        padding_length = *(reinterpret_cast<uint8_t*>(buf->data() + buf->size() - 1));
+        if (!buf->require(padding_length)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "padding requires %d bytes", padding_length);
         }
-
-        srs_verbose("offset=%d, padding_length=%u", stream->size(), padding_length);
     }
 
     return err;
 }
 
-srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
+srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
     // Encode the RTP fix header, 12bytes.
     // @see https://tools.ietf.org/html/rfc1889#section-5.1
-    char* op = stream->head();
+    char* op = buf->head();
     char* p = op;
 
     // The version, padding, extension and cc, total 1 byte.
@@ -190,24 +188,42 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* stream)
     }
 
     // Consume the data.
-    stream->skip(p - op);
+    buf->skip(p - op);
 
     return err;
 }
 
-size_t SrsRtpHeader::header_size()
+int SrsRtpHeader::nb_bytes()
 {
     return kRtpHeaderFixedSize + cc * 4 + (extension ? (extension_length + 1) * 4 : 0);
 }
 
+ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
+{
+}
+
+ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
+{
+}
+
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    payload = NULL;
     padding = 0;
+    payload = NULL;
+    decode_handler = NULL;
+
+    is_first_packet_of_frame = false;
+    is_last_packet_of_frame = false;
+    is_key_frame = false;
+    nalu_type = SrsAvcNaluTypeReserved;
 
     cache_raw = new SrsRtpRawPayload();
     cache_fua = new SrsRtpFUAPayload2();
     cache_payload = 0;
+
+    original_bytes = NULL;
+    nn_original_bytes = 0;
+    nn_original_payload = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
@@ -220,6 +236,8 @@ SrsRtpPacket2::~SrsRtpPacket2()
     srs_freep(payload);
     srs_freep(cache_raw);
     srs_freep(cache_fua);
+
+    srs_freepa(original_bytes);
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -270,7 +288,7 @@ SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 int SrsRtpPacket2::nb_bytes()
 {
     if (!cache_payload) {
-        cache_payload = rtp_header.header_size() + (payload? payload->nb_bytes():0) + padding;
+        cache_payload = rtp_header.nb_bytes() + (payload? payload->nb_bytes():0) + padding;
     }
     return cache_payload;
 }
@@ -284,7 +302,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
     }
 
     if (payload && (err = payload->encode(buf)) != srs_success) {
-        return srs_error_wrap(err, "encode payload");
+        return srs_error_wrap(err, "rtp payload");
     }
 
     if (padding > 0) {
@@ -293,6 +311,44 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         }
         memset(buf->data() + buf->pos(), padding, padding);
         buf->skip(padding);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = rtp_header.decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "rtp header");
+    }
+
+    // We must skip the padding bytes before parsing payload.
+    padding = rtp_header.get_padding_length();
+    if (!buf->require(padding)) {
+        return srs_error_wrap(err, "requires padding %d bytes", padding);
+    }
+    buf->set_size(buf->size() - padding);
+
+    // Try to parse the NALU type for video decoder.
+    if (!buf->empty()) {
+        nalu_type = SrsAvcNaluType((uint8_t)(buf->head()[0] & 0x3f));
+    }
+
+    // If user set the decode handler, call it to set the payload.
+    if (decode_handler) {
+        decode_handler->on_before_decode_payload(this, buf, &payload);
+        nn_original_payload = buf->left();
+    }
+
+    // By default, we always use the RAW payload.
+    if (!payload) {
+        payload = reuse_raw();
+    }
+
+    if ((err = payload->decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "rtp payload");
     }
 
     return err;
@@ -328,6 +384,18 @@ srs_error_t SrsRtpRawPayload::encode(SrsBuffer* buf)
     return srs_success;
 }
 
+srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
+{
+    if (buf->empty()) {
+        return srs_success;
+    }
+
+    payload = buf->head();
+    nn_payload = buf->left();
+
+    return srs_success;
+}
+
 SrsRtpRawNALUs::SrsRtpRawNALUs()
 {
     cursor = 0;
@@ -336,12 +404,10 @@ SrsRtpRawNALUs::SrsRtpRawNALUs()
 
 SrsRtpRawNALUs::~SrsRtpRawNALUs()
 {
-    if (true) {
-        int nn_nalus = (int)nalus.size();
-        for (int i = 0; i < nn_nalus; i++) {
-            SrsSample* p = nalus[i];
-            srs_freep(p);
-        }
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        srs_freep(p);
     }
 }
 
@@ -436,6 +502,22 @@ srs_error_t SrsRtpRawNALUs::encode(SrsBuffer* buf)
     return srs_success;
 }
 
+srs_error_t SrsRtpRawNALUs::decode(SrsBuffer* buf)
+{
+    if (buf->empty()) {
+        return srs_success;
+    }
+
+    SrsSample* sample = new SrsSample();
+    sample->bytes = buf->head();
+    sample->size = buf->left();
+    buf->skip(sample->size);
+
+    nalus.push_back(sample);
+
+    return srs_success;
+}
+
 SrsRtpSTAPPayload::SrsRtpSTAPPayload()
 {
     nri = (SrsAvcNaluType)0;
@@ -486,6 +568,39 @@ srs_error_t SrsRtpSTAPPayload::encode(SrsBuffer* buf)
 
         buf->write_2bytes(p->size);
         buf->write_bytes(p->bytes, p->size);
+    }
+
+    return srs_success;
+}
+
+srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
+{
+    if (!buf->require(1)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    // STAP header, RTP payload format for aggregation packets
+    // @see https://tools.ietf.org/html/rfc6184#section-5.7
+    uint8_t v = buf->read_1bytes();
+    nri = SrsAvcNaluType(v & kNalTypeMask);
+
+    // NALUs.
+    while (!buf->empty()) {
+        if (!buf->require(2)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+        }
+
+        int size = buf->read_2bytes();
+        if (!buf->require(size)) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", size);
+        }
+
+        SrsSample* sample = new SrsSample();
+        sample->bytes = buf->head();
+        sample->size = size;
+        buf->skip(size);
+
+        nalus.push_back(sample);
     }
 
     return srs_success;
@@ -555,6 +670,36 @@ srs_error_t SrsRtpFUAPayload::encode(SrsBuffer* buf)
     return srs_success;
 }
 
+srs_error_t SrsRtpFUAPayload::decode(SrsBuffer* buf)
+{
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+
+    // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t v = buf->read_1bytes();
+    nri = SrsAvcNaluType(v & kNalTypeMask);
+
+    // FU header, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    v = buf->read_1bytes();
+    start = v & kStart;
+    end = v & kEnd;
+    nalu_type = SrsAvcNaluType(v & 0x3f);
+
+    if (!buf->require(1)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    SrsSample* sample = new SrsSample();
+    sample->bytes = buf->head();
+    sample->size = buf->left();
+    buf->skip(sample->size);
+
+    nalus.push_back(sample);
+
+    return srs_success;
+}
+
 SrsRtpFUAPayload2::SrsRtpFUAPayload2()
 {
     start = end = false;
@@ -602,6 +747,33 @@ srs_error_t SrsRtpFUAPayload2::encode(SrsBuffer* buf)
 
     // Consume bytes.
     buf->skip(2 + size);
+
+    return srs_success;
+}
+
+srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
+{
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+
+    // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    uint8_t v = buf->read_1bytes();
+    nri = SrsAvcNaluType(v & (~kNalTypeMask));
+
+    // FU header, @see https://tools.ietf.org/html/rfc6184#section-5.8
+    v = buf->read_1bytes();
+    start = v & kStart;
+    end = v & kEnd;
+    nalu_type = SrsAvcNaluType(v & 0x3f);
+
+    if (!buf->require(1)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
+    }
+
+    payload = buf->head();
+    size = buf->left();
+    buf->skip(size);
 
     return srs_success;
 }
@@ -721,7 +893,7 @@ srs_error_t SrsRtpSharedPacket::create(SrsRtpHeader* rtp_h, SrsRtpPayloadHeader*
     this->rtp_payload_header = rtp_ph;
 
     // TODO: rtp header padding.
-    size_t buffer_size = rtp_header.header_size() + s;
+    int buffer_size = rtp_header.nb_bytes() + s;
     
     char* buffer = new char[buffer_size];
     SrsBuffer stream(buffer, buffer_size);

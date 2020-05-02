@@ -30,7 +30,7 @@
 #include <vector>
 #include <map>
 
-class SrsRtpSharedPacket;
+class SrsRtpPacket2;
 class SrsRtpQueue;
 
 struct SrsNackOption
@@ -119,7 +119,7 @@ private:
     // Capacity of the ring-buffer.
     uint16_t capacity_;
     // Ring bufer.
-    SrsRtpSharedPacket** queue_;
+    SrsRtpPacket2** queue_;
     // Increase one when uint16 flip back, for get_extended_highest_sequence.
     uint64_t nn_seq_flip_backs;
     // Whether initialized, because we use uint16 so we can't use -1.
@@ -132,12 +132,17 @@ public:
     SrsRtpRingBuffer(size_t capacity);
     virtual ~SrsRtpRingBuffer();
 public:
+    // Move the position of buffer.
     uint16_t low() { return low_; }
     uint16_t high() { return high_; }
     void advance_to(uint16_t seq) { low_ = seq; }
-    void set(uint16_t at, SrsRtpSharedPacket* pkt);
-    void remove(uint16_t at);
-    bool overflow() { return low_ + capacity_ < high_; }
+    // Free the packet at position.
+    void set(uint16_t at, SrsRtpPacket2* pkt);
+    void remove(uint16_t at) { set(at, NULL); }
+    // Directly reset range [low, high] to NULL.
+    void reset(uint16_t low, uint16_t high);
+    // Whether queue overflow or heavy(too many packets and need clear).
+    bool overflow() { return high_ - low_ < capacity_; }
     bool is_heavy() { return high_ - low_ >= capacity_ / 2; }
     // Get the next start packet of frame.
     // @remark If not found, return the low_, which should never be the "next" one,
@@ -151,7 +156,7 @@ public:
     // Update the sequence, got the nack range by [low, high].
     void update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high);
     // Get the packet by seq.
-    SrsRtpSharedPacket* at(uint16_t seq) { return queue_[seq % capacity_]; }
+    SrsRtpPacket2* at(uint16_t seq) { return queue_[seq % capacity_]; }
 };
 
 class SrsRtpQueue
@@ -170,14 +175,14 @@ private:
     uint64_t num_of_packet_received_;
     uint64_t number_of_packet_lossed_;
 private:
-    std::vector<std::vector<SrsRtpSharedPacket*> > frames_;
+    std::vector<std::vector<SrsRtpPacket2*> > frames_;
     bool request_key_frame_;
 public:
     SrsRtpQueue(size_t capacity = 1024, bool one_packet_per_frame = false);
     virtual ~SrsRtpQueue();
 public:
-    srs_error_t consume(SrsRtpSharedPacket* pkt);
-    void collect_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames);
+    srs_error_t consume(SrsRtpPacket2* pkt);
+    void collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames);
     bool should_request_key_frame();
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();

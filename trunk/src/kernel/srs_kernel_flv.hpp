@@ -367,18 +367,18 @@ public:
     // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
     // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
     void set_extra_payloads(SrsSample* payloads, int nn_payloads);
-    int nn_extra_payloads() { return ptr->nn_extra_payloads; }
-    SrsSample* extra_payloads() { return ptr->extra_payloads; }
+    int nn_extra_payloads();
+    SrsSample* extra_payloads();
     // The max extra payload size.
-    void set_max_extra_payload(int v) { ptr->nn_max_extra_payloads = v; }
-    int nn_max_extra_payloads() { return ptr->nn_max_extra_payloads; }
+    void set_max_extra_payload(int v);
+    int nn_max_extra_payloads();
     // Whether samples has idr.
-    bool has_idr() { return ptr->has_idr; }
-    void set_has_idr(bool v) { ptr->has_idr = v; }
+    bool has_idr();
+    void set_has_idr(bool v);
     // Set samples, each sample points to the address of payload.
     void set_samples(SrsSample* samples, int nn_samples);
-    int nn_samples() { return ptr->nn_samples; }
-    SrsSample* samples() { return ptr->samples; }
+    int nn_samples();
+    SrsSample* samples();
 #endif
 };
 

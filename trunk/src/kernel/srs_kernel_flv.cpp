@@ -388,6 +388,36 @@ void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payload
     memcpy((void*)ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
 }
 
+int SrsSharedPtrMessage::nn_extra_payloads()
+{
+    return ptr->nn_extra_payloads;
+}
+
+SrsSample* SrsSharedPtrMessage::extra_payloads()
+{
+    return ptr->extra_payloads;
+}
+
+void SrsSharedPtrMessage::set_max_extra_payload(int v)
+{
+    ptr->nn_max_extra_payloads = v;
+}
+
+int SrsSharedPtrMessage::nn_max_extra_payloads()
+{
+    return ptr->nn_max_extra_payloads;
+}
+
+bool SrsSharedPtrMessage::has_idr()
+{
+    return ptr->has_idr;
+}
+
+void SrsSharedPtrMessage::set_has_idr(bool v)
+{
+    ptr->has_idr = v;
+}
+
 void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
 {
     srs_assert(nn_samples);
@@ -397,6 +427,16 @@ void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
 
     ptr->samples = new SrsSample[nn_samples];
     memcpy((void*)ptr->samples, samples, nn_samples * sizeof(SrsSample));
+}
+
+int SrsSharedPtrMessage::nn_samples()
+{
+    return ptr->nn_samples;
+}
+
+SrsSample* SrsSharedPtrMessage::samples()
+{
+    return ptr->samples;
 }
 #endif
 

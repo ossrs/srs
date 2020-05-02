@@ -141,8 +141,8 @@ SrsRtpRingBuffer::SrsRtpRingBuffer(size_t capacity)
     capacity_ = capacity;
     initialized_ = false;
 
-    queue_ = new SrsRtpSharedPacket*[capacity_];
-    memset(queue_, 0, sizeof(SrsRtpSharedPacket*) * capacity);
+    queue_ = new SrsRtpPacket2*[capacity_];
+    memset(queue_, 0, sizeof(SrsRtpPacket2*) * capacity);
 }
 
 SrsRtpRingBuffer::~SrsRtpRingBuffer()
@@ -150,9 +150,9 @@ SrsRtpRingBuffer::~SrsRtpRingBuffer()
     srs_freepa(queue_);
 }
 
-void SrsRtpRingBuffer::set(uint16_t at, SrsRtpSharedPacket* pkt)
+void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
 {
-    SrsRtpSharedPacket* p = queue_[at % capacity_];
+    SrsRtpPacket2* p = queue_[at % capacity_];
 
     if (p) {
         srs_freep(p);
@@ -161,9 +161,11 @@ void SrsRtpRingBuffer::set(uint16_t at, SrsRtpSharedPacket* pkt)
     queue_[at % capacity_] = pkt;
 }
 
-void SrsRtpRingBuffer::remove(uint16_t at)
+void SrsRtpRingBuffer::reset(uint16_t low, uint16_t high)
 {
-    set(at, NULL);
+    for (uint16_t s = low; s != high; ++s) {
+        queue_[s % capacity_] = NULL;
+    }
 }
 
 uint16_t SrsRtpRingBuffer::next_start_of_frame()
@@ -173,8 +175,8 @@ uint16_t SrsRtpRingBuffer::next_start_of_frame()
     }
 
     for (uint16_t s = low_ + 1 ; s != high_; ++s) {
-        SrsRtpSharedPacket*& pkt = queue_[s % capacity_];
-        if (pkt && pkt->rtp_payload_header->is_first_packet_of_frame) {
+        SrsRtpPacket2*& pkt = queue_[s % capacity_];
+        if (pkt && pkt->is_first_packet_of_frame) {
             return s;
         }
     }
@@ -189,8 +191,8 @@ uint16_t SrsRtpRingBuffer::next_keyframe()
     }
 
     for (uint16_t s = low_ + 1 ; s != high_; ++s) {
-        SrsRtpSharedPacket*& pkt = queue_[s % capacity_];
-        if (pkt && pkt->rtp_payload_header->is_key_frame && pkt->rtp_payload_header->is_first_packet_of_frame) {
+        SrsRtpPacket2*& pkt = queue_[s % capacity_];
+        if (pkt && pkt->is_key_frame && pkt->is_first_packet_of_frame) {
             return s;
         }
     }
@@ -269,7 +271,7 @@ SrsRtpQueue::~SrsRtpQueue()
     srs_freep(nack_);
 }
 
-srs_error_t SrsRtpQueue::consume(SrsRtpSharedPacket* pkt)
+srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -337,8 +339,8 @@ srs_error_t SrsRtpQueue::consume(SrsRtpSharedPacket* pkt)
         queue_->advance_to(next + 1);
     }
 
-    // TODO: FIXME: Change to ptr of ptr.
-    queue_->set(seq, pkt->copy());
+    // Save packet at the position seq.
+    queue_->set(seq, pkt);
 
     // Collect packets to frame when:
     // 1. Marker bit means the last packet of frame received.
@@ -351,7 +353,7 @@ srs_error_t SrsRtpQueue::consume(SrsRtpSharedPacket* pkt)
     return err;
 }
 
-void SrsRtpQueue::collect_frames(std::vector<std::vector<SrsRtpSharedPacket*> >& frames)
+void SrsRtpQueue::collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames)
 {
     frames.swap(frames_);
 }
@@ -446,33 +448,39 @@ void SrsRtpQueue::insert_into_nack_list(uint16_t seq_start, uint16_t seq_end)
 
 void SrsRtpQueue::collect_packet()
 {
-    vector<SrsRtpSharedPacket*> frame;
-    for (uint16_t s = queue_->low(); s != queue_->high(); ++s) {
-        SrsRtpSharedPacket* pkt = queue_->at(s);
+    while (queue_->low() != queue_->high()) {
+        vector<SrsRtpPacket2*> frame;
+        for (uint16_t s = queue_->low(); s != queue_->high(); ++s) {
+            SrsRtpPacket2* pkt = queue_->at(s);
 
-        if (nack_->find(s) != NULL) {
-            srs_verbose("seq=%u, found in nack list when collect frame", s);
-            break;
-        }
+            // In NACK, never collect frame.
+            if (nack_->find(s) != NULL) {
+                srs_verbose("seq=%u, found in nack list when collect frame", s);
+                return;
+            }
 
-        // We must collect frame from first packet to last packet.
-        if (s == queue_->low() && pkt->rtp_payload_size() != 0 && !pkt->rtp_payload_header->is_first_packet_of_frame) {
-            break;
-        }
+            // Ignore when the first packet not the start.
+            if (s == queue_->low() && pkt->nn_original_payload && !pkt->is_first_packet_of_frame) {
+                return;
+            }
 
-        frame.push_back(pkt->copy());
-        if (pkt->rtp_header.get_marker() || one_packet_per_frame_) {
+            // OK, collect packet to frame.
+            frame.push_back(pkt);
+
+            // Not the last packet, continue to process next one.
+            if (pkt->rtp_header.get_marker() || one_packet_per_frame_) {
+                continue;
+            }
+
+            // Done, we got the last packet of frame.
             nn_collected_frames++;
             frames_.push_back(frame);
-            frame.clear();
+
+            // Reset the range of packets to NULL in buffer.
+            queue_->reset(queue_->low(), s);
 
             srs_verbose("head seq=%u, update to %u because collect one full farme", queue_->low(), s + 1);
             queue_->advance_to(s + 1);
         }
-    }
-
-    // remove the tmp buffer
-    for (size_t i = 0; i < frame.size(); ++i) {
-        srs_freep(frame[i]);
     }
 }

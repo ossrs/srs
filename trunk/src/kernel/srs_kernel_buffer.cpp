@@ -58,9 +58,24 @@ SrsBuffer::~SrsBuffer()
 {
 }
 
+char* SrsBuffer::data()
+{
+    return bytes;
+}
+
+char* SrsBuffer::head()
+{
+    return p;
+}
+
 int SrsBuffer::size()
 {
     return nb_bytes;
+}
+
+void SrsBuffer::set_size(int v)
+{
+    nb_bytes = v;
 }
 
 int SrsBuffer::pos()
