@@ -654,10 +654,13 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     
     // Create a consumer of source.
     SrsConsumer* consumer = NULL;
+    SrsAutoFree(SrsConsumer, consumer);
     if ((err = source->create_consumer(this, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtmp: create consumer");
     }
-    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->consumer_dumps(consumer)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: dumps consumer");
+    }
     
     // Use receiving thread to receive packets from peer.
     // @see: https://github.com/ossrs/srs/issues/217

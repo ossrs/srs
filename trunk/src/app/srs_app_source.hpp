@@ -599,12 +599,14 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 public:
-    // Create consumer and dumps packets in cache.
+    // Create consumer
     // @param consumer, output the create consumer.
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
+    // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();

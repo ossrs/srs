@@ -1089,6 +1089,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
         local_media_desc.rtcp_mux_ = true;
         local_media_desc.rtcp_rsize_ = true;
 
+        // TODO: FIXME: Avoid SSRC collision.
         if (!ssrc_num) {
             ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
         }

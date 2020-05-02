@@ -721,7 +721,6 @@ srs_error_t SrsRtcSenderThread::cycle()
 
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", req->get_stream_url().c_str());
     }
@@ -732,6 +731,11 @@ srs_error_t SrsRtcSenderThread::cycle()
     // In this mode, we use mw_msgs to set the delay. We never shrink the consumer queue, instead, we dumps the
     // messages and drop them if the shared sender queue is full.
     consumer->enable_pass_timestamp();
+
+    // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
+    if ((err = source->consumer_dumps(consumer)) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer, source url=%s", req->get_stream_url().c_str());
+    }
 
     realtime = _srs_config->get_realtime_enabled(req->vhost, true);
     mw_sleep = _srs_config->get_mw_sleep(req->vhost, true);

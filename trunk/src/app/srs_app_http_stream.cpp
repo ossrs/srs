@@ -128,10 +128,13 @@ srs_error_t SrsBufferCache::cycle()
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
-    if ((err = source->create_consumer(NULL, consumer, false, false, true)) != srs_success) {
+    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer");
+    }
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream_cache();
     SrsAutoFree(SrsPithyPrint, pprint);
@@ -583,12 +586,14 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((err = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != srs_success) {
+    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    SrsAutoFree(SrsConsumer, consumer);
-    srs_verbose("http: consumer created success.");
-    
+    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer");
+    }
+
     SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream();
     SrsAutoFree(SrsPithyPrint, pprint);
     

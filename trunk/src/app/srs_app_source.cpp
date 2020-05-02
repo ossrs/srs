@@ -2594,12 +2594,27 @@ void SrsSource::on_unpublish()
     }
 }
 
-srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
+srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
+    
+    // for edge, when play edge stream, check the state
+    if (_srs_config->get_vhost_is_edge(req->vhost)) {
+        // notice edge to start for the first client.
+        if ((err = play_edge->on_client_play()) != srs_success) {
+            return srs_error_wrap(err, "play edge");
+        }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsSource::consumer_dumps(SrsConsumer* consumer, bool ds, bool dm, bool dg)
+{
+    srs_error_t err = srs_success;
 
     srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
     consumer->set_queue_size(queue_size);
@@ -2636,15 +2651,7 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
     } else {
         srs_trace("create consumer, active=%d, ignore gop cache, jitter=%d", hub->active(), jitter_algorithm);
     }
-    
-    // for edge, when play edge stream, check the state
-    if (_srs_config->get_vhost_is_edge(req->vhost)) {
-        // notice edge to start for the first client.
-        if ((err = play_edge->on_client_play()) != srs_success) {
-            return srs_error_wrap(err, "play edge");
-        }
-    }
-    
+
     return err;
 }
 
