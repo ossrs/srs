@@ -449,6 +449,7 @@ srs_error_t SrsDtlsSession::protect_rtp(char* out_buf, const char* in_buf, int& 
     return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
 }
 
+// TODO: FIXME: Merge with protect_rtp.
 srs_error_t SrsDtlsSession::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
     srs_error_t err = srs_success;
@@ -1921,11 +1922,6 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
     // TODO: FIXME: Error check.
     audio_queue_->consume(audio_nack_, pkt);
 
-    if (audio_queue_->should_request_key_frame()) {
-        // TODO: FIXME: Check error.
-        send_rtcp_fb_pli(audio_ssrc);
-    }
-
     check_send_nacks(audio_nack_, audio_ssrc);
 
     return collect_audio_frames();
@@ -2684,6 +2680,10 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
 
+    if (!dtls_session) {
+        return err;
+    }
+
     if (nb_buf < 12) {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
     }
@@ -2728,12 +2728,8 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
 
     srs_verbose("pid=%u, blp=%d", pid, blp);
 
-    vector<SrsRtpSharedPacket*> resend_pkts;
     // TODO: FIXME: Support ARQ.
-    SrsRtpSharedPacket* pkt = NULL; // source->find_rtp_packet(pid);
-    if (pkt) {
-        resend_pkts.push_back(pkt);
-    }
+    vector<SrsRtpPacket2*> resend_pkts;
 
     uint16_t mask = 0x01;
     for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {
@@ -2745,25 +2741,21 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
 
         // TODO: FIXME: Support ARQ.
         (void)loss_seq;
-        SrsRtpSharedPacket* pkt = NULL; // source->find_rtp_packet(loss_seq);
-        if (!pkt) {
-            continue;
-        }
-
-        resend_pkts.push_back(pkt);
     }
 
     for (int i = 0; i < (int)resend_pkts.size(); ++i) {
-        if (dtls_session) {
-            char* protected_buf = new char[kRtpPacketSize];
-            int nb_protected_buf = resend_pkts[i]->size;
+        SrsRtpPacket2* pkt = resend_pkts[i];
 
-            srs_verbose("resend pkt sequence=%u", resend_pkts[i]->rtp_header.get_sequence());
+        char* protected_buf = new char[kRtpPacketSize];
+        SrsAutoFreeA(char, protected_buf);
 
-            // TODO: FIXME: Check error.
-            dtls_session->protect_rtp(protected_buf, resend_pkts[i]->payload, nb_protected_buf);
-            sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-        }
+        int nb_protected_buf = resend_pkts[i]->nb_bytes();
+        SrsBuffer buf(protected_buf, nb_protected_buf);
+
+        // TODO: FIXME: Check error.
+        pkt->encode(&buf);
+        dtls_session->protect_rtp(protected_buf, protected_buf, nb_protected_buf);
+        sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
     }
 
     return err;

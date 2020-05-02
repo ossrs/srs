@@ -33,7 +33,6 @@
 class SrsFormat;
 class SrsSample;
 class SrsSharedPtrMessage;
-class SrsRtpSharedPacket;
 class SrsRequest;
 class SrsOriginHub;
 class SrsAudioRecode;
@@ -76,24 +75,6 @@ public:
     virtual srs_error_t initialize();
 public:
     srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
-};
-
-class SrsRtpH264Demuxer
-{
-public:
-    SrsRtpH264Demuxer();
-    virtual ~SrsRtpH264Demuxer();
-public:
-    srs_error_t parse(SrsRtpSharedPacket* rtp_pkt);
-};
-
-class SrsRtpOpusDemuxer
-{
-public:
-    SrsRtpOpusDemuxer();
-    virtual ~SrsRtpOpusDemuxer();
-public:
-    srs_error_t parse(SrsRtpSharedPacket* rtp_pkt);
 };
 
 class SrsRtc

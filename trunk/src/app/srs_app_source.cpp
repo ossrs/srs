@@ -849,58 +849,6 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
     return msg;
 }
 
-#ifdef SRS_RTC
-SrsRtpPacketQueue::SrsRtpPacketQueue()
-{
-}
-
-SrsRtpPacketQueue::~SrsRtpPacketQueue()
-{
-    clear();
-}
-
-void SrsRtpPacketQueue::clear()
-{
-    map<uint16_t, SrsRtpSharedPacket*>::iterator iter = pkt_queue.begin();
-    while (iter != pkt_queue.end()) {
-        srs_freep(iter->second);
-        pkt_queue.erase(iter++);
-    }
-}
-
-void SrsRtpPacketQueue::push(std::vector<SrsRtpSharedPacket*>& pkts)
-{
-    for (int i = 0; i < (int)pkts.size(); ++i) {
-        insert(pkts[i]->rtp_header.get_sequence(), pkts[i]);
-    }
-}
-
-void SrsRtpPacketQueue::insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt)
-{
-    pkt_queue.insert(make_pair(sequence, pkt->copy()));
-    // TODO: 3000 is magic number.
-    if (pkt_queue.size() >= 3000) {
-        srs_freep(pkt_queue.begin()->second);
-        pkt_queue.erase(pkt_queue.begin());
-    }
-}
-
-SrsRtpSharedPacket* SrsRtpPacketQueue::find(const uint16_t& sequence)
-{
-    if (pkt_queue.empty()) {
-        return NULL;
-    }
-
-    SrsRtpSharedPacket* pkt = NULL;
-    map<uint16_t, SrsRtpSharedPacket*>::iterator iter = pkt_queue.find(sequence);
-    if (iter != pkt_queue.end()) {
-        pkt = iter->second->copy();
-    }
-
-    return pkt;
-}
-#endif
-
 SrsOriginHub::SrsOriginHub()
 {
     source = NULL;
@@ -1955,9 +1903,6 @@ SrsSource::SrsSource()
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     mix_correct = false;
     mix_queue = new SrsMixQueue();
-#ifdef SRS_RTC
-    rtp_queue = new SrsRtpPacketQueue();
-#endif
     
     _can_publish = true;
     _pre_source_id = _source_id = -1;
@@ -1991,9 +1936,6 @@ SrsSource::~SrsSource()
     srs_freep(hub);
     srs_freep(meta);
     srs_freep(mix_queue);
-#ifdef SRS_RTC
-    srs_freep(rtp_queue);
-#endif
     
     srs_freep(play_edge);
     srs_freep(publish_edge);
@@ -2752,11 +2694,6 @@ string SrsSource::get_curr_origin()
 }
 
 #ifdef SRS_RTC
-SrsRtpSharedPacket* SrsSource::find_rtp_packet(const uint16_t& seq)
-{
-    return rtp_queue->find(seq);
-}
-
 SrsMetaCache* SrsSource::cached_meta()
 {
     return meta;

@@ -268,8 +268,6 @@ private:
 private:
     SrsRequest* req;
     SrsSource* source;
-    std::string sps;
-    std::string pps;
 private:
     std::map<uint32_t, uint64_t> last_sender_report_sys_time;
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;
