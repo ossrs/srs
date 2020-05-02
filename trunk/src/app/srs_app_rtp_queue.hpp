@@ -164,7 +164,6 @@ class SrsRtpQueue
 private:
     uint64_t nn_collected_frames;
     SrsRtpRingBuffer* queue_;
-    SrsRtpNackForReceiver* nack_;
     bool one_packet_per_frame_;
 private:
     double jitter_;
@@ -181,7 +180,8 @@ public:
     SrsRtpQueue(size_t capacity = 1024, bool one_packet_per_frame = false);
     virtual ~SrsRtpQueue();
 public:
-    srs_error_t consume(SrsRtpPacket2* pkt);
+    srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+    // TODO: FIXME: Should merge FU-A to RAW, then we can return RAW payloads.
     void collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames);
     bool should_request_key_frame();
     void notify_drop_seq(uint16_t seq);
@@ -192,12 +192,9 @@ public:
     uint8_t get_fraction_lost();
     uint32_t get_cumulative_number_of_packets_lost();
     uint32_t get_interarrival_jitter();
-public:
-    void get_nack_seqs(std::vector<uint16_t>& seqs);
-    void update_rtt(int rtt);
 private:
-    void insert_into_nack_list(uint16_t seq_start, uint16_t seq_end);
-    void collect_packet();
+    void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t seq_start, uint16_t seq_end);
+    void collect_packet(SrsRtpNackForReceiver* nack);
 };
 
 #endif

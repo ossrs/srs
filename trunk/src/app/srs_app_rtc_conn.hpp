@@ -57,6 +57,7 @@ class SrsRtpH264Demuxer;
 class SrsRtpOpusDemuxer;
 class SrsRtpPacket2;
 class ISrsCodec;
+class SrsRtpNackForReceiver;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -261,7 +262,9 @@ private:
     uint32_t audio_ssrc;
 private:
     SrsRtpQueue* video_queue_;
+    SrsRtpNackForReceiver* video_nack_;
     SrsRtpQueue* audio_queue_;
+    SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
     SrsSource* source;
@@ -278,7 +281,7 @@ public:
     srs_error_t on_rtcp_sender_report(char* buf, int nb_buf);
     srs_error_t on_rtcp_xr(char* buf, int nb_buf);
 private:
-    void check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc);
+    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpQueue* rtp_queue);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);

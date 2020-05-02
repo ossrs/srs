@@ -1466,7 +1466,9 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 
     rtc_session = session;
     video_queue_ = new SrsRtpQueue(1000);
+    video_nack_ = new SrsRtpNackForReceiver(video_queue_, 1000 * 2 / 3);
     audio_queue_ = new SrsRtpQueue(100, true);
+    audio_nack_ = new SrsRtpNackForReceiver(video_queue_, 100 * 2 / 3);
 
     source = NULL;
 }
@@ -1481,7 +1483,9 @@ SrsRtcPublisher::~SrsRtcPublisher()
     }
 
     srs_freep(report_timer);
+    srs_freep(video_nack_);
     srs_freep(video_queue_);
+    srs_freep(audio_nack_);
     srs_freep(audio_queue_);
 }
 
@@ -1661,9 +1665,9 @@ srs_error_t SrsRtcPublisher::on_rtcp_xr(char* buf, int nb_buf)
                     ssrc, compact_ntp, lrr, dlrr, rtt);
 
                 if (ssrc == video_ssrc) {
-                    video_queue_->update_rtt(rtt);
+                    video_nack_->update_rtt(rtt);
                 } else if (ssrc == audio_ssrc) {
-                    audio_queue_->update_rtt(rtt);
+                    audio_nack_->update_rtt(rtt);
                 }
             }
         }
@@ -1672,7 +1676,7 @@ srs_error_t SrsRtcPublisher::on_rtcp_xr(char* buf, int nb_buf)
     return err;
 }
 
-void SrsRtcPublisher::check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc)
+void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc)
 {
     // If DTLS is not OK, drop all messages.
     if (!rtc_session->dtls_session) {
@@ -1680,7 +1684,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpQueue* rtp_queue, uint32_t ssrc)
     }
 
     vector<uint16_t> nack_seqs;
-    rtp_queue->get_nack_seqs(nack_seqs);
+    nack->get_nack_seqs(nack_seqs);
     vector<uint16_t>::iterator iter = nack_seqs.begin();
     while (iter != nack_seqs.end()) {
         char buf[kRtpPacketSize];
@@ -1915,14 +1919,14 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
     pkt->is_key_frame = true;
 
     // TODO: FIXME: Error check.
-    audio_queue_->consume(pkt);
+    audio_queue_->consume(audio_nack_, pkt);
 
     if (audio_queue_->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(audio_ssrc);
     }
 
-    check_send_nacks(audio_queue_, audio_ssrc);
+    check_send_nacks(audio_nack_, audio_ssrc);
 
     return collect_audio_frames();
 }
@@ -2011,14 +2015,14 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
     }
 
     // TODO: FIXME: Error check.
-    video_queue_->consume(pkt);
+    video_queue_->consume(video_nack_, pkt);
 
     if (video_queue_->should_request_key_frame()) {
         // TODO: FIXME: Check error.
         send_rtcp_fb_pli(video_ssrc);
     }
 
-    check_send_nacks(video_queue_, video_ssrc);
+    check_send_nacks(video_nack_, video_ssrc);
 
     return collect_video_frames();
 }

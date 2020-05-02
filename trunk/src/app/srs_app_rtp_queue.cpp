@@ -284,7 +284,6 @@ SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
 {
     nn_collected_frames = 0;
     queue_ = new SrsRtpRingBuffer(capacity);
-    nack_ = new SrsRtpNackForReceiver(this, capacity * 2 / 3);
 
     jitter_ = 0;
     last_trans_time_ = -1;
@@ -303,10 +302,9 @@ SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
 SrsRtpQueue::~SrsRtpQueue()
 {
     srs_freep(queue_);
-    srs_freep(nack_);
 }
 
-srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
+srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -314,13 +312,13 @@ srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
     srs_utime_t now = srs_update_system_time();
 
     uint16_t seq = pkt->rtp_header.get_sequence();
-    SrsRtpNackInfo* nack_info = nack_->find(seq);
+    SrsRtpNackInfo* nack_info = nack->find(seq);
     if (nack_info) {
         int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
         (void)nack_rtt;
         srs_verbose("seq=%u, alive time=%d, nack count=%d, rtx success, resend use %dms",
             seq, now - nack_info->generate_time_, nack_info->req_nack_count_, nack_rtt);
-        nack_->remove(seq);
+        nack->remove(seq);
     }
 
     // Calc jitter time, ignore nack packets.
@@ -348,14 +346,14 @@ srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
         queue_->update(seq, !nn_collected_frames, nack_low, nack_high);
         if (srs_rtp_seq_distance(nack_low, nack_high)) {
             srs_trace("update nack seq=%u, startup=%d, nack range [%u, %u]", seq, !nn_collected_frames, nack_low, nack_high);
-            insert_into_nack_list(nack_low, nack_high);
+            insert_into_nack_list(nack, nack_low, nack_high);
         }
     }
 
     // When packets overflow, collect frame and move head to next frame start.
     if (queue_->overflow()) {
         srs_verbose("try collect packet becuase seq out of range");
-        collect_packet();
+        collect_packet(nack);
 
         uint16_t next = queue_->next_start_of_frame();
 
@@ -366,7 +364,7 @@ srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
         srs_trace("seqs out of range, seq range [%u, %u]", queue_->low(), next);
 
         for (uint16_t s = queue_->low(); s != next; ++s) {
-            nack_->remove(s);
+            nack->remove(s);
             queue_->remove(s);
         }
 
@@ -382,7 +380,7 @@ srs_error_t SrsRtpQueue::consume(SrsRtpPacket2* pkt)
     // 2. Queue has lots of packets, the load is heavy.
     // 3. The frame contains only one packet for each frame.
     if (pkt->rtp_header.get_marker() || queue_->is_heavy() || one_packet_per_frame_) {
-        collect_packet();
+        collect_packet(nack);
     }
 
     return err;
@@ -465,28 +463,18 @@ uint32_t SrsRtpQueue::get_interarrival_jitter()
     return static_cast<uint32_t>(jitter_);
 }
 
-void SrsRtpQueue::get_nack_seqs(vector<uint16_t>& seqs)
-{
-    nack_->get_nack_seqs(seqs);
-}
-
-void SrsRtpQueue::update_rtt(int rtt)
-{
-    nack_->update_rtt(rtt);
-}
-
-void SrsRtpQueue::insert_into_nack_list(uint16_t seq_start, uint16_t seq_end)
+void SrsRtpQueue::insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t seq_start, uint16_t seq_end)
 {
     for (uint16_t s = seq_start; s != seq_end; ++s) {
         srs_verbose("loss seq=%u, insert into nack list", s);
-        nack_->insert(s);
+        nack->insert(s);
         ++number_of_packet_lossed_;
     }
 
-    nack_->check_queue_size();
+    nack->check_queue_size();
 }
 
-void SrsRtpQueue::collect_packet()
+void SrsRtpQueue::collect_packet(SrsRtpNackForReceiver* nack)
 {
     while (queue_->low() != queue_->high()) {
         vector<SrsRtpPacket2*> frame;
@@ -496,7 +484,7 @@ void SrsRtpQueue::collect_packet()
             SrsRtpPacket2* pkt = queue_->at(s);
 
             // In NACK, never collect frame.
-            if (nack_->find(s) != NULL) {
+            if (nack->find(s) != NULL) {
                 srs_verbose("seq=%u, found in nack list when collect frame", s);
                 return;
             }
