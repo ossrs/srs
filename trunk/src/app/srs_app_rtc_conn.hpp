@@ -444,7 +444,7 @@ public:
     );
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
     void check_and_clean_timeout_session();
-    int nn_sessions() { return (int)map_username_session.size(); }
+    int nn_sessions();
 private:
     SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
     SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);

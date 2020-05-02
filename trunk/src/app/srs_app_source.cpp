@@ -457,6 +457,11 @@ SrsConsumer::~SrsConsumer()
 #endif
 }
 
+void SrsConsumer::enable_pass_timestamp()
+{
+    pass_timestamp = true;
+}
+
 void SrsConsumer::set_queue_size(srs_utime_t queue_size)
 {
     queue->set_queue_size(queue_size);
@@ -2762,6 +2767,11 @@ void SrsSource::request_keyframe()
     if (rtc_publisher) {
         rtc_publisher->request_keyframe();
     }
+}
+
+void SrsSource::set_rtc_publisher(SrsRtcPublisher* v)
+{
+    rtc_publisher = v;
 }
 
 srs_error_t SrsSource::on_rtc_audio(SrsSharedPtrMessage* audio)

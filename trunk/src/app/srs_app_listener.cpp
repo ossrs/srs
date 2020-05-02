@@ -261,23 +261,6 @@ SrsUdpMuxSocket::~SrsUdpMuxSocket()
     srs_freepa(buf);
 }
 
-SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
-{
-    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(handler, lfd);
-
-    // Don't copy buffer
-    srs_freepa(sendonly->buf);
-    sendonly->nb_buf    = 0;
-    sendonly->nread     = 0;
-    sendonly->lfd       = lfd;
-    sendonly->from      = from;
-    sendonly->fromlen   = fromlen;
-    sendonly->peer_ip   = peer_ip;
-    sendonly->peer_port = peer_port;
-
-    return sendonly;
-}
-
 int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 {
     fromlen = sizeof(from);
@@ -341,12 +324,54 @@ socklen_t SrsUdpMuxSocket::peer_addrlen()
     return (socklen_t)fromlen;
 }
 
+char* SrsUdpMuxSocket::data()
+{
+    return buf;
+}
+
+int SrsUdpMuxSocket::size()
+{
+    return nread;
+}
+
+std::string SrsUdpMuxSocket::get_peer_ip() const
+{
+    return peer_ip;
+}
+
+int SrsUdpMuxSocket::get_peer_port() const
+{
+    return peer_port;
+}
+
 std::string SrsUdpMuxSocket::get_peer_id()
 {
     char id_buf[1024];
     int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
 
     return string(id_buf, len);
+}
+
+SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
+{
+    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(handler, lfd);
+
+    // Don't copy buffer
+    srs_freepa(sendonly->buf);
+    sendonly->nb_buf    = 0;
+    sendonly->nread     = 0;
+    sendonly->lfd       = lfd;
+    sendonly->from      = from;
+    sendonly->fromlen   = fromlen;
+    sendonly->peer_ip   = peer_ip;
+    sendonly->peer_port = peer_port;
+
+    return sendonly;
+}
+
+ISrsUdpSender* SrsUdpMuxSocket::sender()
+{
+    return handler;
 }
 
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p)

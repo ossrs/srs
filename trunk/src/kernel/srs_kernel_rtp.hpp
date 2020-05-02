@@ -78,19 +78,19 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
-    inline void set_marker(bool v) { marker = v; }
-    bool get_marker() const { return marker; }
-    inline void set_payload_type(uint8_t v) { payload_type = v; }
-    uint8_t get_payload_type() const { return payload_type; }
-    inline void set_sequence(uint16_t v) { sequence = v; }
-    uint16_t get_sequence() const  { return sequence; }
-    inline void set_timestamp(int64_t v) { timestamp = (uint32_t)v; }
-    int64_t get_timestamp() const { return timestamp; }
-    inline void set_ssrc(uint32_t v) { ssrc = v; }
-    uint32_t get_ssrc() const { return ssrc; }
-    inline void set_padding(bool v) { padding = v; }
-    inline void set_padding_length(uint8_t v) { padding_length = v; }
-    uint8_t get_padding_length() const { return padding_length; }
+    void set_marker(bool v);
+    bool get_marker() const;
+    void set_payload_type(uint8_t v);
+    uint8_t get_payload_type() const;
+    void set_sequence(uint16_t v);
+    uint16_t get_sequence() const;
+    void set_timestamp(int64_t v);
+    int64_t get_timestamp() const;
+    void set_ssrc(uint32_t v);
+    uint32_t get_ssrc() const;
+    void set_padding(bool v);
+    void set_padding_length(uint8_t v);
+    uint8_t get_padding_length() const;
 };
 
 class ISrsRtpPacketDecodeHandler
@@ -150,9 +150,9 @@ public:
     // Reuse the cached fua message as payload.
     SrsRtpFUAPayload2* reuse_fua();
     // Set the decode handler.
-    void set_decode_handler(ISrsRtpPacketDecodeHandler* h) { decode_handler = h; }
+    void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Set the original bytes.
-    void set_original_bytes(char* buf, int nn_buf) { original_bytes = buf; nn_original_bytes = nn_buf; }
+    void set_original_bytes(char* buf, int nn_buf);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
@@ -304,6 +304,7 @@ public:
     SrsRtpH264Header& operator=(const SrsRtpH264Header& rhs);
 };
 
+// TODO: FIXME: Merge it with shared message.
 class SrsRtpSharedPacket
 {
 private:

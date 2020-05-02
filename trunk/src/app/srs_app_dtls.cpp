@@ -46,14 +46,6 @@ SrsDtls::~SrsDtls()
     SSL_CTX_free(dtls_ctx);
 }
 
-SrsDtls* SrsDtls::instance()
-{
-    if (!_instance) {
-        _instance = new SrsDtls();
-    }   
-    return _instance;
-}
-
 // The return value of verify_callback controls the strategy of the further verification process. If verify_callback
 // returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
 // set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
@@ -256,3 +248,22 @@ srs_error_t SrsDtls::init(SrsRequest* r)
 
     return err;
 }
+
+SrsDtls* SrsDtls::instance()
+{
+    if (!_instance) {
+        _instance = new SrsDtls();
+    }
+    return _instance;
+}
+
+SSL_CTX* SrsDtls::get_dtls_ctx()
+{
+    return dtls_ctx;
+}
+
+std::string SrsDtls::get_fingerprint() const
+{
+    return fingerprint;
+}
+

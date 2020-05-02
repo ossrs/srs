@@ -3396,26 +3396,6 @@ srs_error_t SrsRtcServer::create_rtc_session(
     return err;
 }
 
-SrsRtcSession* SrsRtcServer::find_rtc_session_by_peer_id(const string& peer_id)
-{
-    map<string, SrsRtcSession*>::iterator iter = map_id_session.find(peer_id);
-    if (iter == map_id_session.end()) {
-        return NULL; 
-    }
-
-    return iter->second;
-}
-
-SrsRtcSession* SrsRtcServer::find_rtc_session_by_username(const std::string& username)
-{
-    map<string, SrsRtcSession*>::iterator iter = map_username_session.find(username);
-    if (iter == map_username_session.end()) {
-        return NULL; 
-    }
-
-    return iter->second;
-}
-
 bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcSession* rtc_session)
 {
     return map_id_session.insert(make_pair(peer_id, rtc_session)).second;
@@ -3445,6 +3425,31 @@ void SrsRtcServer::check_and_clean_timeout_session()
 
         ++iter;
     }
+}
+
+int SrsRtcServer::nn_sessions()
+{
+    return (int)map_username_session.size();
+}
+
+SrsRtcSession* SrsRtcServer::find_rtc_session_by_peer_id(const string& peer_id)
+{
+    map<string, SrsRtcSession*>::iterator iter = map_id_session.find(peer_id);
+    if (iter == map_id_session.end()) {
+        return NULL;
+    }
+
+    return iter->second;
+}
+
+SrsRtcSession* SrsRtcServer::find_rtc_session_by_username(const std::string& username)
+{
+    map<string, SrsRtcSession*>::iterator iter = map_username_session.find(username);
+    if (iter == map_username_session.end()) {
+        return NULL;
+    }
+
+    return iter->second;
 }
 
 srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tick)

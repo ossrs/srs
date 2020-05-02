@@ -150,6 +150,21 @@ SrsRtpRingBuffer::~SrsRtpRingBuffer()
     srs_freepa(queue_);
 }
 
+uint16_t SrsRtpRingBuffer::low()
+{
+    return low_;
+}
+
+uint16_t SrsRtpRingBuffer::high()
+{
+    return high_;
+}
+
+void SrsRtpRingBuffer::advance_to(uint16_t seq)
+{
+    low_ = seq;
+}
+
 void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
 {
     SrsRtpPacket2* p = queue_[at % capacity_];
@@ -161,11 +176,26 @@ void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
     queue_[at % capacity_] = pkt;
 }
 
+void SrsRtpRingBuffer::remove(uint16_t at)
+{
+    set(at, NULL);
+}
+
 void SrsRtpRingBuffer::reset(uint16_t low, uint16_t high)
 {
     for (uint16_t s = low; s != high; ++s) {
         queue_[s % capacity_] = NULL;
     }
+}
+
+bool SrsRtpRingBuffer::overflow()
+{
+    return high_ - low_ < capacity_;
+}
+
+bool SrsRtpRingBuffer::is_heavy()
+{
+    return high_ - low_ >= capacity_ / 2;
 }
 
 uint16_t SrsRtpRingBuffer::next_start_of_frame()
@@ -243,6 +273,11 @@ void SrsRtpRingBuffer::update(uint16_t seq, bool startup, uint16_t& nack_low, ui
             srs_verbose("seq=%u, rtx success, too old", seq);
         }
     }
+}
+
+SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq)
+{
+    return queue_[seq % capacity_];
 }
 
 SrsRtpQueue::SrsRtpQueue(size_t capacity, bool one_packet_per_frame)
@@ -396,6 +431,11 @@ void SrsRtpQueue::notify_nack_list_full()
     queue_->advance_to(next + 1);
 }
 
+void SrsRtpQueue::request_keyframe()
+{
+    request_key_frame_ = true;
+}
+
 uint32_t SrsRtpQueue::get_extended_highest_sequence()
 {
     return queue_->get_extended_highest_sequence();
@@ -450,7 +490,9 @@ void SrsRtpQueue::collect_packet()
 {
     while (queue_->low() != queue_->high()) {
         vector<SrsRtpPacket2*> frame;
-        for (uint16_t s = queue_->low(); s != queue_->high(); ++s) {
+
+        uint16_t s = queue_->low();
+        for (; s != queue_->high(); ++s) {
             SrsRtpPacket2* pkt = queue_->at(s);
 
             // In NACK, never collect frame.
@@ -468,14 +510,17 @@ void SrsRtpQueue::collect_packet()
             frame.push_back(pkt);
 
             // Not the last packet, continue to process next one.
-            if (pkt->rtp_header.get_marker() || one_packet_per_frame_) {
+            if (!pkt->rtp_header.get_marker() && !one_packet_per_frame_) {
                 continue;
             }
 
             // Done, we got the last packet of frame.
             nn_collected_frames++;
             frames_.push_back(frame);
+            break;
+        }
 
+        if (queue_->low() != s) {
             // Reset the range of packets to NULL in buffer.
             queue_->reset(queue_->low(), s);
 

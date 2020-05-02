@@ -92,28 +92,25 @@ private:
 public:
     SrsStunPacket();
     virtual ~SrsStunPacket();
-
-    bool is_binding_request() const { return message_type == BindingRequest; }
-    bool is_binding_response() const { return message_type == BindingResponse; }
-
-    uint16_t get_message_type() const { return message_type; }
-    std::string get_username() const { return username; }
-    std::string get_local_ufrag() const { return local_ufrag; }
-    std::string get_remote_ufrag() const { return remote_ufrag; }
-    std::string get_transcation_id() const { return transcation_id; }
-    uint32_t get_mapped_address() const { return mapped_address; }
-    uint16_t get_mapped_port() const { return mapped_port; }
-    bool get_ice_controlled() const { return ice_controlled; }
-    bool get_ice_controlling() const { return ice_controlling; }
-    bool get_use_candidate() const { return use_candidate; }
-
-    void set_message_type(const uint16_t& m) { message_type = m; }
-    void set_local_ufrag(const std::string& u) { local_ufrag = u; }
-    void set_remote_ufrag(const std::string& u) { remote_ufrag = u; }
-    void set_transcation_id(const std::string& t) { transcation_id = t; }
-    void set_mapped_address(const uint32_t& addr) { mapped_address = addr; }
-    void set_mapped_port(const uint32_t& port) { mapped_port = port; }
-
+public:
+    bool is_binding_request() const;
+    bool is_binding_response() const;
+    uint16_t get_message_type() const;
+    std::string get_username() const;
+    std::string get_local_ufrag() const;
+    std::string get_remote_ufrag() const;
+    std::string get_transcation_id() const;
+    uint32_t get_mapped_address() const;
+    uint16_t get_mapped_port() const;
+    bool get_ice_controlled() const;
+    bool get_ice_controlling() const;
+    bool get_use_candidate() const;
+    void set_message_type(const uint16_t& m);
+    void set_local_ufrag(const std::string& u);
+    void set_remote_ufrag(const std::string& u);
+    void set_transcation_id(const std::string& t);
+    void set_mapped_address(const uint32_t& addr);
+    void set_mapped_port(const uint32_t& port);
     srs_error_t decode(const char* buf, const int nb_buf);
     srs_error_t encode(const std::string& pwd, SrsBuffer* stream);
 private:

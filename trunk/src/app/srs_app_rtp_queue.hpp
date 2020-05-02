@@ -133,17 +133,17 @@ public:
     virtual ~SrsRtpRingBuffer();
 public:
     // Move the position of buffer.
-    uint16_t low() { return low_; }
-    uint16_t high() { return high_; }
-    void advance_to(uint16_t seq) { low_ = seq; }
+    uint16_t low();
+    uint16_t high();
+    void advance_to(uint16_t seq);
     // Free the packet at position.
     void set(uint16_t at, SrsRtpPacket2* pkt);
-    void remove(uint16_t at) { set(at, NULL); }
+    void remove(uint16_t at);
     // Directly reset range [low, high] to NULL.
     void reset(uint16_t low, uint16_t high);
     // Whether queue overflow or heavy(too many packets and need clear).
-    bool overflow() { return high_ - low_ < capacity_; }
-    bool is_heavy() { return high_ - low_ >= capacity_ / 2; }
+    bool overflow();
+    bool is_heavy();
     // Get the next start packet of frame.
     // @remark If not found, return the low_, which should never be the "next" one,
     // because it MAY or NOT current start packet of frame but never be the next.
@@ -156,7 +156,7 @@ public:
     // Update the sequence, got the nack range by [low, high].
     void update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high);
     // Get the packet by seq.
-    SrsRtpPacket2* at(uint16_t seq) { return queue_[seq % capacity_]; }
+    SrsRtpPacket2* at(uint16_t seq);
 };
 
 class SrsRtpQueue
@@ -186,7 +186,7 @@ public:
     bool should_request_key_frame();
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();
-    void request_keyframe() { request_key_frame_ = true; }
+    void request_keyframe();
 public:
     uint32_t get_extended_highest_sequence();
     uint8_t get_fraction_lost();

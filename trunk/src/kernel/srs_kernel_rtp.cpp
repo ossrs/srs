@@ -198,6 +198,71 @@ int SrsRtpHeader::nb_bytes()
     return kRtpHeaderFixedSize + cc * 4 + (extension ? (extension_length + 1) * 4 : 0);
 }
 
+void SrsRtpHeader::set_marker(bool v)
+{
+    marker = v;
+}
+
+bool SrsRtpHeader::get_marker() const
+{
+    return marker;
+}
+
+void SrsRtpHeader::set_payload_type(uint8_t v)
+{
+    payload_type = v;
+}
+
+uint8_t SrsRtpHeader::get_payload_type() const
+{
+    return payload_type;
+}
+
+void SrsRtpHeader::set_sequence(uint16_t v)
+{
+    sequence = v;
+}
+
+uint16_t SrsRtpHeader::get_sequence() const
+{
+    return sequence;
+}
+
+void SrsRtpHeader::set_timestamp(int64_t v)
+{
+    timestamp = (uint32_t)v;
+}
+
+int64_t SrsRtpHeader::get_timestamp() const
+{
+    return timestamp;
+}
+
+void SrsRtpHeader::set_ssrc(uint32_t v)
+{
+    ssrc = v;
+}
+
+uint32_t SrsRtpHeader::get_ssrc() const
+{
+    return ssrc;
+}
+
+void SrsRtpHeader::set_padding(bool v)
+{
+    padding = v;
+}
+
+void SrsRtpHeader::set_padding_length(uint8_t v)
+{
+    padding_length = v;
+}
+
+uint8_t SrsRtpHeader::get_padding_length() const
+{
+    return padding_length;
+}
+
 ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
 {
 }
@@ -283,6 +348,17 @@ SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 {
     payload = cache_fua;
     return cache_fua;
+}
+
+void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
+{
+    decode_handler = h;
+}
+
+void SrsRtpPacket2::set_original_bytes(char* buf, int nn_buf)
+{
+    original_bytes = buf;
+    nn_original_bytes = nn_buf;
 }
 
 int SrsRtpPacket2::nb_bytes()

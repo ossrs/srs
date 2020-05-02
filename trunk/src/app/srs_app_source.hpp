@@ -217,7 +217,7 @@ public:
     virtual ~SrsConsumer();
 public:
     // Use pass timestamp mode.
-    void enable_pass_timestamp() { pass_timestamp = true; }
+    void enable_pass_timestamp();
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
@@ -658,7 +658,7 @@ public:
     // TODO: FIXME: Maybe we could cache the keyframe.
     // TODO: FIXME: Maybe we should only response for the new clients.
     void request_keyframe();
-    void set_rtc_publisher(SrsRtcPublisher* v) { rtc_publisher = v; }
+    void set_rtc_publisher(SrsRtcPublisher* v);
     // When got RTC audio message, which is encoded in opus.
     // TODO: FIXME: Merge with on_audio.
     srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
