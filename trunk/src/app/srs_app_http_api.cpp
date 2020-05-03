@@ -1033,6 +1033,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                 // TODO: FIXME: Only support some transport algorithms.
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
+                for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    }
+                }
 
                 // Only choose one match opus codec.
                 break;
@@ -1062,6 +1067,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                     // TODO: FIXME: Only support some transport algorithms.
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
+                    for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
+                    }
 
                     // Only choose first match H.264 payload type.
                     break;
@@ -1364,6 +1374,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                 // TODO: FIXME: Only support some transport algorithms.
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
+                for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    }
+                }
 
                 // Only choose one match opus codec.
                 break;
@@ -1394,6 +1409,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                     // TODO: FIXME: Only support some transport algorithms.
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
+                    for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
+                    }
 
                     // Only choose first match H.264 payload type.
                     break;
