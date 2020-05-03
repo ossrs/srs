@@ -288,9 +288,9 @@ public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
-    srs_error_t collect_audio_frame(SrsRtpPacket2* pkt);
+    srs_error_t on_audio_frame(SrsRtpPacket2* frame);
     srs_error_t on_video(SrsRtpPacket2* pkt);
-    srs_error_t collect_video_frame(SrsRtpPacket2* pkt);
+    srs_error_t on_video_frame(SrsRtpPacket2* frame);
 public:
     void request_keyframe();
 // interface ISrsHourGlass

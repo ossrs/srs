@@ -1936,22 +1936,22 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
     audio_queue_->collect_frames(audio_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
-        SrsRtpPacket2* pkt = frames[i];
+        SrsRtpPacket2* frame = frames[i];
 
         // TODO: FIXME: Check error.
-        collect_audio_frame(pkt);
+        on_audio_frame(frame);
 
-        srs_freep(pkt);
+        srs_freep(frame);
     }
 
     return err;
 }
 
-srs_error_t SrsRtcPublisher::collect_audio_frame(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
 {
     srs_error_t err = srs_success;
 
-    SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload);
+    SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(frame->payload);
 
     if (!payload) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "OPUS payload");
@@ -1965,7 +1965,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frame(SrsRtpPacket2* pkt)
     SrsMessageHeader header;
     header.message_type = RTMP_MSG_AudioMessage;
     // TODO: FIXME: Maybe the tbn is not 90k.
-    header.timestamp = pkt->rtp_header.get_timestamp() / 90;
+    header.timestamp = frame->rtp_header.get_timestamp() / 90;
 
     SrsSharedPtrMessage msg;
     // TODO: FIXME: Check error.
@@ -2000,31 +2000,31 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
     video_queue_->collect_frames(video_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
-        SrsRtpPacket2* pkt = frames[i];
+        SrsRtpPacket2* frame = frames[i];
 
         // TODO: FIXME: Check error.
-        collect_video_frame(pkt);
+        on_video_frame(frame);
 
-        srs_freep(pkt);
+        srs_freep(frame);
     }
 
     return srs_success;
 }
 
-srs_error_t SrsRtcPublisher::collect_video_frame(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcPublisher::on_video_frame(SrsRtpPacket2* frame)
 {
     srs_error_t err = srs_success;
 
-    int64_t timestamp = pkt->rtp_header.get_timestamp();
+    int64_t timestamp = frame->rtp_header.get_timestamp();
 
     // No FU-A, because we convert it to RAW RTP packet.
-    if (pkt->nalu_type == (SrsAvcNaluType)kFuA) {
+    if (frame->nalu_type == (SrsAvcNaluType)kFuA) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid FU-A");
     }
 
     // For STAP-A, it must be SPS/PPS, and only one packet.
-    if (pkt->nalu_type == (SrsAvcNaluType)kStapA) {
-        SrsRtpSTAPPayload* payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload);
+    if (frame->nalu_type == (SrsAvcNaluType)kStapA) {
+        SrsRtpSTAPPayload* payload = dynamic_cast<SrsRtpSTAPPayload*>(frame->payload);
         if (!payload) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload");
         }
@@ -2077,7 +2077,7 @@ srs_error_t SrsRtcPublisher::collect_video_frame(SrsRtpPacket2* pkt)
     }
 
     // For RAW NALU, should be one RAW packet.
-    SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload);
+    SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(frame->payload);
     if (!payload) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "RAW-NALU payload");
     }
@@ -2092,7 +2092,7 @@ srs_error_t SrsRtcPublisher::collect_video_frame(SrsRtpPacket2* pkt)
     char* data = new char[nn_payload];
     SrsBuffer buf(data, nn_payload);
 
-    if (pkt->nalu_type == SrsAvcNaluTypeIDR) {
+    if (frame->nalu_type == SrsAvcNaluTypeIDR) {
         buf.write_1bytes(0x17); // Keyframe.
         srs_trace("RTC got IDR %d bytes", nn_payload);
     } else {
