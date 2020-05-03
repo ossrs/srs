@@ -1924,18 +1924,14 @@ void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* bu
 
 srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
 {
+    srs_error_t err = srs_success;
+
     // TODO: FIXME: Error check.
     audio_queue_->consume(audio_nack_, pkt);
 
     check_send_nacks(audio_nack_, audio_ssrc);
 
-    return collect_audio_frames();
-}
-
-srs_error_t SrsRtcPublisher::collect_audio_frames()
-{
-    srs_error_t err = srs_success;
-
+    // Collect all audio frames.
     std::vector<SrsRtpPacket2*> frames;
     audio_queue_->collect_frames(audio_nack_, frames);
 
@@ -1943,7 +1939,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frames()
         SrsRtpPacket2* pkt = frames[i];
 
         // TODO: FIXME: Check error.
-        do_collect_audio_frame(pkt);
+        collect_audio_frame(pkt);
 
         srs_freep(pkt);
     }
@@ -1951,7 +1947,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frames()
     return err;
 }
 
-srs_error_t SrsRtcPublisher::do_collect_audio_frame(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcPublisher::collect_audio_frame(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1989,28 +1985,6 @@ srs_error_t SrsRtcPublisher::do_collect_audio_frame(SrsRtpPacket2* pkt)
 
 srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 {
-    uint8_t v = (uint8_t)pkt->nalu_type;
-    if (v == kFuA) {
-        SrsRtpFUAPayload2* payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload);
-        if (!payload) {
-            srs_freep(pkt);
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A payload");
-        }
-
-        pkt->video_is_first_packet = payload->start;
-        pkt->video_is_last_packet = payload->end;
-        pkt->video_is_idr = (payload->nalu_type == SrsAvcNaluTypeIDR);
-    } else {
-        pkt->video_is_first_packet = true;
-        pkt->video_is_last_packet = true;
-
-        if (v == kStapA) {
-            pkt->video_is_idr = true;
-        } else {
-            pkt->video_is_idr = (pkt->nalu_type == SrsAvcNaluTypeIDR);
-        }
-    }
-
     // TODO: FIXME: Error check.
     video_queue_->consume(video_nack_, pkt);
 
@@ -2021,110 +1995,35 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 
     check_send_nacks(video_nack_, video_ssrc);
 
-    return collect_video_frames();
-}
-
-srs_error_t SrsRtcPublisher::collect_video_frames()
-{
-    std::vector<std::vector<SrsRtpPacket2*> > frames;
+    // Collect video frames.
+    std::vector<SrsRtpPacket2*> frames;
     video_queue_->collect_frames(video_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
-        vector<SrsRtpPacket2*>& packets = frames[i];
-        if (packets.empty()) {
-            continue;
-        }
+        SrsRtpPacket2* pkt = frames[i];
 
         // TODO: FIXME: Check error.
-        do_collect_video_frame(packets);
+        collect_video_frame(pkt);
 
-        for (size_t j = 0; j < packets.size(); ++j) {
-            SrsRtpPacket2* pkt = packets[j];
-            srs_freep(pkt);
-        }
+        srs_freep(pkt);
     }
 
     return srs_success;
 }
 
-srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>& packets)
+srs_error_t SrsRtcPublisher::collect_video_frame(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    // Although a video frame may contain many packets, they share the same NALU type.
-    SrsRtpPacket2* head = packets.at(0);
-    SrsAvcNaluType nalu_type = head->nalu_type;
-    int64_t timestamp = head->rtp_header.get_timestamp();
+    int64_t timestamp = pkt->rtp_header.get_timestamp();
 
-    // For FU-A or STAP-A, there must be more than one packets.
-    if (nalu_type == (SrsAvcNaluType)kFuA) {
-        if (packets.size() < 2) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A/STAP-A %#x %d packets", nalu_type, packets.size());
-        }
-    } else {
-        // For others type, should be one packet for one frame.
-        if (packets.size() != 1) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "NonFU-A %d packets", packets.size());
-        }
-    }
-
-    // For FU-A, group packets to one video frame.
-    if (nalu_type == (SrsAvcNaluType)kFuA) {
-        int nn_nalus = 0;
-        for (size_t i = 0; i < packets.size(); ++i) {
-            SrsRtpPacket2* pkt = packets[i];
-            SrsRtpFUAPayload2* payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload);
-            if (!payload) {
-                return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A payload");
-            }
-            nn_nalus += payload->size;
-        }
-        if (!nn_nalus) {
-            return err;
-        }
-
-        // TODO: FIXME: Directly covert to sample for performance.
-        // 5 bytes FLV tag header.
-        // 4 bytes NALU IBMF header, define by sequence header.
-        // 1 byte NALU header.
-        nn_nalus += 1;
-        int nn_payload = nn_nalus + 5 + 4;
-        char* data = new char[nn_payload];
-        SrsBuffer buf(data, nn_payload);
-
-        SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
-        if (head_payload->nalu_type == SrsAvcNaluTypeIDR) {
-            buf.write_1bytes(0x17); // Keyframe.
-            srs_trace("RTC got IDR %d bytes", nn_nalus);
-        } else {
-            buf.write_1bytes(0x27); // Not Keyframe.
-        }
-        buf.write_1bytes(0x01); // Not Sequence header.
-        buf.write_3bytes(0x00); // CTS.
-        buf.write_4bytes(nn_nalus);
-
-        buf.write_1bytes(head_payload->nri | head_payload->nalu_type); // NALU header.
-
-        for (size_t i = 0; i < packets.size(); ++i) {
-            SrsRtpPacket2* pkt = packets[i];
-            SrsRtpFUAPayload2* payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload);
-            buf.write_bytes(payload->payload, payload->size);
-        }
-
-        SrsMessageHeader header;
-        header.message_type = RTMP_MSG_VideoMessage;
-        // TODO: FIXME: Maybe the tbn is not 90k.
-        header.timestamp = (timestamp / 90) & 0x3fffffff;
-        SrsCommonMessage* shared_video = new SrsCommonMessage();
-        SrsAutoFree(SrsCommonMessage, shared_video);
-        // TODO: FIXME: Check error.
-        shared_video->create(&header, data, nn_payload);
-        return source->on_video(shared_video);
+    // No FU-A, because we convert it to RAW RTP packet.
+    if (pkt->nalu_type == (SrsAvcNaluType)kFuA) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "invalid FU-A");
     }
 
     // For STAP-A, it must be SPS/PPS, and only one packet.
-    if (nalu_type == (SrsAvcNaluType)kStapA) {
-        SrsRtpPacket2* pkt = head;
+    if (pkt->nalu_type == (SrsAvcNaluType)kStapA) {
         SrsRtpSTAPPayload* payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload);
         if (!payload) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "STAP-A payload");
@@ -2178,7 +2077,6 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
     }
 
     // For RAW NALU, should be one RAW packet.
-    SrsRtpPacket2* pkt = head;
     SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload);
     if (!payload) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "RAW-NALU payload");
@@ -2194,7 +2092,7 @@ srs_error_t SrsRtcPublisher::do_collect_video_frame(std::vector<SrsRtpPacket2*>&
     char* data = new char[nn_payload];
     SrsBuffer buf(data, nn_payload);
 
-    if (nalu_type == SrsAvcNaluTypeIDR) {
+    if (pkt->nalu_type == SrsAvcNaluTypeIDR) {
         buf.write_1bytes(0x17); // Keyframe.
         srs_trace("RTC got IDR %d bytes", nn_payload);
     } else {

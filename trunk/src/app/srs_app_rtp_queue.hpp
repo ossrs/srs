@@ -204,13 +204,14 @@ public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
 public:
-    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames);
+    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
     bool should_request_key_frame();
     void request_keyframe();
 private:
     virtual void on_overflow(SrsRtpNackForReceiver* nack);
-    virtual void collect_packet(std::vector<std::vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack);
-    virtual void do_collect_packet(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
+    virtual void collect_packet(SrsRtpNackForReceiver* nack, SrsRtpPacket2** ppkt);
+    virtual void covert_packet(std::vector<SrsRtpPacket2*>& frame, SrsRtpPacket2** ppkt);
 };
 
 #endif

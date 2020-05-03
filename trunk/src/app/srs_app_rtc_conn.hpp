@@ -58,6 +58,7 @@ class SrsRtpVideoQueue;
 class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
+class SrsRtpIncommingVideoFrame;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -287,11 +288,9 @@ public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
-    srs_error_t collect_audio_frames();
-    srs_error_t do_collect_audio_frame(SrsRtpPacket2* packet);
+    srs_error_t collect_audio_frame(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);
-    srs_error_t collect_video_frames();
-    srs_error_t do_collect_video_frame(std::vector<SrsRtpPacket2*>& packets);
+    srs_error_t collect_video_frame(SrsRtpPacket2* pkt);
 public:
     void request_keyframe();
 // interface ISrsHourGlass
