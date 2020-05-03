@@ -1027,8 +1027,14 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                // Only choose one match opus codec.
                 local_media_desc.payload_types_.push_back(*iter);
+                SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                // TODO: FIXME: Only support some transport algorithms.
+                vector<string> rtcp_fb;
+                payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                // Only choose one match opus codec.
                 break;
             }
 
@@ -1050,8 +1056,14 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
                 // Try to pick the "best match" H.264 payload type.
                 if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
-                    // Only choose first match H.264 payload type.
                     local_media_desc.payload_types_.push_back(*iter);
+                    SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                    // TODO: FIXME: Only support some transport algorithms.
+                    vector<string> rtcp_fb;
+                    payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                    // Only choose first match H.264 payload type.
                     break;
                 }
 
@@ -1346,8 +1358,14 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                // Only choose one match opus codec.
                 local_media_desc.payload_types_.push_back(*iter);
+                SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                // TODO: FIXME: Only support some transport algorithms.
+                vector<string> rtcp_fb;
+                payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                // Only choose one match opus codec.
                 break;
             }
 
@@ -1370,8 +1388,14 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
 
                 // Try to pick the "best match" H.264 payload type.
                 if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
-                    // Only choose first match H.264 payload type.
                     local_media_desc.payload_types_.push_back(*iter);
+                    SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                    // TODO: FIXME: Only support some transport algorithms.
+                    vector<string> rtcp_fb;
+                    payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                    // Only choose first match H.264 payload type.
                     break;
                 }
 
@@ -1388,7 +1412,8 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.264 payload type");
             }
 
-            local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+            // TODO: FIXME: Support RRTR?
+            //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
         local_media_desc.mid_ = remote_media_desc.mid_;
@@ -1409,8 +1434,6 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
             // is 'active' in the offer and 'passive' in the answer.
             local_media_desc.session_info_.setup_ = "passive";
         }
-
-        local_sdp.media_descs_.back().session_info_.ice_options_ = "trickle";
 
         local_media_desc.rtcp_mux_ = true;
 

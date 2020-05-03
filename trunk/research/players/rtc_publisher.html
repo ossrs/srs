@@ -46,7 +46,7 @@
     </div>
 
     <label></label>
-    <video id="rtc_media_player" autoplay muted></video>
+    <video id="rtc_media_player" width="320" autoplay muted></video>
 
     <footer>
         <p></p>
@@ -71,10 +71,8 @@
             pc.addTransceiver("video", {direction: "sendonly"});
 
             var constraints = {
-                "audio": true, "video": {
-                    "width": { "min": "480", "max": "720" },
-                    "height": { "min": "320", "max": "480" },
-                    "frameRate": { "min": "15", "max": "30" }
+                audio: true, video: {
+                    height: { max: 320 }
                 }
             };
             navigator.mediaDevices.getUserMedia(
