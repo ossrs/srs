@@ -789,9 +789,9 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 #ifdef SRS_RTC
 uint32_t SrsGoApiRtcPlay::ssrc_num = 0;
 
-SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* rtc_svr)
+SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
-    rtc_server = rtc_svr;
+    server_ = server;
 }
 
 SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
@@ -929,16 +929,15 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             server_enabled, rtc_enabled, request.vhost.c_str());
     }
 
-    // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = NULL;
-    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, false, &rtc_session)) != srs_success) {
+    SrsRtcSession* session = NULL;
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
     if (encrypt.empty()) {
-        rtc_session->set_encrypt(_srs_config->get_rtc_server_encrypt());
+        session->set_encrypt(_srs_config->get_rtc_server_encrypt());
     } else {
-        rtc_session->set_encrypt(encrypt != "false");
+        session->set_encrypt(encrypt != "false");
     }
 
     ostringstream os;
@@ -956,9 +955,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", rtc_session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -1119,9 +1118,9 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
 uint32_t SrsGoApiRtcPublish::ssrc_num = 0;
 
-SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* rtc_svr)
+SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
-    rtc_server = rtc_svr;
+    server_ = server;
 }
 
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
@@ -1254,10 +1253,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
             server_enabled, rtc_enabled, request.vhost.c_str());
     }
 
-    // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = NULL;
-    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, true, &rtc_session)) != srs_success) {
+    SrsRtcSession* session = NULL;
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
 
@@ -1276,9 +1274,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", rtc_session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }

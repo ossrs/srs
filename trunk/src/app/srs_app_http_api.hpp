@@ -173,9 +173,9 @@ class SrsGoApiRtcPlay : public ISrsHttpHandler
 public:
     static uint32_t ssrc_num;
 private:
-    SrsRtcServer* rtc_server;
+    SrsRtcServer* server_;
 public:
-    SrsGoApiRtcPlay(SrsRtcServer* rtc_svr);
+    SrsGoApiRtcPlay(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPlay();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
@@ -190,9 +190,9 @@ class SrsGoApiRtcPublish : public ISrsHttpHandler
 public:
     static uint32_t ssrc_num;
 private:
-    SrsRtcServer* rtc_server;
+    SrsRtcServer* server_;
 public:
-    SrsGoApiRtcPublish(SrsRtcServer* rtc_svr);
+    SrsGoApiRtcPublish(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPublish();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
