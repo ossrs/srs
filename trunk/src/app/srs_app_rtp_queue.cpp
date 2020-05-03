@@ -408,21 +408,7 @@ SrsRtpAudioQueue::~SrsRtpAudioQueue()
 {
 }
 
-void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames)
-{
-    collect_packet(frames, nack);
-
-    if (queue_->overflow()) {
-        on_overflow(nack);
-    }
-}
-
-void SrsRtpAudioQueue::on_overflow(SrsRtpNackForReceiver* nack)
-{
-    queue_->advance_to(queue_->high());
-}
-
-void SrsRtpAudioQueue::collect_packet(vector<vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack)
+void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtpPacket2*>& frames)
 {
     // When done, s point to the next available packet.
     uint16_t next = queue_->low();
@@ -437,12 +423,8 @@ void SrsRtpAudioQueue::collect_packet(vector<vector<SrsRtpPacket2*> >& frames, S
         }
 
         // OK, collect packet to frame.
-        vector<SrsRtpPacket2*> frame;
-        frame.push_back(pkt);
-
-        // Done, we got the last packet of frame.
         nn_collected_frames++;
-        frames.push_back(frame);
+        frames.push_back(pkt);
     }
 
     if (queue_->low() != next) {
@@ -451,6 +433,11 @@ void SrsRtpAudioQueue::collect_packet(vector<vector<SrsRtpPacket2*> >& frames, S
 
         srs_verbose("collect on frame, update head seq=%u t %u", queue_->low(), next);
         queue_->advance_to(next);
+    }
+
+    // For audio, if overflow, clear all packets.
+    if (queue_->overflow()) {
+        queue_->advance_to(queue_->high());
     }
 }
 

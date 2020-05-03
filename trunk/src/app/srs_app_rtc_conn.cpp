@@ -1936,20 +1936,16 @@ srs_error_t SrsRtcPublisher::collect_audio_frames()
 {
     srs_error_t err = srs_success;
 
-    std::vector<std::vector<SrsRtpPacket2*> > frames;
+    std::vector<SrsRtpPacket2*> frames;
     audio_queue_->collect_frames(audio_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
-        vector<SrsRtpPacket2*>& packets = frames[i];
+        SrsRtpPacket2* pkt = frames[i];
 
-        for (size_t j = 0; j < packets.size(); ++j) {
-            SrsRtpPacket2* pkt = packets[j];
+        // TODO: FIXME: Check error.
+        do_collect_audio_frame(pkt);
 
-            // TODO: FIXME: Check error.
-            do_collect_audio_frame(pkt);
-
-            srs_freep(pkt);
-        }
+        srs_freep(pkt);
     }
 
     return err;

@@ -193,10 +193,7 @@ public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
 public:
-    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames);
-private:
-    virtual void on_overflow(SrsRtpNackForReceiver* nack);
-    virtual void collect_packet(std::vector<std::vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack);
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 
 class SrsRtpVideoQueue : public SrsRtpQueue
