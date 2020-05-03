@@ -112,6 +112,9 @@
                         contentType:'application/json', dataType: 'json'
                     }).done(function(data) {
                         console.log("Got answer: ", data);
+                        if (data.code) {
+                            reject(data); return;
+                        }
                         resolve(data.sdp);
                     }).fail(function(reason){
                         reject(reason);
@@ -120,6 +123,7 @@
             }).then(function(answer) {
                 return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
             }).catch(function(reason) {
+                pc.close(); $('#rtc_media_player').hide();
                 throw reason;
             });
         };

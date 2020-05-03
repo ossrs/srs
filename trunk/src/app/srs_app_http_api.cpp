@@ -918,6 +918,17 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         request.vhost = parsed_vhost->arg0();
     }
 
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, request.vhost.c_str());
+    }
+
     // TODO: FIXME: Maybe need a better name?
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcSession* rtc_session = NULL;
@@ -1230,6 +1241,17 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
     if (parsed_vhost) {
         request.vhost = parsed_vhost->arg0();
+    }
+
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, request.vhost.c_str());
     }
 
     // TODO: FIXME: Maybe need a better name?

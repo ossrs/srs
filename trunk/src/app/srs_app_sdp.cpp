@@ -528,7 +528,7 @@ srs_error_t SrsMediaDesc::parse_attr_mid(const std::string& value)
     std::istringstream is(value);
     // mid_ means m-line id
     FETCH(is, mid_);
-    srs_trace("mid=%s", mid_.c_str());
+    srs_verbose("mid=%s", mid_.c_str());
     return err;
 }
 
