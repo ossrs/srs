@@ -1246,7 +1246,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     string local_sdp_str = os.str();
 
-    srs_trace("local_sdp=%s", local_sdp_str.c_str());
+    srs_verbose("local_sdp=%s", local_sdp_str.c_str());
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));

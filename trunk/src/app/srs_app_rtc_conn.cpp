@@ -752,13 +752,6 @@ srs_error_t SrsRtcSenderThread::cycle()
     srs_trace("RTC source url=%s, source_id=[%d][%d], encrypt=%d, realtime=%d, mw_sleep=%dms, mw_msgs=%d", req->get_stream_url().c_str(),
         ::getpid(), source->source_id(), rtc_session->encrypt, realtime, srsu2msi(mw_sleep), mw_msgs);
 
-    // For RTC, notify the source to fetch keyframe for this client.
-    // TODO: FIXME: Should triggle by PLI from client.
-    SrsRtcPublisher* publisher = source->rtc_publisher();
-    if (publisher) {
-        publisher->request_keyframe();
-    }
-
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     SrsRtcPackets pkts(SRS_PERF_RTC_RTP_PACKETS);
 
@@ -1864,6 +1857,12 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 
     srs_trace("RTC PLI ssrc=%u", ssrc);
 
+    if (rtc_session->blackhole && rtc_session->blackhole_addr && rtc_session->blackhole_stfd) {
+        // Ignore any error for black-hole.
+        void* p = stream.data(); int len = stream.pos(); SrsRtcSession* s = rtc_session;
+        srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+    }
+
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
     if ((err = rtc_session->dtls_session->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
@@ -2248,14 +2247,14 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     return err;
 }
 
-SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
+SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
 {
     username = un;
     req = r->copy();
     cid = context_id;
     encrypt = true;
 
-    source = NULL;
+    source_ = source;
     publisher = NULL;
     sender = NULL;
     is_publisher_ = is_publisher;
@@ -2586,6 +2585,8 @@ srs_error_t SrsRtcSession::start_publish()
 
     srs_freep(publisher);
     publisher = new SrsRtcPublisher(this);
+    // Request PLI for exists players?
+    //publisher->request_keyframe();
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
@@ -2793,7 +2794,11 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf)
 
     switch (fmt) {
         case kPLI: {
-            srs_verbose("pli");
+            SrsRtcPublisher* publisher = source_->rtc_publisher();
+            if (publisher) {
+                publisher->request_keyframe();
+            }
+            srs_trace("RTC request PLI");
             break;
         }
         case kSLI: {
@@ -3366,7 +3371,7 @@ srs_error_t SrsRtcServer::create_rtc_session(
     }
 
     int cid = _srs_context->get_id();
-    SrsRtcSession* session = new SrsRtcSession(this, req, publish, username, cid);
+    SrsRtcSession* session = new SrsRtcSession(this, source, req, publish, username, cid);
     if ((err = session->initialize()) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "init");

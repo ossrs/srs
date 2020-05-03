@@ -329,7 +329,7 @@ private:
     // TODO: FIXME: Support reload.
     bool encrypt;
     SrsRequest* req;
-    SrsSource* source;
+    SrsSource* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:
@@ -337,7 +337,7 @@ private:
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
 public:
-    SrsRtcSession(SrsRtcServer* s, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* s, SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp();

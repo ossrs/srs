@@ -373,7 +373,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
            << " typ " << iter->type_ 
            << " generation 0" << kCRLF;
 
-        srs_trace("local SDP candidate line=%s", os.str().c_str());
+        srs_verbose("local SDP candidate line=%s", os.str().c_str());
     }
 
     return err;
