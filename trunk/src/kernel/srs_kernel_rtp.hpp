@@ -114,6 +114,7 @@ public:
     int padding;
 // Decoder helper.
 public:
+    // TODO: FIXME: Move to video decoder queue SrsRtpVideoQueue.
     // Helper information for video decoder only.
     bool video_is_first_packet;
     bool video_is_last_packet;
@@ -122,11 +123,8 @@ public:
     SrsAvcNaluType nalu_type;
     // The original payload bytes length.
     int nn_original_payload;
-// Decoder helper.
-private:
     // The original bytes for decoder only, we will free it.
     char* original_bytes;
-    int nn_original_bytes;
 // Fast cache for performance.
 private:
     // Cache frequently used payload for performance.
@@ -151,8 +149,6 @@ public:
     SrsRtpFUAPayload2* reuse_fua();
     // Set the decode handler.
     void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
-    // Set the original bytes.
-    void set_original_bytes(char* buf, int nn_buf);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();

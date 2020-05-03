@@ -81,8 +81,8 @@ srs_error_t SrsDtls::init(SrsRequest* r)
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
 #else
-    //dtls_ctx = SSL_CTX_new(DTLS_method());
-    dtls_ctx = SSL_CTX_new(DTLSv1_method());
+    dtls_ctx = SSL_CTX_new(DTLS_method());
+    //dtls_ctx = SSL_CTX_new(DTLSv1_method());
     //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
 #endif
 
