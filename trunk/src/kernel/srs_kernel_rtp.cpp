@@ -277,9 +277,9 @@ SrsRtpPacket2::SrsRtpPacket2()
     payload = NULL;
     decode_handler = NULL;
 
-    is_first_packet_of_frame = false;
-    is_last_packet_of_frame = false;
-    is_key_frame = false;
+    video_is_first_packet = false;
+    video_is_last_packet = false;
+    video_is_idr = false;
     nalu_type = SrsAvcNaluTypeReserved;
 
     cache_raw = new SrsRtpRawPayload();

@@ -114,10 +114,10 @@ public:
     int padding;
 // Decoder helper.
 public:
-    // Helper information for decoder.
-    bool is_first_packet_of_frame;
-    bool is_last_packet_of_frame;
-    bool is_key_frame;
+    // Helper information for video decoder only.
+    bool video_is_first_packet;
+    bool video_is_last_packet;
+    bool video_is_idr;
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
     // The original payload bytes length.

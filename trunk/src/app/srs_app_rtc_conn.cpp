@@ -1924,10 +1924,6 @@ void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* bu
 
 srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
 {
-    pkt->is_first_packet_of_frame = true;
-    pkt->is_last_packet_of_frame = true;
-    pkt->is_key_frame = true;
-
     // TODO: FIXME: Error check.
     audio_queue_->consume(audio_nack_, pkt);
 
@@ -2005,17 +2001,17 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "FU-A payload");
         }
 
-        pkt->is_first_packet_of_frame = payload->start;
-        pkt->is_last_packet_of_frame = payload->end;
-        pkt->is_key_frame = (payload->nalu_type == SrsAvcNaluTypeIDR);
+        pkt->video_is_first_packet = payload->start;
+        pkt->video_is_last_packet = payload->end;
+        pkt->video_is_idr = (payload->nalu_type == SrsAvcNaluTypeIDR);
     } else {
-        pkt->is_first_packet_of_frame = true;
-        pkt->is_last_packet_of_frame = true;
+        pkt->video_is_first_packet = true;
+        pkt->video_is_last_packet = true;
 
         if (v == kStapA) {
-            pkt->is_key_frame = true;
+            pkt->video_is_idr = true;
         } else {
-            pkt->is_key_frame = (pkt->nalu_type == SrsAvcNaluTypeIDR);
+            pkt->video_is_idr = (pkt->nalu_type == SrsAvcNaluTypeIDR);
         }
     }
 

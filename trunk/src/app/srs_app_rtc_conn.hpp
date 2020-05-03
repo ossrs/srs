@@ -53,8 +53,8 @@ class SrsSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
 class SrsRtpQueue;
-class SrsRtpH264Demuxer;
-class SrsRtpOpusDemuxer;
+class SrsRtpAudioQueue;
+class SrsRtpVideoQueue;
 class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
@@ -261,9 +261,9 @@ private:
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
 private:
-    SrsRtpQueue* video_queue_;
+    SrsRtpVideoQueue* video_queue_;
     SrsRtpNackForReceiver* video_nack_;
-    SrsRtpQueue* audio_queue_;
+    SrsRtpAudioQueue* audio_queue_;
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
