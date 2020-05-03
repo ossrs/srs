@@ -143,13 +143,6 @@ public:
     void reset(uint16_t low, uint16_t high);
     // Whether queue overflow or heavy(too many packets and need clear).
     bool overflow();
-    // For video, get the next start packet of frame.
-    // @remark If not found, return the low_, which should never be the "next" one,
-    // because it MAY or NOT current start packet of frame but never be the next.
-    uint16_t next_start_of_frame();
-    // For video, get the next seq of keyframe.
-    // @remark Return low_ if not found.
-    uint16_t next_keyframe();
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
     // Update the sequence, got the nack range by [low, high].
@@ -176,8 +169,8 @@ public:
     virtual ~SrsRtpQueue();
 public:
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
-    void notify_drop_seq(uint16_t seq);
-    void notify_nack_list_full();
+    virtual void notify_drop_seq(uint16_t seq) = 0;
+    virtual void notify_nack_list_full() = 0;
 public:
     uint32_t get_extended_highest_sequence();
     uint8_t get_fraction_lost();
@@ -193,6 +186,8 @@ public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
 public:
+    virtual void notify_drop_seq(uint16_t seq);
+    virtual void notify_nack_list_full();
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 
@@ -204,6 +199,8 @@ public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
 public:
+    virtual void notify_drop_seq(uint16_t seq);
+    virtual void notify_nack_list_full();
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
     bool should_request_key_frame();
@@ -212,6 +209,13 @@ private:
     virtual void on_overflow(SrsRtpNackForReceiver* nack);
     virtual void collect_packet(SrsRtpNackForReceiver* nack, SrsRtpPacket2** ppkt);
     virtual void covert_packet(std::vector<SrsRtpPacket2*>& frame, SrsRtpPacket2** ppkt);
+    // For video, get the next start packet of frame.
+    // @remark If not found, return the low_, which should never be the "next" one,
+    // because it MAY or NOT current start packet of frame but never be the next.
+    uint16_t next_start_of_frame();
+    // For video, get the next seq of keyframe.
+    // @remark Return low_ if not found.
+    uint16_t next_keyframe();
 };
 
 #endif

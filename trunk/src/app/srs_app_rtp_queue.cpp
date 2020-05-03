@@ -187,38 +187,6 @@ bool SrsRtpRingBuffer::overflow()
     return high_ - low_ >= capacity_;
 }
 
-uint16_t SrsRtpRingBuffer::next_start_of_frame()
-{
-    if (low_ == high_) {
-        return low_;
-    }
-
-    for (uint16_t s = low_ + 1 ; s != high_; ++s) {
-        SrsRtpPacket2*& pkt = queue_[s % capacity_];
-        if (pkt && pkt->video_is_first_packet) {
-            return s;
-        }
-    }
-
-    return low_;
-}
-
-uint16_t SrsRtpRingBuffer::next_keyframe()
-{
-    if (low_ == high_) {
-        return low_;
-    }
-
-    for (uint16_t s = low_ + 1 ; s != high_; ++s) {
-        SrsRtpPacket2*& pkt = queue_[s % capacity_];
-        if (pkt && pkt->video_is_idr && pkt->video_is_first_packet) {
-            return s;
-        }
-    }
-
-    return low_;
-}
-
 uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
 {
     return nn_seq_flip_backs * 65536 + high_;
@@ -333,34 +301,6 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
     return err;
 }
 
-void SrsRtpQueue::notify_drop_seq(uint16_t seq)
-{
-    uint16_t next = queue_->next_start_of_frame();
-
-    // Note that low_ mean not found, clear queue util one packet.
-    if (next == queue_->low()) {
-        next = queue_->high() - 1;
-    }
-
-    // When NACK is timeout, move to the next start of frame.
-    srs_trace("nack drop seq=%u, drop range [%u, %u]", seq, queue_->low(), next + 1);
-    queue_->advance_to(next + 1);
-}
-
-void SrsRtpQueue::notify_nack_list_full()
-{
-    uint16_t next = queue_->next_keyframe();
-
-    // Note that low_ mean not found, clear queue util one packet.
-    if (next == queue_->low()) {
-        next = queue_->high() - 1;
-    }
-
-    // When NACK is overflow, move to the next keyframe.
-    srs_trace("nack overflow drop range [%u, %u]", queue_->low(), next + 1);
-    queue_->advance_to(next + 1);
-}
-
 uint32_t SrsRtpQueue::get_extended_highest_sequence()
 {
     return queue_->get_extended_highest_sequence();
@@ -408,6 +348,18 @@ SrsRtpAudioQueue::~SrsRtpAudioQueue()
 {
 }
 
+void SrsRtpAudioQueue::notify_drop_seq(uint16_t seq)
+{
+    // TODO: FIXME: The seq may be greater than high.
+    queue_->advance_to(seq + 1);
+}
+
+void SrsRtpAudioQueue::notify_nack_list_full()
+{
+    // TODO: FIXME: Maybe we should not drop all packets.
+    queue_->advance_to(queue_->high());
+}
+
 void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtpPacket2*>& frames)
 {
     // When done, s point to the next available packet.
@@ -448,6 +400,34 @@ SrsRtpVideoQueue::SrsRtpVideoQueue(int capacity) : SrsRtpQueue(capacity)
 
 SrsRtpVideoQueue::~SrsRtpVideoQueue()
 {
+}
+
+void SrsRtpVideoQueue::notify_drop_seq(uint16_t seq)
+{
+    uint16_t next = next_start_of_frame();
+
+    // Note that low_ mean not found, clear queue util one packet.
+    if (next == queue_->low()) {
+        next = queue_->high() - 1;
+    }
+
+    // When NACK is timeout, move to the next start of frame.
+    srs_trace("nack drop seq=%u, drop range [%u, %u]", seq, queue_->low(), next + 1);
+    queue_->advance_to(next + 1);
+}
+
+void SrsRtpVideoQueue::notify_nack_list_full()
+{
+    uint16_t next = next_keyframe();
+
+    // Note that low_ mean not found, clear queue util one packet.
+    if (next == queue_->low()) {
+        next = queue_->high() - 1;
+    }
+
+    // When NACK is overflow, move to the next keyframe.
+    srs_trace("nack overflow drop range [%u, %u]", queue_->low(), next + 1);
+    queue_->advance_to(next + 1);
 }
 
 srs_error_t SrsRtpVideoQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt)
@@ -520,7 +500,7 @@ void SrsRtpVideoQueue::request_keyframe()
 
 void SrsRtpVideoQueue::on_overflow(SrsRtpNackForReceiver* nack)
 {
-    uint16_t next = queue_->next_start_of_frame();
+    uint16_t next = next_start_of_frame();
 
     // Note that low_ mean not found, clear queue util one packet.
     if (next == queue_->low()) {
@@ -645,5 +625,37 @@ void SrsRtpVideoQueue::covert_packet(std::vector<SrsRtpPacket2*>& frame, SrsRtpP
     }
 
     *ppkt = pkt;
+}
+
+uint16_t SrsRtpVideoQueue::next_start_of_frame()
+{
+    if (queue_->low() == queue_->high()) {
+        return queue_->low();
+    }
+
+    for (uint16_t s = queue_->low() + 1 ; s != queue_->high(); ++s) {
+        SrsRtpPacket2* pkt = queue_->at(s);
+        if (pkt && pkt->video_is_first_packet) {
+            return s;
+        }
+    }
+
+    return queue_->low();
+}
+
+uint16_t SrsRtpVideoQueue::next_keyframe()
+{
+    if (queue_->low() == queue_->high()) {
+        return queue_->low();
+    }
+
+    for (uint16_t s = queue_->low() + 1 ; s != queue_->high(); ++s) {
+        SrsRtpPacket2* pkt = queue_->at(s);
+        if (pkt && pkt->video_is_idr && pkt->video_is_first_packet) {
+            return s;
+        }
+    }
+
+    return queue_->low();
 }
 
