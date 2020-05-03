@@ -337,7 +337,7 @@ private:
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
 public:
-    SrsRtcSession(SrsRtcServer* s, SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* s);
     virtual ~SrsRtcSession();
 public:
     SrsSdp* get_local_sdp();
@@ -353,7 +353,7 @@ public:
     void switch_to_context();
     int context_id();
 public:
-    srs_error_t initialize();
+    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

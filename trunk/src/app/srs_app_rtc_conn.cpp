@@ -2247,17 +2247,16 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     return err;
 }
 
-SrsRtcSession::SrsRtcSession(SrsRtcServer* s, SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
+SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
 {
-    username = un;
-    req = r->copy();
-    cid = context_id;
+    req = NULL;
+    cid = 0;
+    is_publisher_ = false;
     encrypt = true;
 
-    source_ = source;
+    source_ = NULL;
     publisher = NULL;
     sender = NULL;
-    is_publisher_ = is_publisher;
     sendonly_skt = NULL;
     rtc_server = s;
     dtls_session = new SrsDtlsSession(this);
@@ -2343,9 +2342,15 @@ int SrsRtcSession::context_id()
     return cid;
 }
 
-srs_error_t SrsRtcSession::initialize()
+srs_error_t SrsRtcSession::initialize(SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
 {
     srs_error_t err = srs_success;
+
+    username = un;
+    req = r->copy();
+    cid = context_id;
+    is_publisher_ = is_publisher;
+    source_ = source;
 
     if ((err = dtls_session->initialize(req)) != srs_success) {
         return srs_error_wrap(err, "init");
@@ -2786,7 +2791,6 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf)
     //uint8_t padding = first & 0x20;
     uint8_t fmt = first & 0x1F;
 
-    // TODO: FIXME: Dead code?
     /*uint8_t payload_type = */stream->read_1bytes();
     /*uint16_t length = */stream->read_2bytes();
     /*uint32_t ssrc_of_sender = */stream->read_4bytes();
@@ -2797,8 +2801,8 @@ srs_error_t SrsRtcSession::on_rtcp_ps_feedback(char* buf, int nb_buf)
             SrsRtcPublisher* publisher = source_->rtc_publisher();
             if (publisher) {
                 publisher->request_keyframe();
+                srs_trace("RTC request PLI");
             }
-            srs_trace("RTC request PLI");
             break;
         }
         case kSLI: {
@@ -3371,8 +3375,8 @@ srs_error_t SrsRtcServer::create_rtc_session(
     }
 
     int cid = _srs_context->get_id();
-    SrsRtcSession* session = new SrsRtcSession(this, source, req, publish, username, cid);
-    if ((err = session->initialize()) != srs_success) {
+    SrsRtcSession* session = new SrsRtcSession(this);
+    if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "init");
     }
