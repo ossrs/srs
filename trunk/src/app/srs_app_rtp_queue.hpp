@@ -143,7 +143,6 @@ public:
     void reset(uint16_t low, uint16_t high);
     // Whether queue overflow or heavy(too many packets and need clear).
     bool overflow();
-    bool is_heavy();
     // For video, get the next start packet of frame.
     // @remark If not found, return the low_, which should never be the "next" one,
     // because it MAY or NOT current start packet of frame but never be the next.
@@ -172,15 +171,11 @@ private:
 protected:
     SrsRtpRingBuffer* queue_;
     uint64_t nn_collected_frames;
-    std::vector<std::vector<SrsRtpPacket2*> > frames_;
-    const char* tag_;
 public:
-    SrsRtpQueue(const char* tag, int capacity);
+    SrsRtpQueue(int capacity);
     virtual ~SrsRtpQueue();
 public:
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
-    // TODO: FIXME: Should merge FU-A to RAW, then we can return RAW payloads.
-    void collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames);
     void notify_drop_seq(uint16_t seq);
     void notify_nack_list_full();
 public:
@@ -190,8 +185,6 @@ public:
     uint32_t get_interarrival_jitter();
 private:
     void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t seq_start, uint16_t seq_end);
-protected:
-    virtual void on_overflow(SrsRtpNackForReceiver* nack) = 0;
 };
 
 class SrsRtpAudioQueue : public SrsRtpQueue
@@ -200,11 +193,10 @@ public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
 public:
-    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames);
 private:
     virtual void on_overflow(SrsRtpNackForReceiver* nack);
-protected:
-    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+    virtual void collect_packet(std::vector<std::vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack);
 };
 
 class SrsRtpVideoQueue : public SrsRtpQueue
@@ -215,13 +207,12 @@ public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
 public:
-    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames);
     bool should_request_key_frame();
     void request_keyframe();
-protected:
-    virtual void on_overflow(SrsRtpNackForReceiver* nack);
 private:
-    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+    virtual void on_overflow(SrsRtpNackForReceiver* nack);
+    virtual void collect_packet(std::vector<std::vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack);
     virtual void do_collect_packet(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
 };
 

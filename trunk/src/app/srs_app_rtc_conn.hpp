@@ -194,8 +194,7 @@ public:
     SrsRtpPacket2* at(int index);
 };
 
-// TODO: FIXME: Rename to RTC player or subscriber.
-class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
     SrsCoroutine* trd;
@@ -221,8 +220,8 @@ private:
     int mw_msgs;
     bool realtime;
 public:
-    SrsRtcSenderThread(SrsRtcSession* s, int parent_cid);
-    virtual ~SrsRtcSenderThread();
+    SrsRtcPlayer(SrsRtcSession* s, int parent_cid);
+    virtual ~SrsRtcPlayer();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
 // interface ISrsReloadHandler
@@ -303,13 +302,13 @@ public:
 class SrsRtcSession
 {
     friend class SrsDtlsSession;
-    friend class SrsRtcSenderThread;
+    friend class SrsRtcPlayer;
     friend class SrsRtcPublisher;
 private:
     SrsRtcServer* rtc_server;
     SrsRtcSessionStateType session_state;
     SrsDtlsSession* dtls_session;
-    SrsRtcSenderThread* sender;
+    SrsRtcPlayer* player;
     SrsRtcPublisher* publisher;
     bool is_publisher_;
 private:

@@ -595,7 +595,7 @@ SrsRtpPacket2* SrsRtcPackets::at(int index)
     return cache + index;
 }
 
-SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, int parent_cid)
+SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 {
     _parent_cid = parent_cid;
     trd = new SrsDummyCoroutine();
@@ -618,14 +618,14 @@ SrsRtcSenderThread::SrsRtcSenderThread(SrsRtcSession* s, int parent_cid)
     _srs_config->subscribe(this);
 }
 
-SrsRtcSenderThread::~SrsRtcSenderThread()
+SrsRtcPlayer::~SrsRtcPlayer()
 {
     _srs_config->unsubscribe(this);
 
     srs_freep(trd);
 }
 
-srs_error_t SrsRtcSenderThread::initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt)
+srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt)
 {
     srs_error_t err = srs_success;
 
@@ -644,7 +644,7 @@ srs_error_t SrsRtcSenderThread::initialize(const uint32_t& vssrc, const uint32_t
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::on_reload_rtc_server()
+srs_error_t SrsRtcPlayer::on_reload_rtc_server()
 {
     gso = _srs_config->get_rtc_server_gso();
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
@@ -655,7 +655,7 @@ srs_error_t SrsRtcSenderThread::on_reload_rtc_server()
     return srs_success;
 }
 
-srs_error_t SrsRtcSenderThread::on_reload_vhost_play(string vhost)
+srs_error_t SrsRtcPlayer::on_reload_vhost_play(string vhost)
 {
     SrsRequest* req = rtc_session->req;
 
@@ -672,17 +672,17 @@ srs_error_t SrsRtcSenderThread::on_reload_vhost_play(string vhost)
     return srs_success;
 }
 
-srs_error_t SrsRtcSenderThread::on_reload_vhost_realtime(string vhost)
+srs_error_t SrsRtcPlayer::on_reload_vhost_realtime(string vhost)
 {
     return on_reload_vhost_play(vhost);
 }
 
-int SrsRtcSenderThread::cid()
+int SrsRtcPlayer::cid()
 {
     return trd->cid();
 }
 
-srs_error_t SrsRtcSenderThread::start()
+srs_error_t SrsRtcPlayer::start()
 {
     srs_error_t err = srs_success;
 
@@ -696,17 +696,17 @@ srs_error_t SrsRtcSenderThread::start()
     return err;
 }
 
-void SrsRtcSenderThread::stop()
+void SrsRtcPlayer::stop()
 {
     trd->stop();
 }
 
-void SrsRtcSenderThread::stop_loop()
+void SrsRtcPlayer::stop_loop()
 {
     trd->interrupt();
 }
 
-srs_error_t SrsRtcSenderThread::cycle()
+srs_error_t SrsRtcPlayer::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -833,7 +833,7 @@ srs_error_t SrsRtcSenderThread::cycle()
     }
 }
 
-srs_error_t SrsRtcSenderThread::send_messages(
+srs_error_t SrsRtcPlayer::send_messages(
     SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets
 ) {
     srs_error_t err = srs_success;
@@ -866,7 +866,7 @@ srs_error_t SrsRtcSenderThread::send_messages(
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::messages_to_packets(
+srs_error_t SrsRtcPlayer::messages_to_packets(
     SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets
 ) {
     srs_error_t err = srs_success;
@@ -951,7 +951,7 @@ srs_error_t SrsRtcSenderThread::messages_to_packets(
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::send_packets(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1019,7 +1019,7 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
 }
 
 // TODO: FIXME: We can gather and pad audios, because they have similar size.
-srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::send_packets_gso(SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1222,7 +1222,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::package_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::package_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1312,7 +1312,7 @@ srs_error_t SrsRtcSenderThread::package_nalus(SrsSharedPtrMessage* msg, SrsRtcPa
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::package_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload)
+srs_error_t SrsRtcPlayer::package_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload)
 {
     srs_error_t err = srs_success;
 
@@ -1348,7 +1348,7 @@ srs_error_t SrsRtcSenderThread::package_opus(SrsSample* sample, SrsRtcPackets& p
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1389,7 +1389,7 @@ srs_error_t SrsRtcSenderThread::package_fu_a(SrsSharedPtrMessage* msg, SrsSample
 }
 
 // Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtcSenderThread::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1409,7 +1409,7 @@ srs_error_t SrsRtcSenderThread::package_single_nalu(SrsSharedPtrMessage* msg, Sr
     return err;
 }
 
-srs_error_t SrsRtcSenderThread::package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
+srs_error_t SrsRtcPlayer::package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1937,7 +1937,7 @@ srs_error_t SrsRtcPublisher::collect_audio_frames()
     srs_error_t err = srs_success;
 
     std::vector<std::vector<SrsRtpPacket2*> > frames;
-    audio_queue_->collect_frames(frames);
+    audio_queue_->collect_frames(audio_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         vector<SrsRtpPacket2*>& packets = frames[i];
@@ -2031,7 +2031,7 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 srs_error_t SrsRtcPublisher::collect_video_frames()
 {
     std::vector<std::vector<SrsRtpPacket2*> > frames;
-    video_queue_->collect_frames(frames);
+    video_queue_->collect_frames(video_nack_, frames);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         vector<SrsRtpPacket2*>& packets = frames[i];
@@ -2252,7 +2252,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
 
     source_ = NULL;
     publisher = NULL;
-    sender = NULL;
+    player = NULL;
     sendonly_skt = NULL;
     rtc_server = s;
     dtls_session = new SrsDtlsSession(this);
@@ -2268,7 +2268,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
 
 SrsRtcSession::~SrsRtcSession()
 {
-    srs_freep(sender);
+    srs_freep(player);
     srs_freep(publisher);
     srs_freep(dtls_session);
     srs_freep(req);
@@ -2551,8 +2551,8 @@ srs_error_t SrsRtcSession::start_play()
 {
     srs_error_t err = srs_success;
 
-    srs_freep(sender);
-    sender = new SrsRtcSenderThread(this, _srs_context->get_id());
+    srs_freep(player);
+    player = new SrsRtcPlayer(this, _srs_context->get_id());
 
     uint32_t video_ssrc = 0;
     uint32_t audio_ssrc = 0;
@@ -2569,12 +2569,12 @@ srs_error_t SrsRtcSession::start_play()
         }
     }
 
-    if ((err = sender->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type)) != srs_success) {
-        return srs_error_wrap(err, "SrsRtcSenderThread init");
+    if ((err = player->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type)) != srs_success) {
+        return srs_error_wrap(err, "SrsRtcPlayer init");
     }
 
-    if ((err = sender->start()) != srs_success) {
-        return srs_error_wrap(err, "start SrsRtcSenderThread");
+    if ((err = player->start()) != srs_success) {
+        return srs_error_wrap(err, "start SrsRtcPlayer");
     }
 
     return err;

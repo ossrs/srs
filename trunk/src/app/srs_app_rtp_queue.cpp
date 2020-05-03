@@ -187,11 +187,6 @@ bool SrsRtpRingBuffer::overflow()
     return high_ - low_ >= capacity_;
 }
 
-bool SrsRtpRingBuffer::is_heavy()
-{
-    return high_ - low_ >= capacity_ / 2;
-}
-
 uint16_t SrsRtpRingBuffer::next_start_of_frame()
 {
     if (low_ == high_) {
@@ -269,7 +264,7 @@ SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq)
     return queue_[seq % capacity_];
 }
 
-SrsRtpQueue::SrsRtpQueue(const char* tag, int capacity)
+SrsRtpQueue::SrsRtpQueue(int capacity)
 {
     nn_collected_frames = 0;
     queue_ = new SrsRtpRingBuffer(capacity);
@@ -282,8 +277,6 @@ SrsRtpQueue::SrsRtpQueue(const char* tag, int capacity)
 
     num_of_packet_received_ = 0;
     number_of_packet_lossed_ = 0;
-
-    tag_ = tag;
 }
 
 SrsRtpQueue::~SrsRtpQueue()
@@ -329,25 +322,15 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
         uint16_t nack_low = 0, nack_high = 0;
         queue_->update(seq, !nn_collected_frames, nack_low, nack_high);
         if (srs_rtp_seq_distance(nack_low, nack_high)) {
-            srs_trace("%s update nack seq=%u, startup=%d, range [%u, %u]", tag_, seq, !nn_collected_frames, nack_low, nack_high);
+            srs_trace("update nack seq=%u, startup=%d, range [%u, %u]", seq, !nn_collected_frames, nack_low, nack_high);
             insert_into_nack_list(nack, nack_low, nack_high);
         }
-    }
-
-    // When packets overflow, collect frame and move head to next frame start.
-    if (queue_->overflow()) {
-        on_overflow(nack);
     }
 
     // Save packet at the position seq.
     queue_->set(seq, pkt);
 
     return err;
-}
-
-void SrsRtpQueue::collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames)
-{
-    frames.swap(frames_);
 }
 
 void SrsRtpQueue::notify_drop_seq(uint16_t seq)
@@ -360,7 +343,7 @@ void SrsRtpQueue::notify_drop_seq(uint16_t seq)
     }
 
     // When NACK is timeout, move to the next start of frame.
-    srs_trace("%s nack drop seq=%u, drop range [%u, %u]", tag_, seq, queue_->low(), next + 1);
+    srs_trace("nack drop seq=%u, drop range [%u, %u]", seq, queue_->low(), next + 1);
     queue_->advance_to(next + 1);
 }
 
@@ -374,7 +357,7 @@ void SrsRtpQueue::notify_nack_list_full()
     }
 
     // When NACK is overflow, move to the next keyframe.
-    srs_trace("%s nack overflow drop range [%u, %u]", tag_, queue_->low(), next + 1);
+    srs_trace("nack overflow drop range [%u, %u]", queue_->low(), next + 1);
     queue_->advance_to(next + 1);
 }
 
@@ -417,7 +400,7 @@ void SrsRtpQueue::insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t se
     nack->check_queue_size();
 }
 
-SrsRtpAudioQueue::SrsRtpAudioQueue(int capacity) : SrsRtpQueue("audio", capacity)
+SrsRtpAudioQueue::SrsRtpAudioQueue(int capacity) : SrsRtpQueue(capacity)
 {
 }
 
@@ -425,27 +408,21 @@ SrsRtpAudioQueue::~SrsRtpAudioQueue()
 {
 }
 
-srs_error_t SrsRtpAudioQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt)
+void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames)
 {
-    srs_error_t err = srs_success;
+    collect_packet(frames, nack);
 
-    if ((err = SrsRtpQueue::consume(nack, pkt)) != srs_success) {
-        return srs_error_wrap(err, "audio queue");
+    if (queue_->overflow()) {
+        on_overflow(nack);
     }
-
-    // For audio, always try to collect frame, because each packet is a frame.
-    collect_packet(nack);
-
-    return err;
 }
 
 void SrsRtpAudioQueue::on_overflow(SrsRtpNackForReceiver* nack)
 {
-    collect_packet(nack);
     queue_->advance_to(queue_->high());
 }
 
-void SrsRtpAudioQueue::collect_packet(SrsRtpNackForReceiver* nack)
+void SrsRtpAudioQueue::collect_packet(vector<vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack)
 {
     // When done, s point to the next available packet.
     uint16_t next = queue_->low();
@@ -455,7 +432,7 @@ void SrsRtpAudioQueue::collect_packet(SrsRtpNackForReceiver* nack)
 
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
-            srs_trace("%s wait for nack seq=%u", tag_, next);
+            srs_trace("wait for nack seq=%u", next);
             break;
         }
 
@@ -465,19 +442,19 @@ void SrsRtpAudioQueue::collect_packet(SrsRtpNackForReceiver* nack)
 
         // Done, we got the last packet of frame.
         nn_collected_frames++;
-        frames_.push_back(frame);
+        frames.push_back(frame);
     }
 
     if (queue_->low() != next) {
         // Reset the range of packets to NULL in buffer.
         queue_->reset(queue_->low(), next);
 
-        srs_verbose("%s collect on frame, update head seq=%u t %u", tag_, queue_->low(), next);
+        srs_verbose("collect on frame, update head seq=%u t %u", queue_->low(), next);
         queue_->advance_to(next);
     }
 }
 
-SrsRtpVideoQueue::SrsRtpVideoQueue(int capacity) : SrsRtpQueue("video", capacity)
+SrsRtpVideoQueue::SrsRtpVideoQueue(int capacity) : SrsRtpQueue(capacity)
 {
     request_key_frame_ = false;
 }
@@ -486,23 +463,13 @@ SrsRtpVideoQueue::~SrsRtpVideoQueue()
 {
 }
 
-srs_error_t SrsRtpVideoQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt)
+void SrsRtpVideoQueue::collect_frames(SrsRtpNackForReceiver* nack, std::vector<std::vector<SrsRtpPacket2*> >& frames)
 {
-    srs_error_t err = srs_success;
+    collect_packet(frames, nack);
 
-    if ((err = SrsRtpQueue::consume(nack, pkt)) != srs_success) {
-        return srs_error_wrap(err, "video queue");
+    if (queue_->overflow()) {
+        on_overflow(nack);
     }
-
-    // Collect packets to frame when:
-    // 1. Marker bit means the last packet of frame received.
-    // 2. Queue has lots of packets, the load is heavy.
-    // TODO: FIMXE: For real-time, we should collect each frame ASAP.
-    if (pkt->rtp_header.get_marker() || queue_->is_heavy()) {
-        collect_packet(nack);
-    }
-
-    return err;
 }
 
 bool SrsRtpVideoQueue::should_request_key_frame()
@@ -522,26 +489,24 @@ void SrsRtpVideoQueue::request_keyframe()
 
 void SrsRtpVideoQueue::on_overflow(SrsRtpNackForReceiver* nack)
 {
-    collect_packet(nack);
-
     uint16_t next = queue_->next_start_of_frame();
 
     // Note that low_ mean not found, clear queue util one packet.
     if (next == queue_->low()) {
         next = queue_->high() - 1;
     }
-    srs_trace("%s seq out of range [%u, %u]", tag_, queue_->low(), next);
+    srs_trace("seq out of range [%u, %u]", queue_->low(), next);
 
     for (uint16_t s = queue_->low(); s != next; ++s) {
         nack->remove(s);
         queue_->remove(s);
     }
 
-    srs_trace("%s force update seq %u to %u", tag_, queue_->low(), next + 1);
+    srs_trace("force update seq %u to %u", queue_->low(), next + 1);
     queue_->advance_to(next + 1);
 }
 
-void SrsRtpVideoQueue::collect_packet(SrsRtpNackForReceiver* nack)
+void SrsRtpVideoQueue::collect_packet(vector<vector<SrsRtpPacket2*> >& frames, SrsRtpNackForReceiver* nack)
 {
     while (queue_->low() != queue_->high()) {
         vector<SrsRtpPacket2*> frame;
@@ -553,7 +518,7 @@ void SrsRtpVideoQueue::collect_packet(SrsRtpNackForReceiver* nack)
         }
 
         nn_collected_frames++;
-        frames_.push_back(frame);
+        frames.push_back(frame);
     }
 }
 
@@ -569,7 +534,7 @@ void SrsRtpVideoQueue::do_collect_packet(SrsRtpNackForReceiver* nack, vector<Srs
 
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
-            srs_trace("%s wait for nack seq=%u", tag_, next);
+            srs_trace("wait for nack seq=%u", next);
             break;
         }
 
@@ -599,7 +564,7 @@ void SrsRtpVideoQueue::do_collect_packet(SrsRtpNackForReceiver* nack, vector<Srs
         // Reset the range of packets to NULL in buffer.
         queue_->reset(queue_->low(), next);
 
-        srs_verbose("%s collect on frame, update head seq=%u t %u", tag_, queue_->low(), next);
+        srs_verbose("collect on frame, update head seq=%u t %u", queue_->low(), next);
         queue_->advance_to(next);
     }
 }
