@@ -743,16 +743,18 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
 }
 
 
-#if defined(MD_HAVE_SENDMMSG) && defined(__linux__) && defined(_GNU_SOURCE)
-int st_sendmmsg(st_netfd_t fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
+int st_sendmmsg(st_netfd_t fd, void *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
 {
+#if !defined(MD_HAVE_SENDMMSG) || !defined(_GNU_SOURCE)
+    return -1;
+#else
     int n;
     int left;
     struct mmsghdr *p;
 
     left = (int)vlen;
     while (left > 0) {
-        p = msgvec + (vlen - left);
+        p = (struct mmsghdr*)msgvec + (vlen - left);
 
         if ((n = sendmmsg(fd->osfd, p, left, flags)) < 0) {
             if (errno == EINTR)
@@ -772,8 +774,8 @@ int st_sendmmsg(st_netfd_t fd, struct mmsghdr *msgvec, unsigned int vlen, int fl
         return n;
     }
     return (int)vlen - left;
-}
 #endif
+}
 
 
 /*

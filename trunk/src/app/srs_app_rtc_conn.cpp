@@ -965,7 +965,7 @@ srs_error_t SrsRtcSenderThread::send_packets(SrsRtcPackets& packets)
 
         // Fetch a cached message from queue.
         // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
-        mmsghdr* mhdr = NULL;
+        srs_mmsghdr* mhdr = NULL;
         if ((err = sender->fetch(&mhdr)) != srs_success) {
             return srs_error_wrap(err, "fetch msghdr");
         }
@@ -1028,7 +1028,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
     ISrsUdpSender* sender = rtc_session->sendonly_skt->sender();
 
     // Previous handler, if has the same size, we can use GSO.
-    mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
+    srs_mmsghdr* gso_mhdr = NULL; int gso_size = 0; int gso_encrypt = 0; int gso_cursor = 0;
     // GSO, N packets has same length, the final one may not.
     bool using_gso = false; bool gso_final = false;
     // The message will marshal in iovec.
@@ -1099,7 +1099,7 @@ srs_error_t SrsRtcSenderThread::send_packets_gso(SrsRtcPackets& packets)
         }
 
         // For GSO, reuse mhdr if possible.
-        mmsghdr* mhdr = gso_mhdr;
+        srs_mmsghdr* mhdr = gso_mhdr;
         if (!mhdr) {
             // Fetch a cached message from queue.
             // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
@@ -2970,13 +2970,13 @@ srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd, int senders)
     return err;
 }
 
-void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
+void SrsUdpMuxSender::free_mhdrs(std::vector<srs_mmsghdr>& mhdrs)
 {
     int nn_mhdrs = (int)mhdrs.size();
     for (int i = 0; i < nn_mhdrs; i++) {
         // @see https://linux.die.net/man/2/sendmmsg
         // @see https://linux.die.net/man/2/sendmsg
-        mmsghdr* hdr = &mhdrs[i];
+        srs_mmsghdr* hdr = &mhdrs[i];
 
         // Free control for GSO.
         char* msg_control = (char*)hdr->msg_hdr.msg_control;
@@ -2993,13 +2993,13 @@ void SrsUdpMuxSender::free_mhdrs(std::vector<mmsghdr>& mhdrs)
     mhdrs.clear();
 }
 
-srs_error_t SrsUdpMuxSender::fetch(mmsghdr** pphdr)
+srs_error_t SrsUdpMuxSender::fetch(srs_mmsghdr** pphdr)
 {
     // TODO: FIXME: Maybe need to shrink?
     if (cache_pos >= (int)cache.size()) {
         // @see https://linux.die.net/man/2/sendmmsg
         // @see https://linux.die.net/man/2/sendmsg
-        mmsghdr mhdr;
+        srs_mmsghdr mhdr;
 
         mhdr.msg_len = 0;
         mhdr.msg_hdr.msg_flags = 0;
@@ -3040,7 +3040,7 @@ void SrsUdpMuxSender::set_extra_ratio(int r)
         max_sendmmsg, gso, queue_length, nn_senders, extra_ratio, extra_queue, cache_pos, (int)cache.size(), (int)hotspot.size());
 }
 
-srs_error_t SrsUdpMuxSender::sendmmsg(mmsghdr* hdr)
+srs_error_t SrsUdpMuxSender::sendmmsg(srs_mmsghdr* hdr)
 {
     if (waiting_msgs) {
         waiting_msgs = false;
@@ -3092,7 +3092,7 @@ srs_error_t SrsUdpMuxSender::cycle()
             // Send out all messages.
             // @see https://linux.die.net/man/2/sendmmsg
             // @see https://linux.die.net/man/2/sendmsg
-            mmsghdr* p = &hotspot[0]; mmsghdr* end = p + pos;
+            srs_mmsghdr* p = &hotspot[0]; srs_mmsghdr* end = p + pos;
             for (p = &hotspot[0]; p < end; p += max_sendmmsg) {
                 int vlen = (int)(end - p);
                 vlen = srs_min(max_sendmmsg, vlen);
@@ -3113,7 +3113,7 @@ srs_error_t SrsUdpMuxSender::cycle()
                 // @see https://linux.die.net/man/2/sendmmsg
                 // @see https://linux.die.net/man/2/sendmsg
                 for (int i = 0; i < pos; i++) {
-                    mmsghdr* mhdr = &hotspot[i];
+                    srs_mmsghdr* mhdr = &hotspot[i];
 
                     nn_writen += (int)mhdr->msg_len;
 
@@ -3159,7 +3159,7 @@ srs_error_t SrsUdpMuxSender::cycle()
             int nn_cache = 0;
             int nn_hotspot_size = (int)hotspot.size();
             for (int i = 0; i < nn_hotspot_size; i++) {
-                mmsghdr* hdr = &hotspot[i];
+                srs_mmsghdr* hdr = &hotspot[i];
                 nn_cache += hdr->msg_hdr.msg_iovlen;
             }
 

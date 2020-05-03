@@ -412,12 +412,12 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
     return st_sendmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
 }
 
-int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
+int srs_sendmmsg(srs_netfd_t stfd, struct srs_mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
 {
-#if !defined(SRS_HAS_SENDMMSG) || !defined(SRS_SENDMMSG)
+#if !defined(SRS_SENDMMSG)
     // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
     for (int i = 0; i < (int)vlen; ++i) {
-        struct mmsghdr* p = msgvec + i;
+        struct srs_mmsghdr* p = msgvec + i;
         int n = srs_sendmsg(stfd, &p->msg_hdr, flags, timeout);
         if (n < 0) {
             // An error is returned only if no datagrams could be sent.
@@ -457,7 +457,7 @@ int srs_sendmmsg(srs_netfd_t stfd, struct mmsghdr *msgvec, unsigned int vlen, in
 
         return 1;
     }
-    return st_sendmmsg((st_netfd_t)stfd, msgvec, vlen, flags, (st_utime_t)timeout);
+    return st_sendmmsg((st_netfd_t)stfd, (void*)msgvec, vlen, flags, (st_utime_t)timeout);
 #endif
 }
 

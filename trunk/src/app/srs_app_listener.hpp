@@ -138,9 +138,9 @@ public:
     virtual ~ISrsUdpSender();
 public:
     // Fetch a mmsghdr from sender's cache.
-    virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
+    virtual srs_error_t fetch(srs_mmsghdr** pphdr) = 0;
     // Notify the sender to send out the msg.
-    virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
+    virtual srs_error_t sendmmsg(srs_mmsghdr* hdr) = 0;
     // Whether sender exceed the max queue, that is, overflow.
     virtual bool overflow() = 0;
     // Set the queue extra ratio, for example, when mw_msgs > 0, we need larger queue.

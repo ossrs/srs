@@ -4781,7 +4781,7 @@ bool SrsConfig::get_rtc_server_encrypt()
 
 int SrsConfig::get_rtc_server_sendmmsg()
 {
-#if !defined(SRS_HAS_SENDMMSG) || !defined(SRS_SENDMMSG)
+#if !defined(SRS_SENDMMSG)
     return 1;
 #else
     static int DEFAULT = 256;

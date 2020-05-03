@@ -388,9 +388,9 @@ private:
 private:
     // Hotspot msgs, we are working on it.
     // @remark We will wait util all messages are ready.
-    std::vector<mmsghdr> hotspot;
+    std::vector<srs_mmsghdr> hotspot;
     // Cache msgs, for other coroutines to fill it.
-    std::vector<mmsghdr> cache;
+    std::vector<srs_mmsghdr> cache;
     int cache_pos;
     // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
     int max_sendmmsg;
@@ -405,10 +405,10 @@ public:
 public:
     virtual srs_error_t initialize(srs_netfd_t fd, int senders);
 private:
-    void free_mhdrs(std::vector<mmsghdr>& mhdrs);
+    void free_mhdrs(std::vector<srs_mmsghdr>& mhdrs);
 public:
-    virtual srs_error_t fetch(mmsghdr** pphdr);
-    virtual srs_error_t sendmmsg(mmsghdr* hdr);
+    virtual srs_error_t fetch(srs_mmsghdr** pphdr);
+    virtual srs_error_t sendmmsg(srs_mmsghdr* hdr);
     virtual bool overflow();
     virtual void set_extra_ratio(int r);
 public:
