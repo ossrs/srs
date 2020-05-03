@@ -192,7 +192,7 @@ uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
     return nn_seq_flip_backs * 65536 + high_;
 }
 
-void SrsRtpRingBuffer::update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high)
+void SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_low, uint16_t& nack_high)
 {
     if (!initialized_) {
         initialized_ = true;
@@ -219,11 +219,8 @@ void SrsRtpRingBuffer::update(uint16_t seq, bool startup, uint16_t& nack_low, ui
         // When startup, we may receive packets in chaos order.
         // Because we don't know the ISN(initiazlie sequence number), the first packet
         // we received maybe no the first packet client sent.
-        if (startup) {
-            nack_low = seq + 1;
-            nack_high = low_;
-            low_ = seq;
-        }
+        // @remark We only log a warning, because it seems ok for publisher.
+        srs_warn("too old seq %u, range [%u, %u]", seq, low_, high_);
     }
 }
 
@@ -234,7 +231,6 @@ SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq)
 
 SrsRtpQueue::SrsRtpQueue(int capacity)
 {
-    nn_collected_frames = 0;
     queue_ = new SrsRtpRingBuffer(capacity);
 
     jitter_ = 0;
@@ -288,9 +284,9 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
     if (!nack_info) {
         ++num_of_packet_received_;
         uint16_t nack_low = 0, nack_high = 0;
-        queue_->update(seq, !nn_collected_frames, nack_low, nack_high);
+        queue_->update(seq, nack_low, nack_high);
         if (srs_rtp_seq_distance(nack_low, nack_high)) {
-            srs_trace("update nack seq=%u, startup=%d, range [%u, %u]", seq, !nn_collected_frames, nack_low, nack_high);
+            srs_trace("update seq=%u, nack range [%u, %u]", seq, nack_low, nack_high);
             insert_into_nack_list(nack, nack_low, nack_high);
         }
     }
@@ -374,8 +370,6 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
             break;
         }
 
-        // OK, collect packet to frame.
-        nn_collected_frames++;
         frames.push_back(pkt);
     }
 
@@ -474,7 +468,6 @@ void SrsRtpVideoQueue::collect_frames(SrsRtpNackForReceiver* nack, std::vector<S
             return;
         }
 
-        nn_collected_frames++;
         frames.push_back(pkt);
     }
 

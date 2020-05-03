@@ -146,7 +146,7 @@ public:
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
     // Update the sequence, got the nack range by [low, high].
-    void update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high);
+    void update(uint16_t seq, uint16_t& nack_low, uint16_t& nack_high);
     // Get the packet by seq.
     SrsRtpPacket2* at(uint16_t seq);
 };
@@ -163,7 +163,6 @@ private:
     uint64_t number_of_packet_lossed_;
 protected:
     SrsRtpRingBuffer* queue_;
-    uint64_t nn_collected_frames;
 public:
     SrsRtpQueue(int capacity);
     virtual ~SrsRtpQueue();
