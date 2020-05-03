@@ -165,11 +165,6 @@ if [ $SRS_SENDMMSG = YES ]; then
 else
     srs_undefine_macro "SRS_SENDMMSG" $SRS_AUTO_HEADERS_H
 fi
-if [ $SRS_HAS_SENDMMSG = YES ]; then
-    srs_define_macro "SRS_HAS_SENDMMSG" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_HAS_SENDMMSG" $SRS_AUTO_HEADERS_H
-fi
 
 if [ $SRS_DEBUG = YES ]; then
     srs_define_macro "SRS_DEBUG" $SRS_AUTO_HEADERS_H

@@ -26,6 +26,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <signal.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -788,9 +789,9 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 #ifdef SRS_RTC
 uint32_t SrsGoApiRtcPlay::ssrc_num = 0;
 
-SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* rtc_svr)
+SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
-    rtc_server = rtc_svr;
+    server_ = server;
 }
 
 SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
@@ -917,16 +918,26 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         request.vhost = parsed_vhost->arg0();
     }
 
-    // TODO: FIXME: Maybe need a better name?
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, request.vhost.c_str());
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = NULL;
-    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, false, &rtc_session)) != srs_success) {
+    SrsRtcSession* session = NULL;
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
     if (encrypt.empty()) {
-        rtc_session->set_encrypt(_srs_config->get_rtc_server_encrypt());
+        session->set_encrypt(_srs_config->get_rtc_server_encrypt());
     } else {
-        rtc_session->set_encrypt(encrypt != "false");
+        session->set_encrypt(encrypt != "false");
     }
 
     ostringstream os;
@@ -944,9 +955,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", rtc_session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -994,7 +1005,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
     local_sdp.addrtype_        = "IP4";
     local_sdp.unicast_address_ = "0.0.0.0";
 
-    local_sdp.session_name_ = "live_play_session";
+    local_sdp.session_name_ = "SRSPlaySession";
 
     local_sdp.msid_semantic_ = "WMS";
     local_sdp.msids_.push_back(app + "/" + stream);
@@ -1016,8 +1027,14 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                // Only choose one match opus codec.
                 local_media_desc.payload_types_.push_back(*iter);
+                SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                // TODO: FIXME: Only support some transport algorithms.
+                vector<string> rtcp_fb;
+                payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                // Only choose one match opus codec.
                 break;
             }
 
@@ -1039,8 +1056,14 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
                 // Try to pick the "best match" H.264 payload type.
                 if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
-                    // Only choose first match H.264 payload type.
                     local_media_desc.payload_types_.push_back(*iter);
+                    SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                    // TODO: FIXME: Only support some transport algorithms.
+                    vector<string> rtcp_fb;
+                    payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                    // Only choose first match H.264 payload type.
                     break;
                 }
 
@@ -1088,6 +1111,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
         local_media_desc.rtcp_mux_ = true;
         local_media_desc.rtcp_rsize_ = true;
 
+        // TODO: FIXME: Avoid SSRC collision.
+        if (!ssrc_num) {
+            ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
+        }
+
         if (local_media_desc.sendonly_ || local_media_desc.sendrecv_) {
             SrsSSRCInfo ssrc_info;
             ssrc_info.ssrc_ = ++ssrc_num;
@@ -1102,9 +1130,9 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
 
 uint32_t SrsGoApiRtcPublish::ssrc_num = 0;
 
-SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* rtc_svr)
+SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
-    rtc_server = rtc_svr;
+    server_ = server;
 }
 
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
@@ -1226,10 +1254,20 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         request.vhost = parsed_vhost->arg0();
     }
 
-    // TODO: FIXME: Maybe need a better name?
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, request.vhost.c_str());
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* rtc_session = NULL;
-    if ((err = rtc_server->create_rtc_session(&request, remote_sdp, local_sdp, eip, true, &rtc_session)) != srs_success) {
+    SrsRtcSession* session = NULL;
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
 
@@ -1240,7 +1278,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     string local_sdp_str = os.str();
 
-    srs_trace("local_sdp=%s", local_sdp_str.c_str());
+    srs_verbose("local_sdp=%s", local_sdp_str.c_str());
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
@@ -1248,9 +1286,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(rtc_session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", rtc_session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -1298,7 +1336,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
     local_sdp.addrtype_        = "IP4";
     local_sdp.unicast_address_ = "0.0.0.0";
 
-    local_sdp.session_name_ = "live_publish_session";
+    local_sdp.session_name_ = "SRSPublishSession";
 
     local_sdp.msid_semantic_ = "WMS";
     local_sdp.msids_.push_back(app + "/" + stream);
@@ -1320,8 +1358,14 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                // Only choose one match opus codec.
                 local_media_desc.payload_types_.push_back(*iter);
+                SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                // TODO: FIXME: Only support some transport algorithms.
+                vector<string> rtcp_fb;
+                payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                // Only choose one match opus codec.
                 break;
             }
 
@@ -1344,8 +1388,14 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
 
                 // Try to pick the "best match" H.264 payload type.
                 if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
-                    // Only choose first match H.264 payload type.
                     local_media_desc.payload_types_.push_back(*iter);
+                    SrsMediaPayloadType& payload_type = local_media_desc.payload_types_.back();
+
+                    // TODO: FIXME: Only support some transport algorithms.
+                    vector<string> rtcp_fb;
+                    payload_type.rtcp_fb_.swap(rtcp_fb);
+
+                    // Only choose first match H.264 payload type.
                     break;
                 }
 
@@ -1362,7 +1412,8 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.264 payload type");
             }
 
-            local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+            // TODO: FIXME: Support RRTR?
+            //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
         local_media_desc.mid_ = remote_media_desc.mid_;
@@ -1384,24 +1435,12 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
             local_media_desc.session_info_.setup_ = "passive";
         }
 
-        local_sdp.media_descs_.back().session_info_.ice_options_ = "trickle";
-    
-        if (remote_media_desc.sendonly_) {
-            local_media_desc.recvonly_ = true;
-        } else if (remote_media_desc.recvonly_) {
-            local_media_desc.sendonly_ = true;
-        } else if (remote_media_desc.sendrecv_) {
-            local_media_desc.sendrecv_ = true;
-        }
-
         local_media_desc.rtcp_mux_ = true;
 
-        if (local_media_desc.recvonly_ || local_media_desc.sendrecv_) {
-            SrsSSRCInfo ssrc_info;
-            ssrc_info.ssrc_ = ++ssrc_num;
-            ssrc_info.cname_ = "test_sdp_cname";
-            local_media_desc.ssrc_infos_.push_back(ssrc_info);
-        }
+        // For publisher, we are always sendonly.
+        local_media_desc.sendonly_ = false;
+        local_media_desc.recvonly_ = true;
+        local_media_desc.sendrecv_ = false;
     }
 
     return err;

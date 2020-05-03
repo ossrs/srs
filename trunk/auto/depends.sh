@@ -347,7 +347,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
     fi
     # For UDP sendmmsg, disable it if not suppported.
-    if [[ $SRS_HAS_SENDMMSG == YES ]]; then
+    if [[ $SRS_SENDMMSG == YES ]]; then
         echo "Build ST with UDP sendmmsg support."
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
     else

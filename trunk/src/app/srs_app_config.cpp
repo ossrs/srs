@@ -4679,7 +4679,7 @@ srs_utime_t SrsConfig::get_stream_caster_gb28181_sip_query_catalog_interval(SrsC
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
-int SrsConfig::get_rtc_server_enabled()
+bool SrsConfig::get_rtc_server_enabled()
 {
     SrsConfDirective* conf = root->get("rtc_server");
     return get_rtc_server_enabled(conf);
@@ -4781,7 +4781,7 @@ bool SrsConfig::get_rtc_server_encrypt()
 
 int SrsConfig::get_rtc_server_sendmmsg()
 {
-#if !defined(SRS_HAS_SENDMMSG) || !defined(SRS_SENDMMSG)
+#if !defined(SRS_SENDMMSG)
     return 1;
 #else
     static int DEFAULT = 256;

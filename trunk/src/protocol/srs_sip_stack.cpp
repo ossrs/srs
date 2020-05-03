@@ -635,9 +635,9 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                 std::vector<std::string> vec_device_status = srs_string_split(body_map["Response@DeviceList@Item@Status"], ",");
                  
                 //map key:devicd_id value:status 
-                for(int i=0 ; i<vec_device_id.size(); i++){
+                for(int i=0 ; i< (int)vec_device_id.size(); i++){
                     std::string status = "";
-                    if (vec_device_id.size() > i) {
+                    if ((int)vec_device_id.size() > i) {
                         status = vec_device_status.at(i);
                     }
               
@@ -653,7 +653,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
             if (cmdtype == "Keepalive"){
                 //TODO: ????
                 std::vector<std::string> vec_device_id = srs_string_split(body_map["Notify@Info@DeviceID"], ",");
-                for(int i=0; i<vec_device_id.size(); i++){
+                for(int i=0; i< (int)vec_device_id.size(); i++){
                     //req->device_list_map[vec_device_id.at(i)] = "OFF";
                 }
             }else{

@@ -118,11 +118,9 @@ SRS_EXTRA_FLAGS=
 #
 #####################################################################################
 # Performance optimize.
-SRS_NASM=YES
-SRS_SRTP_ASM=YES
-SRS_SENDMMSG=YES
-SRS_HAS_SENDMMSG=YES
-SRS_DETECT_SENDMMSG=YES
+SRS_NASM=NO
+SRS_SRTP_ASM=NO
+SRS_SENDMMSG=NO
 SRS_DEBUG=NO
 
 #####################################################################################
@@ -257,8 +255,6 @@ function parse_user_option() {
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
 
-        --detect-sendmmsg)              if [[ $value == off ]]; then SRS_DETECT_SENDMMSG=NO; else SRS_DETECT_SENDMMSG=YES; fi    ;;
-        --has-sendmmsg)                 if [[ $value == off ]]; then SRS_HAS_SENDMMSG=NO; else SRS_HAS_SENDMMSG=YES; fi    ;;
         --sendmmsg)                     if [[ $value == off ]]; then SRS_SENDMMSG=NO; else SRS_SENDMMSG=YES; fi    ;;
 
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
@@ -613,29 +609,9 @@ function apply_user_detail_options() {
         SRS_SRTP_ASM=NO
     fi
 
-    # Detect whether has sendmmsg.
-    # @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
-    if [[ $SRS_DETECT_SENDMMSG == YES ]]; then
-        mkdir -p ${SRS_OBJS} &&
-        echo "  #include <sys/socket.h>           " > ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        echo "  int main(int argc, char** argv) { " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        echo "    struct mmsghdr hdr;             " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        echo "    hdr.msg_len = 0;                " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        echo "    return 0;                       " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        echo "  }                                 " >> ${SRS_OBJS}/_tmp_sendmmsg_detect.c
-        ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_sendmmsg_detect.c -D_GNU_SOURCE -o /dev/null >/dev/null 2>&1
-        ret=$?; rm -f ${SRS_OBJS}/_tmp_sendmmsg_detect.c;
-        if [[ $ret -ne 0 ]]; then
-            SRS_HAS_SENDMMSG=NO
-        fi
-    fi
-
-    # If system has no sendmmsg, disable sendmmsg.
-    if [[ $SRS_HAS_SENDMMSG == NO ]]; then
-        if [[ $SRS_SENDMMSG == YES ]]; then
-            echo "Disable UDP sendmmsg automatically"
-            SRS_SENDMMSG=NO
-        fi
+    if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
+        echo "Disable sendmmsg for OSX"
+        SRS_SENDMMSG=NO
     fi
 }
 apply_user_detail_options
@@ -666,8 +642,6 @@ function regenerate_options() {
     if [ $SRS_NASM = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=off"; fi
     if [ $SRS_SRTP_ASM = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=off"; fi
     if [ $SRS_SENDMMSG = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=off"; fi
-    if [ $SRS_DETECT_SENDMMSG = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --detect-sendmmsg=on"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --detect-sendmmsg=off"; fi
-    if [ $SRS_HAS_SENDMMSG = YES ]; then    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --has-sendmmsg=on"; else    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --has-sendmmsg=off"; fi
     if [ $SRS_CLEAN = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=off"; fi
     if [ $SRS_GPERF = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=off"; fi
     if [ $SRS_GPERF_MC = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=off"; fi

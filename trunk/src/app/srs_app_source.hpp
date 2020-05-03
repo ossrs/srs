@@ -551,7 +551,7 @@ private:
     srs_utime_t die_at;
 #ifdef SRS_RTC
 private:
-    SrsRtcPublisher* rtc_publisher;
+    SrsRtcPublisher* rtc_publisher_;
 #endif
 public:
     SrsSource();
@@ -599,12 +599,14 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 public:
-    // Create consumer and dumps packets in cache.
+    // Create consumer
     // @param consumer, output the create consumer.
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
+    // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
@@ -619,12 +621,10 @@ public:
     virtual std::string get_curr_origin();
 #ifdef SRS_RTC
 public:
-    // Get the cached meta, as such the sps/pps.
+    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
     SrsMetaCache* cached_meta();
-    // Request keyframe for new client.
-    // TODO: FIXME: Maybe we could cache the keyframe.
-    // TODO: FIXME: Maybe we should only response for the new clients.
-    void request_keyframe();
+    // Get and set the publisher, passed to consumer to process requests such as PLI.
+    SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
     // When got RTC audio message, which is encoded in opus.
     // TODO: FIXME: Merge with on_audio.

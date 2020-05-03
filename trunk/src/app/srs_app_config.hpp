@@ -521,7 +521,7 @@ public:
 
 // rtc section
 public:
-    virtual int get_rtc_server_enabled();
+    virtual bool get_rtc_server_enabled();
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();

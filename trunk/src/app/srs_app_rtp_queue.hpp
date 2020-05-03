@@ -66,9 +66,9 @@ struct SrsRtpNackInfo
 //      distance(low=3, high=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
 //      distance(low=65532, high=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
 // For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
-inline bool srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
+inline int16_t srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
 {
-    return ((int16_t)(high - low)) > 0;
+    return (int16_t)(high - low);
 }
 
 class SrsRtpNackForReceiver
@@ -76,7 +76,7 @@ class SrsRtpNackForReceiver
 private:
     struct SeqComp {
         bool operator()(const uint16_t& low, const uint16_t& high) const {
-            return srs_rtp_seq_distance(low, high);
+            return srs_rtp_seq_distance(low, high) > 0;
         }
     };
 private:
@@ -124,37 +124,34 @@ private:
     uint64_t nn_seq_flip_backs;
     // Whether initialized, because we use uint16 so we can't use -1.
     bool initialized_;
-private:
-    // Current position we are working at.
-    uint16_t low_;
-    uint16_t high_;
+public:
+    // The begin iterator for ring buffer.
+    // For example, when got 1 elems, the begin is 0.
+    uint16_t begin;
+    // The end iterator for ring buffer.
+    // For example, when got 1 elems, the end is 1.
+    uint16_t end;
 public:
     SrsRtpRingBuffer(int capacity);
     virtual ~SrsRtpRingBuffer();
 public:
-    // Move the position of buffer.
-    uint16_t low();
-    uint16_t high();
+    // Whether the ring buffer is empty.
+    bool empty();
+    // Get the count of elems in ring buffer.
+    int size();
+    // Move the low position of buffer to seq.
     void advance_to(uint16_t seq);
     // Free the packet at position.
     void set(uint16_t at, SrsRtpPacket2* pkt);
     void remove(uint16_t at);
-    // Directly reset range [low, high] to NULL.
-    void reset(uint16_t low, uint16_t high);
+    // Directly reset range [first, last) to NULL.
+    void reset(uint16_t first, uint16_t last);
     // Whether queue overflow or heavy(too many packets and need clear).
     bool overflow();
-    bool is_heavy();
-    // Get the next start packet of frame.
-    // @remark If not found, return the low_, which should never be the "next" one,
-    // because it MAY or NOT current start packet of frame but never be the next.
-    uint16_t next_start_of_frame();
-    // Get the next seq of keyframe.
-    // @remark Return low_ if not found.
-    uint16_t next_keyframe();
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
-    // Update the sequence, got the nack range by [low, high].
-    void update(uint16_t seq, bool startup, uint16_t& nack_low, uint16_t& nack_high);
+    // Update the sequence, got the nack range by [first, last).
+    void update(uint16_t seq, uint16_t& nack_first, uint16_t& nack_last);
     // Get the packet by seq.
     SrsRtpPacket2* at(uint16_t seq);
 };
@@ -171,31 +168,20 @@ private:
     uint64_t number_of_packet_lossed_;
 protected:
     SrsRtpRingBuffer* queue_;
-    uint64_t nn_collected_frames;
-    std::vector<std::vector<SrsRtpPacket2*> > frames_;
-    const char* tag_;
-private:
-    bool request_key_frame_;
 public:
-    SrsRtpQueue(const char* tag, int capacity);
+    SrsRtpQueue(int capacity);
     virtual ~SrsRtpQueue();
 public:
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
-    // TODO: FIXME: Should merge FU-A to RAW, then we can return RAW payloads.
-    void collect_frames(std::vector<std::vector<SrsRtpPacket2*> >& frames);
-    bool should_request_key_frame();
-    void notify_drop_seq(uint16_t seq);
-    void notify_nack_list_full();
-    void request_keyframe();
+    virtual void notify_drop_seq(uint16_t seq) = 0;
+    virtual void notify_nack_list_full() = 0;
 public:
     uint32_t get_extended_highest_sequence();
     uint8_t get_fraction_lost();
     uint32_t get_cumulative_number_of_packets_lost();
     uint32_t get_interarrival_jitter();
 private:
-    void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t seq_start, uint16_t seq_end);
-protected:
-    virtual void collect_packet(SrsRtpNackForReceiver* nack) = 0;
+    void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t first, uint16_t last);
 };
 
 class SrsRtpAudioQueue : public SrsRtpQueue
@@ -204,22 +190,31 @@ public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
 public:
-    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
-protected:
-    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+    virtual void notify_drop_seq(uint16_t seq);
+    virtual void notify_nack_list_full();
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 
 class SrsRtpVideoQueue : public SrsRtpQueue
 {
+private:
+    bool request_key_frame_;
 public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
 public:
+    virtual void notify_drop_seq(uint16_t seq);
+    virtual void notify_nack_list_full();
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
-protected:
-    virtual void collect_packet(SrsRtpNackForReceiver* nack);
+    virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
+    bool should_request_key_frame();
+    void request_keyframe();
 private:
-    virtual void do_collect_packet(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
+    virtual void on_overflow(SrsRtpNackForReceiver* nack);
+    virtual void collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2** ppkt);
+    virtual void covert_frame(std::vector<SrsRtpPacket2*>& frame, SrsRtpPacket2** ppkt);
+    uint16_t next_start_of_frame(uint16_t seq);
+    uint16_t next_keyframe();
 };
 
 #endif
