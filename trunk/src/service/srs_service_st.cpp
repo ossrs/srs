@@ -414,51 +414,7 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
 
 int srs_sendmmsg(srs_netfd_t stfd, struct srs_mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
 {
-#if !defined(SRS_SENDMMSG)
-    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
-    for (int i = 0; i < (int)vlen; ++i) {
-        struct srs_mmsghdr* p = msgvec + i;
-        int n = srs_sendmsg(stfd, &p->msg_hdr, flags, timeout);
-        if (n < 0) {
-            // An error is returned only if no datagrams could be sent.
-            if (i == 0) {
-                return n;
-            }
-            return i + 1;
-        }
-
-        p->msg_len = n;
-    }
-    // Returns the number of messages sent from msgvec; if this is less than vlen, the caller can retry with a
-    // further sendmmsg() call to send the remaining messages.
-    return vlen;
-#else
-    if (vlen == 1) {
-        #if 1
-            int r0 = srs_sendmsg(stfd, &msgvec->msg_hdr, flags, timeout);
-            if (r0 < 0) {
-                return r0;
-            }
-            msgvec->msg_len = r0;
-        #else
-            msgvec->msg_len = 0;
-
-            int tolen = (int)msgvec->msg_hdr.msg_namelen;
-            const struct sockaddr* to = (const struct sockaddr*)msgvec->msg_hdr.msg_name;
-            for (int i = 0; i < (int)msgvec->msg_hdr.msg_iovlen; i++) {
-                iovec* iov = msgvec->msg_hdr.msg_iov + i;
-                int r0 = srs_sendto(stfd, (void*)iov->iov_base, (int)iov->iov_len, to, tolen, timeout);
-                if (r0 < 0) {
-                    return r0;
-                }
-                msgvec->msg_len += r0;
-            }
-        #endif
-
-        return 1;
-    }
-    return st_sendmmsg((st_netfd_t)stfd, (void*)msgvec, vlen, flags, (st_utime_t)timeout);
-#endif
+    return st_sendmmsg((st_netfd_t)stfd, (struct st_mmsghdr*)msgvec, vlen, flags, (st_utime_t)timeout);
 }
 
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)

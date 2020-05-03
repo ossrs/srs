@@ -608,6 +608,11 @@ function apply_user_detail_options() {
         echo "Disable SRTP ASM, because NASM is disabled."
         SRS_SRTP_ASM=NO
     fi
+
+    if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
+        echo "Disable sendmmsg for OSX"
+        SRS_SENDMMSG=NO
+    fi
 }
 apply_user_detail_options
 

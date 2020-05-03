@@ -742,12 +742,9 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
     return n;
 }
 
-
-int st_sendmmsg(st_netfd_t fd, void *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
+int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
 {
-#if !defined(MD_HAVE_SENDMMSG) || !defined(_GNU_SOURCE)
-    return -1;
-#else
+#if defined(MD_HAVE_SENDMMSG) && defined(_GNU_SOURCE)
     int n;
     int left;
     struct mmsghdr *p;
@@ -774,6 +771,28 @@ int st_sendmmsg(st_netfd_t fd, void *msgvec, unsigned int vlen, int flags, st_ut
         return n;
     }
     return (int)vlen - left;
+#else
+    struct st_mmsghdr *p;
+    int i, n;
+
+    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+    for (i = 0; i < (int)vlen; ++i) {
+        p = msgvec + i;
+        n = st_sendmsg(fd, &p->msg_hdr, flags, timeout);
+        if (n < 0) {
+            // An error is returned only if no datagrams could be sent.
+            if (i == 0) {
+                return n;
+            }
+            return i + 1;
+        }
+
+        p->msg_len = n;
+    }
+
+    // Returns the number of messages sent from msgvec; if this is less than vlen, the caller can retry with a
+    // further sendmmsg() call to send the remaining messages.
+    return vlen;
 #endif
 }
 
