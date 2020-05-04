@@ -620,6 +620,7 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
     video_queue_ = new SrsRtpRingBuffer(1000);
 
     nn_simulate_nack_drop = 0;
+    nack_enabled_ = false;
 
     _srs_config->subscribe(this);
 }
@@ -646,8 +647,10 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
     gso = _srs_config->get_rtc_server_gso();
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
     max_padding = _srs_config->get_rtc_server_padding();
-    srs_trace("RTC sender video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d), padding=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus, max_padding);
+    // TODO: FIXME: Support reload.
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
+    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d), padding=%d, nack=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus, max_padding, nack_enabled_);
 
     return err;
 }
@@ -1007,7 +1010,7 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcOutgoingPackets& packets)
         }
 
         // Put final RTP packet to NACK/ARQ queue.
-        if (true) {
+        if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
             nack->rtp_header = packet->rtp_header;
             nack->padding = packet->padding;
@@ -1040,11 +1043,7 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcOutgoingPackets& packets)
 
         // For NACK simulator, drop packet.
         if (nn_simulate_nack_drop) {
-            SrsRtpHeader* h = &packet->rtp_header;
-            srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
-                h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
-                (int)iov->iov_len);
-            nn_simulate_nack_drop--;
+            simulate_drop_packet(&packet->rtp_header, (int)iov->iov_len);
             iov->iov_len = 0;
             continue;
         }
@@ -1184,7 +1183,7 @@ srs_error_t SrsRtcPlayer::send_packets_gso(SrsRtcOutgoingPackets& packets)
         }
 
         // Put final RTP packet to NACK/ARQ queue.
-        if (true) {
+        if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
             nack->rtp_header = packet->rtp_header;
             nack->padding = packet->padding;
@@ -1542,6 +1541,15 @@ void SrsRtcPlayer::simulate_nack_drop(int nn)
     nn_simulate_nack_drop = nn;
 }
 
+void SrsRtcPlayer::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
+{
+    srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
+        h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
+        nn_bytes);
+
+    nn_simulate_nack_drop--;
+}
+
 SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 {
     report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
@@ -1554,6 +1562,7 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 
     source = NULL;
     nn_simulate_nack_drop = 0;
+    nack_enabled_ = false;
 }
 
 SrsRtcPublisher::~SrsRtcPublisher()
@@ -1580,7 +1589,11 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, SrsReque
     audio_ssrc = assrc;
     req = r;
 
-    srs_verbose("video_ssrc=%u, audio_ssrc=%u", video_ssrc, audio_ssrc);
+    // TODO: FIXME: Support reload.
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
+
+    srs_trace("RTC player video(ssrc=%u), audio(ssrc=%u), nack=%d",
+        video_ssrc, audio_ssrc, nack_enabled_);
 
     if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
@@ -1788,6 +1801,12 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssr
         stream.write_2bytes(pid);
         stream.write_2bytes(blp);
 
+        if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
+            // Ignore any error for black-hole.
+            void* p = stream.data(); int len = stream.pos(); SrsRtcSession* s = session_;
+            srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+        }
+
         char protected_buf[kRtpPacketSize];
         int nb_protected_buf = stream.pos();
 
@@ -1970,11 +1989,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
-        SrsRtpHeader* h = &pkt->rtp_header;
-        srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
-            h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
-            (int)nb_buf);
-        nn_simulate_nack_drop--;
+        simulate_drop_packet(&pkt->rtp_header, nb_buf);
         srs_freep(pkt);
         return err;
     }
@@ -2016,14 +2031,23 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Error check.
-    audio_queue_->consume(audio_nack_, pkt);
-
-    check_send_nacks(audio_nack_, audio_ssrc);
-
-    // Collect all audio frames.
     std::vector<SrsRtpPacket2*> frames;
-    audio_queue_->collect_frames(audio_nack_, frames);
+
+    if (nack_enabled_) {
+        // TODO: FIXME: Error check.
+        audio_queue_->consume(audio_nack_, pkt);
+
+        check_send_nacks(audio_nack_, audio_ssrc);
+
+        // Collect all audio frames.
+        audio_queue_->collect_frames(audio_nack_, frames);
+    } else {
+        // TODO: FIXME: Error check.
+        audio_queue_->consume(NULL, pkt);
+
+        // Collect all audio frames.
+        audio_queue_->collect_frames(NULL, frames);
+    }
 
     for (size_t i = 0; i < frames.size(); ++i) {
         SrsRtpPacket2* frame = frames[i];
@@ -2075,19 +2099,23 @@ srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
 
 srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 {
-    // TODO: FIXME: Error check.
-    video_queue_->consume(video_nack_, pkt);
-
-    if (video_queue_->should_request_key_frame()) {
-        // TODO: FIXME: Check error.
-        send_rtcp_fb_pli(video_ssrc);
-    }
-
-    check_send_nacks(video_nack_, video_ssrc);
-
-    // Collect video frames.
     std::vector<SrsRtpPacket2*> frames;
-    video_queue_->collect_frames(video_nack_, frames);
+
+    if (nack_enabled_) {
+        // TODO: FIXME: Error check.
+        video_queue_->consume(video_nack_, pkt);
+
+        check_send_nacks(video_nack_, video_ssrc);
+
+        // Collect video frames.
+        video_queue_->collect_frames(video_nack_, frames);
+    } else {
+        // TODO: FIXME: Error check.
+        video_queue_->consume(NULL, pkt);
+
+        // Collect video frames.
+        video_queue_->collect_frames(NULL, frames);
+    }
 
     for (size_t i = 0; i < frames.size(); ++i) {
         SrsRtpPacket2* frame = frames[i];
@@ -2096,6 +2124,11 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
         on_video_frame(frame);
 
         srs_freep(frame);
+    }
+
+    if (video_queue_->should_request_key_frame()) {
+        // TODO: FIXME: Check error.
+        send_rtcp_fb_pli(video_ssrc);
     }
 
     return srs_success;
@@ -2230,6 +2263,15 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
 void SrsRtcPublisher::simulate_nack_drop(int nn)
 {
     nn_simulate_nack_drop = nn;
+}
+
+void SrsRtcPublisher::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
+{
+    srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
+        h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
+        nn_bytes);
+
+    nn_simulate_nack_drop--;
 }
 
 SrsRtcSession::SrsRtcSession(SrsRtcServer* s)

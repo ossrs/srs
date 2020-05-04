@@ -192,6 +192,7 @@ public:
 public:
     virtual void notify_drop_seq(uint16_t seq);
     virtual void notify_nack_list_full();
+    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 

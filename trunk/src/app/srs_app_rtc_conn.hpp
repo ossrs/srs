@@ -227,6 +227,8 @@ private:
     srs_utime_t mw_sleep;
     int mw_msgs;
     bool realtime;
+    // Whether enabled nack.
+    bool nack_enabled_;
 public:
     SrsRtcPlayer(SrsRtcSession* s, int parent_cid);
     virtual ~SrsRtcPlayer();
@@ -260,6 +262,8 @@ private:
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);
+private:
+    void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
 };
 
 class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
@@ -278,6 +282,8 @@ private:
 private:
     SrsRequest* req;
     SrsSource* source;
+    // Whether enabled nack.
+    bool nack_enabled_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -310,6 +316,8 @@ public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     void simulate_nack_drop(int nn);
+private:
+    void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
 };
 
 class SrsRtcSession

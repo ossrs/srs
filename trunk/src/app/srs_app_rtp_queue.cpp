@@ -58,8 +58,7 @@ SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
 void SrsRtpNackForReceiver::insert(uint16_t seq)
 {
     // FIXME: full, drop packet, and request key frame.
-    SrsRtpNackInfo& nack_info = queue_[seq];
-    (void)nack_info;
+    queue_[seq] = SrsRtpNackInfo();
 }
 
 void SrsRtpNackForReceiver::remove(uint16_t seq)
@@ -88,12 +87,12 @@ void SrsRtpNackForReceiver::check_queue_size()
 void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
     srs_utime_t now = srs_update_system_time();
-    int interval = now - pre_check_time_;
+    srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_interval / 2) {
         return;
     }
-
     pre_check_time_ = now;
+
     std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.begin();
     while (iter != queue_.end()) {
         const uint16_t& seq = iter->first;
@@ -205,8 +204,8 @@ void SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
 
     // Normal sequence, seq follows high_.
     if (srs_rtp_seq_distance(end, seq) >= 0) {
-        nack_first = end + 1;
-        nack_last = seq + 1;
+        nack_first = end;
+        nack_last = seq;
 
         // When distance(seq,high_)>0 and seq<high_, seq must flip back,
         // for example, high_=65535, seq=1, distance(65535,1)>0 and 1<65535.
@@ -260,7 +259,14 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
     srs_utime_t now = srs_update_system_time();
 
     uint16_t seq = pkt->rtp_header.get_sequence();
-    SrsRtpNackInfo* nack_info = nack->find(seq);
+
+    SrsRtpNackInfo* nack_info = NULL;
+
+    // If no NACK, disable nack.
+    if (nack) {
+        nack_info = nack->find(seq);
+    }
+
     if (nack_info) {
         int nack_rtt = nack_info->req_nack_count_ ? ((now - nack_info->pre_req_nack_time_) / SRS_UTIME_MILLISECONDS) : 0;
         (void)nack_rtt;
@@ -289,7 +295,7 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
         ++num_of_packet_received_;
         uint16_t nack_first = 0, nack_last = 0;
         queue_->update(seq, nack_first, nack_last);
-        if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
+        if (nack && srs_rtp_seq_distance(nack_first, nack_last) > 0) {
             srs_trace("update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
             insert_into_nack_list(nack, nack_first, nack_last);
         }
@@ -332,6 +338,10 @@ uint32_t SrsRtpQueue::get_interarrival_jitter()
 
 void SrsRtpQueue::insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t first, uint16_t last)
 {
+    if (!nack) {
+        return;
+    }
+
     for (uint16_t s = first; s != last; ++s) {
         nack->insert(s);
         ++number_of_packet_lossed_;
@@ -365,12 +375,27 @@ void SrsRtpAudioQueue::notify_nack_list_full()
     queue_->advance_to(queue_->end);
 }
 
+srs_error_t SrsRtpAudioQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt)
+{
+    return SrsRtpQueue::consume(nack, pkt);
+}
+
 void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtpPacket2*>& frames)
 {
     // When done, next point to the next available packet.
     uint16_t next = queue_->begin;
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
+
+        // If nack disabled, we ignore any empty packet.
+        if (!nack) {
+            if (!pkt) {
+                continue;
+            }
+
+            frames.push_back(pkt);
+            continue;
+        }
 
         // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
@@ -391,6 +416,7 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
     }
 
     // For audio, if overflow, clear all packets.
+    // TODO: FIXME: Should notify nack?
     if (queue_->overflow()) {
         queue_->advance_to(queue_->end);
     }
@@ -497,7 +523,9 @@ void SrsRtpVideoQueue::on_overflow(SrsRtpNackForReceiver* nack)
     srs_trace("on overflow, remove range [%u, %u, %u]", queue_->begin, next, queue_->end);
 
     for (uint16_t s = queue_->begin; s != next; ++s) {
-        nack->remove(s);
+        if (nack) {
+            nack->remove(s);
+        }
         queue_->remove(s);
     }
 
@@ -515,6 +543,27 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
 
+        // TODO: FIXME: We should skip whole packet.
+        // If nack disabled, we ignore any empty packet.
+        if (!nack) {
+            if (!pkt) {
+                continue;
+            }
+
+            if (frame.empty() && !pkt->video_is_first_packet) {
+                continue;
+            }
+
+            frame.push_back(pkt);
+
+            if (pkt->rtp_header.get_marker() || pkt->video_is_last_packet) {
+                found = true;
+                next++;
+                break;
+            }
+            continue;
+        }
+
         // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
@@ -523,7 +572,7 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
         }
 
         // Ignore when the first packet not the start.
-        if (next == queue_->begin && !pkt->video_is_first_packet) {
+        if (frame.empty() && !pkt->video_is_first_packet) {
             return;
         }
 
