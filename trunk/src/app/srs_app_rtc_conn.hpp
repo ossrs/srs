@@ -278,6 +278,8 @@ private:
 private:
     SrsRequest* req;
     SrsSource* source;
+    // Simulators.
+    int nn_simulate_nack_drop;
 private:
     std::map<uint32_t, uint64_t> last_sender_report_sys_time;
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;

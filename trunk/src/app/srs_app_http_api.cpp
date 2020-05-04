@@ -967,7 +967,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         remote_sdp_str.length(), local_sdp_str.length());
@@ -1309,7 +1309,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         remote_sdp_str.length(), local_sdp_str.length());

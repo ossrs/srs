@@ -85,6 +85,9 @@ srs_error_t do_main(int argc, char** argv)
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
+
+    // For RTC to generating random ICE username.
+    ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
     
     // for gperf gmp or gcp,
     // should never enable it when not enabled for performance issue.

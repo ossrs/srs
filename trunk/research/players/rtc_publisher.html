@@ -48,6 +48,9 @@
     <label></label>
     <video id="rtc_media_player" width="320" autoplay muted></video>
 
+    <label></label>
+    SessionID: <span id='sessionid'></span>
+
     <footer>
         <p></p>
         <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2020</a></p>
@@ -125,6 +128,7 @@
                         if (data.code) {
                             reject(data); return;
                         }
+                        $('#sessionid').html(data.sessionid);
                         resolve(data.sdp);
                     }).fail(function(reason){
                         reject(reason);

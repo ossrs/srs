@@ -1553,6 +1553,7 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     audio_nack_ = new SrsRtpNackForReceiver(audio_queue_, 100 * 2 / 3);
 
     source = NULL;
+    nn_simulate_nack_drop = 0;
 }
 
 SrsRtcPublisher::~SrsRtcPublisher()
@@ -1967,6 +1968,17 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
         return srs_error_wrap(err, "decode rtp packet");
     }
 
+    // For NACK simulator, drop packet.
+    if (nn_simulate_nack_drop) {
+        SrsRtpHeader* h = &pkt->rtp_header;
+        srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
+            h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
+            (int)nb_buf);
+        nn_simulate_nack_drop--;
+        srs_freep(pkt);
+        return err;
+    }
+
     uint32_t ssrc = pkt->rtp_header.get_ssrc();
     if (ssrc == audio_ssrc) {
         return on_audio(pkt);
@@ -2217,7 +2229,7 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
 
 void SrsRtcPublisher::simulate_nack_drop(int nn)
 {
-    // TODO: FIXME: Implements it.
+    nn_simulate_nack_drop = nn;
 }
 
 SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
@@ -3359,16 +3371,17 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
-    // TODO: FIXME: Seems not random, please check it.
     std::string local_pwd = gen_random_str(32);
     std::string local_ufrag = "";
+    // TODO: FIXME: Rename for a better name, it's not an username.
     std::string username = "";
     while (true) {
         local_ufrag = gen_random_str(8);
 
         username = local_ufrag + ":" + remote_sdp.get_ice_ufrag();
-        if (!map_username_session.count(username))
+        if (!map_username_session.count(username)) {
             break;
+        }
     }
 
     int cid = _srs_context->get_id();
