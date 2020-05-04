@@ -350,6 +350,8 @@
 #define ERROR_RTC_API_BODY                  5019
 #define ERROR_RTC_SOURCE_BUSY               5020
 #define ERROR_RTC_DISABLED                  5021
+#define ERROR_RTC_NO_SESSION                5022
+#define ERROR_RTC_INVALID_PARAMS            5023
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.

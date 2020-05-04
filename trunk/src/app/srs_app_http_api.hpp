@@ -201,6 +201,19 @@ private:
     srs_error_t exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
+
+class SrsGoApiRtcNACK : public ISrsHttpHandler
+{
+private:
+    SrsRtcServer* server_;
+public:
+    SrsGoApiRtcNACK(SrsRtcServer* server);
+    virtual ~SrsGoApiRtcNACK();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+};
 #endif
 
 class SrsGoApiClients : public ISrsHttpHandler

@@ -344,7 +344,7 @@ int SrsUdpMuxSocket::get_peer_port() const
     return peer_port;
 }
 
-std::string SrsUdpMuxSocket::get_peer_id()
+std::string SrsUdpMuxSocket::peer_id()
 {
     char id_buf[1024];
     int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);

@@ -228,12 +228,12 @@ uint16_t SrsRtpHeader::get_sequence() const
     return sequence;
 }
 
-void SrsRtpHeader::set_timestamp(int64_t v)
+void SrsRtpHeader::set_timestamp(uint32_t v)
 {
-    timestamp = (uint32_t)v;
+    timestamp = v;
 }
 
-int64_t SrsRtpHeader::get_timestamp() const
+uint32_t SrsRtpHeader::get_timestamp() const
 {
     return timestamp;
 }
@@ -287,7 +287,6 @@ SrsRtpPacket2::SrsRtpPacket2()
     cache_payload = 0;
 
     original_bytes = NULL;
-    nn_original_bytes = 0;
     nn_original_payload = 0;
 }
 
@@ -353,12 +352,6 @@ SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 {
     decode_handler = h;
-}
-
-void SrsRtpPacket2::set_original_bytes(char* buf, int nn_buf)
-{
-    original_bytes = buf;
-    nn_original_bytes = nn_buf;
 }
 
 int SrsRtpPacket2::nb_bytes()

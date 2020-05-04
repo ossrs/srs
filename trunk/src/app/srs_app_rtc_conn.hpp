@@ -59,6 +59,7 @@ class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
+class SrsRtpRingBuffer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -198,25 +199,31 @@ public:
 class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
-    SrsCoroutine* trd;
     int _parent_cid;
-private:
+    SrsCoroutine* trd;
     SrsRtcSession* session_;
-    uint32_t video_ssrc;
-    uint32_t audio_ssrc;
-    uint16_t video_payload_type;
-    uint16_t audio_payload_type;
 private:
     // TODO: FIXME: How to handle timestamp overflow?
+    // Information for audio.
     uint32_t audio_timestamp;
     uint16_t audio_sequence;
-private:
+    uint32_t audio_ssrc;
+    uint16_t audio_payload_type;
+    // Information for video.
     uint16_t video_sequence;
+    uint16_t video_payload_type;
+    uint32_t video_ssrc;
+    // NACK ARQ ring buffer.
+    SrsRtpRingBuffer* audio_queue_;
+    SrsRtpRingBuffer* video_queue_;
+    // Simulators.
+    int nn_simulate_nack_drop;
 private:
+    // For merged-write and GSO.
     bool merge_nalus;
     bool gso;
     int max_padding;
-private:
+    // For merged-write messages.
     srs_utime_t mw_sleep;
     int mw_msgs;
     bool realtime;
@@ -250,6 +257,9 @@ private:
     srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets);
     srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+public:
+    void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+    void simulate_nack_drop(int nn);
 };
 
 class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
@@ -296,6 +306,8 @@ public:
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+public:
+    void simulate_nack_drop(int nn);
 };
 
 class SrsRtcSession
@@ -312,8 +324,8 @@ private:
     bool is_publisher_;
 private:
     SrsUdpMuxSocket* sendonly_skt;
-    std::string username;
-    std::string peer_id;
+    std::string username_;
+    std::string peer_id_;
 private:
     // The timeout of session, keep alive by STUN ping pong.
     srs_utime_t sessionStunTimeout;
@@ -344,14 +356,15 @@ public:
     void set_remote_sdp(const SrsSdp& sdp);
     SrsRtcSessionStateType get_session_state();
     void set_session_state(SrsRtcSessionStateType state);
-    std::string id() const;
-    std::string get_peer_id() const;
-    void set_peer_id(const std::string& id);
+    std::string id();
+    std::string peer_id();
+    void set_peer_id(std::string v);
+    std::string username();
     void set_encrypt(bool v);
     void switch_to_context();
     int context_id();
 public:
-    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id);
+    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);
@@ -363,6 +376,9 @@ public:
     srs_error_t start_publish();
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+public:
+    // Simulate the NACK to drop nn packets.
+    void simulate_nack_drop(int nn);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     srs_error_t on_rtcp_feedback(char* data, int nb_data);
@@ -444,8 +460,8 @@ public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* session);
     void check_and_clean_timeout_session();
     int nn_sessions();
-private:
     SrsRtcSession* find_session_by_username(const std::string& ufrag);
+private:
     SrsRtcSession* find_session_by_peer_id(const std::string& peer_id);
 // interface ISrsHourGlass
 public:

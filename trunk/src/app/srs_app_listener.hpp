@@ -173,7 +173,7 @@ public:
     int size();
     std::string get_peer_ip() const;
     int get_peer_port() const;
-    std::string get_peer_id();
+    std::string peer_id();
     SrsUdpMuxSocket* copy_sendonly();
     ISrsUdpSender* sender();
 };

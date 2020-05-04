@@ -203,7 +203,19 @@ srs_error_t SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage*
     obj->set("urls", urls);
     
     urls->set("api", SrsJsonAny::str("the api root"));
-    
+
+    if (true) {
+        SrsJsonObject* rtc = SrsJsonAny::object();
+        urls->set("rtc", rtc);
+
+        SrsJsonObject* v1 = SrsJsonAny::object();
+        rtc->set("v1", v1);
+
+        v1->set("play", SrsJsonAny::str("Play stream"));
+        v1->set("publish", SrsJsonAny::str("Publish stream"));
+        v1->set("nack", SrsJsonAny::str("Simulate the NACK"));
+    }
+
     return srs_api_response(w, r, obj->dumps());
 }
 
@@ -957,7 +969,8 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+        remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -1033,6 +1046,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                 // TODO: FIXME: Only support some transport algorithms.
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
+                for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    }
+                }
 
                 // Only choose one match opus codec.
                 break;
@@ -1062,6 +1080,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                     // TODO: FIXME: Only support some transport algorithms.
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
+                    for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
+                    }
 
                     // Only choose first match H.264 payload type.
                     break;
@@ -1288,7 +1311,8 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
 
-    srs_trace("RTC sid=%s, offer=%dB, answer=%dB", session->id().c_str(), remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+        remote_sdp_str.length(), local_sdp_str.length());
 
     return err;
 }
@@ -1364,6 +1388,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                 // TODO: FIXME: Only support some transport algorithms.
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
+                for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    }
+                }
 
                 // Only choose one match opus codec.
                 break;
@@ -1394,6 +1423,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                     // TODO: FIXME: Only support some transport algorithms.
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
+                    for (int j = 0; j < (int)rtcp_fb.size(); j++) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
+                    }
 
                     // Only choose first match H.264 payload type.
                     break;
@@ -1444,6 +1478,63 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
     }
 
     return err;
+}
+
+SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsRtcServer* server)
+{
+    server_ = server;
+}
+
+SrsGoApiRtcNACK::~SrsGoApiRtcNACK()
+{
+}
+
+srs_error_t SrsGoApiRtcNACK::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, res);
+
+    res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+
+    if ((err = do_serve_http(w, r, res)) != srs_success) {
+        srs_warn("RTC NACK err %s", srs_error_desc(err).c_str());
+        res->set("code", SrsJsonAny::integer(srs_error_code(err)));
+        srs_freep(err);
+    }
+
+    return srs_api_response(w, r, res->dumps());
+}
+
+srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+{
+    string username = r->query_get("username");
+    string dropv = r->query_get("drop");
+
+    SrsJsonObject* query = SrsJsonAny::object();
+    res->set("query", query);
+
+    query->set("username", SrsJsonAny::str(username.c_str()));
+    query->set("drop", SrsJsonAny::str(dropv.c_str()));
+    query->set("help", SrsJsonAny::str("?username=string&drop=int"));
+
+    int drop = ::atoi(dropv.c_str());
+    if (drop <= 0) {
+        return srs_error_new(ERROR_RTC_INVALID_PARAMS, "invalid drop=%s/%d", dropv.c_str(), drop);
+    }
+
+    SrsRtcSession* session = server_->find_session_by_username(username);
+    if (!session) {
+        return srs_error_new(ERROR_RTC_NO_SESSION, "no session username=%s", username.c_str());
+    }
+
+    session->simulate_nack_drop(drop);
+
+    srs_trace("RTC NACK session peer_id=%s, username=%s, drop=%s/%d", session->peer_id().c_str(),
+        username.c_str(), dropv.c_str(), drop);
+
+    return srs_success;
 }
 #endif
 

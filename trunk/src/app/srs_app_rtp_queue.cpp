@@ -372,6 +372,7 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
 
+        // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
             srs_trace("wait for nack seq=%u", next);
@@ -514,6 +515,7 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
 
+        // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
             srs_trace("wait for nack seq=%u", next);
@@ -590,6 +592,7 @@ void SrsRtpVideoQueue::covert_frame(std::vector<SrsRtpPacket2*>& frame, SrsRtpPa
     // TODO: FIXME: Should covert to multiple NALU RTP packet to avoid copying.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->rtp_header = head->rtp_header;
+    pkt->padding = head->padding;
 
     SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
     pkt->nalu_type = head_payload->nalu_type;
