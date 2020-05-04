@@ -127,114 +127,9 @@ void SrsRtpNackForReceiver::update_rtt(int rtt)
     opts_.nack_interval = rtt_;
 }
 
-SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
-{
-    nn_seq_flip_backs = 0;
-    begin = end = 0;
-    capacity_ = (uint16_t)capacity;
-    initialized_ = false;
-
-    queue_ = new SrsRtpPacket2*[capacity_];
-    memset(queue_, 0, sizeof(SrsRtpPacket2*) * capacity);
-}
-
-SrsRtpRingBuffer::~SrsRtpRingBuffer()
-{
-    srs_freepa(queue_);
-}
-
-bool SrsRtpRingBuffer::empty()
-{
-    return begin == end;
-}
-
-int SrsRtpRingBuffer::size()
-{
-    int size = srs_rtp_seq_distance(begin, end);
-    srs_assert(size >= 0);
-    return size;
-}
-
-void SrsRtpRingBuffer::advance_to(uint16_t seq)
-{
-    begin = seq;
-}
-
-void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
-{
-    SrsRtpPacket2* p = queue_[at % capacity_];
-
-    if (p) {
-        srs_freep(p);
-    }
-
-    queue_[at % capacity_] = pkt;
-}
-
-void SrsRtpRingBuffer::remove(uint16_t at)
-{
-    set(at, NULL);
-}
-
-void SrsRtpRingBuffer::reset(uint16_t first, uint16_t last)
-{
-    for (uint16_t s = first; s != last; ++s) {
-        queue_[s % capacity_] = NULL;
-    }
-}
-
-bool SrsRtpRingBuffer::overflow()
-{
-    return srs_rtp_seq_distance(begin, end) >= capacity_;
-}
-
-uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
-{
-    return nn_seq_flip_backs * 65536 + end - 1;
-}
-
-void SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack_last)
-{
-    if (!initialized_) {
-        initialized_ = true;
-        begin = seq;
-        end = seq + 1;
-        return;
-    }
-
-    // Normal sequence, seq follows high_.
-    if (srs_rtp_seq_distance(end, seq) >= 0) {
-        nack_first = end;
-        nack_last = seq;
-
-        // When distance(seq,high_)>0 and seq<high_, seq must flip back,
-        // for example, high_=65535, seq=1, distance(65535,1)>0 and 1<65535.
-        // TODO: FIXME: The first flip may be dropped.
-        if (seq < end) {
-            ++nn_seq_flip_backs;
-        }
-        end = seq + 1;
-        return;
-    }
-
-    // Out-of-order sequence, seq before low_.
-    if (srs_rtp_seq_distance(seq, begin) > 0) {
-        // When startup, we may receive packets in chaos order.
-        // Because we don't know the ISN(initiazlie sequence number), the first packet
-        // we received maybe no the first packet client sent.
-        // @remark We only log a warning, because it seems ok for publisher.
-        srs_warn("too old seq %u, range [%u, %u]", seq, begin, end);
-    }
-}
-
-SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq)
-{
-    return queue_[seq % capacity_];
-}
-
 SrsRtpQueue::SrsRtpQueue(int capacity)
 {
-    queue_ = new SrsRtpRingBuffer(capacity);
+    queue_ = new SrsRtpRingBuffer<SrsRtpPacket2*>(capacity);
 
     jitter_ = 0;
     last_trans_time_ = -1;
@@ -293,8 +188,12 @@ srs_error_t SrsRtpQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt
     // OK, we got one new RTP packet, which is not in NACK.
     if (!nack_info) {
         ++num_of_packet_received_;
+
         uint16_t nack_first = 0, nack_last = 0;
-        queue_->update(seq, nack_first, nack_last);
+        if (!queue_->update(seq, nack_first, nack_last)) {
+            srs_warn("too old seq %u, range [%u, %u]", seq, queue_->begin, queue_->end);
+        }
+
         if (nack && srs_rtp_seq_distance(nack_first, nack_last) > 0) {
             srs_trace("update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
             insert_into_nack_list(nack, nack_first, nack_last);

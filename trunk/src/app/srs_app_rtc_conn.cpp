@@ -616,8 +616,8 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
     realtime = true;
 
     // TODO: FIXME: Config the capacity?
-    audio_queue_ = new SrsRtpRingBuffer(100);
-    video_queue_ = new SrsRtpRingBuffer(1000);
+    audio_queue_ = new SrsRtpRingBuffer<SrsRtpPacket2*>(100);
+    video_queue_ = new SrsRtpRingBuffer<SrsRtpPacket2*>(1000);
 
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;

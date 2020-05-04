@@ -34,6 +34,7 @@
 #include <srs_app_sdp.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_rtp.hpp>
+#include <srs_app_rtp_queue.hpp>
 
 #include <string>
 #include <map>
@@ -59,7 +60,6 @@ class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
-class SrsRtpRingBuffer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -214,8 +214,8 @@ private:
     uint16_t video_payload_type;
     uint32_t video_ssrc;
     // NACK ARQ ring buffer.
-    SrsRtpRingBuffer* audio_queue_;
-    SrsRtpRingBuffer* video_queue_;
+    SrsRtpRingBuffer<SrsRtpPacket2*>* audio_queue_;
+    SrsRtpRingBuffer<SrsRtpPacket2*>* video_queue_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
