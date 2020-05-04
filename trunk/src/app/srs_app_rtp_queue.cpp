@@ -372,6 +372,7 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
 
+        // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
             srs_trace("wait for nack seq=%u", next);
@@ -514,6 +515,7 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
     for (; next != queue_->end; ++next) {
         SrsRtpPacket2* pkt = queue_->at(next);
 
+        // TODO: FIXME: Should not wait for NACK packets.
         // Not found or in NACK, stop collecting frame.
         if (!pkt || nack->find(next) != NULL) {
             srs_trace("wait for nack seq=%u", next);
