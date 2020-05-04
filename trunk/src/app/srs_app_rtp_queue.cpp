@@ -384,29 +384,31 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
 {
     // When done, next point to the next available packet.
     uint16_t next = queue_->begin;
-    for (; next != queue_->end; ++next) {
-        SrsRtpPacket2* pkt = queue_->at(next);
 
-        // If nack disabled, we ignore any empty packet.
-        if (!nack) {
-            if (!pkt) {
-                continue;
+    // If nack disabled, we ignore any empty packet.
+    if (!nack) {
+        for (; next != queue_->end; ++next) {
+            SrsRtpPacket2* pkt = queue_->at(next);
+            if (pkt) {
+                frames.push_back(pkt);
+            }
+        }
+    } else {
+        for (; next != queue_->end; ++next) {
+            SrsRtpPacket2* pkt = queue_->at(next);
+
+            // TODO: FIXME: Should not wait for NACK packets.
+            // Not found or in NACK, stop collecting frame.
+            if (!pkt || nack->find(next) != NULL) {
+                srs_trace("wait for nack seq=%u", next);
+                break;
             }
 
             frames.push_back(pkt);
-            continue;
         }
-
-        // TODO: FIXME: Should not wait for NACK packets.
-        // Not found or in NACK, stop collecting frame.
-        if (!pkt || nack->find(next) != NULL) {
-            srs_trace("wait for nack seq=%u", next);
-            break;
-        }
-
-        frames.push_back(pkt);
     }
 
+    // Reap packets from begin to next.
     if (next != queue_->begin) {
         // Reset the range of packets to NULL in buffer.
         queue_->reset(queue_->begin, next);
@@ -540,12 +542,11 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
 
     // When done, next point to the next available packet.
     uint16_t next = queue_->begin;
-    for (; next != queue_->end; ++next) {
-        SrsRtpPacket2* pkt = queue_->at(next);
 
-        // TODO: FIXME: We should skip whole packet.
-        // If nack disabled, we ignore any empty packet.
-        if (!nack) {
+    // If nack disabled, we ignore any empty packet.
+    if (!nack) {
+        for (; next != queue_->end; ++next) {
+            SrsRtpPacket2* pkt = queue_->at(next);
             if (!pkt) {
                 continue;
             }
@@ -561,30 +562,33 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
                 next++;
                 break;
             }
-            continue;
         }
+    } else {
+        for (; next != queue_->end; ++next) {
+            SrsRtpPacket2* pkt = queue_->at(next);
 
-        // TODO: FIXME: Should not wait for NACK packets.
-        // Not found or in NACK, stop collecting frame.
-        if (!pkt || nack->find(next) != NULL) {
-            srs_trace("wait for nack seq=%u", next);
-            return;
-        }
+            // TODO: FIXME: Should not wait for NACK packets.
+            // Not found or in NACK, stop collecting frame.
+            if (!pkt || nack->find(next) != NULL) {
+                srs_trace("wait for nack seq=%u", next);
+                return;
+            }
 
-        // Ignore when the first packet not the start.
-        if (frame.empty() && !pkt->video_is_first_packet) {
-            return;
-        }
+            // Ignore when the first packet not the start.
+            if (frame.empty() && !pkt->video_is_first_packet) {
+                return;
+            }
 
-        // OK, collect packet to frame.
-        frame.push_back(pkt);
+            // OK, collect packet to frame.
+            frame.push_back(pkt);
 
-        // Done, we got the last packet of frame.
-        // @remark Note that the STAP-A is marker false and it's the last packet.
-        if (pkt->rtp_header.get_marker() || pkt->video_is_last_packet) {
-            found = true;
-            next++;
-            break;
+            // Done, we got the last packet of frame.
+            // @remark Note that the STAP-A is marker false and it's the last packet.
+            if (pkt->rtp_header.get_marker() || pkt->video_is_last_packet) {
+                found = true;
+                next++;
+                break;
+            }
         }
     }
 
