@@ -1121,11 +1121,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         srs_error_reset(err);
         rtc->on_unpublish();
     }
-
-    // TODO: FIXME: Refactor to move to rtp?
-    // Save the RTP packets for find_rtp_packet() to rtx or restore it.
-    // TODO: FIXME: Remove dead code.
-    //source->rtp_queue->push(msg->rtp_packets);
 #endif
     
     if ((err = hls->on_video(msg, format)) != srs_success) {

@@ -592,6 +592,7 @@ void SrsRtpVideoQueue::covert_frame(std::vector<SrsRtpPacket2*>& frame, SrsRtpPa
     // TODO: FIXME: Should covert to multiple NALU RTP packet to avoid copying.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->rtp_header = head->rtp_header;
+    pkt->padding = head->padding;
 
     SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
     pkt->nalu_type = head_payload->nalu_type;

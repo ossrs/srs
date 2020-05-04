@@ -941,8 +941,8 @@ srs_error_t SrsServer::http_handle()
 {
     srs_error_t err = srs_success;
     
-    if ((err = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != srs_success) {
-        return srs_error_wrap(err, "handle not found");
+    if ((err = http_api_mux->handle("/", new SrsGoApiRoot())) != srs_success) {
+        return srs_error_wrap(err, "handle /");
     }
     if ((err = http_api_mux->handle("/api/", new SrsGoApiApi())) != srs_success) {
         return srs_error_wrap(err, "handle api");

@@ -615,6 +615,12 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
     mw_msgs = 0;
     realtime = true;
 
+    // TODO: FIXME: Config the capacity?
+    audio_queue_ = new SrsRtpRingBuffer(100);
+    video_queue_ = new SrsRtpRingBuffer(1000);
+
+    nn_simulate_nack_drop = 0;
+
     _srs_config->subscribe(this);
 }
 
@@ -623,6 +629,8 @@ SrsRtcPlayer::~SrsRtcPlayer()
     _srs_config->unsubscribe(this);
 
     srs_freep(trd);
+    srs_freep(audio_queue_);
+    srs_freep(video_queue_);
 }
 
 srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt)
@@ -850,7 +858,8 @@ srs_error_t SrsRtcPlayer::send_messages(
 
 #ifndef SRS_OSX
     // If enabled GSO, send out some packets in a msghdr.
-    if (packets.use_gso) {
+    // @remark When NACK simulator is on, we don't use GSO.
+    if (packets.use_gso && !nn_simulate_nack_drop) {
         if ((err = send_packets_gso(packets)) != srs_success) {
             return srs_error_wrap(err, "gso send");
         }
@@ -997,6 +1006,25 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcOutgoingPackets& packets)
             iov->iov_len = (size_t)nn_encrypt;
         }
 
+        // Put final RTP packet to NACK/ARQ queue.
+        if (true) {
+            SrsRtpPacket2* nack = new SrsRtpPacket2();
+            nack->rtp_header = packet->rtp_header;
+            nack->padding = packet->padding;
+
+            // TODO: FIXME: Should avoid memory copying.
+            SrsRtpRawPayload* payload = nack->reuse_raw();
+            payload->nn_payload = (int)iov->iov_len;
+            payload->payload = new char[payload->nn_payload];
+            memcpy((void*)payload->payload, iov->iov_base, iov->iov_len);
+
+            if (nack->rtp_header.get_ssrc() == video_ssrc) {
+                video_queue_->set(nack->rtp_header.get_sequence(), nack);
+            } else {
+                audio_queue_->set(nack->rtp_header.get_sequence(), nack);
+            }
+        }
+
         packets.nn_rtp_bytes += (int)iov->iov_len;
 
         // Set the address and control information.
@@ -1007,8 +1035,19 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcOutgoingPackets& packets)
         mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
         mhdr->msg_hdr.msg_controllen = 0;
 
-        // When we send out a packet, we commit a RTP packet.
+        // When we send out a packet, increase the stat counter.
         packets.nn_rtp_pkts++;
+
+        // For NACK simulator, drop packet.
+        if (nn_simulate_nack_drop) {
+            SrsRtpHeader* h = &packet->rtp_header;
+            srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
+                h->get_sequence(), h->get_ssrc(), (h->get_ssrc()==video_ssrc? "Video":"Audio"), h->get_timestamp(),
+                (int)iov->iov_len);
+            nn_simulate_nack_drop--;
+            iov->iov_len = 0;
+            continue;
+        }
 
         if ((err = sender->sendmmsg(mhdr)) != srs_success) {
             return srs_error_wrap(err, "send msghdr");
@@ -1142,6 +1181,25 @@ srs_error_t SrsRtcPlayer::send_packets_gso(SrsRtcOutgoingPackets& packets)
                 return srs_error_wrap(err, "srtp protect");
             }
             iov->iov_len = (size_t)nn_encrypt;
+        }
+
+        // Put final RTP packet to NACK/ARQ queue.
+        if (true) {
+            SrsRtpPacket2* nack = new SrsRtpPacket2();
+            nack->rtp_header = packet->rtp_header;
+            nack->padding = packet->padding;
+
+            // TODO: FIXME: Should avoid memory copying.
+            SrsRtpRawPayload* payload = nack->reuse_raw();
+            payload->nn_payload = (int)iov->iov_len;
+            payload->payload = new char[payload->nn_payload];
+            memcpy((void*)payload->payload, iov->iov_base, iov->iov_len);
+
+            if (nack->rtp_header.get_ssrc() == video_ssrc) {
+                video_queue_->set(nack->rtp_header.get_sequence(), nack);
+            } else {
+                audio_queue_->set(nack->rtp_header.get_sequence(), nack);
+            }
         }
 
         packets.nn_rtp_bytes += (int)iov->iov_len;
@@ -1462,6 +1520,26 @@ srs_error_t SrsRtcPlayer::package_stap_a(SrsSource* source, SrsSharedPtrMessage*
     srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", packet->rtp_header.get_sequence(), sps.size(), pps.size());
 
     return err;
+}
+
+void SrsRtcPlayer::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq)
+{
+    SrsRtpPacket2* pkt = NULL;
+
+    if (ssrc == video_ssrc) {
+        pkt = video_queue_->at(seq);
+    } else if (ssrc == audio_ssrc) {
+        pkt = audio_queue_->at(seq);
+    }
+
+    if (pkt) {
+        pkts.push_back(pkt);
+    }
+}
+
+void SrsRtcPlayer::simulate_nack_drop(int nn)
+{
+    nn_simulate_nack_drop = nn;
 }
 
 SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
@@ -2137,6 +2215,11 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     return err;
 }
 
+void SrsRtcPublisher::simulate_nack_drop(int nn)
+{
+    // TODO: FIXME: Implements it.
+}
+
 SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
 {
     req = NULL;
@@ -2201,20 +2284,25 @@ void SrsRtcSession::set_session_state(SrsRtcSessionStateType state)
     session_state = state;
 }
 
-std::string SrsRtcSession::id() const
+string SrsRtcSession::id()
 {
-    return peer_id + "_" + username;
+    return peer_id_ + "/" + username_;
 }
 
 
-std::string SrsRtcSession::get_peer_id() const
+string SrsRtcSession::peer_id()
 {
-    return peer_id;
+    return peer_id_;
 }
 
-void SrsRtcSession::set_peer_id(const std::string& id)
+void SrsRtcSession::set_peer_id(string v)
 {
-    peer_id = id;
+    peer_id_ = v;
+}
+
+string SrsRtcSession::username()
+{
+    return username_;
 }
 
 void SrsRtcSession::set_encrypt(bool v)
@@ -2232,11 +2320,11 @@ int SrsRtcSession::context_id()
     return cid;
 }
 
-srs_error_t SrsRtcSession::initialize(SrsSource* source, SrsRequest* r, bool is_publisher, const std::string& un, int context_id)
+srs_error_t SrsRtcSession::initialize(SrsSource* source, SrsRequest* r, bool is_publisher, string username, int context_id)
 {
     srs_error_t err = srs_success;
 
-    username = un;
+    username_ = username;
     req = r->copy();
     cid = context_id;
     is_publisher_ = is_publisher;
@@ -2289,7 +2377,7 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
 
     // We are running in the ice-lite(server) mode. If client have multi network interface,
     // we only choose one candidate pair which is determined by client.
-    if (!sendonly_skt || sendonly_skt->get_peer_id() != skt->get_peer_id()) {
+    if (!sendonly_skt || sendonly_skt->peer_id() != skt->peer_id()) {
         update_sendonly_socket(skt);
     }
 
@@ -2515,11 +2603,22 @@ void SrsRtcSession::update_sendonly_socket(SrsUdpMuxSocket* skt)
 {
     if (sendonly_skt) {
         srs_trace("session %s address changed, update %s -> %s",
-            id().c_str(), sendonly_skt->get_peer_id().c_str(), skt->get_peer_id().c_str());
+            id().c_str(), sendonly_skt->peer_id().c_str(), skt->peer_id().c_str());
     }
 
     srs_freep(sendonly_skt);
     sendonly_skt = skt->copy_sendonly();
+}
+
+void SrsRtcSession::simulate_nack_drop(int nn)
+{
+    if (player_) {
+        player_->simulate_nack_drop(nn);
+    }
+
+    if (publisher_) {
+        publisher_->simulate_nack_drop(nn);
+    }
 }
 
 #ifdef SRS_OSX
@@ -2564,8 +2663,8 @@ srs_error_t SrsRtcSession::on_binding_request(SrsStunPacket* r)
     if (get_session_state() == WAITING_STUN) {
         set_session_state(DOING_DTLS_HANDSHAKE);
 
-        peer_id = sendonly_skt->get_peer_id();
-        server_->insert_into_id_sessions(peer_id, this);
+        peer_id_ = sendonly_skt->peer_id();
+        server_->insert_into_id_sessions(peer_id_, this);
 
         set_session_state(DOING_DTLS_HANDSHAKE);
         srs_trace("rtc session=%s, STUN done, waitting DTLS handshake.", id().c_str());
@@ -2617,7 +2716,7 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
     /*uint8_t payload_type = */stream->read_1bytes();
     /*uint16_t length = */stream->read_2bytes();
     /*uint32_t ssrc_of_sender = */stream->read_4bytes();
-    /*uint32_t ssrc_of_media_source = */stream->read_4bytes();
+    uint32_t ssrc_of_media_source = stream->read_4bytes();
 
     /*
          0                   1                   2                   3
@@ -2630,10 +2729,11 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
     uint16_t pid = stream->read_2bytes();
     int blp = stream->read_2bytes();
 
-    srs_verbose("pid=%u, blp=%d", pid, blp);
-
     // TODO: FIXME: Support ARQ.
     vector<SrsRtpPacket2*> resend_pkts;
+    if (player_) {
+        player_->nack_fetch(resend_pkts, ssrc_of_media_source, pid);
+    }
 
     uint16_t mask = 0x01;
     for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {
@@ -2642,24 +2742,26 @@ srs_error_t SrsRtcSession::on_rtcp_feedback(char* buf, int nb_buf)
         }
 
         uint32_t loss_seq = pid + i;
-
-        // TODO: FIXME: Support ARQ.
-        (void)loss_seq;
+        if (player_) {
+            player_->nack_fetch(resend_pkts, ssrc_of_media_source, loss_seq);
+        }
     }
 
     for (int i = 0; i < (int)resend_pkts.size(); ++i) {
         SrsRtpPacket2* pkt = resend_pkts[i];
 
-        char* protected_buf = new char[kRtpPacketSize];
-        SrsAutoFreeA(char, protected_buf);
+        char* data = new char[pkt->nb_bytes()];
+        SrsAutoFreeA(char, data);
 
-        int nb_protected_buf = resend_pkts[i]->nb_bytes();
-        SrsBuffer buf(protected_buf, nb_protected_buf);
+        SrsBuffer buf(data, pkt->nb_bytes());
 
         // TODO: FIXME: Check error.
         pkt->encode(&buf);
-        dtls_->protect_rtp(protected_buf, protected_buf, nb_protected_buf);
-        sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+        sendonly_skt->sendto(data, pkt->nb_bytes(), 0);
+
+        SrsRtpHeader* h = &pkt->rtp_header;
+        srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(),
+            h->get_ssrc(), h->get_timestamp(), pkt->nb_bytes());
     }
 
     return err;
@@ -3169,7 +3271,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     srs_error_t err = srs_success;
 
     char* data = skt->data(); int size = skt->size();
-    SrsRtcSession* session = find_session_by_peer_id(skt->get_peer_id());
+    SrsRtcSession* session = find_session_by_peer_id(skt->peer_id());
 
     if (session) {
         // Now, we got the RTC session to handle the packet, switch to its context
@@ -3179,30 +3281,30 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For STUN, the peer address may change.
     if (is_stun((uint8_t*)data, size)) {
-        SrsStunPacket sr;
-        if ((err = sr.decode(data, size)) != srs_success) {
+        SrsStunPacket ping;
+        if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
         }
         srs_verbose("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            skt->get_peer_id().c_str(), sr.get_use_candidate(), sr.get_ice_controlled(), sr.get_ice_controlling());
+            skt->peer_id().c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         if (!session) {
-            session = find_session_by_username(sr.get_username());
+            session = find_session_by_username(ping.get_username());
             if (session) {
                 session->switch_to_context();
             }
         }
         if (session == NULL) {
             return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
-                sr.get_username().c_str(), skt->get_peer_id().c_str());
+                ping.get_username().c_str(), skt->peer_id().c_str());
         }
 
-        return session->on_stun(skt, &sr);
+        return session->on_stun(skt, &ping);
     }
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
     if (session == NULL) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", skt->get_peer_id().c_str());
+        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", skt->peer_id().c_str());
     }
 
     if (is_dtls((uint8_t*)data, size)) {
@@ -3231,6 +3333,10 @@ srs_error_t SrsRtcServer::listen_api()
         return srs_error_wrap(err, "handle publish");
     }
 
+    if ((err = http_api_mux->handle("/rtc/v1/nack/", new SrsGoApiRtcNACK(this))) != srs_success) {
+        return srs_error_wrap(err, "handle nack");
+    }
+
     return err;
 }
 
@@ -3253,6 +3359,7 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
+    // TODO: FIXME: Seems not random, please check it.
     std::string local_pwd = gen_random_str(32);
     std::string local_ufrag = "";
     std::string username = "";
@@ -3320,7 +3427,7 @@ void SrsRtcServer::check_and_clean_timeout_session()
 
             srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
             map_username_session.erase(iter++);
-            map_id_session.erase(session->get_peer_id());
+            map_id_session.erase(session->peer_id());
             delete session;
             continue;
         }

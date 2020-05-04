@@ -228,12 +228,12 @@ uint16_t SrsRtpHeader::get_sequence() const
     return sequence;
 }
 
-void SrsRtpHeader::set_timestamp(int64_t v)
+void SrsRtpHeader::set_timestamp(uint32_t v)
 {
-    timestamp = (uint32_t)v;
+    timestamp = v;
 }
 
-int64_t SrsRtpHeader::get_timestamp() const
+uint32_t SrsRtpHeader::get_timestamp() const
 {
     return timestamp;
 }

@@ -64,7 +64,7 @@ private:
     bool marker;
     uint8_t payload_type;
     uint16_t sequence;
-    int32_t timestamp;
+    uint32_t timestamp;
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
@@ -84,8 +84,8 @@ public:
     uint8_t get_payload_type() const;
     void set_sequence(uint16_t v);
     uint16_t get_sequence() const;
-    void set_timestamp(int64_t v);
-    int64_t get_timestamp() const;
+    void set_timestamp(uint32_t v);
+    uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
     uint32_t get_ssrc() const;
     void set_padding(bool v);
