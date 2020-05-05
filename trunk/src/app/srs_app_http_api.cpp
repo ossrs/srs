@@ -914,11 +914,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_error_wrap(err, "remote sdp check failed");
     }
 
-    SrsSdp local_sdp;
-    if ((err = exchange_sdp(app, stream_name, remote_sdp, local_sdp)) != srs_success) {
-        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
-    }
-
     SrsRequest request;
     request.app = app;
     request.stream = stream_name;
@@ -928,6 +923,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
     if (parsed_vhost) {
         request.vhost = parsed_vhost->arg0();
+    }
+
+    SrsSdp local_sdp;
+    if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
 
     // Whether enabled.
@@ -967,7 +967,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         remote_sdp_str.length(), local_sdp_str.length());
@@ -1006,7 +1006,7 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
-srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
     local_sdp.version_ = "0";
@@ -1021,9 +1021,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
     local_sdp.session_name_ = "SRSPlaySession";
 
     local_sdp.msid_semantic_ = "WMS";
-    local_sdp.msids_.push_back(app + "/" + stream);
+    local_sdp.msids_.push_back(req->app + "/" + req->stream);
 
     local_sdp.group_policy_ = "BUNDLE";
+
+    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
@@ -1047,8 +1049,10 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
                 for (int j = 0; j < (int)rtcp_fb.size(); j++) {
-                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
-                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    if (nack_enabled) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
                     }
                 }
 
@@ -1081,8 +1085,10 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(const std::string& app, const std::str
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
                     for (int j = 0; j < (int)rtcp_fb.size(); j++) {
-                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
-                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        if (nack_enabled) {
+                            if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                                payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                            }
                         }
                     }
 
@@ -1261,11 +1267,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         return srs_error_wrap(err, "remote sdp check failed");
     }
 
-    SrsSdp local_sdp;
-    if ((err = exchange_sdp(app, stream_name, remote_sdp, local_sdp)) != srs_success) {
-        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
-    }
-
     SrsRequest request;
     request.app = app;
     request.stream = stream_name;
@@ -1275,6 +1276,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
     if (parsed_vhost) {
         request.vhost = parsed_vhost->arg0();
+    }
+
+    SrsSdp local_sdp;
+    if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
 
     // Whether enabled.
@@ -1309,7 +1315,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // TODO: add candidates in response json?
 
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
-    res->set("sessionid", SrsJsonAny::str(session->id().c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         remote_sdp_str.length(), local_sdp_str.length());
@@ -1348,7 +1354,7 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
-srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
     local_sdp.version_ = "0";
@@ -1363,9 +1369,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
     local_sdp.session_name_ = "SRSPublishSession";
 
     local_sdp.msid_semantic_ = "WMS";
-    local_sdp.msids_.push_back(app + "/" + stream);
+    local_sdp.msids_.push_back(req->app + "/" + req->stream);
 
     local_sdp.group_policy_ = "BUNDLE";
+
+    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
@@ -1389,8 +1397,10 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                 vector<string> rtcp_fb;
                 payload_type.rtcp_fb_.swap(rtcp_fb);
                 for (int j = 0; j < (int)rtcp_fb.size(); j++) {
-                    if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
-                        payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                    if (nack_enabled) {
+                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
                     }
                 }
 
@@ -1424,8 +1434,10 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(const std::string& app, const std::
                     vector<string> rtcp_fb;
                     payload_type.rtcp_fb_.swap(rtcp_fb);
                     for (int j = 0; j < (int)rtcp_fb.size(); j++) {
-                        if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
-                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        if (nack_enabled) {
+                            if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
+                                payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                            }
                         }
                     }
 

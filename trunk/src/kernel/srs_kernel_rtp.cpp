@@ -277,17 +277,12 @@ SrsRtpPacket2::SrsRtpPacket2()
     payload = NULL;
     decode_handler = NULL;
 
-    video_is_first_packet = false;
-    video_is_last_packet = false;
-    video_is_idr = false;
     nalu_type = SrsAvcNaluTypeReserved;
+    original_bytes = NULL;
 
     cache_raw = new SrsRtpRawPayload();
     cache_fua = new SrsRtpFUAPayload2();
     cache_payload = 0;
-
-    original_bytes = NULL;
-    nn_original_payload = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
@@ -408,7 +403,6 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     // If user set the decode handler, call it to set the payload.
     if (decode_handler) {
         decode_handler->on_before_decode_payload(this, buf, &payload);
-        nn_original_payload = buf->left();
     }
 
     // By default, we always use the RAW payload.

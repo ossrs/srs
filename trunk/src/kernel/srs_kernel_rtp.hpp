@@ -114,15 +114,8 @@ public:
     int padding;
 // Decoder helper.
 public:
-    // TODO: FIXME: Move to video decoder queue SrsRtpVideoQueue.
-    // Helper information for video decoder only.
-    bool video_is_first_packet;
-    bool video_is_last_packet;
-    bool video_is_idr;
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The original payload bytes length.
-    int nn_original_payload;
     // The original bytes for decoder only, we will free it.
     char* original_bytes;
 // Fast cache for performance.

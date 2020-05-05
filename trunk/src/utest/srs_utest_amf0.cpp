@@ -1323,7 +1323,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::str();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1354,7 +1354,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::str();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1452,7 +1452,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::boolean();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1467,7 +1467,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::boolean();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1549,7 +1549,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::number();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1564,7 +1564,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::number();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1673,14 +1673,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesNull)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::null();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::null();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1739,14 +1739,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::undefined();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::undefined();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1811,14 +1811,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Object* o = SrsAmf0Any::object();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Object* o = SrsAmf0Any::object();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2014,14 +2014,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2106,14 +2106,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2233,14 +2233,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2346,7 +2346,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesError)
     srs_error_t err;
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_FAILED(SrsAmf0Any::discovery(&b, NULL));
     }
 
@@ -2490,7 +2490,7 @@ VOID TEST(ProtocolAMF0Test, Amf0Object2)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* eof = SrsAmf0Any::object_eof();
         HELPER_EXPECT_FAILED(srs_amf0_write_object_eof(&b, (SrsAmf0ObjectEOF*)eof));
         srs_freep(eof);

@@ -2596,7 +2596,7 @@ VOID TEST(KernelUtility, AnnexbUtils)
     if (true) {
         EXPECT_TRUE(!srs_avc_startswith_annexb(NULL, NULL));
         
-        SrsBuffer buf;
+        SrsBuffer buf(NULL, 0);
         EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
     }
     
@@ -2654,7 +2654,7 @@ VOID TEST(KernelUtility, AdtsUtils)
     if (true) {
         EXPECT_TRUE(!srs_aac_startswith_adts(NULL));
         
-        SrsBuffer buf;
+        SrsBuffer buf(NULL, 0);
         EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
     }
     
@@ -4506,7 +4506,7 @@ VOID TEST(KernelTSTest, CoverContextUtility)
         SrsTsMessage m(&c, &p);
         
         m.PES_packet_length = 8;
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         
         int nb_bytes = 0;
         HELPER_EXPECT_SUCCESS(m.dump(&b, &nb_bytes));
@@ -4625,7 +4625,7 @@ VOID TEST(KernelTSTest, CoverContextEncode)
     MockTsHandler h;
     
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_SUCCESS(ctx.decode(&b, &h));
         EXPECT_TRUE(NULL == h.msg);
     }
