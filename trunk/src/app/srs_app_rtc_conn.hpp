@@ -44,6 +44,9 @@
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
 
+// For Alibaba Tenfold.
+class SrsJanusServer;
+
 class SrsUdpMuxSocket;
 class SrsConsumer;
 class SrsStunPacket;
@@ -78,6 +81,8 @@ const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
 
+extern std::string gen_random_str(int len);
+
 class SrsNtp
 {
 public:
@@ -99,10 +104,11 @@ enum SrsRtcSessionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
     INIT = -1,
-    WAITING_STUN = 1,
-    DOING_DTLS_HANDSHAKE = 2,
-    ESTABLISHED = 3,
-    CLOSED = 4,
+    WAITING_ANSWER = 1,
+    WAITING_STUN = 2,
+    DOING_DTLS_HANDSHAKE = 3,
+    ESTABLISHED = 4,
+    CLOSED = 5,
 };
 
 class SrsRtcDtls
@@ -327,7 +333,7 @@ class SrsRtcSession
     friend class SrsRtcPublisher;
 private:
     SrsRtcServer* server_;
-    SrsRtcSessionStateType session_state;
+    SrsRtcSessionStateType state_;
     SrsRtcDtls* dtls_;
     SrsRtcPlayer* player_;
     SrsRtcPublisher* publisher_;
@@ -364,8 +370,8 @@ public:
     void set_local_sdp(const SrsSdp& sdp);
     SrsSdp* get_remote_sdp();
     void set_remote_sdp(const SrsSdp& sdp);
-    SrsRtcSessionStateType get_session_state();
-    void set_session_state(SrsRtcSessionStateType state);
+    SrsRtcSessionStateType state();
+    void set_state(SrsRtcSessionStateType state);
     std::string id();
     std::string peer_id();
     void set_peer_id(std::string v);
@@ -451,6 +457,8 @@ private:
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
+private:
+    SrsJanusServer* janus;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
@@ -459,14 +467,19 @@ public:
 public:
     // TODO: FIXME: Support gracefully quit.
     // TODO: FIXME: Support reload.
-    virtual srs_error_t listen_udp();
+    srs_error_t listen_udp();
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
+    srs_error_t listen_api();
 public:
-    virtual srs_error_t listen_api();
+    // Peer start offering, we answer it.
     srs_error_t create_session(
         SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
         SrsRtcSession** psession
     );
+    // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
+    srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcSession** psession);
+    srs_error_t setup_session2(SrsRtcSession* session, SrsRequest* req, const SrsSdp& remote_sdp);
+public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* session);
     void check_and_clean_timeout_session();
     int nn_sessions();

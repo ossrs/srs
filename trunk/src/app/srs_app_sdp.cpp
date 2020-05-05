@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// TODO: FIXME: Maybe we should use json.encode to escape it?
 const std::string kCRLF = "\\r\\n";
 
 #define FETCH(is,word) \
