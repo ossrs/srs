@@ -270,11 +270,27 @@ public:
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 
+class SrsRtpVideoPacket
+{
+public:
+    // Helper information for video decoder only.
+    bool video_is_first_packet;
+    bool video_is_last_packet;
+    bool video_is_idr;
+public:
+    SrsRtpPacket2* pkt;
+public:
+    SrsRtpVideoPacket();
+    virtual ~SrsRtpVideoPacket();
+public:
+    SrsRtpPacket2* detach();
+};
+
 class SrsRtpVideoQueue : public SrsRtpQueue
 {
 private:
     bool request_key_frame_;
-    SrsRtpRingBuffer<SrsRtpPacket2*>* queue_;
+    SrsRtpRingBuffer<SrsRtpVideoPacket*>* queue_;
 public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
@@ -289,7 +305,7 @@ public:
 private:
     virtual void on_overflow(SrsRtpNackForReceiver* nack);
     virtual void collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2** ppkt);
-    virtual void covert_frame(std::vector<SrsRtpPacket2*>& frame, SrsRtpPacket2** ppkt);
+    virtual void covert_frame(std::vector<SrsRtpVideoPacket*>& frame, SrsRtpPacket2** ppkt);
     uint16_t next_start_of_frame(uint16_t seq);
     uint16_t next_keyframe();
 };
