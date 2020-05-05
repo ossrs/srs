@@ -239,33 +239,34 @@ private:
     uint64_t pre_number_of_packet_lossed_;
     uint64_t num_of_packet_received_;
     uint64_t number_of_packet_lossed_;
-protected:
-    SrsRtpRingBuffer<SrsRtpPacket2*>* queue_;
 public:
-    SrsRtpQueue(int capacity);
+    SrsRtpQueue();
     virtual ~SrsRtpQueue();
 public:
-    virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     virtual void notify_drop_seq(uint16_t seq) = 0;
     virtual void notify_nack_list_full() = 0;
-public:
-    uint32_t get_extended_highest_sequence();
+    virtual uint32_t get_extended_highest_sequence() = 0;
     uint8_t get_fraction_lost();
     uint32_t get_cumulative_number_of_packets_lost();
     uint32_t get_interarrival_jitter();
-private:
+protected:
+    srs_error_t on_consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t first, uint16_t last);
 };
 
 class SrsRtpAudioQueue : public SrsRtpQueue
 {
+private:
+    SrsRtpRingBuffer<SrsRtpPacket2*>* queue_;
 public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
 public:
     virtual void notify_drop_seq(uint16_t seq);
     virtual void notify_nack_list_full();
+    virtual uint32_t get_extended_highest_sequence();
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
+public:
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frames);
 };
 
@@ -273,12 +274,14 @@ class SrsRtpVideoQueue : public SrsRtpQueue
 {
 private:
     bool request_key_frame_;
+    SrsRtpRingBuffer<SrsRtpPacket2*>* queue_;
 public:
     SrsRtpVideoQueue(int capacity);
     virtual ~SrsRtpVideoQueue();
 public:
     virtual void notify_drop_seq(uint16_t seq);
     virtual void notify_nack_list_full();
+    virtual uint32_t get_extended_highest_sequence();
     virtual srs_error_t consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2* pkt);
     virtual void collect_frames(SrsRtpNackForReceiver* nack, std::vector<SrsRtpPacket2*>& frame);
     bool should_request_key_frame();
