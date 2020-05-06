@@ -63,7 +63,6 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_service_st.hpp>
-#include <srs_app_janus.hpp>
 
 // The RTP payload max size, reserved some paddings for SRTP as such:
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
@@ -3243,12 +3242,10 @@ srs_error_t SrsUdpMuxSender::on_reload_rtc_server()
 SrsRtcServer::SrsRtcServer()
 {
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
-    janus = new SrsJanusServer(this);
 }
 
 SrsRtcServer::~SrsRtcServer()
 {
-    srs_freep(janus);
     srs_freep(timer);
 
     if (true) {
@@ -3393,11 +3390,6 @@ srs_error_t SrsRtcServer::listen_api()
     }
     if ((err = http_api_mux->handle("/rtc/v1/nack/", new SrsGoApiRtcNACK(this))) != srs_success) {
         return srs_error_wrap(err, "handle nack");
-    }
-
-    // For Janus style API.
-    if ((err = janus->listen_api()) != srs_success) {
-        return srs_error_wrap(err, "janus listen api");
     }
 
     return err;

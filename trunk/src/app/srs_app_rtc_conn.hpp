@@ -44,9 +44,6 @@
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
 
-// For Alibaba Tenfold.
-class SrsJanusServer;
-
 class SrsUdpMuxSocket;
 class SrsConsumer;
 class SrsStunPacket;
@@ -457,8 +454,6 @@ private:
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
-private:
-    SrsJanusServer* janus;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
