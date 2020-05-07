@@ -273,6 +273,7 @@ class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPack
 {
 private:
     SrsHourGlass* report_timer;
+    uint64_t nn_audio_frames;
 private:
     SrsRtcSession* session_;
     uint32_t video_ssrc;

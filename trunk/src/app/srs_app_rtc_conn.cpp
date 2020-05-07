@@ -1563,6 +1563,8 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     source = NULL;
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
+
+    nn_audio_frames = 0;
 }
 
 SrsRtcPublisher::~SrsRtcPublisher()
@@ -2094,6 +2096,11 @@ srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
     // TODO: FIXME: Check error.
     source->on_rtc_audio(&msg);
 
+    if (nn_audio_frames++ == 0) {
+        SrsRtpHeader* h = &frame->rtp_header;
+        srs_trace("RTC got Opus seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(), h->get_ssrc(), h->get_timestamp(), payload->nn_payload);
+    }
+
     return err;
 }
 
@@ -2217,7 +2224,9 @@ srs_error_t SrsRtcPublisher::on_video_frame(SrsRtpPacket2* frame)
 
     if (frame->nalu_type == SrsAvcNaluTypeIDR) {
         buf.write_1bytes(0x17); // Keyframe.
-        srs_trace("RTC got IDR %d bytes", nn_payload);
+
+        SrsRtpHeader* h = &frame->rtp_header;
+        srs_trace("RTC got IDR seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(), h->get_ssrc(), h->get_timestamp(), nn_payload);
     } else {
         buf.write_1bytes(0x27); // Not-Keyframe.
     }
