@@ -203,6 +203,7 @@ private:
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
 
+#ifdef SRS_SIMULATOR
 class SrsGoApiRtcNACK : public ISrsHttpHandler
 {
 private:
@@ -215,6 +216,7 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
 };
+#endif
 #endif
 
 class SrsGoApiClients : public ISrsHttpHandler

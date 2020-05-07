@@ -3397,9 +3397,12 @@ srs_error_t SrsRtcServer::listen_api()
     if ((err = http_api_mux->handle("/rtc/v1/publish/", new SrsGoApiRtcPublish(this))) != srs_success) {
         return srs_error_wrap(err, "handle publish");
     }
+
+#ifdef SRS_SIMULATOR
     if ((err = http_api_mux->handle("/rtc/v1/nack/", new SrsGoApiRtcNACK(this))) != srs_success) {
         return srs_error_wrap(err, "handle nack");
     }
+#endif
 
     return err;
 }

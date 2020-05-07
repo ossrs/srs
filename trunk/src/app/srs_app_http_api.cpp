@@ -1492,6 +1492,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
     return err;
 }
 
+#ifdef SRS_SIMULATOR
 SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsRtcServer* server)
 {
     server_ = server;
@@ -1548,6 +1549,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     return srs_success;
 }
+#endif
 #endif
 
 SrsGoApiClients::SrsGoApiClients()
