@@ -65,8 +65,8 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    if (buf->size() < kRtpHeaderFixedSize) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtp payload incorrect");
+    if (!buf->require(kRtpHeaderFixedSize)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d+ bytes", kRtpHeaderFixedSize);
     }
 
     /*   
@@ -97,8 +97,9 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
     timestamp = buf->read_4bytes();
     ssrc = buf->read_4bytes();
 
-    if (!buf->require(nb_bytes())) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d+ bytes", nb_bytes());
+    int ext_bytes = nb_bytes() - kRtpHeaderFixedSize;
+    if (!buf->require(ext_bytes)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d+ bytes", ext_bytes);
     }
 
     for (uint8_t i = 0; i < cc; ++i) {
@@ -119,7 +120,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
         }    
     }
 
-    if (padding) {
+    if (padding && !buf->empty()) {
         padding_length = *(reinterpret_cast<uint8_t*>(buf->data() + buf->size() - 1));
         if (!buf->require(padding_length)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "padding requires %d bytes", padding_length);
