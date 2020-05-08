@@ -173,12 +173,6 @@ public:
     void remove(uint16_t at) {
         set(at, NULL);
     }
-    // Directly reset range [first, last) to NULL.
-    void reset(uint16_t first, uint16_t last) {
-        for (uint16_t s = first; s != last; ++s) {
-            queue_[s % capacity_] = NULL;
-        }
-    }
     // Whether queue overflow or heavy(too many packets and need clear).
     bool overflow() {
         return srs_rtp_seq_distance(begin, end) >= capacity_;
@@ -254,10 +248,21 @@ protected:
     void insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t first, uint16_t last);
 };
 
+class SrsRtpAudioPacket
+{
+public:
+    SrsRtpPacket2* pkt;
+public:
+    SrsRtpAudioPacket();
+    virtual ~SrsRtpAudioPacket();
+public:
+    SrsRtpPacket2* detach();
+};
+
 class SrsRtpAudioQueue : public SrsRtpQueue
 {
 private:
-    SrsRtpRingBuffer<SrsRtpPacket2*>* queue_;
+    SrsRtpRingBuffer<SrsRtpAudioPacket*>* queue_;
 public:
     SrsRtpAudioQueue(int capacity);
     virtual ~SrsRtpAudioQueue();
