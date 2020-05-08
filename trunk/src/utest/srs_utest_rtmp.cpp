@@ -3211,6 +3211,14 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
     }
 
     if (true) {
+        EXPECT_EQ((uint32_t)0, srs_ipv4_to_num("not.a.valid.ip"));
+    }
+
+    if (true) {
+        EXPECT_EQ((uint32_t)2130706433, srs_ipv4_to_num("127.0.0.1"));
+    }
+
+    if (true) {
         SrsMessageArray h(10);
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();
