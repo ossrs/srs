@@ -29,6 +29,7 @@
 #include <string>
 
 #include <srs_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
 
 class SrsConfDirective;
 
