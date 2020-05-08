@@ -3219,6 +3219,22 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
     }
 
     if (true) {
+        EXPECT_TRUE(srs_ipv4_within_mask("192.168.1.1", "192.168.1.0", "255.255.255.0"));
+        EXPECT_TRUE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.22", "255.255.255.255"));
+        EXPECT_TRUE(srs_ipv4_within_mask("0.0.0.1", "0.0.0.0", "0.0.0.0"));
+        EXPECT_TRUE(srs_ipv4_within_mask("10.2.13.243", "10.0.0.0", "255.0.0.0"));
+    }
+
+    if (true) {
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.1", "192.168.1.2", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.3", "192.168.1.2", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "192.168.1.0", "255.255.255.0"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.23", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.21", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.2", "10.0.0.1", "255.255.255.255"));
+    }
+
+    if (true) {
         SrsMessageArray h(10);
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();

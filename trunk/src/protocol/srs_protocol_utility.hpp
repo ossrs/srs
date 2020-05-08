@@ -114,5 +114,9 @@ extern bool srs_is_ipv4(std::string domain);
 
 // Convert an IPv4 from string to uint32_t. Extracted from https://www.stev.org/post/ccheckanipaddressisinaipmask
 extern uint32_t srs_ipv4_to_num(std::string ip);
+
+// Whether the IPv4 is in an IP mask. Extracted from https://www.stev.org/post/ccheckanipaddressisinaipmask
+extern bool srs_ipv4_within_mask(std::string ip, std::string network, std::string mask);
+
 #endif
 

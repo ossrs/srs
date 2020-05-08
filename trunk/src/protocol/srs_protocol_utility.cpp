@@ -410,3 +410,17 @@ uint32_t srs_ipv4_to_num(string ip) {
 
     return addr;
 }
+
+bool srs_ipv4_within_mask(string ip, string network, string mask) {
+    uint32_t ip_addr = srs_ipv4_to_num(ip);
+    uint32_t mask_addr = srs_ipv4_to_num(mask);
+    uint32_t network_addr = srs_ipv4_to_num(network);
+
+    uint32_t net_lower = (network_addr & mask_addr);
+    uint32_t net_upper = (net_lower | (~mask_addr));
+
+    if (ip_addr >= net_lower && ip_addr <= net_upper) {
+        return true;
+    }
+    return false;
+}
