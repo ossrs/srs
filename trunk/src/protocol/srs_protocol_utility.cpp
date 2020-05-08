@@ -503,3 +503,43 @@ string srs_get_cidr_mask(string network_address) {
 
     return CIDR_VALUES[cidr_length_num-1].mask;
 }
+
+string srs_get_cidr_ipv4(string network_address) {
+    string delimiter = "/";
+
+    size_t delimiter_position = network_address.find(delimiter);
+    if (delimiter_position == string::npos) {
+        // Even if it does not have "/N", it can be a valid IP, by default "/32".
+        if (srs_is_ipv4(network_address)) {
+            return network_address;
+        }
+        return "";
+    }
+
+    // Change here to include IPv6 support.
+    string ipv4_address = network_address.substr(0, delimiter_position);
+    if (!srs_is_ipv4(ipv4_address)) {
+        return "";
+    }
+
+    size_t cidr_length_position = delimiter_position + delimiter.length();
+    if (cidr_length_position >= network_address.length()) {
+        return "";
+    }
+
+    string cidr_length = network_address.substr(cidr_length_position, network_address.length());
+    if (cidr_length.length() <= 0) {
+        return "";
+    }
+
+    try {
+        size_t cidr_length_num = atoi(cidr_length.c_str());
+        if (cidr_length_num <= 0) {
+            return "";
+        }
+    } catch (...) {
+        return "";
+    }
+
+    return ipv4_address;
+}

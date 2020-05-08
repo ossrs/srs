@@ -121,5 +121,8 @@ extern bool srs_ipv4_within_mask(std::string ip, std::string network, std::strin
 // Get the CIDR (Classless Inter-Domain Routing) mask for a network address.
 extern std::string srs_get_cidr_mask(std::string network_address);
 
+// Get the CIDR (Classless Inter-Domain Routing) IPv4 for a network address.
+extern std::string srs_get_cidr_ipv4(std::string network_address);
+
 #endif
 
