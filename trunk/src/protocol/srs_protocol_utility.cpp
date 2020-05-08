@@ -424,3 +424,82 @@ bool srs_ipv4_within_mask(string ip, string network, string mask) {
     }
     return false;
 }
+
+static struct CIDR_VALUE {
+    size_t length;
+    std::string mask;
+} CIDR_VALUES[32] = {
+    { .length = 1,  .mask = "128.0.0.0" },
+    { .length = 2,  .mask = "192.0.0.0" },
+    { .length = 3,  .mask = "224.0.0.0" },
+    { .length = 4,  .mask = "240.0.0.0" },
+    { .length = 5,  .mask = "248.0.0.0" },
+    { .length = 6,  .mask = "252.0.0.0" },
+    { .length = 7,  .mask = "254.0.0.0" },
+    { .length = 8,  .mask = "255.0.0.0" },
+    { .length = 9,  .mask = "255.128.0.0" },
+    { .length = 10, .mask = "255.192.0.0" },
+    { .length = 11, .mask = "255.224.0.0" },
+    { .length = 12, .mask = "255.240.0.0" },
+    { .length = 13, .mask = "255.248.0.0" },
+    { .length = 14, .mask = "255.252.0.0" },
+    { .length = 15, .mask = "255.254.0.0" },
+    { .length = 16, .mask = "255.255.0.0" },
+    { .length = 17, .mask = "255.255.128.0" },
+    { .length = 18, .mask = "255.255.192.0" },
+    { .length = 19, .mask = "255.255.224.0" },
+    { .length = 20, .mask = "255.255.240.0" },
+    { .length = 21, .mask = "255.255.248.0" },
+    { .length = 22, .mask = "255.255.252.0" },
+    { .length = 23, .mask = "255.255.254.0" },
+    { .length = 24, .mask = "255.255.255.0" },
+    { .length = 25, .mask = "255.255.255.128" },
+    { .length = 26, .mask = "255.255.255.192" },
+    { .length = 27, .mask = "255.255.255.224" },
+    { .length = 28, .mask = "255.255.255.240" },
+    { .length = 29, .mask = "255.255.255.248" },
+    { .length = 30, .mask = "255.255.255.252" },
+    { .length = 31, .mask = "255.255.255.254" },
+    { .length = 32, .mask = "255.255.255.255" },
+};
+
+string srs_get_cidr_mask(string network_address) {
+    string delimiter = "/";
+
+    size_t delimiter_position = network_address.find(delimiter);
+    if (delimiter_position == string::npos) {
+        // Even if it does not have "/N", it can be a valid IP, by default "/32".
+        if (srs_is_ipv4(network_address)) {
+            return CIDR_VALUES[32-1].mask;
+        }
+        return "";
+    }
+
+    // Change here to include IPv6 support.
+    string is_ipv4_address = network_address.substr(0, delimiter_position);
+    if (!srs_is_ipv4(is_ipv4_address)) {
+        return "";
+    }
+
+    size_t cidr_length_position = delimiter_position + delimiter.length();
+    if (cidr_length_position >= network_address.length()) {
+        return "";
+    }
+
+    string cidr_length = network_address.substr(cidr_length_position, network_address.length());
+    if (cidr_length.length() <= 0) {
+        return "";
+    }
+
+    size_t cidr_length_num = 31;
+    try {
+        cidr_length_num = atoi(cidr_length.c_str());
+        if (cidr_length_num <= 0) {
+            return "";
+        }
+    } catch (...) {
+        return "";
+    }
+
+    return CIDR_VALUES[cidr_length_num-1].mask;
+}

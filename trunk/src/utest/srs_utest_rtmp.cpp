@@ -3235,6 +3235,17 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
     }
 
     if (true) {
+        EXPECT_STREQ("255.255.255.255", srs_get_cidr_mask("127.0.0.1").c_str());
+        EXPECT_STREQ("255.240.0.0", srs_get_cidr_mask("127.0.0.1/12").c_str());
+    }
+
+    if (true) {
+        EXPECT_STREQ("", srs_get_cidr_mask("my.custom.domain").c_str());
+        EXPECT_STREQ("", srs_get_cidr_mask("my.custom.domain/12").c_str());
+        EXPECT_STREQ("", srs_get_cidr_mask("127.0.0.1/invalid/netmask").c_str());
+    }
+
+    if (true) {
         SrsMessageArray h(10);
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();
