@@ -621,9 +621,10 @@ static std::string get_host_candidate_ips(SrsConfDirective* c)
 {
     string candidate = _srs_config->get_stream_caster_gb28181_host(c);
     if (candidate == "*" || candidate == "0.0.0.0") {
-        std::vector<std::string> ips = srs_get_local_ips();
+        std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
         int index = _srs_config->get_stats_network();
-        return ips.at(index);
+        SrsIPAddress* ip = ips.at(index);
+        return ip->ip;
     } else {
         return candidate;
     }

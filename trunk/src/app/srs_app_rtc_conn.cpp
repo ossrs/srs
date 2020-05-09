@@ -111,15 +111,20 @@ static std::vector<std::string> get_candidate_ips()
     std::vector<std::string> candidate_ips;
 
     string candidate = _srs_config->get_rtc_server_candidates();
-    if (candidate == "*" || candidate == "0.0.0.0") {
-        std::vector<std::string> tmp = srs_get_local_ips();
-        for (int i = 0; i < (int)tmp.size(); ++i) {
-            if (tmp[i] != "127.0.0.1") {
-                candidate_ips.push_back(tmp[i]);
-            }
-        }
-    } else {
+    if (candidate != "*" && candidate != "0.0.0.0") {
         candidate_ips.push_back(candidate);
+        return candidate_ips;
+    }
+
+    // For * or 0.0.0.0, auto discovery expose ip addresses.
+    std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
+    for (int i = 0; i < (int)ips.size(); ++i) {
+        SrsIPAddress* ip = ips[i];
+        if (!ip->is_loopback) {
+            continue;
+        }
+
+        candidate_ips.push_back(ip->ip);
     }
 
     return candidate_ips;

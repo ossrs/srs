@@ -3682,13 +3682,15 @@ srs_error_t SrsConfig::check_normal_config()
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid stats.network=%d", get_stats_network());
     }
     if (true) {
-        vector<std::string> ips = srs_get_local_ips();
+        vector<SrsIPAddress*> ips = srs_get_local_ips();
         int index = get_stats_network();
         if (index >= (int)ips.size()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid stats.network=%d of %d",
                 index, (int)ips.size());
         }
-        srs_warn("stats network use index=%d, ip=%s", index, ips.at(index).c_str());
+
+        SrsIPAddress* addr = ips.at(index);
+        srs_warn("stats network use index=%d, ip=%s, ifname=%s", index, addr->ip.c_str(), addr->ifname.c_str());
     }
     if (true) {
         SrsConfDirective* conf = get_stats_disk_device();
