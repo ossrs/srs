@@ -1672,10 +1672,83 @@ srs_error_t SrsRtcPlayer::on_rtcp_xr(char* buf, int nb_buf)
     return err;
 }
 
-srs_error_t SrsRtcPlayer::on_rtcp_feedback(char* data, int nb_data)
+srs_error_t SrsRtcPlayer::on_rtcp_feedback(char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
-    // TODO: FIXME: Implements it.
+
+    if (nb_buf < 12) {
+        return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid rtp feedback packet, nb_buf=%d", nb_buf);
+    }
+
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsAutoFree(SrsBuffer, stream);
+
+    // @see: https://tools.ietf.org/html/rfc4585#section-6.1
+    /*
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |V=2|P|   FMT   |       PT      |          length               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  SSRC of packet sender                        |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                  SSRC of media source                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       :            Feedback Control Information (FCI)                 :
+       :                                                               :
+    */
+    /*uint8_t first = */stream->read_1bytes();
+    //uint8_t version = first & 0xC0;
+    //uint8_t padding = first & 0x20;
+    //uint8_t fmt = first & 0x1F;
+
+    /*uint8_t payload_type = */stream->read_1bytes();
+    /*uint16_t length = */stream->read_2bytes();
+    /*uint32_t ssrc_of_sender = */stream->read_4bytes();
+    uint32_t ssrc_of_media_source = stream->read_4bytes();
+
+    /*
+         0                   1                   2                   3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |            PID                |             BLP               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
+
+    uint16_t pid = stream->read_2bytes();
+    int blp = stream->read_2bytes();
+
+    // TODO: FIXME: Support ARQ.
+    vector<SrsRtpPacket2*> resend_pkts;
+    nack_fetch(resend_pkts, ssrc_of_media_source, pid);
+
+    uint16_t mask = 0x01;
+    for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {
+        if (!(blp & mask)) {
+            continue;
+        }
+
+        uint32_t loss_seq = pid + i;
+        nack_fetch(resend_pkts, ssrc_of_media_source, loss_seq);
+    }
+
+    for (int i = 0; i < (int)resend_pkts.size(); ++i) {
+        SrsRtpPacket2* pkt = resend_pkts[i];
+
+        char* data = new char[pkt->nb_bytes()];
+        SrsAutoFreeA(char, data);
+
+        SrsBuffer buf(data, pkt->nb_bytes());
+
+        // TODO: FIXME: Check error.
+        pkt->encode(&buf);
+        session_->sendonly_skt->sendto(data, pkt->nb_bytes(), 0);
+
+        SrsRtpHeader* h = &pkt->rtp_header;
+        srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(),
+            h->get_ssrc(), h->get_timestamp(), pkt->nb_bytes());
+    }
+
     return err;
 }
 
