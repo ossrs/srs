@@ -3645,7 +3645,8 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus"
-                && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole") {
+                && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole"
+                && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4741,6 +4742,23 @@ std::string SrsConfig::get_rtc_server_candidates()
 
     // If configed as ENV, but no ENV set, use default value.
     if (srs_string_starts_with(conf->arg0(), "$")) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+std::string SrsConfig::get_rtc_server_ip_family()
+{
+    static string DEFAULT = "ipv4";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ip_family");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 

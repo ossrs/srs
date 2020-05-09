@@ -118,13 +118,51 @@ static std::vector<std::string> get_candidate_ips()
 
     // For * or 0.0.0.0, auto discovery expose ip addresses.
     std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
+    if (ips.empty()) {
+        return candidate_ips;
+    }
+
+    // We try to find the best match candidates, no loopback.
+    string family = _srs_config->get_rtc_server_ip_family();
     for (int i = 0; i < (int)ips.size(); ++i) {
         SrsIPAddress* ip = ips[i];
         if (!ip->is_loopback) {
             continue;
         }
 
+        if (family == "ipv4" && !ip->is_ipv4) {
+            continue;
+        }
+        if (family == "ipv6" && ip->is_ipv4) {
+            continue;
+        }
+
         candidate_ips.push_back(ip->ip);
+        srs_warn("Best matched ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+    }
+
+    if (!candidate_ips.empty()) {
+        return candidate_ips;
+    }
+
+    // Then, we use the ipv4 address.
+    for (int i = 0; i < (int)ips.size(); ++i) {
+        SrsIPAddress* ip = ips[i];
+        if (!ip->is_ipv4) {
+            continue;
+        }
+
+        candidate_ips.push_back(ip->ip);
+        srs_warn("No best matched, use first ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        return candidate_ips;
+    }
+
+    // We use the first one.
+    if (candidate_ips.empty()) {
+        SrsIPAddress* ip = ips[0];
+        candidate_ips.push_back(ip->ip);
+        srs_warn("No best matched, use first ip=%s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        return candidate_ips;
     }
 
     return candidate_ips;
