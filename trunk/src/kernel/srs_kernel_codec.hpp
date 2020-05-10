@@ -268,6 +268,13 @@ public:
      * @remark all type of audio is possible, no need to check audio.
      */
     static bool acceptable(char* data, int size);
+
+#ifdef SRS_LAS
+    /**
+     * get cts if is 264, if not 264 return 0
+     */
+     static int64_t cts(char *data, int size);
+#endif
 };
 
 /**

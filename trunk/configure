@@ -746,6 +746,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}Warning: HDS is disabled.${BLACK}"
     fi
+    if [ $SRS_LAS = YES ]; then
+        echo -e "${YELLOW}Experiment: LAS is enabled.${BLACK}"
+    else
+        echo -e "${GREEN}Warning: LAS is disabled.${BLACK}"
+    fi
     if [ $SRS_SRT = YES ]; then
         echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
     else

@@ -290,6 +290,17 @@ public:
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
 
+#ifdef SRS_LAS
+    //if is video key frame, not include video sequence header
+    bool is_keyframe;
+    // if is {video sequence header|aac header|metadata}
+    bool is_header;
+    // for video pts = timstamp + cts, others pts = timestamp
+    int64_t pts;
+public:
+ std::string to_str();
+#endif 
+
 private:
     class SrsSharedPtrPayload
     {

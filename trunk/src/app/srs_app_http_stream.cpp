@@ -587,13 +587,29 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
+#ifdef SRS_LAS
+    int64_t lasspts = 0;
+    bool only_audio = false;
+    if (!r->query_get("startPts").empty()) {
+        lasspts = atoi(r->query_get("startPts").c_str());
+    }
+    if (r->query_get("onlyAudio") == "true") {
+        only_audio = true;
+    }
+    if ((err = source->create_consumer(NULL, consumer, lasspts, only_audio)) != srs_success) {
+        return srs_error_wrap(err, "create consumer");
+    }
+    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache(), lasspts)) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer");
+    }
+#else
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
     if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
         return srs_error_wrap(err, "dumps consumer");
     }
-
+#endif  
     SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream();
     SrsAutoFree(SrsPithyPrint, pprint);
     
