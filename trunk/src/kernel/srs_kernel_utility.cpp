@@ -209,7 +209,7 @@ void srs_parse_hostport(string hostport, string& host, int& port)
     if (hostport.find(":") == pos) {
         host = hostport.substr(0, pos);
         string p = hostport.substr(pos + 1);
-        if (!p.empty()) {
+        if (!p.empty() && p != "0") {
             port = ::atoi(p.c_str());
         }
         return;
@@ -224,7 +224,7 @@ void srs_parse_hostport(string hostport, string& host, int& port)
     // For ipv6, [host]:port.
     host = hostport.substr(1, pos - 1);
     string p = hostport.substr(pos + 2);
-    if (!p.empty()) {
+    if (!p.empty() && p != "0") {
         port = ::atoi(p.c_str());
     }
 }
