@@ -21,8 +21,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_APP_SDP_HPP
-#define SRS_APP_SDP_HPP
+#ifndef SRS_APP_RTC_SDP_HPP
+#define SRS_APP_RTC_SDP_HPP
 
 #include <srs_core.hpp>
 #include <srs_kernel_utility.hpp>

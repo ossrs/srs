@@ -32,7 +32,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 string srs_video_codec_id2str(SrsVideoCodecId codec)
 {

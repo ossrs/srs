@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_rtp_queue.hpp>
+#include <srs_app_rtc_queue.hpp>
 
 #include <string.h>
 #include <unistd.h>
@@ -30,7 +30,7 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 

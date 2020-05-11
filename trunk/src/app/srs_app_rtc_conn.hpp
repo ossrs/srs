@@ -31,10 +31,10 @@
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
-#include <srs_app_sdp.hpp>
+#include <srs_app_rtc_sdp.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_kernel_rtp.hpp>
-#include <srs_app_rtp_queue.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_rtc_queue.hpp>
 
 #include <string>
 #include <map>

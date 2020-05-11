@@ -213,7 +213,7 @@ MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_buffer"
         "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts"
         "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file")
 if [[ $SRS_RTC == YES ]]; then
-    MODULE_FILES+=("srs_kernel_rtp")
+    MODULE_FILES+=("srs_kernel_rtc_rtp")
 fi
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
@@ -227,7 +227,7 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_raw_avc" "srs_rtsp_stack" "srs_sip_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
         "srs_protocol_format")
 if [[ $SRS_RTC == YES ]]; then
-    MODULE_FILES+=("srs_stun_stack")
+    MODULE_FILES+=("srs_rtc_stun_stack")
 fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
@@ -279,8 +279,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
             "srs_app_coworkers" "srs_app_hybrid")
     if [[ $SRS_RTC == YES ]]; then
-        MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_dtls" "srs_app_audio_recode" "srs_app_sdp"
-            "srs_app_rtp_queue" "srs_app_rtc_server")
+        MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_codec" "srs_app_rtc_sdp"
+            "srs_app_rtc_queue" "srs_app_rtc_server")
     fi
     if [[ $SRS_GB28181 == YES ]]; then
         MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")

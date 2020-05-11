@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_sdp.hpp>
+#include <srs_app_rtc_sdp.hpp>
 using namespace std;
 
 #include <stdlib.h>

@@ -41,7 +41,7 @@ using namespace std;
 #include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
 #ifdef SRS_RTC
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #endif
 
 SrsMessageHeader::SrsMessageHeader()

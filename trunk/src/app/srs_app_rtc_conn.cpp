@@ -44,17 +44,17 @@ using namespace std;
 
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_stun_stack.hpp>
+#include <srs_rtc_stun_stack.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_msg_array.hpp>
-#include <srs_app_dtls.hpp>
+#include <srs_app_rtc_dtls.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_rtc.hpp>
-#include <srs_app_rtp_queue.hpp>
+#include <srs_app_rtc_queue.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_service_utility.hpp>
