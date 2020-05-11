@@ -49,6 +49,7 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)

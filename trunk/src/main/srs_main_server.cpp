@@ -56,6 +56,7 @@ using namespace std;
 #include <srs_app_hybrid.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 
 #ifdef SRS_SRT

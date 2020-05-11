@@ -518,7 +518,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
     OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
     if [[ $SRS_SRTP_ASM == YES ]]; then
-        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf  ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
+        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
