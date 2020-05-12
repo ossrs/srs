@@ -31,8 +31,10 @@
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
-#include <srs_app_sdp.hpp>
+#include <srs_app_rtc_sdp.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_rtc_queue.hpp>
 
 #include <string>
 #include <map>
@@ -51,6 +53,13 @@ class SrsSharedPtrMessage;
 class SrsSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
+class SrsRtpQueue;
+class SrsRtpAudioQueue;
+class SrsRtpVideoQueue;
+class SrsRtpPacket2;
+class ISrsCodec;
+class SrsRtpNackForReceiver;
+class SrsRtpIncommingVideoFrame;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -61,6 +70,7 @@ const uint8_t kApp  = 204;
 // @see: https://tools.ietf.org/html/rfc4585#section-6.1
 const uint8_t kRtpFb = 205;
 const uint8_t kPsFb  = 206;
+const uint8_t kXR    = 207;
 
 // @see: https://tools.ietf.org/html/rfc4585#section-6.3
 const uint8_t kPLI  = 1;
@@ -68,20 +78,40 @@ const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
 
+extern std::string gen_random_str(int len);
+
+class SrsNtp
+{
+public:
+    uint64_t system_ms_;
+    uint64_t ntp_;
+    uint32_t ntp_second_;
+    uint32_t ntp_fractions_;
+public:
+    SrsNtp();
+    virtual ~SrsNtp();
+public:
+    static SrsNtp from_time_ms(uint64_t ms);
+    static SrsNtp to_time_ms(uint64_t ntp);
+public:
+    static uint64_t kMagicNtpFractionalUnit;
+};
+
 enum SrsRtcSessionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
     INIT = -1,
-    WAITING_STUN = 1,
-    DOING_DTLS_HANDSHAKE = 2,
-    ESTABLISHED = 3,
-    CLOSED = 4,
+    WAITING_ANSWER = 1,
+    WAITING_STUN = 2,
+    DOING_DTLS_HANDSHAKE = 3,
+    ESTABLISHED = 4,
+    CLOSED = 5,
 };
 
-class SrsDtlsSession
+class SrsRtcDtls
 {
 private:
-    SrsRtcSession* rtc_session;
+    SrsRtcSession* session_;
 
     SSL* dtls;
     BIO* bio_in;
@@ -96,13 +126,13 @@ private:
     bool handshake_done;
 
 public:
-    SrsDtlsSession(SrsRtcSession* s);
-    virtual ~SrsDtlsSession();
+    SrsRtcDtls(SrsRtcSession* s);
+    virtual ~SrsRtcDtls();
 
-    srs_error_t initialize(const SrsRequest& req);
+    srs_error_t initialize(SrsRequest* r);
 
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_dtls_handshake_done(SrsUdpMuxSocket* skt);
+    srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t on_dtls_handshake_done();
     srs_error_t on_dtls_application_data(const char* data, const int len);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
@@ -111,15 +141,15 @@ public:
     srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
 private:
-    srs_error_t handshake(SrsUdpMuxSocket* skt);
+    srs_error_t handshake();
 private:
     srs_error_t srtp_initialize();
     srs_error_t srtp_send_init();
     srs_error_t srtp_recv_init();
 };
 
-// A group of RTP packets.
-class SrsRtcPackets
+// A group of RTP packets for outgoing(send to players).
+class SrsRtcOutgoingPackets
 {
 public:
     bool use_gso;
@@ -158,8 +188,8 @@ private:
     int nn_cache;
     SrsRtpPacket2* cache;
 public:
-    SrsRtcPackets(int nn_cache_max);
-    virtual ~SrsRtcPackets();
+    SrsRtcOutgoingPackets(int nn_cache_max);
+    virtual ~SrsRtcOutgoingPackets();
 public:
     void reset(bool gso, bool merge_nalus);
     SrsRtpPacket2* fetch();
@@ -169,38 +199,42 @@ public:
     SrsRtpPacket2* at(int index);
 };
 
-class SrsRtcSenderThread : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
-    SrsCoroutine* trd;
     int _parent_cid;
-private:
-    SrsRtcSession* rtc_session;
-    uint32_t video_ssrc;
-    uint32_t audio_ssrc;
-    uint16_t video_payload_type;
-    uint16_t audio_payload_type;
+    SrsCoroutine* trd;
+    SrsRtcSession* session_;
 private:
     // TODO: FIXME: How to handle timestamp overflow?
+    // Information for audio.
     uint32_t audio_timestamp;
     uint16_t audio_sequence;
-private:
+    uint32_t audio_ssrc;
+    uint16_t audio_payload_type;
+    // Information for video.
     uint16_t video_sequence;
-public:
-    SrsUdpMuxSocket* sendonly_ukt;
+    uint16_t video_payload_type;
+    uint32_t video_ssrc;
+    // NACK ARQ ring buffer.
+    SrsRtpRingBuffer<SrsRtpPacket2*>* audio_queue_;
+    SrsRtpRingBuffer<SrsRtpPacket2*>* video_queue_;
+    // Simulators.
+    int nn_simulate_nack_drop;
 private:
-    ISrsUdpSender* sender;
-private:
+    // For merged-write and GSO.
     bool merge_nalus;
     bool gso;
     int max_padding;
-private:
+    // For merged-write messages.
     srs_utime_t mw_sleep;
     int mw_msgs;
     bool realtime;
+    // Whether enabled nack.
+    bool nack_enabled_;
 public:
-    SrsRtcSenderThread(SrsRtcSession* s, SrsUdpMuxSocket* u, int parent_cid);
-    virtual ~SrsRtcSenderThread();
+    SrsRtcPlayer(SrsRtcSession* s, int parent_cid);
+    virtual ~SrsRtcPlayer();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
 // interface ISrsReloadHandler
@@ -215,35 +249,112 @@ public:
     virtual void stop();
     virtual void stop_loop();
 public:
-    void update_sendonly_socket(SrsUdpMuxSocket* skt);
-public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
-    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcPackets& packets);
-    srs_error_t send_packets(SrsRtcPackets& packets);
-    srs_error_t send_packets_gso(SrsRtcPackets& packets);
+    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
+    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
+    srs_error_t send_packets(SrsRtcOutgoingPackets& packets);
+    srs_error_t send_packets_gso(SrsRtcOutgoingPackets& packets);
 private:
-    srs_error_t packet_opus(SrsSample* sample, SrsRtcPackets& packets, int nn_max_payload);
+    srs_error_t package_opus(SrsSample* sample, SrsRtcOutgoingPackets& packets, int nn_max_payload);
 private:
-    srs_error_t packet_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcPackets& packets);
-    srs_error_t packet_nalus(SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
-    srs_error_t packet_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcPackets& packets);
-    srs_error_t packet_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcPackets& packets);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets);
+    srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+public:
+    void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+    void simulate_nack_drop(int nn);
+private:
+    void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
+public:
+    srs_error_t on_rtcp(char* data, int nb_data);
+private:
+    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
+    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
+    srs_error_t on_rtcp_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_rr(char* data, int nb_data);
+};
+
+class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
+{
+private:
+    SrsHourGlass* report_timer;
+    uint64_t nn_audio_frames;
+private:
+    SrsRtcSession* session_;
+    uint32_t video_ssrc;
+    uint32_t audio_ssrc;
+private:
+    SrsRtpVideoQueue* video_queue_;
+    SrsRtpNackForReceiver* video_nack_;
+    SrsRtpAudioQueue* audio_queue_;
+    SrsRtpNackForReceiver* audio_nack_;
+private:
+    SrsRequest* req;
+    SrsSource* source;
+    // Whether enabled nack.
+    bool nack_enabled_;
+    // Simulators.
+    int nn_simulate_nack_drop;
+private:
+    std::map<uint32_t, uint64_t> last_sender_report_sys_time;
+    std::map<uint32_t, SrsNtp> last_sender_report_ntp;
+public:
+    SrsRtcPublisher(SrsRtcSession* session);
+    virtual ~SrsRtcPublisher();
+public:
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* req);
+private:
+    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
+    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpQueue* rtp_queue);
+    srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
+    srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
+public:
+    srs_error_t on_rtp(char* buf, int nb_buf);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
+    srs_error_t on_rtcp(char* data, int nb_data);
+private:
+    srs_error_t on_audio(SrsRtpPacket2* pkt);
+    srs_error_t on_audio_frame(SrsRtpPacket2* frame);
+    srs_error_t on_video(SrsRtpPacket2* pkt);
+    srs_error_t on_video_frame(SrsRtpPacket2* frame);
+    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
+    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
+    srs_error_t on_rtcp_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
+    srs_error_t on_rtcp_rr(char* data, int nb_data);
+public:
+    void request_keyframe();
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+public:
+    void simulate_nack_drop(int nn);
+private:
+    void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
 };
 
 class SrsRtcSession
 {
-    friend class SrsRtcSenderThread;
+    friend class SrsRtcDtls;
+    friend class SrsRtcPlayer;
+    friend class SrsRtcPublisher;
 private:
-    SrsRtcServer* rtc_server;
-    SrsSdp  remote_sdp;
-    SrsSdp  local_sdp;
-    SrsRtcSessionStateType session_state;
-    SrsDtlsSession* dtls_session;
-    SrsRtcSenderThread* strd;
-    std::string username;
-    std::string peer_id;
+    SrsRtcServer* server_;
+    SrsRtcSessionStateType state_;
+    SrsRtcDtls* dtls_;
+    SrsRtcPlayer* player_;
+    SrsRtcPublisher* publisher_;
+    bool is_publisher_;
+private:
+    SrsUdpMuxSocket* sendonly_skt;
+    std::string username_;
+    std::string peer_id_;
+private:
+    // The timeout of session, keep alive by STUN ping pong.
+    srs_utime_t sessionStunTimeout;
     srs_utime_t last_stun_time;
 private:
     // For each RTC session, we use a specified cid for debugging logs.
@@ -253,145 +364,49 @@ private:
     //      Sepcifies by HTTP API, query encrypt, optional.
     // TODO: FIXME: Support reload.
     bool encrypt;
-    // The timeout of session, keep alive by STUN ping pong.
-    srs_utime_t sessionStunTimeout;
+    SrsRequest* req;
+    SrsSource* source_;
+    SrsSdp remote_sdp;
+    SrsSdp local_sdp;
+private:
+    bool blackhole;
+    sockaddr_in* blackhole_addr;
+    srs_netfd_t blackhole_stfd;
 public:
-    SrsRequest request;
-    SrsSource* source;
-public:
-    SrsRtcSession(SrsRtcServer* rtc_svr, const SrsRequest& req, const std::string& un, int context_id);
+    SrsRtcSession(SrsRtcServer* s);
     virtual ~SrsRtcSession();
 public:
-    SrsSdp* get_local_sdp() { return &local_sdp; }
+    SrsSdp* get_local_sdp();
     void set_local_sdp(const SrsSdp& sdp);
-
-    SrsSdp* get_remote_sdp() { return &remote_sdp; }
-    void set_remote_sdp(const SrsSdp& sdp) { remote_sdp = sdp; }
-
-    SrsRtcSessionStateType get_session_state() { return session_state; }
-    void set_session_state(SrsRtcSessionStateType state) { session_state = state; }
-
-    std::string id() const { return peer_id + "_" + username; }
-
-    std::string get_peer_id() const { return peer_id; }
-    void set_peer_id(const std::string& id) { peer_id = id; }
-
-    void set_encrypt(bool v) { encrypt = v; }
-
+    SrsSdp* get_remote_sdp();
+    void set_remote_sdp(const SrsSdp& sdp);
+    SrsRtcSessionStateType state();
+    void set_state(SrsRtcSessionStateType state);
+    std::string id();
+    std::string peer_id();
+    void set_peer_id(std::string v);
+    std::string username();
+    void set_encrypt(bool v);
     void switch_to_context();
+    int context_id();
 public:
-    srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp(SrsUdpMuxSocket* skt);
+    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
+    // The peer address may change, we can identify that by STUN messages.
+    srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
+    srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t on_rtp(char* data, int nb_data);
+    srs_error_t on_rtcp(char* data, int nb_data);
 public:
-    srs_error_t send_client_hello(SrsUdpMuxSocket* skt);
-    srs_error_t on_connection_established(SrsUdpMuxSocket* skt);
-    srs_error_t start_play(SrsUdpMuxSocket* skt);
-public:
+    srs_error_t on_connection_established();
+    srs_error_t start_play();
+    srs_error_t start_publish();
     bool is_stun_timeout();
-private:
-    srs_error_t check_source();
-private:
-    srs_error_t on_binding_request(SrsUdpMuxSocket* skt, SrsStunPacket* stun_req);
-private:
-    srs_error_t on_rtcp_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_ps_feedback(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-    srs_error_t on_rtcp_receiver_report(char* buf, int nb_buf, SrsUdpMuxSocket* skt);
-};
-
-class SrsUdpMuxSender : virtual public ISrsUdpSender, virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-{
-private:
-    srs_netfd_t lfd;
-    SrsRtcServer* server;
-    SrsCoroutine* trd;
-private:
-    srs_cond_t cond;
-    bool waiting_msgs;
-    bool gso;
-    int nn_senders;
-private:
-    // Hotspot msgs, we are working on it.
-    // @remark We will wait util all messages are ready.
-    std::vector<mmsghdr> hotspot;
-    // Cache msgs, for other coroutines to fill it.
-    std::vector<mmsghdr> cache;
-    int cache_pos;
-    // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
-    int max_sendmmsg;
-    // The total queue length, for each sender.
-    int queue_length;
-    // The extra queue ratio.
-    int extra_ratio;
-    int extra_queue;
+    void update_sendonly_socket(SrsUdpMuxSocket* skt);
 public:
-    SrsUdpMuxSender(SrsRtcServer* s);
-    virtual ~SrsUdpMuxSender();
-public:
-    virtual srs_error_t initialize(srs_netfd_t fd, int senders);
+    // Simulate the NACK to drop nn packets.
+    void simulate_nack_drop(int nn);
 private:
-    void free_mhdrs(std::vector<mmsghdr>& mhdrs);
-public:
-    virtual srs_error_t fetch(mmsghdr** pphdr);
-    virtual srs_error_t sendmmsg(mmsghdr* hdr);
-    virtual bool overflow();
-    virtual void set_extra_ratio(int r);
-public:
-    virtual srs_error_t cycle();
-// interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_rtc_server();
-};
-
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
-{
-private:
-    SrsHourGlass* timer;
-    std::vector<SrsUdpMuxListener*> listeners;
-    std::vector<SrsUdpMuxSender*> senders;
-private:
-    std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
-    std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
-public:
-    SrsRtcServer();
-    virtual ~SrsRtcServer();
-public:
-    virtual srs_error_t initialize();
-public:
-    // TODO: FIXME: Support gracefully quit.
-    // TODO: FIXME: Support reload.
-    virtual srs_error_t listen_udp();
-    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
-public:
-    virtual srs_error_t listen_api();
-    SrsRtcSession* create_rtc_session(const SrsRequest& req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip);
-    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* rtc_session);
-    void check_and_clean_timeout_session();
-    int nn_sessions() { return (int)map_username_session.size(); }
-private:
-    srs_error_t on_stun(SrsUdpMuxSocket* skt);
-    srs_error_t on_dtls(SrsUdpMuxSocket* skt);
-    srs_error_t on_rtp_or_rtcp(SrsUdpMuxSocket* skt);
-private:
-    SrsRtcSession* find_rtc_session_by_username(const std::string& ufrag);
-    SrsRtcSession* find_rtc_session_by_peer_id(const std::string& peer_id);
-// interface ISrsHourGlass
-public:
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
-};
-
-// The RTC server adapter.
-class RtcServerAdapter : public ISrsHybridServer
-{
-private:
-    SrsRtcServer* rtc;
-public:
-    RtcServerAdapter();
-    virtual ~RtcServerAdapter();
-public:
-    virtual srs_error_t initialize();
-    virtual srs_error_t run();
-    virtual void stop();
+    srs_error_t on_binding_request(SrsStunPacket* r);
 };
 
 #endif

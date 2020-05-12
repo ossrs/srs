@@ -38,7 +38,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
@@ -51,7 +51,7 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <openssl/rand.h>
-#include <srs_app_audio_recode.hpp>
+#include <srs_app_rtc_codec.hpp>
 
 // TODO: Add this function into SrsRtpMux class.
 srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)
@@ -276,7 +276,7 @@ srs_error_t SrsRtc::on_publish()
         return err;
     }
 
-	if (!_srs_config->get_rtc_enabled(req->vhost)) {
+    if (!_srs_config->get_rtc_enabled(req->vhost)) {
         return err; 
     }
     

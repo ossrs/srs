@@ -92,7 +92,7 @@ VOID TEST(ProtocolRTMPTest, PacketEncode)
         MockPacket pkt;
         pkt.size = 1024;
 
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_FAILED(pkt.decode(&b));
     }
 

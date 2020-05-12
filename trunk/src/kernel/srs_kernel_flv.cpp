@@ -40,8 +40,8 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
-#ifdef SRS_AUTO_RTC
-#include <srs_kernel_rtp.hpp>
+#ifdef SRS_RTC
+#include <srs_kernel_rtc_rtp.hpp>
 #endif
 
 SrsMessageHeader::SrsMessageHeader()
@@ -164,7 +164,7 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
@@ -177,7 +177,7 @@ void SrsCommonMessage::create_payload(int size)
     payload = new char[size];
     srs_verbose("create payload for RTMP message. size=%d", size);
     
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_watch(payload, "RTMP.msg.payload", size);
 #endif
 }
@@ -211,7 +211,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     size = 0;
     shared_count = 0;
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     samples = NULL;
     nn_samples = 0;
     has_idr = false;
@@ -224,12 +224,12 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     srs_freepa(samples);
     
     for (int i = 0; i < nn_extra_payloads; i++) {
@@ -376,7 +376,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     return copy;
 }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payloads)
 {
     srs_assert(nn_payloads);
@@ -388,6 +388,36 @@ void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payload
     memcpy((void*)ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
 }
 
+int SrsSharedPtrMessage::nn_extra_payloads()
+{
+    return ptr->nn_extra_payloads;
+}
+
+SrsSample* SrsSharedPtrMessage::extra_payloads()
+{
+    return ptr->extra_payloads;
+}
+
+void SrsSharedPtrMessage::set_max_extra_payload(int v)
+{
+    ptr->nn_max_extra_payloads = v;
+}
+
+int SrsSharedPtrMessage::nn_max_extra_payloads()
+{
+    return ptr->nn_max_extra_payloads;
+}
+
+bool SrsSharedPtrMessage::has_idr()
+{
+    return ptr->has_idr;
+}
+
+void SrsSharedPtrMessage::set_has_idr(bool v)
+{
+    ptr->has_idr = v;
+}
+
 void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
 {
     srs_assert(nn_samples);
@@ -397,6 +427,16 @@ void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
 
     ptr->samples = new SrsSample[nn_samples];
     memcpy((void*)ptr->samples, samples, nn_samples * sizeof(SrsSample));
+}
+
+int SrsSharedPtrMessage::nn_samples()
+{
+    return ptr->nn_samples;
+}
+
+SrsSample* SrsSharedPtrMessage::samples()
+{
+    return ptr->samples;
 }
 #endif
 

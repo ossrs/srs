@@ -33,7 +33,6 @@
 class SrsFormat;
 class SrsSample;
 class SrsSharedPtrMessage;
-class SrsRtpSharedPacket;
 class SrsRequest;
 class SrsOriginHub;
 class SrsAudioRecode;

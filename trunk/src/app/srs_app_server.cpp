@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
 #include <sys/inotify.h>
 #endif
 using namespace std;
@@ -349,7 +349,7 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
     srs_freep(caster);
 }
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 
 SrsGb28181Listener::SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
@@ -514,7 +514,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     // Whether enable auto reload config.
     bool auto_reload = _srs_config->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
@@ -594,7 +594,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     string config_path = _srs_config->config();
     string config_file = srs_path_basename(config_path);
     string k8s_file = "..data";
@@ -695,7 +695,7 @@ void SrsServer::destroy()
     srs_freep(signal_manager);
     srs_freep(conn_manager);
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
     //free global gb28181 manager
     srs_freep(_srs_gb28181);
 #endif
@@ -721,7 +721,7 @@ void SrsServer::dispose()
     
     // @remark don't dispose all connections, for too slow.
     
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_report();
 #endif
 }
@@ -763,7 +763,7 @@ void SrsServer::gracefully_dispose()
     _srs_sources->dispose();
     srs_trace("source disposed");
 
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_report();
 #endif
 
@@ -941,8 +941,8 @@ srs_error_t SrsServer::http_handle()
 {
     srs_error_t err = srs_success;
     
-    if ((err = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != srs_success) {
-        return srs_error_wrap(err, "handle not found");
+    if ((err = http_api_mux->handle("/", new SrsGoApiRoot())) != srs_success) {
+        return srs_error_wrap(err, "handle /");
     }
     if ((err = http_api_mux->handle("/api/", new SrsGoApiApi())) != srs_success) {
         return srs_error_wrap(err, "handle api");
@@ -992,7 +992,7 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/perf", new SrsGoApiPerf())) != srs_success) {
         return srs_error_wrap(err, "handle perf");
     }
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
     if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
@@ -1015,7 +1015,7 @@ srs_error_t SrsServer::http_handle()
         return srs_error_wrap(err, "handle tests errors for error.srs.com");
     }
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
     // The test api for get tcmalloc stats.
     // @see Memory Introspection in https://gperftools.github.io/gperftools/tcmalloc.html
     if ((err = http_api_mux->handle("/api/v1/tcmalloc", new SrsGoApiTcmalloc())) != srs_success) {
@@ -1058,7 +1058,7 @@ srs_error_t SrsServer::cycle()
     // Do server main cycle.
      err = do_cycle();
     
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
     destroy();
     
     // remark, for gmc, never invoke the exit().
@@ -1104,7 +1104,7 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-#ifndef SRS_AUTO_GPERF_MC
+#ifndef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
         srs_warn("reopen log file, signo=%d", signo);
@@ -1112,7 +1112,7 @@ void SrsServer::on_signal(int signo)
     }
 #endif
     
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
         srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
@@ -1126,11 +1126,11 @@ void SrsServer::on_signal(int signo)
     }
     
     if (signo == SIGINT) {
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
 #else
-        #ifdef SRS_AUTO_MEM_WATCH
+        #ifdef SRS_MEM_WATCH
         srs_memory_report();
         #endif
 #endif
@@ -1206,7 +1206,7 @@ srs_error_t SrsServer::do_cycle()
             // if user interrupt the program, exit to check mem leak.
             // but, if gperf, use reload to ensure main return normally,
             // because directly exit will cause core-dump.
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
             if (signal_gmc_stop) {
                 srs_warn("gmc got singal to stop server.");
                 return err;
@@ -1359,7 +1359,7 @@ srs_error_t SrsServer::listen_http_stream()
     return err;
 }
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 srs_error_t SrsServer::listen_gb28181_sip(SrsConfDirective* stream_caster)
 { 
     srs_error_t err = srs_success;
@@ -1410,7 +1410,7 @@ srs_error_t SrsServer::listen_stream_caster()
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else if (srs_stream_caster_is_gb28181(caster)) {
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
             //init global gb28181 manger
             if (_srs_gb28181 == NULL){
                 _srs_gb28181 = new SrsGb28181Manger(stream_caster);

@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_dtls.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 using namespace std;
 
@@ -46,14 +46,6 @@ SrsDtls::~SrsDtls()
     SSL_CTX_free(dtls_ctx);
 }
 
-SrsDtls* SrsDtls::instance()
-{
-    if (!_instance) {
-        _instance = new SrsDtls();
-    }   
-    return _instance;
-}
-
 // The return value of verify_callback controls the strategy of the further verification process. If verify_callback
 // returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
 // set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
@@ -69,7 +61,7 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-srs_error_t SrsDtls::init(const SrsRequest& req)
+srs_error_t SrsDtls::init(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
@@ -89,8 +81,8 @@ srs_error_t SrsDtls::init(const SrsRequest& req)
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
 #else
-    //dtls_ctx = SSL_CTX_new(DTLS_method());
-    dtls_ctx = SSL_CTX_new(DTLSv1_method());
+    dtls_ctx = SSL_CTX_new(DTLS_method());
+    //dtls_ctx = SSL_CTX_new(DTLSv1_method());
     //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
 #endif
 
@@ -256,3 +248,22 @@ srs_error_t SrsDtls::init(const SrsRequest& req)
 
     return err;
 }
+
+SrsDtls* SrsDtls::instance()
+{
+    if (!_instance) {
+        _instance = new SrsDtls();
+    }
+    return _instance;
+}
+
+SSL_CTX* SrsDtls::get_dtls_ctx()
+{
+    return dtls_ctx;
+}
+
+std::string SrsDtls::get_fingerprint() const
+{
+    return fingerprint;
+}
+

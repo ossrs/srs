@@ -30,14 +30,14 @@
 #include <sstream>
 using namespace std;
 
-#ifdef SRS_AUTO_GPERF_MP
+#ifdef SRS_GPERF_MP
 #include <gperftools/heap-profiler.h>
 #endif
-#ifdef SRS_AUTO_GPERF_CP
+#ifdef SRS_GPERF_CP
 #include <gperftools/profiler.h>
 #endif
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
 #include <gperftools/malloc_extension.h>
 #endif
 
@@ -54,11 +54,12 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 
-#ifdef SRS_AUTO_SRT
+#ifdef SRS_SRT
 #include <srt_server.hpp>
 #endif
 
@@ -85,18 +86,21 @@ srs_error_t do_main(int argc, char** argv)
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
+
+    // For RTC to generating random ICE username.
+    ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
     
     // for gperf gmp or gcp,
     // should never enable it when not enabled for performance issue.
-#ifdef SRS_AUTO_GPERF_MP
+#ifdef SRS_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
 #endif
-#ifdef SRS_AUTO_GPERF_CP
+#ifdef SRS_GPERF_CP
     ProfilerStart("gperf.srs.gcp");
 #endif
     
     // directly compile error when these two macro defines.
-#if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
+#if defined(SRS_GPERF_MC) && defined(SRS_GPERF_MP)
 #error ("option --with-gmc confict with --with-gmp, "
     "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
     "Note that since the heap-checker uses the heap-profiling framework internally, "
@@ -104,7 +108,7 @@ srs_error_t do_main(int argc, char** argv)
 #endif
     
     // never use gmp to check memory leak.
-#ifdef SRS_AUTO_GPERF_MP
+#ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."
 #endif
     
@@ -132,12 +136,12 @@ srs_error_t do_main(int argc, char** argv)
     // config already applied to log.
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
-    srs_trace("contributors: %s", SRS_AUTO_CONSTRIBUTORS);
+    srs_trace("contributors: %s", SRS_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d",
-        _srs_config->cwd().c_str(), cwd.c_str(), SRS_AUTO_BUILD_DATE, SRS_AUTO_USER_CONFIGURE, SRS_AUTO_UNAME, SRS_AUTO_OSX_BOOL);
-    srs_trace("configure detail: " SRS_AUTO_CONFIGURE);
-#ifdef SRS_AUTO_EMBEDED_TOOL_CHAIN
-    srs_trace("crossbuild tool chain: " SRS_AUTO_EMBEDED_TOOL_CHAIN);
+        _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL);
+    srs_trace("configure detail: " SRS_CONFIGURE);
+#ifdef SRS_EMBEDED_TOOL_CHAIN
+    srs_trace("crossbuild tool chain: " SRS_EMBEDED_TOOL_CHAIN);
 #endif
 
     // for memory check or detect.
@@ -157,7 +161,7 @@ srs_error_t do_main(int argc, char** argv)
         ss << "glic mem-check env MALLOC_CHECK_ " << mcov << "=>" << mcnv << ", LIBC_FATAL_STDERR_ " << lfsov << "=>" << lfsnv << ".";
 #endif
         
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
         string hcov = srs_getenv("HEAPCHECK");
         if (hcov.empty()) {
             string cpath = _srs_config->config();
@@ -167,7 +171,7 @@ srs_error_t do_main(int argc, char** argv)
         }
 #endif
         
-#ifdef SRS_AUTO_GPERF_MD
+#ifdef SRS_GPERF_MD
         char* TCMALLOC_PAGE_FENCE = getenv("TCMALLOC_PAGE_FENCE");
         if (!TCMALLOC_PAGE_FENCE || strcmp(TCMALLOC_PAGE_FENCE, "1")) {
             srs_warn("gmd enabled without env TCMALLOC_PAGE_FENCE=1");
@@ -190,7 +194,7 @@ srs_error_t do_main(int argc, char** argv)
     // features
     show_macro_features();
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
     // For tcmalloc, use slower release rate.
     if (true) {
         double trr = _srs_config->tcmalloc_release_rate();
@@ -233,8 +237,8 @@ void show_macro_features()
         ss << ", rch:" << srs_bool2switch(true);
         ss << ", dash:" << "on";
         ss << ", hls:" << srs_bool2switch(true);
-        ss << ", hds:" << srs_bool2switch(SRS_AUTO_HDS_BOOL);
-        ss << ", srt:" << srs_bool2switch(SRS_AUTO_SRT_BOOL);
+        ss << ", hds:" << srs_bool2switch(SRS_HDS_BOOL);
+        ss << ", srt:" << srs_bool2switch(SRS_SRT_BOOL);
         // hc(http callback)
         ss << ", hc:" << srs_bool2switch(true);
         // ha(http api)
@@ -272,7 +276,7 @@ void show_macro_features()
 #if defined(__aarch64__)
         ss << " aarch64";
 #endif
-#if defined(SRS_AUTO_CROSSBUILD)
+#if defined(SRS_CROSSBUILD)
         ss << "(crossbuild)";
 #endif
         
@@ -345,7 +349,7 @@ void show_macro_features()
     srs_trace("system default latency(ms): mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
               srsu2msi(SRS_PERF_MW_SLEEP), possible_mr_latency, srsu2msi(SRS_PERF_PLAY_QUEUE));
     
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
 #warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
     srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
 #endif
@@ -461,11 +465,11 @@ srs_error_t run_hybrid_server()
     // Create servers and register them.
     _srs_hybrid->register_server(new SrsServerAdapter());
 
-#ifdef SRS_AUTO_SRT
+#ifdef SRS_SRT
     _srs_hybrid->register_server(new SrtServerAdapter());
 #endif
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     _srs_hybrid->register_server(new RtcServerAdapter());
 #endif
 

@@ -2596,7 +2596,7 @@ VOID TEST(KernelUtility, AnnexbUtils)
     if (true) {
         EXPECT_TRUE(!srs_avc_startswith_annexb(NULL, NULL));
         
-        SrsBuffer buf;
+        SrsBuffer buf(NULL, 0);
         EXPECT_TRUE(!srs_avc_startswith_annexb(&buf, NULL));
     }
     
@@ -2654,7 +2654,7 @@ VOID TEST(KernelUtility, AdtsUtils)
     if (true) {
         EXPECT_TRUE(!srs_aac_startswith_adts(NULL));
         
-        SrsBuffer buf;
+        SrsBuffer buf(NULL, 0);
         EXPECT_TRUE(!srs_aac_startswith_adts(&buf));
     }
     
@@ -3843,7 +3843,7 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
 		off_t seeked = 0;
 		HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 		EXPECT_EQ(10, seeked);
 #else
 		EXPECT_EQ(0, seeked);
@@ -4212,7 +4212,7 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
     }
 }
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
 extern _srs_gettimeofday_t _srs_gettimeofday;
 int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
 	return -1;
@@ -4506,7 +4506,7 @@ VOID TEST(KernelTSTest, CoverContextUtility)
         SrsTsMessage m(&c, &p);
         
         m.PES_packet_length = 8;
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         
         int nb_bytes = 0;
         HELPER_EXPECT_SUCCESS(m.dump(&b, &nb_bytes));
@@ -4625,7 +4625,7 @@ VOID TEST(KernelTSTest, CoverContextEncode)
     MockTsHandler h;
     
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_SUCCESS(ctx.decode(&b, &h));
         EXPECT_TRUE(NULL == h.msg);
     }

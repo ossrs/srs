@@ -144,9 +144,9 @@ bool srs_net_device_is_internet(const sockaddr* addr)
     return true;
 }
 
-vector<string> _srs_system_ips;
+vector<SrsIPAddress*> _srs_system_ips;
 
-void discover_network_iface(ifaddrs* cur, vector<string>& ips, stringstream& ss0, stringstream& ss1, bool ipv6)
+void discover_network_iface(ifaddrs* cur, vector<SrsIPAddress*>& ips, stringstream& ss0, stringstream& ss1, bool ipv6, bool loopback)
 {
     char saddr[64];
     char* h = (char*)saddr;
@@ -160,10 +160,17 @@ void discover_network_iface(ifaddrs* cur, vector<string>& ips, stringstream& ss0
     std::string ip(saddr, strlen(saddr));
     ss0 << ", iface[" << (int)ips.size() << "] " << cur->ifa_name << " " << (ipv6? "ipv6":"ipv4")
     << " 0x" << std::hex << cur->ifa_flags  << std::dec << " " << ip;
-    ips.push_back(ip);
+
+    SrsIPAddress* ip_address = new SrsIPAddress();
+    ip_address->ip = ip;
+    ip_address->is_ipv4 = !ipv6;
+    ip_address->is_loopback = loopback;
+    ip_address->ifname = cur->ifa_name;
+    ip_address->is_internet = srs_net_device_is_internet(cur->ifa_addr);
+    ips.push_back(ip_address);
     
     // set the device internet status.
-    if (!srs_net_device_is_internet(cur->ifa_addr)) {
+    if (!ip_address->is_internet) {
         ss1 << ", intranet ";
         _srs_device_ifs[cur->ifa_name] = false;
     } else {
@@ -175,10 +182,16 @@ void discover_network_iface(ifaddrs* cur, vector<string>& ips, stringstream& ss0
 
 void retrieve_local_ips()
 {
-    vector<string>& ips = _srs_system_ips;
-    
+    vector<SrsIPAddress*>& ips = _srs_system_ips;
+
+    // Release previous IPs.
+    for (int i = 0; i < (int)ips.size(); i++) {
+        SrsIPAddress* ip = ips[i];
+        srs_freep(ip);
+    }
     ips.clear();
-    
+
+    // Get the addresses.
     ifaddrs* ifap;
     if (getifaddrs(&ifap) == -1) {
         srs_warn("retrieve local ips, getifaddrs failed.");
@@ -207,8 +220,9 @@ void retrieve_local_ips()
         bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
         // Ignore IFF_PROMISC(Interface is in promiscuous mode), which may be set by Wireshark.
         bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_LOOPBACK) || (cur->ifa_flags & IFF_POINTOPOINT);
+        bool loopback = (cur->ifa_flags & IFF_LOOPBACK);
         if (ipv4 && ready && !ignored) {
-            discover_network_iface(cur, ips, ss0, ss1, false);
+            discover_network_iface(cur, ips, ss0, ss1, false, loopback);
         }
     }
     
@@ -227,8 +241,9 @@ void retrieve_local_ips()
         bool ipv6 = (cur->ifa_addr->sa_family == AF_INET6);
         bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
         bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC) || (cur->ifa_flags & IFF_LOOPBACK);
+        bool loopback = (cur->ifa_flags & IFF_LOOPBACK);
         if (ipv6 && ready && !ignored) {
-            discover_network_iface(cur, ips, ss0, ss1, true);
+            discover_network_iface(cur, ips, ss0, ss1, true, loopback);
         }
     }
     
@@ -248,8 +263,9 @@ void retrieve_local_ips()
             bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
             bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
             bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_POINTOPOINT) || (cur->ifa_flags & IFF_PROMISC);
+            bool loopback = (cur->ifa_flags & IFF_LOOPBACK);
             if (ipv4 && ready && !ignored) {
-                discover_network_iface(cur, ips, ss0, ss1, false);
+                discover_network_iface(cur, ips, ss0, ss1, false, loopback);
             }
         }
     }
@@ -260,7 +276,7 @@ void retrieve_local_ips()
     freeifaddrs(ifap);
 }
 
-vector<string>& srs_get_local_ips()
+vector<SrsIPAddress*>& srs_get_local_ips()
 {
     if (_srs_system_ips.empty()) {
         retrieve_local_ips();
@@ -277,72 +293,39 @@ string srs_get_public_internet_address()
         return _public_internet_address;
     }
     
-    std::vector<std::string>& ips = srs_get_local_ips();
+    std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
     
     // find the best match public address.
     for (int i = 0; i < (int)ips.size(); i++) {
-        std::string ip = ips[i];
-        // TODO: FIXME: Support ipv6.
-        if (ip.find(".") == string::npos) {
+        SrsIPAddress* ip = ips[i];
+        if (!ip->is_internet) {
             continue;
         }
-        
-        in_addr_t addr = inet_addr(ip.c_str());
-        uint32_t addr_h = ntohl(addr);
-        // lo, 127.0.0.0-127.0.0.1
-        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class A 10.0.0.0-10.255.255.255
-        if (addr_h >= 0x0a000000 && addr_h <= 0x0affffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class B 172.16.0.0-172.31.255.255
-        if (addr_h >= 0xac100000 && addr_h <= 0xac1fffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        // Class C 192.168.0.0-192.168.255.255
-        if (addr_h >= 0xc0a80000 && addr_h <= 0xc0a8ffff) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        srs_warn("use public address as ip: %s", ip.c_str());
-        
-        _public_internet_address = ip;
-        return ip;
+
+        srs_warn("use public address as ip: %s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        _public_internet_address = ip->ip;
+        return ip->ip;
     }
     
     // no public address, use private address.
     for (int i = 0; i < (int)ips.size(); i++) {
-        std::string ip = ips[i];
-        // TODO: FIXME: Support ipv6.
-        if (ip.find(".") == string::npos) {
+        SrsIPAddress* ip = ips[i];
+        if (ip->is_loopback) {
             continue;
         }
-        
-        in_addr_t addr = inet_addr(ip.c_str());
-        uint32_t addr_h = ntohl(addr);
-        // lo, 127.0.0.0-127.0.0.1
-        if (addr_h >= 0x7f000000 && addr_h <= 0x7f000001) {
-            srs_trace("ignore private address: %s", ip.c_str());
-            continue;
-        }
-        srs_warn("use private address as ip: %s", ip.c_str());
-        
-        _public_internet_address = ip;
-        return ip;
+
+        srs_warn("use private address as ip: %s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        _public_internet_address = ip->ip;
+        return ip->ip;
     }
     
     // Finally, use first whatever kind of address.
     if (!ips.empty() && _public_internet_address.empty()) {
-        string ip = ips.at(0);
-        srs_warn("use first address as ip: %s", ip.c_str());
-        
-        _public_internet_address = ip;
-        return ip;
+        SrsIPAddress* ip = ips[0];
+
+        srs_warn("use first address as ip: %s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
+        _public_internet_address = ip->ip;
+        return ip->ip;
     }
     
     return "";

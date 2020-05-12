@@ -39,7 +39,6 @@ class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
-class SrsRtpSharedPacket;
 class SrsSample;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
@@ -158,6 +157,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // 4bytes.
     // Four-byte field that identifies the stream of the message. These
@@ -245,6 +245,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // Get the perfered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
@@ -302,7 +303,7 @@ private:
         int size;
         // The reference count
         int shared_count;
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     public:
         // For RTC video, we need to know the NALU structures,
         // because the RTP STAP-A or FU-A based on NALU.
@@ -361,22 +362,22 @@ public:
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
 public:
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
     // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
     void set_extra_payloads(SrsSample* payloads, int nn_payloads);
-    int nn_extra_payloads() { return ptr->nn_extra_payloads; }
-    SrsSample* extra_payloads() { return ptr->extra_payloads; }
+    int nn_extra_payloads();
+    SrsSample* extra_payloads();
     // The max extra payload size.
-    void set_max_extra_payload(int v) { ptr->nn_max_extra_payloads = v; }
-    int nn_max_extra_payloads() { return ptr->nn_max_extra_payloads; }
+    void set_max_extra_payload(int v);
+    int nn_max_extra_payloads();
     // Whether samples has idr.
-    bool has_idr() { return ptr->has_idr; }
-    void set_has_idr(bool v) { ptr->has_idr = v; }
+    bool has_idr();
+    void set_has_idr(bool v);
     // Set samples, each sample points to the address of payload.
     void set_samples(SrsSample* samples, int nn_samples);
-    int nn_samples() { return ptr->nn_samples; }
-    SrsSample* samples() { return ptr->samples; }
+    int nn_samples();
+    SrsSample* samples();
 #endif
 };
 

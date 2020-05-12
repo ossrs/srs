@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_stun_stack.hpp>
+#include <srs_rtc_stun_stack.hpp>
 
 using namespace std;
 
@@ -96,6 +96,96 @@ SrsStunPacket::SrsStunPacket()
 
 SrsStunPacket::~SrsStunPacket()
 {
+}
+
+bool SrsStunPacket::is_binding_request() const
+{
+    return message_type == BindingRequest;
+}
+
+bool SrsStunPacket::is_binding_response() const
+{
+    return message_type == BindingResponse;
+}
+
+uint16_t SrsStunPacket::get_message_type() const
+{
+    return message_type;
+}
+
+std::string SrsStunPacket::get_username() const
+{
+    return username;
+}
+
+std::string SrsStunPacket::get_local_ufrag() const
+{
+    return local_ufrag;
+}
+
+std::string SrsStunPacket::get_remote_ufrag() const
+{
+    return remote_ufrag;
+}
+
+std::string SrsStunPacket::get_transcation_id() const
+{
+    return transcation_id;
+}
+
+uint32_t SrsStunPacket::get_mapped_address() const
+{
+    return mapped_address;
+}
+
+uint16_t SrsStunPacket::get_mapped_port() const
+{
+    return mapped_port;
+}
+
+bool SrsStunPacket::get_ice_controlled() const
+{
+    return ice_controlled;
+}
+
+bool SrsStunPacket::get_ice_controlling() const
+{
+    return ice_controlling;
+}
+
+bool SrsStunPacket::get_use_candidate() const
+{
+    return use_candidate;
+}
+
+void SrsStunPacket::set_message_type(const uint16_t& m)
+{
+    message_type = m;
+}
+
+void SrsStunPacket::set_local_ufrag(const std::string& u)
+{
+    local_ufrag = u;
+}
+
+void SrsStunPacket::set_remote_ufrag(const std::string& u)
+{
+    remote_ufrag = u;
+}
+
+void SrsStunPacket::set_transcation_id(const std::string& t)
+{
+    transcation_id = t;
+}
+
+void SrsStunPacket::set_mapped_address(const uint32_t& addr)
+{
+    mapped_address = addr;
+}
+
+void SrsStunPacket::set_mapped_port(const uint32_t& port)
+{
+    mapped_port = port;
 }
 
 srs_error_t SrsStunPacket::decode(const char* buf, const int nb_buf)

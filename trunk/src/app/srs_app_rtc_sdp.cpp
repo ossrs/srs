@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_sdp.hpp>
+#include <srs_app_rtc_sdp.hpp>
 using namespace std;
 
 #include <stdlib.h>
@@ -33,15 +33,16 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// TODO: FIXME: Maybe we should use json.encode to escape it?
 const std::string kCRLF = "\\r\\n";
 
 #define FETCH(is,word) \
-if (! (is >> word)) {\
+if (!(is >> word)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch failed");\
 }\
 
 #define FETCH_WITH_DELIM(is,word,delim) \
-if (! getline(is,word,delim)) {\
+if (!getline(is,word,delim)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed");\
 }\
 
@@ -111,6 +112,7 @@ SrsSessionInfo::~SrsSessionInfo()
 srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const std::string& value)
 {
     srs_error_t err = srs_success;
+
     if (attribute == "ice-ufrag") {
         ice_ufrag_ = value;
     } else if (attribute == "ice-pwd") {
@@ -134,23 +136,25 @@ srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const 
 srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
 {
     srs_error_t err = srs_success;
-    if (! ice_ufrag_.empty()) {
+
+    if (!ice_ufrag_.empty()) {
         os << "a=ice-ufrag:" << ice_ufrag_ << kCRLF;
     }
-    if (! ice_pwd_.empty()) {
+    
+    if (!ice_pwd_.empty()) {
         os << "a=ice-pwd:" << ice_pwd_ << kCRLF;
     }
-    if (! ice_options_.empty()) {
+
+    // For ICE-lite, we never set the trickle.
+    if (!ice_options_.empty()) {
         os << "a=ice-options:" << ice_options_ << kCRLF;
-    } else {
-		// @see: https://webrtcglossary.com/trickle-ice/
-        // Trickle ICE is an optimization of the ICE specification for NAT traversal.
-        os << "a=ice-options:trickle" << kCRLF;
     }
-    if (! fingerprint_algo_.empty() && ! fingerprint_.empty()) {
+    
+    if (!fingerprint_algo_.empty() && ! fingerprint_.empty()) {
         os << "a=fingerprint:" << fingerprint_algo_ << " " << fingerprint_ << kCRLF;
     }
-    if (! setup_.empty()) {
+    
+    if (!setup_.empty()) {
         os << "a=setup:" << setup_ << kCRLF;
     }
 
@@ -179,22 +183,23 @@ SrsSSRCInfo::~SrsSSRCInfo()
 srs_error_t SrsSSRCInfo::encode(std::ostringstream& os)
 {
     srs_error_t err = srs_success;
+
     if (ssrc_ == 0) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc");
     }
 
     os << "a=ssrc:" << ssrc_ << " cname:" << cname_ << kCRLF;
-    if (! msid_.empty()) {
+    if (!msid_.empty()) {
         os << "a=ssrc:" << ssrc_ << " msid:" << msid_;
-        if (! msid_tracker_.empty()) {
+        if (!msid_tracker_.empty()) {
             os << " " << msid_tracker_;
         }
         os << kCRLF;
     }
-    if (! mslabel_.empty()) {
+    if (!mslabel_.empty()) {
         os << "a=ssrc:" << ssrc_ << " mslabel:" << mslabel_ << kCRLF;
     }
-    if (! label_.empty()) {
+    if (!label_.empty()) {
         os << "a=ssrc:" << ssrc_ << " label:" << label_ << kCRLF;
     }
 
@@ -215,7 +220,7 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
     srs_error_t err = srs_success;
 
     os << "a=rtpmap:" << payload_type_ << " " << encoding_name_ << "/" << clock_rate_;
-    if (! encoding_param_.empty()) {
+    if (!encoding_param_.empty()) {
         os << "/" << encoding_param_;
     }
     os << kCRLF;
@@ -224,8 +229,11 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
         os << "a=rtcp-fb:" << payload_type_ << " " << *iter << kCRLF;
     }
 
-    if (! format_specific_param_.empty()) {
-        os << "a=fmtp:" << payload_type_ << " " << format_specific_param_ << kCRLF;
+    if (!format_specific_param_.empty()) {
+        os << "a=fmtp:" << payload_type_ << " " << format_specific_param_
+           // TODO: FIXME: Remove the test code bellow.
+           // << ";x-google-max-bitrate=6000;x-google-min-bitrate=5100;x-google-start-bitrate=5000"
+           << kCRLF;
     }
 
     return err;
@@ -312,10 +320,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
     }
 
     os << "a=mid:" << mid_ << kCRLF;
-    if (! msid_.empty()) {
+    if (!msid_.empty()) {
         os << "a=msid:" << msid_;
         
-        if (! msid_tracker_.empty()) {
+        if (!msid_tracker_.empty()) {
             os << " " << msid_tracker_;
         }
 
@@ -359,7 +367,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
 
     int foundation = 0;
     int component_id = 1; /* RTP */
-	for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
+    for (std::vector<SrsCandidate>::iterator iter = candidates_.begin(); iter != candidates_.end(); ++iter) {
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-4.2
         uint32_t priority = (1<<24)*(126) + (1<<8)*(65535) + (1)*(256 - component_id);
 
@@ -369,6 +377,8 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
            << iter->ip_ << " " << iter->port_
            << " typ " << iter->type_ 
            << " generation 0" << kCRLF;
+
+        srs_verbose("local SDP candidate line=%s", os.str().c_str());
     }
 
     return err;
@@ -419,7 +429,7 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
         sendrecv_ = true;
     } else if (attribute == "inactive") {
         inactive_ = true;
-	} else {
+    } else {
         return session_info_.parse_attribute(attribute, value);
     }
 
@@ -523,7 +533,7 @@ srs_error_t SrsMediaDesc::parse_attr_mid(const std::string& value)
     std::istringstream is(value);
     // mid_ means m-line id
     FETCH(is, mid_);
-    srs_trace("mid=%s", mid_.c_str());
+    srs_verbose("mid=%s", mid_.c_str());
     return err;
 }
 
@@ -649,11 +659,11 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
     std::istringstream is(sdp_str);
     std::string line;
     while (getline(is, line)) {
-        srs_trace("%s", line.c_str());
+        srs_verbose("%s", line.c_str());
         if (line.size() < 2 || line[1] != '=') {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
         }
-        if (! line.empty() && line[line.size()-1] == '\r') {
+        if (!line.empty() && line[line.size()-1] == '\r') {
             line.erase(line.size()-1, 1);
         }
 
@@ -676,7 +686,7 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     // ice-lite is a minimal version of the ICE specification, intended for servers running on a public IP address.
     os << "a=ice-lite" << kCRLF;
 
-    if (! groups_.empty()) {
+    if (!groups_.empty()) {
         os << "a=group:" << group_policy_;
         for (std::vector<std::string>::iterator iter = groups_.begin(); iter != groups_.end(); ++iter) {
             os << " " << *iter;
@@ -751,7 +761,7 @@ void SrsSdp::add_candidate(const std::string& ip, const int& port, const std::st
     candidate.type_ = type;
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-    	iter->candidates_.push_back(candidate);
+        iter->candidates_.push_back(candidate);
     }
 }
 
@@ -949,7 +959,7 @@ srs_error_t SrsSdp::parse_media_description(const std::string& content)
         media_descs_.back().payload_types_.push_back(SrsMediaPayloadType(fmt));
     }
 
-    if (! in_media_session_) {
+    if (!in_media_session_) {
         in_media_session_ = true;
     }
 

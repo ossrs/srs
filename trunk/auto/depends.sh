@@ -338,18 +338,21 @@ fi
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_EPOLL" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_*"
+    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
     if [[ $SRS_VALGRIND == YES ]]; then
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
     fi
     # for osx, use darwin for st, donot use epoll.
     if [[ $SRS_OSX == YES ]]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
     fi
     # For UDP sendmmsg, disable it if not suppported.
     if [[ $SRS_SENDMMSG == YES ]]; then
         echo "Build ST with UDP sendmmsg support."
         _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
+    else
+        echo "Build ST without UDP sendmmsg support."
+        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
     fi
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
@@ -379,7 +382,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             # Build source code.
             make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
                 CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
-            cd .. && rm -f st && ln -sf st-srs/${_ST_OBJ} st
+            cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
         )
     fi
     # check status
@@ -515,7 +518,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
     OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
     if [[ $SRS_SRTP_ASM == YES ]]; then
-        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf  ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
+        OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
@@ -573,13 +576,13 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
             ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
             make ${SRS_JOBS} && make install &&
-            cd .. && rm -f srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+            cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
+    (cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
     if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
 fi
 
@@ -601,7 +604,7 @@ if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -f opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
+    (cd ${SRS_OBJS} && rm -rf opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
 fi
 
@@ -678,7 +681,10 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "no ffmpeg found, please use srs-docker or --without-ffmpeg";
+        echo "Error: no FFmpeg found at /usr/local/bin/ffmpeg";
+        echo "    please copy it from srs-docker";
+        echo "    or download from http://ffmpeg.org/download.html";
+        echo "    or disable it by --without-ffmpeg";
         exit -1;
     fi
     # Always update the links.

@@ -24,7 +24,7 @@
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_audio_recode.hpp>
+#include <srs_app_rtc_codec.hpp>
 
 static const int kOpusPacketMs  = 20;
 static const int kOpusMaxbytes  = 8000;

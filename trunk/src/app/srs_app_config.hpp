@@ -521,10 +521,11 @@ public:
 
 // rtc section
 public:
-    virtual int get_rtc_server_enabled();
+    virtual bool get_rtc_server_enabled();
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();
+    virtual std::string get_rtc_server_ip_family();
     virtual bool get_rtc_server_ecdsa();
     virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
@@ -534,6 +535,8 @@ public:
     virtual int get_rtc_server_padding();
     virtual bool get_rtc_server_perf_stat();
     virtual int get_rtc_server_queue_length();
+    virtual bool get_rtc_server_black_hole();
+    virtual std::string get_rtc_server_black_hole_publisher();
 private:
     virtual int get_rtc_server_reuseport2();
     virtual bool get_rtc_server_gso2();
@@ -545,6 +548,7 @@ public:
     bool get_rtc_aac_discard(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
+    bool get_rtc_nack_enabled(std::string vhost);
 
 // vhost specified section
 public:

@@ -31,7 +31,7 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_config.hpp>
@@ -50,8 +50,9 @@ using namespace std;
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
 #include <srs_app_rtc.hpp>
+#include <srs_app_rtc_conn.hpp>
 #endif
 
 #define CONST_MAX_JITTER_MS         250
@@ -456,6 +457,11 @@ SrsConsumer::~SrsConsumer()
 #endif
 }
 
+void SrsConsumer::enable_pass_timestamp()
+{
+    pass_timestamp = true;
+}
+
 void SrsConsumer::set_queue_size(srs_utime_t queue_size)
 {
     queue->set_queue_size(queue_size);
@@ -843,58 +849,6 @@ SrsSharedPtrMessage* SrsMixQueue::pop()
     return msg;
 }
 
-#ifdef SRS_AUTO_RTC
-SrsRtpPacketQueue::SrsRtpPacketQueue()
-{
-}
-
-SrsRtpPacketQueue::~SrsRtpPacketQueue()
-{
-    clear();
-}
-
-void SrsRtpPacketQueue::clear()
-{
-    map<uint16_t, SrsRtpSharedPacket*>::iterator iter = pkt_queue.begin();
-    while (iter != pkt_queue.end()) {
-        srs_freep(iter->second);
-        pkt_queue.erase(iter++);
-    }
-}
-
-void SrsRtpPacketQueue::push(std::vector<SrsRtpSharedPacket*>& pkts)
-{
-    for (int i = 0; i < (int)pkts.size(); ++i) {
-        insert(pkts[i]->rtp_header.get_sequence(), pkts[i]);
-    }
-}
-
-void SrsRtpPacketQueue::insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt)
-{
-    pkt_queue.insert(make_pair(sequence, pkt->copy()));
-    // TODO: 3000 is magic number.
-    if (pkt_queue.size() >= 3000) {
-        srs_freep(pkt_queue.begin()->second);
-        pkt_queue.erase(pkt_queue.begin());
-    }
-}
-
-SrsRtpSharedPacket* SrsRtpPacketQueue::find(const uint16_t& sequence)
-{
-    if (pkt_queue.empty()) {
-        return NULL;
-    }
-
-    SrsRtpSharedPacket* pkt = NULL;
-    map<uint16_t, SrsRtpSharedPacket*>::iterator iter = pkt_queue.find(sequence);
-    if (iter != pkt_queue.end()) {
-        pkt = iter->second->copy();
-    }
-
-    return pkt;
-}
-#endif
-
 SrsOriginHub::SrsOriginHub()
 {
     source = NULL;
@@ -905,10 +859,10 @@ SrsOriginHub::SrsOriginHub()
     dash = new SrsDash();
     dvr = new SrsDvr();
     encoder = new SrsEncoder();
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     rtc = new SrsRtc();
 #endif
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds = new SrsHds();
 #endif
     ng_exec = new SrsNgExec();
@@ -936,7 +890,7 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(dash);
     srs_freep(dvr);
     srs_freep(encoder);
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     srs_freep(hds);
 #endif
 }
@@ -952,7 +906,7 @@ srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
         return srs_error_wrap(err, "format initialize");
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     if ((err = rtc->initialize(this, req)) != srs_success) {
         return srs_error_wrap(err, "rtc initialize");
     }
@@ -1029,7 +983,8 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     srs_error_t err = srs_success;
     
     SrsSharedPtrMessage* msg = shared_audio;
-    
+
+    // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume audio");
     }
@@ -1056,7 +1011,8 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   srs_flv_srates[c->sound_rate]);
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
+    // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = rtc->on_audio(msg, format)) != srs_success) {
         srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1095,7 +1051,7 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
         dvr->on_unpublish();
     }
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_audio(msg)) != srs_success) {
         srs_warn("hds: ignore audio error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1157,7 +1113,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         return err;
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // Parse RTMP message to RTP packets, in FU-A if too large.
     if ((err = rtc->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
@@ -1165,11 +1121,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         srs_error_reset(err);
         rtc->on_unpublish();
     }
-
-    // TODO: FIXME: Refactor to move to rtp?
-    // Save the RTP packets for find_rtp_packet() to rtx or restore it.
-    // TODO: FIXME: Remove dead code.
-    //source->rtp_queue->push(msg->rtp_packets);
 #endif
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
@@ -1204,7 +1155,7 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         dvr->on_unpublish();
     }
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_video(msg)) != srs_success) {
         srs_warn("hds: ignore video error %s", srs_error_desc(err).c_str());
         srs_error_reset(err);
@@ -1240,7 +1191,7 @@ srs_error_t SrsOriginHub::on_publish()
         return srs_error_wrap(err, "encoder publish");
     }
 
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     if ((err = rtc->on_publish()) != srs_success) {
         return srs_error_wrap(err, "rtc publish");
     }
@@ -1259,7 +1210,7 @@ srs_error_t SrsOriginHub::on_publish()
     }
     
     // TODO: FIXME: use initialize to set req.
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     if ((err = hds->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "hds publish");
     }
@@ -1283,14 +1234,14 @@ void SrsOriginHub::on_unpublish()
     destroy_forwarders();
     
     encoder->on_unpublish();
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     rtc->on_unpublish();
 #endif
     hls->on_unpublish();
     dash->on_unpublish();
     dvr->on_unpublish();
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds->on_unpublish();
 #endif
     
@@ -1479,7 +1430,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_hds(string vhost)
     
     // TODO: FIXME: maybe should ignore when publish already stopped?
     
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     hds->on_unpublish();
     
     // Don't start HDS when source is not active.
@@ -1947,9 +1898,6 @@ SrsSource::SrsSource()
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     mix_correct = false;
     mix_queue = new SrsMixQueue();
-#ifdef SRS_AUTO_RTC
-    rtp_queue = new SrsRtpPacketQueue();
-#endif
     
     _can_publish = true;
     _pre_source_id = _source_id = -1;
@@ -1966,6 +1914,10 @@ SrsSource::SrsSource()
     
     _srs_config->subscribe(this);
     atc = false;
+
+#ifdef SRS_RTC
+    rtc_publisher_ = NULL;
+#endif
 }
 
 SrsSource::~SrsSource()
@@ -1979,9 +1931,6 @@ SrsSource::~SrsSource()
     srs_freep(hub);
     srs_freep(meta);
     srs_freep(mix_queue);
-#ifdef SRS_AUTO_RTC
-    srs_freep(rtp_queue);
-#endif
     
     srs_freep(play_edge);
     srs_freep(publish_edge);
@@ -2640,12 +2589,27 @@ void SrsSource::on_unpublish()
     }
 }
 
-srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds, bool dm, bool dg)
+srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     
     consumer = new SrsConsumer(this, conn);
     consumers.push_back(consumer);
+    
+    // for edge, when play edge stream, check the state
+    if (_srs_config->get_vhost_is_edge(req->vhost)) {
+        // notice edge to start for the first client.
+        if ((err = play_edge->on_client_play()) != srs_success) {
+            return srs_error_wrap(err, "play edge");
+        }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsSource::consumer_dumps(SrsConsumer* consumer, bool ds, bool dm, bool dg)
+{
+    srs_error_t err = srs_success;
 
     srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
     consumer->set_queue_size(queue_size);
@@ -2682,15 +2646,7 @@ srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consum
     } else {
         srs_trace("create consumer, active=%d, ignore gop cache, jitter=%d", hub->active(), jitter_algorithm);
     }
-    
-    // for edge, when play edge stream, check the state
-    if (_srs_config->get_vhost_is_edge(req->vhost)) {
-        // notice edge to start for the first client.
-        if ((err = play_edge->on_client_play()) != srs_success) {
-            return srs_error_wrap(err, "play edge");
-        }
-    }
-    
+
     return err;
 }
 
@@ -2739,14 +2695,26 @@ string SrsSource::get_curr_origin()
     return play_edge->get_curr_origin();
 }
 
-#ifdef SRS_AUTO_RTC
-SrsRtpSharedPacket* SrsSource::find_rtp_packet(const uint16_t& seq)
-{
-    return rtp_queue->find(seq);
-}
-
+#ifdef SRS_RTC
 SrsMetaCache* SrsSource::cached_meta()
 {
     return meta;
+}
+
+SrsRtcPublisher* SrsSource::rtc_publisher()
+{
+    return rtc_publisher_;
+}
+
+void SrsSource::set_rtc_publisher(SrsRtcPublisher* v)
+{
+    rtc_publisher_ = v;
+}
+
+srs_error_t SrsSource::on_rtc_audio(SrsSharedPtrMessage* audio)
+{
+    // TODO: FIXME: Merge with on_audio.
+    // TODO: FIXME: Print key information.
+    return on_audio_imp(audio);
 }
 #endif

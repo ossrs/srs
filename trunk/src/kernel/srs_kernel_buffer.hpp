@@ -97,118 +97,75 @@ class SrsBuffer
 private:
     // current position at bytes.
     char* p;
-    // the bytes data for stream to read or write.
+    // the bytes data for buffer to read or write.
     char* bytes;
     // the total number of bytes.
     int nb_bytes;
 public:
-    SrsBuffer();
-    // Initialize buffer with data b and size nb_b.
+    // Create buffer with data b and size nn.
     // @remark User must free the data b.
-    SrsBuffer(char* b, int nb_b);
-    virtual ~SrsBuffer();
-// get the status of stream
+    SrsBuffer(char* b, int nn);
+    ~SrsBuffer();
 public:
-    /**
-     * get data of stream, set by initialize.
-     * current bytes = data() + pos()
-     */
-    inline char* data() { return bytes; }
-    inline char* head() { return p; }
-    /**
-     * the total stream size, set by initialize.
-     * left bytes = size() - pos().
-     */
-    virtual int size();
-    /**
-     * tell the current pos.
-     */
-    virtual int pos();
+    // Get the data and head of buffer.
+    //      current-bytes = head() = data() + pos()
+    char* data();
+    char* head();
+    // Get the total size of buffer.
+    //      left-bytes = size() - pos()
+    int size();
+    void set_size(int v);
+    // Get the current buffer position.
+    int pos();
     // Left bytes in buffer, total size() minus the current pos().
-    virtual int left();
-    /**
-     * whether stream is empty.
-     * if empty, user should never read or write.
-     */
-    virtual bool empty();
-    /**
-     * whether required size is ok.
-     * @return true if stream can read/write specified required_size bytes.
-     * @remark assert required_size positive.
-     */
-    virtual bool require(int required_size);
-    // to change stream.
+    int left();
+    // Whether buffer is empty.
+    bool empty();
+    // Whether buffer is able to supply required size of bytes.
+    // @remark User should check buffer by require then do read/write.
+    // @remark Assert the required_size is not negative.
+    bool require(int required_size);
 public:
-    /**
-     * to skip some size.
-     * @param size can be any value. positive to forward; nagetive to backward.
-     * @remark to skip(pos()) to reset stream.
-     * @remark assert initialized, the data() not NULL.
-     */
-    virtual void skip(int size);
+    // Skip some size.
+    // @param size can be any value. positive to forward; nagetive to backward.
+    // @remark to skip(pos()) to reset buffer.
+    // @remark assert initialized, the data() not NULL.
+    void skip(int size);
 public:
-    /**
-     * get 1bytes char from stream.
-     */
-    virtual int8_t read_1bytes();
-    /**
-     * get 2bytes int from stream.
-     */
-    virtual int16_t read_2bytes();
-    /**
-     * get 3bytes int from stream.
-     */
-    virtual int32_t read_3bytes();
-    /**
-     * get 4bytes int from stream.
-     */
-    virtual int32_t read_4bytes();
-    /**
-     * get 8bytes int from stream.
-     */
-    virtual int64_t read_8bytes();
-    /**
-     * get string from stream, length specifies by param len.
-     */
-    virtual std::string read_string(int len);
-    /**
-     * get bytes from stream, length specifies by param len.
-     */
-    virtual void read_bytes(char* data, int size);
+    // Read 1bytes char from buffer.
+    int8_t read_1bytes();
+    // Read 2bytes int from buffer.
+    int16_t read_2bytes();
+    // Read 3bytes int from buffer.
+    int32_t read_3bytes();
+    // Read 4bytes int from buffer.
+    int32_t read_4bytes();
+    // Read 8bytes int from buffer.
+    int64_t read_8bytes();
+    // Read string from buffer, length specifies by param len.
+    std::string read_string(int len);
+    // Read bytes from buffer, length specifies by param len.
+    void read_bytes(char* data, int size);
 public:
-    /**
-     * write 1bytes char to stream.
-     */
-    virtual void write_1bytes(int8_t value);
-    /**
-     * write 2bytes int to stream.
-     */
-    virtual void write_2bytes(int16_t value);
-    /**
-     * write 4bytes int to stream.
-     */
-    virtual void write_4bytes(int32_t value);
-    /**
-     * write 3bytes int to stream.
-     */
-    virtual void write_3bytes(int32_t value);
-    /**
-     * write 8bytes int to stream.
-     */
-    virtual void write_8bytes(int64_t value);
-    /**
-     * write string to stream
-     */
-    virtual void write_string(std::string value);
-    /**
-     * write bytes to stream
-     */
-    virtual void write_bytes(char* data, int size);
+    // Write 1bytes char to buffer.
+    void write_1bytes(int8_t value);
+    // Write 2bytes int to buffer.
+    void write_2bytes(int16_t value);
+    // Write 4bytes int to buffer.
+    void write_4bytes(int32_t value);
+    // Write 3bytes int to buffer.
+    void write_3bytes(int32_t value);
+    // Write 8bytes int to buffer.
+    void write_8bytes(int64_t value);
+    // Write string to buffer
+    void write_string(std::string value);
+    // Write bytes to buffer
+    void write_bytes(char* data, int size);
 };
 
 /**
- * the bit stream, base on SrsBuffer,
- * for exmaple, the h.264 avc stream is bit stream.
+ * the bit buffer, base on SrsBuffer,
+ * for exmaple, the h.264 avc buffer is bit buffer.
  */
 class SrsBitBuffer
 {
@@ -218,10 +175,10 @@ private:
     SrsBuffer* stream;
 public:
     SrsBitBuffer(SrsBuffer* b);
-    virtual ~SrsBitBuffer();
+    ~SrsBitBuffer();
 public:
-    virtual bool empty();
-    virtual int8_t read_bit();
+    bool empty();
+    int8_t read_bit();
 };
 
 #endif

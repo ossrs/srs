@@ -138,9 +138,9 @@ public:
     virtual ~ISrsUdpSender();
 public:
     // Fetch a mmsghdr from sender's cache.
-    virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
+    virtual srs_error_t fetch(srs_mmsghdr** pphdr) = 0;
     // Notify the sender to send out the msg.
-    virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
+    virtual srs_error_t sendmmsg(srs_mmsghdr* hdr) = 0;
     // Whether sender exceed the max queue, that is, overflow.
     virtual bool overflow() = 0;
     // Set the queue extra ratio, for example, when mw_msgs > 0, we need larger queue.
@@ -163,26 +163,19 @@ private:
 public:
     SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
-
+public:
     int recvfrom(srs_utime_t timeout);
     srs_error_t sendto(void* data, int size, srs_utime_t timeout);
-
     srs_netfd_t stfd();
     sockaddr_in* peer_addr();
     socklen_t peer_addrlen();
-
-    char* data() { return buf; }
-    int size() { return nread; }
-    std::string get_peer_ip() const { return peer_ip; }
-    int get_peer_port() const { return peer_port; }
-    std::string get_peer_id();
-public:
+    char* data();
+    int size();
+    std::string get_peer_ip() const;
+    int get_peer_port() const;
+    std::string peer_id();
     SrsUdpMuxSocket* copy_sendonly();
-    ISrsUdpSender* sender() { return handler; };
-private:
-    // Don't allow copy, user copy_sendonly instead
-    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
-    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
+    ISrsUdpSender* sender();
 };
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler

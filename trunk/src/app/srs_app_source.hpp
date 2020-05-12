@@ -59,10 +59,12 @@ class SrsDvr;
 class SrsDash;
 class SrsEncoder;
 class SrsBuffer;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
 class SrsHds;
 #endif
-class SrsRtpSharedPacket;
+#ifdef SRS_RTC
+class SrsRtcPublisher;
+#endif
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -214,7 +216,7 @@ public:
     virtual ~SrsConsumer();
 public:
     // Use pass timestamp mode.
-    void enable_pass_timestamp() { pass_timestamp = true; }
+    void enable_pass_timestamp();
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
@@ -333,32 +335,6 @@ public:
     virtual SrsSharedPtrMessage* pop();
 };
 
-#ifdef SRS_AUTO_RTC
-// To find the RTP packet for RTX or restore.
-// TODO: FIXME: Should queue RTP packets in connection level.
-class SrsRtpPacketQueue
-{
-private:
-    struct SeqComp
-    {
-        bool operator()(const uint16_t& l, const uint16_t& r) const
-        {
-            return ((int16_t)(r - l)) > 0;
-        }
-    };
-private:
-    std::map<uint16_t, SrsRtpSharedPacket*, SeqComp> pkt_queue;
-public:
-    SrsRtpPacketQueue();
-    virtual ~SrsRtpPacketQueue();
-public:
-    void clear();
-    void push(std::vector<SrsRtpSharedPacket*>& pkts);
-    void insert(const uint16_t& sequence, SrsRtpSharedPacket* pkt);
-    SrsRtpSharedPacket* find(const uint16_t& sequence);
-};
-#endif
-
 // The hub for origin is a collection of utilities for origin only,
 // For example, DVR, HLS, Forward and Transcode are only available for origin,
 // they are meanless for edge server.
@@ -371,7 +347,7 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
-#ifdef SRS_AUTO_RTC
+#ifdef SRS_RTC
     // rtc handler
     SrsRtc* rtc;
 #endif
@@ -383,7 +359,7 @@ private:
     SrsDvr* dvr;
     // transcoding handler.
     SrsEncoder* encoder;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     // adobe hds(http dynamic streaming).
     SrsHds *hds;
 #endif
@@ -547,10 +523,6 @@ private:
     bool mix_correct;
     // The mix queue to implements the mix correct algorithm.
     SrsMixQueue* mix_queue;
-#ifdef SRS_AUTO_RTC
-    // rtp packet queue
-    SrsRtpPacketQueue* rtp_queue;
-#endif
     // For play, whether enabled atc.
     // The atc(use absolute time and donot adjust time),
     // directly use msg time and donot adjust if atc is true,
@@ -577,6 +549,10 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
+#ifdef SRS_RTC
+private:
+    SrsRtcPublisher* rtc_publisher_;
+#endif
 public:
     SrsSource();
     virtual ~SrsSource();
@@ -606,10 +582,12 @@ public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_audio(SrsCommonMessage* audio);
 private:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_video(SrsCommonMessage* video);
 private:
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
@@ -621,12 +599,14 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 public:
-    // Create consumer and dumps packets in cache.
+    // Create consumer
     // @param consumer, output the create consumer.
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
+    // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
@@ -639,12 +619,16 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
+#ifdef SRS_RTC
 public:
-#ifdef SRS_AUTO_RTC
-    // Find rtp packet by sequence
-    SrsRtpSharedPacket* find_rtp_packet(const uint16_t& seq);
-    // Get the cached meta, as such the sps/pps.
+    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
     SrsMetaCache* cached_meta();
+    // Get and set the publisher, passed to consumer to process requests such as PLI.
+    SrsRtcPublisher* rtc_publisher();
+    void set_rtc_publisher(SrsRtcPublisher* v);
+    // When got RTC audio message, which is encoded in opus.
+    // TODO: FIXME: Merge with on_audio.
+    srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
 #endif
 };
 

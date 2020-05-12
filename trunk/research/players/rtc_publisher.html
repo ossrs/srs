@@ -15,7 +15,7 @@
     <script type="text/javascript" src="js/srs.page.js"></script>
 </head>
 <body>
-<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcplayer'/>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -23,8 +23,8 @@
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
-                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li class="active"><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
                     <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
@@ -42,11 +42,11 @@
     <div class="form-inline">
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value="">
-        <button class="btn btn-primary" id="btn_play">播放视频</button>
+        <button class="btn btn-primary" id="btn_publish">开始推流</button>
     </div>
 
     <label></label>
-    <video id="rtc_media_player" controls autoplay></video>
+    <video id="rtc_media_player" width="320" autoplay muted></video>
 
     <label></label>
     SessionID: <span id='sessionid'></span>
@@ -62,7 +62,7 @@
 <script type="text/javascript">
     var pc = null; // Global handler to do cleanup when replaying.
     $(function(){
-        var startPlay = function() {
+        var startPublish = function() {
             $('#rtc_media_player').show();
             var urlObject = parse_rtmp_url($("#txt_url").val());
             var schema = window.location.protocol;
@@ -73,18 +73,28 @@
             }
 
             pc = new RTCPeerConnection(null);
-            pc.onaddstream = function (event) {
-                console.log('Start play, event: ', event);
-                $('#rtc_media_player').prop('srcObject', event.stream);
-            };
-            new Promise(function(resolve, reject) {
-                pc.addTransceiver("audio", {direction: "recvonly"});
-                pc.addTransceiver("video", {direction: "recvonly"});
+            pc.addTransceiver("audio", {direction: "sendonly"});
+            pc.addTransceiver("video", {direction: "sendonly"});
 
-                pc.createOffer(function(offer){
-                    resolve(offer);
-                },function(reason){
-                    reject(reason);
+            var constraints = {
+                audio: true, video: {
+                    height: { max: 320 }
+                }
+            };
+            navigator.mediaDevices.getUserMedia(
+                constraints
+            ).then(function(stream) {
+                console.log('Got stream with constraints: ', constraints);
+                $('#rtc_media_player').prop('srcObject', stream);
+
+                pc.addStream(stream);
+
+                return new Promise(function(resolve, reject) {
+                    pc.createOffer(function(offer){
+                        resolve(offer);
+                    },function(reason){
+                        reject(reason);
+                    });
                 });
             }).then(function(offer) {
                 return pc.setLocalDescription(offer).then(function(){ return offer; });
@@ -93,18 +103,18 @@
                     var port = urlObject.port || 1985;
 
                     // @see https://github.com/rtcdn/rtcdn-draft
-                    var api = urlObject.user_query.play || '/rtc/v1/play/';
+                    var api = urlObject.user_query.publish || '/rtc/v1/publish/';
                     if (api.lastIndexOf('/') != api.length - 1) {
                         api += '/';
                     }
 
                     var url = schema + '//' + urlObject.server + ':' + port + api;
                     for (var key in urlObject.user_query) {
-                        if (key != 'api' && key != 'play') {
+                        if (key != 'api' && key != 'publish') {
                             url += '&' + key + '=' + urlObject.user_query[key];
                         }
                     }
-                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                    // Replace /rtc/v1/publish/&k=v to /rtc/v1/publish/?k=v
                     url = url.replace(api + '&', api + '?');
 
                     // @see https://github.com/rtcdn/rtcdn-draft
@@ -133,6 +143,11 @@
             }).then(function(answer) {
                 return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
             }).catch(function(reason) {
+                pc.getLocalStreams().forEach(function(stream){
+                    stream.getTracks().forEach(function(track) {
+                        track.stop();
+                    });
+                });
                 pc.close(); $('#rtc_media_player').hide();
                 throw reason;
             });
@@ -142,13 +157,13 @@
         var query = parse_query_string();
         srs_init_rtc("#txt_url", query);
 
-        $("#btn_play").click(startPlay);
+        $("#btn_publish").click(startPublish);
         if (query.autostart === 'true') {
-            // For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a
-            $('#rtc_media_player').prop('muted', true);
-            startPlay();
+            startPublish();
         }
     });
 </script>
 </body>
+</html>
+
 </html>
