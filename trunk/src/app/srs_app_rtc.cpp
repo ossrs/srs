@@ -215,8 +215,7 @@ srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* 
 SrsRtc::SrsRtc()
 {
     req = NULL;
-    hub = NULL;
-    
+
     enabled = false;
     disposable = false;
     last_update_time = 0;
@@ -244,11 +243,10 @@ srs_error_t SrsRtc::cycle()
     return err;
 }
 
-srs_error_t SrsRtc::initialize(SrsOriginHub* h, SrsRequest* r)
+srs_error_t SrsRtc::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
-    hub = h;
     req = r;
 
     rtp_h264_muxer = new SrsRtpH264Muxer();

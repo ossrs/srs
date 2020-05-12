@@ -87,7 +87,6 @@ private:
     srs_utime_t last_update_time;
     SrsRtpH264Muxer* rtp_h264_muxer;
     SrsRtpOpusMuxer* rtp_opus_muxer;
-    SrsOriginHub* hub;
 public:
     SrsRtc();
     virtual ~SrsRtc();
@@ -95,7 +94,7 @@ public:
     virtual void dispose();
     virtual srs_error_t cycle();
 public:
-    virtual srs_error_t initialize(SrsOriginHub* h, SrsRequest* r);
+    virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);

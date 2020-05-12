@@ -50,7 +50,7 @@ class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcSession;
 class SrsSharedPtrMessage;
-class SrsSource;
+class SrsRtcSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
 class SrsRtpQueue;
@@ -251,8 +251,8 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
-    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
+    srs_error_t send_messages(SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
+    srs_error_t messages_to_packets(SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
     srs_error_t send_packets(SrsRtcOutgoingPackets& packets);
     srs_error_t send_packets_gso(SrsRtcOutgoingPackets& packets);
 private:
@@ -261,7 +261,7 @@ private:
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets);
     srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);
@@ -293,7 +293,7 @@ private:
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
-    SrsSource* source;
+    SrsRtcSource* source;
     // Whether enabled nack.
     bool nack_enabled_;
     // Simulators.
@@ -365,7 +365,7 @@ private:
     // TODO: FIXME: Support reload.
     bool encrypt;
     SrsRequest* req;
-    SrsSource* source_;
+    SrsRtcSource* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:
@@ -390,7 +390,7 @@ public:
     void switch_to_context();
     int context_id();
 public:
-    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
+    srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

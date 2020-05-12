@@ -280,7 +280,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_coworkers" "srs_app_hybrid")
     if [[ $SRS_RTC == YES ]]; then
         MODULE_FILES+=("srs_app_rtc" "srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_codec" "srs_app_rtc_sdp"
-            "srs_app_rtc_queue" "srs_app_rtc_server")
+            "srs_app_rtc_queue" "srs_app_rtc_server" "srs_app_rtc_source")
     fi
     if [[ $SRS_GB28181 == YES ]]; then
         MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")

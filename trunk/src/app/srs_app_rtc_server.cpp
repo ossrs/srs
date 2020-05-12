@@ -38,6 +38,7 @@
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_app_rtc_source.hpp>
 
 using namespace std;
 
@@ -569,11 +570,8 @@ srs_error_t SrsRtcServer::create_session(
 ) {
     srs_error_t err = srs_success;
 
-    SrsSource* source = NULL;
-
-    // TODO: FIXME: Should refactor it, directly use http server as handler.
-    ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-    if ((err = _srs_sources->fetch_or_create(req, handler, &source)) != srs_success) {
+    SrsRtcSource* source = NULL;
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
@@ -663,11 +661,8 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcSession* session, SrsRequest* req
         return err;
     }
 
-    SrsSource* source = NULL;
-
-    // TODO: FIXME: Should refactor it, directly use http server as handler.
-    ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-    if ((err = _srs_sources->fetch_or_create(req, handler, &source)) != srs_success) {
+    SrsRtcSource* source = NULL;
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 

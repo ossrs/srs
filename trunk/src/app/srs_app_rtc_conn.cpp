@@ -64,6 +64,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_source.hpp>
 
 // The RTP payload max size, reserved some paddings for SRTP as such:
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
@@ -683,17 +684,15 @@ srs_error_t SrsRtcPlayer::cycle()
 {
     srs_error_t err = srs_success;
 
-    SrsSource* source = NULL;
+    SrsRtcSource* source = NULL;
     SrsRequest* req = session_->req;
 
-    // TODO: FIXME: Should refactor it, directly use http server as handler.
-    ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-    if ((err = _srs_sources->fetch_or_create(req, handler, &source)) != srs_success) {
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    SrsConsumer* consumer = NULL;
-    SrsAutoFree(SrsConsumer, consumer);
+    SrsRtcConsumer* consumer = NULL;
+    SrsAutoFree(SrsRtcConsumer, consumer);
     if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "rtc create consumer, source url=%s", req->get_stream_url().c_str());
     }
@@ -807,7 +806,7 @@ srs_error_t SrsRtcPlayer::cycle()
 }
 
 srs_error_t SrsRtcPlayer::send_messages(
-    SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets
+    SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets
 ) {
     srs_error_t err = srs_success;
 
@@ -841,7 +840,7 @@ srs_error_t SrsRtcPlayer::send_messages(
 }
 
 srs_error_t SrsRtcPlayer::messages_to_packets(
-    SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets
+    SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets
 ) {
     srs_error_t err = srs_success;
 
@@ -1428,7 +1427,7 @@ srs_error_t SrsRtcPlayer::package_single_nalu(SrsSharedPtrMessage* msg, SrsSampl
     return err;
 }
 
-srs_error_t SrsRtcPlayer::package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets)
+srs_error_t SrsRtcPlayer::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets)
 {
     srs_error_t err = srs_success;
 
@@ -1783,9 +1782,7 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, SrsReque
         return srs_error_wrap(err, "start report_timer");
     }
 
-    // TODO: FIXME: Should refactor it, directly use http server as handler.
-    ISrsSourceHandler* handler = _srs_hybrid->srs()->instance();
-    if ((err = _srs_sources->fetch_or_create(req, handler, &source)) != srs_success) {
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
@@ -2751,7 +2748,7 @@ int SrsRtcSession::context_id()
     return cid;
 }
 
-srs_error_t SrsRtcSession::initialize(SrsSource* source, SrsRequest* r, bool is_publisher, string username, int context_id)
+srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, int context_id)
 {
     srs_error_t err = srs_success;
 

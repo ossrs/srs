@@ -427,6 +427,14 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
+ISrsConsumerQueue::ISrsConsumerQueue()
+{
+}
+
+ISrsConsumerQueue::~ISrsConsumerQueue()
+{
+}
+
 SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
 {
     source = s;
@@ -907,7 +915,7 @@ srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
     }
 
 #ifdef SRS_RTC
-    if ((err = rtc->initialize(this, req)) != srs_success) {
+    if ((err = rtc->initialize(req)) != srs_success) {
         return srs_error_wrap(err, "rtc initialize");
     }
 #endif
@@ -1629,7 +1637,7 @@ SrsFormat* SrsMetaCache::ash_format()
     return aformat;
 }
 
-srs_error_t SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
+srs_error_t SrsMetaCache::dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
 {
     srs_error_t err = srs_success;
     

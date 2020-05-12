@@ -186,8 +186,18 @@ public:
     virtual void wakeup() = 0;
 };
 
+// Enqueue the packet to consumer.
+class ISrsConsumerQueue
+{
+public:
+    ISrsConsumerQueue();
+    virtual ~ISrsConsumerQueue();
+public:
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag) = 0;
+};
+
 // The consumer for SrsSource, that is a play client.
-class SrsConsumer : public ISrsWakable
+class SrsConsumer : virtual public ISrsWakable, virtual public ISrsConsumerQueue
 {
 private:
     SrsRtmpJitter* jitter;
@@ -207,6 +217,7 @@ private:
     srs_utime_t mw_duration;
 #endif
 private:
+    // TODO: FIXME: Move to RTC consumer.
     // For RTC, we never use jitter to correct timestamp.
     // But we should not change the atc or time_jitter for source or RTMP.
     // @remark In this mode, we also never check the queue by timstamp, but only by count.
@@ -450,7 +461,7 @@ public:
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
-    virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+    virtual srs_error_t dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
     // Previous exists sequence header.
     virtual SrsSharedPtrMessage* previous_vsh();
