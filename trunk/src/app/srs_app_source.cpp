@@ -1985,7 +1985,7 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     return err;
 }
 
-void SrsSource::set_bridger(ISrsSourceBridger* v)
+void SrsSource::bridge_to(ISrsSourceBridger* v)
 {
     bridger = v;
 }
