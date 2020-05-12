@@ -40,6 +40,7 @@ class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcSource;
+class SrsRtcFromRtmpBridger;
 
 class SrsRtcConsumer : public ISrsConsumerQueue
 {
@@ -94,6 +95,8 @@ private:
     int _pre_source_id;
     SrsRequest* req;
     SrsRtcPublisher* rtc_publisher_;
+    // Transmux RTMP to RTC.
+    SrsRtcFromRtmpBridger* bridger_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -118,6 +121,8 @@ public:
     // Get current source id.
     virtual int source_id();
     virtual int pre_source_id();
+    // Get the bridger.
+    ISrsSourceBridger* bridger();
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -144,7 +149,6 @@ public:
     // TODO: FIXME: Merge with on_audio.
     srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsCommonMessage* video);
-private:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
 };
@@ -170,6 +174,20 @@ private:
 
 // Global singleton instance.
 extern SrsRtcSourceManager* _srs_rtc_sources;
+
+class SrsRtcFromRtmpBridger : public ISrsSourceBridger
+{
+private:
+    SrsRtcSource* source_;
+public:
+    SrsRtcFromRtmpBridger(SrsRtcSource* source);
+    virtual ~SrsRtcFromRtmpBridger();
+public:
+    virtual srs_error_t on_publish();
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
+    virtual void on_unpublish();
+};
 
 #endif
 

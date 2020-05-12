@@ -152,6 +152,7 @@ SrsRtcSource::SrsRtcSource()
 
     _can_publish = true;
     rtc_publisher_ = NULL;
+    bridger_ = new SrsRtcFromRtmpBridger(this);
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -165,6 +166,7 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(rtc);
 
     srs_freep(req);
+    srs_freep(bridger_);
 }
 
 srs_error_t SrsRtcSource::initialize(SrsRequest* r)
@@ -223,6 +225,11 @@ int SrsRtcSource::source_id()
 int SrsRtcSource::pre_source_id()
 {
     return _pre_source_id;
+}
+
+ISrsSourceBridger* SrsRtcSource::bridger()
+{
+    return bridger_;
 }
 
 srs_error_t SrsRtcSource::create_consumer(SrsConnection* conn, SrsRtcConsumer*& consumer)
@@ -382,6 +389,19 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
         }
     }
 
+    // TODO: FIXME: Support parsing OPUS for RTC.
+    if ((err = format->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume audio");
+    }
+
+    // Parse RTMP message to RTP packets, in FU-A if too large.
+    if ((err = rtc->on_audio(msg, format)) != srs_success) {
+        // TODO: We should support more strategies.
+        srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+        rtc->on_unpublish();
+    }
+
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -399,11 +419,6 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
         if ((err = meta->update_ash(msg)) != srs_success) {
             return srs_error_wrap(err, "meta consume audio");
         }
-    }
-
-    // when sequence header, donot push to gop cache and adjust the timestamp.
-    if (is_sequence_header) {
-        return err;
     }
 
     // if atc, update the sequence header to abs time.
@@ -463,11 +478,6 @@ srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
                 return srs_error_wrap(err, "consume video");
             }
         }
-    }
-
-    // when sequence header, donot push to gop cache and adjust the timestamp.
-    if (is_sequence_header) {
-        return err;
     }
 
     // if atc, update the sequence header to abs time.
@@ -550,4 +560,35 @@ SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
 }
 
 SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
+
+SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
+{
+    source_ = source;
+}
+
+SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
+{
+}
+
+srs_error_t SrsRtcFromRtmpBridger::on_publish()
+{
+    // TODO: FIXME: Should sync with bridger?
+    return source_->on_publish();
+}
+
+srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* audio)
+{
+    return source_->on_audio_imp(audio);
+}
+
+srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* video)
+{
+    return source_->on_video_imp(video);
+}
+
+void SrsRtcFromRtmpBridger::on_unpublish()
+{
+    // TODO: FIXME: Should sync with bridger?
+    source_->on_unpublish();
+}
 

@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
+#include <srs_app_rtc_source.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -1715,6 +1716,7 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
+    // TODO: FIXME: Use smaller lock.
     SrsLocker(lock);
     
     SrsSource* source = NULL;
@@ -1729,17 +1731,41 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
+#ifdef SRS_RTC
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(r->vhost);
+
+    // Get the RTC source and bridger.
+    SrsRtcSource* rtc = NULL;
+    if (rtc_server_enabled && rtc_enabled) {
+        if ((err = _srs_rtc_sources->fetch_or_create(r, &rtc)) != srs_success) {
+            err = srs_error_wrap(err, "init rtc %s", r->get_stream_url().c_str());
+            goto failed;
+        }
+    }
+#endif
     srs_trace("new source, stream_url=%s", stream_url.c_str());
-    
+
     source = new SrsSource();
     if ((err = source->initialize(r, h)) != srs_success) {
-        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
+        err = srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
+        goto failed;
     }
+
+#ifdef SRS_RTC
+    // If rtc enabled, bridge RTMP source to RTC,
+    // all RTMP packets will be forwarded to RTC source.
+    if (source && rtc) {
+        source->bridge_to(rtc->bridger());
+    }
+#endif
     
     pool[stream_url] = source;
-    
     *pps = source;
-    
+    return err;
+
+failed:
+    srs_freep(source);
     return err;
 }
 
@@ -1832,6 +1858,14 @@ void SrsSourceManager::destroy()
     pool.clear();
 }
 
+ISrsSourceBridger::ISrsSourceBridger()
+{
+}
+
+ISrsSourceBridger::~ISrsSourceBridger()
+{
+}
+
 SrsSource::SrsSource()
 {
     req = NULL;
@@ -1842,6 +1876,9 @@ SrsSource::SrsSource()
     _can_publish = true;
     _pre_source_id = _source_id = -1;
     die_at = 0;
+
+    handler = NULL;
+    bridger = NULL;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1946,6 +1983,11 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     mix_correct = _srs_config->get_mix_correct(req->vhost);
     
     return err;
+}
+
+void SrsSource::set_bridger(ISrsSourceBridger* v)
+{
+    bridger = v;
 }
 
 srs_error_t SrsSource::on_reload_vhost_play(string vhost)
@@ -2198,6 +2240,11 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "consume audio");
     }
 
+    // For bridger to consume the message.
+    if (bridger && (err = bridger->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridger consume audio");
+    }
+
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -2226,7 +2273,7 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if ((err = gop_cache->cache(msg)) != srs_success) {
         return srs_error_wrap(err, "gop cache consume audio");
     }
-    
+
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (meta->ash()) {
@@ -2321,6 +2368,11 @@ srs_error_t SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     // Copy to hub to all utilities.
     if ((err = hub->on_video(msg, is_sequence_header)) != srs_success) {
         return srs_error_wrap(err, "hub consume video");
+    }
+
+    // For bridger to consume the message.
+    if (bridger && (err = bridger->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridger consume video");
     }
 
     // copy to all consumer
@@ -2482,6 +2534,11 @@ srs_error_t SrsSource::on_publish()
     if ((err = handler->on_publish(this, req)) != srs_success) {
         return srs_error_wrap(err, "handle publish");
     }
+
+    if (bridger && (err = bridger->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "bridger publish");
+    }
+
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id);
     
@@ -2517,7 +2574,12 @@ void SrsSource::on_unpublish()
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
+
     handler->on_unpublish(this, req);
+
+    if (bridger) {
+        bridger->on_unpublish();
+    }
     
     // no consumer, stream is die.
     if (consumers.empty()) {

@@ -488,13 +488,26 @@ public:
 private:
     virtual srs_error_t do_cycle();
 public:
-    // when system exit, destroy the sources,
+    // when system exit, destroy th`e sources,
     // For gmc to analysis mem leaks.
     virtual void destroy();
 };
 
 // Global singleton instance.
 extern SrsSourceManager* _srs_sources;
+
+// For two sources to bridge with each other.
+class ISrsSourceBridger
+{
+public:
+    ISrsSourceBridger();
+    virtual ~ISrsSourceBridger();
+public:
+    virtual srs_error_t on_publish() = 0;
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video) = 0;
+    virtual void on_unpublish() = 0;
+};
 
 // live streaming source.
 class SrsSource : public ISrsReloadHandler
@@ -529,6 +542,8 @@ private:
     int64_t last_packet_time;
     // The event handler.
     ISrsSourceHandler* handler;
+    // The source bridger for other source.
+    ISrsSourceBridger* bridger;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -555,6 +570,8 @@ public:
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
+    // Bridge to other source, forward packets to it.
+    void bridge_to(ISrsSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
