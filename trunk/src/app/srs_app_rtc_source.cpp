@@ -159,6 +159,7 @@ SrsRtcSource::SrsRtcSource()
     rtc = new SrsRtc();
 
     _can_publish = true;
+    rtc_publisher_ = NULL;
 }
 
 SrsRtcSource::~SrsRtcSource()

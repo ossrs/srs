@@ -62,9 +62,6 @@ class SrsBuffer;
 #ifdef SRS_HDS
 class SrsHds;
 #endif
-#ifdef SRS_RTC
-class SrsRtcPublisher;
-#endif
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -358,10 +355,6 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
-#ifdef SRS_RTC
-    // rtc handler
-    SrsRtc* rtc;
-#endif
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -560,10 +553,6 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
-#ifdef SRS_RTC
-private:
-    SrsRtcPublisher* rtc_publisher_;
-#endif
 public:
     SrsSource();
     virtual ~SrsSource();
@@ -630,17 +619,6 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
-#ifdef SRS_RTC
-public:
-    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
-    SrsMetaCache* cached_meta();
-    // Get and set the publisher, passed to consumer to process requests such as PLI.
-    SrsRtcPublisher* rtc_publisher();
-    void set_rtc_publisher(SrsRtcPublisher* v);
-    // When got RTC audio message, which is encoded in opus.
-    // TODO: FIXME: Merge with on_audio.
-    srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
-#endif
 };
 
 #endif
