@@ -74,6 +74,8 @@
 #ifdef __cplusplus
 
 #include <string.h>
+#include <sstream>
+#include <iomanip>
 
 extern "C"
 {
@@ -363,6 +365,29 @@ static unsigned char hex_value (json_char c)
         case 'f': case 'F': return 0x0F;
         default: return 0xFF;
     }
+}
+
+static std::string escape_json(const std::string &s) {
+    std::ostringstream o;
+    for (std::string::const_iterator c = s.begin(); c != s.end(); c++) {
+        switch (*c) {
+        case '"': o << "\\\""; break;
+        case '\\': o << "\\\\"; break;
+        case '\b': o << "\\b"; break;
+        case '\f': o << "\\f"; break;
+        case '\n': o << "\\n"; break;
+        case '\r': o << "\\r"; break;
+        case '\t': o << "\\t"; break;
+        default:
+            if ('\x00' <= *c && *c <= '\x1f') {
+                o << "\\u"
+                  << std::hex << std::setw(4) << std::setfill('0') << (int)*c;
+            } else {
+                o << *c;
+            }
+        }
+    }
+    return o.str();
 }
 
 typedef struct
@@ -1576,7 +1601,7 @@ string SrsJsonAny::dumps()
 {
     switch (marker) {
         case SRS_JSON_String: {
-            return "\"" + to_str() + "\"";
+            return "\"" + escape_json(to_str()) + "\"";
         }
         case SRS_JSON_Boolean: {
             return to_boolean()? "true" : "false";
