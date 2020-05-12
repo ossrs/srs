@@ -697,13 +697,6 @@ srs_error_t SrsRtcPlayer::cycle()
         return srs_error_wrap(err, "rtc create consumer, source url=%s", req->get_stream_url().c_str());
     }
 
-    // For RTC, we enable pass-timestamp mode, ignore the timestamp in queue, never depends on the duration,
-    // because RTC allows the audio and video has its own timebase, that is the audio timestamp and video timestamp
-    // maybe not monotonically increase.
-    // In this mode, we use mw_msgs to set the delay. We never shrink the consumer queue, instead, we dumps the
-    // messages and drop them if the shared sender queue is full.
-    consumer->enable_pass_timestamp();
-
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer)) != srs_success) {
         return srs_error_wrap(err, "dumps consumer, source url=%s", req->get_stream_url().c_str());

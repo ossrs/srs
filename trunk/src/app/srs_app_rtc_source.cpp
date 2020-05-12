@@ -62,14 +62,6 @@ SrsRtcConsumer::~SrsRtcConsumer()
 #endif
 }
 
-void SrsRtcConsumer::enable_pass_timestamp()
-{
-}
-
-void SrsRtcConsumer::set_queue_size(srs_utime_t queue_size)
-{
-}
-
 void SrsRtcConsumer::update_source_id()
 {
     should_update_source_id = true;
@@ -81,7 +73,7 @@ srs_error_t SrsRtcConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, S
 
     SrsSharedPtrMessage* msg = shared_msg->copy();
 
-    if ((err = queue->enqueue(msg, NULL, true)) != srs_success) {
+    if ((err = queue->enqueue(msg, NULL)) != srs_success) {
         return srs_error_wrap(err, "enqueue message");
     }
 
@@ -120,7 +112,7 @@ srs_error_t SrsRtcConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     }
 
     // pump msgs from queue.
-    if ((err = queue->dump_packets(max, msgs->msgs, count, true)) != srs_success) {
+    if ((err = queue->dump_packets(max, msgs->msgs, count)) != srs_success) {
         return srs_error_wrap(err, "dump packets");
     }
 
@@ -249,9 +241,6 @@ srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool
 {
     srs_error_t err = srs_success;
 
-    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
-    consumer->set_queue_size(queue_size);
-
     // Copy metadata and sequence header to consumer.
     // TODO: FIXME: Maybe should not do this for RTC?
     if ((err = meta->dumps(consumer, true, SrsRtmpJitterAlgorithmOFF, dm, dg)) != srs_success) {
@@ -259,11 +248,7 @@ srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool
     }
 
     // print status.
-    if (dg) {
-        srs_trace("create consumer, queue_size=%.2f", queue_size);
-    } else {
-        srs_trace("create consumer, ignore gop cache");
-    }
+    srs_trace("create consumer, no gop cache");
 
     return err;
 }

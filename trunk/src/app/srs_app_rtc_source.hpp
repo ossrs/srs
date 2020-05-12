@@ -62,12 +62,6 @@ public:
     SrsRtcConsumer(SrsRtcSource* s, SrsConnection* c);
     virtual ~SrsRtcConsumer();
 public:
-    // Use pass timestamp mode.
-    // TODO: FIXME: Remove it.
-    void enable_pass_timestamp();
-    // Set the size of queue.
-    // TODO: FIXME: Remove it.
-    virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
     virtual void update_source_id();
     // Enqueue an shared ptr message.

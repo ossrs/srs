@@ -150,13 +150,12 @@ public:
     // Enqueue the message, the timestamp always monotonically.
     // @param msg, the msg to enqueue, user never free it whatever the return code.
     // @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    // @remark If pass_timestamp, we never shrink and never care about the timestamp or duration.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL, bool pass_timestamp = false);
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     // Get packets in consumer queue.
     // @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
     // @count the count in array, output param.
     // @max_count the max count to dequeue, must be positive.
-    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count, bool pass_timestamp = false);
+    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     // Dumps packets to consumer, use specified args.
     // @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
     virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
@@ -213,18 +212,10 @@ private:
     int mw_min_msgs;
     srs_utime_t mw_duration;
 #endif
-private:
-    // TODO: FIXME: Move to RTC consumer.
-    // For RTC, we never use jitter to correct timestamp.
-    // But we should not change the atc or time_jitter for source or RTMP.
-    // @remark In this mode, we also never check the queue by timstamp, but only by count.
-    bool pass_timestamp;
 public:
     SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
-    // Use pass timestamp mode.
-    void enable_pass_timestamp();
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
