@@ -41,6 +41,7 @@ class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcSource;
 class SrsRtcFromRtmpBridger;
+class SrsAudioRecode;
 
 class SrsRtcConsumer : public ISrsConsumerQueue
 {
@@ -175,6 +176,9 @@ private:
     SrsMetaCache* meta;
     // The format, codec information.
     SrsRtmpFormat* format;
+private:
+    bool discard_aac;
+    SrsAudioRecode* codec;
     // rtc handler
     SrsRtc* rtc;
 public:
@@ -187,6 +191,9 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
+private:
+    srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
+public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
 };
 

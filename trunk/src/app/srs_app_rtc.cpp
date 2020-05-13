@@ -54,38 +54,7 @@ using namespace std;
 #include <srs_app_rtc_codec.hpp>
 
 // TODO: Add this function into SrsRtpMux class.
-srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)
-{
-    srs_error_t err = srs_success;
-
-    if (format->is_aac_sequence_header()) {
-        return err;
-    }
-
-    if (format->audio->nb_samples != 1) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
-    }
-
-    int nb_buf = format->audio->samples[0].size + 7;
-    char* buf = new char[nb_buf];
-    SrsBuffer stream(buf, nb_buf);
-
-    // TODO: Add comment.
-    stream.write_1bytes(0xFF);
-    stream.write_1bytes(0xF9);
-    stream.write_1bytes(((format->acodec->aac_object - 1) << 6) | ((format->acodec->aac_sample_rate & 0x0F) << 2) | ((format->acodec->aac_channels & 0x04) >> 2));
-    stream.write_1bytes(((format->acodec->aac_channels & 0x03) << 6) | ((nb_buf >> 11) & 0x03));
-    stream.write_1bytes((nb_buf >> 3) & 0xFF);
-    stream.write_1bytes(((nb_buf & 0x07) << 5) | 0x1F);
-    stream.write_1bytes(0xFC);
-
-    stream.write_bytes(format->audio->samples[0].bytes, format->audio->samples[0].size);
-
-    *pbuf = buf;
-    *pnn_buf = nb_buf;
-
-    return err;
-}
+extern srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf);
 
 SrsRtpH264Muxer::SrsRtpH264Muxer()
 {

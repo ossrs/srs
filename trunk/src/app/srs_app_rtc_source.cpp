@@ -33,8 +33,44 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_rtc.hpp>
+#include <srs_kernel_buffer.hpp>
+#include <srs_app_rtc_codec.hpp>
 
 using namespace std;
+
+// TODO: Add this function into SrsRtpMux class.
+srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFormat* format, char** pbuf, int* pnn_buf)
+{
+    srs_error_t err = srs_success;
+
+    if (format->is_aac_sequence_header()) {
+        return err;
+    }
+
+    if (format->audio->nb_samples != 1) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "adts");
+    }
+
+    int nb_buf = format->audio->samples[0].size + 7;
+    char* buf = new char[nb_buf];
+    SrsBuffer stream(buf, nb_buf);
+
+    // TODO: Add comment.
+    stream.write_1bytes(0xFF);
+    stream.write_1bytes(0xF9);
+    stream.write_1bytes(((format->acodec->aac_object - 1) << 6) | ((format->acodec->aac_sample_rate & 0x0F) << 2) | ((format->acodec->aac_channels & 0x04) >> 2));
+    stream.write_1bytes(((format->acodec->aac_channels & 0x03) << 6) | ((nb_buf >> 11) & 0x03));
+    stream.write_1bytes((nb_buf >> 3) & 0xFF);
+    stream.write_1bytes(((nb_buf & 0x07) << 5) | 0x1F);
+    stream.write_1bytes(0xFC);
+
+    stream.write_bytes(format->audio->samples[0].bytes, format->audio->samples[0].size);
+
+    *pbuf = buf;
+    *pnn_buf = nb_buf;
+
+    return err;
+}
 
 SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s, SrsConnection* c)
 {
@@ -430,6 +466,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     meta = new SrsMetaCache();
     format = new SrsRtmpFormat();
     rtc = new SrsRtc();
+    codec = new SrsAudioRecode(kChannel, kSamplerate);
+    discard_aac = false;
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -437,6 +475,7 @@ SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
     srs_freep(meta);
     srs_freep(format);
     srs_freep(rtc);
+    srs_freep(codec);
 }
 
 srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
@@ -452,6 +491,14 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
     if ((err = rtc->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "rtc initialize");
     }
+
+    if ((err = codec->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init codec");
+    }
+
+    // TODO: FIXME: Support reload and log it.
+    discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
+    srs_trace("RTC bridge from RTMP, discard_aac=%d", discard_aac);
 
     return err;
 }
@@ -503,15 +550,95 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "format consume audio");
     }
 
-    // Parse RTMP message to RTP packets, in FU-A if too large.
-    if ((err = rtc->on_audio(msg, format)) != srs_success) {
-        // TODO: We should support more strategies.
-        srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
+    // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
+    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
+    if (!format->acodec) {
+        return err;
+    }
+
+    // ts support audio codec: aac/mp3
+    SrsAudioCodecId acodec = format->acodec->id;
+    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
+        return err;
+    }
+
+    // When drop aac audio packet, never transcode.
+    if (discard_aac && acodec == SrsAudioCodecIdAAC) {
+        return err;
+    }
+
+    // ignore sequence header
+    srs_assert(format->audio);
+
+    char* adts_audio = NULL;
+    int nn_adts_audio = 0;
+    // TODO: FIXME: Reserve 7 bytes header when create shared message.
+    if ((err = aac_raw_append_adts_header(msg, format, &adts_audio, &nn_adts_audio)) != srs_success) {
+        return srs_error_wrap(err, "aac append header");
+    }
+
+    if (adts_audio) {
+        err = transcode(msg, adts_audio, nn_adts_audio);
+        srs_freep(adts_audio);
     }
 
     return source_->on_audio_imp(msg);
+}
+
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
+srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
+{
+    srs_error_t err = srs_success;
+
+    // Opus packet cache.
+    static char* opus_payloads[kMaxOpusPackets];
+
+    static bool initialized = false;
+    if (!initialized) {
+        initialized = true;
+
+        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
+        opus_payloads[0] = &opus_packets_cache[0][0];
+        for (int i = 1; i < kMaxOpusPackets; i++) {
+           opus_payloads[i] = opus_packets_cache[i];
+        }
+    }
+
+    // Transcode an aac packet to many opus packets.
+    SrsSample aac;
+    aac.bytes = adts_audio;
+    aac.size = nn_adts_audio;
+
+    int nn_opus_packets = 0;
+    int opus_sizes[kMaxOpusPackets];
+    if ((err = codec->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
+        return srs_error_wrap(err, "recode error");
+    }
+
+    // Save OPUS packets in shared message.
+    if (nn_opus_packets <= 0) {
+        return err;
+    }
+
+    int nn_max_extra_payload = 0;
+    SrsSample samples[nn_opus_packets];
+    for (int i = 0; i < nn_opus_packets; i++) {
+        SrsSample* p = samples + i;
+        p->size = opus_sizes[i];
+        p->bytes = new char[p->size];
+        memcpy(p->bytes, opus_payloads[i], p->size);
+
+        nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
+    }
+
+    shared_audio->set_extra_payloads(samples, nn_opus_packets);
+    shared_audio->set_max_extra_payload(nn_max_extra_payload);
+
+    return err;
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
