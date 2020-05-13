@@ -641,7 +641,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     return source_->on_audio_imp(msg);
 }
 
-srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
+srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* msg, char* adts_audio, int nn_adts_audio)
 {
     srs_error_t err = srs_success;
 
@@ -666,7 +666,7 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* shared_audio, 
 
     int nn_opus_packets = 0;
     int opus_sizes[kMaxOpusPackets];
-    if ((err = codec->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
+    if ((err = codec->transcode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
@@ -686,8 +686,8 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* shared_audio, 
         nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
     }
 
-    shared_audio->set_extra_payloads(samples, nn_opus_packets);
-    shared_audio->set_max_extra_payload(nn_max_extra_payload);
+    msg->set_extra_payloads(samples, nn_opus_packets);
+    msg->set_max_extra_payload(nn_max_extra_payload);
 
     return err;
 }
