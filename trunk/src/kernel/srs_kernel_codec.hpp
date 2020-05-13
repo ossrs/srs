@@ -42,6 +42,7 @@ class SrsBuffer;
  *      5 = On2 VP6 with alpha channel
  *      6 = Screen video version 2
  *      7 = AVC
+ *     12 = HEVC
  */
 enum SrsVideoCodecId
 {
@@ -262,6 +263,10 @@ public:
      * check codec h264.
      */
     static bool h264(char* data, int size);
+    /**
+     * check codec hevc.
+     */
+    static bool hevc(char* data, int size);
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
@@ -521,6 +526,8 @@ enum SrsAvcLevel
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 
+#define HEVC_NALU_TYPE(code) ((code & 0x7E)>>1)
+
 /**
  * A sample is the unit of frame.
  * It's a NALU for H.264.
@@ -607,6 +614,39 @@ public:
     virtual bool is_aac_codec_ok();
 };
 
+typedef struct HEVCNalData_S {
+    uint16_t nalUnitLength;
+    std::vector<uint8_t>  nalUnitData;
+} HEVCNalData;
+
+typedef struct HVCCNALUnit_S {
+    uint8_t  array_completeness;
+    uint8_t  NAL_unit_type;
+    uint16_t numNalus;
+    std::vector<HEVCNalData> nalData_vec;
+} HVCCNALUnit;
+
+typedef struct HEVCDecoderConfigurationRecord_S {
+    uint8_t  configurationVersion;
+    uint8_t  general_profile_space;
+    uint8_t  general_tier_flag;
+    uint8_t  general_profile_idc;
+    uint32_t general_profile_compatibility_flags;
+    uint64_t general_constraint_indicator_flags;
+    uint8_t  general_level_idc;
+    uint16_t min_spatial_segmentation_idc;
+    uint8_t  parallelismType;
+    uint8_t  chromaFormat;
+    uint8_t  bitDepthLumaMinus8;
+    uint8_t  bitDepthChromaMinus8;
+    uint16_t avgFrameRate;
+    uint8_t  constantFrameRate;
+    uint8_t  numTemporalLayers;
+    uint8_t  temporalIdNested;
+    uint8_t  lengthSizeMinusOne;
+    std::vector<HVCCNALUnit> nalu_vec;
+} HEVCDecoderConfigurationRecord;
+
 /**
  * The video codec info.
  */
@@ -626,7 +666,7 @@ public:
      * @see: ffmpeg, AVCodecContext::extradata
      */
     std::vector<char> avc_extra_data;
-public:
+public://H264
     /**
      * video specified
      */
@@ -641,6 +681,9 @@ public:
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
+public:
+    HEVCDecoderConfigurationRecord _hevcDecConfRecord;
+
 public:
     SrsVideoCodecConfig();
     virtual ~SrsVideoCodecConfig();
@@ -765,6 +808,10 @@ private:
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
     virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+private:
+    // Parse the hevc vps/sps/pps
+    virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+
 private:
     // Parse the H.264 NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
