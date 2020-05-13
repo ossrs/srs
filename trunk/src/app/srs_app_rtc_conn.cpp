@@ -1424,7 +1424,7 @@ srs_error_t SrsRtcPlayer::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessa
 {
     srs_error_t err = srs_success;
 
-    SrsMetaCache* meta = source->cached_meta();
+    SrsMetaCache* meta = dynamic_cast<SrsRtcFromRtmpBridger*>(source->bridger())->cached_meta();
     if (!meta) {
         return err;
     }

@@ -143,15 +143,11 @@ void SrsRtcConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
 
 SrsRtcSource::SrsRtcSource()
 {
-    req = NULL;
     _source_id = _pre_source_id = -1;
-
-    meta = new SrsMetaCache();
-    format = new SrsRtmpFormat();
-    rtc = new SrsRtc();
-
     _can_publish = true;
     rtc_publisher_ = NULL;
+
+    req = NULL;
     bridger_ = new SrsRtcFromRtmpBridger(this);
 }
 
@@ -160,10 +156,6 @@ SrsRtcSource::~SrsRtcSource()
     // never free the consumers,
     // for all consumers are auto free.
     consumers.clear();
-
-    srs_freep(meta);
-    srs_freep(format);
-    srs_freep(rtc);
 
     srs_freep(req);
     srs_freep(bridger_);
@@ -175,12 +167,8 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 
     req = r->copy();
 
-    if ((err = format->initialize()) != srs_success) {
-        return srs_error_wrap(err, "format initialize");
-    }
-
-    if ((err = rtc->initialize(req)) != srs_success) {
-        return srs_error_wrap(err, "rtc initialize");
+    if ((err = bridger_->initialize(req)) != srs_success) {
+        return srs_error_wrap(err, "bridge initialize");
     }
 
     return err;
@@ -248,12 +236,6 @@ srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool
 {
     srs_error_t err = srs_success;
 
-    // Copy metadata and sequence header to consumer.
-    // TODO: FIXME: Maybe should not do this for RTC?
-    if ((err = meta->dumps(consumer, true, SrsRtmpJitterAlgorithmOFF, dm, dg)) != srs_success) {
-        return srs_error_wrap(err, "meta dumps");
-    }
-
     // print status.
     srs_trace("create consumer, no gop cache");
 
@@ -283,19 +265,11 @@ srs_error_t SrsRtcSource::on_publish()
 
     _can_publish = false;
 
-    if ((err = rtc->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "rtc publish");
-    }
-
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
     if ((err = on_source_id_changed(_srs_context->get_id())) != srs_success) {
         return srs_error_wrap(err, "source id change");
     }
-
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
-    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
-    meta->clear();
 
     // TODO: FIXME: Handle by statistic.
 
@@ -309,24 +283,12 @@ void SrsRtcSource::on_unpublish()
         return;
     }
 
-    rtc->on_unpublish();
-
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
-    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
-    meta->update_previous_vsh();
-    meta->update_previous_ash();
-
     srs_trace("cleanup when unpublish");
 
     _can_publish = true;
     _source_id = -1;
 
     // TODO: FIXME: Handle by statistic.
-}
-
-SrsMetaCache* SrsRtcSource::cached_meta()
-{
-    return meta;
 }
 
 SrsRtcPublisher* SrsRtcSource::rtc_publisher()
@@ -365,19 +327,6 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Support parsing OPUS for RTC.
-    if ((err = format->on_audio(msg)) != srs_success) {
-        return srs_error_wrap(err, "format consume audio");
-    }
-
-    // Parse RTMP message to RTP packets, in FU-A if too large.
-    if ((err = rtc->on_audio(msg, format)) != srs_success) {
-        // TODO: We should support more strategies.
-        srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
-    }
-
     // copy to all consumer
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
@@ -392,31 +341,6 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
-
-    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
-
-    // user can disable the sps parse to workaround when parse sps failed.
-    // @see https://github.com/ossrs/srs/issues/474
-    if (is_sequence_header) {
-        format->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
-    }
-
-    if ((err = format->on_video(msg)) != srs_success) {
-        return srs_error_wrap(err, "format consume video");
-    }
-
-    // Parse RTMP message to RTP packets, in FU-A if too large.
-    if ((err = rtc->on_video(msg, format)) != srs_success) {
-        // TODO: We should support more strategies.
-        srs_warn("rtc: ignore video error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
-    }
-
-    // cache the sequence header if h264
-    if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
-        return srs_error_wrap(err, "meta update video");
-    }
 
     // copy to all consumer
     for (int i = 0; i < (int)consumers.size(); i++) {
@@ -501,32 +425,124 @@ SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
 
 SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 {
+    req = NULL;
     source_ = source;
+    meta = new SrsMetaCache();
+    format = new SrsRtmpFormat();
+    rtc = new SrsRtc();
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
+    srs_freep(meta);
+    srs_freep(format);
+    srs_freep(rtc);
+}
+
+srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
+{
+    srs_error_t err = srs_success;
+
+    req = r;
+
+    if ((err = format->initialize()) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
+    }
+
+    if ((err = rtc->initialize(r)) != srs_success) {
+        return srs_error_wrap(err, "rtc initialize");
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
+    srs_error_t err = srs_success;
+
+    if ((err = rtc->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "rtc publish");
+    }
+
     // TODO: FIXME: Should sync with bridger?
-    return source_->on_publish();
+    if ((err = source_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "source publish");
+    }
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->clear();
+
+    return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* audio)
+srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 {
-    return source_->on_audio_imp(audio);
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: Support parsing OPUS for RTC.
+    if ((err = format->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume audio");
+    }
+
+    // Parse RTMP message to RTP packets, in FU-A if too large.
+    if ((err = rtc->on_audio(msg, format)) != srs_success) {
+        // TODO: We should support more strategies.
+        srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+        rtc->on_unpublish();
+    }
+
+    return source_->on_audio_imp(msg);
 }
 
-srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* video)
+srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
 {
-    return source_->on_video_imp(video);
+    srs_error_t err = srs_success;
+
+    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
+
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/ossrs/srs/issues/474
+    if (is_sequence_header) {
+        format->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
+    }
+
+    // cache the sequence header if h264
+    if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
+        return srs_error_wrap(err, "meta update video");
+    }
+
+    if ((err = format->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume video");
+    }
+
+    // Parse RTMP message to RTP packets, in FU-A if too large.
+    if ((err = rtc->on_video(msg, format)) != srs_success) {
+        // TODO: We should support more strategies.
+        srs_warn("rtc: ignore video error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+        rtc->on_unpublish();
+    }
+
+    return source_->on_video_imp(msg);
 }
 
 void SrsRtcFromRtmpBridger::on_unpublish()
 {
     // TODO: FIXME: Should sync with bridger?
     source_->on_unpublish();
+
+    rtc->on_unpublish();
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->update_previous_vsh();
+    meta->update_previous_ash();
+}
+
+SrsMetaCache* SrsRtcFromRtmpBridger::cached_meta()
+{
+    return meta;
 }
 

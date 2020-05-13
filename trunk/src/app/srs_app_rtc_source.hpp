@@ -100,15 +100,8 @@ private:
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
-    // The metadata cache.
-    SrsMetaCache* meta;
     // Whether source is avaiable for publishing.
     bool _can_publish;
-private:
-    // The format, codec information.
-    SrsRtmpFormat* format;
-    // rtc handler
-    SrsRtc* rtc;
 public:
     SrsRtcSource();
     virtual ~SrsRtcSource();
@@ -140,8 +133,6 @@ public:
     // When stop publish stream.
     virtual void on_unpublish();
 public:
-    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
-    SrsMetaCache* cached_meta();
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
@@ -178,15 +169,25 @@ extern SrsRtcSourceManager* _srs_rtc_sources;
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
+    SrsRequest* req;
     SrsRtcSource* source_;
+    // The metadata cache.
+    SrsMetaCache* meta;
+    // The format, codec information.
+    SrsRtmpFormat* format;
+    // rtc handler
+    SrsRtc* rtc;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
 public:
+    virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
     virtual void on_unpublish();
+    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
+    SrsMetaCache* cached_meta();
 };
 
 #endif
