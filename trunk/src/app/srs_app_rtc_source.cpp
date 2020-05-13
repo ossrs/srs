@@ -473,7 +473,6 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     source_ = source;
     meta = new SrsMetaCache();
     format = new SrsRtmpFormat();
-    rtc = new SrsRtc();
     codec = new SrsAudioRecode(kChannel, kSamplerate);
     discard_aac = false;
     discard_bframe = false;
@@ -483,7 +482,6 @@ SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
     srs_freep(meta);
     srs_freep(format);
-    srs_freep(rtc);
     srs_freep(codec);
 }
 
@@ -495,10 +493,6 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
 
     if ((err = format->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
-    }
-
-    if ((err = rtc->initialize(r)) != srs_success) {
-        return srs_error_wrap(err, "rtc initialize");
     }
 
     if ((err = codec->initialize()) != srs_success) {
@@ -522,10 +516,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
     srs_error_t err = srs_success;
 
-    if ((err = rtc->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "rtc publish");
-    }
-
     // TODO: FIXME: Should sync with bridger?
     if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "source publish");
@@ -542,8 +532,6 @@ void SrsRtcFromRtmpBridger::on_unpublish()
 {
     // TODO: FIXME: Should sync with bridger?
     source_->on_unpublish();
-
-    rtc->on_unpublish();
 
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
@@ -665,14 +653,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
 
     if ((err = format->on_video(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume video");
-    }
-
-    // Parse RTMP message to RTP packets, in FU-A if too large.
-    if ((err = rtc->on_video(msg, format)) != srs_success) {
-        // TODO: We should support more strategies.
-        srs_warn("rtc: ignore video error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
     }
 
     return source_->on_video_imp(msg);

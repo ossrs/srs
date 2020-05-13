@@ -180,8 +180,6 @@ private:
     bool discard_aac;
     SrsAudioRecode* codec;
     bool discard_bframe;
-    // rtc handler
-    SrsRtc* rtc;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
