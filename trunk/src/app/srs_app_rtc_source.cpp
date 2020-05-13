@@ -350,18 +350,6 @@ srs_error_t SrsRtcSource::on_video(SrsCommonMessage* shared_video)
 {
     srs_error_t err = srs_success;
 
-    // drop any unknown header video.
-    // @see https://github.com/ossrs/srs/issues/421
-    if (!SrsFlvVideo::acceptable(shared_video->payload, shared_video->size)) {
-        char b0 = 0x00;
-        if (shared_video->size > 0) {
-            b0 = shared_video->payload[0];
-        }
-
-        srs_warn("drop unknown header video, size=%d, bytes[0]=%#x", shared_video->size, b0);
-        return err;
-    }
-
     // convert shared_video to msg, user should not use shared_video again.
     // the payload is transfer to msg, and set to NULL in shared_video.
     SrsSharedPtrMessage msg;
@@ -377,18 +365,6 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
-    bool is_aac_sequence_header = SrsFlvAudio::sh(msg->payload, msg->size);
-    bool is_sequence_header = is_aac_sequence_header;
-
-    // whether consumer should drop for the duplicated sequence header.
-    bool drop_for_reduce = false;
-    if (is_sequence_header && meta->previous_ash() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->previous_ash()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(meta->previous_ash()->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh audio, size=%d", msg->size);
-        }
-    }
-
     // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume audio");
@@ -403,30 +379,11 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // copy to all consumer
-    if (!drop_for_reduce) {
-        for (int i = 0; i < (int)consumers.size(); i++) {
-            SrsRtcConsumer* consumer = consumers.at(i);
-            if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-                return srs_error_wrap(err, "consume message");
-            }
+    for (int i = 0; i < (int)consumers.size(); i++) {
+        SrsRtcConsumer* consumer = consumers.at(i);
+        if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
+            return srs_error_wrap(err, "consume message");
         }
-    }
-
-    // cache the sequence header of aac, or first packet of mp3.
-    // for example, the mp3 is used for hls to write the "right" audio codec.
-    // TODO: FIXME: to refine the stream info system.
-    if (is_aac_sequence_header || !meta->ash()) {
-        if ((err = meta->update_ash(msg)) != srs_success) {
-            return srs_error_wrap(err, "meta consume audio");
-        }
-    }
-
-    // if atc, update the sequence header to abs time.
-    if (meta->ash()) {
-        meta->ash()->timestamp = msg->timestamp;
-    }
-    if (meta->data()) {
-        meta->data()->timestamp = msg->timestamp;
     }
 
     return err;
@@ -456,36 +413,17 @@ srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
         rtc->on_unpublish();
     }
 
-    // whether consumer should drop for the duplicated sequence header.
-    bool drop_for_reduce = false;
-    if (is_sequence_header && meta->previous_vsh() && _srs_config->get_reduce_sequence_header(req->vhost)) {
-        if (meta->previous_vsh()->size == msg->size) {
-            drop_for_reduce = srs_bytes_equals(meta->previous_vsh()->payload, msg->payload, msg->size);
-            srs_warn("drop for reduce sh video, size=%d", msg->size);
-        }
-    }
-
     // cache the sequence header if h264
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
         return srs_error_wrap(err, "meta update video");
     }
 
     // copy to all consumer
-    if (!drop_for_reduce) {
-        for (int i = 0; i < (int)consumers.size(); i++) {
-            SrsRtcConsumer* consumer = consumers.at(i);
-            if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-                return srs_error_wrap(err, "consume video");
-            }
+    for (int i = 0; i < (int)consumers.size(); i++) {
+        SrsRtcConsumer* consumer = consumers.at(i);
+        if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
+            return srs_error_wrap(err, "consume video");
         }
-    }
-
-    // if atc, update the sequence header to abs time.
-    if (meta->vsh()) {
-        meta->vsh()->timestamp = msg->timestamp;
-    }
-    if (meta->data()) {
-        meta->data()->timestamp = msg->timestamp;
     }
 
     return err;
