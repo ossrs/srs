@@ -34,6 +34,7 @@
 #include <srs_protocol_format.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_app_rtc_codec.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 const int kChannel              = 2;
 const int kSamplerate           = 48000;
@@ -436,11 +437,25 @@ void SrsRtcSource::set_rtc_publisher(SrsRtcPublisher* v)
     rtc_publisher_ = v;
 }
 
-srs_error_t SrsRtcSource::on_rtc_audio(SrsSharedPtrMessage* audio)
+srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
-    // TODO: FIXME: Merge with on_audio.
-    // TODO: FIXME: Print key information.
-    return on_audio_imp(audio);
+    srs_error_t err = srs_success;
+
+    // copy to all consumer
+    for (int i = 0; i < (int)consumers.size(); i++) {
+        SrsRtcConsumer* consumer = consumers.at(i);
+        if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
+            return srs_error_wrap(err, "consume message");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcSource::on_audio2(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
+    return err;
 }
 
 srs_error_t SrsRtcSource::on_video(SrsCommonMessage* shared_video)
@@ -475,21 +490,6 @@ srs_error_t SrsRtcSource::on_video(SrsCommonMessage* shared_video)
 
     // directly process the video message.
     return on_video_imp(&msg);
-}
-
-srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
-{
-    srs_error_t err = srs_success;
-
-    // copy to all consumer
-    for (int i = 0; i < (int)consumers.size(); i++) {
-        SrsRtcConsumer* consumer = consumers.at(i);
-        if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
-            return srs_error_wrap(err, "consume message");
-        }
-    }
-
-    return err;
 }
 
 srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
@@ -634,14 +634,14 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     }
 
     if (adts_audio) {
-        err = transcode(msg, adts_audio, nn_adts_audio);
+        err = transcode(adts_audio, nn_adts_audio);
         srs_freep(adts_audio);
     }
 
-    return source_->on_audio_imp(msg);
+    return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* msg, char* adts_audio, int nn_adts_audio)
+srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio)
 {
     srs_error_t err = srs_success;
 
@@ -684,10 +684,22 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* msg, char* adt
         memcpy(p->bytes, opus_payloads[i], p->size);
 
         nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
-    }
 
-    msg->set_extra_payloads(samples, nn_opus_packets);
-    msg->set_max_extra_payload(nn_max_extra_payload);
+        SrsRtpPacket2* packet = new SrsRtpPacket2();
+        packet->rtp_header.set_marker(true);
+
+        SrsRtpRawPayload* raw = packet->reuse_raw();
+        raw->payload = new char[p->size];
+        raw->nn_payload = p->size;
+        memcpy(raw->payload, opus_payloads[i], p->size);
+
+        // When free the RTP packet, should free the bytes allocated here.
+        packet->original_bytes = raw->payload;
+
+        if ((err = source_->on_audio2(packet)) != srs_success) {
+            return srs_error_wrap(err, "consume opus");
+        }
+    }
 
     return err;
 }

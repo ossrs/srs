@@ -2174,7 +2174,7 @@ srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
     msg.set_extra_payloads(&sample, 1);
 
     // TODO: FIXME: Check error.
-    source->on_rtc_audio(&msg);
+    source->on_audio_imp(&msg);
 
     if (nn_audio_frames++ == 0) {
         SrsRtpHeader* h = &frame->rtp_header;

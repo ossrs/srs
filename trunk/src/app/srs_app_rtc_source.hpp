@@ -42,6 +42,7 @@ class SrsMessageArray;
 class SrsRtcSource;
 class SrsRtcFromRtmpBridger;
 class SrsAudioRecode;
+class SrsRtpPacket2;
 
 class SrsRtcConsumer : public ISrsConsumerQueue
 {
@@ -163,11 +164,11 @@ public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
+    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
+    srs_error_t on_audio2(SrsRtpPacket2* pkt);
     // When got RTC audio message, which is encoded in opus.
     // TODO: FIXME: Merge with on_audio.
-    srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsCommonMessage* video);
-    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
 private:
     // The format, codec information.
@@ -196,7 +197,7 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
 private:
-    srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
+    srs_error_t transcode(char* adts_audio, int nn_adts_audio);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
 private:

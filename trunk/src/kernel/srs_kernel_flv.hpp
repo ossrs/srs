@@ -304,6 +304,7 @@ private:
         // The reference count
         int shared_count;
 #ifdef SRS_RTC
+    // TODO: FIXME: Remove it.
     public:
         // For RTC video, we need to know the NALU structures,
         // because the RTP STAP-A or FU-A based on NALU.

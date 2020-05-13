@@ -119,7 +119,7 @@ public:
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The original bytes for decoder only, we will free it.
+    // The original bytes for decoder or bridger only, we will free it.
     char* original_bytes;
 // Fast cache for performance.
 private:
