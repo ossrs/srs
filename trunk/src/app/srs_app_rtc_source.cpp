@@ -184,6 +184,76 @@ void SrsRtcConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
 }
 #endif
 
+SrsRtcSourceManager::SrsRtcSourceManager()
+{
+    lock = NULL;
+}
+
+SrsRtcSourceManager::~SrsRtcSourceManager()
+{
+    srs_mutex_destroy(lock);
+}
+
+srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** pps)
+{
+    srs_error_t err = srs_success;
+
+    // Lazy create lock, because ST is not ready in SrsRtcSourceManager constructor.
+    if (!lock) {
+        lock = srs_mutex_new();
+    }
+
+    // Use lock to protect coroutine switch.
+    // @bug https://github.com/ossrs/srs/issues/1230
+    SrsLocker(lock);
+
+    SrsRtcSource* source = NULL;
+    if ((source = fetch(r)) != NULL) {
+        *pps = source;
+        return err;
+    }
+
+    string stream_url = r->get_stream_url();
+    string vhost = r->vhost;
+
+    // should always not exists for create a source.
+    srs_assert (pool.find(stream_url) == pool.end());
+
+    srs_trace("new source, stream_url=%s", stream_url.c_str());
+
+    source = new SrsRtcSource();
+    if ((err = source->initialize(r)) != srs_success) {
+        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
+    }
+
+    pool[stream_url] = source;
+
+    *pps = source;
+
+    return err;
+}
+
+SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
+{
+    SrsRtcSource* source = NULL;
+
+    string stream_url = r->get_stream_url();
+    if (pool.find(stream_url) == pool.end()) {
+        return NULL;
+    }
+
+    source = pool[stream_url];
+
+    // we always update the request of resource,
+    // for origin auth is on, the token in request maybe invalid,
+    // and we only need to update the token of request, it's simple.
+    source->update_auth(r);
+
+    return source;
+}
+
+SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
+
 SrsRtcSource::SrsRtcSource()
 {
     _source_id = _pre_source_id = -1;
@@ -395,76 +465,6 @@ srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
 
     return err;
 }
-
-SrsRtcSourceManager::SrsRtcSourceManager()
-{
-    lock = NULL;
-}
-
-SrsRtcSourceManager::~SrsRtcSourceManager()
-{
-    srs_mutex_destroy(lock);
-}
-
-srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** pps)
-{
-    srs_error_t err = srs_success;
-
-    // Lazy create lock, because ST is not ready in SrsRtcSourceManager constructor.
-    if (!lock) {
-        lock = srs_mutex_new();
-    }
-
-    // Use lock to protect coroutine switch.
-    // @bug https://github.com/ossrs/srs/issues/1230
-    SrsLocker(lock);
-
-    SrsRtcSource* source = NULL;
-    if ((source = fetch(r)) != NULL) {
-        *pps = source;
-        return err;
-    }
-
-    string stream_url = r->get_stream_url();
-    string vhost = r->vhost;
-
-    // should always not exists for create a source.
-    srs_assert (pool.find(stream_url) == pool.end());
-
-    srs_trace("new source, stream_url=%s", stream_url.c_str());
-
-    source = new SrsRtcSource();
-    if ((err = source->initialize(r)) != srs_success) {
-        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
-    }
-
-    pool[stream_url] = source;
-
-    *pps = source;
-
-    return err;
-}
-
-SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
-{
-    SrsRtcSource* source = NULL;
-
-    string stream_url = r->get_stream_url();
-    if (pool.find(stream_url) == pool.end()) {
-        return NULL;
-    }
-
-    source = pool[stream_url];
-
-    // we always update the request of resource,
-    // for origin auth is on, the token in request maybe invalid,
-    // and we only need to update the token of request, it's simple.
-    source->update_auth(r);
-
-    return source;
-}
-
-SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
 
 SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 {

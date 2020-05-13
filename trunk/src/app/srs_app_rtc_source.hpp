@@ -84,6 +84,28 @@ public:
 #endif
 };
 
+class SrsRtcSourceManager
+{
+private:
+    srs_mutex_t lock;
+    std::map<std::string, SrsRtcSource*> pool;
+public:
+    SrsRtcSourceManager();
+    virtual ~SrsRtcSourceManager();
+public:
+    //  create source when fetch from cache failed.
+    // @param r the client request.
+    // @param pps the matched source, if success never be NULL.
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
+private:
+    // Get the exists source, NULL when not exists.
+    // update the request and return the exists source.
+    virtual SrsRtcSource* fetch(SrsRequest* r);
+};
+
+// Global singleton instance.
+extern SrsRtcSourceManager* _srs_rtc_sources;
+
 class SrsRtcSource
 {
 private:
@@ -144,28 +166,6 @@ public:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
 };
-
-class SrsRtcSourceManager
-{
-private:
-    srs_mutex_t lock;
-    std::map<std::string, SrsRtcSource*> pool;
-public:
-    SrsRtcSourceManager();
-    virtual ~SrsRtcSourceManager();
-public:
-    //  create source when fetch from cache failed.
-    // @param r the client request.
-    // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
-private:
-    // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
-    virtual SrsRtcSource* fetch(SrsRequest* r);
-};
-
-// Global singleton instance.
-extern SrsRtcSourceManager* _srs_rtc_sources;
 
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
