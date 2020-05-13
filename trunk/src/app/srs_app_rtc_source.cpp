@@ -262,6 +262,8 @@ SrsRtcSource::SrsRtcSource()
 
     req = NULL;
     bridger_ = new SrsRtcFromRtmpBridger(this);
+    format = new SrsRtmpFormat();
+    meta = new SrsMetaCache();
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -272,6 +274,8 @@ SrsRtcSource::~SrsRtcSource()
 
     srs_freep(req);
     srs_freep(bridger_);
+    srs_freep(format);
+    srs_freep(meta);
 }
 
 srs_error_t SrsRtcSource::initialize(SrsRequest* r)
@@ -282,6 +286,10 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 
     if ((err = bridger_->initialize(req)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
+    }
+
+    if ((err = format->initialize()) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
     }
 
     return err;
@@ -331,6 +339,11 @@ int SrsRtcSource::pre_source_id()
 ISrsSourceBridger* SrsRtcSource::bridger()
 {
     return bridger_;
+}
+
+SrsMetaCache* SrsRtcSource::cached_meta()
+{
+    return meta;
 }
 
 srs_error_t SrsRtcSource::create_consumer(SrsConnection* conn, SrsRtcConsumer*& consumer)
@@ -384,6 +397,10 @@ srs_error_t SrsRtcSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->clear();
+
     // TODO: FIXME: Handle by statistic.
 
     return err;
@@ -395,6 +412,11 @@ void SrsRtcSource::on_unpublish()
     if (_can_publish) {
         return;
     }
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->update_previous_vsh();
+    meta->update_previous_ash();
 
     srs_trace("cleanup when unpublish");
 
@@ -432,6 +454,25 @@ srs_error_t SrsRtcSource::on_video(SrsCommonMessage* shared_video)
         return srs_error_wrap(err, "create message");
     }
 
+    bool is_sequence_header = SrsFlvVideo::sh(msg.payload, msg.size);
+    if (is_sequence_header && (err = meta->update_vsh(&msg)) != srs_success) {
+        return srs_error_wrap(err, "meta update video");
+    }
+
+    // user can disable the sps parse to workaround when parse sps failed.
+    // @see https://github.com/ossrs/srs/issues/474
+    if (is_sequence_header) {
+        format->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
+    }
+
+    if ((err = format->on_video(&msg)) != srs_success) {
+        return srs_error_wrap(err, "format consume video");
+    }
+
+    if ((err = filter(&msg, format)) != srs_success) {
+        return srs_error_wrap(err, "filter video");
+    }
+
     // directly process the video message.
     return on_video_imp(&msg);
 }
@@ -466,11 +507,44 @@ srs_error_t SrsRtcSource::on_video_imp(SrsSharedPtrMessage* msg)
     return err;
 }
 
+srs_error_t SrsRtcSource::filter(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
+{
+    srs_error_t err = srs_success;
+
+    // If IDR, we will insert SPS/PPS before IDR frame.
+    if (format->video && format->video->has_idr) {
+        shared_frame->set_has_idr(true);
+    }
+
+    // Update samples to shared frame.
+    for (int i = 0; i < format->video->nb_samples; ++i) {
+        SrsSample* sample = &format->video->samples[i];
+
+        // Because RTC does not support B-frame, so we will drop them.
+        // TODO: Drop B-frame in better way, which not cause picture corruption.
+        if (true) {
+            if ((err = sample->parse_bframe()) != srs_success) {
+                return srs_error_wrap(err, "parse bframe");
+            }
+            if (sample->bframe) {
+                continue;
+            }
+        }
+    }
+
+    if (format->video->nb_samples <= 0) {
+        return err;
+    }
+
+    shared_frame->set_samples(format->video->samples, format->video->nb_samples);
+
+    return err;
+}
+
 SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 {
     req = NULL;
     source_ = source;
-    meta = new SrsMetaCache();
     format = new SrsRtmpFormat();
     codec = new SrsAudioRecode(kChannel, kSamplerate);
     discard_aac = false;
@@ -479,7 +553,6 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
-    srs_freep(meta);
     srs_freep(format);
     srs_freep(codec);
 }
@@ -506,11 +579,6 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
     return err;
 }
 
-SrsMetaCache* SrsRtcFromRtmpBridger::cached_meta()
-{
-    return meta;
-}
-
 srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
     srs_error_t err = srs_success;
@@ -520,10 +588,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
         return srs_error_wrap(err, "source publish");
     }
 
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
-    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
-    meta->clear();
-
     return err;
 }
 
@@ -531,11 +595,6 @@ void SrsRtcFromRtmpBridger::on_unpublish()
 {
     // TODO: FIXME: Should sync with bridger?
     source_->on_unpublish();
-
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
-    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
-    meta->update_previous_vsh();
-    meta->update_previous_ash();
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
@@ -637,21 +696,19 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
-    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
-
-    // user can disable the sps parse to workaround when parse sps failed.
-    // @see https://github.com/ossrs/srs/issues/474
-    if (is_sequence_header) {
-        format->avc_parse_sps = _srs_config->get_parse_sps(req->vhost);
-    }
-
     // cache the sequence header if h264
+    bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
+    SrsMetaCache* meta = source_->cached_meta();
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
         return srs_error_wrap(err, "meta update video");
     }
 
     if ((err = format->on_video(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume video");
+    }
+
+    if ((err = filter(msg, format)) != srs_success) {
+        return srs_error_wrap(err, "filter video");
     }
 
     return source_->on_video_imp(msg);
