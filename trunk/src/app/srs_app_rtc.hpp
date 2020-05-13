@@ -45,9 +45,6 @@ const int kRtpPacketSize        = 1500;
 const uint8_t kOpusPayloadType  = 111;
 const uint8_t kH264PayloadType  = 102;
 
-const int kChannel              = 2;
-const int kSamplerate           = 48000;
-
 // SSRC will rewrite in srs_app_rtc_conn.cpp when send to client.
 const uint32_t kAudioSSRC       = 1;
 const uint32_t kVideoSSRC       = 2;
@@ -64,19 +61,6 @@ public:
     srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
-// TODO: FIXME: It's not a muxer, but a transcoder.
-class SrsRtpOpusMuxer
-{
-private:
-    SrsAudioRecode* codec;
-public:
-    SrsRtpOpusMuxer();
-    virtual ~SrsRtpOpusMuxer();
-    virtual srs_error_t initialize();
-public:
-    srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
-};
-
 class SrsRtc
 {
 private:
@@ -86,7 +70,6 @@ private:
     bool discard_aac;
     srs_utime_t last_update_time;
     SrsRtpH264Muxer* rtp_h264_muxer;
-    SrsRtpOpusMuxer* rtp_opus_muxer;
 public:
     SrsRtc();
     virtual ~SrsRtc();
@@ -97,7 +80,6 @@ public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 

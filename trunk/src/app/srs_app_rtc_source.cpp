@@ -36,6 +36,14 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_app_rtc_codec.hpp>
 
+const int kChannel              = 2;
+const int kSamplerate           = 48000;
+
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
 using namespace std;
 
 // TODO: Add this function into SrsRtpMux class.
@@ -584,11 +592,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 
     return source_->on_audio_imp(msg);
 }
-
-// An AAC packet may be transcoded to many OPUS packets.
-const int kMaxOpusPackets = 8;
-// The max size for each OPUS packet.
-const int kMaxOpusPacketSize = 4096;
 
 srs_error_t SrsRtcFromRtmpBridger::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
 {

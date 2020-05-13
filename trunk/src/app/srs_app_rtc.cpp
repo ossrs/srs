@@ -99,88 +99,6 @@ srs_error_t SrsRtpH264Muxer::filter(SrsSharedPtrMessage* shared_frame, SrsFormat
     return err;
 }
 
-SrsRtpOpusMuxer::SrsRtpOpusMuxer()
-{
-    codec = NULL;
-}
-
-SrsRtpOpusMuxer::~SrsRtpOpusMuxer()
-{
-    srs_freep(codec);
-}
-
-srs_error_t SrsRtpOpusMuxer::initialize()
-{
-    srs_error_t err = srs_success;
-
-    codec = new SrsAudioRecode(kChannel, kSamplerate);
-    if (!codec) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "SrsAacOpus init failed");
-    }
-
-    if ((err = codec->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init codec");
-    }
-
-    return err;
-}
-
-// An AAC packet may be transcoded to many OPUS packets.
-const int kMaxOpusPackets = 8;
-// The max size for each OPUS packet.
-const int kMaxOpusPacketSize = 4096;
-
-srs_error_t SrsRtpOpusMuxer::transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio)
-{
-    srs_error_t err = srs_success;
-
-    // Opus packet cache.
-    static char* opus_payloads[kMaxOpusPackets];
-
-    static bool initialized = false;
-    if (!initialized) {
-        initialized = true;
-
-        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
-        opus_payloads[0] = &opus_packets_cache[0][0];
-        for (int i = 1; i < kMaxOpusPackets; i++) {
-           opus_payloads[i] = opus_packets_cache[i];
-        }
-    }
-
-    // Transcode an aac packet to many opus packets.
-    SrsSample aac;
-    aac.bytes = adts_audio;
-    aac.size = nn_adts_audio;
-
-    int nn_opus_packets = 0;
-    int opus_sizes[kMaxOpusPackets];
-    if ((err = codec->recode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
-        return srs_error_wrap(err, "recode error");
-    }
-
-    // Save OPUS packets in shared message.
-    if (nn_opus_packets <= 0) {
-        return err;
-    }
-
-    int nn_max_extra_payload = 0;
-    SrsSample samples[nn_opus_packets];
-    for (int i = 0; i < nn_opus_packets; i++) {
-        SrsSample* p = samples + i;
-        p->size = opus_sizes[i];
-        p->bytes = new char[p->size];
-        memcpy(p->bytes, opus_payloads[i], p->size);
-
-        nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
-    }
-
-    shared_audio->set_extra_payloads(samples, nn_opus_packets);
-    shared_audio->set_max_extra_payload(nn_max_extra_payload);
-
-    return err;
-}
-
 SrsRtc::SrsRtc()
 {
     req = NULL;
@@ -222,13 +140,8 @@ srs_error_t SrsRtc::initialize(SrsRequest* r)
     rtp_h264_muxer->discard_bframe = _srs_config->get_rtc_bframe_discard(req->vhost);
     // TODO: FIXME: Support reload and log it.
     discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
-
-    rtp_opus_muxer = new SrsRtpOpusMuxer();
-    if (!rtp_opus_muxer) {
-        return srs_error_wrap(err, "rtp_opus_muxer nullptr");
-    }
     
-    return rtp_opus_muxer->initialize();
+    return err;
 }
 
 srs_error_t SrsRtc::on_publish()
@@ -264,52 +177,6 @@ void SrsRtc::on_unpublish()
     }
     
     enabled = false;
-}
-
-srs_error_t SrsRtc::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format)
-{
-    srs_error_t err = srs_success;
-    
-    if (!enabled) {
-        return err;
-    }
-
-    // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
-    // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
-    if (!format->acodec) {
-        return err;
-    }
-    
-    // update the hls time, for hls_dispose.
-    last_update_time = srs_get_system_time();
-    
-    // ts support audio codec: aac/mp3
-    SrsAudioCodecId acodec = format->acodec->id;
-    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
-        return err;
-    }
-
-    // When drop aac audio packet, never transcode.
-    if (discard_aac && acodec == SrsAudioCodecIdAAC) {
-        return err;
-    }
-    
-    // ignore sequence header
-    srs_assert(format->audio);
-
-    char* adts_audio = NULL;
-    int nn_adts_audio = 0;
-    // TODO: FIXME: Reserve 7 bytes header when create shared message.
-    if ((err = aac_raw_append_adts_header(shared_audio, format, &adts_audio, &nn_adts_audio)) != srs_success) {
-        return srs_error_wrap(err, "aac append header");
-    }
-
-    if (adts_audio) {
-        err = rtp_opus_muxer->transcode(shared_audio, adts_audio, nn_adts_audio);
-        srs_freep(adts_audio);
-    }
-
-    return err;
 }
 
 srs_error_t SrsRtc::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format)
