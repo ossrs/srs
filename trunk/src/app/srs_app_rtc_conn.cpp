@@ -53,7 +53,6 @@ using namespace std;
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_rtc.hpp>
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>

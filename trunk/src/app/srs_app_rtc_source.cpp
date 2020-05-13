@@ -32,7 +32,6 @@
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_format.hpp>
-#include <srs_app_rtc.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_app_rtc_codec.hpp>
 

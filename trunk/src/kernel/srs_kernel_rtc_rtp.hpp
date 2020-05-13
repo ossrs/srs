@@ -33,8 +33,11 @@
 
 class SrsRtpPacket2;
 
-const int kRtpHeaderFixedSize = 12;
-const uint8_t kRtpMarker = 0x80;
+// The RTP packet max size, should never exceed this size.
+const int kRtpPacketSize        = 1500;
+
+const int kRtpHeaderFixedSize   = 12;
+const uint8_t kRtpMarker        = 0x80;
 
 // H.264 nalu header type mask.
 const uint8_t kNalTypeMask      = 0x1F;
