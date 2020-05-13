@@ -456,6 +456,11 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
     return err;
 }
 
+SrsMetaCache* SrsRtcFromRtmpBridger::cached_meta()
+{
+    return meta;
+}
+
 srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
     srs_error_t err = srs_success;
@@ -474,6 +479,19 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
     meta->clear();
 
     return err;
+}
+
+void SrsRtcFromRtmpBridger::on_unpublish()
+{
+    // TODO: FIXME: Should sync with bridger?
+    source_->on_unpublish();
+
+    rtc->on_unpublish();
+
+    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta->update_previous_vsh();
+    meta->update_previous_ash();
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
@@ -526,23 +544,5 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     }
 
     return source_->on_video_imp(msg);
-}
-
-void SrsRtcFromRtmpBridger::on_unpublish()
-{
-    // TODO: FIXME: Should sync with bridger?
-    source_->on_unpublish();
-
-    rtc->on_unpublish();
-
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
-    // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
-    meta->update_previous_vsh();
-    meta->update_previous_ash();
-}
-
-SrsMetaCache* SrsRtcFromRtmpBridger::cached_meta()
-{
-    return meta;
 }
 

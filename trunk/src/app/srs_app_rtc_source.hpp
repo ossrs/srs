@@ -182,12 +182,12 @@ public:
     virtual ~SrsRtcFromRtmpBridger();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
-    virtual srs_error_t on_publish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
-    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
-    virtual void on_unpublish();
     // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
     SrsMetaCache* cached_meta();
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
 };
 
 #endif
