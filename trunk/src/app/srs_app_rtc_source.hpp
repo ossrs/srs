@@ -179,6 +179,7 @@ private:
 private:
     bool discard_aac;
     SrsAudioRecode* codec;
+    bool discard_bframe;
     // rtc handler
     SrsRtc* rtc;
 public:
@@ -195,6 +196,8 @@ private:
     srs_error_t transcode(SrsSharedPtrMessage* shared_audio, char* adts_audio, int nn_adts_audio);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
+private:
+    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 #endif

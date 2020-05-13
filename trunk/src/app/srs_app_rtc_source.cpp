@@ -476,6 +476,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     rtc = new SrsRtc();
     codec = new SrsAudioRecode(kChannel, kSamplerate);
     discard_aac = false;
+    discard_bframe = false;
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -506,7 +507,8 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
 
     // TODO: FIXME: Support reload and log it.
     discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
-    srs_trace("RTC bridge from RTMP, discard_aac=%d", discard_aac);
+    discard_bframe = _srs_config->get_rtc_bframe_discard(req->vhost);
+    srs_trace("RTC bridge from RTMP, discard_aac=%d, discard_bframe=%d", discard_aac, discard_bframe);
 
     return err;
 }
@@ -674,5 +676,39 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     }
 
     return source_->on_video_imp(msg);
+}
+
+srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* shared_frame, SrsFormat* format)
+{
+    srs_error_t err = srs_success;
+
+    // If IDR, we will insert SPS/PPS before IDR frame.
+    if (format->video && format->video->has_idr) {
+        shared_frame->set_has_idr(true);
+    }
+
+    // Update samples to shared frame.
+    for (int i = 0; i < format->video->nb_samples; ++i) {
+        SrsSample* sample = &format->video->samples[i];
+
+        // Because RTC does not support B-frame, so we will drop them.
+        // TODO: Drop B-frame in better way, which not cause picture corruption.
+        if (discard_bframe) {
+            if ((err = sample->parse_bframe()) != srs_success) {
+                return srs_error_wrap(err, "parse bframe");
+            }
+            if (sample->bframe) {
+                continue;
+            }
+        }
+    }
+
+    if (format->video->nb_samples <= 0) {
+        return err;
+    }
+
+    shared_frame->set_samples(format->video->samples, format->video->nb_samples);
+
+    return err;
 }
 
