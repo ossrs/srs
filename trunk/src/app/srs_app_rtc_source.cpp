@@ -80,30 +80,27 @@ srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFor
     return err;
 }
 
-SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s, SrsConnection* c)
+SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s)
 {
     source = s;
-    conn = c;
     should_update_source_id = false;
-    queue = new SrsMessageQueue();
 
-#ifdef SRS_PERF_QUEUE_COND_WAIT
     mw_wait = srs_cond_new();
     mw_min_msgs = 0;
-    mw_duration = 0;
     mw_waiting = false;
-#endif
 }
 
 SrsRtcConsumer::~SrsRtcConsumer()
 {
     source->on_consumer_destroy(this);
 
-    srs_freep(queue);
+    vector<SrsRtpPacket2*>::iterator it;
+    for (it = queue.begin(); it != queue.end(); ++it) {
+        SrsRtpPacket2* pkt = *it;
+        srs_freep(pkt);
+    }
 
-#ifdef SRS_PERF_QUEUE_COND_WAIT
     srs_cond_destroy(mw_wait);
-#endif
 }
 
 void SrsRtcConsumer::update_source_id()
@@ -114,66 +111,46 @@ void SrsRtcConsumer::update_source_id()
 srs_error_t SrsRtcConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     srs_error_t err = srs_success;
+    return err;
+}
 
-    SrsSharedPtrMessage* msg = shared_msg->copy();
+srs_error_t SrsRtcConsumer::enqueue2(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
 
-    if ((err = queue->enqueue(msg, NULL)) != srs_success) {
-        return srs_error_wrap(err, "enqueue message");
-    }
+    queue.push_back(pkt);
 
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-    // fire the mw when msgs is enough.
     if (mw_waiting) {
-        if (queue->size() > mw_min_msgs) {
+        if ((int)queue.size() > mw_min_msgs) {
             srs_cond_signal(mw_wait);
             mw_waiting = false;
             return err;
         }
-        return err;
     }
-#endif
 
     return err;
 }
 
-srs_error_t SrsRtcConsumer::dump_packets(SrsMessageArray* msgs, int& count)
+srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
 {
     srs_error_t err = srs_success;
-
-    srs_assert(count >= 0);
-    srs_assert(msgs->max > 0);
-
-    // the count used as input to reset the max if positive.
-    int max = count? srs_min(count, msgs->max) : msgs->max;
-
-    // the count specifies the max acceptable count,
-    // here maybe 1+, and we must set to 0 when got nothing.
-    count = 0;
 
     if (should_update_source_id) {
         srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
         should_update_source_id = false;
     }
 
-    // pump msgs from queue.
-    if ((err = queue->dump_packets(max, msgs->msgs, count)) != srs_success) {
-        return srs_error_wrap(err, "dump packets");
-    }
+    queue.swap(pkts);
 
     return err;
 }
 
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-void SrsRtcConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
+void SrsRtcConsumer::wait(int nb_msgs)
 {
     mw_min_msgs = nb_msgs;
-    mw_duration = msgs_duration;
-
-    srs_utime_t duration = queue->duration();
-    bool match_min_msgs = queue->size() > mw_min_msgs;
 
     // when duration ok, signal to flush.
-    if (match_min_msgs && duration > mw_duration) {
+    if ((int)queue.size() > mw_min_msgs) {
         return;
     }
 
@@ -183,7 +160,6 @@ void SrsRtcConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
     // use cond block wait for high performance mode.
     srs_cond_wait(mw_wait);
 }
-#endif
 
 SrsRtcSourceManager::SrsRtcSourceManager()
 {
@@ -347,11 +323,11 @@ SrsMetaCache* SrsRtcSource::cached_meta()
     return meta;
 }
 
-srs_error_t SrsRtcSource::create_consumer(SrsConnection* conn, SrsRtcConsumer*& consumer)
+srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
-    consumer = new SrsRtcConsumer(this, conn);
+    consumer = new SrsRtcConsumer(this);
     consumers.push_back(consumer);
 
     // TODO: FIXME: Implements edge cluster.
@@ -441,7 +417,6 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
-    // copy to all consumer
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
         if ((err = consumer->enqueue(msg, true, SrsRtmpJitterAlgorithmOFF)) != srs_success) {
@@ -455,6 +430,14 @@ srs_error_t SrsRtcSource::on_audio_imp(SrsSharedPtrMessage* msg)
 srs_error_t SrsRtcSource::on_audio2(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
+
+    for (int i = 0; i < (int)consumers.size(); i++) {
+        SrsRtcConsumer* consumer = consumers.at(i);
+        if ((err = consumer->enqueue2(pkt)) != srs_success) {
+            return srs_error_wrap(err, "consume message");
+        }
+    }
+
     return err;
 }
 
@@ -686,7 +669,7 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio
         nn_max_extra_payload = srs_max(nn_max_extra_payload, p->size);
 
         SrsRtpPacket2* packet = new SrsRtpPacket2();
-        packet->rtp_header.set_marker(true);
+        packet->frame_type = SrsFrameTypeAudio;
 
         SrsRtpRawPayload* raw = packet->reuse_raw();
         raw->payload = new char[p->size];

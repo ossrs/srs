@@ -149,6 +149,7 @@ private:
 };
 
 // A group of RTP packets for outgoing(send to players).
+// TODO: FIXME: Rename to stat for RTP packets.
 class SrsRtcOutgoingPackets
 {
 public:
@@ -171,9 +172,11 @@ public:
     // one msghdr by GSO, it's only one RTP packet, because we only send once.
     int nn_rtp_pkts;
     // For video, the samples or NALUs.
+    // TODO: FIXME: Remove it because we may don't know.
     int nn_samples;
     // For audio, the generated extra audio packets.
     // For example, when transcoding AAC to opus, may many extra payloads for a audio.
+    // TODO: FIXME: Remove it because we may don't know.
     int nn_extras;
     // The original audio messages.
     int nn_audios;
@@ -184,11 +187,13 @@ public:
     // The number of dropped messages.
     int nn_dropped;
 private:
+    // TODO: FIXME: Remove the cache.
     int cursor;
     int nn_cache;
     SrsRtpPacket2* cache;
 public:
-    SrsRtcOutgoingPackets(int nn_cache_max);
+    // TODO: FIXME: Remove the cache.
+    SrsRtcOutgoingPackets(int nn_cache_max = 8);
     virtual ~SrsRtcOutgoingPackets();
 public:
     void reset(bool gso, bool merge_nalus);
@@ -227,7 +232,6 @@ private:
     bool gso;
     int max_padding;
     // For merged-write messages.
-    srs_utime_t mw_sleep;
     int mw_msgs;
     bool realtime;
     // Whether enabled nack.
@@ -251,12 +255,12 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
-    srs_error_t messages_to_packets(SrsRtcSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
-    srs_error_t send_packets(SrsRtcOutgoingPackets& packets);
+    srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
+    srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
+    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
     srs_error_t send_packets_gso(SrsRtcOutgoingPackets& packets);
 private:
-    srs_error_t package_opus(SrsSample* sample, SrsRtcOutgoingPackets& packets, int nn_max_payload);
+    srs_error_t package_opus(SrsRtpPacket2* pkt);
 private:
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets);
     srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);

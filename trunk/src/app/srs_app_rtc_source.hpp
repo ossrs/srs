@@ -48,41 +48,26 @@ class SrsRtcConsumer : public ISrsConsumerQueue
 {
 private:
     SrsRtcSource* source;
-    // The owner connection for debug, maybe NULL.
-    SrsConnection* conn;
-    SrsMessageQueue* queue;
+    std::vector<SrsRtpPacket2*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
-#ifdef SRS_PERF_QUEUE_COND_WAIT
     // The cond wait for mw.
     // @see https://github.com/ossrs/srs/issues/251
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
-    srs_utime_t mw_duration;
-#endif
 public:
-    SrsRtcConsumer(SrsRtcSource* s, SrsConnection* c);
+    SrsRtcConsumer(SrsRtcSource* s);
     virtual ~SrsRtcConsumer();
 public:
-    // when source id changed, notice client to print.
+    // When source id changed, notice client to print.
     virtual void update_source_id();
-    // Enqueue an shared ptr message.
-    // @param shared_msg, directly ptr, copy it if need to save it.
-    // @param whether atc, donot use jitter correct if true.
-    // @param ag the algorithm of time jitter.
+    // Put or get RTP packet in queue.
     virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
-    // Get packets in consumer queue.
-    // @param msgs the msgs array to dump packets to send.
-    // @param count the count in array, intput and output param.
-    // @remark user can specifies the count to get specified msgs; 0 to get all if possible.
-    virtual srs_error_t dump_packets(SrsMessageArray* msgs, int& count);
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-    // wait for messages incomming, atleast nb_msgs and in duration.
-    // @param nb_msgs the messages count to wait.
-    // @param msgs_duration the messages duration to wait.
-    virtual void wait(int nb_msgs, srs_utime_t msgs_duration);
-#endif
+    srs_error_t enqueue2(SrsRtpPacket2* pkt);
+    virtual srs_error_t dump_packets(std::vector<SrsRtpPacket2*>& pkts);
+    // Wait for at-least some messages incoming in queue.
+    virtual void wait(int nb_msgs);
 };
 
 class SrsRtcSourceManager
@@ -147,7 +132,7 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsRtcConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsRtcConsumer*& consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.

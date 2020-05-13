@@ -280,6 +280,7 @@ SrsRtpPacket2::SrsRtpPacket2()
 
     nalu_type = SrsAvcNaluTypeReserved;
     original_bytes = NULL;
+    frame_type = SrsFrameTypeReserved;
 
     cache_raw = new SrsRtpRawPayload();
     cache_fua = new SrsRtpFUAPayload2();
@@ -348,6 +349,11 @@ SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 {
     decode_handler = h;
+}
+
+bool SrsRtpPacket2::is_audio()
+{
+    return frame_type == SrsFrameTypeAudio;
 }
 
 int SrsRtpPacket2::nb_bytes()
