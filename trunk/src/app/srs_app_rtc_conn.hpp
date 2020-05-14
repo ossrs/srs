@@ -150,7 +150,7 @@ private:
 
 // A group of RTP packets for outgoing(send to players).
 // TODO: FIXME: Rename to stat for RTP packets.
-class SrsRtcOutgoingPackets
+class SrsRtcOutgoingInfo
 {
 public:
     bool use_gso;
@@ -186,8 +186,8 @@ public:
     // The number of dropped messages.
     int nn_dropped;
 public:
-    SrsRtcOutgoingPackets();
-    virtual ~SrsRtcOutgoingPackets();
+    SrsRtcOutgoingInfo();
+    virtual ~SrsRtcOutgoingInfo();
 };
 
 class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
@@ -240,12 +240,12 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
-    srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
+    srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
     srs_error_t package_opus(SrsRtpPacket2* pkt);
     srs_error_t package_video(SrsRtpPacket2* pkt);
-    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
-    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
+    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);

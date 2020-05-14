@@ -469,7 +469,7 @@ srs_error_t SrsRtcDtls::unprotect_rtcp(char* out_buf, const char* in_buf, int& n
     return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
 }
 
-SrsRtcOutgoingPackets::SrsRtcOutgoingPackets()
+SrsRtcOutgoingInfo::SrsRtcOutgoingInfo()
 {
 #if defined(SRS_DEBUG)
     debug_id = 0;
@@ -484,7 +484,7 @@ SrsRtcOutgoingPackets::SrsRtcOutgoingPackets()
     nn_dropped = 0;
 }
 
-SrsRtcOutgoingPackets::~SrsRtcOutgoingPackets()
+SrsRtcOutgoingInfo::~SrsRtcOutgoingInfo()
 {
 }
 
@@ -650,7 +650,7 @@ srs_error_t SrsRtcPlayer::cycle()
 
     // TODO: FIXME: Use cache for performance?
     vector<SrsRtpPacket2*> pkts;
-    SrsRtcOutgoingPackets info;
+    SrsRtcOutgoingInfo info;
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -707,7 +707,7 @@ srs_error_t SrsRtcPlayer::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info)
+srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -741,7 +741,7 @@ srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, vector<SrsRtpPacke
     return err;
 }
 
-srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info)
+srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -811,7 +811,7 @@ srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info)
+srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -906,7 +906,7 @@ srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtc
 }
 
 // TODO: FIXME: We can gather and pad audios, because they have similar size.
-srs_error_t SrsRtcPlayer::send_packets_gso(vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info)
+srs_error_t SrsRtcPlayer::send_packets_gso(vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
