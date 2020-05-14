@@ -625,7 +625,9 @@ void SrsRtpVideoQueue::covert_frame(std::vector<SrsRtpVideoPacket*>& frame, SrsR
     SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
     pkt->nalu_type = head_payload->nalu_type;
 
-    SrsRtpRawPayload* payload = pkt->reuse_raw();
+    SrsRtpRawPayload* payload = new SrsRtpRawPayload();
+    pkt->payload = payload;
+
     payload->nn_payload = nn_nalus + 1;
     payload->payload = new char[payload->nn_payload];
 

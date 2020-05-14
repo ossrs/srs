@@ -699,7 +699,9 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->rtp_header.set_marker(true);
 
-    SrsRtpRawPayload* raw = pkt->reuse_raw();
+    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    pkt->payload = raw;
+
     raw->payload = new char[size];
     raw->nn_payload = size;
     memcpy(raw->payload, data, size);
@@ -964,7 +966,9 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
-    SrsRtpRawPayload* raw = pkt->reuse_raw();
+    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    pkt->payload = raw;
+
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
 
@@ -991,7 +995,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
-        SrsRtpFUAPayload2* fua = pkt->reuse_fua();
+        SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
+        pkt->payload = fua;
 
         fua->nri = (SrsAvcNaluType)header;
         fua->nalu_type = (SrsAvcNaluType)nal_type;

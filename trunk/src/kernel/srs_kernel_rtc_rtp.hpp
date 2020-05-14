@@ -135,10 +135,8 @@ public:
     SrsFrameType frame_type;
 // Fast cache for performance.
 private:
-    // Cache frequently used payload for performance.
-    SrsRtpRawPayload* cache_raw;
-    SrsRtpFUAPayload2* cache_fua;
-    int cache_payload;
+    // The cached payload size for packet.
+    int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
     ISrsRtpPacketDecodeHandler* decode_handler;
 public:
@@ -149,12 +147,6 @@ public:
     void set_padding(int size);
     // Increase the padding of RTP packet.
     void add_padding(int size);
-    // Reset RTP packet.
-    void reset();
-    // Reuse the cached raw message as payload.
-    SrsRtpRawPayload* reuse_raw();
-    // Reuse the cached fua message as payload.
-    SrsRtpFUAPayload2* reuse_fua();
     // Set the decode handler.
     void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.

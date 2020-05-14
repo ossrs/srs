@@ -290,23 +290,12 @@ SrsRtpPacket2::SrsRtpPacket2()
     nalu_type = SrsAvcNaluTypeReserved;
     shared_msg = NULL;
     frame_type = SrsFrameTypeReserved;
-
-    cache_raw = new SrsRtpRawPayload();
-    cache_fua = new SrsRtpFUAPayload2();
-    cache_payload = 0;
+    cached_payload_size = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
-        payload = NULL;
-    }
-
     srs_freep(payload);
-    srs_freep(cache_raw);
-    srs_freep(cache_fua);
-
     srs_freep(shared_msg);
 }
 
@@ -314,8 +303,8 @@ void SrsRtpPacket2::set_padding(int size)
 {
     rtp_header.set_padding(size > 0);
     rtp_header.set_padding_length(size);
-    if (cache_payload) {
-        cache_payload += size - padding;
+    if (cached_payload_size) {
+        cached_payload_size += size - padding;
     }
     padding = size;
 }
@@ -324,35 +313,10 @@ void SrsRtpPacket2::add_padding(int size)
 {
     rtp_header.set_padding(padding + size > 0);
     rtp_header.set_padding_length(rtp_header.get_padding_length() + size);
-    if (cache_payload) {
-        cache_payload += size;
+    if (cached_payload_size) {
+        cached_payload_size += size;
     }
     padding += size;
-}
-
-void SrsRtpPacket2::reset()
-{
-    rtp_header.reset();
-    padding = 0;
-    cache_payload = 0;
-
-    // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
-        payload = NULL;
-    }
-    srs_freep(payload);
-}
-
-SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
-{
-    payload = cache_raw;
-    return cache_raw;
-}
-
-SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
-{
-    payload = cache_fua;
-    return cache_fua;
 }
 
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
@@ -377,7 +341,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->shared_msg = shared_msg? shared_msg->copy():NULL;
     cp->frame_type = frame_type;
 
-    cp->cache_payload = cache_payload;
+    cp->cached_payload_size = cached_payload_size;
     cp->decode_handler = decode_handler;
 
     return cp;
@@ -385,10 +349,10 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 
 int SrsRtpPacket2::nb_bytes()
 {
-    if (!cache_payload) {
-        cache_payload = rtp_header.nb_bytes() + (payload? payload->nb_bytes():0) + padding;
+    if (!cached_payload_size) {
+        cached_payload_size = rtp_header.nb_bytes() + (payload? payload->nb_bytes():0) + padding;
     }
-    return cache_payload;
+    return cached_payload_size;
 }
 
 srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
@@ -441,7 +405,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // By default, we always use the RAW payload.
     if (!payload) {
-        payload = reuse_raw();
+        payload = new SrsRtpRawPayload();
     }
 
     if ((err = payload->decode(buf)) != srs_success) {

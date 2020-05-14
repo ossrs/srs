@@ -154,8 +154,6 @@ class SrsRtcOutgoingPackets
 {
 public:
     bool use_gso;
-    // TODO: FIXME: Remove it.
-    bool should_merge_nalus;
 public:
 #if defined(SRS_DEBUG)
     // Debug id.
@@ -187,22 +185,9 @@ public:
     int nn_paddings;
     // The number of dropped messages.
     int nn_dropped;
-private:
-    // TODO: FIXME: Remove the cache.
-    int cursor;
-    int nn_cache;
-    SrsRtpPacket2* cache;
 public:
-    // TODO: FIXME: Remove the cache.
-    SrsRtcOutgoingPackets(int nn_cache_max = 8);
+    SrsRtcOutgoingPackets();
     virtual ~SrsRtcOutgoingPackets();
-public:
-    void reset(bool gso, bool merge_nalus);
-    SrsRtpPacket2* fetch();
-    SrsRtpPacket2* back();
-    int size();
-    int capacity();
-    SrsRtpPacket2* at(int index);
 };
 
 class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
