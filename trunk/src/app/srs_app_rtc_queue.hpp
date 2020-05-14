@@ -34,34 +34,6 @@ class SrsRtpPacket2;
 class SrsRtpQueue;
 class SrsRtpRingBuffer;
 
-struct SrsNackOption
-{
-    SrsNackOption()
-    {
-        // Default nack option.
-        max_count = 10;
-        max_alive_time = 2 * SRS_UTIME_SECONDS;
-        first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
-        nack_interval = 400 * SRS_UTIME_MILLISECONDS;
-    }
-    int max_count;
-    srs_utime_t max_alive_time;
-    int64_t first_nack_interval;
-    int64_t nack_interval;
-};
-
-struct SrsRtpNackInfo
-{
-    SrsRtpNackInfo();
-
-    // Use to control the time of first nack req and the life of seq.
-    srs_utime_t generate_time_;
-    // Use to control nack interval.
-    srs_utime_t pre_req_nack_time_;
-    // Use to control nack times.
-    int req_nack_count_;
-};
-
 // The "distance" between two uint16 number, for example:
 //      distance(low=3, high=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
 //      distance(low=3, high=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
@@ -71,39 +43,6 @@ inline int16_t srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
 {
     return (int16_t)(high - low);
 }
-
-class SrsRtpNackForReceiver
-{
-private:
-    struct SeqComp {
-        bool operator()(const uint16_t& low, const uint16_t& high) const {
-            return srs_rtp_seq_distance(low, high) > 0;
-        }
-    };
-private:
-    // Nack queue, seq order, oldest to newest.
-    std::map<uint16_t, SrsRtpNackInfo, SeqComp> queue_;
-    // Max nack count.
-    size_t max_queue_size_;
-    SrsRtpRingBuffer* rtp_;
-    SrsNackOption opts_;
-private:
-    srs_utime_t pre_check_time_;
-private:
-    int rtt_;
-public:
-    SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size);
-    virtual ~SrsRtpNackForReceiver();
-public:
-    void insert(uint16_t first, uint16_t last);
-    void remove(uint16_t seq);
-    SrsRtpNackInfo* find(uint16_t seq);
-    void check_queue_size();
-public:
-    void get_nack_seqs(std::vector<uint16_t>& seqs);
-public:
-    void update_rtt(int rtt);
-};
 
 // For UDP, the packets sequence may present as bellow:
 //      [seq1(done)|seq2|seq3 ... seq10|seq11(lost)|seq12|seq13]
@@ -158,6 +97,67 @@ public:
     // TODO: FIXME: Move it?
     void notify_nack_list_full();
     void notify_drop_seq(uint16_t seq);
+};
+
+struct SrsNackOption
+{
+    SrsNackOption()
+    {
+        // Default nack option.
+        max_count = 10;
+        max_alive_time = 2 * SRS_UTIME_SECONDS;
+        first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
+        nack_interval = 400 * SRS_UTIME_MILLISECONDS;
+    }
+    int max_count;
+    srs_utime_t max_alive_time;
+    int64_t first_nack_interval;
+    int64_t nack_interval;
+};
+
+struct SrsRtpNackInfo
+{
+    SrsRtpNackInfo();
+
+    // Use to control the time of first nack req and the life of seq.
+    srs_utime_t generate_time_;
+    // Use to control nack interval.
+    srs_utime_t pre_req_nack_time_;
+    // Use to control nack times.
+    int req_nack_count_;
+};
+
+class SrsRtpNackForReceiver
+{
+private:
+    struct SeqComp {
+        bool operator()(const uint16_t& low, const uint16_t& high) const {
+            return srs_rtp_seq_distance(low, high) > 0;
+        }
+    };
+private:
+    // Nack queue, seq order, oldest to newest.
+    std::map<uint16_t, SrsRtpNackInfo, SeqComp> queue_;
+    // Max nack count.
+    size_t max_queue_size_;
+    SrsRtpRingBuffer* rtp_;
+    SrsNackOption opts_;
+private:
+    srs_utime_t pre_check_time_;
+private:
+    int rtt_;
+public:
+    SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size);
+    virtual ~SrsRtpNackForReceiver();
+public:
+    void insert(uint16_t first, uint16_t last);
+    void remove(uint16_t seq);
+    SrsRtpNackInfo* find(uint16_t seq);
+    void check_queue_size();
+public:
+    void get_nack_seqs(std::vector<uint16_t>& seqs);
+public:
+    void update_rtt(int rtt);
 };
 
 #endif

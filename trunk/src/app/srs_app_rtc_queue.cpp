@@ -34,100 +34,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 
-SrsRtpNackInfo::SrsRtpNackInfo()
-{
-    generate_time_ = srs_update_system_time();
-    pre_req_nack_time_ = 0;
-    req_nack_count_ = 0;
-}
-
-SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size)
-{
-    max_queue_size_ = queue_size;
-    rtp_ = rtp;
-    pre_check_time_ = 0;
-    
-    srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
-        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
-}
-
-SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
-{
-}
-
-void SrsRtpNackForReceiver::insert(uint16_t first, uint16_t last)
-{
-    for (uint16_t s = first; s != last; ++s) {
-        queue_[s] = SrsRtpNackInfo();
-    }
-}
-
-void SrsRtpNackForReceiver::remove(uint16_t seq)
-{
-    queue_.erase(seq);
-}
-
-SrsRtpNackInfo* SrsRtpNackForReceiver::find(uint16_t seq)
-{
-    std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.find(seq);
-    
-    if (iter == queue_.end()) {
-        return NULL;
-    }
-
-    return &(iter->second);
-}
-
-void SrsRtpNackForReceiver::check_queue_size()
-{
-    if (queue_.size() >= max_queue_size_) {
-        rtp_->notify_nack_list_full();
-    }
-}
-
-void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
-{
-    srs_utime_t now = srs_update_system_time();
-    srs_utime_t interval = now - pre_check_time_;
-    if (interval < opts_.nack_interval / 2) {
-        return;
-    }
-    pre_check_time_ = now;
-
-    std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.begin();
-    while (iter != queue_.end()) {
-        const uint16_t& seq = iter->first;
-        SrsRtpNackInfo& nack_info = iter->second;
-
-        int alive_time = now - nack_info.generate_time_;
-        if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
-            rtp_->notify_drop_seq(seq);
-            queue_.erase(iter++);
-            continue;
-        }
-
-        // TODO:Statistics unorder packet.
-        if (now - nack_info.generate_time_ < opts_.first_nack_interval) {
-            break;
-        }
-
-        if (now - nack_info.pre_req_nack_time_ >= opts_.nack_interval && nack_info.req_nack_count_ <= opts_.max_count) {
-            ++nack_info.req_nack_count_;
-            nack_info.pre_req_nack_time_ = now;
-            seqs.push_back(seq);
-        }
-
-        ++iter;
-    }
-}
-
-void SrsRtpNackForReceiver::update_rtt(int rtt)
-{
-    rtt_ = rtt * SRS_UTIME_MILLISECONDS;
-    // FIXME: limit min and max value.
-    opts_.nack_interval = rtt_;
-}
-
 SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
 {
     nn_seq_flip_backs = 0;
@@ -233,5 +139,99 @@ void SrsRtpRingBuffer::notify_nack_list_full()
 
 void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 {
+}
+
+SrsRtpNackInfo::SrsRtpNackInfo()
+{
+    generate_time_ = srs_update_system_time();
+    pre_req_nack_time_ = 0;
+    req_nack_count_ = 0;
+}
+
+SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size)
+{
+    max_queue_size_ = queue_size;
+    rtp_ = rtp;
+    pre_check_time_ = 0;
+
+    srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
+        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
+}
+
+SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
+{
+}
+
+void SrsRtpNackForReceiver::insert(uint16_t first, uint16_t last)
+{
+    for (uint16_t s = first; s != last; ++s) {
+        queue_[s] = SrsRtpNackInfo();
+    }
+}
+
+void SrsRtpNackForReceiver::remove(uint16_t seq)
+{
+    queue_.erase(seq);
+}
+
+SrsRtpNackInfo* SrsRtpNackForReceiver::find(uint16_t seq)
+{
+    std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.find(seq);
+
+    if (iter == queue_.end()) {
+        return NULL;
+    }
+
+    return &(iter->second);
+}
+
+void SrsRtpNackForReceiver::check_queue_size()
+{
+    if (queue_.size() >= max_queue_size_) {
+        rtp_->notify_nack_list_full();
+    }
+}
+
+void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
+{
+    srs_utime_t now = srs_update_system_time();
+    srs_utime_t interval = now - pre_check_time_;
+    if (interval < opts_.nack_interval / 2) {
+        return;
+    }
+    pre_check_time_ = now;
+
+    std::map<uint16_t, SrsRtpNackInfo>::iterator iter = queue_.begin();
+    while (iter != queue_.end()) {
+        const uint16_t& seq = iter->first;
+        SrsRtpNackInfo& nack_info = iter->second;
+
+        int alive_time = now - nack_info.generate_time_;
+        if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
+            rtp_->notify_drop_seq(seq);
+            queue_.erase(iter++);
+            continue;
+        }
+
+        // TODO:Statistics unorder packet.
+        if (now - nack_info.generate_time_ < opts_.first_nack_interval) {
+            break;
+        }
+
+        if (now - nack_info.pre_req_nack_time_ >= opts_.nack_interval && nack_info.req_nack_count_ <= opts_.max_count) {
+            ++nack_info.req_nack_count_;
+            nack_info.pre_req_nack_time_ = now;
+            seqs.push_back(seq);
+        }
+
+        ++iter;
+    }
+}
+
+void SrsRtpNackForReceiver::update_rtt(int rtt)
+{
+    rtt_ = rtt * SRS_UTIME_MILLISECONDS;
+    // FIXME: limit min and max value.
+    opts_.nack_interval = rtt_;
 }
 
