@@ -129,11 +129,8 @@ public:
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The original bytes for decoder or bridger only, we will free it.
-    // TODO: FIXME: Should covert to shared prt message.
-    char* original_bytes;
-    // The original msg for bridger only, we will free it.
-    SrsSharedPtrMessage* original_msg;
+    // The original shared message, all RTP packets can refer to its data.
+    SrsSharedPtrMessage* shared_msg;
     // The frame type, for RTMP bridger or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.

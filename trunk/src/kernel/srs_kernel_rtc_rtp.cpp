@@ -288,8 +288,7 @@ SrsRtpPacket2::SrsRtpPacket2()
     decode_handler = NULL;
 
     nalu_type = SrsAvcNaluTypeReserved;
-    original_bytes = NULL;
-    original_msg = NULL;
+    shared_msg = NULL;
     frame_type = SrsFrameTypeReserved;
 
     cache_raw = new SrsRtpRawPayload();
@@ -308,8 +307,7 @@ SrsRtpPacket2::~SrsRtpPacket2()
     srs_freep(cache_raw);
     srs_freep(cache_fua);
 
-    srs_freepa(original_bytes);
-    srs_freep(original_msg);
+    srs_freep(shared_msg);
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -376,7 +374,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->padding = padding;
 
     cp->nalu_type = nalu_type;
-    cp->original_msg = original_msg? original_msg->copy():NULL;
+    cp->shared_msg = shared_msg? shared_msg->copy():NULL;
     cp->frame_type = frame_type;
 
     cp->cache_payload = cache_payload;

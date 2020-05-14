@@ -704,8 +704,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     raw->nn_payload = size;
     memcpy(raw->payload, data, size);
 
-    pkt->original_msg = new SrsSharedPtrMessage();
-    pkt->original_msg->wrap(raw->payload, size);
+    pkt->shared_msg = new SrsSharedPtrMessage();
+    pkt->shared_msg->wrap(raw->payload, size);
 
     *ppkt = pkt;
 
@@ -850,8 +850,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     // Copy the SPS/PPS bytes, because it may change.
     int size = (int)(sps.size() + pps.size());
     char* payload = new char[size];
-    pkt->original_msg = new SrsSharedPtrMessage();
-    pkt->original_msg->wrap(payload, size);
+    pkt->shared_msg = new SrsSharedPtrMessage();
+    pkt->shared_msg->wrap(payload, size);
 
     if (true) {
         SrsSample* sample = new SrsSample();
@@ -910,7 +910,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, vecto
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->rtp_header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
-        pkt->original_msg = msg->copy();
+        pkt->shared_msg = msg->copy();
         pkts.push_back(pkt);
     } else {
         // We must free it, should never use RTP packets to free it,
@@ -945,7 +945,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, vecto
             fua->end = bool(i == num_of_packet - 1);
 
             pkt->payload = fua;
-            pkt->original_msg = msg->copy();
+            pkt->shared_msg = msg->copy();
             pkts.push_back(pkt);
 
             nb_left -= packet_size;
@@ -968,7 +968,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
 
-    pkt->original_msg = msg->copy();
+    pkt->shared_msg = msg->copy();
     pkts.push_back(pkt);
 
     return err;
@@ -1001,7 +1001,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         fua->payload = p;
         fua->size = packet_size;
 
-        pkt->original_msg = msg->copy();
+        pkt->shared_msg = msg->copy();
         pkts.push_back(pkt);
 
         p += packet_size;

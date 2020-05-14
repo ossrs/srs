@@ -1712,8 +1712,8 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
 
     pkt->set_decode_handler(this);
-    pkt->original_msg = new SrsSharedPtrMessage();
-    pkt->original_msg->wrap(buf, nb_buf);
+    pkt->shared_msg = new SrsSharedPtrMessage();
+    pkt->shared_msg->wrap(buf, nb_buf);
 
     SrsBuffer b(buf, nb_buf);
     if ((err = pkt->decode(&b)) != srs_success) {
