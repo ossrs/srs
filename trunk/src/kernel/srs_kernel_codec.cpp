@@ -184,7 +184,7 @@ bool SrsFlvVideo::acceptable(char* data, int size)
         return false;
     }
     
-    if (codec_id < 2 || codec_id > 7) {
+    if (codec_id < 2 || codec_id > SrsVideoCodecIdHEVC) {
         return false;
     }
     
@@ -564,19 +564,21 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
         return srs_error_wrap(err, "add frame");
     }
     
-    // for video, parse the nalu type, set the IDR flag.
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
-    
-    if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        has_idr = true;
-    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
-        has_sps_pps = true;
-    } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
-        has_aud = true;
-    }
-    
-    if (first_nalu_type == SrsAvcNaluTypeReserved) {
-        first_nalu_type = nal_unit_type;
+    if (vcodec()->id == SrsVideoCodecIdAVC) {
+        // for video, parse the nalu type, set the IDR flag.
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+        
+        if (nal_unit_type == SrsAvcNaluTypeIDR) {
+            has_idr = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
+            has_sps_pps = true;
+        } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+            has_aud = true;
+        }
+        
+        if (first_nalu_type == SrsAvcNaluTypeReserved) {
+            first_nalu_type = nal_unit_type;
+        }
     }
     
     return err;
@@ -673,9 +675,9 @@ srs_error_t SrsFormat::on_video(int64_t timestamp, char* data, int size)
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = buffer->read_1bytes();
     SrsVideoCodecId codec_id = (SrsVideoCodecId)(frame_type & 0x0f);
-    
+
     // TODO: Support other codecs.
-    if ((codec_id != SrsVideoCodecIdAVC) || (codec_id != SrsVideoCodecIdHEVC)) {
+    if ((codec_id != SrsVideoCodecIdAVC) && (codec_id != SrsVideoCodecIdHEVC)) {
         return err;
     }
     
@@ -782,7 +784,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
     }
     // analyze hevc here
     if (codec_id == SrsVideoCodecIdHEVC) {
-        srs_trace("hevc avc...");
         if (avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
             // TODO: demux vps/sps/pps for hevc
             if ((err = hevc_demux_hvcc(stream)) != srs_success) {
@@ -865,6 +866,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
     dec_conf_rec_p->temporalIdNested  = (data_byte >> 2) & 0x01;
     dec_conf_rec_p->lengthSizeMinusOne = data_byte & 0x03;
 
+    srs_trace("hevc lengthSizeMinusOne:%d.", dec_conf_rec_p->lengthSizeMinusOne);
 	numOfArrays = stream->read_1bytes();
 
     //parse vps/pps/sps
@@ -891,10 +893,9 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
 
             stream->read_bytes((char*)(&data_item.nalUnitData[0]),
                                        data_item.nalUnitLength);
-            srs_trace("hevc nalu type:0x%02x, array_completeness:%d, numNalus:%d, i:%d, nalUnitLength:%d",
-                HEVC_NALU_TYPE(hevc_unit.NAL_unit_type),
-                hevc_unit.array_completeness, hevc_unit.numNalus,
-                i, data_item.nalUnitLength);
+            srs_trace("hevc nalu type:%d, array_completeness:%d, numNalus:%d, i:%d, nalUnitLength:%d",
+                hevc_unit.NAL_unit_type, hevc_unit.array_completeness, 
+                hevc_unit.numNalus, i, data_item.nalUnitLength);
             hevc_unit.nalData_vec.push_back(data_item);
         }
         dec_conf_rec_p->nalu_vec.push_back(hevc_unit);
@@ -1224,7 +1225,16 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         srs_warn("avc ignore type=%d for no sequence header", SrsVideoAvcFrameTraitNALU);
         return err;
     }
-    
+
+    if (vcodec->id == SrsVideoCodecIdAVC) {
+        demux_ibmf_format_func = &SrsFormat::avc_demux_ibmf_format;
+    } else if (vcodec->id == SrsVideoCodecIdHEVC) {
+
+        demux_ibmf_format_func = &SrsFormat::hevc_demux_ibmf_format;
+    } else {
+        return srs_error_wrap(err, "avc demux ibmf");
+    }
+
     // guess for the first time.
     if (vcodec->payload_format == SrsAvcPayloadFormatGuess) {
         // One or more NALUs (Full frames are required)
@@ -1237,7 +1247,7 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
             srs_freep(err);
             
             // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-            if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
+            if ((err = (this->*demux_ibmf_format_func)(stream)) != srs_success) {
                 return srs_error_wrap(err, "avc demux ibmf");
             } else {
                 vcodec->payload_format = SrsAvcPayloadFormatIbmf;
@@ -1247,7 +1257,7 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
         }
     } else if (vcodec->payload_format == SrsAvcPayloadFormatIbmf) {
         // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-        if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
+        if ((err = (this->*demux_ibmf_format_func)(stream)) != srs_success) {
             return srs_error_wrap(err, "avc demux ibmf");
         }
     } else {
@@ -1261,12 +1271,128 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
             srs_freep(err);
             
             // try "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
-            if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
+            if ((err = (this->*demux_ibmf_format_func)
+            (stream)) != srs_success) {
                 return srs_error_wrap(err, "avc demux ibmf");
             } else {
                 vcodec->payload_format = SrsAvcPayloadFormatIbmf;
             }
         }
+    }
+    
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_vps_data(char*& data_p, int& len) {
+    srs_error_t err = srs_success;
+
+    for (size_t index = 0; index < vcodec->_hevcDecConfRecord.nalu_vec.size(); index++) {
+        HVCCNALUnit nalu_unit = vcodec->_hevcDecConfRecord.nalu_vec[index];
+        
+        if (nalu_unit.NAL_unit_type == NAL_UNIT_VPS) {
+            if (nalu_unit.nalData_vec.size() > 0) {
+                data_p = (char*)(&nalu_unit.nalData_vec[0].nalUnitData[0]);
+                len = nalu_unit.nalData_vec[0].nalUnitLength;
+            }
+        }
+    }
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_sps_data(char*& data_p, int& len) {
+    srs_error_t err = srs_success;
+
+    for (size_t index = 0; index < vcodec->_hevcDecConfRecord.nalu_vec.size(); index++) {
+        HVCCNALUnit nalu_unit = vcodec->_hevcDecConfRecord.nalu_vec[index];
+        
+        if (nalu_unit.NAL_unit_type == NAL_UNIT_SPS) {
+            if (nalu_unit.nalData_vec.size() > 0) {
+                data_p = (char*)(&nalu_unit.nalData_vec[0].nalUnitData[0]);
+                len = nalu_unit.nalData_vec[0].nalUnitLength;
+            }
+        }
+    }
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_pps_data(char*& data_p, int& len) {
+    srs_error_t err = srs_success;
+
+    for (size_t index = 0; index < vcodec->_hevcDecConfRecord.nalu_vec.size(); index++) {
+        HVCCNALUnit nalu_unit = vcodec->_hevcDecConfRecord.nalu_vec[index];
+        
+        if (nalu_unit.NAL_unit_type == NAL_UNIT_PPS) {
+            if (nalu_unit.nalData_vec.size() > 0) {
+                data_p = (char*)(&nalu_unit.nalData_vec[0].nalUnitData[0]);
+                len = nalu_unit.nalData_vec[0].nalUnitLength;
+            }
+        }
+    }
+    return err;
+}
+
+srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream) {
+    srs_error_t err = srs_success;
+    int PictureLength = stream->size() - stream->pos();
+    int nal_len_size = 0;
+
+    nal_len_size = vcodec->_hevcDecConfRecord.lengthSizeMinusOne;
+
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
+    // 5.2.4.1 AVC decoder configuration record
+    // 5.2.4.1.2 Semantics
+    // The value of this field shall be one of 0, 1, or 3 corresponding to a
+    // length encoded with 1, 2, or 4 bytes, respectively.
+    srs_assert(nal_len_size != 2);
+    
+    // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
+    for (int i = 0; i < PictureLength;) {
+        if (i + nal_len_size >= PictureLength) {
+            break;
+        }
+        // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
+        if (!stream->require(nal_len_size + 1)) {
+            srs_error("nal_len_size:%d, PictureLength:%d, i:%d, 0x%02x.", 
+                nal_len_size, PictureLength, i);
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU size");
+        }
+        int32_t NALUnitLength = 0;
+
+        if (nal_len_size == 3) {
+            NALUnitLength = stream->read_4bytes();
+        } else if (nal_len_size == 1) {
+            NALUnitLength = stream->read_2bytes();
+        } else {
+            NALUnitLength = stream->read_1bytes();
+        }
+        
+        // maybe stream is invalid format.
+        // see: https://github.com/ossrs/srs/issues/183
+        if (NALUnitLength < 0) {
+            srs_error("pic length:%d, NAL_unit_length:%d, NALUnitLength:%d",
+                PictureLength, nal_len_size, NALUnitLength);
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "maybe stream is AnnexB format");
+        }
+        
+        // NALUnit
+        if (!stream->require(NALUnitLength)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU data");
+        }
+
+        uint8_t* header_p = (uint8_t*)(stream->data() + stream->pos());
+		uint8_t nalu_type = (*header_p & 0x3f) >> 1;
+		bool irap = (NAL_UNIT_CODED_SLICE_BLA <= nalu_type) && (nalu_type <= NAL_UNIT_RESERVED_23);
+
+        if (irap) {
+            video->has_idr = true;
+        }
+
+        if ((err = video->add_sample(stream->data() + stream->pos(), NALUnitLength)) != srs_success) {
+            return srs_error_wrap(err, "avc add video frame");
+        }
+        stream->skip(NALUnitLength);
+        
+        i += vcodec->NAL_unit_length + 1 + NALUnitLength;
     }
     
     return err;

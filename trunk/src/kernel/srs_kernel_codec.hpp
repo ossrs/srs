@@ -403,6 +403,79 @@ enum SrsAvcNaluType
 };
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
 
+
+enum SrsHevcNaluType
+{
+	NAL_UNIT_CODED_SLICE_TRAIL_N = 0,
+	NAL_UNIT_CODED_SLICE_TRAIL_R, //1
+	NAL_UNIT_CODED_SLICE_TSA_N,   //2
+	NAL_UNIT_CODED_SLICE_TLA,     //3
+	NAL_UNIT_CODED_SLICE_STSA_N,  //4
+	NAL_UNIT_CODED_SLICE_STSA_R,  //5
+	NAL_UNIT_CODED_SLICE_RADL_N,  //6
+	NAL_UNIT_CODED_SLICE_DLP,     //7
+	NAL_UNIT_CODED_SLICE_RASL_N,  //8
+	NAL_UNIT_CODED_SLICE_TFD,     //9
+	NAL_UNIT_RESERVED_10,
+	NAL_UNIT_RESERVED_11,
+	NAL_UNIT_RESERVED_12,
+	NAL_UNIT_RESERVED_13,
+	NAL_UNIT_RESERVED_14,
+	NAL_UNIT_RESERVED_15,
+	NAL_UNIT_CODED_SLICE_BLA,      //16
+	NAL_UNIT_CODED_SLICE_BLANT,    //17
+	NAL_UNIT_CODED_SLICE_BLA_N_LP, //18
+	NAL_UNIT_CODED_SLICE_IDR,      //19
+	NAL_UNIT_CODED_SLICE_IDR_N_LP, //20
+	NAL_UNIT_CODED_SLICE_CRA,      //21
+	NAL_UNIT_RESERVED_22,
+	NAL_UNIT_RESERVED_23,
+	NAL_UNIT_RESERVED_24,
+	NAL_UNIT_RESERVED_25,
+	NAL_UNIT_RESERVED_26,
+	NAL_UNIT_RESERVED_27,
+	NAL_UNIT_RESERVED_28,
+	NAL_UNIT_RESERVED_29,
+	NAL_UNIT_RESERVED_30,
+	NAL_UNIT_RESERVED_31,
+	NAL_UNIT_VPS,                   // 32
+	NAL_UNIT_SPS,                   // 33
+	NAL_UNIT_PPS,                   // 34
+	NAL_UNIT_ACCESS_UNIT_DELIMITER, // 35
+	NAL_UNIT_EOS,                   // 36
+	NAL_UNIT_EOB,                   // 37
+	NAL_UNIT_FILLER_DATA,           // 38
+	NAL_UNIT_SEI ,                  // 39 Prefix SEI
+	NAL_UNIT_SEI_SUFFIX,            // 40 Suffix SEI
+	NAL_UNIT_RESERVED_41,
+	NAL_UNIT_RESERVED_42,
+	NAL_UNIT_RESERVED_43,
+	NAL_UNIT_RESERVED_44,
+	NAL_UNIT_RESERVED_45,
+	NAL_UNIT_RESERVED_46,
+	NAL_UNIT_RESERVED_47,
+	NAL_UNIT_UNSPECIFIED_48,
+	NAL_UNIT_UNSPECIFIED_49,
+	NAL_UNIT_UNSPECIFIED_50,
+	NAL_UNIT_UNSPECIFIED_51,
+	NAL_UNIT_UNSPECIFIED_52,
+	NAL_UNIT_UNSPECIFIED_53,
+	NAL_UNIT_UNSPECIFIED_54,
+	NAL_UNIT_UNSPECIFIED_55,
+	NAL_UNIT_UNSPECIFIED_56,
+	NAL_UNIT_UNSPECIFIED_57,
+	NAL_UNIT_UNSPECIFIED_58,
+	NAL_UNIT_UNSPECIFIED_59,
+	NAL_UNIT_UNSPECIFIED_60,
+	NAL_UNIT_UNSPECIFIED_61,
+	NAL_UNIT_UNSPECIFIED_62,
+	NAL_UNIT_UNSPECIFIED_63,
+	NAL_UNIT_INVALID,
+};
+
+//for nalu data first byte
+#define HEVC_NALU_TYPE(code) ((code & 0x7E)>>1)
+
 /**
  * Table 7-6 – Name association to slice_type
  * ISO_IEC_14496-10-AVC-2012.pdf, page 105.
@@ -525,8 +598,6 @@ enum SrsAvcLevel
     SrsAvcLevel_51 = 51,
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
-
-#define HEVC_NALU_TYPE(code) ((code & 0x7E)>>1)
 
 /**
  * A sample is the unit of frame.
@@ -808,14 +879,22 @@ private:
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
     virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+
+private:
+    srs_error_t  (SrsFormat::*demux_ibmf_format_func)(SrsBuffer* stream);
+
 private:
     // Parse the hevc vps/sps/pps
     virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+    virtual srs_error_t hevc_demux_ibmf_format(SrsBuffer* stream);
+    virtual srs_error_t hevc_vps_data(char*& data_p, int& len);
+    virtual srs_error_t hevc_pps_data(char*& data_p, int& len);
+    virtual srs_error_t hevc_sps_data(char*& data_p, int& len);
 
 private:
-    // Parse the H.264 NALUs.
+    // Parse the H.264/hevc NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
-    // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+    // Demux the avc/hevc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     virtual srs_error_t avc_demux_annexb_format(SrsBuffer* stream);
     // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     virtual srs_error_t avc_demux_ibmf_format(SrsBuffer* stream);
