@@ -53,13 +53,11 @@ class SrsSharedPtrMessage;
 class SrsRtcSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
-class SrsRtpQueue;
-class SrsRtpAudioQueue;
-class SrsRtpVideoQueue;
 class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
+class SrsRtpRingBuffer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -208,8 +206,8 @@ private:
     uint16_t video_payload_type;
     uint32_t video_ssrc;
     // NACK ARQ ring buffer.
-    SrsRtpRingBuffer<SrsRtpPacket2*>* audio_queue_;
-    SrsRtpRingBuffer<SrsRtpPacket2*>* video_queue_;
+    SrsRtpRingBuffer* audio_queue_;
+    SrsRtpRingBuffer* video_queue_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -271,9 +269,10 @@ private:
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
 private:
-    SrsRtpVideoQueue* video_queue_;
+    bool request_keyframe_;
+    SrsRtpRingBuffer* video_queue_;
     SrsRtpNackForReceiver* video_nack_;
-    SrsRtpAudioQueue* audio_queue_;
+    SrsRtpRingBuffer* audio_queue_;
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
@@ -292,7 +291,7 @@ public:
     srs_error_t initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* req);
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
-    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpQueue* rtp_queue);
+    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
@@ -301,7 +300,7 @@ public:
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);
-    srs_error_t on_video_frame(SrsRtpPacket2* frame);
+    srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
