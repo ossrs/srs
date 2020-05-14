@@ -695,8 +695,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     srs_error_t err = srs_success;
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
-    pkt->rtp_header.set_marker(true);
     pkt->frame_type = SrsFrameTypeAudio;
+    pkt->rtp_header.set_marker(true);
 
     SrsRtpRawPayload* raw = pkt->reuse_raw();
     raw->payload = new char[size];
@@ -836,6 +836,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     }
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    pkt->frame_type = SrsFrameTypeVideo;
     pkt->rtp_header.set_marker(false);
     pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
@@ -903,6 +904,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, vecto
     if (nn_bytes < kRtpMaxPayloadSize) {
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
+        pkt->frame_type = SrsFrameTypeVideo;
         pkt->rtp_header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
         pkt->original_msg = msg->copy();
@@ -931,6 +933,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, vecto
             }
 
             SrsRtpPacket2* pkt = new SrsRtpPacket2();
+            pkt->frame_type = SrsFrameTypeVideo;
             pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
             fua->nri = (SrsAvcNaluType)header;
@@ -955,6 +958,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     srs_error_t err = srs_success;
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    pkt->frame_type = SrsFrameTypeVideo;
     pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = pkt->reuse_raw();
@@ -981,6 +985,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         int packet_size = srs_min(nb_left, fu_payload_size);
 
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
+        pkt->frame_type = SrsFrameTypeVideo;
         pkt->rtp_header.set_timestamp(msg->timestamp * 90);
 
         SrsRtpFUAPayload2* fua = pkt->reuse_fua();

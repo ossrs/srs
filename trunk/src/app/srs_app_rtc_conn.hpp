@@ -314,12 +314,13 @@ private:
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
-    srs_error_t on_rtcp(char* data, int nb_data);
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
-    srs_error_t on_audio_frame(SrsRtpPacket2* frame);
     srs_error_t on_video(SrsRtpPacket2* pkt);
     srs_error_t on_video_frame(SrsRtpPacket2* frame);
+public:
+    srs_error_t on_rtcp(char* data, int nb_data);
+private:
     srs_error_t on_rtcp_sr(char* buf, int nb_buf);
     srs_error_t on_rtcp_xr(char* buf, int nb_buf);
     srs_error_t on_rtcp_feedback(char* data, int nb_data);

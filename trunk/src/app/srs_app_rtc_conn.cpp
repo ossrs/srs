@@ -1759,75 +1759,18 @@ void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* bu
     }
 }
 
-srs_error_t SrsRtcPublisher::on_rtcp(char* data, int nb_data)
-{
-    srs_error_t err = srs_success;
-
-    char* ph = data;
-    int nb_left = nb_data;
-    while (nb_left) {
-        uint8_t payload_type = ph[1];
-        uint16_t length_4bytes = (((uint16_t)ph[2]) << 8) | ph[3];
-
-        int length = (length_4bytes + 1) * 4;
-
-        if (length > nb_data) {
-            return srs_error_new(ERROR_RTC_RTCP, "invalid rtcp packet, length=%u", length);
-        }
-
-        srs_verbose("on rtcp, payload_type=%u", payload_type);
-
-        switch (payload_type) {
-            case kSR: {
-                err = on_rtcp_sr(ph, length);
-                break;
-            }
-            case kRR: {
-                err = on_rtcp_rr(ph, length);
-                break;
-            }
-            case kSDES: {
-                break;
-            }
-            case kBye: {
-                break;
-            }
-            case kApp: {
-                break;
-            }
-            case kRtpFb: {
-                err = on_rtcp_feedback(ph, length);
-                break;
-            }
-            case kPsFb: {
-                err = on_rtcp_ps_feedback(ph, length);
-                break;
-            }
-            case kXR: {
-                err = on_rtcp_xr(ph, length);
-                break;
-            }
-            default:{
-                return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", payload_type);
-                break;
-            }
-        }
-
-        if (err != srs_success) {
-            return srs_error_wrap(err, "rtcp");
-        }
-
-        ph += length;
-        nb_left -= length;
-    }
-
-    return err;
-}
-
 srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
+    pkt->frame_type = SrsFrameTypeAudio;
+
+    // TODO: FIXME: Error check.
+    source->on_rtp(pkt);
+
+    return err;
+
+    // TODO: FIXME: Directly dispatch to consumer for performance?
     std::vector<SrsRtpPacket2*> frames;
 
     if (nack_enabled_) {
@@ -1850,50 +1793,13 @@ srs_error_t SrsRtcPublisher::on_audio(SrsRtpPacket2* pkt)
         SrsRtpPacket2* frame = frames[i];
 
         // TODO: FIXME: Check error.
-        on_audio_frame(frame);
+        source->on_rtp(frame);
 
-        srs_freep(frame);
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(frame->payload);
-
-    if (!payload) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "OPUS payload");
-    }
-
-    // TODO: FIXME: Transcode OPUS to AAC.
-    if (!payload->nn_payload) {
-        return err;
-    }
-
-    SrsMessageHeader header;
-    header.message_type = RTMP_MSG_AudioMessage;
-    // TODO: FIXME: Maybe the tbn is not 90k.
-    header.timestamp = frame->rtp_header.get_timestamp() / 90;
-
-    SrsSharedPtrMessage msg;
-    // TODO: FIXME: Check error.
-    msg.create(&header, NULL, 0);
-
-    SrsSample sample;
-    sample.size = payload->nn_payload;
-    sample.bytes = new char[sample.size];
-    memcpy((void*)sample.bytes, payload->payload, sample.size);
-    msg.set_extra_payloads(&sample, 1);
-
-    // TODO: FIXME: Check error.
-    source->on_audio_imp(&msg);
-
-    if (nn_audio_frames++ == 0) {
-        SrsRtpHeader* h = &frame->rtp_header;
-        srs_trace("RTC got Opus seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(), h->get_ssrc(), h->get_timestamp(), payload->nn_payload);
+        if (nn_audio_frames++ == 0) {
+            SrsRtpHeader* h = &frame->rtp_header;
+            SrsRtpRawPayload* payload = dynamic_cast<SrsRtpRawPayload*>(frame->payload);
+            srs_trace("RTC got Opus seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(), h->get_ssrc(), h->get_timestamp(), payload->nn_payload);
+        }
     }
 
     return err;
@@ -1901,6 +1807,20 @@ srs_error_t SrsRtcPublisher::on_audio_frame(SrsRtpPacket2* frame)
 
 srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 {
+    srs_error_t err = srs_success;
+
+    pkt->frame_type = SrsFrameTypeVideo;
+
+    // TODO: FIXME: Error check.
+    source->on_rtp(pkt);
+
+    if (video_queue_->should_request_key_frame()) {
+        // TODO: FIXME: Check error.
+        send_rtcp_fb_pli(video_ssrc);
+    }
+
+    return err;
+
     std::vector<SrsRtpPacket2*> frames;
 
     if (nack_enabled_) {
@@ -2040,6 +1960,71 @@ srs_error_t SrsRtcPublisher::on_video_frame(SrsRtpPacket2* frame)
     // TODO: FIXME: Check error.
     shared_video->create(&header, data, nn_payload);
     return source->on_video(shared_video);
+}
+
+srs_error_t SrsRtcPublisher::on_rtcp(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    char* ph = data;
+    int nb_left = nb_data;
+    while (nb_left) {
+        uint8_t payload_type = ph[1];
+        uint16_t length_4bytes = (((uint16_t)ph[2]) << 8) | ph[3];
+
+        int length = (length_4bytes + 1) * 4;
+
+        if (length > nb_data) {
+            return srs_error_new(ERROR_RTC_RTCP, "invalid rtcp packet, length=%u", length);
+        }
+
+        srs_verbose("on rtcp, payload_type=%u", payload_type);
+
+        switch (payload_type) {
+            case kSR: {
+                err = on_rtcp_sr(ph, length);
+                break;
+            }
+            case kRR: {
+                err = on_rtcp_rr(ph, length);
+                break;
+            }
+            case kSDES: {
+                break;
+            }
+            case kBye: {
+                break;
+            }
+            case kApp: {
+                break;
+            }
+            case kRtpFb: {
+                err = on_rtcp_feedback(ph, length);
+                break;
+            }
+            case kPsFb: {
+                err = on_rtcp_ps_feedback(ph, length);
+                break;
+            }
+            case kXR: {
+                err = on_rtcp_xr(ph, length);
+                break;
+            }
+            default:{
+                return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", payload_type);
+                break;
+            }
+        }
+
+        if (err != srs_success) {
+            return srs_error_wrap(err, "rtcp");
+        }
+
+        ph += length;
+        nb_left -= length;
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcPublisher::on_rtcp_sr(char* buf, int nb_buf)
