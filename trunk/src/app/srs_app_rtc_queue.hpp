@@ -101,39 +101,31 @@ public:
 
 struct SrsNackOption
 {
-    SrsNackOption()
-    {
-        // Default nack option.
-        max_count = 10;
-        max_alive_time = 2 * SRS_UTIME_SECONDS;
-        first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
-        nack_interval = 400 * SRS_UTIME_MILLISECONDS;
-    }
     int max_count;
     srs_utime_t max_alive_time;
     int64_t first_nack_interval;
     int64_t nack_interval;
+
+    SrsNackOption();
 };
 
 struct SrsRtpNackInfo
 {
-    SrsRtpNackInfo();
-
     // Use to control the time of first nack req and the life of seq.
     srs_utime_t generate_time_;
     // Use to control nack interval.
     srs_utime_t pre_req_nack_time_;
     // Use to control nack times.
     int req_nack_count_;
+
+    SrsRtpNackInfo();
 };
 
 class SrsRtpNackForReceiver
 {
 private:
     struct SeqComp {
-        bool operator()(const uint16_t& low, const uint16_t& high) const {
-            return srs_rtp_seq_distance(low, high) > 0;
-        }
+        bool operator()(const uint16_t& low, const uint16_t& high) const;
     };
 private:
     // Nack queue, seq order, oldest to newest.

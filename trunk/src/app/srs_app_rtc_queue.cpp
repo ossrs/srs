@@ -141,11 +141,23 @@ void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 {
 }
 
+SrsNackOption::SrsNackOption()
+{
+    max_count = 10;
+    max_alive_time = 2 * SRS_UTIME_SECONDS;
+    first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
+    nack_interval = 400 * SRS_UTIME_MILLISECONDS;
+}
+
 SrsRtpNackInfo::SrsRtpNackInfo()
 {
     generate_time_ = srs_update_system_time();
     pre_req_nack_time_ = 0;
     req_nack_count_ = 0;
+}
+
+bool SrsRtpNackForReceiver::SeqComp::operator()(const uint16_t& low, const uint16_t& high) const {
+    return srs_rtp_seq_distance(low, high) > 0;
 }
 
 SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size)
