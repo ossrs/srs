@@ -35,7 +35,6 @@ using namespace std;
 
 SrsRtpHeader::SrsRtpHeader()
 {
-    padding          = false;
     padding_length   = 0;
     extension        = false;
     cc               = 0;
@@ -44,17 +43,6 @@ SrsRtpHeader::SrsRtpHeader()
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
-    extension_length = 0;
-}
-
-void SrsRtpHeader::reset()
-{
-    // We only reset the optional fields, the required field such as ssrc
-    // will always be set by user.
-    padding          = false;
-    extension        = false;
-    cc               = 0;
-    marker           = false;
     extension_length = 0;
 }
 
@@ -86,7 +74,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
     */
 
     uint8_t first = buf->read_1bytes();
-    padding = (first & 0x20);
+    bool padding = (first & 0x20);
     extension = (first & 0x10);
     cc = (first & 0x0F);
 
@@ -142,7 +130,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     // The version, padding, extension and cc, total 1 byte.
     uint8_t v = 0x80 | cc;
-    if (padding) {
+    if (padding_length > 0) {
         v |= 0x20;
     }
     if (extension) {
@@ -250,17 +238,12 @@ uint32_t SrsRtpHeader::get_ssrc() const
     return ssrc;
 }
 
-void SrsRtpHeader::set_padding(bool v)
-{
-    padding = v;
-}
-
-void SrsRtpHeader::set_padding_length(uint8_t v)
+void SrsRtpHeader::set_padding(uint8_t v)
 {
     padding_length = v;
 }
 
-uint8_t SrsRtpHeader::get_padding_length() const
+uint8_t SrsRtpHeader::get_padding() const
 {
     return padding_length;
 }
@@ -283,7 +266,6 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    padding = 0;
     payload = NULL;
     decode_handler = NULL;
 
@@ -301,22 +283,18 @@ SrsRtpPacket2::~SrsRtpPacket2()
 
 void SrsRtpPacket2::set_padding(int size)
 {
-    rtp_header.set_padding(size > 0);
-    rtp_header.set_padding_length(size);
+    rtp_header.set_padding(size);
     if (cached_payload_size) {
-        cached_payload_size += size - padding;
+        cached_payload_size += size - rtp_header.get_padding();
     }
-    padding = size;
 }
 
 void SrsRtpPacket2::add_padding(int size)
 {
-    rtp_header.set_padding(padding + size > 0);
-    rtp_header.set_padding_length(rtp_header.get_padding_length() + size);
+    rtp_header.set_padding(rtp_header.get_padding() + size);
     if (cached_payload_size) {
         cached_payload_size += size;
     }
-    padding += size;
 }
 
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
@@ -335,7 +313,6 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 
     cp->rtp_header = rtp_header;
     cp->payload = payload? payload->copy():NULL;
-    cp->padding = padding;
 
     cp->nalu_type = nalu_type;
     cp->shared_msg = shared_msg? shared_msg->copy():NULL;
@@ -350,7 +327,8 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 int SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
-        cached_payload_size = rtp_header.nb_bytes() + (payload? payload->nb_bytes():0) + padding;
+        int nn_payload = (payload? payload->nb_bytes():0);
+        cached_payload_size = rtp_header.nb_bytes() + nn_payload + rtp_header.get_padding();
     }
     return cached_payload_size;
 }
@@ -367,7 +345,8 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "rtp payload");
     }
 
-    if (padding > 0) {
+    if (rtp_header.get_padding() > 0) {
+        uint8_t padding = rtp_header.get_padding();
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
@@ -387,7 +366,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     }
 
     // We must skip the padding bytes before parsing payload.
-    padding = rtp_header.get_padding_length();
+    uint8_t padding = rtp_header.get_padding();
     if (!buf->require(padding)) {
         return srs_error_wrap(err, "requires padding %d bytes", padding);
     }

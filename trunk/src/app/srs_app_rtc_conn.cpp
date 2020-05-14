@@ -860,7 +860,6 @@ srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtc
         if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
             nack->rtp_header = pkt->rtp_header;
-            nack->padding = pkt->padding;
 
             // TODO: FIXME: Should avoid memory copying.
             SrsRtpRawPayload* payload = new SrsRtpRawPayload();
@@ -1035,7 +1034,6 @@ srs_error_t SrsRtcPlayer::send_packets_gso(vector<SrsRtpPacket2*>& pkts, SrsRtcO
         if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
             nack->rtp_header = packet->rtp_header;
-            nack->padding = packet->padding;
 
             // TODO: FIXME: Should avoid memory copying.
             SrsRtpRawPayload* payload = new SrsRtpRawPayload();

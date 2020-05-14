@@ -61,7 +61,6 @@ class SrsSharedPtrMessage;
 class SrsRtpHeader
 {
 private:
-    bool padding;
     uint8_t padding_length;
     bool extension;
     uint8_t cc;
@@ -76,7 +75,6 @@ private:
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
-    void reset();
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -92,9 +90,8 @@ public:
     uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
     uint32_t get_ssrc() const;
-    void set_padding(bool v);
-    void set_padding_length(uint8_t v);
-    uint8_t get_padding_length() const;
+    void set_padding(uint8_t v);
+    uint8_t get_padding() const;
 };
 
 class ISrsRtpPayloader : public ISrsCodec
@@ -123,8 +120,6 @@ public:
     // TODO: FIXME: Rename to header.
     SrsRtpHeader rtp_header;
     ISrsRtpPayloader* payload;
-    // TODO: FIXME: Merge into rtp_header.
-    int padding;
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
