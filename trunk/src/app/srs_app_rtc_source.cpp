@@ -669,7 +669,6 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio
     }
 
     int nn_max_extra_payload = 0;
-    SrsSample samples[nn_opus_packets];
     for (int i = 0; i < nn_opus_packets; i++) {
         char* data = (char*)opus_payloads[i];
         int size = (int)opus_sizes[i];
