@@ -844,6 +844,36 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRt
     return err;
 }
 
+srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
+
+    pkt->rtp_header.set_timestamp(audio_timestamp);
+    pkt->rtp_header.set_sequence(audio_sequence++);
+    pkt->rtp_header.set_ssrc(audio_ssrc);
+    pkt->rtp_header.set_payload_type(audio_payload_type);
+
+    // TODO: FIXME: Padding audio to the max payload in RTP packets.
+    if (max_padding > 0) {
+    }
+
+    // TODO: FIXME: Why 960? Need Refactoring?
+    audio_timestamp += 960;
+
+    return err;
+}
+
+srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
+
+    pkt->rtp_header.set_sequence(video_sequence++);
+    pkt->rtp_header.set_ssrc(video_ssrc);
+    pkt->rtp_header.set_payload_type(video_payload_type);
+
+    return err;
+}
+
 srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info)
 {
     srs_error_t err = srs_success;
@@ -1155,36 +1185,6 @@ srs_error_t SrsRtcPlayer::send_packets_gso(vector<SrsRtpPacket2*>& pkts, SrsRtcO
         info.nn_rtp_pkts, info.nn_videos, info.nn_samples, info.nn_audios, info.nn_extras, info.nn_paddings,
         info.nn_padding_bytes, info.nn_rtp_bytes);
 #endif
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
-{
-    srs_error_t err = srs_success;
-
-    pkt->rtp_header.set_timestamp(audio_timestamp);
-    pkt->rtp_header.set_sequence(audio_sequence++);
-    pkt->rtp_header.set_ssrc(audio_ssrc);
-    pkt->rtp_header.set_payload_type(audio_payload_type);
-
-    // TODO: FIXME: Padding audio to the max payload in RTP packets.
-    if (max_padding > 0) {
-    }
-
-    // TODO: FIXME: Why 960? Need Refactoring?
-    audio_timestamp += 960;
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
-{
-    srs_error_t err = srs_success;
-
-    pkt->rtp_header.set_sequence(video_sequence++);
-    pkt->rtp_header.set_ssrc(video_ssrc);
-    pkt->rtp_header.set_payload_type(video_payload_type);
 
     return err;
 }
@@ -1712,7 +1712,8 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
 
     pkt->set_decode_handler(this);
-    pkt->original_bytes = buf;
+    pkt->original_msg = new SrsSharedPtrMessage();
+    pkt->original_msg->wrap(buf, nb_buf);
 
     SrsBuffer b(buf, nb_buf);
     if ((err = pkt->decode(&b)) != srs_success) {
@@ -1737,7 +1738,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
     }
 }
 
-void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload)
+void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
 {
     // No payload, ignore.
     if (buf->empty()) {

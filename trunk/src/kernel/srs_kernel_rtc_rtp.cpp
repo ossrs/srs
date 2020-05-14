@@ -265,6 +265,14 @@ uint8_t SrsRtpHeader::get_padding_length() const
     return padding_length;
 }
 
+ISrsRtpPayloader::ISrsRtpPayloader()
+{
+}
+
+ISrsRtpPayloader::~ISrsRtpPayloader()
+{
+}
+
 ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
 {
 }
@@ -357,6 +365,24 @@ void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 bool SrsRtpPacket2::is_audio()
 {
     return frame_type == SrsFrameTypeAudio;
+}
+
+SrsRtpPacket2* SrsRtpPacket2::copy()
+{
+    SrsRtpPacket2* cp = new SrsRtpPacket2();
+
+    cp->rtp_header = rtp_header;
+    cp->payload = payload? payload->copy():NULL;
+    cp->padding = padding;
+
+    cp->nalu_type = nalu_type;
+    cp->original_msg = original_msg? original_msg->copy():NULL;
+    cp->frame_type = frame_type;
+
+    cp->cache_payload = cache_payload;
+    cp->decode_handler = decode_handler;
+
+    return cp;
 }
 
 int SrsRtpPacket2::nb_bytes()
@@ -467,6 +493,16 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
     nn_payload = buf->left();
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpRawPayload::copy()
+{
+    SrsRtpRawPayload* cp = new SrsRtpRawPayload();
+
+    cp->payload = payload;
+    cp->nn_payload = nn_payload;
+
+    return cp;
 }
 
 SrsRtpRawNALUs::SrsRtpRawNALUs()
@@ -589,6 +625,22 @@ srs_error_t SrsRtpRawNALUs::decode(SrsBuffer* buf)
     nalus.push_back(sample);
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpRawNALUs::copy()
+{
+    SrsRtpRawNALUs* cp = new SrsRtpRawNALUs();
+
+    cp->nn_bytes = nn_bytes;
+    cp->cursor = cursor;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
 }
 
 SrsRtpSTAPPayload::SrsRtpSTAPPayload()
@@ -715,6 +767,21 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
     return srs_success;
 }
 
+ISrsRtpPayloader* SrsRtpSTAPPayload::copy()
+{
+    SrsRtpSTAPPayload* cp = new SrsRtpSTAPPayload();
+
+    cp->nri = nri;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
+}
+
 SrsRtpFUAPayload::SrsRtpFUAPayload()
 {
     start = end = false;
@@ -809,6 +876,24 @@ srs_error_t SrsRtpFUAPayload::decode(SrsBuffer* buf)
     return srs_success;
 }
 
+ISrsRtpPayloader* SrsRtpFUAPayload::copy()
+{
+    SrsRtpFUAPayload* cp = new SrsRtpFUAPayload();
+
+    cp->nri = nri;
+    cp->start = start;
+    cp->end = end;
+    cp->nalu_type = nalu_type;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
+}
+
 SrsRtpFUAPayload2::SrsRtpFUAPayload2()
 {
     start = end = false;
@@ -885,4 +970,18 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
     buf->skip(size);
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
+{
+    SrsRtpFUAPayload2* cp = new SrsRtpFUAPayload2();
+
+    cp->nri = nri;
+    cp->start = start;
+    cp->end = end;
+    cp->nalu_type = nalu_type;
+    cp->payload = payload;
+    cp->size = size;
+
+    return cp;
 }

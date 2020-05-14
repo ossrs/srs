@@ -257,11 +257,10 @@ public:
 private:
     srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
     srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
-    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
-    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
-private:
     srs_error_t package_opus(SrsRtpPacket2* pkt);
     srs_error_t package_video(SrsRtpPacket2* pkt);
+    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
+    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingPackets& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);
@@ -313,7 +312,7 @@ private:
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);

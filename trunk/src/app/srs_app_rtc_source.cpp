@@ -424,9 +424,11 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
+    SrsAutoFree(SrsRtpPacket2, pkt);
+
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
-        if ((err = consumer->enqueue2(pkt)) != srs_success) {
+        if ((err = consumer->enqueue2(pkt->copy())) != srs_success) {
             return srs_error_wrap(err, "consume message");
         }
     }
@@ -702,8 +704,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     raw->nn_payload = size;
     memcpy(raw->payload, data, size);
 
-    // When free the RTP packet, should free the bytes allocated here.
-    pkt->original_bytes = raw->payload;
+    pkt->original_msg = new SrsSharedPtrMessage();
+    pkt->original_msg->wrap(raw->payload, size);
 
     *ppkt = pkt;
 
@@ -846,27 +848,29 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     stap->nri = (SrsAvcNaluType)header;
 
     // Copy the SPS/PPS bytes, because it may change.
-    char* p = new char[sps.size() + pps.size()];
-    pkt->original_bytes = p;
+    int size = (int)(sps.size() + pps.size());
+    char* payload = new char[size];
+    pkt->original_msg = new SrsSharedPtrMessage();
+    pkt->original_msg->wrap(payload, size);
 
     if (true) {
         SrsSample* sample = new SrsSample();
-        sample->bytes = p;
+        sample->bytes = payload;
         sample->size = (int)sps.size();
         stap->nalus.push_back(sample);
 
-        memcpy(p, (char*)&sps[0], sps.size());
-        p += (int)sps.size();
+        memcpy(payload, (char*)&sps[0], sps.size());
+        payload += (int)sps.size();
     }
 
     if (true) {
         SrsSample* sample = new SrsSample();
-        sample->bytes = p;
+        sample->bytes = payload;
         sample->size = (int)pps.size();
         stap->nalus.push_back(sample);
 
-        memcpy(p, (char*)&pps[0], pps.size());
-        p += (int)pps.size();
+        memcpy(payload, (char*)&pps[0], pps.size());
+        payload += (int)pps.size();
     }
 
     *ppkt = pkt;
