@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_flv.hpp>
 
 SrsRtpHeader::SrsRtpHeader()
 {
@@ -280,6 +281,7 @@ SrsRtpPacket2::SrsRtpPacket2()
 
     nalu_type = SrsAvcNaluTypeReserved;
     original_bytes = NULL;
+    original_msg = NULL;
     frame_type = SrsFrameTypeReserved;
 
     cache_raw = new SrsRtpRawPayload();
@@ -299,6 +301,7 @@ SrsRtpPacket2::~SrsRtpPacket2()
     srs_freep(cache_fua);
 
     srs_freepa(original_bytes);
+    srs_freep(original_msg);
 }
 
 void SrsRtpPacket2::set_padding(int size)

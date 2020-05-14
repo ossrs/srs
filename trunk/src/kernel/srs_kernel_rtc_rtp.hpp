@@ -56,6 +56,7 @@ const uint8_t kEnd              = 0x40; // Fu-header end bit
 class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
+class SrsSharedPtrMessage;
 
 class SrsRtpHeader
 {
@@ -121,6 +122,8 @@ public:
     SrsAvcNaluType nalu_type;
     // The original bytes for decoder or bridger only, we will free it.
     char* original_bytes;
+    // The original msg for bridger only, we will free it.
+    SrsSharedPtrMessage* original_msg;
     // The frame type, for RTMP bridger or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.

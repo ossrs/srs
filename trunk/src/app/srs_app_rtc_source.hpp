@@ -43,6 +43,7 @@ class SrsRtcSource;
 class SrsRtcFromRtmpBridger;
 class SrsAudioRecode;
 class SrsRtpPacket2;
+class SrsSample;
 
 class SrsRtcConsumer : public ISrsConsumerQueue
 {
@@ -149,8 +150,8 @@ public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
+    srs_error_t on_rtp(SrsRtpPacket2* pkt);
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
-    srs_error_t on_audio2(SrsRtpPacket2* pkt);
     // When got RTC audio message, which is encoded in opus.
     // TODO: FIXME: Merge with on_audio.
     virtual srs_error_t on_video(SrsCommonMessage* video);
@@ -173,6 +174,7 @@ private:
     bool discard_aac;
     SrsAudioRecode* codec;
     bool discard_bframe;
+    bool merge_nalus;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
@@ -180,13 +182,19 @@ public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
     srs_error_t transcode(char* adts_audio, int nn_adts_audio);
+    srs_error_t package_opus(char* data, int size, SrsRtpPacket2** ppkt);
 public:
-    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
-    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
+    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format);
+    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);
 };
 
 #endif

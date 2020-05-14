@@ -154,6 +154,7 @@ class SrsRtcOutgoingPackets
 {
 public:
     bool use_gso;
+    // TODO: FIXME: Remove it.
     bool should_merge_nalus;
 public:
 #if defined(SRS_DEBUG)
@@ -228,7 +229,6 @@ private:
     int nn_simulate_nack_drop;
 private:
     // For merged-write and GSO.
-    bool merge_nalus;
     bool gso;
     int max_padding;
     // For merged-write messages.
@@ -261,11 +261,7 @@ private:
     srs_error_t send_packets_gso(SrsRtcOutgoingPackets& packets);
 private:
     srs_error_t package_opus(SrsRtpPacket2* pkt);
-private:
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+    srs_error_t package_video(SrsRtpPacket2* pkt);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);

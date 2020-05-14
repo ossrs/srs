@@ -65,12 +65,6 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 
-// The RTP payload max size, reserved some paddings for SRTP as such:
-//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
-// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
-// which reserves 100 bytes for SRTP or paddings.
-const int kRtpMaxPayloadSize = kRtpPacketSize - 200;
-
 string gen_random_str(int len)
 {
     static string random_table = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -565,7 +559,6 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
     session_ = s;
 
     gso = false;
-    merge_nalus = false;
     max_padding = 0;
 
     audio_timestamp = 0;
@@ -606,12 +599,11 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
     audio_payload_type = a_pt;
 
     gso = _srs_config->get_rtc_server_gso();
-    merge_nalus = _srs_config->get_rtc_server_merge_nalus();
     max_padding = _srs_config->get_rtc_server_padding();
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
-    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), package(gso=%d, merge_nalus=%d), padding=%d, nack=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, merge_nalus, max_padding, nack_enabled_);
+    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), gso=%d, padding=%d, nack=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, gso, max_padding, nack_enabled_);
 
     return err;
 }
@@ -619,10 +611,9 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
 srs_error_t SrsRtcPlayer::on_reload_rtc_server()
 {
     gso = _srs_config->get_rtc_server_gso();
-    merge_nalus = _srs_config->get_rtc_server_merge_nalus();
     max_padding = _srs_config->get_rtc_server_padding();
 
-    srs_trace("Reload rtc_server gso=%d, merge_nalus=%d, max_padding=%d", gso, merge_nalus, max_padding);
+    srs_trace("Reload rtc_server gso=%d, max_padding=%d", gso, max_padding);
 
     return srs_success;
 }
@@ -836,7 +827,7 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRt
             info.nn_audios++;
 
             if ((err = package_opus(pkt)) != srs_success) {
-                return srs_error_wrap(err, "opus package");
+                return srs_error_wrap(err, "package opus");
             }
             continue;
         }
@@ -844,45 +835,10 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRt
         // For video, we should process all NALUs in samples.
         info.nn_videos++;
 
-        // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
-        /*if (msg->has_idr()) {
-            if ((err = package_stap_a(source, msg, info)) != srs_success) {
-                return srs_error_wrap(err, "packet stap-a");
-            }
+        // For video, we should set the RTP packet informations about this consumer.
+        if ((err = package_video(pkt)) != srs_success) {
+            return srs_error_wrap(err, "package video");
         }
-
-        // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
-        if (info.should_merge_nalus && nn_samples > 1) {
-            if ((err = package_nalus(msg, info)) != srs_success) {
-                return srs_error_wrap(err, "packet stap-a");
-            }
-            continue;
-        }
-
-        // By default, we package each NALU(sample) to a RTP or FUA packet.
-        for (int i = 0; i < nn_samples; i++) {
-            SrsSample* sample = msg->samples() + i;
-
-            // We always ignore bframe here, if config to discard bframe,
-            // the bframe flag will not be set.
-            if (sample->bframe) {
-                continue;
-            }
-
-            if (sample->size <= kRtpMaxPayloadSize) {
-                if ((err = package_single_nalu(msg, sample, info)) != srs_success) {
-                    return srs_error_wrap(err, "packet single nalu");
-                }
-            } else {
-                if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, info)) != srs_success) {
-                    return srs_error_wrap(err, "packet fu-a");
-                }
-            }
-
-            if (i == nn_samples - 1) {
-                info.back()->rtp_header.set_marker(true);
-            }
-        }*/
     }
 
     return err;
@@ -1203,101 +1159,10 @@ srs_error_t SrsRtcPlayer::send_packets_gso(SrsRtcOutgoingPackets& packets)
     return err;
 }
 
-srs_error_t SrsRtcPlayer::package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
-
-    for (int i = 0; i < msg->nn_samples(); i++) {
-        SrsSample* sample = msg->samples() + i;
-
-        // We always ignore bframe here, if config to discard bframe,
-        // the bframe flag will not be set.
-        if (sample->bframe) {
-            continue;
-        }
-
-        raw->push_back(sample->copy());
-    }
-
-    // Ignore empty.
-    int nn_bytes = raw->nb_bytes();
-    if (nn_bytes <= 0) {
-        srs_freep(raw);
-        return err;
-    }
-
-    if (nn_bytes < kRtpMaxPayloadSize) {
-        // Package NALUs in a single RTP packet.
-        SrsRtpPacket2* packet = packets.fetch();
-        if (!packet) {
-            srs_freep(raw);
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
-        }
-
-        packet->rtp_header.set_timestamp(msg->timestamp * 90);
-        packet->rtp_header.set_sequence(video_sequence++);
-        packet->rtp_header.set_ssrc(video_ssrc);
-        packet->rtp_header.set_payload_type(video_payload_type);
-
-        packet->payload = raw;
-    } else {
-        // We must free it, should never use RTP packets to free it,
-        // because more than one RTP packet will refer to it.
-        SrsAutoFree(SrsRtpRawNALUs, raw);
-
-        // Package NALUs in FU-A RTP packets.
-        int fu_payload_size = kRtpMaxPayloadSize;
-
-        // The first byte is store in FU-A header.
-        uint8_t header = raw->skip_first_byte();
-        uint8_t nal_type = header & kNalTypeMask;
-        int nb_left = nn_bytes - 1;
-
-        int num_of_packet = 1 + (nn_bytes - 1) / fu_payload_size;
-        for (int i = 0; i < num_of_packet; ++i) {
-            int packet_size = srs_min(nb_left, fu_payload_size);
-
-            SrsRtpPacket2* packet = packets.fetch();
-            if (!packet) {
-                srs_freep(raw);
-                return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
-            }
-
-            packet->rtp_header.set_timestamp(msg->timestamp * 90);
-            packet->rtp_header.set_sequence(video_sequence++);
-            packet->rtp_header.set_ssrc(video_ssrc);
-            packet->rtp_header.set_payload_type(video_payload_type);
-
-            SrsRtpFUAPayload* fua = new SrsRtpFUAPayload();
-            packet->payload = fua;
-
-            fua->nri = (SrsAvcNaluType)header;
-            fua->nalu_type = (SrsAvcNaluType)nal_type;
-            fua->start = bool(i == 0);
-            fua->end = bool(i == num_of_packet - 1);
-
-            if ((err = raw->read_samples(fua->nalus, packet_size)) != srs_success) {
-                return srs_error_wrap(err, "read samples %d bytes, left %d, total %d", packet_size, nb_left, nn_bytes);
-            }
-
-            nb_left -= packet_size;
-        }
-    }
-
-    if (packets.size() > 0) {
-        packets.back()->rtp_header.set_marker(true);
-    }
-
-    return err;
-}
-
 srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    pkt->rtp_header.set_marker(true);
     pkt->rtp_header.set_timestamp(audio_timestamp);
     pkt->rtp_header.set_sequence(audio_sequence++);
     pkt->rtp_header.set_ssrc(audio_ssrc);
@@ -1313,118 +1178,13 @@ srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcPlayer::package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets)
+srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    char* p = sample->bytes + 1;
-    int nb_left = sample->size - 1;
-    uint8_t header = sample->bytes[0];
-    uint8_t nal_type = header & kNalTypeMask;
-
-    int num_of_packet = 1 + (sample->size - 1) / fu_payload_size;
-    for (int i = 0; i < num_of_packet; ++i) {
-        int packet_size = srs_min(nb_left, fu_payload_size);
-
-        SrsRtpPacket2* packet = packets.fetch();
-        if (!packet) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
-        }
-
-        packet->rtp_header.set_timestamp(msg->timestamp * 90);
-        packet->rtp_header.set_sequence(video_sequence++);
-        packet->rtp_header.set_ssrc(video_ssrc);
-        packet->rtp_header.set_payload_type(video_payload_type);
-
-        SrsRtpFUAPayload2* fua = packet->reuse_fua();
-
-        fua->nri = (SrsAvcNaluType)header;
-        fua->nalu_type = (SrsAvcNaluType)nal_type;
-        fua->start = bool(i == 0);
-        fua->end = bool(i == num_of_packet - 1);
-
-        fua->payload = p;
-        fua->size = packet_size;
-
-        p += packet_size;
-        nb_left -= packet_size;
-    }
-
-    return err;
-}
-
-// Single NAL Unit Packet @see https://tools.ietf.org/html/rfc6184#section-5.6
-srs_error_t SrsRtcPlayer::package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtpPacket2* packet = packets.fetch();
-    if (!packet) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
-    }
-    packet->rtp_header.set_timestamp(msg->timestamp * 90);
-    packet->rtp_header.set_sequence(video_sequence++);
-    packet->rtp_header.set_ssrc(video_ssrc);
-    packet->rtp_header.set_payload_type(video_payload_type);
-
-    SrsRtpRawPayload* raw = packet->reuse_raw();
-    raw->payload = sample->bytes;
-    raw->nn_payload = sample->size;
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets)
-{
-    srs_error_t err = srs_success;
-
-    SrsMetaCache* meta = source->cached_meta();
-    if (!meta) {
-        return err;
-    }
-
-    SrsFormat* format = meta->vsh_format();
-    if (!format || !format->vcodec) {
-        return err;
-    }
-
-    const vector<char>& sps = format->vcodec->sequenceParameterSetNALUnit;
-    const vector<char>& pps = format->vcodec->pictureParameterSetNALUnit;
-    if (sps.empty() || pps.empty()) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
-    }
-
-    SrsRtpPacket2* packet = packets.fetch();
-    if (!packet) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "cache empty");
-    }
-    packet->rtp_header.set_marker(false);
-    packet->rtp_header.set_timestamp(msg->timestamp * 90);
-    packet->rtp_header.set_sequence(video_sequence++);
-    packet->rtp_header.set_ssrc(video_ssrc);
-    packet->rtp_header.set_payload_type(video_payload_type);
-
-    SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
-    packet->payload = stap;
-
-    uint8_t header = sps[0];
-    stap->nri = (SrsAvcNaluType)header;
-
-    if (true) {
-        SrsSample* sample = new SrsSample();
-        sample->bytes = (char*)&sps[0];
-        sample->size = (int)sps.size();
-        stap->nalus.push_back(sample);
-    }
-
-    if (true) {
-        SrsSample* sample = new SrsSample();
-        sample->bytes = (char*)&pps[0];
-        sample->size = (int)pps.size();
-        stap->nalus.push_back(sample);
-    }
-
-    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", packet->rtp_header.get_sequence(), sps.size(), pps.size());
+    pkt->rtp_header.set_sequence(video_sequence++);
+    pkt->rtp_header.set_ssrc(video_ssrc);
+    pkt->rtp_header.set_payload_type(video_payload_type);
 
     return err;
 }
