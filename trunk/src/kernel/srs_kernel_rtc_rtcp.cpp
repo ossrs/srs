@@ -280,7 +280,7 @@ srs_error_t SrsRtcpSR::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc/*=0*/): sender_ssrc_(sender_ssrc)
+SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc): sender_ssrc_(sender_ssrc)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rr;
@@ -426,7 +426,7 @@ srs_error_t SrsRtcpRR::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc/*=0*/) : sender_ssrc_(sender_ssrc), pkt_len(0)
+SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : sender_ssrc_(sender_ssrc), pkt_len(0)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rtpfb;
@@ -618,7 +618,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk_one_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t
     encoded_chucks_.push_back(encoded_chunk);
     pkt_len += sizeof(encoded_chunk);
 
-    /* 1 0 symbol_list */
+    // 1 0 symbol_list
     return srs_success;
 }
     
@@ -628,7 +628,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t
     uint8_t delta_size = 0;
     
     uint16_t encoded_chunk = 0xc000;
-    /* 1 1 symbol_list */
+    // 1 1 symbol_list
     for (i = 0; i < size; ++i) {
         encoded_chunk |= (chunk.delta_sizes[i] << (2 * (kTwccFbTwoBitElements - 1 - i)));
     }
@@ -713,19 +713,9 @@ srs_error_t SrsRtcpTWCC::process_pkt_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& c
         add_to_chunk(chunk, delta_size);
         return err;
     }
-/*
-    if (pkt_len + delta_size + kTwccFbChunkBytes > kRtcpPacketSize) {
-        JANUS_LOG(LOG_INFO, "chunk_can_not_add, delta_size %u\n", delta_size);
-        return -1;
-    }
-*/
     if ((err = encode_chunk(chunk)) != srs_success) {
         return srs_error_new(ERROR_RTC_RTCP, "chunk can not be encoded, delta_size %u", delta_size);
     }
-/*
-    ccf->encoded_chunks = g_list_append(ccf->encoded_chunks, ((gpointer) (glong) (chunk)));
-    ccf->size_bytes += sizeof(chunk);
-    */
     add_to_chunk(chunk, delta_size);
     return err;
 }
@@ -770,9 +760,6 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 
             // FIXME 24-bit base receive delta not supported
             int recv_delta_size = (delta >= 0 && delta <= 0xff) ? 1 : 2;
-            /* pakcet received, small delta 				1
-            * packet received, large or negative delta 	2
-            * */
             if ((err = process_pkt_chunk(chunk, recv_delta_size)) != srs_success) {
                 return srs_error_new(ERROR_RTC_RTCP, "delta_size %d, failed to append_recv_delta\n", recv_delta_size);
             }
@@ -834,7 +821,7 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpNack::SrsRtcpNack(uint32_t sender_ssrc /*= 0*/): sender_ssrc_(sender_ssrc)
+SrsRtcpNack::SrsRtcpNack(uint32_t sender_ssrc): sender_ssrc_(sender_ssrc)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rtpfb;
