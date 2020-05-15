@@ -1751,22 +1751,32 @@ srs_error_t SrsRtcPublisher::on_video(SrsRtpPacket2* pkt)
 srs_error_t SrsRtcPublisher::on_nack(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
-
+    
+    SrsRtpNackForReceiver* nack_receiver = audio_nack_;
+    SrsRtpRingBuffer* ring_queue = audio_queue_;
+    
+    uint32_t ssrc = pkt->header.get_ssrc();
     uint16_t seq = pkt->header.get_sequence();
-    SrsRtpNackInfo* nack_info = audio_nack_->find(seq);
+    bool video = (ssrc == video_ssrc) ? true : false;
+    if (video) {
+        nack_receiver = video_nack_; 
+        ring_queue = video_queue_;
+    }
+
+    SrsRtpNackInfo* nack_info = nack_receiver->find(seq);
     if (nack_info) {
         return err;
     }
 
+    // insert check nack list
     uint16_t nack_first = 0, nack_last = 0;
-    if (!audio_queue_->update(seq, nack_first, nack_last)) {
-        srs_warn("too old seq %u, range [%u, %u]", seq, audio_queue_->begin, audio_queue_->end);
+    if (!ring_queue->update(seq, nack_first, nack_last)) {
+        srs_warn("too old seq %u, range [%u, %u]", seq, ring_queue->begin, ring_queue->end);
     }
-
     if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
         srs_trace("update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
-        audio_nack_->insert(nack_first, nack_last);
-        audio_nack_->check_queue_size();
+        nack_receiver->insert(nack_first, nack_last);
+        nack_receiver->check_queue_size();
     }
 
     return err;
@@ -2132,6 +2142,8 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     send_rtcp_rr(audio_ssrc, audio_queue_);
     send_rtcp_xr_rrtr(video_ssrc);
     send_rtcp_xr_rrtr(audio_ssrc);
+    check_send_nacks(video_nack_, video_ssrc);
+    check_send_nacks(audio_nack_, audio_ssrc);
 
     return err;
 }
