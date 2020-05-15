@@ -107,8 +107,6 @@ private:
     SrsRtcPublisher* rtc_publisher_;
     // Transmux RTMP to RTC.
     SrsRtcFromRtmpBridger* bridger_;
-    // The metadata cache.
-    SrsMetaCache* meta;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -128,8 +126,6 @@ public:
     virtual int pre_source_id();
     // Get the bridger.
     ISrsSourceBridger* bridger();
-    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
-    SrsMetaCache* cached_meta();
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -152,16 +148,6 @@ public:
     void set_rtc_publisher(SrsRtcPublisher* v);
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
-    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
-    // When got RTC audio message, which is encoded in opus.
-    // TODO: FIXME: Merge with on_audio.
-    virtual srs_error_t on_video(SrsCommonMessage* video);
-    virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
-private:
-    // The format, codec information.
-    // TODO: FIXME: Remove it.
-    SrsRtmpFormat* format;
-    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
@@ -171,6 +157,8 @@ private:
     SrsRtcSource* source_;
     // The format, codec information.
     SrsRtmpFormat* format;
+    // The metadata cache.
+    SrsMetaCache* meta;
 private:
     bool discard_aac;
     SrsAudioRecode* codec;
