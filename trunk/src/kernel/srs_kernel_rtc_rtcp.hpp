@@ -62,7 +62,7 @@ struct SrsRtcpHeader
 
 struct SrsSeqCompareLess {
     bool operator()(const uint16_t &lhs, const uint16_t &rhs) const {
-        return SnCompare(rhs, lhs);
+        return SrsSeqIsNewer(rhs, lhs);
     }
 };
 

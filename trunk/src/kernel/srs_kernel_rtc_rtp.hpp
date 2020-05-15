@@ -59,9 +59,9 @@ class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
 
 // TODO: FIXME: Merge with srs_rtp_seq_distance
-bool SnCompare(uint16_t current_sn, uint16_t last_sn);
-bool SnRollback(uint16_t current_sn, uint16_t last_sn);
-int32_t SnDiff(uint16_t current_sn, uint16_t last_sn);
+bool SrsSeqIsNewer(uint16_t current_sn, uint16_t last_sn);
+bool SrsSeqIsRoolback(uint16_t current_sn, uint16_t last_sn);
+int32_t SrsSeqDistance(uint16_t current_sn, uint16_t last_sn);
 
 class SrsRtpHeader
 {
