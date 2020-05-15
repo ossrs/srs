@@ -785,10 +785,10 @@ srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    pkt->rtp_header.set_timestamp(audio_timestamp);
-    pkt->rtp_header.set_sequence(audio_sequence++);
-    pkt->rtp_header.set_ssrc(audio_ssrc);
-    pkt->rtp_header.set_payload_type(audio_payload_type);
+    pkt->header.set_timestamp(audio_timestamp);
+    pkt->header.set_sequence(audio_sequence++);
+    pkt->header.set_ssrc(audio_ssrc);
+    pkt->header.set_payload_type(audio_payload_type);
 
     // TODO: FIXME: Padding audio to the max payload in RTP packets.
     if (max_padding > 0) {
@@ -804,9 +804,9 @@ srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    pkt->rtp_header.set_sequence(video_sequence++);
-    pkt->rtp_header.set_ssrc(video_ssrc);
-    pkt->rtp_header.set_payload_type(video_payload_type);
+    pkt->header.set_sequence(video_sequence++);
+    pkt->header.set_ssrc(video_ssrc);
+    pkt->header.set_payload_type(video_payload_type);
 
     return err;
 }
@@ -859,7 +859,7 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
         // Put final RTP packet to NACK/ARQ queue.
         if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
-            nack->rtp_header = pkt->rtp_header;
+            nack->header = pkt->header;
 
             // TODO: FIXME: Should avoid memory copying.
             SrsRtpRawPayload* payload = new SrsRtpRawPayload();
@@ -869,10 +869,10 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
             payload->payload = new char[payload->nn_payload];
             memcpy((void*)payload->payload, iov->iov_base, iov->iov_len);
 
-            if (nack->rtp_header.get_ssrc() == video_ssrc) {
-                video_queue_->set(nack->rtp_header.get_sequence(), nack);
+            if (nack->header.get_ssrc() == video_ssrc) {
+                video_queue_->set(nack->header.get_sequence(), nack);
             } else {
-                audio_queue_->set(nack->rtp_header.get_sequence(), nack);
+                audio_queue_->set(nack->header.get_sequence(), nack);
             }
         }
 
@@ -891,7 +891,7 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
 
         // For NACK simulator, drop packet.
         if (nn_simulate_nack_drop) {
-            simulate_drop_packet(&pkt->rtp_header, (int)iov->iov_len);
+            simulate_drop_packet(&pkt->header, (int)iov->iov_len);
             iov->iov_len = 0;
             continue;
         }
@@ -1033,7 +1033,7 @@ srs_error_t SrsRtcPlayer::send_packets_gso(const vector<SrsRtpPacket2*>& pkts, S
         // Put final RTP packet to NACK/ARQ queue.
         if (nack_enabled_) {
             SrsRtpPacket2* nack = new SrsRtpPacket2();
-            nack->rtp_header = packet->rtp_header;
+            nack->header = packet->header;
 
             // TODO: FIXME: Should avoid memory copying.
             SrsRtpRawPayload* payload = new SrsRtpRawPayload();
@@ -1043,10 +1043,10 @@ srs_error_t SrsRtcPlayer::send_packets_gso(const vector<SrsRtpPacket2*>& pkts, S
             payload->payload = new char[payload->nn_payload];
             memcpy((void*)payload->payload, iov->iov_base, iov->iov_len);
 
-            if (nack->rtp_header.get_ssrc() == video_ssrc) {
-                video_queue_->set(nack->rtp_header.get_sequence(), nack);
+            if (nack->header.get_ssrc() == video_ssrc) {
+                video_queue_->set(nack->header.get_sequence(), nack);
             } else {
-                audio_queue_->set(nack->rtp_header.get_sequence(), nack);
+                audio_queue_->set(nack->header.get_sequence(), nack);
             }
         }
 
@@ -1070,9 +1070,9 @@ srs_error_t SrsRtcPlayer::send_packets_gso(const vector<SrsRtpPacket2*>& pkts, S
         bool do_send = (i == nn_packets - 1 || gso_final || !using_gso);
 
 #if defined(SRS_DEBUG)
-        bool is_video = packet->rtp_header.get_payload_type() == video_payload_type;
+        bool is_video = packet->header.get_payload_type() == video_payload_type;
         srs_trace("#%d, Packet %s SSRC=%d, SN=%d, %d/%d bytes", info.debug_id, is_video? "Video":"Audio",
-            packet->rtp_header.get_ssrc(), packet->rtp_header.get_sequence(), nn_packet - padding, padding);
+            packet->header.get_ssrc(), packet->header.get_sequence(), nn_packet - padding, padding);
         if (do_send) {
             for (int j = 0; j < (int)mhdr->msg_hdr.msg_iovlen; j++) {
                 iovec* iov = mhdr->msg_hdr.msg_iov + j;
@@ -1308,7 +1308,7 @@ srs_error_t SrsRtcPlayer::on_rtcp_feedback(char* buf, int nb_buf)
         pkt->encode(&buf);
         session_->sendonly_skt->sendto(data, pkt->nb_bytes(), 0);
 
-        SrsRtpHeader* h = &pkt->rtp_header;
+        SrsRtpHeader* h = &pkt->header;
         srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, %d bytes", h->get_sequence(),
             h->get_ssrc(), h->get_timestamp(), pkt->nb_bytes());
     }
@@ -1668,12 +1668,12 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
-        simulate_drop_packet(&pkt->rtp_header, nb_buf);
+        simulate_drop_packet(&pkt->header, nb_buf);
         return err;
     }
 
     // For source to consume packet.
-    uint32_t ssrc = pkt->rtp_header.get_ssrc();
+    uint32_t ssrc = pkt->header.get_ssrc();
     if (ssrc == audio_ssrc) {
         if ((err = on_audio(pkt)) != srs_success) {
             return srs_error_wrap(err, "on audio");
@@ -1701,7 +1701,7 @@ void SrsRtcPublisher::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* bu
         return;
     }
 
-    uint32_t ssrc = pkt->rtp_header.get_ssrc();
+    uint32_t ssrc = pkt->header.get_ssrc();
     if (ssrc == audio_ssrc) {
         *ppayload = new SrsRtpRawPayload();
     } else if (ssrc == video_ssrc) {
@@ -1751,7 +1751,7 @@ srs_error_t SrsRtcPublisher::on_nack(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    uint16_t seq = pkt->rtp_header.get_sequence();
+    uint16_t seq = pkt->header.get_sequence();
     SrsRtpNackInfo* nack_info = audio_nack_->find(seq);
     if (nack_info) {
         return err;

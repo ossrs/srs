@@ -583,7 +583,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeAudio;
-    pkt->rtp_header.set_marker(true);
+    pkt->header.set_marker(true);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->payload = raw;
@@ -665,7 +665,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     }
 
     if (pkts.size() > 0) {
-        pkts.back()->rtp_header.set_marker(true);
+        pkts.back()->header.set_marker(true);
     }
 
     return consume_packets(pkts);
@@ -719,8 +719,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
-    pkt->rtp_header.set_marker(false);
-    pkt->rtp_header.set_timestamp(msg->timestamp * 90);
+    pkt->header.set_marker(false);
+    pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
     pkt->payload = stap;
@@ -755,7 +755,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     }
 
     *ppkt = pkt;
-    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->rtp_header.get_sequence(), sps.size(), pps.size());
+    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
 
     return err;
 }
@@ -789,7 +789,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
-        pkt->rtp_header.set_timestamp(msg->timestamp * 90);
+        pkt->header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
         pkt->shared_msg = msg->copy();
         pkts.push_back(pkt);
@@ -818,7 +818,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
 
             SrsRtpPacket2* pkt = new SrsRtpPacket2();
             pkt->frame_type = SrsFrameTypeVideo;
-            pkt->rtp_header.set_timestamp(msg->timestamp * 90);
+            pkt->header.set_timestamp(msg->timestamp * 90);
 
             fua->nri = (SrsAvcNaluType)header;
             fua->nalu_type = (SrsAvcNaluType)nal_type;
@@ -843,7 +843,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
-    pkt->rtp_header.set_timestamp(msg->timestamp * 90);
+    pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->payload = raw;
@@ -872,7 +872,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
 
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
-        pkt->rtp_header.set_timestamp(msg->timestamp * 90);
+        pkt->header.set_timestamp(msg->timestamp * 90);
 
         SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
         pkt->payload = fua;

@@ -117,8 +117,7 @@ class SrsRtpPacket2
 {
 // RTP packet fields.
 public:
-    // TODO: FIXME: Rename to header.
-    SrsRtpHeader rtp_header;
+    SrsRtpHeader header;
     ISrsRtpPayloader* payload;
 // Helper fields.
 public:
