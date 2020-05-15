@@ -84,8 +84,6 @@ public:
     // Free the packet at position.
     void set(uint16_t at, SrsRtpPacket2* pkt);
     void remove(uint16_t at);
-    // Whether queue overflow or heavy(too many packets and need clear).
-    bool overflow();
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
     // Update the sequence, got the nack range by [first, last).

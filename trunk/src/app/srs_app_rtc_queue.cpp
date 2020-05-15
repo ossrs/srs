@@ -83,11 +83,6 @@ void SrsRtpRingBuffer::remove(uint16_t at)
     set(at, NULL);
 }
 
-bool SrsRtpRingBuffer::overflow()
-{
-    return srs_rtp_seq_distance(begin, end) >= capacity_;
-}
-
 uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
 {
     return nn_seq_flip_backs * 65536 + end - 1;

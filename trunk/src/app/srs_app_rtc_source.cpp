@@ -424,8 +424,6 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    SrsAutoFree(SrsRtpPacket2, pkt);
-
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
         if ((err = consumer->enqueue2(pkt->copy())) != srs_success) {
@@ -679,6 +677,8 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio
         nn_max_extra_payload = srs_max(nn_max_extra_payload, size);
 
         SrsRtpPacket2* pkt = NULL;
+        SrsAutoFree(SrsRtpPacket2, pkt);
+
         if ((err = package_opus(data, size, &pkt)) != srs_success) {
             return srs_error_wrap(err, "package opus");
         }
@@ -772,6 +772,8 @@ srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* f
     // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
     if (msg->has_idr()) {
         SrsRtpPacket2* pkt = NULL;
+        SrsAutoFree(SrsRtpPacket2, pkt);
+
         if ((err = package_stap_a(source_, msg, &pkt)) != srs_success) {
             return srs_error_wrap(err, "package stap-a");
         }
@@ -1021,17 +1023,15 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Consume a range of packets.
-    int i = 0;
-    for (; i < (int)pkts.size(); i++) {
+    for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts[i];
-
         if ((err = source_->on_rtp(pkt)) != srs_success) {
             err = srs_error_wrap(err, "consume sps/pps");
             break;
         }
     }
 
-    for (; i < (int)pkts.size(); i++) {
+    for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts[i];
         srs_freep(pkt);
     }

@@ -150,6 +150,7 @@ public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
+    // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
     // When got RTC audio message, which is encoded in opus.

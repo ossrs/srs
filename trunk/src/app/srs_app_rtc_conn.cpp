@@ -1653,6 +1653,8 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
 
     // Decode the RTP packet from buffer.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    SrsAutoFree(SrsRtpPacket2, pkt);
+
     if (true) {
         pkt->set_decode_handler(this);
         pkt->shared_msg = new SrsSharedPtrMessage();
@@ -1667,7 +1669,6 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
         simulate_drop_packet(&pkt->rtp_header, nb_buf);
-        srs_freep(pkt);
         return err;
     }
 
@@ -1682,7 +1683,6 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
             return srs_error_wrap(err, "on video");
         }
     } else {
-        srs_freep(pkt);
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
     }
 
