@@ -33,6 +33,56 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
 
+//sn comparison，if current_sn is more than last_sn，return true，else return false
+bool SnCompare(uint16_t current_sn, uint16_t last_sn) {
+   if(current_sn > last_sn) {
+       //current_sn 65533   last_sn 5
+       if(current_sn - last_sn > 0x8000) {
+           return false;
+       } else {
+           return true;
+       }
+   } else {
+       //current_sn 2  last_sn 65535
+       if(current_sn - last_sn < -0x8000) {
+           return true;
+       } else {
+          return  false;
+       }
+   }
+}
+
+bool SnRollback(uint16_t current_sn, uint16_t last_sn)
+{
+    if(SnCompare(current_sn, last_sn)) {
+        if((last_sn > current_sn)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// caculate the difference between sn. If current_sn is more then last_sn, return positive difference, else return negative difference.
+int32_t SnDiff(uint16_t current_sn, uint16_t last_sn) {
+    if(current_sn > last_sn) {
+        //current_sn 65535   last_sn 0
+        if(current_sn - last_sn > 0x8000) {
+            return (current_sn - last_sn - 1 - 65535);
+        } else {
+            return (current_sn - last_sn);
+        }
+    } else {
+        //current_sn 0  last_sn 65535
+        if(current_sn - last_sn < -0x8000) {
+            return (current_sn - last_sn + 65535 + 1);
+        } else {
+            return (current_sn - last_sn);
+            // current_sn 15039 last_sn 15042
+            //return last_sn - current_sn;
+        }
+    }
+}
+
 SrsRtpHeader::SrsRtpHeader()
 {
     padding_length   = 0;
