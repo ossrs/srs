@@ -35,22 +35,22 @@
 const int kRtcpPacketSize = 1500;
 const uint8_t kRtcpVersion = 0x2;
 
-/*! \brief RTCP Packet Types (http://www.networksorcery.com/enp/protocol/rtcp.htm) */
-typedef enum {
-    srs_rtcp_type_fir = 192,
-    srs_rtcp_type_sr = 200,
-    srs_rtcp_type_rr = 201,
-    srs_rtcp_type_sdes = 202,
-    srs_rtcp_type_bye = 203,
-    srs_rtcp_type_app = 204,
-    srs_rtcp_type_rtpfb = 205,
-    srs_rtcp_type_psfb = 206,
-    srs_rtcp_type_xr = 207,
-} srs_rtcp_type;
+// RTCP Packet Types, @see http://www.networksorcery.com/enp/protocol/rtcp.htm
+enum SrsRtcpType {
+    SrsRtcpType_fir = 192,
+    SrsRtcpType_sr = 200,
+    SrsRtcpType_rr = 201,
+    SrsRtcpType_sdes = 202,
+    SrsRtcpType_bye = 203,
+    SrsRtcpType_app = 204,
+    SrsRtcpType_rtpfb = 205,
+    SrsRtcpType_psfb = 206,
+    SrsRtcpType_xr = 207,
+};
 
 
-/*! \brief RTCP Header (http://tools.ietf.org/html/rfc3550#section-6.1) */
-typedef struct srs_rtcp_header_s
+// RTCP Header, @see http://tools.ietf.org/html/rfc3550#section-6.1
+struct SrsRtcpHeader
 {
 	uint16_t rc:5;
 	uint16_t padding:1;
@@ -58,18 +58,18 @@ typedef struct srs_rtcp_header_s
 	uint16_t type:8;
 
 	uint16_t length:16;
-} srs_rtcp_header_t;
+};
 
-struct less_compare {
+struct SrsSeqCompareLess {
     bool operator()(const uint16_t &lhs, const uint16_t &rhs) const {
         return SnCompare(rhs, lhs);
     }
 };
 
-class SrsRTCPCommon: public ISrsCodec
+class SrsRtcpCommon: public ISrsCodec
 {
 protected:
-    srs_rtcp_header_t header_;
+    SrsRtcpHeader header_;
     uint8_t payload_[kRtcpPacketSize];
     int payload_len_;
 
@@ -77,8 +77,8 @@ protected:
     srs_error_t decode_header(SrsBuffer *buffer);
     srs_error_t encode_header(SrsBuffer *buffer);
 public:
-    SrsRTCPCommon();
-    virtual ~SrsRTCPCommon();
+    SrsRtcpCommon();
+    virtual ~SrsRtcpCommon();
     virtual const uint8_t type() const { return header_.type; }
 
 public:
@@ -88,18 +88,18 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-class SrsRTCP_App : public SrsRTCPCommon 
+class SrsRtcpApp : public SrsRtcpCommon 
 {
-    srs_rtcp_header_t header_;
+    SrsRtcpHeader header_;
     uint32_t ssrc_;
     uint8_t name_[4];
     uint8_t payload_[kRtcpPacketSize];
     int payload_len_;
 public:
-    SrsRTCP_App();
-    virtual ~SrsRTCP_App();
+    SrsRtcpApp();
+    virtual ~SrsRtcpApp();
 
-    virtual const uint8_t type() const { return srs_rtcp_type_app; }
+    virtual const uint8_t type() const { return SrsRtcpType_app; }
     
     const uint32_t get_ssrc() const;
     const uint8_t get_subtype() const;
@@ -117,7 +117,7 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-typedef struct srs_rtcp_report_block_s {
+struct srs_rtcp_rb_t {
     uint32_t ssrc;
     uint8_t fraction_lost;
     uint32_t lost_packets;
@@ -125,9 +125,9 @@ typedef struct srs_rtcp_report_block_s {
     uint32_t jitter;
     uint32_t lsr;
     uint32_t dlsr;
-}srs_rtcp_rb_t;
+};
 
-class SrsRTCP_SR : public SrsRTCPCommon
+class SrsRtcpSR : public SrsRtcpCommon
 {
 private:
     uint32_t sender_ssrc_;
@@ -136,12 +136,12 @@ private:
     uint32_t send_rtp_packets_;
     uint32_t send_rtp_bytes_;
 public:
-    SrsRTCP_SR();
-    virtual ~SrsRTCP_SR();
+    SrsRtcpSR();
+    virtual ~SrsRtcpSR();
 
     const uint8_t get_rc() const { return header_.rc; }
-    // overload SrsRTCPCommon
-    virtual const uint8_t type() const { return srs_rtcp_type_sr; }
+    // overload SrsRtcpCommon
+    virtual const uint8_t type() const { return SrsRtcpType_sr; }
     const uint32_t get_sender_ssrc() const;
     const uint64_t get_ntp() const;
     const uint32_t get_rtp_ts() const;
@@ -161,17 +161,17 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-class SrsRTCP_RR : public SrsRTCPCommon
+class SrsRtcpRR : public SrsRtcpCommon
 {
 private:
     uint32_t sender_ssrc_;
     srs_rtcp_rb_t rb_;
 public:
-    SrsRTCP_RR(uint32_t sender_ssrc = 0);
-    virtual ~SrsRTCP_RR();
+    SrsRtcpRR(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpRR();
 
-    // overload SrsRTCPCommon
-    virtual const uint8_t type() const { return srs_rtcp_type_rr; }
+    // overload SrsRtcpCommon
+    virtual const uint8_t type() const { return SrsRtcpType_rr; }
 
     const uint32_t get_rb_ssrc() const;
     const float get_lost_rate() const;
@@ -237,7 +237,7 @@ public:
 #define kTwccFbLargeRecvDeltaBytes	2
 #define kTwccFbMaxBitElements 		kTwccFbOneBitElements
 
-class SrsRTCP_TWCC : public SrsRTCPCommon
+class SrsRtcpTWCC : public SrsRtcpCommon
 {
 private:
     uint32_t sender_ssrc_;
@@ -250,7 +250,7 @@ private:
     std::vector<uint16_t> pkt_deltas_;
 
     std::map<uint16_t, srs_utime_t> recv_packes_;
-    std::set<uint16_t, less_compare> recv_sns_;
+    std::set<uint16_t, SrsSeqCompareLess> recv_sns_;
 
     typedef struct srs_rtcp_twcc_chunk {
         uint8_t delta_sizes[kTwccFbMaxBitElements];
@@ -275,8 +275,8 @@ private:
     srs_error_t encode_remaining_chunk(srs_rtcp_twcc_chunk_t& chunk);
 
 public:
-    SrsRTCP_TWCC(uint32_t sender_ssrc = 0);
-    virtual ~SrsRTCP_TWCC();
+    SrsRtcpTWCC(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpTWCC();
 
     const uint32_t get_media_ssrc() const;
     const uint16_t get_base_sn() const;
@@ -304,7 +304,7 @@ public:
 
 };
 
-class SrsRTCP_Nack : public SrsRTCPCommon
+class SrsRtcpNack : public SrsRtcpCommon
 {
 private:
     typedef struct pid_blp_s {  
@@ -315,10 +315,10 @@ private:
 
     uint32_t sender_ssrc_;
     uint32_t media_ssrc_;
-    std::set<uint16_t, less_compare> lost_sns_;
+    std::set<uint16_t, SrsSeqCompareLess> lost_sns_;
 public:
-    SrsRTCP_Nack(uint32_t sender_ssrc = 0);
-    virtual ~SrsRTCP_Nack();
+    SrsRtcpNack(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpNack();
 
     const uint32_t get_media_ssrc() const;
     const std::vector<uint16_t> get_lost_sns() const;
@@ -334,17 +334,17 @@ public:
 };
 
 
-class SrsRTCPCompound : public ISrsCodec
+class SrsRtcpCompound : public ISrsCodec
 {
 private:
-    std::vector<SrsRTCPCommon* > rtcps_;
+    std::vector<SrsRtcpCommon*> rtcps_;
     int nb_bytes_;
 public:
-    SrsRTCPCompound();
-    virtual ~SrsRTCPCompound();
+    SrsRtcpCompound();
+    virtual ~SrsRtcpCompound();
 
-    SrsRTCPCommon* get_next_rtcp();
-    srs_error_t add_rtcp(SrsRTCPCommon *rtcp);
+    SrsRtcpCommon* get_next_rtcp();
+    srs_error_t add_rtcp(SrsRtcpCommon *rtcp);
     void clear();
 
 public:
