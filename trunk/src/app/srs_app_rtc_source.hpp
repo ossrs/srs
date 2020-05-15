@@ -45,7 +45,7 @@ class SrsAudioRecode;
 class SrsRtpPacket2;
 class SrsSample;
 
-class SrsRtcConsumer : public ISrsConsumerQueue
+class SrsRtcConsumer
 {
 private:
     SrsRtcSource* source;
@@ -63,9 +63,10 @@ public:
 public:
     // When source id changed, notice client to print.
     virtual void update_source_id();
-    // Put or get RTP packet in queue.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
-    srs_error_t enqueue2(SrsRtpPacket2* pkt);
+    // Put RTP packet into queue.
+    // @note We do not drop packet here, but drop it in sender.
+    srs_error_t enqueue(SrsRtpPacket2* pkt);
+    // Get all RTP packets from queue.
     virtual srs_error_t dump_packets(std::vector<SrsRtpPacket2*>& pkts);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);

@@ -115,13 +115,7 @@ void SrsRtcConsumer::update_source_id()
     should_update_source_id = true;
 }
 
-srs_error_t SrsRtcConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
-{
-    srs_error_t err = srs_success;
-    return err;
-}
-
-srs_error_t SrsRtcConsumer::enqueue2(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcConsumer::enqueue(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -404,7 +398,7 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
 
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
-        if ((err = consumer->enqueue2(pkt->copy())) != srs_success) {
+        if ((err = consumer->enqueue(pkt->copy())) != srs_success) {
             return srs_error_wrap(err, "consume message");
         }
     }

@@ -182,18 +182,8 @@ public:
     virtual void wakeup() = 0;
 };
 
-// Enqueue the packet to consumer.
-class ISrsConsumerQueue
-{
-public:
-    ISrsConsumerQueue();
-    virtual ~ISrsConsumerQueue();
-public:
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag) = 0;
-};
-
 // The consumer for SrsSource, that is a play client.
-class SrsConsumer : virtual public ISrsWakable, virtual public ISrsConsumerQueue
+class SrsConsumer : virtual public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
@@ -445,7 +435,7 @@ public:
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
-    virtual srs_error_t dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+    virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
     // Previous exists sequence header.
     virtual SrsSharedPtrMessage* previous_vsh();
