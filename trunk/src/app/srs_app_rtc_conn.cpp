@@ -1376,7 +1376,7 @@ srs_error_t SrsRtcPlayer::on_rtcp_rr(char* data, int nb_data)
 
 SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
 {
-    report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
+    report_timer = new SrsHourGlass(this, 10 * SRS_UTIME_MILLISECONDS);
 
     session_ = session;
     request_keyframe_ = false;
@@ -1422,8 +1422,12 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, SrsReque
     srs_trace("RTC player video(ssrc=%u), audio(ssrc=%u), nack=%d",
         video_ssrc, audio_ssrc, nack_enabled_);
 
-    if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+    if ((err = report_timer->tick(EVENT_REPORT, 200 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
+    }
+
+    if ((err = report_timer->tick(EVENT_NACK, 10*SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "NACK tick");
     }
 
     if ((err = report_timer->start()) != srs_success) {
@@ -2136,14 +2140,18 @@ void SrsRtcPublisher::request_keyframe()
 srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
-
     // TODO: FIXME: Check error.
-    send_rtcp_rr(video_ssrc, video_queue_);
-    send_rtcp_rr(audio_ssrc, audio_queue_);
-    send_rtcp_xr_rrtr(video_ssrc);
-    send_rtcp_xr_rrtr(audio_ssrc);
-    check_send_nacks(video_nack_, video_ssrc);
-    check_send_nacks(audio_nack_, audio_ssrc);
+    if (type == EVENT_REPORT) {
+        send_rtcp_rr(video_ssrc, video_queue_);
+        send_rtcp_rr(audio_ssrc, audio_queue_);
+        send_rtcp_xr_rrtr(video_ssrc);
+        send_rtcp_xr_rrtr(audio_ssrc);
+    }
+    
+    if (type == EVENT_NACK) {
+        check_send_nacks(video_nack_, video_ssrc);
+        check_send_nacks(audio_nack_, audio_ssrc);
+    }
 
     return err;
 }

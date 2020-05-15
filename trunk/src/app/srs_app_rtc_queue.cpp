@@ -142,6 +142,11 @@ SrsNackOption::SrsNackOption()
     max_alive_time = 2 * SRS_UTIME_SECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 400 * SRS_UTIME_MILLISECONDS;
+    //TODO: FIXME: 
+    // audio_max_retries = 2
+    // video_max_retries = 4
+    // nack_interval = 100ms
+    // first_nack_interval = 10ms
 }
 
 SrsRtpNackInfo::SrsRtpNackInfo()

@@ -276,6 +276,8 @@ private:
     SrsRtpRingBuffer* audio_queue_;
     SrsRtpNackForReceiver* audio_nack_;
 private:
+    enum {EVENT_REPORT=1, EVENT_NACK = 2};
+private:
     SrsRequest* req;
     SrsRtcSource* source;
     // Whether enabled nack.
