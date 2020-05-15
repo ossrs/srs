@@ -3645,7 +3645,8 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus"
-                && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole") {
+                && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole"
+                && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -3682,13 +3683,15 @@ srs_error_t SrsConfig::check_normal_config()
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid stats.network=%d", get_stats_network());
     }
     if (true) {
-        vector<std::string> ips = srs_get_local_ips();
+        vector<SrsIPAddress*> ips = srs_get_local_ips();
         int index = get_stats_network();
         if (index >= (int)ips.size()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid stats.network=%d of %d",
                 index, (int)ips.size());
         }
-        srs_warn("stats network use index=%d, ip=%s", index, ips.at(index).c_str());
+
+        SrsIPAddress* addr = ips.at(index);
+        srs_warn("stats network use index=%d, ip=%s, ifname=%s", index, addr->ip.c_str(), addr->ifname.c_str());
     }
     if (true) {
         SrsConfDirective* conf = get_stats_disk_device();
@@ -4745,6 +4748,23 @@ std::string SrsConfig::get_rtc_server_candidates()
     return conf->arg0();
 }
 
+std::string SrsConfig::get_rtc_server_ip_family()
+{
+    static string DEFAULT = "ipv4";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ip_family");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
 bool SrsConfig::get_rtc_server_ecdsa()
 {
     static bool DEFAULT = true;
@@ -4859,7 +4879,9 @@ bool SrsConfig::get_rtc_server_gso()
     }
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
     if (v) {
-        utsname un = {0};
+        utsname un;
+        memset((void*)&un, 0, sizeof(utsname));
+
         int r0 = uname(&un);
         if (r0 || strcmp(un.release, "4.18.0") < 0) {
             gso_disabled = true;

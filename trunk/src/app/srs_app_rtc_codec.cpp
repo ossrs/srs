@@ -24,7 +24,7 @@
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_audio_recode.hpp>
+#include <srs_app_rtc_codec.hpp>
 
 static const int kOpusPacketMs  = 20;
 static const int kOpusMaxbytes  = 8000;
@@ -384,8 +384,7 @@ srs_error_t SrsAudioRecode::initialize()
     return err;
 }
 
-// TODO: FIXME: Rename to transcode.
-srs_error_t SrsAudioRecode::recode(SrsSample *pkt, char **buf, int *buf_len, int &n)
+srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, int &n)
 {
     srs_error_t err = srs_success;
     

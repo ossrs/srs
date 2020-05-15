@@ -159,6 +159,8 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-05-14, For [#307][bug #307], refine core structure, RTMP base on frame, RTC base on RTP. 4.0.26
+* v4.0, 2020-05-11, For [#307][bug #307], refine RTC publisher structure. 4.0.25
 * v4.0, 2020-04-30, For [#307][bug #307], support publish RTC with passing opus. 4.0.24
 * v4.0, 2020-04-14, For [#307][bug #307], support sendmmsg, GSO and reuseport. 4.0.23
 * v4.0, 2020-04-05, For [#307][bug #307], SRTP ASM only works with openssl-1.0, auto detect it. 4.0.22

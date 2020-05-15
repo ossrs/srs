@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_rtp_queue.hpp>
+#include <srs_app_rtc_queue.hpp>
 
 #include <string.h>
 #include <unistd.h>
@@ -30,7 +30,7 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 
@@ -226,9 +226,26 @@ void SrsRtpQueue::insert_into_nack_list(SrsRtpNackForReceiver* nack, uint16_t fi
     nack->check_queue_size();
 }
 
+SrsRtpAudioPacket::SrsRtpAudioPacket()
+{
+    pkt = NULL;
+}
+
+SrsRtpAudioPacket::~SrsRtpAudioPacket()
+{
+    srs_freep(pkt);
+}
+
+SrsRtpPacket2* SrsRtpAudioPacket::detach()
+{
+    SrsRtpPacket2* p = pkt;
+    pkt = NULL;
+    return p;
+}
+
 SrsRtpAudioQueue::SrsRtpAudioQueue(int capacity)
 {
-    queue_ = new SrsRtpRingBuffer<SrsRtpPacket2*>(capacity);
+    queue_ = new SrsRtpRingBuffer<SrsRtpAudioPacket*>(capacity);
 }
 
 SrsRtpAudioQueue::~SrsRtpAudioQueue()
@@ -287,7 +304,9 @@ srs_error_t SrsRtpAudioQueue::consume(SrsRtpNackForReceiver* nack, SrsRtpPacket2
     }
 
     // Save packet at the position seq.
-    queue_->set(seq, pkt);
+    SrsRtpAudioPacket* apkt = new SrsRtpAudioPacket();
+    apkt->pkt = pkt;
+    queue_->set(seq, apkt);
 
     return err;
 }
@@ -300,14 +319,14 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
     // If nack disabled, we ignore any empty packet.
     if (!nack) {
         for (; next != queue_->end; ++next) {
-            SrsRtpPacket2* pkt = queue_->at(next);
+            SrsRtpAudioPacket* pkt = queue_->at(next);
             if (pkt) {
-                frames.push_back(pkt);
+                frames.push_back(pkt->detach());
             }
         }
     } else {
         for (; next != queue_->end; ++next) {
-            SrsRtpPacket2* pkt = queue_->at(next);
+            SrsRtpAudioPacket* pkt = queue_->at(next);
 
             // TODO: FIXME: Should not wait for NACK packets.
             // Not found or in NACK, stop collecting frame.
@@ -316,15 +335,12 @@ void SrsRtpAudioQueue::collect_frames(SrsRtpNackForReceiver* nack, vector<SrsRtp
                 break;
             }
 
-            frames.push_back(pkt);
+            frames.push_back(pkt->detach());
         }
     }
 
     // Reap packets from begin to next.
     if (next != queue_->begin) {
-        // Reset the range of packets to NULL in buffer.
-        queue_->reset(queue_->begin, next);
-
         srs_verbose("RTC collect audio [%u, %u, %u]", queue_->begin, next, queue_->end);
         queue_->advance_to(next);
     }
@@ -562,9 +578,6 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
     }
 
     if (next != queue_->begin) {
-        // Reset the range of packets to NULL in buffer.
-        queue_->reset(queue_->begin, next);
-
         srs_verbose("RTC collect video [%u, %u, %u]", queue_->begin, next, queue_->end);
         queue_->advance_to(next);
     }
@@ -572,10 +585,6 @@ void SrsRtpVideoQueue::collect_frame(SrsRtpNackForReceiver* nack, SrsRtpPacket2*
     // Merge packets to one packet.
     covert_frame(frame, ppkt);
 
-    for (int i = 0; i < (int)frame.size(); i++) {
-        SrsRtpVideoPacket* pkt = frame[i];
-        srs_freep(pkt);
-    }
     return;
 }
 
@@ -611,12 +620,13 @@ void SrsRtpVideoQueue::covert_frame(std::vector<SrsRtpVideoPacket*>& frame, SrsR
     // TODO: FIXME: Should covert to multiple NALU RTP packet to avoid copying.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->rtp_header = head->rtp_header;
-    pkt->padding = head->padding;
 
     SrsRtpFUAPayload2* head_payload = dynamic_cast<SrsRtpFUAPayload2*>(head->payload);
     pkt->nalu_type = head_payload->nalu_type;
 
-    SrsRtpRawPayload* payload = pkt->reuse_raw();
+    SrsRtpRawPayload* payload = new SrsRtpRawPayload();
+    pkt->payload = payload;
+
     payload->nn_payload = nn_nalus + 1;
     payload->payload = new char[payload->nn_payload];
 

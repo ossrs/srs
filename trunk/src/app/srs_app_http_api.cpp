@@ -49,6 +49,7 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter* w, string callback, string data)
@@ -1492,6 +1493,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
     return err;
 }
 
+#ifdef SRS_SIMULATOR
 SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsRtcServer* server)
 {
     server_ = server;
@@ -1548,6 +1550,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     return srs_success;
 }
+#endif
 #endif
 
 SrsGoApiClients::SrsGoApiClients()

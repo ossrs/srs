@@ -51,7 +51,20 @@ extern bool srs_string_is_rtmp(std::string url);
 extern bool srs_is_digit_number(std::string str);
 
 // Get local ip, fill to @param ips
-extern std::vector<std::string>& srs_get_local_ips();
+struct SrsIPAddress
+{
+    // The network interface name, such as eth0, en0, eth1.
+    std::string ifname;
+    // The IP v4 or v6 address.
+    std::string ip;
+    // Whether the ip is IPv4 address.
+    bool is_ipv4;
+    // Whether the ip is internet public IP address.
+    bool is_internet;
+    // Whether the ip is loopback, such as 127.0.0.1
+    bool is_loopback;
+};
+extern std::vector<SrsIPAddress*>& srs_get_local_ips();
 
 // Get local public ip, empty string if no public internet address found.
 extern std::string srs_get_public_internet_address();

@@ -41,7 +41,7 @@ using namespace std;
 #include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
 #ifdef SRS_RTC
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #endif
 
 SrsMessageHeader::SrsMessageHeader()
@@ -301,6 +301,18 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
     this->size = ptr->size;
     
     return err;
+}
+
+void SrsSharedPtrMessage::wrap(char* payload, int size)
+{
+    srs_assert(!ptr);
+    ptr = new SrsSharedPtrPayload();
+
+    ptr->payload = payload;
+    ptr->size = size;
+
+    this->payload = ptr->payload;
+    this->size = ptr->size;
 }
 
 int SrsSharedPtrMessage::count()

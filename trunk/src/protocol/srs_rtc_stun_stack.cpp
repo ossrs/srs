@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_stun_stack.hpp>
+#include <srs_rtc_stun_stack.hpp>
 
 using namespace std;
 

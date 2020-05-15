@@ -80,6 +80,8 @@ SRS_VALGRIND=NO
 SRS_BUILD_TAG=
 # Whether do "make clean" when configure.
 SRS_CLEAN=YES
+# Whether enable RTC simulate API.
+SRS_SIMULATOR=NO
 #
 ################################################################
 # presets
@@ -200,6 +202,7 @@ Experts:
   --without-clean                   Configure SRS and never make clean even possible.
   --detect-sendmmsg=on|off          Whether detect the sendmmsg API.
   --has-sendmmsg=on|off             Whether OS supports sendmmsg API.
+  --simulator=on|off                Whether enable RTC network simulator.
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
@@ -315,6 +318,7 @@ function parse_user_option() {
         --with-rtc)                     SRS_RTC=YES                 ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          if [[ $value == off ]]; then SRS_RTC=NO; else SRS_RTC=YES; fi    ;;
+        --simulator)                    if [[ $value == off ]]; then SRS_SIMULATOR=NO; else SRS_SIMULATOR=YES; fi    ;;
 
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --without-gb28181)              SRS_GB28181=NO              ;;
@@ -638,6 +642,7 @@ function regenerate_options() {
     if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
     if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
+    if [ $SRS_SIMULATOR = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=off"; fi
     if [ $SRS_GB28181 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=off"; fi
     if [ $SRS_NASM = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=off"; fi
     if [ $SRS_SRTP_ASM = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=off"; fi

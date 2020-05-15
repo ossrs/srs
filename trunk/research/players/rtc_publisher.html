@@ -51,6 +51,9 @@
     <label></label>
     SessionID: <span id='sessionid'></span>
 
+    <label></label>
+    Simulator: <a href='#' id='simulator-drop'>Drop</a>
+
     <footer>
         <p></p>
         <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2020</a></p>
@@ -128,7 +131,10 @@
                         if (data.code) {
                             reject(data); return;
                         }
+
+                        var simulator = schema + '//' + urlObject.server + ':' + port + '/rtc/v1/nack/';
                         $('#sessionid').html(data.sessionid);
+                        $('#simulator-drop').attr('href', simulator + '?drop=1&username=' + data.sessionid);
                         resolve(data.sdp);
                     }).fail(function(reason){
                         reject(reason);

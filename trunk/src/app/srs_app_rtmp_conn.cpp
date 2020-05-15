@@ -81,13 +81,13 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
 
 srs_error_t SrsSimpleRtmpClient::connect_app()
 {
-    std::vector<std::string> ips = srs_get_local_ips();
+    std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
     assert(_srs_config->get_stats_network() < (int)ips.size());
-    std::string local_ip = ips[_srs_config->get_stats_network()];
+    SrsIPAddress* local_ip = ips[_srs_config->get_stats_network()];
     
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
     
-    return do_connect_app(local_ip, debug_srs_upnode);
+    return do_connect_app(local_ip->ip, debug_srs_upnode);
 }
 
 SrsClientInfo::SrsClientInfo()

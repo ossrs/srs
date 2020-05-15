@@ -125,6 +125,7 @@
  * @remark this improve performance for large connectios.
  * @see https://github.com/ossrs/srs/issues/251
  */
+// TODO: FIXME: Should always enable it.
 #define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // For RTMP, use larger wait queue.
@@ -212,6 +213,7 @@
 #define SRS_PERF_RTC_GSO_MAX 64
 
 // For RTC, the max count of RTP packets we process in one loop.
+// TODO: FIXME: Remove it.
 #define SRS_PERF_RTC_RTP_PACKETS 1024
 
 #endif

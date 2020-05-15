@@ -62,9 +62,6 @@ class SrsBuffer;
 #ifdef SRS_HDS
 class SrsHds;
 #endif
-#ifdef SRS_RTC
-class SrsRtcPublisher;
-#endif
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -153,13 +150,12 @@ public:
     // Enqueue the message, the timestamp always monotonically.
     // @param msg, the msg to enqueue, user never free it whatever the return code.
     // @param is_overflow, whether overflow and shrinked. NULL to ignore.
-    // @remark If pass_timestamp, we never shrink and never care about the timestamp or duration.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL, bool pass_timestamp = false);
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     // Get packets in consumer queue.
     // @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
     // @count the count in array, output param.
     // @max_count the max count to dequeue, must be positive.
-    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count, bool pass_timestamp = false);
+    virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     // Dumps packets to consumer, use specified args.
     // @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
     virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
@@ -186,8 +182,18 @@ public:
     virtual void wakeup() = 0;
 };
 
+// Enqueue the packet to consumer.
+class ISrsConsumerQueue
+{
+public:
+    ISrsConsumerQueue();
+    virtual ~ISrsConsumerQueue();
+public:
+    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag) = 0;
+};
+
 // The consumer for SrsSource, that is a play client.
-class SrsConsumer : public ISrsWakable
+class SrsConsumer : virtual public ISrsWakable, virtual public ISrsConsumerQueue
 {
 private:
     SrsRtmpJitter* jitter;
@@ -206,17 +212,10 @@ private:
     int mw_min_msgs;
     srs_utime_t mw_duration;
 #endif
-private:
-    // For RTC, we never use jitter to correct timestamp.
-    // But we should not change the atc or time_jitter for source or RTMP.
-    // @remark In this mode, we also never check the queue by timstamp, but only by count.
-    bool pass_timestamp;
 public:
     SrsConsumer(SrsSource* s, SrsConnection* c);
     virtual ~SrsConsumer();
 public:
-    // Use pass timestamp mode.
-    void enable_pass_timestamp();
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
     // when source id changed, notice client to print.
@@ -347,10 +346,6 @@ private:
 private:
     // The format, codec information.
     SrsRtmpFormat* format;
-#ifdef SRS_RTC
-    // rtc handler
-    SrsRtc* rtc;
-#endif
     // hls handler.
     SrsHls* hls;
     // The DASH encoder.
@@ -450,7 +445,7 @@ public:
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
-    virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+    virtual srs_error_t dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
     // Previous exists sequence header.
     virtual SrsSharedPtrMessage* previous_vsh();
@@ -493,13 +488,26 @@ public:
 private:
     virtual srs_error_t do_cycle();
 public:
-    // when system exit, destroy the sources,
+    // when system exit, destroy th`e sources,
     // For gmc to analysis mem leaks.
     virtual void destroy();
 };
 
 // Global singleton instance.
 extern SrsSourceManager* _srs_sources;
+
+// For two sources to bridge with each other.
+class ISrsSourceBridger
+{
+public:
+    ISrsSourceBridger();
+    virtual ~ISrsSourceBridger();
+public:
+    virtual srs_error_t on_publish() = 0;
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video) = 0;
+    virtual void on_unpublish() = 0;
+};
 
 // live streaming source.
 class SrsSource : public ISrsReloadHandler
@@ -534,6 +542,8 @@ private:
     int64_t last_packet_time;
     // The event handler.
     ISrsSourceHandler* handler;
+    // The source bridger for other source.
+    ISrsSourceBridger* bridger;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -549,10 +559,6 @@ private:
     // The last die time, when all consumers quit and no publisher,
     // We will remove the source when source die.
     srs_utime_t die_at;
-#ifdef SRS_RTC
-private:
-    SrsRtcPublisher* rtc_publisher_;
-#endif
 public:
     SrsSource();
     virtual ~SrsSource();
@@ -564,6 +570,8 @@ public:
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
+    // Bridge to other source, forward packets to it.
+    void bridge_to(ISrsSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -619,17 +627,6 @@ public:
     virtual void on_edge_proxy_unpublish();
 public:
     virtual std::string get_curr_origin();
-#ifdef SRS_RTC
-public:
-    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
-    SrsMetaCache* cached_meta();
-    // Get and set the publisher, passed to consumer to process requests such as PLI.
-    SrsRtcPublisher* rtc_publisher();
-    void set_rtc_publisher(SrsRtcPublisher* v);
-    // When got RTC audio message, which is encoded in opus.
-    // TODO: FIXME: Merge with on_audio.
-    srs_error_t on_rtc_audio(SrsSharedPtrMessage* audio);
-#endif
 };
 
 #endif
