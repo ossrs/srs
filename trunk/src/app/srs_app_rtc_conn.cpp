@@ -707,7 +707,7 @@ srs_error_t SrsRtcPlayer::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -741,7 +741,7 @@ srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, vector<SrsRtpPacke
     return err;
 }
 
-srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -811,7 +811,7 @@ srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -905,7 +905,7 @@ srs_error_t SrsRtcPlayer::send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtc
 }
 
 // TODO: FIXME: We can gather and pad audios, because they have similar size.
-srs_error_t SrsRtcPlayer::send_packets_gso(vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::send_packets_gso(const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 

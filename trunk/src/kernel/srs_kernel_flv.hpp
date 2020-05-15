@@ -303,24 +303,6 @@ private:
         int size;
         // The reference count
         int shared_count;
-#ifdef SRS_RTC
-    // TODO: FIXME: Remove it.
-    public:
-        // For RTC video, we need to know the NALU structures,
-        // because the RTP STAP-A or FU-A based on NALU.
-        SrsSample* samples;
-        int nn_samples;
-        // For RTC video, whether NALUs has IDR.
-        bool has_idr;
-    public:
-        // For RTC audio, we may need to transcode AAC to opus,
-        // so there must be an extra payloads, which is transformed from payload.
-        SrsSample* extra_payloads;
-        int nn_extra_payloads;
-        // The max size payload in extras.
-        // @remark For GSO to fast guess the best padding.
-        int nn_max_extra_payloads;
-#endif
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();
@@ -365,24 +347,6 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
-public:
-#ifdef SRS_RTC
-    // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
-    // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
-    void set_extra_payloads(SrsSample* payloads, int nn_payloads);
-    int nn_extra_payloads();
-    SrsSample* extra_payloads();
-    // The max extra payload size.
-    void set_max_extra_payload(int v);
-    int nn_max_extra_payloads();
-    // Whether samples has idr.
-    bool has_idr();
-    void set_has_idr(bool v);
-    // Set samples, each sample points to the address of payload.
-    void set_samples(SrsSample* samples, int nn_samples);
-    int nn_samples();
-    SrsSample* samples();
-#endif
 };
 
 // Transmux RTMP packets to FLV stream.

@@ -614,14 +614,15 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "format consume video");
     }
 
-    if ((err = filter(msg, format)) != srs_success) {
+    bool has_idr = false;
+    vector<SrsSample*> samples;
+    if ((err = filter(msg, format, has_idr, samples)) != srs_success) {
         return srs_error_wrap(err, "filter video");
     }
-
-    int nn_samples = format->video->nb_samples;
+    int nn_samples = (int)samples.size();
 
     // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
-    if (msg->has_idr()) {
+    if (has_idr) {
         SrsRtpPacket2* pkt = NULL;
         SrsAutoFree(SrsRtpPacket2, pkt);
 
@@ -637,14 +638,14 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
     vector<SrsRtpPacket2*> pkts;
     if (merge_nalus && nn_samples > 1) {
-        if ((err = package_nalus(msg, pkts)) != srs_success) {
+        if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
             return srs_error_wrap(err, "package nalus as one");
         }
     }
 
     // By default, we package each NALU(sample) to a RTP or FUA packet.
     for (int i = 0; i < nn_samples; i++) {
-        SrsSample* sample = msg->samples() + i;
+        SrsSample* sample = samples[i];
 
         // We always ignore bframe here, if config to discard bframe,
         // the bframe flag will not be set.
@@ -670,13 +671,13 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     return consume_packets(pkts);
 }
 
-srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* format)
+srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, vector<SrsSample*>& samples)
 {
     srs_error_t err = srs_success;
 
     // If IDR, we will insert SPS/PPS before IDR frame.
     if (format->video && format->video->has_idr) {
-        msg->set_has_idr(true);
+        has_idr = true;
     }
 
     // Update samples to shared frame.
@@ -693,14 +694,9 @@ srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* f
                 continue;
             }
         }
-    }
 
-    if (format->video->nb_samples <= 0) {
-        return err;
+        samples.push_back(sample);
     }
-
-    // TODO: FIXME: Directly covert samples to RTP packets.
-    msg->set_samples(format->video->samples, format->video->nb_samples);
 
     return err;
 }
@@ -764,14 +760,14 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, vector<SrsRtpPacket2*>& pkts)
+srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const vector<SrsSample*>& samples, vector<SrsRtpPacket2*>& pkts)
 {
     srs_error_t err = srs_success;
 
     SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
 
-    for (int i = 0; i < msg->nn_samples(); i++) {
-        SrsSample* sample = msg->samples() + i;
+    for (int i = 0; i < (int)samples.size(); i++) {
+        SrsSample* sample = samples[i];
 
         // We always ignore bframe here, if config to discard bframe,
         // the bframe flag will not be set.

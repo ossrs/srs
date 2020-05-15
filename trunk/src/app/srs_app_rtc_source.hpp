@@ -179,9 +179,9 @@ private:
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
-    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format);
+    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
     srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);
