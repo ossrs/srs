@@ -134,7 +134,7 @@ function show_help() {
 Presets:
   --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
   --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
-  --mips                    Enable crossbuild for MIPS
+  --osx                     Enable build for OSX/Darwin AppleOS.
 
 Features:
   -h, --help                Print this message and exit 0.
@@ -175,7 +175,6 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static                  Whether add '-static' to link options.
   --arm                     Enable crossbuild for ARM.
-  --mips                    Enable crossbuild for MIPS.
   --cc=<CC>                 Use c compiler CC, default is gcc.
   --cxx=<CXX>               Use c++ compiler CXX, default is g++.
   --ar=<AR>                 Use archive tool AR, default is ar.

@@ -35,13 +35,14 @@ class SrsRtpQueue;
 class SrsRtpRingBuffer;
 
 // The "distance" between two uint16 number, for example:
-//      distance(low=3, high=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
-//      distance(low=3, high=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
-//      distance(low=65532, high=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
+//      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
+//      distance(prev_value=3, value=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
+//      distance(prev_value=65532, value=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
 // For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
-inline int16_t srs_rtp_seq_distance(const uint16_t& low, const uint16_t& high)
+// @see https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+inline int16_t srs_rtp_seq_distance(const uint16_t& prev_value, const uint16_t& value)
 {
-    return (int16_t)(high - low);
+    return (int16_t)(value - prev_value);
 }
 
 // For UDP, the packets sequence may present as bellow:
@@ -123,7 +124,7 @@ class SrsRtpNackForReceiver
 {
 private:
     struct SeqComp {
-        bool operator()(const uint16_t& low, const uint16_t& high) const;
+        bool operator()(const uint16_t& pre_value, const uint16_t& value) const;
     };
 private:
     // Nack queue, seq order, oldest to newest.

@@ -139,6 +139,26 @@ bool srs_net_device_is_internet(const sockaddr* addr)
         if (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr)) {
            return false;
         }
+
+        // Others.
+        if (IN6_IS_ADDR_MULTICAST(&a6->sin6_addr)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_MC_NODELOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_MC_LINKLOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_MC_SITELOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_MC_ORGLOCAL(&a6->sin6_addr)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_MC_GLOBAL(&a6->sin6_addr)) {
+            return false;
+        }
     }
     
     return true;
@@ -287,7 +307,7 @@ vector<SrsIPAddress*>& srs_get_local_ips()
 
 std::string _public_internet_address;
 
-string srs_get_public_internet_address()
+string srs_get_public_internet_address(bool ipv4_only)
 {
     if (!_public_internet_address.empty()) {
         return _public_internet_address;
@@ -301,6 +321,9 @@ string srs_get_public_internet_address()
         if (!ip->is_internet) {
             continue;
         }
+        if (ipv4_only && !ip->is_ipv4) {
+            continue;
+        }
 
         srs_warn("use public address as ip: %s, ifname=%s", ip->ip.c_str(), ip->ifname.c_str());
         _public_internet_address = ip->ip;
@@ -311,6 +334,9 @@ string srs_get_public_internet_address()
     for (int i = 0; i < (int)ips.size(); i++) {
         SrsIPAddress* ip = ips[i];
         if (ip->is_loopback) {
+            continue;
+        }
+        if (ipv4_only && !ip->is_ipv4) {
             continue;
         }
 

@@ -59,6 +59,7 @@ class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
 
 // TODO: FIXME: Merge with srs_rtp_seq_distance
+// @see https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
 bool SrsSeqIsNewer(uint16_t current_sn, uint16_t last_sn);
 bool SrsSeqIsRoolback(uint16_t current_sn, uint16_t last_sn);
 int32_t SrsSeqDistance(uint16_t current_sn, uint16_t last_sn);

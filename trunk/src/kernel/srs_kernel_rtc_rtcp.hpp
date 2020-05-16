@@ -48,7 +48,6 @@ enum SrsRtcpType {
     SrsRtcpType_xr = 207,
 };
 
-
 // RTCP Header, @see http://tools.ietf.org/html/rfc3550#section-6.1
 struct SrsRtcpHeader
 {
