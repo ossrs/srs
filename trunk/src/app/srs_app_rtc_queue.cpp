@@ -163,10 +163,16 @@ SrsNackOption::SrsNackOption()
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 400 * SRS_UTIME_MILLISECONDS;
     //TODO: FIXME: audio and video using diff nack strategy
-    // audio_max_retries = 2
-    // video_max_retries = 4
-    // nack_interval = 100ms
-    // first_nack_interval = 10ms
+    // janus nack option:
+    // video:
+    // max_alive_time = 1 * SRS_UTIME_SECONDS
+    // max_count = 15;
+    // nack_interval = 50 * SRS_UTIME_MILLISECONDS
+    // 
+    // audio:
+    // DefaultRequestNackDelay = 30; //ms
+    // DefaultLostPacketLifeTime = 600; //ms
+    // FirstRequestInterval = 50;//ms
 }
 
 SrsRtpNackInfo::SrsRtpNackInfo()
@@ -241,9 +247,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
         SrsRtpNackInfo& nack_info = iter->second;
 
         int alive_time = now - nack_info.generate_time_;
-        // TODO: delete max_alive_time 
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
-            // TODO: advace_to
             rtp_->notify_drop_seq(seq);
             queue_.erase(iter++);
             continue;
