@@ -69,7 +69,7 @@ static void skip_first_spaces(std::string& str)
     }
 }
 
-srs_error_t parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param)
+srs_error_t srs_parse_h264_fmtp(const std::string& fmtp, H264SpecificParam& h264_param)
 {
     srs_error_t err = srs_success;
     std::vector<std::string> vec = split_str(fmtp, ";");

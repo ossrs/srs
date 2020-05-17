@@ -76,6 +76,7 @@ const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
 
+// TODO: FIXME: Move to utility.
 extern std::string gen_random_str(int len);
 
 class SrsNtp

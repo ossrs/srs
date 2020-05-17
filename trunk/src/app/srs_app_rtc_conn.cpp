@@ -65,6 +65,7 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 
+// TODO: FIXME: Move to utility.
 string gen_random_str(int len)
 {
     static string random_table = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";

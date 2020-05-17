@@ -38,6 +38,7 @@
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_utility.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_api.hpp>
 
 using namespace std;
 
