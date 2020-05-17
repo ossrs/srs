@@ -234,7 +234,7 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
-    srs_utime_t now = srs_get_system_time();
+    srs_utime_t now = srs_update_system_time();
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_interval / 2) {
         return;
