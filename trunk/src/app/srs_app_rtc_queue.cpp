@@ -123,8 +123,9 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
         nack_first = seq;
         nack_last = begin;
         begin = seq;
+
+        // TODO: FIXME: Maybe should support startup drop.
         return true;
-        
         // When startup, we may receive packets in chaos order.
         // Because we don't know the ISN(initiazlie sequence number), the first packet
         // we received maybe no the first packet client sent.
@@ -162,8 +163,8 @@ SrsNackOption::SrsNackOption()
     max_alive_time = 1 * SRS_UTIME_SECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 50 * SRS_UTIME_MILLISECONDS;
+
     //TODO: FIXME: audio and video using diff nack strategy
-    // janus nack option:
     // video:
     // max_alive_time = 1 * SRS_UTIME_SECONDS
     // max_count = 15;
@@ -234,7 +235,9 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
+    // TODO: FIXME: Use packet as tick count, not clock.
     srs_utime_t now = srs_update_system_time();
+
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_interval / 2) {
         return;
@@ -276,6 +279,7 @@ void SrsRtpNackForReceiver::update_rtt(int rtt)
 }
 
 #define PACKET_CLEAR_TIMEOUT (3000 * SRS_UTIME_MILLISECONDS)
+
 void SrsRtpNackForReceiver::remove_timeout_packets(void) 
 {
     srs_utime_t now = srs_get_system_time();
