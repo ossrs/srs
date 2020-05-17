@@ -253,27 +253,27 @@ private:
     std::map<uint16_t, srs_utime_t> recv_packes_;
     std::set<uint16_t, SrsSeqCompareLess> recv_sns_;
 
-    typedef struct srs_rtcp_twcc_chunk {
+    struct SrsRtcpTWCCChunk {
         uint8_t delta_sizes[kTwccFbMaxBitElements];
         uint16_t size;
         bool all_same;
         bool has_large_delta;
-    }srs_rtcp_twcc_chunk_t;
+    };
 
     int pkt_len;
 
 private:
     void clear();
     srs_utime_t calculate_delta_us(srs_utime_t ts, srs_utime_t last);
-    srs_error_t process_pkt_chunk(srs_rtcp_twcc_chunk_t& chunk, int delta_size);
-    bool can_add_to_chunk(srs_rtcp_twcc_chunk_t& chunk, int delta_size);
-    void add_to_chunk(srs_rtcp_twcc_chunk_t& chunk, int delta_size);
-    srs_error_t encode_chunk(srs_rtcp_twcc_chunk_t& chunk);
-    srs_error_t encode_chunk_run_length(srs_rtcp_twcc_chunk_t& chunk);
-    srs_error_t encode_chunk_one_bit(srs_rtcp_twcc_chunk_t& chunk);
-    srs_error_t encode_chunk_two_bit(srs_rtcp_twcc_chunk_t& chunk, size_t size, bool shift);
-    void reset_chunk(srs_rtcp_twcc_chunk_t& chunk);
-    srs_error_t encode_remaining_chunk(srs_rtcp_twcc_chunk_t& chunk);
+    srs_error_t process_pkt_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
+    bool can_add_to_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
+    void add_to_chunk(SrsRtcpTWCCChunk& chunk, int delta_size);
+    srs_error_t encode_chunk(SrsRtcpTWCCChunk& chunk);
+    srs_error_t encode_chunk_run_length(SrsRtcpTWCCChunk& chunk);
+    srs_error_t encode_chunk_one_bit(SrsRtcpTWCCChunk& chunk);
+    srs_error_t encode_chunk_two_bit(SrsRtcpTWCCChunk& chunk, size_t size, bool shift);
+    void reset_chunk(SrsRtcpTWCCChunk& chunk);
+    srs_error_t encode_remaining_chunk(SrsRtcpTWCCChunk& chunk);
 
 public:
     SrsRtcpTWCC(uint32_t sender_ssrc = 0);
@@ -308,11 +308,11 @@ public:
 class SrsRtcpNack : public SrsRtcpCommon
 {
 private:
-    typedef struct pid_blp_s {  
+    struct SrsPidBlp {
         uint16_t pid;
         uint16_t blp;
         bool in_use;
-    }pid_blp_t;
+    };
 
     uint32_t sender_ssrc_;
     uint32_t media_ssrc_;

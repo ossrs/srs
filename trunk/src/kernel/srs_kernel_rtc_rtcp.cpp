@@ -575,7 +575,7 @@ srs_utime_t SrsRtcpTWCC::calculate_delta_us(srs_utime_t ts, srs_utime_t last)
     return delta_us;
 }
 
-bool SrsRtcpTWCC::can_add_to_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, int delta_size)
+bool SrsRtcpTWCC::can_add_to_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk, int delta_size)
 {
 	srs_verbose("can_add %d chunk->size %u delta_sizes %d %d %d %d %d %d %d %d %d %d %d %d %d %d all_same %d has_large_delta %d",
 	    delta_size, chunk.size, chunk.delta_sizes[0], chunk.delta_sizes[1], chunk.delta_sizes[2], chunk.delta_sizes[3],
@@ -599,7 +599,7 @@ bool SrsRtcpTWCC::can_add_to_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, in
     return false;
 }
 
-void SrsRtcpTWCC::add_to_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, int delta_size)
+void SrsRtcpTWCC::add_to_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk, int delta_size)
 {
     if (chunk.size < kTwccFbMaxBitElements) {
         chunk.delta_sizes[chunk.size] = delta_size;
@@ -610,7 +610,7 @@ void SrsRtcpTWCC::add_to_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, int de
     chunk.has_large_delta = chunk.has_large_delta || delta_size >= kTwccFbLargeRecvDeltaBytes;
 }
 
-srs_error_t SrsRtcpTWCC::encode_chunk_run_length(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
+srs_error_t SrsRtcpTWCC::encode_chunk_run_length(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk)
 {
     if (!chunk.all_same || chunk.size > kTwccFbMaxRunLength) {
         return srs_error_new(ERROR_RTC_RTCP, "invalid run all_same:%d, size:%d", chunk.all_same, chunk.size);
@@ -624,7 +624,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk_run_length(SrsRtcpTWCC::srs_rtcp_twcc_chun
     return srs_success;
 }
 
-srs_error_t SrsRtcpTWCC::encode_chunk_one_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
+srs_error_t SrsRtcpTWCC::encode_chunk_one_bit(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk)
 {
     int i = 0;
     if (chunk.has_large_delta) {
@@ -643,7 +643,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk_one_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t
     return srs_success;
 }
     
-srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, size_t size, bool shift)
+srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk, size_t size, bool shift)
 {
     unsigned int i = 0;
     uint8_t delta_size = 0;
@@ -671,7 +671,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t
     return srs_success;
 }
 
-void SrsRtcpTWCC::reset_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
+void SrsRtcpTWCC::reset_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk)
 {
     chunk.size = 0;
 
@@ -679,7 +679,7 @@ void SrsRtcpTWCC::reset_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
     chunk.has_large_delta = false;
 }
 
-srs_error_t SrsRtcpTWCC::encode_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
+srs_error_t SrsRtcpTWCC::encode_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk)
 {
     srs_error_t err = srs_success;
 
@@ -710,7 +710,7 @@ srs_error_t SrsRtcpTWCC::encode_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
     return err;
 }
 
-srs_error_t SrsRtcpTWCC::encode_remaining_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk)
+srs_error_t SrsRtcpTWCC::encode_remaining_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk)
 {
     if (chunk.all_same) {
         return encode_chunk_run_length(chunk);
@@ -721,7 +721,7 @@ srs_error_t SrsRtcpTWCC::encode_remaining_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk
     return encode_chunk_one_bit(chunk);
 }
 
-srs_error_t SrsRtcpTWCC::process_pkt_chunk(SrsRtcpTWCC::srs_rtcp_twcc_chunk_t& chunk, int delta_size)
+srs_error_t SrsRtcpTWCC::process_pkt_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk, int delta_size)
 {
     srs_error_t err = srs_success;
 
@@ -764,7 +764,7 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 
     do {
         // encode chunk
-        SrsRtcpTWCC::srs_rtcp_twcc_chunk_t chunk;
+        SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
         for(; it_sn != recv_sns_.end(); ++it_sn) {
             uint16_t current_sn = *it_sn;
             // calculate delta
@@ -920,9 +920,9 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
         return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
     }
 
-    vector<pid_blp_t> chunks;
+    vector<SrsPidBlp> chunks;
     do {
-        pid_blp_t chunk;
+        SrsPidBlp chunk;
         chunk.in_use = false;
         uint16_t pid = 0;
         for(set<uint16_t, SrsSeqCompareLess>::iterator it = lost_sns_.begin(); it != lost_sns_.end(); ++it) {
@@ -955,7 +955,7 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
         }
         buffer->write_4bytes(sender_ssrc_);
         buffer->write_4bytes(media_ssrc_);
-        for(vector<pid_blp_t>::iterator it_chunk = chunks.begin(); it_chunk != chunks.end(); it_chunk++) {
+        for(vector<SrsPidBlp>::iterator it_chunk = chunks.begin(); it_chunk != chunks.end(); it_chunk++) {
             buffer->write_2bytes(it_chunk->pid);
             buffer->write_2bytes(it_chunk->blp);
         }
