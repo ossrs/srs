@@ -380,6 +380,7 @@ srs_error_t SrsRtcDtls::srtp_recv_init()
     memcpy(key, client_key.data(), client_key.size());
     policy.key = key;
 
+    // TODO: FIXME: Wrap error code.
     if (srtp_create(&srtp_recv, &policy) != srtp_err_status_ok) {
         srs_freepa(key);
         return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create failed");
@@ -396,6 +397,7 @@ srs_error_t SrsRtcDtls::protect_rtp(char* out_buf, const char* in_buf, int& nb_o
 
     if (srtp_send) {
         memcpy(out_buf, in_buf, nb_out_buf);
+        // TODO: FIXME: Wrap error code.
         if (srtp_protect(srtp_send, out_buf, &nb_out_buf) != 0) {
             return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
         }
@@ -415,6 +417,7 @@ srs_error_t SrsRtcDtls::protect_rtp2(void* rtp_hdr, int* len_ptr)
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
 
+    // TODO: FIXME: Wrap error code.
     if (srtp_protect(srtp_send, rtp_hdr, len_ptr) != 0) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
@@ -428,8 +431,10 @@ srs_error_t SrsRtcDtls::unprotect_rtp(char* out_buf, const char* in_buf, int& nb
 
     if (srtp_recv) {
         memcpy(out_buf, in_buf, nb_out_buf);
-        if (srtp_unprotect(srtp_recv, out_buf, &nb_out_buf) != 0) {
-            return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
+
+        srtp_err_status_t r0 = srtp_unprotect(srtp_recv, out_buf, &nb_out_buf);
+        if (r0 != srtp_err_status_ok) {
+            return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "unprotect r0=%u", r0);
         }
 
         return err;
@@ -444,6 +449,7 @@ srs_error_t SrsRtcDtls::protect_rtcp(char* out_buf, const char* in_buf, int& nb_
 
     if (srtp_send) {
         memcpy(out_buf, in_buf, nb_out_buf);
+        // TODO: FIXME: Wrap error code.
         if (srtp_protect_rtcp(srtp_send, out_buf, &nb_out_buf) != 0) {
             return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
         }
@@ -460,6 +466,7 @@ srs_error_t SrsRtcDtls::unprotect_rtcp(char* out_buf, const char* in_buf, int& n
 
     if (srtp_recv) {
         memcpy(out_buf, in_buf, nb_out_buf);
+        // TODO: FIXME: Wrap error code.
         if (srtp_unprotect_rtcp(srtp_recv, out_buf, &nb_out_buf) != srtp_err_status_ok) {
             return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
         }
@@ -2397,8 +2404,13 @@ srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
     int nb_unprotected_buf = nb_data;
     char* unprotected_buf = new char[kRtpPacketSize];
     if ((err = dtls_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+        // We try to decode the RTP header for more detail error informations.
+        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
+        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
+            h0.get_sequence(), h0.get_timestamp(), h0.get_ssrc(), h0.get_padding(), nb_data - b0.pos());
+
         srs_freepa(unprotected_buf);
-        return srs_error_wrap(err, "rtp unprotect failed");
+        return err;
     }
 
     if (blackhole && blackhole_addr && blackhole_stfd) {
