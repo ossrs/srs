@@ -99,6 +99,9 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
 
     // Normal sequence, seq follows high_.
     if (srs_rtp_seq_distance(end, seq) >= 0) {
+        //TODO: FIXME: if diff_upper > limit_max_size clear?
+        // int16_t diff_upper = srs_rtp_seq_distance(end, seq)
+        // notify_nack_list_full()
         nack_first = end;
         nack_last = seq;
 
@@ -109,16 +112,24 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
             ++nn_seq_flip_backs;
         }
         end = seq + 1;
+        // TODO: FIXME: check whether is neccessary?
+        // srs_rtp_seq_distance(begin, end) > max_size
+        // advance_to(), srs_rtp_seq_distance(begin, end) < max_size;
         return true;
     }
 
     // Out-of-order sequence, seq before low_.
     if (srs_rtp_seq_distance(seq, begin) > 0) {
+        nack_first = seq;
+        nack_last = begin;
+        begin = seq;
+        return true;
+        
         // When startup, we may receive packets in chaos order.
         // Because we don't know the ISN(initiazlie sequence number), the first packet
         // we received maybe no the first packet client sent.
         // @remark We only log a warning, because it seems ok for publisher.
-        return false;
+        //return false;
     }
 
     return true;
@@ -174,6 +185,7 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     max_queue_size_ = queue_size;
     rtp_ = rtp;
     pre_check_time_ = 0;
+    last_remove_packet_time_ = -1;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
         max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
@@ -216,8 +228,7 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
-    //TODO: use get_system_time to udpate  
-    srs_utime_t now = srs_update_system_time();
+    srs_utime_t now = srs_get_system_time();
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_interval / 2) {
         return;
@@ -260,3 +271,20 @@ void SrsRtpNackForReceiver::update_rtt(int rtt)
     opts_.nack_interval = rtt_;
 }
 
+#define PACKET_CLEAR_TIMEOUT (3000 * SRS_UTIME_MILLISECONDS)
+void SrsRtpNackForReceiver::remove_timeout_packets(void) 
+{
+    srs_utime_t now = srs_get_system_time();
+    if (last_remove_packet_time_ == -1) {
+        last_remove_packet_time_ = now;
+        return;
+    }
+
+    srs_utime_t elapsed_time = now - last_remove_packet_time_;
+    last_remove_packet_time_ = now;
+    
+    if (elapsed_time > PACKET_CLEAR_TIMEOUT) {
+        rtp_->notify_nack_list_full();
+        queue_.clear();
+    }
+}

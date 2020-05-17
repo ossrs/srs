@@ -138,6 +138,10 @@ public:
     void get_nack_seqs(std::vector<uint16_t>& seqs);
 public:
     void update_rtt(int rtt);
+private:
+    srs_utime_t last_remove_packet_time_;
+public:
+    void remove_timeout_packets(void);
 };
 
 #endif
