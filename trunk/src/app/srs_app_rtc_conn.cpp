@@ -1656,9 +1656,38 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
     return err;
 }
 
-srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
+srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
+
+    // For NACK simulator, drop packet.
+    if (nn_simulate_nack_drop) {
+        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
+        simulate_drop_packet(&h0, nb_data);
+        return err;
+    }
+
+    // Decrypt the cipher to plaintext RTP data.
+    int nb_unprotected_buf = nb_data;
+    char* unprotected_buf = new char[kRtpPacketSize];
+    if ((err = session_->dtls_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+        // We try to decode the RTP header for more detail error informations.
+        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
+        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
+            h0.get_sequence(), h0.get_timestamp(), h0.get_ssrc(), h0.get_padding(), nb_data - b0.pos());
+
+        srs_freepa(unprotected_buf);
+        return err;
+    }
+
+    if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
+        // Ignore any error for black-hole.
+        void* p = unprotected_buf; int len = nb_unprotected_buf; SrsRtcSession* s = session_;
+        srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+    }
+
+    char* buf = unprotected_buf;
+    int nb_buf = nb_unprotected_buf;
 
     // Decode the RTP packet from buffer.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
@@ -1673,12 +1702,6 @@ srs_error_t SrsRtcPublisher::on_rtp(char* buf, int nb_buf)
         if ((err = pkt->decode(&b)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
         }
-    }
-
-    // For NACK simulator, drop packet.
-    if (nn_simulate_nack_drop) {
-        simulate_drop_packet(&pkt->header, nb_buf);
-        return err;
     }
 
     // For source to consume packet.
@@ -2391,8 +2414,6 @@ srs_error_t SrsRtcSession::on_rtcp(char* data, int nb_data)
 
 srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
 {
-    srs_error_t err = srs_success;
-
     if (publisher_ == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
     }
@@ -2401,25 +2422,7 @@ srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
         return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");
     }
 
-    int nb_unprotected_buf = nb_data;
-    char* unprotected_buf = new char[kRtpPacketSize];
-    if ((err = dtls_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
-        // We try to decode the RTP header for more detail error informations.
-        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
-        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
-            h0.get_sequence(), h0.get_timestamp(), h0.get_ssrc(), h0.get_padding(), nb_data - b0.pos());
-
-        srs_freepa(unprotected_buf);
-        return err;
-    }
-
-    if (blackhole && blackhole_addr && blackhole_stfd) {
-        // Ignore any error for black-hole.
-        void* p = unprotected_buf; int len = nb_unprotected_buf;
-        srs_sendto(blackhole_stfd, p, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
-    }
-
-    return publisher_->on_rtp(unprotected_buf, nb_unprotected_buf);
+    return publisher_->on_rtp(data, nb_data);
 }
 
 srs_error_t SrsRtcSession::on_connection_established()
