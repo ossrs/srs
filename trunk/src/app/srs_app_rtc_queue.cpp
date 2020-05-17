@@ -158,10 +158,10 @@ void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 
 SrsNackOption::SrsNackOption()
 {
-    max_count = 10;
-    max_alive_time = 2 * SRS_UTIME_SECONDS;
+    max_count = 15;
+    max_alive_time = 1 * SRS_UTIME_SECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
-    nack_interval = 400 * SRS_UTIME_MILLISECONDS;
+    nack_interval = 50 * SRS_UTIME_MILLISECONDS;
     //TODO: FIXME: audio and video using diff nack strategy
     // janus nack option:
     // video:
