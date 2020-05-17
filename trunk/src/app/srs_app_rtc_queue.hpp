@@ -34,17 +34,6 @@ class SrsRtpPacket2;
 class SrsRtpQueue;
 class SrsRtpRingBuffer;
 
-// The "distance" between two uint16 number, for example:
-//      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
-//      distance(prev_value=3, value=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
-//      distance(prev_value=65532, value=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
-// For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
-// @see https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
-inline int16_t srs_rtp_seq_distance(const uint16_t& prev_value, const uint16_t& value)
-{
-    return (int16_t)(value - prev_value);
-}
-
 // For UDP, the packets sequence may present as bellow:
 //      [seq1(done)|seq2|seq3 ... seq10|seq11(lost)|seq12|seq13]
 //                   \___(head_sequence_)   \               \___(highest_sequence_)

@@ -33,54 +33,24 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
 
-//sn comparison，if current_sn is more(newer) than last_sn，return true，else return false
-bool SrsSeqIsNewer(uint16_t current_sn, uint16_t last_sn) {
-   if(current_sn > last_sn) {
-       //current_sn 65533   last_sn 5
-       if(current_sn - last_sn > 0x8000) {
-           return false;
-       } else {
-           return true;
-       }
-   } else {
-       //current_sn 2  last_sn 65535
-       if(current_sn - last_sn < -0x8000) {
-           return true;
-       } else {
-          return  false;
-       }
-   }
+// If value is newer than pre_value，return true; otherwise false
+bool srs_seq_is_newer(uint16_t value, uint16_t pre_value) {
+    return srs_rtp_seq_distance(pre_value, value) > 0;
 }
 
-bool SrsSeqIsRoolback(uint16_t current_sn, uint16_t last_sn)
+bool srs_seq_is_roolback(uint16_t value, uint16_t pre_value)
 {
-    if(SrsSeqIsNewer(current_sn, last_sn)) {
-        if((last_sn > current_sn)) {
+    if(srs_seq_is_newer(value, pre_value)) {
+        if((pre_value > value)) {
             return true;
         }
     }
     return false;
 }
 
-// caculate the difference between sn. If current_sn is more then last_sn, return positive difference, else return negative difference.
-int32_t SrsSeqDistance(uint16_t current_sn, uint16_t last_sn) {
-    if(current_sn > last_sn) {
-        //current_sn 65535   last_sn 0
-        if(current_sn - last_sn > 0x8000) {
-            return (current_sn - last_sn - 1 - 65535);
-        } else {
-            return (current_sn - last_sn);
-        }
-    } else {
-        //current_sn 0  last_sn 65535
-        if(current_sn - last_sn < -0x8000) {
-            return (current_sn - last_sn + 65535 + 1);
-        } else {
-            return (current_sn - last_sn);
-            // current_sn 15039 last_sn 15042
-            //return last_sn - current_sn;
-        }
-    }
+// If value is newer then pre_value, return positive, otherwise negative.
+int32_t srs_seq_distance(uint16_t value, uint16_t pre_value) {
+    return srs_rtp_seq_distance(pre_value, value);
 }
 
 SrsRtpHeader::SrsRtpHeader()

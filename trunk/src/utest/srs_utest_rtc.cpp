@@ -55,50 +55,71 @@ VOID TEST(KernelRTCTest, SequenceCompare)
         EXPECT_FALSE(srs_rtp_seq_distance(255, 65535) > 0);
         EXPECT_FALSE(srs_rtp_seq_distance(255, 65280) > 0);
 
-        // Note that it's TRUE at https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+        // Note that srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+        //      but for WebRTC jitter buffer it's FALSE and we follow it.
         EXPECT_FALSE(srs_rtp_seq_distance(0, 32768) > 0);
         // It's FALSE definitely.
         EXPECT_FALSE(srs_rtp_seq_distance(32768, 0) > 0);
     }
 
     if (true) {
-        EXPECT_FALSE(SrsSeqIsNewer(1, 1));
-        EXPECT_TRUE(SrsSeqIsNewer(65535, 65534));
-        EXPECT_TRUE(SrsSeqIsNewer(1, 0));
-        EXPECT_TRUE(SrsSeqIsNewer(256, 255));
+        EXPECT_FALSE(srs_seq_is_newer(1, 1));
+        EXPECT_TRUE(srs_seq_is_newer(65535, 65534));
+        EXPECT_TRUE(srs_seq_is_newer(1, 0));
+        EXPECT_TRUE(srs_seq_is_newer(256, 255));
 
-        EXPECT_TRUE(SrsSeqIsNewer(0, 65535));
-        EXPECT_TRUE(SrsSeqIsNewer(0, 65280));
-        EXPECT_TRUE(SrsSeqIsNewer(255, 65535));
-        EXPECT_TRUE(SrsSeqIsNewer(255, 65280));
+        EXPECT_TRUE(srs_seq_is_newer(0, 65535));
+        EXPECT_TRUE(srs_seq_is_newer(0, 65280));
+        EXPECT_TRUE(srs_seq_is_newer(255, 65535));
+        EXPECT_TRUE(srs_seq_is_newer(255, 65280));
 
-        EXPECT_FALSE(SrsSeqIsNewer(65535, 0));
-        EXPECT_FALSE(SrsSeqIsNewer(65280, 0));
-        EXPECT_FALSE(SrsSeqIsNewer(65535, 255));
-        EXPECT_FALSE(SrsSeqIsNewer(65280, 255));
+        EXPECT_FALSE(srs_seq_is_newer(65535, 0));
+        EXPECT_FALSE(srs_seq_is_newer(65280, 0));
+        EXPECT_FALSE(srs_seq_is_newer(65535, 255));
+        EXPECT_FALSE(srs_seq_is_newer(65280, 255));
 
-        EXPECT_TRUE(SrsSeqIsNewer(32768, 0));
-        EXPECT_FALSE(SrsSeqIsNewer(0, 32768));
+        EXPECT_FALSE(srs_seq_is_newer(32768, 0));
+        EXPECT_FALSE(srs_seq_is_newer(0, 32768));
     }
 
     if (true) {
-        EXPECT_FALSE(SrsSeqDistance(1, 1) > 0);
-        EXPECT_TRUE(SrsSeqDistance(65535, 65534) > 0);
-        EXPECT_TRUE(SrsSeqDistance(1, 0) > 0);
-        EXPECT_TRUE(SrsSeqDistance(256, 255) > 0);
+        EXPECT_FALSE(srs_seq_distance(1, 1) > 0);
+        EXPECT_TRUE(srs_seq_distance(65535, 65534) > 0);
+        EXPECT_TRUE(srs_seq_distance(1, 0) > 0);
+        EXPECT_TRUE(srs_seq_distance(256, 255) > 0);
 
-        EXPECT_TRUE(SrsSeqDistance(0, 65535) > 0);
-        EXPECT_TRUE(SrsSeqDistance(0, 65280) > 0);
-        EXPECT_TRUE(SrsSeqDistance(255, 65535) > 0);
-        EXPECT_TRUE(SrsSeqDistance(255, 65280) > 0);
+        EXPECT_TRUE(srs_seq_distance(0, 65535) > 0);
+        EXPECT_TRUE(srs_seq_distance(0, 65280) > 0);
+        EXPECT_TRUE(srs_seq_distance(255, 65535) > 0);
+        EXPECT_TRUE(srs_seq_distance(255, 65280) > 0);
 
-        EXPECT_FALSE(SrsSeqDistance(65535, 0) > 0);
-        EXPECT_FALSE(SrsSeqDistance(65280, 0) > 0);
-        EXPECT_FALSE(SrsSeqDistance(65535, 255) > 0);
-        EXPECT_FALSE(SrsSeqDistance(65280, 255) > 0);
+        EXPECT_FALSE(srs_seq_distance(65535, 0) > 0);
+        EXPECT_FALSE(srs_seq_distance(65280, 0) > 0);
+        EXPECT_FALSE(srs_seq_distance(65535, 255) > 0);
+        EXPECT_FALSE(srs_seq_distance(65280, 255) > 0);
 
-        EXPECT_TRUE(SrsSeqDistance(32768, 0) > 0);
-        EXPECT_FALSE(SrsSeqDistance(0, 32768) > 0);
+        EXPECT_FALSE(srs_seq_distance(32768, 0) > 0);
+        EXPECT_FALSE(srs_seq_distance(0, 32768) > 0);
+    }
+
+    if (true) {
+        EXPECT_FALSE(srs_seq_is_roolback(1, 1));
+        EXPECT_FALSE(srs_seq_is_roolback(65535, 65534));
+        EXPECT_FALSE(srs_seq_is_roolback(1, 0));
+        EXPECT_FALSE(srs_seq_is_roolback(256, 255));
+
+        EXPECT_TRUE(srs_seq_is_roolback(0, 65535));
+        EXPECT_TRUE(srs_seq_is_roolback(0, 65280));
+        EXPECT_TRUE(srs_seq_is_roolback(255, 65535));
+        EXPECT_TRUE(srs_seq_is_roolback(255, 65280));
+
+        EXPECT_FALSE(srs_seq_is_roolback(65535, 0));
+        EXPECT_FALSE(srs_seq_is_roolback(65280, 0));
+        EXPECT_FALSE(srs_seq_is_roolback(65535, 255));
+        EXPECT_FALSE(srs_seq_is_roolback(65280, 255));
+
+        EXPECT_FALSE(srs_seq_is_roolback(32768, 0));
+        EXPECT_FALSE(srs_seq_is_roolback(0, 32768));
     }
 }
 

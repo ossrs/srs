@@ -58,11 +58,22 @@ class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
 
-// TODO: FIXME: Merge with srs_rtp_seq_distance
-// @see https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
-bool SrsSeqIsNewer(uint16_t current_sn, uint16_t last_sn);
-bool SrsSeqIsRoolback(uint16_t current_sn, uint16_t last_sn);
-int32_t SrsSeqDistance(uint16_t current_sn, uint16_t last_sn);
+// The "distance" between two uint16 number, for example:
+//      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
+//      distance(prev_value=3, value=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
+//      distance(prev_value=65532, value=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
+// For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
+// @remark Note that srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+//      but for WebRTC jitter buffer it's FALSE and we follow it.
+// @remark For srs_rtp_seq_distance(32768, 0)>0, it's FALSE definitely.
+inline int16_t srs_rtp_seq_distance(const uint16_t& prev_value, const uint16_t& value)
+{
+    return (int16_t)(value - prev_value);
+}
+
+bool srs_seq_is_newer(uint16_t value, uint16_t pre_value);
+bool srs_seq_is_roolback(uint16_t value, uint16_t pre_value);
+int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
 
 class SrsRtpHeader
 {
