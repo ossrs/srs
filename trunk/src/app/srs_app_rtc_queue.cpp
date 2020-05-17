@@ -130,10 +130,19 @@ SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq) {
 
 void SrsRtpRingBuffer::notify_nack_list_full()
 {
+    while(begin <= end) {
+        remove(begin);
+        ++begin;
+    }
+
+    begin = end = 0;
+    initialized_ = false;
 }
 
 void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 {
+    remove(seq);
+    advance_to(seq+1);
 }
 
 SrsNackOption::SrsNackOption()
@@ -142,7 +151,7 @@ SrsNackOption::SrsNackOption()
     max_alive_time = 2 * SRS_UTIME_SECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 400 * SRS_UTIME_MILLISECONDS;
-    //TODO: FIXME: 
+    //TODO: FIXME: audio and video using diff nack strategy
     // audio_max_retries = 2
     // video_max_retries = 4
     // nack_interval = 100ms
@@ -201,11 +210,13 @@ void SrsRtpNackForReceiver::check_queue_size()
 {
     if (queue_.size() >= max_queue_size_) {
         rtp_->notify_nack_list_full();
+        queue_.clear();
     }
 }
 
 void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 {
+    //TODO: use get_system_time to udpate  
     srs_utime_t now = srs_update_system_time();
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_interval / 2) {
@@ -219,7 +230,9 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
         SrsRtpNackInfo& nack_info = iter->second;
 
         int alive_time = now - nack_info.generate_time_;
+        // TODO: delete max_alive_time 
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
+            // TODO: advace_to
             rtp_->notify_drop_seq(seq);
             queue_.erase(iter++);
             continue;

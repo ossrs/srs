@@ -1457,6 +1457,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssr
     // @see: https://tools.ietf.org/html/rfc4585#section-6.1
     vector<uint16_t> nack_seqs;
     nack->get_nack_seqs(nack_seqs);
+    
     vector<uint16_t>::iterator iter = nack_seqs.begin();
     while (iter != nack_seqs.end()) {
         char buf[kRtpPacketSize];
