@@ -798,9 +798,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         } else {
             // ignore
         }
-        
     }
-
     
     return err;
 }
@@ -822,14 +820,23 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode sequence header");
     }
     HEVCDecoderConfigurationRecord* dec_conf_rec_p = &(vcodec->_hevcDecConfRecord);
-    dec_conf_rec_p->configurationVersion = stream->read_1bytes();
 
+    dec_conf_rec_p->configurationVersion = stream->read_1bytes();
+    if (dec_conf_rec_p->configurationVersion != 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "hevc decode sequence header");
+    }
+    
     //general_profile_space(2bits), general_tier_flag(1bit), general_profile_idc(5bits)
     data_byte = stream->read_1bytes();
 	dec_conf_rec_p->general_profile_space = (data_byte >> 6) & 0x03;
 	dec_conf_rec_p->general_tier_flag = (data_byte >> 5) & 0x01;
 	dec_conf_rec_p->general_profile_idc = data_byte & 0x1F;
 
+    srs_info("hevc version:%d, general_profile_space:%d, general_tier_flag:%d, general_profile_idc:%d",
+        dec_conf_rec_p->configurationVersion,
+        dec_conf_rec_p->general_profile_space,
+        dec_conf_rec_p->general_tier_flag,
+        dec_conf_rec_p->general_profile_idc);
     //general_profile_compatibility_flags: 32bits
     dec_conf_rec_p->general_profile_compatibility_flags = (uint32_t)stream->read_4bytes();
 
@@ -856,9 +863,19 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
     //bitDepthChromaMinus8: xxxx x 3bits
     dec_conf_rec_p->bitDepthChromaMinus8 = stream->read_1bytes() & 0x07;
 
+    srs_info("general_constraint_indicator_flags:0x%x, general_level_idc:%d, \
+min_spatial_segmentation_idc:%d, parallelismType:%d, chromaFormat:%d, bitDepthLumaMinus8:%d, \
+bitDepthChromaMinus8:%d",
+        dec_conf_rec_p->general_constraint_indicator_flags,
+        dec_conf_rec_p->general_level_idc,
+        dec_conf_rec_p->min_spatial_segmentation_idc,
+        dec_conf_rec_p->parallelismType,
+        dec_conf_rec_p->chromaFormat,
+        dec_conf_rec_p->bitDepthLumaMinus8,
+        dec_conf_rec_p->bitDepthChromaMinus8);
+
     //avgFrameRate: 16bits
     dec_conf_rec_p->avgFrameRate = stream->read_2bytes();
-
     //8bits: constantFrameRate(2bits), numTemporalLayers(3bits), 
     //       temporalIdNested(1bit), lengthSizeMinusOne(2bits)
     data_byte = stream->read_1bytes();
@@ -867,9 +884,18 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
     dec_conf_rec_p->temporalIdNested  = (data_byte >> 2) & 0x01;
     dec_conf_rec_p->lengthSizeMinusOne = data_byte & 0x03;
 
-    srs_trace("hevc lengthSizeMinusOne:%d.", dec_conf_rec_p->lengthSizeMinusOne);
-	numOfArrays = stream->read_1bytes();
+    numOfArrays = stream->read_1bytes();
 
+    srs_info("avgFrameRate:%d, constantFrameRate:%d, numTemporalLayers:%d, \
+temporalIdNested:%d, lengthSizeMinusOne:%d, numOfArrays:%d",
+        dec_conf_rec_p->avgFrameRate,
+        dec_conf_rec_p->constantFrameRate,
+        dec_conf_rec_p->numTemporalLayers,
+
+        dec_conf_rec_p->temporalIdNested,
+        dec_conf_rec_p->lengthSizeMinusOne,
+        numOfArrays);
+	
     //parse vps/pps/sps
     for (int index = 0; index < numOfArrays; index++) {
         HVCCNALUnit hevc_unit;
@@ -894,7 +920,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer* stream) {
 
             stream->read_bytes((char*)(&data_item.nalUnitData[0]),
                                        data_item.nalUnitLength);
-            srs_trace("hevc nalu type:%d, array_completeness:%d, numNalus:%d, i:%d, nalUnitLength:%d",
+            srs_info("hevc nalu type:%d, array_completeness:%d, numNalus:%d, i:%d, nalUnitLength:%d",
                 hevc_unit.NAL_unit_type, hevc_unit.array_completeness, 
                 hevc_unit.numNalus, i, data_item.nalUnitLength);
             hevc_unit.nalData_vec.push_back(data_item);
@@ -1230,7 +1256,6 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer* stream)
     if (vcodec->id == SrsVideoCodecIdAVC) {
         demux_ibmf_format_func = &SrsFormat::avc_demux_ibmf_format;
     } else if (vcodec->id == SrsVideoCodecIdHEVC) {
-
         demux_ibmf_format_func = &SrsFormat::hevc_demux_ibmf_format;
     } else {
         return srs_error_wrap(err, "avc demux ibmf");

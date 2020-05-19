@@ -474,7 +474,7 @@ enum SrsHevcNaluType
 };
 
 //for nalu data first byte
-#define HEVC_NALU_TYPE(code) ((code & 0x7E)>>1)
+#define HEVC_NALU_TYPE(code) (SrsHevcNaluType)((code & 0x7E)>>1)
 
 /**
  * Table 7-6 – Name association to slice_type
