@@ -485,7 +485,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap
 {
     srs_error_t err = srs_success;
 
-    if ((err = header.decode(buf)) != srs_success) {
+    if ((err = header.decode(buf, extmap)) != srs_success) {
         return srs_error_wrap(err, "rtp header");
     }
 
