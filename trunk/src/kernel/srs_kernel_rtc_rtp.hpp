@@ -121,6 +121,7 @@ class SrsRtpHeaderExtension
 public:
     bool has_transport_sequence_number;
     uint16_t transport_sequence_number;
+    uint8_t transport_cc_ext_id;
 public:
     SrsRtpHeaderExtension();
     virtual ~SrsRtpHeaderExtension();

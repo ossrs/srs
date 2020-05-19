@@ -87,6 +87,7 @@ SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const {
 SrsRtpHeaderExtension::SrsRtpHeaderExtension() {
     has_transport_sequence_number = false;
     transport_sequence_number = 0;
+    transport_cc_ext_id = 0;
 }
 
 SrsRtpHeaderExtension::~SrsRtpHeaderExtension() {
@@ -112,7 +113,7 @@ SrsRtpHeader::~SrsRtpHeader()
 srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map) {
     srs_error_t err = srs_success;
     uint16_t profile_id = buf->read_2bytes();
-    uint16_t extension_length = buf->read_2bytes();
+    extension_length = buf->read_2bytes();
 
     if (!extension_map) {
         buf->skip(extension_length * 4);
@@ -149,6 +150,7 @@ srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExte
                 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
                 header_extension.has_transport_sequence_number = true;
                 header_extension.transport_sequence_number = buf->read_2bytes();
+                header_extension.transport_cc_ext_id = id;
                 xlen -= 2;
             } else {
                 buf->skip(len + 1);
@@ -240,9 +242,6 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     // Encode the RTP fix header, 12bytes.
     // @see https://tools.ietf.org/html/rfc1889#section-5.1
-    char* op = buf->head();
-    char* p = op;
-
     // The version, padding, extension and cc, total 1 byte.
     uint8_t v = 0x80 | cc;
     if (padding_length > 0) {
@@ -251,49 +250,41 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
     if (extension) {
         v |= 0x10;
     }
-    *p++ = v;
+    buf->write_1bytes(v);
 
     // The marker and payload type, total 1 byte.
     v = payload_type;
     if (marker) {
         v |= kRtpMarker;
     }
-    *p++ = v;
+    buf->write_1bytes(v);
 
     // The sequence number, 2 bytes.
-    char* pp = (char*)&sequence;
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_2bytes(sequence);
 
     // The timestamp, 4 bytes.
-    pp = (char*)&timestamp;
-    *p++ = pp[3];
-    *p++ = pp[2];
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_4bytes(timestamp);
 
     // The SSRC, 4 bytes.
-    pp = (char*)&ssrc;
-    *p++ = pp[3];
-    *p++ = pp[2];
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_4bytes(ssrc);
 
     // The CSRC list: 0 to 15 items, each is 4 bytes.
     for (size_t i = 0; i < cc; ++i) {
-        pp = (char*)&csrc[i];
-        *p++ = pp[3];
-        *p++ = pp[2];
-        *p++ = pp[1];
-        *p++ = pp[0];
+        buf->write_4bytes(csrc[i]);
     }
 
-    // TODO: Write exteinsion field.
     if (extension) {
-    }
+        buf->write_2bytes(0xBEDE);
+        // TODO: FIXME: extension_length should caculate by extension length
+        buf->write_2bytes(extension_length);
 
-    // Consume the data.
-    buf->skip(p - op);
+        if (header_extension.has_transport_sequence_number) {
+            uint8_t id_len = (header_extension.transport_cc_ext_id & 0x0F)<< 4| 0x01;
+            buf->write_1bytes(id_len);
+            buf->write_2bytes(header_extension.transport_sequence_number);
+            buf->write_1bytes(0x00);
+        }
+    }
 
     return err;
 }
