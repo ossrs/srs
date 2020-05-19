@@ -117,8 +117,6 @@ srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExte
     if (!extension_map) {
         buf->skip(extension_length * 4);
         return err;
-    } else {
-        srs_trace("extension_map uri : %d", extension_map->get_type(3));
     }
 
     // @see: https://tools.ietf.org/html/rfc5285#section-4.2
@@ -151,9 +149,10 @@ srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExte
                 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
                 header_extension.has_transport_sequence_number = true;
                 header_extension.transport_sequence_number = buf->read_2bytes();
-                srs_trace("get twcc sn:%d", header_extension.transport_sequence_number);
+                xlen -= 2;
             } else {
                 buf->skip(len + 1);
+                xlen -= len + 1;
             }
         }
     }  else if (profile_id == 0x1000) {
