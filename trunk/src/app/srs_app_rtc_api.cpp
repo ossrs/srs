@@ -611,6 +611,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
     local_sdp.group_policy_ = "BUNDLE";
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
+    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
@@ -639,10 +640,22 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                             payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                         }
                     }
+                    if (twcc_enabled) {
+                        if (rtcp_fb.at(j) == "transport-cc") {
+                            payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                        }
+                    }
                 }
 
                 // Only choose one match opus codec.
                 break;
+            }
+            map<int, string> extmaps = remote_media_desc.get_extmaps();
+            for(map<int, string>::iterator it_ext = extmaps.begin(); it_ext != extmaps.end(); ++it_ext) {
+                if (it_ext->second == kTWCCExt) {
+                    local_media_desc.extmaps_[it_ext->first] = kTWCCExt;
+                    break;
+                }
             }
 
             if (local_media_desc.payload_types_.empty()) {
@@ -676,6 +689,11 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                                 payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                             }
                         }
+                        if (twcc_enabled) {
+                            if (rtcp_fb.at(j) == "transport-cc") {
+                                payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
+                            }
+                        }
                     }
 
                     // Only choose first match H.264 payload type.
@@ -683,6 +701,13 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                 }
 
                 backup_payloads.push_back(*iter);
+            }
+            map<int, string> extmaps = remote_media_desc.get_extmaps();
+            for(map<int, string>::iterator it_ext = extmaps.begin(); it_ext != extmaps.end(); ++it_ext) {
+                if (it_ext->second == kTWCCExt) {
+                    local_media_desc.extmaps_[it_ext->first] = kTWCCExt;
+                    break;
+                }
             }
 
             // Try my best to pick at least one media payload type.

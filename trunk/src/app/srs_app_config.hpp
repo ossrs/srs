@@ -549,6 +549,7 @@ public:
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
+    bool get_rtc_twcc_enabled(std::string vhost);
 
 // vhost specified section
 public:
