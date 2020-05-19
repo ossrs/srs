@@ -26,17 +26,19 @@
 
 #include <srs_core.hpp>
 
-#include <srs_kernel_buffer.hpp>
-#include <srs_kernel_rtc_rtp.hpp>
 #include <vector>
 #include <set>
 #include <map>
+
+#include <srs_kernel_buffer.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 const int kRtcpPacketSize = 1500;
 const uint8_t kRtcpVersion = 0x2;
 
 // RTCP Packet Types, @see http://www.networksorcery.com/enp/protocol/rtcp.htm
-enum SrsRtcpType {
+enum SrsRtcpType
+{
     SrsRtcpType_fir = 192,
     SrsRtcpType_sr = 200,
     SrsRtcpType_rr = 201,
@@ -59,12 +61,6 @@ struct SrsRtcpHeader
 	uint16_t length:16;
 };
 
-struct SrsSeqCompareLess {
-    bool operator()(const uint16_t &lhs, const uint16_t &rhs) const {
-        return srs_seq_is_newer(rhs, lhs);
-    }
-};
-
 class SrsRtcpCommon: public ISrsCodec
 {
 protected:
@@ -78,7 +74,7 @@ protected:
 public:
     SrsRtcpCommon();
     virtual ~SrsRtcpCommon();
-    virtual const uint8_t type() const { return header_.type; }
+    virtual const uint8_t type() const;
 
 public:
     // ISrsCodec
@@ -98,7 +94,7 @@ public:
     SrsRtcpApp();
     virtual ~SrsRtcpApp();
 
-    virtual const uint8_t type() const { return SrsRtcpType_app; }
+    virtual const uint8_t type() const;
     
     const uint32_t get_ssrc() const;
     const uint8_t get_subtype() const;
@@ -116,7 +112,8 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
-struct srs_rtcp_rb_t {
+struct SrsRtcpRB
+{
     uint32_t ssrc;
     uint8_t fraction_lost;
     uint32_t lost_packets;
@@ -138,9 +135,9 @@ public:
     SrsRtcpSR();
     virtual ~SrsRtcpSR();
 
-    const uint8_t get_rc() const { return header_.rc; }
+    const uint8_t get_rc() const;
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const { return SrsRtcpType_sr; }
+    virtual const uint8_t type() const;
     const uint32_t get_sender_ssrc() const;
     const uint64_t get_ntp() const;
     const uint32_t get_rtp_ts() const;
@@ -164,13 +161,13 @@ class SrsRtcpRR : public SrsRtcpCommon
 {
 private:
     uint32_t sender_ssrc_;
-    srs_rtcp_rb_t rb_;
+    SrsRtcpRB rb_;
 public:
     SrsRtcpRR(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpRR();
 
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const { return SrsRtcpType_rr; }
+    virtual const uint8_t type() const;
 
     const uint32_t get_rb_ssrc() const;
     const float get_lost_rate() const;

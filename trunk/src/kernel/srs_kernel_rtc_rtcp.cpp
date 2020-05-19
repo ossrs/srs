@@ -36,6 +36,11 @@ SrsRtcpCommon::~SrsRtcpCommon()
 { 
 }
 
+const uint8_t SrsRtcpCommon::type() const
+{
+    return header_.type;
+}
+
 srs_error_t SrsRtcpCommon::decode_header(SrsBuffer *buffer)
 {
     buffer->read_bytes((char*)(&header_), sizeof(SrsRtcpHeader));
@@ -82,6 +87,11 @@ SrsRtcpApp::SrsRtcpApp():ssrc_(0)
 
 SrsRtcpApp::~SrsRtcpApp()
 {
+}
+
+const uint8_t SrsRtcpApp::type() const
+{
+    return SrsRtcpType_app;
 }
 
 const uint32_t SrsRtcpApp::get_ssrc() const
@@ -200,7 +210,16 @@ SrsRtcpSR::SrsRtcpSR()
 
 SrsRtcpSR::~SrsRtcpSR()
 {
+}
 
+const uint8_t SrsRtcpSR::get_rc() const
+{
+    return header_.rc;
+}
+
+const uint8_t SrsRtcpSR::type() const
+{
+    return SrsRtcpType_sr;
 }
 
 const uint32_t SrsRtcpSR::get_sender_ssrc() const
@@ -312,6 +331,11 @@ SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc): sender_ssrc_(sender_ssrc)
 
 SrsRtcpRR::~SrsRtcpRR()
 {
+}
+
+const uint8_t SrsRtcpRR::type() const
+{
+    return SrsRtcpType_rr;
 }
 
 const uint32_t SrsRtcpRR::get_rb_ssrc() const

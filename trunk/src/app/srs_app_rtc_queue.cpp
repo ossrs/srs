@@ -183,10 +183,6 @@ SrsRtpNackInfo::SrsRtpNackInfo()
     req_nack_count_ = 0;
 }
 
-bool SrsRtpNackForReceiver::SeqComp::operator()(const uint16_t& pre_value, const uint16_t& value) const {
-    return srs_rtp_seq_distance(pre_value, value) > 0;
-}
-
 SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue_size)
 {
     max_queue_size_ = queue_size;

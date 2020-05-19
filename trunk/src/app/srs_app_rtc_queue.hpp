@@ -30,6 +30,8 @@
 #include <vector>
 #include <map>
 
+#include <srs_kernel_rtc_rtp.hpp>
+
 class SrsRtpPacket2;
 class SrsRtpQueue;
 class SrsRtpRingBuffer;
@@ -112,12 +114,8 @@ struct SrsRtpNackInfo
 class SrsRtpNackForReceiver
 {
 private:
-    struct SeqComp {
-        bool operator()(const uint16_t& pre_value, const uint16_t& value) const;
-    };
-private:
     // Nack queue, seq order, oldest to newest.
-    std::map<uint16_t, SrsRtpNackInfo, SeqComp> queue_;
+    std::map<uint16_t, SrsRtpNackInfo, SrsSeqCompareLess> queue_;
     // Max nack count.
     size_t max_queue_size_;
     SrsRtpRingBuffer* rtp_;
