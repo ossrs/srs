@@ -31,6 +31,8 @@
 
 #include <string>
 #include <vector>
+#include <map>
+const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
 class SrsSessionInfo
 {
@@ -115,6 +117,7 @@ public:
     srs_error_t encode(std::ostringstream& os);
     SrsMediaPayloadType* find_media_with_payload_type(int payload_type);
     std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string& encoding_name) const;
+    const std::map<int, std::string>& get_extmaps() const { return extmaps_; }
 
     bool is_audio() const { return type_ == "audio"; }
     bool is_video() const { return type_ == "video"; }
@@ -128,6 +131,7 @@ private:
     srs_error_t parse_attr_msid(const std::string& value);
     srs_error_t parse_attr_ssrc(const std::string& value);
     srs_error_t parse_attr_ssrc_group(const std::string& value);
+    srs_error_t parse_attr_extmap(const std::string& value);
 private:
     SrsSSRCInfo& fetch_or_create_ssrc_info(uint32_t ssrc);
 
@@ -153,6 +157,7 @@ public:
     std::vector<SrsCandidate> candidates_;
     std::vector<SrsSSRCGroup> ssrc_groups_;
     std::vector<SrsSSRCInfo>  ssrc_infos_;
+    std::map<int, std::string> extmaps_;
 };
 
 class SrsSdp

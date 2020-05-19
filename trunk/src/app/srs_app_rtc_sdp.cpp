@@ -330,6 +330,9 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << kCRLF;
     }
 
+    for(map<int, string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+        os << "a=extmap:"<< it->first<< " "<< it->second<< kCRLF;
+    }
     if (sendonly_) {
         os << "a=sendonly" << kCRLF;
     }
@@ -399,8 +402,7 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
     }
 
     if (attribute == "extmap") {
-        // TODO:We don't parse "extmap" currently.
-        return 0;
+        return parse_attr_extmap(value);
     } else if (attribute == "rtpmap") {
         return parse_attr_rtpmap(value);
     } else if (attribute == "rtcp") {
@@ -433,6 +435,20 @@ srs_error_t SrsMediaDesc::parse_attribute(const std::string& content)
         return session_info_.parse_attribute(attribute, value);
     }
 
+    return err;
+}
+srs_error_t SrsMediaDesc::parse_attr_extmap(const std::string& value)
+{
+    srs_error_t err = srs_success;
+    std::istringstream is(value);
+    int id = 0;
+    FETCH(is, id);
+    if(extmaps_.end() != extmaps_.find(id)) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "duplicate ext id: %d", id);
+    }
+    string ext;
+    FETCH(is, ext);
+    extmaps_[id] = ext;
     return err;
 }
 
