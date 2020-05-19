@@ -51,6 +51,47 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value) {
     return srs_rtp_seq_distance(pre_value, value);
 }
 
+SrsRtpHeaderExtensionMap::SrsRtpHeaderExtensionMap(){
+}
+
+SrsRtpHeaderExtensionMap::~SrsRtpHeaderExtensionMap(){
+}
+
+bool SrsRtpHeaderExtensionMap::register_by_uri(int id, std::string uri) {
+    for (int i = 0; i < sizeof(kExtensions); ++i) {
+        if (kExtensions[i].uri == uri) {
+            return register_id(id, kExtensions[i].type, kExtensions[i].uri);
+        }
+    }
+    return false;
+}
+
+bool SrsRtpHeaderExtensionMap::register_id(int id, SrsRtpExtensionType type, std::string uri) {
+    if (id < 1 || id > 255) {
+        return false;
+    }
+
+    ids_[type] = static_cast<uint8_t>(id);
+    return true;
+}
+
+SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const {
+    for (int type = kRtpExtensionNone + 1; type < kRtpExtensionNumberOfExtensions; ++type) {
+        if (ids_[type] == id) {
+            return static_cast<SrsRtpExtensionType>(type);
+        }
+    }
+    return kInvalidType;
+}
+
+SrsRtpHeaderExtension::SrsRtpHeaderExtension() {
+    has_transport_sequence_number = false;
+    transport_sequence_number = 0;
+}
+
+SrsRtpHeaderExtension::~SrsRtpHeaderExtension() {
+}
+
 SrsRtpHeader::SrsRtpHeader()
 {
     padding_length   = 0;
@@ -68,7 +109,63 @@ SrsRtpHeader::~SrsRtpHeader()
 {
 }
 
-srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
+srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map) {
+    srs_error_t err = srs_success;
+    uint16_t profile_id = buf->read_2bytes();
+    uint16_t extension_length = buf->read_2bytes();
+
+    if (!extension_map) {
+        buf->skip(extension_length * 4);
+        return err;
+    } else {
+        srs_trace("extension_map uri : %d", extension_map->get_type(3));
+    }
+
+    // @see: https://tools.ietf.org/html/rfc5285#section-4.2
+    if (profile_id == 0xBEDE) {
+        uint32_t xlen = extension_length * 4;
+        while (xlen > 0) {
+            // parse id and len
+            uint8_t id_len = buf->read_1bytes();
+            xlen--;
+            if(id_len == 0) {
+                // padding, ignore
+                continue;
+            }
+            //  0
+            //  0 1 2 3 4 5 6 7
+            // +-+-+-+-+-+-+-+-+
+            // |  ID   |  len  |
+            // +-+-+-+-+-+-+-+-+
+            // Note that 'len' is the header extension element length, which is the
+            // number of bytes - 1.
+            uint8_t id = (id_len & 0xF0) >> 4;
+            uint8_t len = (id_len & 0x0F);
+            
+            SrsRtpExtensionType xtype = extension_map->get_type(id);
+            if (xtype == kRtpExtensionTransportSequenceNumber) {
+                //   0                   1                   2
+                //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+                //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                //  |  ID   | L=1   |transport wide sequence number |
+                //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                header_extension.has_transport_sequence_number = true;
+                header_extension.transport_sequence_number = buf->read_2bytes();
+                srs_trace("get twcc sn:%d", header_extension.transport_sequence_number);
+            } else {
+                buf->skip(len + 1);
+            }
+        }
+    }  else if (profile_id == 0x1000) {
+        buf->skip(extension_length * 4);
+    } else {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "fail to parse extension");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsRtpHeader::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
 {
     srs_error_t err = srs_success;
 
@@ -114,17 +211,18 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
     }    
 
     if (extension) {
-        uint16_t profile_id = buf->read_2bytes();
-        extension_length = buf->read_2bytes();
-
-        // TODO: FIXME: Read extensions.
-        // @see: https://tools.ietf.org/html/rfc3550#section-5.3.1
-        buf->skip(extension_length * 4);
-
-        // @see: https://tools.ietf.org/html/rfc5285#section-4.2
-        if (profile_id == 0xBEDE) {
-            // TODO: FIXME: Implements it.
-        }    
+        /* RTP header extension, RFC 3550.
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |      defined by profile       |           length              |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                        header extension                       |
+        |                             ....                              |
+        */
+        if ((err = parse_extension(buf, extmap)) != srs_success) {
+            return srs_error_wrap(err, "fail to parse extension");
+        }
     }
 
     if (padding && !buf->empty()) {
@@ -199,6 +297,15 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
     buf->skip(p - op);
 
     return err;
+}
+
+srs_error_t SrsRtpHeader::get_twcc_sequence_number(uint16_t& twcc_sn)
+{
+    if (header_extension.has_transport_sequence_number == true) {
+        twcc_sn = header_extension.transport_sequence_number;
+        return srs_success;
+    }
+    return srs_error_new(ERROR_RTC_RTP_MUXER, "not find twcc sequence number");
 }
 
 int SrsRtpHeader::nb_bytes()
@@ -375,7 +482,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
     return err;
 }
 
-srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
+srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
 {
     srs_error_t err = srs_success;
 

@@ -82,6 +82,41 @@ bool srs_seq_is_newer(uint16_t value, uint16_t pre_value);
 bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value);
 int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
 
+enum SrsRtpExtensionType : int {
+    kRtpExtensionNone,
+    kRtpExtensionTransportSequenceNumber,
+    kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
+};
+struct SrsExtensionInfo {
+    SrsRtpExtensionType type;
+    std::string uri;
+};
+const SrsExtensionInfo kExtensions[] = {
+    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
+};
+class SrsRtpHeaderExtensionMap{
+public:
+    static const SrsRtpExtensionType kInvalidType = kRtpExtensionNone;
+    static const int kInvalidId = 0;
+public:
+    bool register_by_uri(int id, std::string uri);
+    SrsRtpExtensionType get_type(int id) const;
+public:
+    SrsRtpHeaderExtensionMap();
+    virtual ~SrsRtpHeaderExtensionMap();
+private:
+    bool register_id(int id, SrsRtpExtensionType type, std::string uri);
+private:
+    uint8_t ids_[kRtpExtensionNumberOfExtensions];
+};
+class SrsRtpHeaderExtension{
+public:
+    bool has_transport_sequence_number;
+    uint16_t transport_sequence_number;
+public:
+    SrsRtpHeaderExtension();
+    virtual ~SrsRtpHeaderExtension();
+};
 class SrsRtpHeader
 {
 private:
@@ -95,12 +130,14 @@ private:
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
-    // TODO:extension field.
+    SrsRtpHeaderExtension header_extension;
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
+private:
+    srs_error_t parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extension_map);
 public:
-    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = nullptr);
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
@@ -116,6 +153,7 @@ public:
     uint32_t get_ssrc() const;
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
+    srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
 };
 
 class ISrsRtpPayloader : public ISrsCodec
@@ -175,7 +213,7 @@ public:
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = nullptr);
 };
 
 // Single payload data.
