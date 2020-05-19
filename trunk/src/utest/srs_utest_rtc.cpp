@@ -103,23 +103,23 @@ VOID TEST(KernelRTCTest, SequenceCompare)
     }
 
     if (true) {
-        EXPECT_FALSE(srs_seq_is_roolback(1, 1));
-        EXPECT_FALSE(srs_seq_is_roolback(65535, 65534));
-        EXPECT_FALSE(srs_seq_is_roolback(1, 0));
-        EXPECT_FALSE(srs_seq_is_roolback(256, 255));
+        EXPECT_FALSE(srs_seq_is_rollback(1, 1));
+        EXPECT_FALSE(srs_seq_is_rollback(65535, 65534));
+        EXPECT_FALSE(srs_seq_is_rollback(1, 0));
+        EXPECT_FALSE(srs_seq_is_rollback(256, 255));
 
-        EXPECT_TRUE(srs_seq_is_roolback(0, 65535));
-        EXPECT_TRUE(srs_seq_is_roolback(0, 65280));
-        EXPECT_TRUE(srs_seq_is_roolback(255, 65535));
-        EXPECT_TRUE(srs_seq_is_roolback(255, 65280));
+        EXPECT_TRUE(srs_seq_is_rollback(0, 65535));
+        EXPECT_TRUE(srs_seq_is_rollback(0, 65280));
+        EXPECT_TRUE(srs_seq_is_rollback(255, 65535));
+        EXPECT_TRUE(srs_seq_is_rollback(255, 65280));
 
-        EXPECT_FALSE(srs_seq_is_roolback(65535, 0));
-        EXPECT_FALSE(srs_seq_is_roolback(65280, 0));
-        EXPECT_FALSE(srs_seq_is_roolback(65535, 255));
-        EXPECT_FALSE(srs_seq_is_roolback(65280, 255));
+        EXPECT_FALSE(srs_seq_is_rollback(65535, 0));
+        EXPECT_FALSE(srs_seq_is_rollback(65280, 0));
+        EXPECT_FALSE(srs_seq_is_rollback(65535, 255));
+        EXPECT_FALSE(srs_seq_is_rollback(65280, 255));
 
-        EXPECT_FALSE(srs_seq_is_roolback(32768, 0));
-        EXPECT_FALSE(srs_seq_is_roolback(0, 32768));
+        EXPECT_FALSE(srs_seq_is_rollback(32768, 0));
+        EXPECT_FALSE(srs_seq_is_rollback(0, 32768));
     }
 }
 

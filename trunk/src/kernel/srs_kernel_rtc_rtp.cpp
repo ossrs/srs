@@ -38,12 +38,10 @@ bool srs_seq_is_newer(uint16_t value, uint16_t pre_value) {
     return srs_rtp_seq_distance(pre_value, value) > 0;
 }
 
-bool srs_seq_is_roolback(uint16_t value, uint16_t pre_value)
+bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value)
 {
     if(srs_seq_is_newer(value, pre_value)) {
-        if((pre_value > value)) {
-            return true;
-        }
+        return pre_value > value;
     }
     return false;
 }

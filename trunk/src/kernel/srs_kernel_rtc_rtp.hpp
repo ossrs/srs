@@ -79,7 +79,7 @@ struct SrsSeqCompareLess {
 };
 
 bool srs_seq_is_newer(uint16_t value, uint16_t pre_value);
-bool srs_seq_is_roolback(uint16_t value, uint16_t pre_value);
+bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value);
 int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
 
 class SrsRtpHeader
