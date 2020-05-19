@@ -386,7 +386,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
             SrsSSRCInfo ssrc_info;
             ssrc_info.ssrc_ = ++ssrc_num;
             // TODO:use formated cname
-            ssrc_info.cname_ = "test_sdp_cname";
+            ssrc_info.cname_ = "stream";
             local_media_desc.ssrc_infos_.push_back(ssrc_info);
         }
     }

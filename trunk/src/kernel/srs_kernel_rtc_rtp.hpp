@@ -82,19 +82,25 @@ bool srs_seq_is_newer(uint16_t value, uint16_t pre_value);
 bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value);
 int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
 
-enum SrsRtpExtensionType : int {
+enum SrsRtpExtensionType
+{
     kRtpExtensionNone,
     kRtpExtensionTransportSequenceNumber,
     kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
-struct SrsExtensionInfo {
+
+struct SrsExtensionInfo
+{
     SrsRtpExtensionType type;
     std::string uri;
 };
+
 const SrsExtensionInfo kExtensions[] = {
     {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
 };
-class SrsRtpHeaderExtensionMap{
+
+class SrsRtpHeaderExtensionMap
+{
 public:
     static const SrsRtpExtensionType kInvalidType = kRtpExtensionNone;
     static const int kInvalidId = 0;
@@ -109,7 +115,9 @@ private:
 private:
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
-class SrsRtpHeaderExtension{
+
+class SrsRtpHeaderExtension
+{
 public:
     bool has_transport_sequence_number;
     uint16_t transport_sequence_number;
@@ -117,6 +125,7 @@ public:
     SrsRtpHeaderExtension();
     virtual ~SrsRtpHeaderExtension();
 };
+
 class SrsRtpHeader
 {
 private:
