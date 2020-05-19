@@ -1667,7 +1667,6 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
     srs_error_t err = srs_success;
     srs_utime_t now = srs_get_system_time();
-    srs_trace("get twcc sn:%d, now:%d", sn, now);
     rtcp_twcc_.recv_packet(sn, now);
     if(0 == last_twcc_feedback_time_) {
         last_twcc_feedback_time_ = now;
