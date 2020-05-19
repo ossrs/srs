@@ -1397,6 +1397,9 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     nack_enabled_ = false;
 
     nn_audio_frames = 0;
+    twcc_ext_id_ = 0;
+    last_twcc_feedback_time_ = 0;
+    twcc_fb_count_ = 0;
 }
 
 SrsRtcPublisher::~SrsRtcPublisher()
@@ -1415,14 +1418,19 @@ SrsRtcPublisher::~SrsRtcPublisher()
     srs_freep(audio_queue_);
 }
 
-srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* r)
+srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
     video_ssrc = vssrc;
     audio_ssrc = assrc;
+    twcc_ext_id_ = twcc_ext_id;
+    rtcp_twcc_.set_media_ssrc(video_ssrc);
     req = r;
 
+    if (twcc_ext_id_ != 0) {
+        extension_map_.register_by_uri(twcc_ext_id_, kTWCCExt);
+    }
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
 
@@ -1656,6 +1664,34 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
     return err;
 }
 
+srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
+    srs_error_t err = srs_success;
+    srs_utime_t now = srs_get_system_time();
+    srs_trace("get twcc sn:%d, now:%d", sn, now);
+    rtcp_twcc_.recv_packet(sn, now);
+    if(0 == last_twcc_feedback_time_) {
+        last_twcc_feedback_time_ = now;
+        return err;
+    }
+    srs_utime_t diff = now - last_twcc_feedback_time_;
+    if( diff >= 50 * SRS_UTIME_MILLISECONDS) {
+        last_twcc_feedback_time_ = now;
+        char pkt[kRtcpPacketSize];
+        SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
+        SrsAutoFree(SrsBuffer, buffer);
+        rtcp_twcc_.set_feedback_count(twcc_fb_count_);
+        twcc_fb_count_++;
+        if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
+            return srs_error_wrap(err, "fail to generate twcc feedback packet");
+        }
+        int nb_protected_buf = buffer->pos();
+        char protected_buf[kRtpPacketSize];
+        if (session_->dtls_->protect_rtcp(protected_buf, pkt, nb_protected_buf) == srs_success) {
+            session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+        }
+    }
+    return err;
+}
 srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
@@ -1699,8 +1735,16 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         pkt->shared_msg->wrap(buf, nb_buf);
 
         SrsBuffer b(buf, nb_buf);
-        if ((err = pkt->decode(&b)) != srs_success) {
+        if ((err = pkt->decode(&b, &extension_map_)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
+        }
+        if (0 != twcc_ext_id_) {
+            uint16_t twcc_sn = 0;
+            if ((err = pkt->header.get_twcc_sequence_number(twcc_sn)) == srs_success) {
+                if((err = on_twcc(twcc_sn))) {
+                    return srs_error_wrap(err, "fail to process twcc packet");
+                }
+            }
         }
     }
 
@@ -2502,8 +2546,22 @@ srs_error_t SrsRtcSession::start_publish()
         }
     }
 
+    uint32_t twcc_ext_id = 0;
+    for (size_t i = 0; i < local_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& media_desc = remote_sdp.media_descs_[i];
+        map<int, string> extmaps = media_desc.get_extmaps();
+        for(map<int, string>::iterator it_ext = extmaps.begin(); it_ext != extmaps.end(); ++it_ext) {
+            if(kTWCCExt == it_ext->second) {
+                twcc_ext_id = it_ext->first;
+                break;
+            }
+        }
+        if (twcc_ext_id != 0){
+            break;
+        }
+    }
     // FIXME: err process.
-    if ((err = publisher_->initialize(video_ssrc, audio_ssrc, req)) != srs_success) {
+    if ((err = publisher_->initialize(video_ssrc, audio_ssrc, twcc_ext_id, req)) != srs_success) {
         return srs_error_wrap(err, "rtc publisher init");
     }
 

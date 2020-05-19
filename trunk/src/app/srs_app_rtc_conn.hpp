@@ -34,6 +34,7 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_rtc_queue.hpp>
 
 #include <string>
@@ -285,11 +286,17 @@ private:
 private:
     std::map<uint32_t, uint64_t> last_sender_report_sys_time;
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;
+private:
+    srs_utime_t last_twcc_feedback_time_;
+    uint8_t twcc_ext_id_;
+    uint8_t twcc_fb_count_;
+    SrsRtcpTWCC rtcp_twcc_;
+    SrsRtpHeaderExtensionMap extension_map_;
 public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* req);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* req);
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);
@@ -319,6 +326,8 @@ public:
     void simulate_nack_drop(int nn);
 private:
     void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
+private:
+    srs_error_t on_twcc(uint16_t sn);
 };
 
 class SrsRtcSession
