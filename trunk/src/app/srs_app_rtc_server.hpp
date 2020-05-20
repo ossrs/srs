@@ -84,20 +84,35 @@ public:
     virtual srs_error_t on_reload_rtc_server();
 };
 
+class ISrsRtcServerHandler
+{
+public:
+    ISrsRtcServerHandler();
+    virtual ~ISrsRtcServerHandler();
+public:
+    // When server detect the timeout for session object.
+    virtual void on_timeout(SrsRtcSession* session) = 0;
+};
+
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
 {
 private:
     SrsHourGlass* timer;
     std::vector<SrsUdpMuxListener*> listeners;
     std::vector<SrsUdpMuxSender*> senders;
+    ISrsRtcServerHandler* handler;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
+    // The zombie sessions, we will free them.
+    std::vector<SrsRtcSession*> zombies_;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+    // Set the handler for server events.
+    void set_handler(ISrsRtcServerHandler* h);
 public:
     // TODO: FIXME: Support gracefully quit.
     // TODO: FIXME: Support reload.

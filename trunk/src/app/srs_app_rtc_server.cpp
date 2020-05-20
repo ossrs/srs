@@ -405,8 +405,17 @@ srs_error_t SrsUdpMuxSender::on_reload_rtc_server()
     return srs_success;
 }
 
+ISrsRtcServerHandler::ISrsRtcServerHandler()
+{
+}
+
+ISrsRtcServerHandler::~ISrsRtcServerHandler()
+{
+}
+
 SrsRtcServer::SrsRtcServer()
 {
+    handler = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -429,6 +438,14 @@ SrsRtcServer::~SrsRtcServer()
             srs_freep(sender);
         }
     }
+
+    if (true) {
+        std::vector<SrsRtcSession*>::iterator it;
+        for (it = zombies_.begin(); it != zombies_.end(); ++it) {
+            SrsRtcSession* session = *it;
+            srs_freep(session);
+        }
+    }
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -446,6 +463,11 @@ srs_error_t SrsRtcServer::initialize()
     srs_trace("RTC server init ok");
 
     return err;
+}
+
+void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
+{
+    handler = h;
 }
 
 srs_error_t SrsRtcServer::listen_udp()
@@ -693,6 +715,10 @@ void SrsRtcServer::destroy(SrsRtcSession* session)
     if ((it = map_id_session.find(session->peer_id())) != map_id_session.end()) {
         map_id_session.erase(it);
     }
+
+    if (::find(zombies_.begin(), zombies_.end(), session) == zombies_.end()) {
+        zombies_.push_back(session);
+    }
 }
 
 bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcSession* session)
@@ -705,24 +731,28 @@ void SrsRtcServer::check_and_clean_timeout_session()
     map<string, SrsRtcSession*>::iterator iter = map_username_session.begin();
     while (iter != map_username_session.end()) {
         SrsRtcSession* session = iter->second;
-        if (session == NULL) {
-            map_username_session.erase(iter++);
+        srs_assert(session);
+
+        if (!session->is_stun_timeout()) {
+            ++iter;
             continue;
         }
 
-        if (session->is_stun_timeout()) {
-            // Now, we got the RTC session to cleanup, switch to its context
-            // to make all logs write to the "correct" pid+cid.
-            session->switch_to_context();
+        // Now, we got the RTC session to cleanup, switch to its context
+        // to make all logs write to the "correct" pid+cid.
+        session->switch_to_context();
 
-            srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
-            map_username_session.erase(iter++);
-            map_id_session.erase(session->peer_id());
-            delete session;
-            continue;
+        srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
+        map_username_session.erase(iter++);
+        map_id_session.erase(session->peer_id());
+
+        if (handler) {
+            handler->on_timeout(session);
         }
 
-        ++iter;
+        if (::find(zombies_.begin(), zombies_.end(), session) == zombies_.end()) {
+            zombies_.push_back(session);
+        }
     }
 }
 
@@ -753,8 +783,26 @@ SrsRtcSession* SrsRtcServer::find_session_by_username(const std::string& usernam
 
 srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
+    srs_error_t err = srs_success;
+
+    // Check session timeout, put to zombies queue.
     check_and_clean_timeout_session();
-    return srs_success;
+
+    // Cleanup zombie sessions.
+    if (zombies_.empty()) {
+        return err;
+    }
+
+    std::vector<SrsRtcSession*> zombies;
+    zombies.swap(zombies_);
+
+    std::vector<SrsRtcSession*>::iterator it;
+    for (it = zombies.begin(); it != zombies.end(); ++it) {
+        SrsRtcSession* session = *it;
+        srs_freep(session);
+    }
+
+    return err;
 }
 
 RtcServerAdapter::RtcServerAdapter()
