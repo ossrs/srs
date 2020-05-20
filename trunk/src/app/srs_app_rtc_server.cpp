@@ -682,6 +682,19 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcSession* session, SrsRequest* req
     return err;
 }
 
+void SrsRtcServer::destroy(SrsRtcSession* session)
+{
+    std::map<std::string, SrsRtcSession*>::iterator it;
+
+    if ((it = map_username_session.find(session->username())) != map_username_session.end()) {
+        map_username_session.erase(it);
+    }
+
+    if ((it = map_id_session.find(session->peer_id())) != map_id_session.end()) {
+        map_id_session.erase(it);
+    }
+}
+
 bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcSession* session)
 {
     return map_id_session.insert(make_pair(peer_id, session)).second;

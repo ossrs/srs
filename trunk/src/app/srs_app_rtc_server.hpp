@@ -113,6 +113,8 @@ public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
     srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcSession** psession);
     srs_error_t setup_session2(SrsRtcSession* session, SrsRequest* req, const SrsSdp& remote_sdp);
+    // Destroy the session from server.
+    void destroy(SrsRtcSession* session);
 public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* session);
     void check_and_clean_timeout_session();
