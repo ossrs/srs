@@ -3644,7 +3644,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "gso" && n != "merge_nalus"
+                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "merge_nalus"
                 && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole"
                 && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
@@ -4861,53 +4861,6 @@ bool SrsConfig::get_rtc_server_merge_nalus()
     }
 
     conf = conf->get("merge_nalus");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-bool SrsConfig::get_rtc_server_gso()
-{
-    bool v = get_rtc_server_gso2();
-
-    bool gso_disabled = false;
-#if !defined(__linux__)
-    gso_disabled = true;
-    if (v) {
-        srs_warn("GSO is disabled, for Linux 4.18+ only");
-    }
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
-    if (v) {
-        utsname un;
-        memset((void*)&un, 0, sizeof(utsname));
-
-        int r0 = uname(&un);
-        if (r0 || strcmp(un.release, "4.18.0") < 0) {
-            gso_disabled = true;
-            srs_warn("GSO is disabled, for Linux 4.18+ only, r0=%d, kernel=%s", r0, un.release);
-        }
-    }
-#endif
-
-    if (v && gso_disabled) {
-        v = false;
-    }
-
-    return v;
-}
-
-bool SrsConfig::get_rtc_server_gso2()
-{
-    static int DEFAULT = true;
-
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("gso");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

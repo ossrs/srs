@@ -138,7 +138,6 @@ SrsUdpMuxSender::SrsUdpMuxSender(SrsRtcServer* s)
     queue_length = 0;
     extra_ratio = 0;
     extra_queue = 0;
-    gso = false;
     nn_senders = 0;
 
     _srs_config->subscribe(this);
@@ -171,17 +170,11 @@ srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd, int senders)
     }
 
     max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-    gso = _srs_config->get_rtc_server_gso();
     queue_length = srs_max(128, _srs_config->get_rtc_server_queue_length());
     nn_senders = senders;
 
-    // For no GSO, we need larger queue.
-    if (!gso) {
-        queue_length *= 2;
-    }
-
-    srs_trace("RTC sender #%d init ok, max_sendmmsg=%d, gso=%d, queue_max=%dx%d, extra_ratio=%d/%d", srs_netfd_fileno(fd),
-        max_sendmmsg, gso, queue_length, nn_senders, extra_ratio, extra_queue);
+    srs_trace("RTC sender #%d init ok, max_sendmmsg=%d, queue_max=%dx%d, extra_ratio=%d/%d", srs_netfd_fileno(fd),
+        max_sendmmsg, queue_length, nn_senders, extra_ratio, extra_queue);
 
     return err;
 }
@@ -252,8 +245,8 @@ void SrsUdpMuxSender::set_extra_ratio(int r)
     extra_ratio = r;
     extra_queue = queue_length * r / 100;
 
-    srs_trace("RTC sender #%d extra queue, max_sendmmsg=%d, gso=%d, queue_max=%dx%d, extra_ratio=%d/%d, cache=%d/%d/%d", srs_netfd_fileno(lfd),
-        max_sendmmsg, gso, queue_length, nn_senders, extra_ratio, extra_queue, cache_pos, (int)cache.size(), (int)hotspot.size());
+    srs_trace("RTC sender #%d extra queue, max_sendmmsg=%d, queue_max=%dx%d, extra_ratio=%d/%d, cache=%d/%d/%d", srs_netfd_fileno(lfd),
+        max_sendmmsg, queue_length, nn_senders, extra_ratio, extra_queue, cache_pos, (int)cache.size(), (int)hotspot.size());
 }
 
 srs_error_t SrsUdpMuxSender::sendmmsg(srs_mmsghdr* hdr)
@@ -272,7 +265,6 @@ srs_error_t SrsUdpMuxSender::cycle()
 
     uint64_t nn_msgs = 0; uint64_t nn_msgs_last = 0; int nn_msgs_max = 0;
     uint64_t nn_bytes = 0; int nn_bytes_max = 0;
-    uint64_t nn_gso_msgs = 0; uint64_t nn_gso_iovs = 0; int nn_gso_msgs_max = 0; int nn_gso_iovs_max = 0;
     int nn_loop = 0; int nn_wait = 0;
     srs_utime_t time_last = srs_get_system_time();
 
@@ -290,7 +282,6 @@ srs_error_t SrsUdpMuxSender::cycle()
         nn_loop++;
 
         int pos = cache_pos;
-        int gso_iovs = 0;
         if (pos <= 0) {
             waiting_msgs = true;
             nn_wait++;
@@ -302,7 +293,6 @@ srs_error_t SrsUdpMuxSender::cycle()
         cache.swap(hotspot);
         cache_pos = 0;
 
-        int gso_pos = 0;
         int nn_writen = 0;
         if (pos > 0) {
             // Send out all messages.
@@ -322,22 +312,6 @@ srs_error_t SrsUdpMuxSender::cycle()
                     stat->perf_on_sendmmsg_packets(vlen);
                 }
             }
-
-            // Collect informations for GSO.
-            if (stat_enabled) {
-                // Stat the messages, iovs and bytes.
-                // @see https://linux.die.net/man/2/sendmmsg
-                // @see https://linux.die.net/man/2/sendmsg
-                for (int i = 0; i < pos; i++) {
-                    srs_mmsghdr* mhdr = &hotspot[i];
-
-                    nn_writen += (int)mhdr->msg_len;
-
-                    int real_iovs = mhdr->msg_hdr.msg_iovlen;
-                    gso_pos++; nn_gso_msgs++; nn_gso_iovs += real_iovs;
-                    gso_iovs += real_iovs;
-                }
-            }
         }
 
         if (!stat_enabled) {
@@ -345,12 +319,10 @@ srs_error_t SrsUdpMuxSender::cycle()
         }
 
         // Increase total messages.
-        nn_msgs += pos + gso_iovs;
+        nn_msgs += pos;
         nn_msgs_max = srs_max(pos, nn_msgs_max);
         nn_bytes += nn_writen;
         nn_bytes_max = srs_max(nn_bytes_max, nn_writen);
-        nn_gso_msgs_max = srs_max(gso_pos, nn_gso_msgs_max);
-        nn_gso_iovs_max = srs_max(gso_iovs, nn_gso_iovs_max);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -379,12 +351,11 @@ srs_error_t SrsUdpMuxSender::cycle()
                 nn_cache += hdr->msg_hdr.msg_iovlen;
             }
 
-            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", gso %d/%d/%" PRId64 ", iovs %d/%d/%" PRId64 ", pps %d/%d%s, cache %d/%d, bytes %d/%" PRId64,
-                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, gso_pos, nn_gso_msgs_max, nn_gso_msgs, gso_iovs,
-                nn_gso_iovs_max, nn_gso_iovs, pps_average, pps_last, pps_unit.c_str(), (int)hotspot.size(), nn_cache, nn_bytes_max, nn_bytes);
+            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", pps %d/%d%s, cache %d/%d, bytes %d/%" PRId64,
+                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, pps_average, pps_last, pps_unit.c_str(),
+                (int)hotspot.size(), nn_cache, nn_bytes_max, nn_bytes);
             nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
             nn_loop = nn_wait = nn_msgs_max = 0;
-            nn_gso_msgs_max = 0; nn_gso_iovs_max = 0;
             nn_bytes_max = 0;
         }
     }

@@ -249,11 +249,6 @@ public:
     virtual void perf_on_rtp_packets(int nb_packets);
     virtual srs_error_t dumps_perf_rtp_packets(SrsJsonObject* obj);
 public:
-    // Stat for packets UDP GSO, nb_packets is the merged RTP packets.
-    // For example, three RTP/audio packets maybe GSO to one msghdr.
-    virtual void perf_on_gso_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_gso(SrsJsonObject* obj);
-public:
     // Stat for TCP writev, nb_iovs is the total number of iovec.
     virtual void perf_on_writev_iovs(int nb_iovs);
     virtual srs_error_t dumps_perf_writev_iovs(SrsJsonObject* obj);

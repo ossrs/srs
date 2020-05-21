@@ -268,7 +268,6 @@ SrsStatistic::SrsStatistic()
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
     perf_sendmmsg = new SrsStatisticCategory();
-    perf_gso = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();
@@ -310,7 +309,6 @@ SrsStatistic::~SrsStatistic()
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
     srs_freep(perf_sendmmsg);
-    srs_freep(perf_gso);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
@@ -625,16 +623,6 @@ srs_error_t SrsStatistic::dumps_perf_rtp_packets(SrsJsonObject* obj)
     return dumps_perf(perf_rtp, obj);
 }
 
-void SrsStatistic::perf_on_gso_packets(int nb_packets)
-{
-    perf_on_packets(perf_gso, nb_packets);
-}
-
-srs_error_t SrsStatistic::dumps_perf_gso(SrsJsonObject* obj)
-{
-    return dumps_perf(perf_gso, obj);
-}
-
 void SrsStatistic::perf_on_writev_iovs(int nb_iovs)
 {
     perf_on_packets(perf_iovs, nb_iovs);
@@ -706,7 +694,6 @@ void SrsStatistic::reset_perf()
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
     srs_freep(perf_sendmmsg);
-    srs_freep(perf_gso);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
@@ -715,7 +702,6 @@ void SrsStatistic::reset_perf()
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
     perf_sendmmsg = new SrsStatisticCategory();
-    perf_gso = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();
