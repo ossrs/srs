@@ -448,7 +448,7 @@ void SrsRtcServer::check_and_clean_timeout_session()
         session->switch_to_context();
 
         srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
-        map_username_session.erase(iter++);
+        iter = map_username_session.erase(iter);
         map_id_session.erase(session->peer_id());
 
         if (handler) {
