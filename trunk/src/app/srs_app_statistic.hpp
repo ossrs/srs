@@ -170,7 +170,6 @@ private:
     // The perf stat for mw(merged write).
     SrsStatisticCategory* perf_iovs;
     SrsStatisticCategory* perf_msgs;
-    SrsStatisticCategory* perf_sendmmsg;
     SrsStatisticCategory* perf_rtp;
     SrsStatisticCategory* perf_rtc;
     SrsStatisticCategory* perf_bytes;
@@ -250,10 +249,6 @@ public:
     // Stat for TCP writev, nb_iovs is the total number of iovec.
     virtual void perf_on_writev_iovs(int nb_iovs);
     virtual srs_error_t dumps_perf_writev_iovs(SrsJsonObject* obj);
-public:
-    // Stat for packets UDP sendmmsg, nb_packets is the vlen for sendmmsg.
-    virtual void perf_on_sendmmsg_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
 public:
     // Stat for bytes, nn_bytes is the size of bytes, nb_padding is padding bytes.
     virtual void perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding);

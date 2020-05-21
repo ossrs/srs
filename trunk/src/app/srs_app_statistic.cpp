@@ -267,7 +267,6 @@ SrsStatistic::SrsStatistic()
 
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
-    perf_sendmmsg = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();
@@ -307,7 +306,6 @@ SrsStatistic::~SrsStatistic()
 
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
-    srs_freep(perf_sendmmsg);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
@@ -631,16 +629,6 @@ srs_error_t SrsStatistic::dumps_perf_writev_iovs(SrsJsonObject* obj)
     return dumps_perf(perf_iovs, obj);
 }
 
-void SrsStatistic::perf_on_sendmmsg_packets(int nb_packets)
-{
-    perf_on_packets(perf_sendmmsg, nb_packets);
-}
-
-srs_error_t SrsStatistic::dumps_perf_sendmmsg(SrsJsonObject* obj)
-{
-    return dumps_perf(perf_sendmmsg, obj);
-}
-
 void SrsStatistic::perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding)
 {
     // a: AVFrame bytes.
@@ -668,14 +656,12 @@ void SrsStatistic::reset_perf()
 {
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
-    srs_freep(perf_sendmmsg);
     srs_freep(perf_rtp);
     srs_freep(perf_rtc);
     srs_freep(perf_bytes);
 
     perf_iovs = new SrsStatisticCategory();
     perf_msgs = new SrsStatisticCategory();
-    perf_sendmmsg = new SrsStatisticCategory();
     perf_rtp = new SrsStatisticCategory();
     perf_rtc = new SrsStatisticCategory();
     perf_bytes = new SrsStatisticCategory();

@@ -3644,7 +3644,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "merge_nalus"
+                && n != "encrypt" && n != "reuseport" && n != "merge_nalus"
                 && n != "perf_stat" && n != "queue_length" && n != "black_hole"
                 && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
@@ -4798,28 +4798,6 @@ bool SrsConfig::get_rtc_server_encrypt()
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-int SrsConfig::get_rtc_server_sendmmsg()
-{
-#if !defined(SRS_SENDMMSG)
-    return 1;
-#else
-    static int DEFAULT = 256;
-
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("sendmmsg");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    int v = ::atoi(conf->arg0().c_str());
-    return srs_max(1, v);
-#endif
 }
 
 int SrsConfig::get_rtc_server_reuseport()
