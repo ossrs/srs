@@ -1927,6 +1927,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
     state_ = INIT;
     last_stun_time = 0;
     sessionStunTimeout = 0;
+    disposing_ = false;
 
     blackhole = false;
     blackhole_addr = NULL;

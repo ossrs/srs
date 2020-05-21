@@ -321,6 +321,8 @@ class SrsRtcSession
     friend class SrsRtcDtls;
     friend class SrsRtcPlayer;
     friend class SrsRtcPublisher;
+public:
+    bool disposing_;
 private:
     SrsRtcServer* server_;
     SrsRtcSessionStateType state_;
