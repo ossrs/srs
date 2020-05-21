@@ -771,9 +771,17 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector
         if (pkt->is_audio()) {
             info.nn_audios++;
 
-            if ((err = package_opus(pkt)) != srs_success) {
-                return srs_error_wrap(err, "package opus");
+            pkt->header.set_timestamp(audio_timestamp);
+            pkt->header.set_sequence(audio_sequence++);
+            pkt->header.set_ssrc(audio_ssrc);
+            pkt->header.set_payload_type(audio_payload_type);
+
+            // TODO: FIXME: Padding audio to the max payload in RTP packets.
+            if (max_padding > 0) {
             }
+
+            // TODO: FIXME: Why 960? Need Refactoring?
+            audio_timestamp += 960;
             continue;
         }
 
@@ -781,40 +789,10 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector
         info.nn_videos++;
 
         // For video, we should set the RTP packet informations about this consumer.
-        if ((err = package_video(pkt)) != srs_success) {
-            return srs_error_wrap(err, "package video");
-        }
+        pkt->header.set_sequence(video_sequence++);
+        pkt->header.set_ssrc(video_ssrc);
+        pkt->header.set_payload_type(video_payload_type);
     }
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::package_opus(SrsRtpPacket2* pkt)
-{
-    srs_error_t err = srs_success;
-
-    pkt->header.set_timestamp(audio_timestamp);
-    pkt->header.set_sequence(audio_sequence++);
-    pkt->header.set_ssrc(audio_ssrc);
-    pkt->header.set_payload_type(audio_payload_type);
-
-    // TODO: FIXME: Padding audio to the max payload in RTP packets.
-    if (max_padding > 0) {
-    }
-
-    // TODO: FIXME: Why 960? Need Refactoring?
-    audio_timestamp += 960;
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::package_video(SrsRtpPacket2* pkt)
-{
-    srs_error_t err = srs_success;
-
-    pkt->header.set_sequence(video_sequence++);
-    pkt->header.set_ssrc(video_ssrc);
-    pkt->header.set_payload_type(video_payload_type);
 
     return err;
 }

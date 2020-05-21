@@ -242,8 +242,6 @@ public:
 private:
     srs_error_t send_messages(SrsRtcSource* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
     srs_error_t messages_to_packets(SrsRtcSource* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
-    srs_error_t package_opus(SrsRtpPacket2* pkt);
-    srs_error_t package_video(SrsRtpPacket2* pkt);
     srs_error_t send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
     srs_error_t send_packets_gso(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
