@@ -207,8 +207,6 @@ private:
     // Simulators.
     int nn_simulate_nack_drop;
 private:
-    // For merged-write and GSO.
-    int max_padding;
     // For merged-write messages.
     int mw_msgs;
     bool realtime;
@@ -221,7 +219,6 @@ public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
 // interface ISrsReloadHandler
 public:
-    virtual srs_error_t on_reload_rtc_server();
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 public:

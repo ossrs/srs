@@ -3645,7 +3645,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "sendmmsg" && n != "encrypt" && n != "reuseport" && n != "merge_nalus"
-                && n != "padding" && n != "perf_stat" && n != "queue_length" && n != "black_hole"
+                && n != "perf_stat" && n != "queue_length" && n != "black_hole"
                 && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
@@ -4866,23 +4866,6 @@ bool SrsConfig::get_rtc_server_merge_nalus()
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-int SrsConfig::get_rtc_server_padding()
-{
-    static int DEFAULT = 127;
-
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("padding");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return srs_min(127, ::atoi(conf->arg0().c_str()));
 }
 
 bool SrsConfig::get_rtc_server_perf_stat()

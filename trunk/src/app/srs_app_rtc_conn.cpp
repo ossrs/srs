@@ -494,8 +494,6 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     session_ = s;
 
-    max_padding = 0;
-
     audio_timestamp = 0;
     audio_sequence = 0;
 
@@ -533,22 +531,12 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
     video_payload_type = v_pt;
     audio_payload_type = a_pt;
 
-    max_padding = _srs_config->get_rtc_server_padding();
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
-    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), padding=%d, nack=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, max_padding, nack_enabled_);
+    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_);
 
     return err;
-}
-
-srs_error_t SrsRtcPlayer::on_reload_rtc_server()
-{
-    max_padding = _srs_config->get_rtc_server_padding();
-
-    srs_trace("Reload rtc_server max_padding=%d", max_padding);
-
-    return srs_success;
 }
 
 srs_error_t SrsRtcPlayer::on_reload_vhost_play(string vhost)
@@ -733,8 +721,6 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector
             pkt->header.set_payload_type(audio_payload_type);
 
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
-            if (max_padding > 0) {
-            }
 
             // TODO: FIXME: Why 960? Need Refactoring?
             audio_timestamp += 960;

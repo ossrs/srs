@@ -531,7 +531,6 @@ public:
     virtual bool get_rtc_server_encrypt();
     virtual int get_rtc_server_reuseport();
     virtual bool get_rtc_server_merge_nalus();
-    virtual int get_rtc_server_padding();
     virtual bool get_rtc_server_perf_stat();
     virtual int get_rtc_server_queue_length();
     virtual bool get_rtc_server_black_hole();
