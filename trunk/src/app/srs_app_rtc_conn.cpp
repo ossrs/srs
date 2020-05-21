@@ -646,7 +646,7 @@ srs_error_t SrsRtcPlayer::cycle()
 
         // Send-out all RTP packets and do cleanup.
         // TODO: FIXME: Handle error.
-        send_messages(source, pkts, info);
+        send_packets(source, pkts, info);
 
         for (int i = 0; i < msg_count; i++) {
             SrsRtpPacket2* pkt = pkts[i];
@@ -679,7 +679,7 @@ srs_error_t SrsRtcPlayer::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -689,22 +689,6 @@ srs_error_t SrsRtcPlayer::send_messages(SrsRtcSource* source, const vector<SrsRt
     }
 
     // Covert kernel messages to RTP packets.
-    if ((err = messages_to_packets(source, pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "messages to packets");
-    }
-
-    // By default, we send packets by sendmmsg.
-    if ((err = send_packets(pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "raw send");
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
-{
-    srs_error_t err = srs_success;
-
     for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts[i];
 
@@ -736,10 +720,15 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector
         pkt->header.set_payload_type(video_payload_type);
     }
 
+    // By default, we send packets by sendmmsg.
+    if ((err = do_send_packets(pkts, info)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
     return err;
 }
 
-srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
