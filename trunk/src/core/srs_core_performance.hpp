@@ -209,9 +209,6 @@
     #define SRS_PERF_RTC_GSO_IOVS 1
 #endif
 
-// For RTC, the max iovs in msghdr, the max packets sent in a msghdr.
-#define SRS_PERF_RTC_GSO_MAX 64
-
 // For RTC, the max count of RTP packets we process in one loop.
 // TODO: FIXME: Remove it.
 #define SRS_PERF_RTC_RTP_PACKETS 1024

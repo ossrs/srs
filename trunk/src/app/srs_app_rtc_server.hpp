@@ -40,50 +40,6 @@ class SrsRtcSession;
 class SrsRequest;
 class SrsSdp;
 
-class SrsUdpMuxSender : virtual public ISrsUdpSender, virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-{
-private:
-    srs_netfd_t lfd;
-    SrsRtcServer* server;
-    SrsCoroutine* trd;
-private:
-    srs_cond_t cond;
-    bool waiting_msgs;
-    bool gso;
-    int nn_senders;
-private:
-    // Hotspot msgs, we are working on it.
-    // @remark We will wait util all messages are ready.
-    std::vector<srs_mmsghdr> hotspot;
-    // Cache msgs, for other coroutines to fill it.
-    std::vector<srs_mmsghdr> cache;
-    int cache_pos;
-    // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
-    int max_sendmmsg;
-    // The total queue length, for each sender.
-    int queue_length;
-    // The extra queue ratio.
-    int extra_ratio;
-    int extra_queue;
-public:
-    SrsUdpMuxSender(SrsRtcServer* s);
-    virtual ~SrsUdpMuxSender();
-public:
-    virtual srs_error_t initialize(srs_netfd_t fd, int senders);
-private:
-    void free_mhdrs(std::vector<srs_mmsghdr>& mhdrs);
-public:
-    virtual srs_error_t fetch(srs_mmsghdr** pphdr);
-    virtual srs_error_t sendmmsg(srs_mmsghdr* hdr);
-    virtual bool overflow();
-    virtual void set_extra_ratio(int r);
-public:
-    virtual srs_error_t cycle();
-// interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_rtc_server();
-};
-
 class ISrsRtcServerHandler
 {
 public:
@@ -99,7 +55,6 @@ class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGl
 private:
     SrsHourGlass* timer;
     std::vector<SrsUdpMuxListener*> listeners;
-    std::vector<SrsUdpMuxSender*> senders;
     ISrsRtcServerHandler* handler;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)

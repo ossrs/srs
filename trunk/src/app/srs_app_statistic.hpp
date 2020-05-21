@@ -171,11 +171,9 @@ private:
     SrsStatisticCategory* perf_iovs;
     SrsStatisticCategory* perf_msgs;
     SrsStatisticCategory* perf_sendmmsg;
-    SrsStatisticCategory* perf_gso;
     SrsStatisticCategory* perf_rtp;
     SrsStatisticCategory* perf_rtc;
     SrsStatisticCategory* perf_bytes;
-    SrsStatisticCategory* perf_dropped;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
@@ -260,10 +258,6 @@ public:
     // Stat for bytes, nn_bytes is the size of bytes, nb_padding is padding bytes.
     virtual void perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding);
     virtual srs_error_t dumps_perf_bytes(SrsJsonObject* obj);
-public:
-    // Stat for rtc messages, nn_rtc is rtc messages, nn_dropped is dropped messages.
-    virtual void perf_on_dropped(int nn_msgs, int nn_rtc, int nn_dropped);
-    virtual srs_error_t dumps_perf_dropped(SrsJsonObject* obj);
 public:
     // Reset all perf stat data.
     virtual void reset_perf();

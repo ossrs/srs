@@ -236,21 +236,12 @@ srs_error_t SrsTcpListener::cycle()
     return err;
 }
 
-ISrsUdpSender::ISrsUdpSender()
-{
-}
-
-ISrsUdpSender::~ISrsUdpSender()
-{
-}
-
-SrsUdpMuxSocket::SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd)
+SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 {
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     nread = 0;
 
-    handler = h;
     lfd = fd;
 
     fromlen = 0;
@@ -354,7 +345,7 @@ std::string SrsUdpMuxSocket::peer_id()
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
 {
-    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(handler, lfd);
+    SrsUdpMuxSocket* sendonly = new SrsUdpMuxSocket(lfd);
 
     // Don't copy buffer
     srs_freepa(sendonly->buf);
@@ -369,15 +360,9 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
     return sendonly;
 }
 
-ISrsUdpSender* SrsUdpMuxSocket::sender()
-{
-    return handler;
-}
-
-SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p)
+SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
 {
     handler = h;
-    sender = s;
 
     ip = i;
     port = p;
@@ -489,7 +474,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         // Because we have to decrypt the cipher of received packet payload,
         // and the size is not determined, so we think there is at least one copy,
         // and we can reuse the plaintext h264/opus with players when got plaintext.
-        SrsUdpMuxSocket skt(sender, lfd);
+        SrsUdpMuxSocket skt(lfd);
 
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {

@@ -53,8 +53,6 @@ class SrsRtcSession;
 class SrsSharedPtrMessage;
 class SrsRtcSource;
 class SrsRtpPacket2;
-class ISrsUdpSender;
-class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
@@ -181,8 +179,6 @@ public:
     int nn_videos;
     // The number of padded packet.
     int nn_paddings;
-    // The number of dropped messages.
-    int nn_dropped;
 public:
     SrsRtcOutgoingInfo();
     virtual ~SrsRtcOutgoingInfo();
@@ -212,7 +208,6 @@ private:
     int nn_simulate_nack_drop;
 private:
     // For merged-write and GSO.
-    bool gso;
     int max_padding;
     // For merged-write messages.
     int mw_msgs;

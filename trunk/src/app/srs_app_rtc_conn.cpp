@@ -481,7 +481,6 @@ SrsRtcOutgoingInfo::SrsRtcOutgoingInfo()
     nn_videos = nn_samples = 0;
     nn_bytes = nn_rtp_bytes = 0;
     nn_padding_bytes = nn_paddings = 0;
-    nn_dropped = 0;
 }
 
 SrsRtcOutgoingInfo::~SrsRtcOutgoingInfo()
@@ -627,14 +626,6 @@ srs_error_t SrsRtcPlayer::cycle()
     realtime = _srs_config->get_realtime_enabled(req->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
 
-    // We merged write more messages, so we need larger queue.
-    ISrsUdpSender* sender = session_->sendonly_skt->sender();
-    if (mw_msgs > 2) {
-        sender->set_extra_ratio(150);
-    } else if (mw_msgs > 0) {
-        sender->set_extra_ratio(80);
-    }
-
     srs_trace("RTC source url=%s, source_id=[%d][%d], encrypt=%d, realtime=%d, mw_msgs=%d", req->get_stream_url().c_str(),
         ::getpid(), source->source_id(), session_->encrypt, realtime, mw_msgs);
 
@@ -689,14 +680,12 @@ srs_error_t SrsRtcPlayer::cycle()
         stat->perf_on_rtp_packets(msg_count);
         // Stat the bytes and paddings.
         stat->perf_on_rtc_bytes(info.nn_bytes, info.nn_rtp_bytes, info.nn_padding_bytes);
-        // Stat the messages and dropped count.
-        stat->perf_on_dropped(msg_count, nn_rtc_packets, info.nn_dropped);
 
         pprint->elapse();
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d/%d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes, %d pad, %d/%d cache",
-                msg_count, info.nn_dropped, msg_count, info.nn_rtp_pkts, info.nn_audios, info.nn_extras, info.nn_videos, info.nn_samples, info.nn_bytes,
+            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes, %d pad, %d/%d cache",
+                msg_count, msg_count, info.nn_rtp_pkts, info.nn_audios, info.nn_extras, info.nn_videos, info.nn_samples, info.nn_bytes,
                 info.nn_rtp_bytes, info.nn_padding_bytes, info.nn_paddings, msg_count, msg_count);
         }
     }
@@ -728,16 +717,8 @@ srs_error_t SrsRtcPlayer::messages_to_packets(SrsRtcSource* source, const vector
 {
     srs_error_t err = srs_success;
 
-    ISrsUdpSender* sender = session_->sendonly_skt->sender();
-
     for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts[i];
-
-        // If overflow, drop all messages.
-        if (sender->overflow()) {
-            info.nn_dropped += (int)pkts.size() - i;
-            return err;
-        }
 
         // Update stats.
         info.nn_bytes += pkt->nb_bytes();
@@ -778,25 +759,15 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
 
     // Cache the encrypt flag and sender.
     bool encrypt = session_->encrypt;
-    ISrsUdpSender* sender = session_->sendonly_skt->sender();
 
     for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts.at(i);
 
-        // Fetch a cached message from queue.
-        // TODO: FIXME: Maybe encrypt in async, so the state of mhdr maybe not ready.
-        srs_mmsghdr* mhdr = NULL;
-        if ((err = sender->fetch(&mhdr)) != srs_success) {
-            return srs_error_wrap(err, "fetch msghdr");
-        }
-
         // For this message, select the first iovec.
-        iovec* iov = mhdr->msg_hdr.msg_iov;
-        mhdr->msg_hdr.msg_iovlen = 1;
+        iovec* iov = new iovec();
+        SrsAutoFree(iovec, iov);
 
-        if (!iov->iov_base) {
-            iov->iov_base = new char[kRtpPacketSize];
-        }
+        iov->iov_base = new char[kRtpPacketSize];
         iov->iov_len = kRtpPacketSize;
 
         // Marshal packet to bytes in iovec.
@@ -839,14 +810,6 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
 
         info.nn_rtp_bytes += (int)iov->iov_len;
 
-        // Set the address and control information.
-        sockaddr_in* addr = (sockaddr_in*)session_->sendonly_skt->peer_addr();
-        socklen_t addrlen = (socklen_t)session_->sendonly_skt->peer_addrlen();
-
-        mhdr->msg_hdr.msg_name = (sockaddr_in*)addr;
-        mhdr->msg_hdr.msg_namelen = (socklen_t)addrlen;
-        mhdr->msg_hdr.msg_controllen = 0;
-
         // When we send out a packet, increase the stat counter.
         info.nn_rtp_pkts++;
 
@@ -857,9 +820,8 @@ srs_error_t SrsRtcPlayer::send_packets(const std::vector<SrsRtpPacket2*>& pkts, 
             continue;
         }
 
-        if ((err = sender->sendmmsg(mhdr)) != srs_success) {
-            return srs_error_wrap(err, "send msghdr");
-        }
+        // TODO: FIXME: Handle error.
+        session_->sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
     }
 
     return err;

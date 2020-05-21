@@ -124,258 +124,6 @@ static std::vector<std::string> get_candidate_ips()
     return candidate_ips;
 }
 
-SrsUdpMuxSender::SrsUdpMuxSender(SrsRtcServer* s)
-{
-    lfd = NULL;
-    server = s;
-
-    waiting_msgs = false;
-    cond = srs_cond_new();
-    trd = new SrsDummyCoroutine();
-
-    cache_pos = 0;
-    max_sendmmsg = 0;
-    queue_length = 0;
-    extra_ratio = 0;
-    extra_queue = 0;
-    nn_senders = 0;
-
-    _srs_config->subscribe(this);
-}
-
-SrsUdpMuxSender::~SrsUdpMuxSender()
-{
-    _srs_config->unsubscribe(this);
-
-    srs_freep(trd);
-    srs_cond_destroy(cond);
-
-    free_mhdrs(hotspot);
-    hotspot.clear();
-
-    free_mhdrs(cache);
-    cache.clear();
-}
-
-srs_error_t SrsUdpMuxSender::initialize(srs_netfd_t fd, int senders)
-{
-    srs_error_t err = srs_success;
-
-    lfd = fd;
-
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("udp", this);
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "start coroutine");
-    }
-
-    max_sendmmsg = _srs_config->get_rtc_server_sendmmsg();
-    queue_length = srs_max(128, _srs_config->get_rtc_server_queue_length());
-    nn_senders = senders;
-
-    srs_trace("RTC sender #%d init ok, max_sendmmsg=%d, queue_max=%dx%d, extra_ratio=%d/%d", srs_netfd_fileno(fd),
-        max_sendmmsg, queue_length, nn_senders, extra_ratio, extra_queue);
-
-    return err;
-}
-
-void SrsUdpMuxSender::free_mhdrs(std::vector<srs_mmsghdr>& mhdrs)
-{
-    int nn_mhdrs = (int)mhdrs.size();
-    for (int i = 0; i < nn_mhdrs; i++) {
-        // @see https://linux.die.net/man/2/sendmmsg
-        // @see https://linux.die.net/man/2/sendmsg
-        srs_mmsghdr* hdr = &mhdrs[i];
-
-        // Free control for GSO.
-        char* msg_control = (char*)hdr->msg_hdr.msg_control;
-        srs_freepa(msg_control);
-
-        // Free iovec.
-        for (int j = SRS_PERF_RTC_GSO_MAX - 1; j >= 0 ; j--) {
-            iovec* iov = hdr->msg_hdr.msg_iov + j;
-            char* data = (char*)iov->iov_base;
-            srs_freepa(data);
-            srs_freepa(iov);
-        }
-    }
-    mhdrs.clear();
-}
-
-srs_error_t SrsUdpMuxSender::fetch(srs_mmsghdr** pphdr)
-{
-    // TODO: FIXME: Maybe need to shrink?
-    if (cache_pos >= (int)cache.size()) {
-        // @see https://linux.die.net/man/2/sendmmsg
-        // @see https://linux.die.net/man/2/sendmsg
-        srs_mmsghdr mhdr;
-
-        mhdr.msg_len = 0;
-        mhdr.msg_hdr.msg_flags = 0;
-        mhdr.msg_hdr.msg_control = NULL;
-
-        mhdr.msg_hdr.msg_iovlen = SRS_PERF_RTC_GSO_MAX;
-        mhdr.msg_hdr.msg_iov = new iovec[mhdr.msg_hdr.msg_iovlen];
-        memset((void*)mhdr.msg_hdr.msg_iov, 0, sizeof(iovec) * mhdr.msg_hdr.msg_iovlen);
-
-        for (int i = 0; i < SRS_PERF_RTC_GSO_IOVS; i++) {
-            iovec* p = mhdr.msg_hdr.msg_iov + i;
-            p->iov_base = new char[kRtpPacketSize];
-        }
-
-        cache.push_back(mhdr);
-    }
-
-    *pphdr = &cache[cache_pos++];
-    return srs_success;
-}
-
-bool SrsUdpMuxSender::overflow()
-{
-    return cache_pos > queue_length + extra_queue;
-}
-
-void SrsUdpMuxSender::set_extra_ratio(int r)
-{
-    // We use the larger extra ratio, because all vhosts shares the senders.
-    if (extra_ratio > r) {
-        return;
-    }
-
-    extra_ratio = r;
-    extra_queue = queue_length * r / 100;
-
-    srs_trace("RTC sender #%d extra queue, max_sendmmsg=%d, queue_max=%dx%d, extra_ratio=%d/%d, cache=%d/%d/%d", srs_netfd_fileno(lfd),
-        max_sendmmsg, queue_length, nn_senders, extra_ratio, extra_queue, cache_pos, (int)cache.size(), (int)hotspot.size());
-}
-
-srs_error_t SrsUdpMuxSender::sendmmsg(srs_mmsghdr* hdr)
-{
-    if (waiting_msgs) {
-        waiting_msgs = false;
-        srs_cond_signal(cond);
-    }
-
-    return srs_success;
-}
-
-srs_error_t SrsUdpMuxSender::cycle()
-{
-    srs_error_t err = srs_success;
-
-    uint64_t nn_msgs = 0; uint64_t nn_msgs_last = 0; int nn_msgs_max = 0;
-    uint64_t nn_bytes = 0; int nn_bytes_max = 0;
-    int nn_loop = 0; int nn_wait = 0;
-    srs_utime_t time_last = srs_get_system_time();
-
-    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
-    SrsStatistic* stat = SrsStatistic::instance();
-
-    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_send(srs_netfd_fileno(lfd));
-    SrsAutoFree(SrsPithyPrint, pprint);
-
-    while (true) {
-        if ((err = trd->pull()) != srs_success) {
-            return err;
-        }
-
-        nn_loop++;
-
-        int pos = cache_pos;
-        if (pos <= 0) {
-            waiting_msgs = true;
-            nn_wait++;
-            srs_cond_wait(cond);
-            continue;
-        }
-
-        // We are working on hotspot now.
-        cache.swap(hotspot);
-        cache_pos = 0;
-
-        int nn_writen = 0;
-        if (pos > 0) {
-            // Send out all messages.
-            // @see https://linux.die.net/man/2/sendmmsg
-            // @see https://linux.die.net/man/2/sendmsg
-            srs_mmsghdr* p = &hotspot[0]; srs_mmsghdr* end = p + pos;
-            for (p = &hotspot[0]; p < end; p += max_sendmmsg) {
-                int vlen = (int)(end - p);
-                vlen = srs_min(max_sendmmsg, vlen);
-
-                int r0 = srs_sendmmsg(lfd, p, (unsigned int)vlen, 0, SRS_UTIME_NO_TIMEOUT);
-                if (r0 != vlen) {
-                    srs_warn("sendmmsg %d msgs, %d done", vlen, r0);
-                }
-
-                if (stat_enabled) {
-                    stat->perf_on_sendmmsg_packets(vlen);
-                }
-            }
-        }
-
-        if (!stat_enabled) {
-            continue;
-        }
-
-        // Increase total messages.
-        nn_msgs += pos;
-        nn_msgs_max = srs_max(pos, nn_msgs_max);
-        nn_bytes += nn_writen;
-        nn_bytes_max = srs_max(nn_bytes_max, nn_writen);
-
-        pprint->elapse();
-        if (pprint->can_print()) {
-            // TODO: FIXME: Extract a PPS calculator.
-            int pps_average = 0; int pps_last = 0;
-            if (true) {
-                if (srs_get_system_time() > srs_get_system_startup_time()) {
-                    pps_average = (int)(nn_msgs * SRS_UTIME_SECONDS / (srs_get_system_time() - srs_get_system_startup_time()));
-                }
-                if (srs_get_system_time() > time_last) {
-                    pps_last = (int)((nn_msgs - nn_msgs_last) * SRS_UTIME_SECONDS / (srs_get_system_time() - time_last));
-                }
-            }
-
-            string pps_unit = "";
-            if (pps_last > 10000 || pps_average > 10000) {
-                pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
-            } else if (pps_last > 1000 || pps_average > 1000) {
-                pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
-            }
-
-            int nn_cache = 0;
-            int nn_hotspot_size = (int)hotspot.size();
-            for (int i = 0; i < nn_hotspot_size; i++) {
-                srs_mmsghdr* hdr = &hotspot[i];
-                nn_cache += hdr->msg_hdr.msg_iovlen;
-            }
-
-            srs_trace("-> RTC SEND #%d, sessions %d, udp %d/%d/%" PRId64 ", pps %d/%d%s, cache %d/%d, bytes %d/%" PRId64,
-                srs_netfd_fileno(lfd), (int)server->nn_sessions(), pos, nn_msgs_max, nn_msgs, pps_average, pps_last, pps_unit.c_str(),
-                (int)hotspot.size(), nn_cache, nn_bytes_max, nn_bytes);
-            nn_msgs_last = nn_msgs; time_last = srs_get_system_time();
-            nn_loop = nn_wait = nn_msgs_max = 0;
-            nn_bytes_max = 0;
-        }
-    }
-
-    return err;
-}
-
-srs_error_t SrsUdpMuxSender::on_reload_rtc_server()
-{
-    if (true) {
-        int v = _srs_config->get_rtc_server_sendmmsg();
-        if (max_sendmmsg != v) {
-            srs_trace("Reload max_sendmmsg %d=>%d", max_sendmmsg, v);
-            max_sendmmsg = v;
-        }
-    }
-
-    return srs_success;
-}
-
 ISrsRtcServerHandler::ISrsRtcServerHandler()
 {
 }
@@ -399,14 +147,6 @@ SrsRtcServer::~SrsRtcServer()
         for (it = listeners.begin(); it != listeners.end(); ++it) {
             SrsUdpMuxListener* listener = *it;
             srs_freep(listener);
-        }
-    }
-
-    if (true) {
-        vector<SrsUdpMuxSender*>::iterator it;
-        for (it = senders.begin(); it != senders.end(); ++it) {
-            SrsUdpMuxSender* sender = *it;
-            srs_freep(sender);
         }
     }
 
@@ -459,21 +199,15 @@ srs_error_t SrsRtcServer::listen_udp()
 
     int nn_listeners = _srs_config->get_rtc_server_reuseport();
     for (int i = 0; i < nn_listeners; i++) {
-        SrsUdpMuxSender* sender = new SrsUdpMuxSender(this);
-        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, sender, ip, port);
+        SrsUdpMuxListener* listener = new SrsUdpMuxListener(this, ip, port);
 
         if ((err = listener->listen()) != srs_success) {
             srs_freep(listener);
             return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
         }
 
-        if ((err = sender->initialize(listener->stfd(), nn_listeners)) != srs_success) {
-            return srs_error_wrap(err, "init sender");
-        }
-
         srs_trace("rtc listen at udp://%s:%d, fd=%d", ip.c_str(), port, listener->fd());
         listeners.push_back(listener);
-        senders.push_back(sender);
     }
 
     return err;
