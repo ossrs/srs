@@ -1100,7 +1100,7 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t 
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
 
-    srs_trace("RTC player video(ssrc=%u), audio(ssrc=%u), nack=%d",
+    srs_trace("RTC publisher video(ssrc=%u), audio(ssrc=%u), nack=%d",
         video_ssrc, audio_ssrc, nack_enabled_);
 
     if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
