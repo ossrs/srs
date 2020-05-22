@@ -564,8 +564,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
 		// for video, parse the nalu type, set the IDR flag.
 	    SrsHEvcNaluType nal_unit_type = (SrsHEvcNaluType)((bytes[0] & 0x7e) >> 1);
 	    
-	    if (nal_unit_type >= SrsHEvcNaluTypeCODED_SLICE_BLA_W_LP || 
-			nal_unit_type <= SrsHEvcNaluTypeCODE_SLICE_CRA) {
+	    if (nal_unit_type >= SrsHEvcNaluTypeCODED_SLICE_BLA_W_LP && nal_unit_type <= SrsHEvcNaluTypeCODE_SLICE_CRA) {
 	        has_idr = true;
 	    } else if (nal_unit_type == SrsHEvcNaluTypeVPS ||
 	    	nal_unit_type == SrsHEvcNaluTypeSPS ||nal_unit_type == SrsHEvcNaluTypePPS) {
