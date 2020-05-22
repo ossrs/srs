@@ -1121,6 +1121,12 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t 
 
     source->set_rtc_publisher(this);
 
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req)) != srs_success) {
+            return srs_error_wrap(err, "on start publish");
+        }
+    }
+
     return err;
 }
 
@@ -1416,10 +1422,12 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     // For source to consume packet.
     uint32_t ssrc = pkt->header.get_ssrc();
     if (ssrc == audio_ssrc) {
+        pkt->frame_type = SrsFrameTypeAudio;
         if ((err = on_audio(pkt)) != srs_success) {
             return srs_error_wrap(err, "on audio");
         }
     } else if (ssrc == video_ssrc) {
+        pkt->frame_type = SrsFrameTypeVideo;
         if ((err = on_video(pkt)) != srs_success) {
             return srs_error_wrap(err, "on video");
         }
@@ -1430,6 +1438,12 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     // For NACK to handle packet.
     if (nack_enabled_ && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
+    }
+
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt->copy())) != srs_success) {
+            return srs_error_wrap(err, "on rtp packet");
+        }
     }
 
     return err;
@@ -2230,12 +2244,6 @@ srs_error_t SrsRtcSession::start_publish()
     // FIXME: err process.
     if ((err = publisher_->initialize(video_ssrc, audio_ssrc, twcc_ext_id, req)) != srs_success) {
         return srs_error_wrap(err, "rtc publisher init");
-    }
-
-    if (_srs_rtc_hijacker) {
-        if ((err = _srs_rtc_hijacker->on_start_publish(this, publisher_, req)) != srs_success) {
-            return srs_error_wrap(err, "on start publish");
-        }
     }
 
     return err;

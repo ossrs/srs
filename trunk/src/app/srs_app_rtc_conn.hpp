@@ -399,6 +399,8 @@ public:
 public:
     // When start publisher by RTC.
     virtual srs_error_t on_start_publish(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
+    // When got RTP plaintext packet.
+    virtual srs_error_t on_rtp_packet(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
 };
 
 extern ISrsRtcHijacker* _srs_rtc_hijacker;
