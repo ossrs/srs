@@ -391,5 +391,17 @@ private:
     srs_error_t on_binding_request(SrsStunPacket* r);
 };
 
+class ISrsRtcHijacker
+{
+public:
+    ISrsRtcHijacker();
+    virtual ~ISrsRtcHijacker();
+public:
+    // When start publisher by RTC.
+    virtual srs_error_t on_start_publish(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
+};
+
+extern ISrsRtcHijacker* _srs_rtc_hijacker;
+
 #endif
 

@@ -2226,9 +2226,16 @@ srs_error_t SrsRtcSession::start_publish()
             break;
         }
     }
+
     // FIXME: err process.
     if ((err = publisher_->initialize(video_ssrc, audio_ssrc, twcc_ext_id, req)) != srs_success) {
         return srs_error_wrap(err, "rtc publisher init");
+    }
+
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_start_publish(this, publisher_, req)) != srs_success) {
+            return srs_error_wrap(err, "on start publish");
+        }
     }
 
     return err;
@@ -2318,4 +2325,14 @@ srs_error_t SrsRtcSession::on_binding_request(SrsStunPacket* r)
 
     return err;
 }
+
+ISrsRtcHijacker::ISrsRtcHijacker()
+{
+}
+
+ISrsRtcHijacker::~ISrsRtcHijacker()
+{
+}
+
+ISrsRtcHijacker* _srs_rtc_hijacker = NULL;
 

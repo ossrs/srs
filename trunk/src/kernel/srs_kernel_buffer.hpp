@@ -136,12 +136,16 @@ public:
     int8_t read_1bytes();
     // Read 2bytes int from buffer.
     int16_t read_2bytes();
+    int16_t read_le2bytes();
     // Read 3bytes int from buffer.
     int32_t read_3bytes();
+    int32_t read_le3bytes();
     // Read 4bytes int from buffer.
     int32_t read_4bytes();
+    int32_t read_le4bytes();
     // Read 8bytes int from buffer.
     int64_t read_8bytes();
+    int64_t read_le8bytes();
     // Read string from buffer, length specifies by param len.
     std::string read_string(int len);
     // Read bytes from buffer, length specifies by param len.
@@ -151,12 +155,16 @@ public:
     void write_1bytes(int8_t value);
     // Write 2bytes int to buffer.
     void write_2bytes(int16_t value);
+    void write_le2bytes(int16_t value);
     // Write 4bytes int to buffer.
     void write_4bytes(int32_t value);
+    void write_le4bytes(int32_t value);
     // Write 3bytes int to buffer.
     void write_3bytes(int32_t value);
+    void write_le3bytes(int32_t value);
     // Write 8bytes int to buffer.
     void write_8bytes(int64_t value);
+    void write_le8bytes(int64_t value);
     // Write string to buffer
     void write_string(std::string value);
     // Write bytes to buffer
