@@ -536,6 +536,12 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
     srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d",
         video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_);
 
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_start_play(session_, this, session_->req)) != srs_success) {
+            return srs_error_wrap(err, "on start play");
+        }
+    }
+
     return err;
 }
 
@@ -627,6 +633,12 @@ srs_error_t SrsRtcPlayer::cycle()
     // TODO: FIXME: Use cache for performance?
     vector<SrsRtpPacket2*> pkts;
     SrsRtcOutgoingInfo info;
+
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_start_consume(session_, this, session_->req, consumer)) != srs_success) {
+            return srs_error_wrap(err, "on start consuming");
+        }
+    }
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {

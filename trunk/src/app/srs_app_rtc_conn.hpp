@@ -57,6 +57,7 @@ class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
 class SrsRtpRingBuffer;
+class SrsRtcConsumer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -401,6 +402,10 @@ public:
     virtual srs_error_t on_start_publish(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
     // When got RTP plaintext packet.
     virtual srs_error_t on_rtp_packet(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    // When start player by RTC.
+    virtual srs_error_t on_start_play(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req) = 0;
+    // When start consuming for player for RTC.
+    virtual srs_error_t on_start_consume(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
 };
 
 extern ISrsRtcHijacker* _srs_rtc_hijacker;
