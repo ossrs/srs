@@ -223,6 +223,7 @@ public:
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
+    // TODO: FIXME: Should follow interface ISrsEncoder.
     virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = nullptr);
 };
 

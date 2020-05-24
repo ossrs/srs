@@ -1409,6 +1409,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         if ((err = pkt->decode(&b, &extension_map_)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
         }
+
         if (0 != twcc_ext_id_) {
             uint16_t twcc_sn = 0;
             if ((err = pkt->header.get_twcc_sequence_number(twcc_sn)) == srs_success) {
