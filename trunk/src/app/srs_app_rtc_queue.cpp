@@ -248,7 +248,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
         int alive_time = now - nack_info.generate_time_;
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
             rtp_->notify_drop_seq(seq);
-            iter = queue_.erase(iter);
+            queue_.erase(iter++);
             continue;
         }
 

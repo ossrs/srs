@@ -147,7 +147,7 @@ public:
 private:
     srs_error_t parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extension_map);
 public:
-    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = nullptr);
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
@@ -224,7 +224,7 @@ public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     // TODO: FIXME: Should follow interface ISrsEncoder.
-    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = nullptr);
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
 };
 
 // Single payload data.
