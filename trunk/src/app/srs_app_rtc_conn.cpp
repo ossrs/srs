@@ -2061,7 +2061,7 @@ srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool 
     srs_trace("RTC init session, timeout=%dms, blackhole=%d", srsu2msi(sessionStunTimeout), blackhole);
 
     if (blackhole) {
-        string blackhole_ep = _srs_config->get_rtc_server_black_hole_publisher();
+        string blackhole_ep = _srs_config->get_rtc_server_black_hole_addr();
         if (!blackhole_ep.empty()) {
             string host; int port;
             srs_parse_hostport(blackhole_ep, host, port);

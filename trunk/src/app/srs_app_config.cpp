@@ -4884,7 +4884,7 @@ bool SrsConfig::get_rtc_server_black_hole()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-std::string SrsConfig::get_rtc_server_black_hole_publisher()
+std::string SrsConfig::get_rtc_server_black_hole_addr()
 {
     static string DEFAULT = "";
 
@@ -4898,7 +4898,7 @@ std::string SrsConfig::get_rtc_server_black_hole_publisher()
         return DEFAULT;
     }
 
-    conf = conf->get("publisher");
+    conf = conf->get("addr");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
