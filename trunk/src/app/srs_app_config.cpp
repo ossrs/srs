@@ -3644,8 +3644,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
-                && n != "encrypt" && n != "reuseport" && n != "merge_nalus"
-                && n != "perf_stat" && n != "queue_length" && n != "black_hole"
+                && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
                 && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
@@ -4861,23 +4860,6 @@ bool SrsConfig::get_rtc_server_perf_stat()
     }
 
     return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-int SrsConfig::get_rtc_server_queue_length()
-{
-    static int DEFAULT = 2000;
-
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("queue_length");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_rtc_server_black_hole()
