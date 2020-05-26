@@ -454,7 +454,8 @@ void SrsRtcServer::check_and_clean_timeout_session()
         session->disposing_ = true;
         zombies_.push_back(session);
 
-        iter = map_username_session.erase(iter);
+        // Use C++98 style: https://stackoverflow.com/a/4636230
+        map_username_session.erase(iter++);
         map_id_session.erase(session->peer_id());
 
         if (handler) {
