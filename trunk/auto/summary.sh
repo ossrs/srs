@@ -24,8 +24,7 @@ SrsGperfCPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_CP = YES ]; then 
 SrsGprofSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
 SrsValgrindSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_VALGRIND = YES ]; then SrsValgrindSummaryColor="\${GREEN}"; fi
 
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
+cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
 #!/bin/bash
 
 #####################################################################################
@@ -58,22 +57,4 @@ echo "You can:"
 echo "      ./objs/srs -c conf/srs.conf"
 echo "                  to start the srs server, with config conf/srs.conf."
 END
-else
-    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
-#!/bin/bash
 
-#####################################################################################
-# linux shell color support.
-RED="\\${RED}"
-GREEN="\\${GREEN}"
-YELLOW="\\${YELLOW}"
-BLACK="\\${BLACK}"
-
-echo -e "\${BLACK}You can use srs-librtmp at:\${BLACK}"
-echo -e "\${GREEN}      objs/include/srs_librtmp.h\${BLACK}"
-echo -e "\${GREEN}      objs/lib/srs_librtmp.a\${BLACK}"
-echo -e "\${BLACK}Examples for srs-librtmp at:\${BLACK}"
-echo -e "\${GREEN}      objs/research/librtmp\${BLACK}"
-echo -e "\${GREEN}      Examples: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples\${BLACK}"
-END
-fi

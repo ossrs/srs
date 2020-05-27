@@ -113,9 +113,7 @@ function Ubuntu_prepare()
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
-fi
+Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for ubuntu failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
 # for Centos, auto install tools by yum
@@ -191,9 +189,7 @@ function Centos_prepare()
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
-fi
+Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Install tools for CentOS failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
 # For OSX, auto install tools by brew
@@ -277,9 +273,7 @@ function OSX_prepare()
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
-fi
+OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
 # for Centos, auto install tools by yum
@@ -326,7 +320,7 @@ function _srs_link_file()
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO ]]; then
     if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
         echo "Your OS `uname -s` is not supported."
         exit 1
@@ -336,61 +330,59 @@ fi
 #####################################################################################
 # state-threads
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # check the cross build flag file, if flag changed, need to rebuild the st.
-    _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
-    if [[ $SRS_VALGRIND == YES ]]; then
-        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
-    fi
-    # for osx, use darwin for st, donot use epoll.
-    if [[ $SRS_OSX == YES ]]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
-    fi
-    # For UDP sendmmsg, disable it if not suppported.
-    if [[ $SRS_SENDMMSG == YES ]]; then
-        echo "Build ST with UDP sendmmsg support."
-        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
-    else
-        echo "Build ST without UDP sendmmsg support."
-        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
-    fi
-    # Pass the global extra flags.
-    if [[ $SRS_EXTRA_FLAGS != '' ]]; then
-        _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
-    fi
-    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
-        echo "The state-threads is ok.";
-    else
-        echo "Building state-threads.";
-        (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
-            # Create a hidden directory .src
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
-            # Link source files under .src
-            _srs_link_file .src/ ./ ./ &&
-            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
-                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
-            done &&
-            # Link source files under .src/xxx, the first child dir.
-            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
-                mkdir -p $dir &&
-                for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                    ln -sf ../.src/$dir/$file $dir/$file;
-                done;
-            done &&
-            # Build source code.
-            make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
-                CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
-            cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
-    # Always update the links.
-    (cd ${SRS_OBJS} && rm -rf st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
-    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
+# check the cross build flag file, if flag changed, need to rebuild the st.
+_ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
+if [[ $SRS_VALGRIND == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
 fi
+# for osx, use darwin for st, donot use epoll.
+if [[ $SRS_OSX == YES ]]; then
+    _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
+fi
+# For UDP sendmmsg, disable it if not suppported.
+if [[ $SRS_SENDMMSG == YES ]]; then
+    echo "Build ST with UDP sendmmsg support."
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
+else
+    echo "Build ST without UDP sendmmsg support."
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
+fi
+# Pass the global extra flags.
+if [[ $SRS_EXTRA_FLAGS != '' ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
+fi
+# Patched ST from https://github.com/ossrs/state-threads/tree/srs
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
+    echo "The state-threads is ok.";
+else
+    echo "Building state-threads.";
+    (
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
+        # Create a hidden directory .src
+        cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
+        # Link source files under .src
+        _srs_link_file .src/ ./ ./ &&
+        for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
+            dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
+        done &&
+        # Link source files under .src/xxx, the first child dir.
+        for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
+            mkdir -p $dir &&
+            for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
+                ln -sf ../.src/$dir/$file $dir/$file;
+            done;
+        done &&
+        # Build source code.
+        make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
+            CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+        cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
+    )
+fi
+# check status
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
+# Always update the links.
+(cd ${SRS_OBJS} && rm -rf st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
+if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 
 #####################################################################################
 # nginx for HLS, nginx-1.5.0
@@ -404,74 +396,68 @@ function write_nginx_html5()
 END
 }
 # create the nginx dir, for http-server if not build nginx
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    mkdir -p ${SRS_OBJS}/nginx
-fi
+mkdir -p ${SRS_OBJS}/nginx
 
 # the demo dir.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # create forward dir
-    mkdir -p ${SRS_OBJS}/nginx/html/live &&
-    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
+# create forward dir
+mkdir -p ${SRS_OBJS}/nginx/html/live &&
+mkdir -p ${SRS_OBJS}/nginx/html/forward/live
 
-    # generate default html pages for android.
-    html_file=${SRS_OBJS}/nginx/html/live/demo.html && hls_stream=demo.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+# generate default html pages for android.
+html_file=${SRS_OBJS}/nginx/html/live/demo.html && hls_stream=demo.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
 
-    # copy players to nginx html dir.
-    rm -rf ${SRS_OBJS}/nginx/html/players &&
-    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+# copy players to nginx html dir.
+rm -rf ${SRS_OBJS}/nginx/html/players &&
+ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
 
-    # for favicon.ico
-    rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
-    ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
+# for favicon.ico
+rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
+ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
 
-    # nginx.html to detect whether nginx is alive
-    echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
-fi
+# nginx.html to detect whether nginx is alive
+echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
 
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # Detect python or python2
-    python --version >/dev/null 2>&1 && SYS_PYTHON=python;
-    python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
-    # Install cherrypy for api server.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
-        echo "CherryPy-3.2.4 is ok.";
-    else
-        echo "Installing CherryPy-3.2.4";
-        (
-            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-            $SYS_PYTHON setup.py install --user --prefix=''
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
-
-    echo "Link players to cherrypy static-dir"
-    rm -rf research/api-server/static-dir/players &&
-    ln -sf `pwd`/research/players research/api-server/static-dir/players &&
-    rm -f research/api-server/static-dir/crossdomain.xml &&
-    ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
-    rm -rf research/api-server/static-dir/live && 
-    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
-    ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-    rm -rf research/api-server/static-dir/forward && 
-    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
-    ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
+# Detect python or python2
+python --version >/dev/null 2>&1 && SYS_PYTHON=python;
+python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
+# Install cherrypy for api server.
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
+    echo "CherryPy-3.2.4 is ok.";
+else
+    echo "Installing CherryPy-3.2.4";
+    (
+        rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+        unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
+        $SYS_PYTHON setup.py install --user --prefix=''
+    )
 fi
+# check status
+ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
+if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+
+echo "Link players to cherrypy static-dir"
+rm -rf research/api-server/static-dir/players &&
+ln -sf `pwd`/research/players research/api-server/static-dir/players &&
+rm -f research/api-server/static-dir/crossdomain.xml &&
+ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
+rm -rf research/api-server/static-dir/live &&
+mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
+ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
+rm -rf research/api-server/static-dir/forward &&
+mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
+ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
 
 #####################################################################################
 # openssl, for rtmp complex handshake and HLS encryption.
@@ -547,49 +533,47 @@ fi
 #####################################################################################
 # srtp
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    # For openssl-1.1.*, we should disable SRTP ASM, because SRTP only works with openssl-1.0.*
-    if [[ $SRS_SRTP_ASM == YES ]]; then
-        echo "  #include <openssl/ssl.h>                              " > ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "  #if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x   " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "  #error \"SRTP only works with openssl-1.0.*\"         " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        echo "  #endif                                                " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-        ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
-        if [[ $? -ne 0 ]]; then
-            SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
-        fi
-        rm -f ${SRS_OBJS}/_tmp_srtp_asm_detect.c
-    fi;
-    SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
-    # If use ASM for SRTP, we enable openssl(with ASM).
-    if [[ $SRS_SRTP_ASM == YES ]]; then
-        echo "SRTP with openssl(ASM) optimization" &&
-        SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
+# For openssl-1.1.*, we should disable SRTP ASM, because SRTP only works with openssl-1.0.*
+if [[ $SRS_SRTP_ASM == YES ]]; then
+    echo "  #include <openssl/ssl.h>                              " > ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+    echo "  #if OPENSSL_VERSION_NUMBER >= 0x10100000L // v1.1.x   " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+    echo "  #error \"SRTP only works with openssl-1.0.*\"         " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+    echo "  #endif                                                " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+    ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
     fi
-    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
-        echo "The srtp2 is ok.";
-    else
-        echo "Building srtp2.";
-        (
-            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
-            ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
-            make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
-    # Always update the links.
-    (cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
-    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
+    rm -f ${SRS_OBJS}/_tmp_srtp_asm_detect.c
+fi;
+SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
+# If use ASM for SRTP, we enable openssl(with ASM).
+if [[ $SRS_SRTP_ASM == YES ]]; then
+    echo "SRTP with openssl(ASM) optimization" &&
+    SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
 fi
+# Patched ST from https://github.com/ossrs/state-threads/tree/srs
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
+    echo "The srtp2 is ok.";
+else
+    echo "Building srtp2.";
+    (
+        rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+        rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
+        ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+        make ${SRS_JOBS} && make install &&
+        cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+    )
+fi
+# check status
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
+# Always update the links.
+(cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
+if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
 
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+if [[ $SRS_RTC == YES ]]; then
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
@@ -611,7 +595,7 @@ fi
 #####################################################################################
 # ffmpeg-fix, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_EXPORT_LIBRTMP_PROJECT == NO && $SRS_RTC == YES ]]; then
+if [[ $SRS_RTC == YES ]]; then
     FFMPEG_OPTIONS=""
 
     # If disable nasm, disable all ASMs.
@@ -710,16 +694,14 @@ fi
 #####################################################################################
 # build research code, librtmp
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    if [ $SRS_RESEARCH = YES ]; then
-        mkdir -p ${SRS_OBJS}/research
+if [ $SRS_RESEARCH = YES ]; then
+    mkdir -p ${SRS_OBJS}/research
 
-        (cd ${SRS_WORKDIR}/research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS_DIR}/research)
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/hls failed, ret=$ret"; exit $ret; fi
+    (cd ${SRS_WORKDIR}/research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS_DIR}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/hls failed, ret=$ret"; exit $ret; fi
 
-        (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS_DIR}/research)
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/ffempty failed, ret=$ret"; exit $ret; fi
-    fi
+    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS_DIR}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/ffempty failed, ret=$ret"; exit $ret; fi
 fi
 
 if [[ $SRS_LIBRTMP == YES ]]; then

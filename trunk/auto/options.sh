@@ -194,8 +194,6 @@ Experts:
   --sys-ssl=on|off                  Do not compile ssl, use system ssl(-lssl) if required.
   --use-shared-st                   Use link shared libraries for ST which uses MPL license.
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
-  --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
-  --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
   --build-tag=<TAG>                 Set the build object directory suffix.
   --with-clean                      Configure SRS and do make clean if possible.
   --without-clean                   Configure SRS and never make clean even possible.
@@ -578,28 +576,14 @@ function apply_user_detail_options() {
     
     # if specified export single file, export project first.
     if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        SRS_EXPORT_LIBRTMP_PROJECT=$SRS_EXPORT_LIBRTMP_SINGLE
+        echo "Not support --export-librtmp-single"
+        exit -1
     fi
-    
+
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        SRS_HDS=NO
-        SRS_SSL=NO
-        SRS_TRANSCODE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_INGEST=NO
-        SRS_STAT=NO
-        SRS_STREAM_CASTER=NO
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=YES
-        SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
-        SRS_STATIC=NO
+        echo "Not support --export-librtmp-project"
+        exit -1
     fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
