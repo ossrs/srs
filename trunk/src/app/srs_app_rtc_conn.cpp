@@ -754,7 +754,10 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
         iovec* iov = new iovec();
         SrsAutoFree(iovec, iov);
 
-        iov->iov_base = new char[kRtpPacketSize];
+        char* iov_base = new char[kRtpPacketSize];
+        SrsAutoFreeA(char, iov_base);
+
+        iov->iov_base = iov_base;
         iov->iov_len = kRtpPacketSize;
 
         // Marshal packet to bytes in iovec.
@@ -787,6 +790,9 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
             payload->nn_payload = (int)iov->iov_len;
             payload->payload = new char[payload->nn_payload];
             memcpy((void*)payload->payload, iov->iov_base, iov->iov_len);
+
+            nack->shared_msg = new SrsSharedPtrMessage();
+            nack->shared_msg->wrap(payload->payload, payload->nn_payload);
 
             if (nack->header.get_ssrc() == video_ssrc) {
                 video_queue_->set(nack->header.get_sequence(), nack);
