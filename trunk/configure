@@ -700,11 +700,6 @@ if [ $SRS_HTTP_API = YES ]; then
 else
     echo -e "${YELLOW}Warning: The HTTP API is disabled.${BLACK}"
 fi
-if [ $SRS_RESEARCH = YES ]; then
-    echo -e "${GREEN}The research tools are enabled.${BLACK}"
-else
-    echo -e "${GREEN}Note: The research tools are disabled.${BLACK}"
-fi
 if [ $SRS_UTEST = YES ]; then
     echo -e "${GREEN}The utests are enabled.${BLACK}"
 else

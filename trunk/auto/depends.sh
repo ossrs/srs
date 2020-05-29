@@ -692,19 +692,6 @@ if [[ $SRS_SRT == YES ]]; then
 fi
 
 #####################################################################################
-# build research code, librtmp
-#####################################################################################
-if [ $SRS_RESEARCH = YES ]; then
-    mkdir -p ${SRS_OBJS}/research
-
-    (cd ${SRS_WORKDIR}/research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS_DIR}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/hls failed, ret=$ret"; exit $ret; fi
-
-    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS_DIR}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build research/ffempty failed, ret=$ret"; exit $ret; fi
-fi
-
-#####################################################################################
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
