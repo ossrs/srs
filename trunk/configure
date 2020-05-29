@@ -32,9 +32,6 @@ rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 # create objs
 mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 
-# for export srs-librtmp, change target to it.
-. auto/generate-srs-librtmp-project.sh
-
 # apply user options.
 . auto/depends.sh
 
@@ -47,9 +44,6 @@ mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 # ubuntu echo in Makefile cannot display color, use bash instead
 SRS_BUILD_SUMMARY="_srs_build_summary.sh"
 
-# srs-librtmp sample entry
-SrsLibrtmpSampleEntry="nossl"
-if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
 if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/utest && \$(MAKE))"; fi
@@ -125,7 +119,7 @@ ARFLAGS = -rs
 LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
-.PHONY: default srs srs_ingest_hls librtmp
+.PHONY: default srs srs_ingest_hls
 
 default:
 
@@ -289,14 +283,6 @@ done
 APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #
-#LIBS Module, build libsrs.a for static link.
-MODULE_ID="LIBS" 
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
-ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket" "srs_lib_bandwidth")
-LIBS_INCS="src/libs"; MODULE_DIR=${LIBS_INCS} . auto/modules.sh
-LIBS_OBJS="${MODULE_OBJS[@]}"
-#
 #Server Module, for SRS only.
 MODULE_ID="SERVER"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
@@ -336,7 +322,6 @@ MAIN_OBJS="${MODULE_OBJS[@]}"
 # Binaries, main entrances, link the module and its depends modules,
 # then link to a binary, for example, objs/srs
 #
-# Disable SRS application for exporting librtmp.
 # all main entrances
 MAIN_ENTRANCES=("srs_main_server")
 for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -379,11 +364,6 @@ for SRS_MODULE in ${SRS_MODULES[*]}; do
     if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
     BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="${SRS_MODULE_MAIN[0]}" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
 done
-# srs librtmp
-if [ $SRS_LIBRTMP = YES ]; then
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${LIBS_OBJS[@]}"
-    BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
-fi
 # For utest on mac.
 # @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
 if [[ $SRS_OSX == YES ]]; then
@@ -431,7 +411,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
@@ -445,19 +425,16 @@ default:
 END
 
 # the real entry for all platform:
-#       the server, librtmp and utest
-# where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server srs_ingest_hls librtmp utest __modules $__mdefaults
+_default: server srs_ingest_hls utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help            Display this help menu"
 	@echo "     clean           Cleanup project and all depends"
 	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
 	@echo "     server          Build the srs and other modules in main"
-	@echo "     librtmp         Build the client publish/play library, and samples"
 	@echo "     utest           Build the utest for srs"
 	@echo "     install         Install srs to the prefix path"
 	@echo "     install-api     Install srs and api-server to the prefix path"
@@ -479,7 +456,6 @@ doclean:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
 	(cd ${SRS_OBJS_DIR} && rm -rf src/* include lib)
 	(mkdir -p ${SRS_OBJS_DIR}/utest && cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
-	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 clean: clean_srs clean_modules
@@ -521,7 +497,6 @@ clean_nginx:
 	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
 
 clean_cherrypy:
-	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 st:
@@ -544,7 +519,6 @@ for MMF in ${__makefiles[*]}; do
 done
 echo "" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
-# if export librtmp, donot build the srs server.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "Build the srs(simple rtmp server) over ST(state-threads)"
@@ -554,7 +528,6 @@ END
 # generate all modules entry
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     . $SRS_MODULE/config
-    # if export librtmp, donot build the bravo-ingest.
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 $SRS_MODULE_NAME: _prepare_dir server
 	@echo "Build the $SRS_MODULE_NAME over SRS"
@@ -563,7 +536,7 @@ $SRS_MODULE_NAME: _prepare_dir server
 END
 done
 
-# disable install entry for srs-librtmp
+# install entry
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 uninstall:
 	@echo "rmdir \$(SRS_PREFIX)"
@@ -624,24 +597,6 @@ install:
 	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
 
 END
-
-# generate srs-librtmp entry
-if [ $SRS_LIBRTMP = YES ]; then
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-librtmp: server
-	@echo "Building the client publish/play library."
-	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
-	@echo "Building the srs-librtmp example."
-	(cd research/librtmp && \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
-
-END
-else
-    cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-librtmp: server
-	@echo "Ignore srs-librtmp for it's disabled."
-
-END
-fi
 
 if [ $SRS_UTEST = YES ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
@@ -744,11 +699,6 @@ if [ $SRS_HTTP_API = YES ]; then
     echo -e "${GREEN}The HTTP API is enabled${BLACK}"
 else
     echo -e "${YELLOW}Warning: The HTTP API is disabled.${BLACK}"
-fi
-if [ $SRS_LIBRTMP = YES ]; then
-    echo -e "${GREEN}The client-side srs-librtmp is enabled.${BLACK}"
-else
-    echo -e "${YELLOW}Note: The client-side srs-librtmp is disabled.${BLACK}"
 fi
 if [ $SRS_RESEARCH = YES ]; then
     echo -e "${GREEN}The research tools are enabled.${BLACK}"
