@@ -75,6 +75,7 @@ SrsHttpConn::~SrsHttpConn()
 void SrsHttpConn::remark(int64_t* in, int64_t* out)
 {
     // TODO: FIXME: implements it
+    *in = *out = 0;
 }
 
 srs_error_t SrsHttpConn::do_cycle()
