@@ -26,6 +26,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+#include <arpa/inet.h>
 using namespace std;
 
 SrsRtcpCommon::SrsRtcpCommon()
