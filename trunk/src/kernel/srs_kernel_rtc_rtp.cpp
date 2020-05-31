@@ -34,7 +34,8 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 
 // If value is newer than pre_value，return true; otherwise false
-bool srs_seq_is_newer(uint16_t value, uint16_t pre_value) {
+bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
+{
     return srs_rtp_seq_distance(pre_value, value) > 0;
 }
 
@@ -47,18 +48,22 @@ bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value)
 }
 
 // If value is newer then pre_value, return positive, otherwise negative.
-int32_t srs_seq_distance(uint16_t value, uint16_t pre_value) {
+int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
+{
     return srs_rtp_seq_distance(pre_value, value);
 }
 
-SrsRtpHeaderExtensionMap::SrsRtpHeaderExtensionMap(){
+SrsRtpHeaderExtensionMap::SrsRtpHeaderExtensionMap()
+{
 }
 
-SrsRtpHeaderExtensionMap::~SrsRtpHeaderExtensionMap(){
+SrsRtpHeaderExtensionMap::~SrsRtpHeaderExtensionMap()
+{
 }
 
-bool SrsRtpHeaderExtensionMap::register_by_uri(int id, std::string uri) {
-    for (int i = 0; i < sizeof(kExtensions); ++i) {
+bool SrsRtpHeaderExtensionMap::register_by_uri(int id, std::string uri)
+{
+    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
         if (kExtensions[i].uri == uri) {
             return register_id(id, kExtensions[i].type, kExtensions[i].uri);
         }
@@ -66,7 +71,8 @@ bool SrsRtpHeaderExtensionMap::register_by_uri(int id, std::string uri) {
     return false;
 }
 
-bool SrsRtpHeaderExtensionMap::register_id(int id, SrsRtpExtensionType type, std::string uri) {
+bool SrsRtpHeaderExtensionMap::register_id(int id, SrsRtpExtensionType type, std::string uri)
+{
     if (id < 1 || id > 255) {
         return false;
     }
@@ -75,7 +81,8 @@ bool SrsRtpHeaderExtensionMap::register_id(int id, SrsRtpExtensionType type, std
     return true;
 }
 
-SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const {
+SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const
+{
     for (int type = kRtpExtensionNone + 1; type < kRtpExtensionNumberOfExtensions; ++type) {
         if (ids_[type] == id) {
             return static_cast<SrsRtpExtensionType>(type);
@@ -84,13 +91,15 @@ SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const {
     return kInvalidType;
 }
 
-SrsRtpHeaderExtension::SrsRtpHeaderExtension() {
+SrsRtpHeaderExtension::SrsRtpHeaderExtension()
+{
     has_transport_sequence_number = false;
     transport_sequence_number = 0;
     transport_cc_ext_id = 0;
 }
 
-SrsRtpHeaderExtension::~SrsRtpHeaderExtension() {
+SrsRtpHeaderExtension::~SrsRtpHeaderExtension()
+{
 }
 
 SrsRtpHeader::SrsRtpHeader()
@@ -110,7 +119,8 @@ SrsRtpHeader::~SrsRtpHeader()
 {
 }
 
-srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map) {
+srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map)
+{
     srs_error_t err = srs_success;
     uint16_t profile_id = buf->read_2bytes();
     extension_length = buf->read_2bytes();
