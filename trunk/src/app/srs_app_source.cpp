@@ -50,10 +50,7 @@ using namespace std;
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
-#ifdef SRS_RTC
-#include <srs_app_rtc.hpp>
-#include <srs_app_rtc_conn.hpp>
-#endif
+#include <srs_app_rtc_source.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -270,17 +267,11 @@ void SrsMessageQueue::set_queue_size(srs_utime_t queue_size)
 	max_queue_size = queue_size;
 }
 
-srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow, bool pass_timestamp)
+srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
 {
     srs_error_t err = srs_success;
 
     msgs.push_back(msg);
-
-    // For RTC, we never care about the timestamp and duration, so we never shrink queue here,
-    // but we will drop messages in each consumer coroutine.
-    if (pass_timestamp) {
-        return err;
-    }
     
     if (msg->is_av()) {
         if (av_start_time == -1) {
@@ -288,6 +279,10 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
         }
         
         av_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
+    }
+
+    if (max_queue_size <= 0) {
+        return err;
     }
     
     while (av_end_time - av_start_time > max_queue_size) {
@@ -302,7 +297,7 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
     return err;
 }
 
-srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count, bool pass_timestamp)
+srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
 {
     srs_error_t err = srs_success;
     
@@ -317,13 +312,9 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** p
     SrsSharedPtrMessage** omsgs = msgs.data();
     memcpy(pmsgs, omsgs, count * sizeof(SrsSharedPtrMessage*));
 
-    // For RTC, we enable pass_timestamp mode, which never care about the timestamp and duration,
-    // so we do not have to update the start time here.
-    if (!pass_timestamp) {
-        SrsSharedPtrMessage* last = omsgs[count - 1];
-        av_start_time = srs_utime_t(last->timestamp * SRS_UTIME_MILLISECONDS);
-    }
-    
+    SrsSharedPtrMessage* last = omsgs[count - 1];
+    av_start_time = srs_utime_t(last->timestamp * SRS_UTIME_MILLISECONDS);
+
     if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
         msgs.clear();
@@ -427,6 +418,14 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
+ISrsConsumerQueue::ISrsConsumerQueue()
+{
+}
+
+ISrsConsumerQueue::~ISrsConsumerQueue()
+{
+}
+
 SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
 {
     source = s;
@@ -442,8 +441,6 @@ SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
     mw_duration = 0;
     mw_waiting = false;
 #endif
-
-    pass_timestamp = false;
 }
 
 SrsConsumer::~SrsConsumer()
@@ -455,11 +452,6 @@ SrsConsumer::~SrsConsumer()
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     srs_cond_destroy(mw_wait);
 #endif
-}
-
-void SrsConsumer::enable_pass_timestamp()
-{
-    pass_timestamp = true;
 }
 
 void SrsConsumer::set_queue_size(srs_utime_t queue_size)
@@ -483,33 +475,19 @@ srs_error_t SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsR
     
     SrsSharedPtrMessage* msg = shared_msg->copy();
 
-    // For RTC, we enable pass_timestamp mode, which never correct or depends on monotonic increasing of
-    // timestamp. And in RTC, the audio and video timebase can be different, so we ignore time_jitter here.
-    if (!pass_timestamp && !atc) {
+    if (!atc) {
         if ((err = jitter->correct(msg, ag)) != srs_success) {
             return srs_error_wrap(err, "consume message");
         }
     }
 
-    // Put message in queue, here we may enable pass_timestamp mode.
-    if ((err = queue->enqueue(msg, NULL, pass_timestamp)) != srs_success) {
+    if ((err = queue->enqueue(msg, NULL)) != srs_success) {
         return srs_error_wrap(err, "enqueue message");
     }
     
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // fire the mw when msgs is enough.
     if (mw_waiting) {
-        // For RTC, we use pass_timestamp mode, we don't care about the timestamp in queue,
-        // so we only check the messages in queue.
-        if (pass_timestamp) {
-            if (queue->size() > mw_min_msgs) {
-                srs_cond_signal(mw_wait);
-                mw_waiting = false;
-                return err;
-            }
-            return err;
-        }
-
         // For RTMP, we wait for messages and duration.
         srs_utime_t duration = queue->duration();
         bool match_min_msgs = queue->size() > mw_min_msgs;
@@ -560,7 +538,7 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     }
     
     // pump msgs from queue.
-    if ((err = queue->dump_packets(max, msgs->msgs, count, pass_timestamp)) != srs_success) {
+    if ((err = queue->dump_packets(max, msgs->msgs, count)) != srs_success) {
         return srs_error_wrap(err, "dump packets");
     }
     
@@ -859,9 +837,6 @@ SrsOriginHub::SrsOriginHub()
     dash = new SrsDash();
     dvr = new SrsDvr();
     encoder = new SrsEncoder();
-#ifdef SRS_RTC
-    rtc = new SrsRtc();
-#endif
 #ifdef SRS_HDS
     hds = new SrsHds();
 #endif
@@ -905,12 +880,6 @@ srs_error_t SrsOriginHub::initialize(SrsSource* s, SrsRequest* r)
     if ((err = format->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
     }
-
-#ifdef SRS_RTC
-    if ((err = rtc->initialize(this, req)) != srs_success) {
-        return srs_error_wrap(err, "rtc initialize");
-    }
-#endif
     
     if ((err = hls->initialize(this, req)) != srs_success) {
         return srs_error_wrap(err, "hls initialize");
@@ -1010,15 +979,6 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
                   flv_sample_sizes[c->sound_size], flv_sound_types[c->sound_type],
                   srs_flv_srates[c->sound_rate]);
     }
-
-#ifdef SRS_RTC
-    // TODO: FIXME: Support parsing OPUS for RTC.
-    if ((err = rtc->on_audio(msg, format)) != srs_success) {
-        srs_warn("rtc: ignore audio error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
-    }
-#endif
     
     if ((err = hls->on_audio(msg, format)) != srs_success) {
         // apply the error strategy for hls.
@@ -1112,16 +1072,6 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if (format->vcodec && !format->vcodec->is_avc_codec_ok()) {
         return err;
     }
-
-#ifdef SRS_RTC
-    // Parse RTMP message to RTP packets, in FU-A if too large.
-    if ((err = rtc->on_video(msg, format)) != srs_success) {
-        // TODO: We should support more strategies.
-        srs_warn("rtc: ignore video error %s", srs_error_desc(err).c_str());
-        srs_error_reset(err);
-        rtc->on_unpublish();
-    }
-#endif
     
     if ((err = hls->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
@@ -1191,12 +1141,6 @@ srs_error_t SrsOriginHub::on_publish()
         return srs_error_wrap(err, "encoder publish");
     }
 
-#ifdef SRS_RTC
-    if ((err = rtc->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "rtc publish");
-    }
-#endif
-
     if ((err = hls->on_publish()) != srs_success) {
         return srs_error_wrap(err, "hls publish");
     }
@@ -1234,9 +1178,6 @@ void SrsOriginHub::on_unpublish()
     destroy_forwarders();
     
     encoder->on_unpublish();
-#ifdef SRS_RTC
-    rtc->on_unpublish();
-#endif
     hls->on_unpublish();
     dash->on_unpublish();
     dvr->on_unpublish();
@@ -1629,7 +1570,7 @@ SrsFormat* SrsMetaCache::ash_format()
     return aformat;
 }
 
-srs_error_t SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
+srs_error_t SrsMetaCache::dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
 {
     srs_error_t err = srs_success;
     
@@ -1775,6 +1716,7 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
+    // TODO: FIXME: Use smaller lock.
     SrsLocker(lock);
     
     SrsSource* source = NULL;
@@ -1789,17 +1731,41 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
+#ifdef SRS_RTC
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(r->vhost);
+
+    // Get the RTC source and bridger.
+    SrsRtcSource* rtc = NULL;
+    if (rtc_server_enabled && rtc_enabled) {
+        if ((err = _srs_rtc_sources->fetch_or_create(r, &rtc)) != srs_success) {
+            err = srs_error_wrap(err, "init rtc %s", r->get_stream_url().c_str());
+            goto failed;
+        }
+    }
+#endif
     srs_trace("new source, stream_url=%s", stream_url.c_str());
-    
+
     source = new SrsSource();
     if ((err = source->initialize(r, h)) != srs_success) {
-        return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
+        err = srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
+        goto failed;
     }
+
+#ifdef SRS_RTC
+    // If rtc enabled, bridge RTMP source to RTC,
+    // all RTMP packets will be forwarded to RTC source.
+    if (source && rtc) {
+        source->bridge_to(rtc->bridger());
+    }
+#endif
     
     pool[stream_url] = source;
-    
     *pps = source;
-    
+    return err;
+
+failed:
+    srs_freep(source);
     return err;
 }
 
@@ -1892,6 +1858,14 @@ void SrsSourceManager::destroy()
     pool.clear();
 }
 
+ISrsSourceBridger::ISrsSourceBridger()
+{
+}
+
+ISrsSourceBridger::~ISrsSourceBridger()
+{
+}
+
 SrsSource::SrsSource()
 {
     req = NULL;
@@ -1902,6 +1876,9 @@ SrsSource::SrsSource()
     _can_publish = true;
     _pre_source_id = _source_id = -1;
     die_at = 0;
+
+    handler = NULL;
+    bridger = NULL;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1914,10 +1891,6 @@ SrsSource::SrsSource()
     
     _srs_config->subscribe(this);
     atc = false;
-
-#ifdef SRS_RTC
-    rtc_publisher_ = NULL;
-#endif
 }
 
 SrsSource::~SrsSource()
@@ -2010,6 +1983,11 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     mix_correct = _srs_config->get_mix_correct(req->vhost);
     
     return err;
+}
+
+void SrsSource::bridge_to(ISrsSourceBridger* v)
+{
+    bridger = v;
 }
 
 srs_error_t SrsSource::on_reload_vhost_play(string vhost)
@@ -2262,6 +2240,11 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "consume audio");
     }
 
+    // For bridger to consume the message.
+    if (bridger && (err = bridger->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridger consume audio");
+    }
+
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
@@ -2290,7 +2273,7 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     if ((err = gop_cache->cache(msg)) != srs_success) {
         return srs_error_wrap(err, "gop cache consume audio");
     }
-    
+
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (meta->ash()) {
@@ -2385,6 +2368,11 @@ srs_error_t SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     // Copy to hub to all utilities.
     if ((err = hub->on_video(msg, is_sequence_header)) != srs_success) {
         return srs_error_wrap(err, "hub consume video");
+    }
+
+    // For bridger to consume the message.
+    if (bridger && (err = bridger->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridger consume video");
     }
 
     // copy to all consumer
@@ -2546,6 +2534,11 @@ srs_error_t SrsSource::on_publish()
     if ((err = handler->on_publish(this, req)) != srs_success) {
         return srs_error_wrap(err, "handle publish");
     }
+
+    if (bridger && (err = bridger->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "bridger publish");
+    }
+
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_publish(req, _source_id);
     
@@ -2581,7 +2574,12 @@ void SrsSource::on_unpublish()
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();
     stat->on_stream_close(req);
+
     handler->on_unpublish(this, req);
+
+    if (bridger) {
+        bridger->on_unpublish();
+    }
     
     // no consumer, stream is die.
     if (consumers.empty()) {
@@ -2695,26 +2693,3 @@ string SrsSource::get_curr_origin()
     return play_edge->get_curr_origin();
 }
 
-#ifdef SRS_RTC
-SrsMetaCache* SrsSource::cached_meta()
-{
-    return meta;
-}
-
-SrsRtcPublisher* SrsSource::rtc_publisher()
-{
-    return rtc_publisher_;
-}
-
-void SrsSource::set_rtc_publisher(SrsRtcPublisher* v)
-{
-    rtc_publisher_ = v;
-}
-
-srs_error_t SrsSource::on_rtc_audio(SrsSharedPtrMessage* audio)
-{
-    // TODO: FIXME: Merge with on_audio.
-    // TODO: FIXME: Print key information.
-    return on_audio_imp(audio);
-}
-#endif

@@ -303,6 +303,18 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
     return err;
 }
 
+void SrsSharedPtrMessage::wrap(char* payload, int size)
+{
+    srs_assert(!ptr);
+    ptr = new SrsSharedPtrPayload();
+
+    ptr->payload = payload;
+    ptr->size = size;
+
+    this->payload = ptr->payload;
+    this->size = ptr->size;
+}
+
 int SrsSharedPtrMessage::count()
 {
     srs_assert(ptr);

@@ -4879,7 +4879,9 @@ bool SrsConfig::get_rtc_server_gso()
     }
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
     if (v) {
-        utsname un = {0};
+        utsname un;
+        memset((void*)&un, 0, sizeof(utsname));
+
         int r0 = uname(&un);
         if (r0 || strcmp(un.release, "4.18.0") < 0) {
             gso_disabled = true;

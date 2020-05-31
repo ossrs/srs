@@ -31,10 +31,10 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_flv.hpp>
 
 SrsRtpHeader::SrsRtpHeader()
 {
-    padding          = false;
     padding_length   = 0;
     extension        = false;
     cc               = 0;
@@ -43,17 +43,6 @@ SrsRtpHeader::SrsRtpHeader()
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
-    extension_length = 0;
-}
-
-void SrsRtpHeader::reset()
-{
-    // We only reset the optional fields, the required field such as ssrc
-    // will always be set by user.
-    padding          = false;
-    extension        = false;
-    cc               = 0;
-    marker           = false;
     extension_length = 0;
 }
 
@@ -85,7 +74,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
     */
 
     uint8_t first = buf->read_1bytes();
-    padding = (first & 0x20);
+    bool padding = (first & 0x20);
     extension = (first & 0x10);
     cc = (first & 0x0F);
 
@@ -141,7 +130,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     // The version, padding, extension and cc, total 1 byte.
     uint8_t v = 0x80 | cc;
-    if (padding) {
+    if (padding_length > 0) {
         v |= 0x20;
     }
     if (extension) {
@@ -249,19 +238,22 @@ uint32_t SrsRtpHeader::get_ssrc() const
     return ssrc;
 }
 
-void SrsRtpHeader::set_padding(bool v)
-{
-    padding = v;
-}
-
-void SrsRtpHeader::set_padding_length(uint8_t v)
+void SrsRtpHeader::set_padding(uint8_t v)
 {
     padding_length = v;
 }
 
-uint8_t SrsRtpHeader::get_padding_length() const
+uint8_t SrsRtpHeader::get_padding() const
 {
     return padding_length;
+}
+
+ISrsRtpPayloader::ISrsRtpPayloader()
+{
+}
+
+ISrsRtpPayloader::~ISrsRtpPayloader()
+{
 }
 
 ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
@@ -274,75 +266,35 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    padding = 0;
     payload = NULL;
     decode_handler = NULL;
 
     nalu_type = SrsAvcNaluTypeReserved;
-    original_bytes = NULL;
-
-    cache_raw = new SrsRtpRawPayload();
-    cache_fua = new SrsRtpFUAPayload2();
-    cache_payload = 0;
+    shared_msg = NULL;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
-        payload = NULL;
-    }
-
     srs_freep(payload);
-    srs_freep(cache_raw);
-    srs_freep(cache_fua);
-
-    srs_freepa(original_bytes);
+    srs_freep(shared_msg);
 }
 
 void SrsRtpPacket2::set_padding(int size)
 {
-    rtp_header.set_padding(size > 0);
-    rtp_header.set_padding_length(size);
-    if (cache_payload) {
-        cache_payload += size - padding;
+    rtp_header.set_padding(size);
+    if (cached_payload_size) {
+        cached_payload_size += size - rtp_header.get_padding();
     }
-    padding = size;
 }
 
 void SrsRtpPacket2::add_padding(int size)
 {
-    rtp_header.set_padding(padding + size > 0);
-    rtp_header.set_padding_length(rtp_header.get_padding_length() + size);
-    if (cache_payload) {
-        cache_payload += size;
+    rtp_header.set_padding(rtp_header.get_padding() + size);
+    if (cached_payload_size) {
+        cached_payload_size += size;
     }
-    padding += size;
-}
-
-void SrsRtpPacket2::reset()
-{
-    rtp_header.reset();
-    padding = 0;
-    cache_payload = 0;
-
-    // We may use the cache as payload.
-    if (payload == cache_raw || payload == cache_fua) {
-        payload = NULL;
-    }
-    srs_freep(payload);
-}
-
-SrsRtpRawPayload* SrsRtpPacket2::reuse_raw()
-{
-    payload = cache_raw;
-    return cache_raw;
-}
-
-SrsRtpFUAPayload2* SrsRtpPacket2::reuse_fua()
-{
-    payload = cache_fua;
-    return cache_fua;
 }
 
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
@@ -350,12 +302,35 @@ void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
     decode_handler = h;
 }
 
+bool SrsRtpPacket2::is_audio()
+{
+    return frame_type == SrsFrameTypeAudio;
+}
+
+SrsRtpPacket2* SrsRtpPacket2::copy()
+{
+    SrsRtpPacket2* cp = new SrsRtpPacket2();
+
+    cp->rtp_header = rtp_header;
+    cp->payload = payload? payload->copy():NULL;
+
+    cp->nalu_type = nalu_type;
+    cp->shared_msg = shared_msg? shared_msg->copy():NULL;
+    cp->frame_type = frame_type;
+
+    cp->cached_payload_size = cached_payload_size;
+    cp->decode_handler = decode_handler;
+
+    return cp;
+}
+
 int SrsRtpPacket2::nb_bytes()
 {
-    if (!cache_payload) {
-        cache_payload = rtp_header.nb_bytes() + (payload? payload->nb_bytes():0) + padding;
+    if (!cached_payload_size) {
+        int nn_payload = (payload? payload->nb_bytes():0);
+        cached_payload_size = rtp_header.nb_bytes() + nn_payload + rtp_header.get_padding();
     }
-    return cache_payload;
+    return cached_payload_size;
 }
 
 srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
@@ -370,7 +345,8 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "rtp payload");
     }
 
-    if (padding > 0) {
+    if (rtp_header.get_padding() > 0) {
+        uint8_t padding = rtp_header.get_padding();
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
@@ -390,7 +366,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     }
 
     // We must skip the padding bytes before parsing payload.
-    padding = rtp_header.get_padding_length();
+    uint8_t padding = rtp_header.get_padding();
     if (!buf->require(padding)) {
         return srs_error_wrap(err, "requires padding %d bytes", padding);
     }
@@ -408,7 +384,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // By default, we always use the RAW payload.
     if (!payload) {
-        payload = reuse_raw();
+        payload = new SrsRtpRawPayload();
     }
 
     if ((err = payload->decode(buf)) != srs_success) {
@@ -458,6 +434,16 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
     nn_payload = buf->left();
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpRawPayload::copy()
+{
+    SrsRtpRawPayload* cp = new SrsRtpRawPayload();
+
+    cp->payload = payload;
+    cp->nn_payload = nn_payload;
+
+    return cp;
 }
 
 SrsRtpRawNALUs::SrsRtpRawNALUs()
@@ -580,6 +566,22 @@ srs_error_t SrsRtpRawNALUs::decode(SrsBuffer* buf)
     nalus.push_back(sample);
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpRawNALUs::copy()
+{
+    SrsRtpRawNALUs* cp = new SrsRtpRawNALUs();
+
+    cp->nn_bytes = nn_bytes;
+    cp->cursor = cursor;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
 }
 
 SrsRtpSTAPPayload::SrsRtpSTAPPayload()
@@ -706,6 +708,21 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
     return srs_success;
 }
 
+ISrsRtpPayloader* SrsRtpSTAPPayload::copy()
+{
+    SrsRtpSTAPPayload* cp = new SrsRtpSTAPPayload();
+
+    cp->nri = nri;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
+}
+
 SrsRtpFUAPayload::SrsRtpFUAPayload()
 {
     start = end = false;
@@ -800,6 +817,24 @@ srs_error_t SrsRtpFUAPayload::decode(SrsBuffer* buf)
     return srs_success;
 }
 
+ISrsRtpPayloader* SrsRtpFUAPayload::copy()
+{
+    SrsRtpFUAPayload* cp = new SrsRtpFUAPayload();
+
+    cp->nri = nri;
+    cp->start = start;
+    cp->end = end;
+    cp->nalu_type = nalu_type;
+
+    int nn_nalus = (int)nalus.size();
+    for (int i = 0; i < nn_nalus; i++) {
+        SrsSample* p = nalus[i];
+        cp->nalus.push_back(p->copy());
+    }
+
+    return cp;
+}
+
 SrsRtpFUAPayload2::SrsRtpFUAPayload2()
 {
     start = end = false;
@@ -876,4 +911,18 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
     buf->skip(size);
 
     return srs_success;
+}
+
+ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
+{
+    SrsRtpFUAPayload2* cp = new SrsRtpFUAPayload2();
+
+    cp->nri = nri;
+    cp->start = start;
+    cp->end = end;
+    cp->nalu_type = nalu_type;
+    cp->payload = payload;
+    cp->size = size;
+
+    return cp;
 }

@@ -50,7 +50,7 @@ class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcSession;
 class SrsSharedPtrMessage;
-class SrsSource;
+class SrsRtcSource;
 class SrsRtpPacket2;
 class ISrsUdpSender;
 class SrsRtpQueue;
@@ -149,11 +149,11 @@ private:
 };
 
 // A group of RTP packets for outgoing(send to players).
-class SrsRtcOutgoingPackets
+// TODO: FIXME: Rename to stat for RTP packets.
+class SrsRtcOutgoingInfo
 {
 public:
     bool use_gso;
-    bool should_merge_nalus;
 public:
 #if defined(SRS_DEBUG)
     // Debug id.
@@ -171,9 +171,11 @@ public:
     // one msghdr by GSO, it's only one RTP packet, because we only send once.
     int nn_rtp_pkts;
     // For video, the samples or NALUs.
+    // TODO: FIXME: Remove it because we may don't know.
     int nn_samples;
     // For audio, the generated extra audio packets.
     // For example, when transcoding AAC to opus, may many extra payloads for a audio.
+    // TODO: FIXME: Remove it because we may don't know.
     int nn_extras;
     // The original audio messages.
     int nn_audios;
@@ -183,20 +185,9 @@ public:
     int nn_paddings;
     // The number of dropped messages.
     int nn_dropped;
-private:
-    int cursor;
-    int nn_cache;
-    SrsRtpPacket2* cache;
 public:
-    SrsRtcOutgoingPackets(int nn_cache_max);
-    virtual ~SrsRtcOutgoingPackets();
-public:
-    void reset(bool gso, bool merge_nalus);
-    SrsRtpPacket2* fetch();
-    SrsRtpPacket2* back();
-    int size();
-    int capacity();
-    SrsRtpPacket2* at(int index);
+    SrsRtcOutgoingInfo();
+    virtual ~SrsRtcOutgoingInfo();
 };
 
 class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
@@ -223,11 +214,9 @@ private:
     int nn_simulate_nack_drop;
 private:
     // For merged-write and GSO.
-    bool merge_nalus;
     bool gso;
     int max_padding;
     // For merged-write messages.
-    srs_utime_t mw_sleep;
     int mw_msgs;
     bool realtime;
     // Whether enabled nack.
@@ -251,17 +240,12 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
-    srs_error_t messages_to_packets(SrsSource* source, SrsSharedPtrMessage** msgs, int nb_msgs, SrsRtcOutgoingPackets& packets);
-    srs_error_t send_packets(SrsRtcOutgoingPackets& packets);
-    srs_error_t send_packets_gso(SrsRtcOutgoingPackets& packets);
-private:
-    srs_error_t package_opus(SrsSample* sample, SrsRtcOutgoingPackets& packets, int nn_max_payload);
-private:
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, SrsRtcOutgoingPackets& packets);
-    srs_error_t package_stap_a(SrsSource* source, SrsSharedPtrMessage* msg, SrsRtcOutgoingPackets& packets);
+    srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t package_opus(SrsRtpPacket2* pkt);
+    srs_error_t package_video(SrsRtpPacket2* pkt);
+    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);
@@ -293,7 +277,7 @@ private:
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
-    SrsSource* source;
+    SrsRtcSource* source;
     // Whether enabled nack.
     bool nack_enabled_;
     // Simulators.
@@ -313,13 +297,14 @@ private:
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsCodec** ppayload);
-    srs_error_t on_rtcp(char* data, int nb_data);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
-    srs_error_t on_audio_frame(SrsRtpPacket2* frame);
     srs_error_t on_video(SrsRtpPacket2* pkt);
     srs_error_t on_video_frame(SrsRtpPacket2* frame);
+public:
+    srs_error_t on_rtcp(char* data, int nb_data);
+private:
     srs_error_t on_rtcp_sr(char* buf, int nb_buf);
     srs_error_t on_rtcp_xr(char* buf, int nb_buf);
     srs_error_t on_rtcp_feedback(char* data, int nb_data);
@@ -365,7 +350,7 @@ private:
     // TODO: FIXME: Support reload.
     bool encrypt;
     SrsRequest* req;
-    SrsSource* source_;
+    SrsRtcSource* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:
@@ -390,7 +375,7 @@ public:
     void switch_to_context();
     int context_id();
 public:
-    srs_error_t initialize(SrsSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
+    srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

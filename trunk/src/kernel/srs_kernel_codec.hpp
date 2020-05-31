@@ -636,6 +636,7 @@ public:
     SrsAvcLevel avc_level;
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
+    // Note that we may resize the vector, so the under-layer bytes may change.
     std::vector<char> sequenceParameterSetNALUnit;
     std::vector<char> pictureParameterSetNALUnit;
 public:

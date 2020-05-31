@@ -414,6 +414,7 @@ SrsSample* SrsSample::copy()
     SrsSample* p = new SrsSample();
     p->bytes = bytes;
     p->size = size;
+    p->bframe = bframe;
     return p;
 }
 

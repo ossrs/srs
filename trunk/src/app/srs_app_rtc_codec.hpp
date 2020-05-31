@@ -121,7 +121,7 @@ public:
     SrsAudioRecode(int channels, int samplerate);
     virtual ~SrsAudioRecode();
     srs_error_t initialize();
-    virtual srs_error_t recode(SrsSample *pkt, char **buf, int *buf_len, int &n);
+    virtual srs_error_t transcode(SrsSample *pkt, char **buf, int *buf_len, int &n);
 };
 
 #endif /* SRS_APP_AUDIO_RECODE_HPP */

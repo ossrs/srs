@@ -304,6 +304,7 @@ private:
         // The reference count
         int shared_count;
 #ifdef SRS_RTC
+    // TODO: FIXME: Remove it.
     public:
         // For RTC video, we need to know the NALU structures,
         // because the RTP STAP-A or FU-A based on NALU.
@@ -340,6 +341,9 @@ public:
     // @remark user should never free the payload.
     // @param pheader, the header to copy to the message. NULL to ignore.
     virtual srs_error_t create(SrsMessageHeader* pheader, char* payload, int size);
+    // Create shared ptr message from RAW payload.
+    // @remark Note that the header is set to zero.
+    virtual void wrap(char* payload, int size);
     // Get current reference count.
     // when this object created, count set to 0.
     // if copy() this object, count increase 1.
