@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-05-31, Remove [srs-librtmp](https://github.com/ossrs/srs/issues/1535#issuecomment-633907655). 4.0.28
 * v4.0, 2020-05-21, For [#307][bug #307], disable GSO and sendmmsg. 4.0.27
 * v4.0, 2020-05-14, For [#307][bug #307], refine core structure, RTMP base on frame, RTC base on RTP. 4.0.26
 * v4.0, 2020-05-11, For [#307][bug #307], refine RTC publisher structure. 4.0.25
