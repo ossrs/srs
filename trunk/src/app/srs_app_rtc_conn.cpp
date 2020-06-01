@@ -1435,6 +1435,9 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
                 if((err = on_twcc(twcc_sn))) {
                     return srs_error_wrap(err, "fail to process twcc packet");
                 }
+            } else {
+                // TODO: FIXME: process no twcc seq number for audio ssrc
+                srs_error_reset(err);
             }
         }
     }
