@@ -119,16 +119,10 @@ SrsRtpHeader::~SrsRtpHeader()
 {
 }
 
-srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map)
-{
+srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf) {
     srs_error_t err = srs_success;
     uint16_t profile_id = buf->read_2bytes();
     extension_length = buf->read_2bytes();
-
-    if (!extension_map) {
-        buf->skip(extension_length * 4);
-        return err;
-    }
 
     // @see: https://tools.ietf.org/html/rfc5285#section-4.2
     if (profile_id == 0xBEDE) {
@@ -151,7 +145,7 @@ srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExte
             uint8_t id = (id_len & 0xF0) >> 4;
             uint8_t len = (id_len & 0x0F);
             
-            SrsRtpExtensionType xtype = extension_map->get_type(id);
+            SrsRtpExtensionType xtype = extension_map_.get_type(id);
             if (xtype == kRtpExtensionTransportSequenceNumber) {
                 //   0                   1                   2
                 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
@@ -176,7 +170,7 @@ srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExte
     return err;
 }
 
-srs_error_t SrsRtpHeader::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
+srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
@@ -231,7 +225,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap*
         |                        header extension                       |
         |                             ....                              |
         */
-        if ((err = parse_extension(buf, extmap)) != srs_success) {
+        if ((err = parse_extension(buf)) != srs_success) {
             return srs_error_wrap(err, "fail to parse extension");
         }
     }
@@ -297,6 +291,12 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
     }
 
     return err;
+}
+void SrsRtpHeader::set_extensions(const SrsRtpHeaderExtensionMap* extmap)
+{
+    if (extmap) {
+        extension_map_ = *extmap;
+    }
 }
 
 srs_error_t SrsRtpHeader::get_twcc_sequence_number(uint16_t& twcc_sn)
@@ -449,6 +449,11 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     return cp;
 }
 
+void SrsRtpPacket2::set_rtp_header_extensions(const SrsRtpHeaderExtensionMap* extmap)
+{
+    return header.set_extensions(extmap);
+}
+
 int SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
@@ -482,11 +487,11 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
     return err;
 }
 
-srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
+srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    if ((err = header.decode(buf, extmap)) != srs_success) {
+    if ((err = header.decode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp header");
     }
 

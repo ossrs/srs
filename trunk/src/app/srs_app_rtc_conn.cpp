@@ -1420,11 +1420,12 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 
     if (true) {
         pkt->set_decode_handler(this);
+        pkt->set_rtp_header_extensions(&extension_map_);
         pkt->shared_msg = new SrsSharedPtrMessage();
         pkt->shared_msg->wrap(buf, nb_buf);
 
         SrsBuffer b(buf, nb_buf);
-        if ((err = pkt->decode(&b, &extension_map_)) != srs_success) {
+        if ((err = pkt->decode(&b)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
         }
 
