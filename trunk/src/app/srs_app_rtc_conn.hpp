@@ -36,6 +36,7 @@
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_rtc_queue.hpp>
+#include <srs_app_rtc_source.hpp>
 
 #include <string>
 #include <map>
@@ -248,7 +249,7 @@ private:
     srs_error_t on_rtcp_rr(char* data, int nb_data);
 };
 
-class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
+class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublisher
 {
 private:
     SrsHourGlass* report_timer;

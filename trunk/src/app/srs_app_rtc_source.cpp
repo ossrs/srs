@@ -232,6 +232,14 @@ SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
 
 SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
 
+ISrsRtcPublisher::ISrsRtcPublisher()
+{
+}
+
+ISrsRtcPublisher::~ISrsRtcPublisher()
+{
+}
+
 SrsRtcSource::SrsRtcSource()
 {
     _source_id = _pre_source_id = -1;
@@ -382,12 +390,12 @@ void SrsRtcSource::on_unpublish()
     // TODO: FIXME: Handle by statistic.
 }
 
-SrsRtcPublisher* SrsRtcSource::rtc_publisher()
+ISrsRtcPublisher* SrsRtcSource::rtc_publisher()
 {
     return rtc_publisher_;
 }
 
-void SrsRtcSource::set_rtc_publisher(SrsRtcPublisher* v)
+void SrsRtcSource::set_rtc_publisher(ISrsRtcPublisher* v)
 {
     rtc_publisher_ = v;
 }

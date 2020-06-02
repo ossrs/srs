@@ -35,7 +35,6 @@
 class SrsRequest;
 class SrsConnection;
 class SrsMetaCache;
-class SrsRtcPublisher;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
@@ -94,6 +93,15 @@ private:
 // Global singleton instance.
 extern SrsRtcSourceManager* _srs_rtc_sources;
 
+class ISrsRtcPublisher
+{
+public:
+    ISrsRtcPublisher();
+    virtual ~ISrsRtcPublisher();
+public:
+    virtual void request_keyframe() = 0;
+};
+
 class SrsRtcSource
 {
 private:
@@ -105,7 +113,7 @@ private:
     // previous source id.
     int _pre_source_id;
     SrsRequest* req;
-    SrsRtcPublisher* rtc_publisher_;
+    ISrsRtcPublisher* rtc_publisher_;
     // Transmux RTMP to RTC.
     SrsRtcFromRtmpBridger* bridger_;
 private:
@@ -145,8 +153,8 @@ public:
     virtual void on_unpublish();
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
-    SrsRtcPublisher* rtc_publisher();
-    void set_rtc_publisher(SrsRtcPublisher* v);
+    ISrsRtcPublisher* rtc_publisher();
+    void set_rtc_publisher(ISrsRtcPublisher* v);
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
 };
