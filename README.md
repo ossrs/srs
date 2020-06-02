@@ -1090,14 +1090,12 @@ SRS always use the simplest architecture to solve complex domain problems.
 ## Modularity Architecture
 
 ```
-+----------------+-------------------------------------+
-| SRS/SRT server |    Programs in Main or Research     |
-+----------------+--+------------+---------------------+
-|  App(For SRS)     | Modules(1) |  research/librtmp   |
-+-------------------+------------+---------------------+
-|    Service(C/S apps over ST)   |     srs-librtmp     |
-+--------------------------------+---------------------+
-|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Format)     |
++--------------------+---------------------------------+
+|   SRS/SRT server   |       Programs in Main          |
++--------------------+-------+-------------------------+
+|  App(For SRS)              |      Modules(1)         |
++----------------------------+-------------------------+
+|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Service)    |
 +------------------------------------------------------+
 |      Kernel(File, Codec, Stream, LB services)        |
 +------------------------------------------------------+

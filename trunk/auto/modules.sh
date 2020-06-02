@@ -80,8 +80,9 @@ for item in ${MODULE_FILES[*]}; do
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
         echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES}\\" >> ${FILE}
-        echo "          \$(${INCS_NAME})\\" >> ${FILE}
-        echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
+        echo "    \$(${INCS_NAME})\\" >> ${FILE}
+        echo "    -o ${OBJ_FILE} \\" >> ${FILE}
+        echo "    ${CPP_FILE}" >> ${FILE}
     fi
 done
 echo "" >> ${FILE}
