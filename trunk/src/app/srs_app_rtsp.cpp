@@ -697,6 +697,7 @@ void SrsRtspConn::close()
 SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
+    engine = _srs_config->get_stream_caster_engine(c);
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
@@ -738,7 +739,7 @@ srs_error_t SrsRtspCaster::alloc_port(int* pport)
             break;
         }
     }
-    srs_info("rtsp: alloc port=%d-%d", *pport, *pport + 1);
+    srs_trace("rtsp: %s alloc port=%d-%d", engine.c_str(), *pport, *pport + 1);
     
     return err;
 }
@@ -748,7 +749,7 @@ void SrsRtspCaster::free_port(int lpmin, int lpmax)
     for (int i = lpmin; i < lpmax; i++) {
         used_ports[i] = false;
     }
-    srs_trace("rtsp: free rtp port=%d-%d", lpmin, lpmax);
+    srs_trace("rtsp: %s free rtp port=%d-%d", engine.c_str(), lpmin, lpmax);
 }
 
 srs_error_t SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)

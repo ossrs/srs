@@ -173,6 +173,7 @@ private:
 class SrsRtspCaster : public ISrsTcpHandler
 {
 private:
+    std::string engine;
     std::string output;
     int local_port_min;
     int local_port_max;
