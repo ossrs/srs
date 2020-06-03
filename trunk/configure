@@ -87,7 +87,7 @@ GDBDebug=" -g -O0"
 WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
-if [[ $SRS_SRT == YES ]]; then
+if [[ $SRS_CXX11 == YES ]]; then
     CppStd="-std=c++11"
 fi
 # performance of gprof
