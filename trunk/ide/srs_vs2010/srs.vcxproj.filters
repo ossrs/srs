@@ -1,21 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\research\librtmp\srs_detect_rtmp.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_flv_injecter.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_flv_parser.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_ingest_flv.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_ingest_rtmp.c">
-      <Filter>research</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\app\srs_app_http.cpp">
       <Filter>srs</Filter>
     </ClCompile>
@@ -126,9 +111,6 @@
     </ClCompile>
     <ClCompile Include="..\..\src\core\srs_core_performance.cpp">
       <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_h264_raw_publish.c">
-      <Filter>research</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\kernel\srs_kernel_aac.cpp">
       <Filter>srs</Filter>
@@ -395,14 +377,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="research">
-      <UniqueIdentifier>{7e9069c1-f19c-4ab0-b47f-36d7903cfa8b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="srs">
       <UniqueIdentifier>{0919b792-be75-49ed-b15a-2dc521e8394f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="librtmp">
-      <UniqueIdentifier>{d45a9ecb-fcbe-4400-abe3-792cddecb47e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
