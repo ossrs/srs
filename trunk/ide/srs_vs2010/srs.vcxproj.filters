@@ -163,36 +163,6 @@
     <ClCompile Include="..\..\src\kernel\srs_kernel_utility.cpp">
       <Filter>srs</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_play.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_publish.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_rtmp_dump.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\hls\ts_info.cc">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_audio_raw_publish.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_bandwidth_check.c">
-      <Filter>research</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\libs\srs_lib_bandwidth.cpp">
-      <Filter>librtmp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\libs\srs_lib_simple_socket.cpp">
-      <Filter>librtmp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\libs\srs_librtmp.cpp">
-      <Filter>librtmp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_aac_raw_publish.c">
-      <Filter>librtmp</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\kernel\srs_kernel_ts.cpp">
       <Filter>srs</Filter>
     </ClCompile>
@@ -377,15 +347,6 @@
     </ClInclude>
     <ClInclude Include="..\..\src\kernel\srs_kernel_utility.hpp">
       <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\libs\srs_librtmp.hpp">
-      <Filter>librtmp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\libs\srs_lib_bandwidth.hpp">
-      <Filter>librtmp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp">
-      <Filter>librtmp</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\kernel\srs_kernel_ts.hpp">
       <Filter>srs</Filter>
