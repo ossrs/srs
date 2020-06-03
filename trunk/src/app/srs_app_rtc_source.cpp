@@ -763,7 +763,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     }
 
     *ppkt = pkt;
-    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
+    srs_info("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
 
     return err;
 }
