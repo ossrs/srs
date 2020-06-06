@@ -633,11 +633,7 @@ srs_error_t rtmp_client::on_ts_hevc(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t
         
         // ibp frame.
         // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("mpegts: demux hevc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_hevc_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            srs_error("srt to rtmp write error");
-            return srs_error_wrap(err, "write frame");
-        }
+        write_hevc_ipb_frame(frame, frame_size, dts, pts);
         _last_live_ts = now_ms();
     }
     
@@ -723,10 +719,7 @@ srs_error_t rtmp_client::on_ts_h264(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t
         
         // ibp frame.
         // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write frame");
-        }
+        write_h264_ipb_frame(frame, frame_size, dts, pts);
         _last_live_ts = now_ms();
     }
     
