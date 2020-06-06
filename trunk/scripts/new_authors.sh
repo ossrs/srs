@@ -9,6 +9,7 @@ if [[ $? -ne 0 ]]; then echo "no authors"; exit -1; fi
 for author in $authors; do
   echo $author| grep 'winlin' >/dev/null 2>&1 && continue;
   echo $author| grep 'winterserver' >/dev/null 2>&1 && continue;
+  echo $author| grep 'chengli.ycl' >/dev/null 2>&1 && continue;
   echo $author| grep 'wenjie.zhao' >/dev/null 2>&1 && continue;
   echo $author| grep 'zhaowenjie' >/dev/null 2>&1 && continue;
   echo $author| grep 'pengqiang.wpq' >/dev/null 2>&1 && continue;

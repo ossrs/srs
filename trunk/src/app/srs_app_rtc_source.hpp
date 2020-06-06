@@ -45,7 +45,7 @@ class SrsAudioRecode;
 class SrsRtpPacket2;
 class SrsSample;
 
-class SrsRtcConsumer : public ISrsConsumerQueue
+class SrsRtcConsumer
 {
 private:
     SrsRtcSource* source;
@@ -63,9 +63,10 @@ public:
 public:
     // When source id changed, notice client to print.
     virtual void update_source_id();
-    // Put or get RTP packet in queue.
-    virtual srs_error_t enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
-    srs_error_t enqueue2(SrsRtpPacket2* pkt);
+    // Put RTP packet into queue.
+    // @note We do not drop packet here, but drop it in sender.
+    srs_error_t enqueue(SrsRtpPacket2* pkt);
+    // Get all RTP packets from queue.
     virtual srs_error_t dump_packets(std::vector<SrsRtpPacket2*>& pkts);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
@@ -107,8 +108,6 @@ private:
     SrsRtcPublisher* rtc_publisher_;
     // Transmux RTMP to RTC.
     SrsRtcFromRtmpBridger* bridger_;
-    // The metadata cache.
-    SrsMetaCache* meta;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -128,8 +127,6 @@ public:
     virtual int pre_source_id();
     // Get the bridger.
     ISrsSourceBridger* bridger();
-    // For RTC, we need to package SPS/PPS(in cached meta) before each IDR.
-    SrsMetaCache* cached_meta();
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -150,17 +147,8 @@ public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     SrsRtcPublisher* rtc_publisher();
     void set_rtc_publisher(SrsRtcPublisher* v);
+    // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
-    virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
-    // When got RTC audio message, which is encoded in opus.
-    // TODO: FIXME: Merge with on_audio.
-    virtual srs_error_t on_video(SrsCommonMessage* video);
-    virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
-private:
-    // The format, codec information.
-    // TODO: FIXME: Remove it.
-    SrsRtmpFormat* format;
-    srs_error_t filter(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
@@ -170,6 +158,8 @@ private:
     SrsRtcSource* source_;
     // The format, codec information.
     SrsRtmpFormat* format;
+    // The metadata cache.
+    SrsMetaCache* meta;
 private:
     bool discard_aac;
     SrsAudioRecode* codec;
@@ -189,9 +179,9 @@ private:
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
-    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format);
+    srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
     srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);

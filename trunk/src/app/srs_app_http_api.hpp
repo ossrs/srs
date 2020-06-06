@@ -35,11 +35,18 @@ class SrsRtcServer;
 class SrsJsonObject;
 class SrsSdp;
 class SrsRequest;
+class ISrsHttpResponseWriter;
+
+#include <string>
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_http_stack.hpp>
 #include <srs_app_reload.hpp>
+
+extern srs_error_t srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int code);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, srs_error_t code);
 
 // For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
@@ -167,57 +174,6 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
-
-#ifdef SRS_RTC
-class SrsGoApiRtcPlay : public ISrsHttpHandler
-{
-public:
-    static uint32_t ssrc_num;
-private:
-    SrsRtcServer* server_;
-public:
-    SrsGoApiRtcPlay(SrsRtcServer* server);
-    virtual ~SrsGoApiRtcPlay();
-public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
-};
-
-class SrsGoApiRtcPublish : public ISrsHttpHandler
-{
-public:
-    static uint32_t ssrc_num;
-private:
-    SrsRtcServer* server_;
-public:
-    SrsGoApiRtcPublish(SrsRtcServer* server);
-    virtual ~SrsGoApiRtcPublish();
-public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
-};
-
-#ifdef SRS_SIMULATOR
-class SrsGoApiRtcNACK : public ISrsHttpHandler
-{
-private:
-    SrsRtcServer* server_;
-public:
-    SrsGoApiRtcNACK(SrsRtcServer* server);
-    virtual ~SrsGoApiRtcNACK();
-public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-};
-#endif
-#endif
 
 class SrsGoApiClients : public ISrsHttpHandler
 {

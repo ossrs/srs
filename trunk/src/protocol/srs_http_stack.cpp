@@ -360,6 +360,10 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 {
     srs_assert(entry);
 
+    // For each HTTP session, we use short-term HTTP connection.
+    SrsHttpHeader* hdr = w->header();
+    hdr->set("Connection", "Close");
+
     string upath = r->path();
     string fullpath = srs_http_fs_fullpath(dir, entry->pattern, upath);
     

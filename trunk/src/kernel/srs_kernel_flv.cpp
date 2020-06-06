@@ -40,9 +40,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
-#ifdef SRS_RTC
-#include <srs_kernel_rtc_rtp.hpp>
-#endif
 
 SrsMessageHeader::SrsMessageHeader()
 {
@@ -210,16 +207,6 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
     payload = NULL;
     size = 0;
     shared_count = 0;
-
-#ifdef SRS_RTC
-    samples = NULL;
-    nn_samples = 0;
-    has_idr = false;
-
-    extra_payloads = NULL;
-    nn_extra_payloads = 0;
-    nn_max_extra_payloads = 0;
-#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
@@ -228,17 +215,6 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
-
-#ifdef SRS_RTC
-    srs_freepa(samples);
-    
-    for (int i = 0; i < nn_extra_payloads; i++) {
-        SrsSample* p = extra_payloads + i;
-        srs_freep(p->bytes);
-    }
-    srs_freepa(extra_payloads);
-    nn_extra_payloads = 0;
-#endif
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
@@ -387,70 +363,6 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 
     return copy;
 }
-
-#ifdef SRS_RTC
-void SrsSharedPtrMessage::set_extra_payloads(SrsSample* payloads, int nn_payloads)
-{
-    srs_assert(nn_payloads);
-    srs_assert(!ptr->extra_payloads);
-    
-    ptr->nn_extra_payloads = nn_payloads;
-
-    ptr->extra_payloads = new SrsSample[nn_payloads];
-    memcpy((void*)ptr->extra_payloads, payloads, nn_payloads * sizeof(SrsSample));
-}
-
-int SrsSharedPtrMessage::nn_extra_payloads()
-{
-    return ptr->nn_extra_payloads;
-}
-
-SrsSample* SrsSharedPtrMessage::extra_payloads()
-{
-    return ptr->extra_payloads;
-}
-
-void SrsSharedPtrMessage::set_max_extra_payload(int v)
-{
-    ptr->nn_max_extra_payloads = v;
-}
-
-int SrsSharedPtrMessage::nn_max_extra_payloads()
-{
-    return ptr->nn_max_extra_payloads;
-}
-
-bool SrsSharedPtrMessage::has_idr()
-{
-    return ptr->has_idr;
-}
-
-void SrsSharedPtrMessage::set_has_idr(bool v)
-{
-    ptr->has_idr = v;
-}
-
-void SrsSharedPtrMessage::set_samples(SrsSample* samples, int nn_samples)
-{
-    srs_assert(nn_samples);
-    srs_assert(!ptr->samples);
-
-    ptr->nn_samples = nn_samples;
-
-    ptr->samples = new SrsSample[nn_samples];
-    memcpy((void*)ptr->samples, samples, nn_samples * sizeof(SrsSample));
-}
-
-int SrsSharedPtrMessage::nn_samples()
-{
-    return ptr->nn_samples;
-}
-
-SrsSample* SrsSharedPtrMessage::samples()
-{
-    return ptr->samples;
-}
-#endif
 
 SrsFlvTransmuxer::SrsFlvTransmuxer()
 {

@@ -40,48 +40,14 @@ class SrsRtcSession;
 class SrsRequest;
 class SrsSdp;
 
-class SrsUdpMuxSender : virtual public ISrsUdpSender, virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class ISrsRtcServerHandler
 {
-private:
-    srs_netfd_t lfd;
-    SrsRtcServer* server;
-    SrsCoroutine* trd;
-private:
-    srs_cond_t cond;
-    bool waiting_msgs;
-    bool gso;
-    int nn_senders;
-private:
-    // Hotspot msgs, we are working on it.
-    // @remark We will wait util all messages are ready.
-    std::vector<srs_mmsghdr> hotspot;
-    // Cache msgs, for other coroutines to fill it.
-    std::vector<srs_mmsghdr> cache;
-    int cache_pos;
-    // The max number of messages for sendmmsg. If 1, we use sendmsg to send.
-    int max_sendmmsg;
-    // The total queue length, for each sender.
-    int queue_length;
-    // The extra queue ratio.
-    int extra_ratio;
-    int extra_queue;
 public:
-    SrsUdpMuxSender(SrsRtcServer* s);
-    virtual ~SrsUdpMuxSender();
+    ISrsRtcServerHandler();
+    virtual ~ISrsRtcServerHandler();
 public:
-    virtual srs_error_t initialize(srs_netfd_t fd, int senders);
-private:
-    void free_mhdrs(std::vector<srs_mmsghdr>& mhdrs);
-public:
-    virtual srs_error_t fetch(srs_mmsghdr** pphdr);
-    virtual srs_error_t sendmmsg(srs_mmsghdr* hdr);
-    virtual bool overflow();
-    virtual void set_extra_ratio(int r);
-public:
-    virtual srs_error_t cycle();
-// interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_rtc_server();
+    // When server detect the timeout for session object.
+    virtual void on_timeout(SrsRtcSession* session) = 0;
 };
 
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
@@ -89,15 +55,19 @@ class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGl
 private:
     SrsHourGlass* timer;
     std::vector<SrsUdpMuxListener*> listeners;
-    std::vector<SrsUdpMuxSender*> senders;
+    ISrsRtcServerHandler* handler;
 private:
     std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
     std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
+    // The zombie sessions, we will free them.
+    std::vector<SrsRtcSession*> zombies_;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+    // Set the handler for server events.
+    void set_handler(ISrsRtcServerHandler* h);
 public:
     // TODO: FIXME: Support gracefully quit.
     // TODO: FIXME: Support reload.
@@ -113,6 +83,8 @@ public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
     srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcSession** psession);
     srs_error_t setup_session2(SrsRtcSession* session, SrsRequest* req, const SrsSdp& remote_sdp);
+    // Destroy the session from server.
+    void destroy(SrsRtcSession* session);
 public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* session);
     void check_and_clean_timeout_session();

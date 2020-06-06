@@ -33,6 +33,75 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
 
+// If value is newer than pre_value，return true; otherwise false
+bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
+{
+    return srs_rtp_seq_distance(pre_value, value) > 0;
+}
+
+bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value)
+{
+    if(srs_seq_is_newer(value, pre_value)) {
+        return pre_value > value;
+    }
+    return false;
+}
+
+// If value is newer then pre_value, return positive, otherwise negative.
+int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
+{
+    return srs_rtp_seq_distance(pre_value, value);
+}
+
+SrsRtpHeaderExtensionMap::SrsRtpHeaderExtensionMap()
+{
+}
+
+SrsRtpHeaderExtensionMap::~SrsRtpHeaderExtensionMap()
+{
+}
+
+bool SrsRtpHeaderExtensionMap::register_by_uri(int id, std::string uri)
+{
+    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
+        if (kExtensions[i].uri == uri) {
+            return register_id(id, kExtensions[i].type, kExtensions[i].uri);
+        }
+    }
+    return false;
+}
+
+bool SrsRtpHeaderExtensionMap::register_id(int id, SrsRtpExtensionType type, std::string uri)
+{
+    if (id < 1 || id > 255) {
+        return false;
+    }
+
+    ids_[type] = static_cast<uint8_t>(id);
+    return true;
+}
+
+SrsRtpExtensionType SrsRtpHeaderExtensionMap::get_type(int id) const
+{
+    for (int type = kRtpExtensionNone + 1; type < kRtpExtensionNumberOfExtensions; ++type) {
+        if (ids_[type] == id) {
+            return static_cast<SrsRtpExtensionType>(type);
+        }
+    }
+    return kInvalidType;
+}
+
+SrsRtpHeaderExtension::SrsRtpHeaderExtension()
+{
+    has_transport_sequence_number = false;
+    transport_sequence_number = 0;
+    transport_cc_ext_id = 0;
+}
+
+SrsRtpHeaderExtension::~SrsRtpHeaderExtension()
+{
+}
+
 SrsRtpHeader::SrsRtpHeader()
 {
     padding_length   = 0;
@@ -50,7 +119,64 @@ SrsRtpHeader::~SrsRtpHeader()
 {
 }
 
-srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
+srs_error_t SrsRtpHeader::parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap *extension_map)
+{
+    srs_error_t err = srs_success;
+    uint16_t profile_id = buf->read_2bytes();
+    extension_length = buf->read_2bytes();
+
+    if (!extension_map) {
+        buf->skip(extension_length * 4);
+        return err;
+    }
+
+    // @see: https://tools.ietf.org/html/rfc5285#section-4.2
+    if (profile_id == 0xBEDE) {
+        uint32_t xlen = extension_length * 4;
+        while (xlen > 0) {
+            // parse id and len
+            uint8_t id_len = buf->read_1bytes();
+            xlen--;
+            if(id_len == 0) {
+                // padding, ignore
+                continue;
+            }
+            //  0
+            //  0 1 2 3 4 5 6 7
+            // +-+-+-+-+-+-+-+-+
+            // |  ID   |  len  |
+            // +-+-+-+-+-+-+-+-+
+            // Note that 'len' is the header extension element length, which is the
+            // number of bytes - 1.
+            uint8_t id = (id_len & 0xF0) >> 4;
+            uint8_t len = (id_len & 0x0F);
+            
+            SrsRtpExtensionType xtype = extension_map->get_type(id);
+            if (xtype == kRtpExtensionTransportSequenceNumber) {
+                //   0                   1                   2
+                //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+                //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                //  |  ID   | L=1   |transport wide sequence number |
+                //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                header_extension.has_transport_sequence_number = true;
+                header_extension.transport_sequence_number = buf->read_2bytes();
+                header_extension.transport_cc_ext_id = id;
+                xlen -= 2;
+            } else {
+                buf->skip(len + 1);
+                xlen -= len + 1;
+            }
+        }
+    }  else if (profile_id == 0x1000) {
+        buf->skip(extension_length * 4);
+    } else {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "fail to parse extension");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsRtpHeader::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
 {
     srs_error_t err = srs_success;
 
@@ -96,17 +222,18 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
     }    
 
     if (extension) {
-        uint16_t profile_id = buf->read_2bytes();
-        extension_length = buf->read_2bytes();
-
-        // TODO: FIXME: Read extensions.
-        // @see: https://tools.ietf.org/html/rfc3550#section-5.3.1
-        buf->skip(extension_length * 4);
-
-        // @see: https://tools.ietf.org/html/rfc5285#section-4.2
-        if (profile_id == 0xBEDE) {
-            // TODO: FIXME: Implements it.
-        }    
+        /* RTP header extension, RFC 3550.
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |      defined by profile       |           length              |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                        header extension                       |
+        |                             ....                              |
+        */
+        if ((err = parse_extension(buf, extmap)) != srs_success) {
+            return srs_error_wrap(err, "fail to parse extension");
+        }
     }
 
     if (padding && !buf->empty()) {
@@ -125,9 +252,6 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     // Encode the RTP fix header, 12bytes.
     // @see https://tools.ietf.org/html/rfc1889#section-5.1
-    char* op = buf->head();
-    char* p = op;
-
     // The version, padding, extension and cc, total 1 byte.
     uint8_t v = 0x80 | cc;
     if (padding_length > 0) {
@@ -136,51 +260,52 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
     if (extension) {
         v |= 0x10;
     }
-    *p++ = v;
+    buf->write_1bytes(v);
 
     // The marker and payload type, total 1 byte.
     v = payload_type;
     if (marker) {
         v |= kRtpMarker;
     }
-    *p++ = v;
+    buf->write_1bytes(v);
 
     // The sequence number, 2 bytes.
-    char* pp = (char*)&sequence;
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_2bytes(sequence);
 
     // The timestamp, 4 bytes.
-    pp = (char*)&timestamp;
-    *p++ = pp[3];
-    *p++ = pp[2];
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_4bytes(timestamp);
 
     // The SSRC, 4 bytes.
-    pp = (char*)&ssrc;
-    *p++ = pp[3];
-    *p++ = pp[2];
-    *p++ = pp[1];
-    *p++ = pp[0];
+    buf->write_4bytes(ssrc);
 
     // The CSRC list: 0 to 15 items, each is 4 bytes.
     for (size_t i = 0; i < cc; ++i) {
-        pp = (char*)&csrc[i];
-        *p++ = pp[3];
-        *p++ = pp[2];
-        *p++ = pp[1];
-        *p++ = pp[0];
+        buf->write_4bytes(csrc[i]);
     }
 
-    // TODO: Write exteinsion field.
     if (extension) {
-    }
+        buf->write_2bytes(0xBEDE);
+        // TODO: FIXME: extension_length should caculate by extension length
+        buf->write_2bytes(extension_length);
 
-    // Consume the data.
-    buf->skip(p - op);
+        if (header_extension.has_transport_sequence_number) {
+            uint8_t id_len = (header_extension.transport_cc_ext_id & 0x0F)<< 4| 0x01;
+            buf->write_1bytes(id_len);
+            buf->write_2bytes(header_extension.transport_sequence_number);
+            buf->write_1bytes(0x00);
+        }
+    }
 
     return err;
+}
+
+srs_error_t SrsRtpHeader::get_twcc_sequence_number(uint16_t& twcc_sn)
+{
+    if (header_extension.has_transport_sequence_number == true) {
+        twcc_sn = header_extension.transport_sequence_number;
+        return srs_success;
+    }
+    return srs_error_new(ERROR_RTC_RTP_MUXER, "not find twcc sequence number");
 }
 
 int SrsRtpHeader::nb_bytes()
@@ -283,15 +408,15 @@ SrsRtpPacket2::~SrsRtpPacket2()
 
 void SrsRtpPacket2::set_padding(int size)
 {
-    rtp_header.set_padding(size);
+    header.set_padding(size);
     if (cached_payload_size) {
-        cached_payload_size += size - rtp_header.get_padding();
+        cached_payload_size += size - header.get_padding();
     }
 }
 
 void SrsRtpPacket2::add_padding(int size)
 {
-    rtp_header.set_padding(rtp_header.get_padding() + size);
+    header.set_padding(header.get_padding() + size);
     if (cached_payload_size) {
         cached_payload_size += size;
     }
@@ -311,7 +436,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 {
     SrsRtpPacket2* cp = new SrsRtpPacket2();
 
-    cp->rtp_header = rtp_header;
+    cp->header = header;
     cp->payload = payload? payload->copy():NULL;
 
     cp->nalu_type = nalu_type;
@@ -328,7 +453,7 @@ int SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
         int nn_payload = (payload? payload->nb_bytes():0);
-        cached_payload_size = rtp_header.nb_bytes() + nn_payload + rtp_header.get_padding();
+        cached_payload_size = header.nb_bytes() + nn_payload + header.get_padding();
     }
     return cached_payload_size;
 }
@@ -337,7 +462,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    if ((err = rtp_header.encode(buf)) != srs_success) {
+    if ((err = header.encode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp header");
     }
 
@@ -345,8 +470,8 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "rtp payload");
     }
 
-    if (rtp_header.get_padding() > 0) {
-        uint8_t padding = rtp_header.get_padding();
+    if (header.get_padding() > 0) {
+        uint8_t padding = header.get_padding();
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
@@ -357,16 +482,16 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
     return err;
 }
 
-srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
+srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap)
 {
     srs_error_t err = srs_success;
 
-    if ((err = rtp_header.decode(buf)) != srs_success) {
+    if ((err = header.decode(buf, extmap)) != srs_success) {
         return srs_error_wrap(err, "rtp header");
     }
 
     // We must skip the padding bytes before parsing payload.
-    uint8_t padding = rtp_header.get_padding();
+    uint8_t padding = header.get_padding();
     if (!buf->require(padding)) {
         return srs_error_wrap(err, "requires padding %d bytes", padding);
     }

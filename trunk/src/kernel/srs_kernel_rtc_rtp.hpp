@@ -58,6 +58,75 @@ class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
 
+// The "distance" between two uint16 number, for example:
+//      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
+//      distance(prev_value=3, value=65534) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) === 5
+//      distance(prev_value=65532, value=65534) === (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) === -2
+// For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
+// @remark Note that srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+//      but for WebRTC jitter buffer it's FALSE and we follow it.
+// @remark For srs_rtp_seq_distance(32768, 0)>0, it's FALSE definitely.
+inline int16_t srs_rtp_seq_distance(const uint16_t& prev_value, const uint16_t& value)
+{
+    return (int16_t)(value - prev_value);
+}
+
+// For map to compare the sequence of RTP.
+struct SrsSeqCompareLess {
+    bool operator()(const uint16_t& pre_value, const uint16_t& value) const {
+        return srs_rtp_seq_distance(pre_value, value) > 0;
+    }
+};
+
+bool srs_seq_is_newer(uint16_t value, uint16_t pre_value);
+bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value);
+int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
+
+enum SrsRtpExtensionType
+{
+    kRtpExtensionNone,
+    kRtpExtensionTransportSequenceNumber,
+    kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
+};
+
+struct SrsExtensionInfo
+{
+    SrsRtpExtensionType type;
+    std::string uri;
+};
+
+const SrsExtensionInfo kExtensions[] = {
+    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
+};
+
+class SrsRtpHeaderExtensionMap
+{
+public:
+    static const SrsRtpExtensionType kInvalidType = kRtpExtensionNone;
+    static const int kInvalidId = 0;
+public:
+    bool register_by_uri(int id, std::string uri);
+    SrsRtpExtensionType get_type(int id) const;
+public:
+    SrsRtpHeaderExtensionMap();
+    virtual ~SrsRtpHeaderExtensionMap();
+private:
+    bool register_id(int id, SrsRtpExtensionType type, std::string uri);
+private:
+    uint8_t ids_[kRtpExtensionNumberOfExtensions];
+};
+
+class SrsRtpHeaderExtension
+{
+public:
+    bool has_transport_sequence_number;
+    uint16_t transport_sequence_number;
+    uint8_t transport_cc_ext_id;
+public:
+    SrsRtpHeaderExtension();
+    virtual ~SrsRtpHeaderExtension();
+};
+
 class SrsRtpHeader
 {
 private:
@@ -71,12 +140,14 @@ private:
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
-    // TODO:extension field.
+    SrsRtpHeaderExtension header_extension;
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
+private:
+    srs_error_t parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extension_map);
 public:
-    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
@@ -92,6 +163,7 @@ public:
     uint32_t get_ssrc() const;
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
+    srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
 };
 
 class ISrsRtpPayloader : public ISrsCodec
@@ -117,8 +189,7 @@ class SrsRtpPacket2
 {
 // RTP packet fields.
 public:
-    // TODO: FIXME: Rename to header.
-    SrsRtpHeader rtp_header;
+    SrsRtpHeader header;
     ISrsRtpPayloader* payload;
 // Helper fields.
 public:
@@ -152,7 +223,8 @@ public:
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual srs_error_t decode(SrsBuffer* buf);
+    // TODO: FIXME: Should follow interface ISrsEncoder.
+    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
 };
 
 // Single payload data.

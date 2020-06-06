@@ -34,6 +34,7 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_rtc_queue.hpp>
 
 #include <string>
@@ -52,14 +53,11 @@ class SrsRtcSession;
 class SrsSharedPtrMessage;
 class SrsRtcSource;
 class SrsRtpPacket2;
-class ISrsUdpSender;
-class SrsRtpQueue;
-class SrsRtpAudioQueue;
-class SrsRtpVideoQueue;
-class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
+class SrsRtpRingBuffer;
+class SrsRtcConsumer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -78,6 +76,7 @@ const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
 
+// TODO: FIXME: Move to utility.
 extern std::string gen_random_str(int len);
 
 class SrsNtp
@@ -153,8 +152,6 @@ private:
 class SrsRtcOutgoingInfo
 {
 public:
-    bool use_gso;
-public:
 #if defined(SRS_DEBUG)
     // Debug id.
     uint32_t debug_id;
@@ -183,8 +180,6 @@ public:
     int nn_videos;
     // The number of padded packet.
     int nn_paddings;
-    // The number of dropped messages.
-    int nn_dropped;
 public:
     SrsRtcOutgoingInfo();
     virtual ~SrsRtcOutgoingInfo();
@@ -208,14 +203,11 @@ private:
     uint16_t video_payload_type;
     uint32_t video_ssrc;
     // NACK ARQ ring buffer.
-    SrsRtpRingBuffer<SrsRtpPacket2*>* audio_queue_;
-    SrsRtpRingBuffer<SrsRtpPacket2*>* video_queue_;
+    SrsRtpRingBuffer* audio_queue_;
+    SrsRtpRingBuffer* video_queue_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
-    // For merged-write and GSO.
-    bool gso;
-    int max_padding;
     // For merged-write messages.
     int mw_msgs;
     bool realtime;
@@ -228,7 +220,6 @@ public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
 // interface ISrsReloadHandler
 public:
-    virtual srs_error_t on_reload_rtc_server();
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 public:
@@ -240,12 +231,8 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_messages(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
-    srs_error_t messages_to_packets(SrsRtcSource* source, std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
-    srs_error_t package_opus(SrsRtpPacket2* pkt);
-    srs_error_t package_video(SrsRtpPacket2* pkt);
-    srs_error_t send_packets(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
-    srs_error_t send_packets_gso(std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t send_packets(SrsRtcSource* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     void simulate_nack_drop(int nn);
@@ -271,9 +258,10 @@ private:
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
 private:
-    SrsRtpVideoQueue* video_queue_;
+    bool request_keyframe_;
+    SrsRtpRingBuffer* video_queue_;
     SrsRtpNackForReceiver* video_nack_;
-    SrsRtpAudioQueue* audio_queue_;
+    SrsRtpRingBuffer* audio_queue_;
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
@@ -285,14 +273,20 @@ private:
 private:
     std::map<uint32_t, uint64_t> last_sender_report_sys_time;
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;
+private:
+    srs_utime_t last_twcc_feedback_time_;
+    uint8_t twcc_ext_id_;
+    uint8_t twcc_fb_count_;
+    SrsRtcpTWCC rtcp_twcc_;
+    SrsRtpHeaderExtensionMap extension_map_;
 public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, SrsRequest* req);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* req);
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
-    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpQueue* rtp_queue);
+    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
 public:
@@ -301,7 +295,7 @@ public:
 private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);
-    srs_error_t on_video_frame(SrsRtpPacket2* frame);
+    srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
@@ -319,6 +313,8 @@ public:
     void simulate_nack_drop(int nn);
 private:
     void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
+private:
+    srs_error_t on_twcc(uint16_t sn);
 };
 
 class SrsRtcSession
@@ -326,6 +322,8 @@ class SrsRtcSession
     friend class SrsRtcDtls;
     friend class SrsRtcPlayer;
     friend class SrsRtcPublisher;
+public:
+    bool disposing_;
 private:
     SrsRtcServer* server_;
     SrsRtcSessionStateType state_;
@@ -393,6 +391,24 @@ public:
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
 };
+
+class ISrsRtcHijacker
+{
+public:
+    ISrsRtcHijacker();
+    virtual ~ISrsRtcHijacker();
+public:
+    // When start publisher by RTC.
+    virtual srs_error_t on_start_publish(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
+    // When got RTP plaintext packet.
+    virtual srs_error_t on_rtp_packet(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    // When start player by RTC.
+    virtual srs_error_t on_start_play(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req) = 0;
+    // When start consuming for player for RTC.
+    virtual srs_error_t on_start_consume(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
+};
+
+extern ISrsRtcHijacker* _srs_rtc_hijacker;
 
 #endif
 
