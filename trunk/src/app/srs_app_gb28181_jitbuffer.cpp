@@ -721,9 +721,6 @@ void PsDecodingState::SetState(const SrsPsFrameBuffer* frame)
     UpdateSyncState(frame);
     sequence_num_ = static_cast<uint16_t>(frame->GetHighSeqNum());
     time_stamp_ = frame->GetTimeStamp();
-    //picture_id_ = frame->PictureId();
-    //temporal_id_ = frame->TemporalId();
-    //tl0_pic_id_ = frame->Tl0PicId();
     in_initial_state_ = false;
 }
 
@@ -731,9 +728,6 @@ void PsDecodingState::CopyFrom(const PsDecodingState& state)
 {
     sequence_num_ = state.sequence_num_;
     time_stamp_ = state.time_stamp_;
-    //picture_id_ = state.picture_id_;
-    //temporal_id_ = state.temporal_id_;
-    //tl0_pic_id_ = state.tl0_pic_id_;
     full_sync_ = state.full_sync_;
     in_initial_state_ = state.in_initial_state_;
 }
@@ -793,28 +787,6 @@ void PsDecodingState::UpdateSyncState(const SrsPsFrameBuffer* frame)
     if (in_initial_state_) {
         return;
     }
-
-    // if (frame->TemporalId() == kNoTemporalIdx ||
-    //         frame->Tl0PicId() == kNoTl0PicIdx) {
-    //     full_sync_ = true;
-    // } else if (frame->FrameType() == kVideoFrameKey || frame->LayerSync()) {
-    //     full_sync_ = true;
-    // } else if (full_sync_) {
-    //     // Verify that we are still in sync.
-    //     // Sync will be broken if continuity is true for layers but not for the
-    //     // other methods (PictureId and SeqNum).
-    //     if (UsingPictureId(frame)) {
-    //         // First check for a valid tl0PicId.
-    //         if (frame->Tl0PicId() - tl0_pic_id_ > 1) {
-    //             full_sync_ = false;
-    //         } else {
-    //             full_sync_ = ContinuousPictureId(frame->PictureId());
-    //         }
-    //     } else {
-    //         full_sync_ = ContinuousSeqNum(static_cast<uint16_t>(
-    //                                           frame->GetLowSeqNum()));
-    //     }
-    // }
 }
 
 bool PsDecodingState::ContinuousFrame(const SrsPsFrameBuffer* frame) const
@@ -970,45 +942,12 @@ PsFrameBufferEnum SrsPsJitterBuffer::InsertPacket(const SrsPsRtpPacket &pkt, cha
 
     srs_utime_t now_ms =  srs_update_system_time();
 
-    // We are keeping track of the first and latest seq numbers, and
-    // the number of wraps to be able to calculate how many packets we expect.
-    // if (first_packet_since_reset_) {
-    //     // Now it's time to start estimating jitter
-    //     // reset the delay estimate.
-    //     inter_frame_delay_.Reset(now_ms);
-    // }
-
-    // Empty packets may bias the jitter estimate (lacking size component),
-    // therefore don't let empty packet trigger the following updates:
-    // if (packet.frameType != kEmptyFrame) {
-    //     if (waiting_for_completion_.timestamp == packet.timestamp) {
-    //         // This can get bad if we have a lot of duplicate packets,
-    //         // we will then count some packet multiple times.
-    //         waiting_for_completion_.frame_size += packet.sizeBytes;
-    //         waiting_for_completion_.latest_packet_time = now_ms;
-    //     } else if (waiting_for_completion_.latest_packet_time >= 0 &&
-    //                waiting_for_completion_.latest_packet_time + 2000 <= now_ms) {
-    //         // A packet should never be more than two seconds late
-    //         UpdateJitterEstimate(waiting_for_completion_, true);
-    //         waiting_for_completion_.latest_packet_time = -1;
-    //         waiting_for_completion_.frame_size = 0;
-    //         waiting_for_completion_.timestamp = 0;
-    //     }
-    // }
-
     FrameData frame_data;
     frame_data.rtt_ms = 0; //rtt_ms_;
     frame_data.rolling_average_packets_per_frame = 25;//average_packets_per_frame_;
 
     PsFrameBufferEnum buffer_state = frame->InsertPacket(packet, frame_data);
     
-    // if (previous_state != kStateComplete) {
-        
-    //     //TRACE_EVENT_ASYNC_BEGIN1("Video", frame->TimeStamp(),
-    //     //                         "timestamp", frame->TimeStamp());
-    // }
-
-
     if (buffer_state > 0) {
         incoming_bit_count_ += packet.sizeBytes << 3;
 
@@ -1040,7 +979,6 @@ PsFrameBufferEnum SrsPsJitterBuffer::InsertPacket(const SrsPsRtpPacket &pkt, cha
 
     case kCompleteSession: {
         //CountFrame(*frame);
-
         // if (previous_state != kStateDecodable &&
         //         previous_state != kStateComplete) {
         //     /*CountFrame(*frame);*/ //????????????????????�?? by ylr
@@ -1318,20 +1256,8 @@ bool SrsPsJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_
         int64_t wait_time_ms = max_wait_time_ms * SRS_UTIME_MILLISECONDS;
 
         while (wait_time_ms > 0) {
-            // crit_sect_->Leave();
-            // const EventTypeWrapper ret =
-            //     frame_event_->Wait(static_cast<uint32_t>(wait_time_ms));
-            // crit_sect_->Enter();
-
             int ret = srs_cond_timedwait(wait_cond_t, wait_time_ms);
-
             if (ret == 0) {
-                // Are we shutting down the jitter buffer?
-                // if (!running_) {
-                //     crit_sect_->Leave();
-                //     return false;
-                // }
-
                 // Finding oldest frame ready for decoder.
                 CleanUpOldOrEmptyFrames();
 
@@ -1365,12 +1291,6 @@ bool SrsPsJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_
 
 bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
 {
-    // CriticalSectionScoped cs(crit_sect_);
-
-    // if (!running_) {
-    //     return false;
-    // }
-
     if (decode_error_mode_ == kNoErrors) {
         srs_warn("gb28181 SrsJitterBuffer::NextMaybeIncompleteTimestamp decode_error_mode_ %d", decode_error_mode_);
         // No point to continue, as we are not decoding with errors.
@@ -1425,12 +1345,6 @@ bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
 
 SrsPsFrameBuffer* SrsPsJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
 {
-    // CriticalSectionScoped cs(crit_sect_);
-
-    // if (!running_) {
-    //     return NULL;
-    // }
-
     // Extract the frame with the desired timestamp.
     SrsPsFrameBuffer* frame = decodable_frames_.PopFrame(timestamp);
     bool continuous = true;
@@ -1444,28 +1358,6 @@ SrsPsFrameBuffer* SrsPsJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
             return NULL;
         }
     }
-
-    // Frame pulled out from jitter buffer, update the jitter estimate.
-    //const bool retransmitted = (frame->GetNackCount() > 0);
-
-    // if (retransmitted) {
-    //     jitter_estimate_.FrameNacked();
-    // } else if (frame->Length() > 0) {
-    //     // Ignore retransmitted and empty frames.
-    //     if (waiting_for_completion_.latest_packet_time >= 0) {
-    //         //UpdateJitterEstimate(waiting_for_completion_, true);
-    //     }
-
-    //     if (frame->GetState() == kStateComplete) {
-    //         //UpdateJitterEstimate(*frame, false);
-    //     } else {
-    //         // Wait for this one to get complete.
-    //         // waiting_for_completion_.frame_size = frame->Length();
-    //         // waiting_for_completion_.latest_packet_time =
-    //         //     frame->LatestPacketTimeMs();
-    //         // waiting_for_completion_.timestamp = frame->TimeStamp();
-    //     }
-    // }
 
     // The state must be changed to decoding before cleaning up zero sized
     // frames to avoid empty frames being cleaned up and then given to the
