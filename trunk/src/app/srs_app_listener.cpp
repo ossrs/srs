@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
+
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
@@ -116,6 +117,47 @@ srs_netfd_t SrsUdpListener::stfd()
     return lfd;
 }
 
+void SrsUdpListener::set_socket_buffer()
+{
+    int default_sndbuf = 0;
+    // TODO: FIXME: Config it.
+    int expect_sndbuf = 1024*1024*10; // 10M
+    int actual_sndbuf = expect_sndbuf;
+    int r0_sndbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&default_sndbuf, &opt_len);
+
+        if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
+            srs_warn("set SO_SNDBUF failed, expect=%d, r0=%d", expect_sndbuf, r0_sndbuf);
+        }
+
+        opt_len = sizeof(actual_sndbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, &opt_len);
+    }
+
+    int default_rcvbuf = 0;
+    // TODO: FIXME: Config it.
+    int expect_rcvbuf = 1024*1024*10; // 10M
+    int actual_rcvbuf = expect_rcvbuf;
+    int r0_rcvbuf = 0;
+    if (true) {
+        socklen_t opt_len = sizeof(default_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&default_rcvbuf, &opt_len);
+
+        if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
+            srs_warn("set SO_RCVBUF failed, expect=%d, r0=%d", expect_rcvbuf, r0_rcvbuf);
+        }
+
+        opt_len = sizeof(actual_rcvbuf);
+        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, &opt_len);
+    }
+
+    srs_trace("UDP #%d LISTEN at %s:%d, SO_SNDBUF(default=%d, expect=%d, actual=%d, r0=%d), SO_RCVBUF(default=%d, expect=%d, actual=%d, r0=%d)",
+        srs_netfd_fileno(lfd), ip.c_str(), port, default_sndbuf, expect_sndbuf, actual_sndbuf, r0_sndbuf, default_rcvbuf, expect_rcvbuf, actual_rcvbuf, r0_rcvbuf);
+}
+
+
 srs_error_t SrsUdpListener::listen()
 {
     srs_error_t err = srs_success;
@@ -123,6 +165,8 @@ srs_error_t SrsUdpListener::listen()
     if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
+
+    set_socket_buffer();
 
     handler->set_stfd(lfd);
     
@@ -138,7 +182,7 @@ srs_error_t SrsUdpListener::listen()
 srs_error_t SrsUdpListener::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
@@ -158,7 +202,7 @@ srs_error_t SrsUdpListener::cycle()
             && buf[19] == 0x63 && buf[20] == 0x6b) {
             continue;
         }
-        
+
         if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             return srs_error_wrap(err, "handle packet %d bytes", nread);
         }
