@@ -41,6 +41,9 @@
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_gb28181_sip.hpp>
+#include <srs_app_gb28181_jitbuffer.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_app_source.hpp>
 
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
@@ -66,6 +69,10 @@ class SrsGb28181PsRtpProcessor;
 class SrsGb28181SipService;
 class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
+class SrsPsJitterBuffer;
+class SrsServer;
+class SrsSource;
+class SrsRequest;
 
 //ps rtp header packet parse
 class SrsPsRtpPacket: public SrsRtpPacket
@@ -73,6 +80,7 @@ class SrsPsRtpPacket: public SrsRtpPacket
 public:
     SrsPsRtpPacket();
     virtual ~SrsPsRtpPacket();
+    bool isFirstPacket;
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
 };
@@ -129,9 +137,15 @@ private:
     bool can_send_ps_av_packet();
     void dispose();
     void clear_pre_packet();
+    SrsGb28181RtmpMuxer* create_rtmpmuxer(std::string channel_id, uint32_t ssrc);
+    srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc, 
+            int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+public:
+    virtual srs_error_t on_rtp_packet_jitter(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    virtual srs_error_t on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
 //ps stream processing parsing interface
@@ -242,6 +256,15 @@ private:
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 
+    SrsRequest* req;
+    SrsSource* source;
+    SrsServer* server;
+
+    SrsPsJitterBuffer *jitter_buffer;
+    char *ps_buffer;
+
+    bool source_publish; 
+
 public:
     std::queue<SrsPsRtpPacket*> ps_queue;
 
@@ -252,6 +275,7 @@ public:
 public:
     virtual srs_error_t serve();
     virtual void stop();
+    srs_error_t initialize(SrsServer* s, SrsRequest* r);
    
     virtual std::string get_channel_id();
     virtual void ps_packet_enqueue(SrsPsRtpPacket *pkt);
@@ -265,6 +289,8 @@ public:
     virtual SrsGb28181StreamChannel get_channel();
     srs_utime_t get_recv_stream_time();
 
+    void insert_jitterbuffer(SrsPsRtpPacket *pkt);
+
 private:
     virtual srs_error_t do_cycle();
     virtual void destroy();
@@ -277,10 +303,14 @@ public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
     virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts);
 private:
+    
+    srs_error_t replace_startcode_with_nalulen(char *video_data, int &size,  uint32_t pts, uint32_t dts);
+    srs_error_t write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool b = true);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+    virtual srs_error_t rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size);
 private:
     // Connect to RTMP server.
     virtual srs_error_t connect();
@@ -304,6 +334,7 @@ public:
     int rtp_port_max;
     int rtp_mux_port;
     bool auto_create_channel;
+    bool jitterbuffer_enable;
 
     //sip config
     int  sip_port;
@@ -395,12 +426,13 @@ private:
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
     SrsCoroutineManager* manager;
     SrsGb28181SipService* sip_service;
+    SrsServer* server;
 public:
-    SrsGb28181Manger(SrsConfDirective* c);
+    SrsGb28181Manger(SrsServer* s, SrsConfDirective* c);
     virtual ~SrsGb28181Manger();
 
 public:
-    srs_error_t fetch_or_create_rtmpmuxer(std::string id, SrsGb28181RtmpMuxer** gb28181);
+    srs_error_t fetch_or_create_rtmpmuxer(std::string id, SrsRequest *req, SrsGb28181RtmpMuxer** gb28181);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string id);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer_by_ssrc(uint32_t ssrc);
     void rtmpmuxer_map_by_ssrc(SrsGb28181RtmpMuxer*muxer, uint32_t ssrc);

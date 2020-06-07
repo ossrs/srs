@@ -1413,7 +1413,7 @@ srs_error_t SrsServer::listen_stream_caster()
 #ifdef SRS_GB28181
             //init global gb28181 manger
             if (_srs_gb28181 == NULL){
-                _srs_gb28181 = new SrsGb28181Manger(stream_caster);
+                _srs_gb28181 = new SrsGb28181Manger(this, stream_caster);
                 if ((err = _srs_gb28181->initialize()) != srs_success){
                     return err;
                 }
