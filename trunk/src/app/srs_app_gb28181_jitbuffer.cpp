@@ -1311,9 +1311,10 @@ bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
 
         SrsPsFrameBuffer* next_frame;
         next_frame = incomplete_frames_.FrontNext();
-        
+    
         if (oldest_frame_state !=  kStateComplete && next_frame &&
-         ((oldest_frame->GetHighSeqNum()+20) % 65536) >= next_frame->GetLowSeqNum()){
+         IsNewerSequenceNumber(next_frame->GetLowSeqNum(), oldest_frame->GetHighSeqNum()) &&
+         next_frame->NumPackets() > 0 ) {
             oldest_frame_state = kStateComplete;
         }
 
