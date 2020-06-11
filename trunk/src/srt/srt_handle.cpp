@@ -153,6 +153,9 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
     int val_i;
     int opt_len = sizeof(int);
 
+    int64_t val_i64;
+    int opt64_len = sizeof(int64_t);
+
     srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_LATENCY, &val_i, &opt_len);
     srs_trace("srto SRTO_LATENCY=%d", val_i);
 
@@ -165,8 +168,8 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
     srs_trace("srto SRTO_SNDBUF=%d", val_i);
     srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_RCVBUF, &val_i, &opt_len);
     srs_trace("srto SRTO_RCVBUF=%d", val_i);
-    srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_MAXBW, &val_i, &opt_len);
-    srs_trace("srto SRTO_MAXBW=%d", val_i);
+    srt_getsockopt(conn_ptr->get_conn(), 0, SRTO_MAXBW, &val_i64, &opt64_len);
+    srs_trace("srto SRTO_MAXBW=%d", val_i64);
     srs_trace("srt mix_correct is %s.", _srs_config->get_srt_mix_correct() ? "enable" : "disable");
     srs_trace("srt h264 sei filter is %s.", _srs_config->get_srt_sei_filter() ? "enable" : "disable");
 
