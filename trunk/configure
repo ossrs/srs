@@ -90,6 +90,9 @@ CppStd="-ansi"
 if [[ $SRS_CXX11 == YES ]]; then
     CppStd="-std=c++11"
 fi
+if [[ $SRS_CXX14 == YES ]]; then
+    CppStd="-std=c++14"
+fi
 # performance of gprof
 SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
 # performance of gperf

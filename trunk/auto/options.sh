@@ -20,6 +20,7 @@ SRS_SRT=NO
 SRS_RTC=YES
 SRS_GB28181=NO
 SRS_CXX11=NO
+SRS_CXX14=NO
 SRS_NGINX=NO
 SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
@@ -151,6 +152,7 @@ Features:
   --rtc=on|off              Whether build the WebRTC support for SRS.
   --gb28181=on|off          Whether build the GB28181 support for SRS.
   --cxx11=on|off            Whether enable the C++11 support for SRS.
+  --cxx14=on|off            Whether enable the C++14 support for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --gcov=on|off             Whether enable the GCOV compiler options.
@@ -324,6 +326,7 @@ function parse_user_option() {
         --gb28181)                      if [[ $value == off ]]; then SRS_GB28181=NO; else SRS_GB28181=YES; fi    ;;
 
         --cxx11)                        if [[ $value == off ]]; then SRS_CXX11=NO; else SRS_CXX11=YES; fi    ;;
+        --cxx14)                        if [[ $value == off ]]; then SRS_CXX14=NO; else SRS_CXX14=YES; fi    ;;
 
         --with-clean)                   SRS_CLEAN=YES               ;;
         --without-clean)                SRS_CLEAN=NO                ;;
@@ -523,6 +526,11 @@ function apply_user_presets() {
     if [[ $SRS_SRT == YES ]]; then
         SRS_CXX11=YES
     fi
+
+    # Enable c++14 for RTC
+    if [[ $SRS_RTC == YES ]]; then
+        SRS_CXX14=YES
+    fi
 }
 apply_user_presets
 
@@ -623,6 +631,7 @@ function regenerate_options() {
     if [ $SRS_SIMULATOR = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=off"; fi
     if [ $SRS_GB28181 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=off"; fi
     if [ $SRS_CXX11 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=off"; fi
+    if [ $SRS_CXX14 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=off"; fi
     if [ $SRS_NASM = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=off"; fi
     if [ $SRS_SRTP_ASM = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=off"; fi
     if [ $SRS_SENDMMSG = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=off"; fi
