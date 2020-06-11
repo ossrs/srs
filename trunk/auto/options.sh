@@ -526,11 +526,6 @@ function apply_user_presets() {
     if [[ $SRS_SRT == YES ]]; then
         SRS_CXX11=YES
     fi
-
-    # Enable c++14 for RTC
-    if [[ $SRS_RTC == YES ]]; then
-        SRS_CXX14=YES
-    fi
 }
 apply_user_presets
 
