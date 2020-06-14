@@ -102,6 +102,8 @@ public:
 public:
     virtual int fd();
     virtual srs_netfd_t stfd();
+private:
+    void set_socket_buffer();
 public:
     virtual srs_error_t listen();
 // Interface ISrsReusableThreadHandler.

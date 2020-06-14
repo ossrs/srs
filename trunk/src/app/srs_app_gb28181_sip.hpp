@@ -94,6 +94,8 @@ private:
     //std::map<std::string, int> _device_status;
     int _sip_cseq;
 
+    srs_mutex_t lock_list;
+
 public:
     SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipRequest* r);
     virtual ~SrsGb28181SipSession();
