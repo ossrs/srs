@@ -16,6 +16,7 @@ help=no
 ################################################################
 # feature options
 SRS_HDS=NO
+SRS_LAS=NO
 SRS_SRT=NO
 SRS_RTC=YES
 SRS_GB28181=NO
@@ -141,6 +142,7 @@ Features:
 
   --ssl=on|off              Whether build the rtmp complex handshake, requires openssl-devel installed.
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files.
+  --las=on|off              Whether use LAS for http-flv adaptive stream.
   --stream-caster=on|off    Whether build the stream caster to serve other stream over other protocol.
   --stat=on|off             Whether build the the data statistic, for http api.
   --librtmp=on|off          Whether build the srs-librtmp, library for client.
@@ -271,6 +273,10 @@ function parse_user_option() {
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
         --hds)                          if [[ $value == off ]]; then SRS_HDS=NO; else SRS_HDS=YES; fi    ;;
+
+        --with-las)                     SRS_LAS=YES                 ;;
+        --without-las)                  SRS_LAS=NO                  ;;
+        --las)                          if [[ $value == off ]]; then SRS_LAS=NO; else SRS_LAS=YES; fi    ;;
 
         --with-nginx)                   SRS_NGINX=YES               ;;
         --without-nginx)                SRS_NGINX=NO                ;;
@@ -442,6 +448,7 @@ function apply_user_presets() {
     # all disabled.
     if [ $SRS_DISABLE_ALL = YES ]; then
         SRS_HDS=NO
+        SRS_LAS=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -449,6 +456,7 @@ function apply_user_presets() {
     # all enabled.
     if [ $SRS_ENABLE_ALL = YES ]; then
         SRS_HDS=YES
+        SRS_LAS=YES
         SRS_UTEST=YES
         SRS_STATIC=NO
     fi
@@ -598,6 +606,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=off"; fi
     if [ $SRS_HDS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=off"; fi
+    if [ $SRS_LAS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --las=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --las=off"; fi
     if [ $SRS_DVR = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=off"; fi
     if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
     if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
@@ -693,6 +702,7 @@ function check_option_conflicts() {
 
     # check variable neccessary
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_LAS = RESERVED ]; then echo "you must specifies the las, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi
