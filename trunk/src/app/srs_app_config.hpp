@@ -508,6 +508,7 @@ public:
     virtual srs_utime_t get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf);
     virtual srs_utime_t get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf);
+    virtual bool get_stream_caster_gb28181_jitterbuffer_enable(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_host(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_serial(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_realm(SrsConfDirective* conf);
@@ -527,19 +528,14 @@ public:
     virtual std::string get_rtc_server_candidates();
     virtual std::string get_rtc_server_ip_family();
     virtual bool get_rtc_server_ecdsa();
-    virtual int get_rtc_server_sendmmsg();
     virtual bool get_rtc_server_encrypt();
     virtual int get_rtc_server_reuseport();
     virtual bool get_rtc_server_merge_nalus();
-    virtual bool get_rtc_server_gso();
-    virtual int get_rtc_server_padding();
     virtual bool get_rtc_server_perf_stat();
-    virtual int get_rtc_server_queue_length();
     virtual bool get_rtc_server_black_hole();
-    virtual std::string get_rtc_server_black_hole_publisher();
+    virtual std::string get_rtc_server_black_hole_addr();
 private:
     virtual int get_rtc_server_reuseport2();
-    virtual bool get_rtc_server_gso2();
 
 public:
     SrsConfDirective* get_rtc(std::string vhost);
@@ -549,6 +545,7 @@ public:
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
+    bool get_rtc_twcc_enabled(std::string vhost);
 
 // vhost specified section
 public:

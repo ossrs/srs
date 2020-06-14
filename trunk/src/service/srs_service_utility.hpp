@@ -67,7 +67,7 @@ struct SrsIPAddress
 extern std::vector<SrsIPAddress*>& srs_get_local_ips();
 
 // Get local public ip, empty string if no public internet address found.
-extern std::string srs_get_public_internet_address();
+extern std::string srs_get_public_internet_address(bool ipv4_only = false);
 
 // Detect whether specified device is internet public address.
 extern bool srs_net_device_is_internet(std::string ifname);

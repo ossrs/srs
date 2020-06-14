@@ -350,9 +350,12 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
         // use server public ip when host not specified.
         // to make telnet happy.
         std::string host = _header.get("Host");
+
+        // If no host in header, we use local discovered IP, IPv4 first.
         if (host.empty()) {
-            host= srs_get_public_internet_address();
+            host = srs_get_public_internet_address(true);
         }
+
         if (!host.empty()) {
             uri = "http://" + host + _url;
         }

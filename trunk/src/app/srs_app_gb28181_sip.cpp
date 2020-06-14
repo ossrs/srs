@@ -101,6 +101,8 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
 
     _fromlen = 0;
     _sip_cseq = 100;
+
+    lock_list = srs_mutex_new();
 }
 
 SrsGb28181SipSession::~SrsGb28181SipSession()
@@ -110,6 +112,7 @@ SrsGb28181SipSession::~SrsGb28181SipSession()
     srs_freep(req);
     srs_freep(trd);
     srs_freep(pprint);
+    srs_mutex_destroy(lock_list);
 }
 
 srs_error_t SrsGb28181SipSession::serve()
@@ -126,6 +129,7 @@ srs_error_t SrsGb28181SipSession::serve()
 void SrsGb28181SipSession::destroy()
 {
     //destory all device
+    SrsLocker(lock_list);
     std::map<std::string, SrsGb28181Device*>::iterator it;
     for (it = _device_list.begin(); it != _device_list.end(); ++it) {
         srs_freep(it->second);
@@ -162,6 +166,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
         if (_register_status == SrsGb28181SipSessionRegisterOk &&
             _alive_status == SrsGb28181SipSessionAliveOk)
         {
+            SrsLocker(lock_list);
             std::map<std::string, SrsGb28181Device*>::iterator it;
             for (it = _device_list.begin(); it != _device_list.end(); it++) {
                 SrsGb28181Device *device = it->second;
@@ -260,6 +265,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 (reg_duration / SRS_UTIME_SECONDS), 
                 (alive_duration / SRS_UTIME_SECONDS));
      
+            SrsLocker(lock_list);
             std::map<std::string, SrsGb28181Device*>::iterator it;
             for (it = _device_list.begin(); it != _device_list.end(); it++) {
                 SrsGb28181Device *device = it->second;
@@ -309,6 +315,7 @@ srs_error_t SrsGb28181SipSession::cycle()
 
 void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string> lst)
 {
+    SrsLocker(lock_list);
     std::map<std::string, std::string>::iterator it;
     for (it = lst.begin(); it != lst.end(); ++it) {
         std::string id = it->first;
@@ -335,6 +342,7 @@ void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string>
 
 SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
 {
+    SrsLocker(lock_list);
     if (_device_list.find(chid) != _device_list.end()){
         return _device_list[chid];
     }
@@ -343,6 +351,7 @@ SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
 
 void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
 {
+    SrsLocker(lock_list);
     obj->set("id", SrsJsonAny::str(_session_id.c_str()));
     obj->set("device_sumnum", SrsJsonAny::integer(_device_list.size()));
     
@@ -379,7 +388,7 @@ SrsGb28181SipService::SrsGb28181SipService(SrsConfDirective* c)
     // TODO: FIXME: support reload.
     config = new SrsGb28181Config(c);
     sip = new SrsSipStack();
-
+  
     if (_srs_gb28181){
         _srs_gb28181->set_sip_service(this);
     }

@@ -418,14 +418,6 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-ISrsConsumerQueue::ISrsConsumerQueue()
-{
-}
-
-ISrsConsumerQueue::~ISrsConsumerQueue()
-{
-}
-
 #ifdef SRS_LAS
 SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c, int64_t lasspts, bool only_audio)
 {
@@ -2087,7 +2079,7 @@ SrsFormat* SrsMetaCache::ash_format()
     return aformat;
 }
 
-srs_error_t SrsMetaCache::dumps(ISrsConsumerQueue* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
+srs_error_t SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
 {
     srs_error_t err = srs_success;
     

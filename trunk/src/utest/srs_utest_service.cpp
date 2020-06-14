@@ -110,7 +110,7 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 		EXPECT_TRUE(h.fd != NULL);
 	}
 
@@ -123,7 +123,7 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -145,7 +145,7 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -169,7 +169,7 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -204,7 +204,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -226,7 +226,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -248,7 +248,7 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -428,7 +428,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
@@ -458,7 +458,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 #ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif

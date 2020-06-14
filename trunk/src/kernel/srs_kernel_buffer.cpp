@@ -128,6 +128,18 @@ int16_t SrsBuffer::read_2bytes()
     return value;
 }
 
+int16_t SrsBuffer::read_le2bytes()
+{
+    srs_assert(require(2));
+
+    int16_t value;
+    char* pp = (char*)&value;
+    pp[0] = *p++;
+    pp[1] = *p++;
+
+    return value;
+}
+
 int32_t SrsBuffer::read_3bytes()
 {
     srs_assert(require(3));
@@ -138,6 +150,19 @@ int32_t SrsBuffer::read_3bytes()
     pp[1] = *p++;
     pp[0] = *p++;
     
+    return value;
+}
+
+int32_t SrsBuffer::read_le3bytes()
+{
+    srs_assert(require(3));
+
+    int32_t value = 0x00;
+    char* pp = (char*)&value;
+    pp[0] = *p++;
+    pp[1] = *p++;
+    pp[2] = *p++;
+
     return value;
 }
 
@@ -152,6 +177,20 @@ int32_t SrsBuffer::read_4bytes()
     pp[1] = *p++;
     pp[0] = *p++;
     
+    return value;
+}
+
+int32_t SrsBuffer::read_le4bytes()
+{
+    srs_assert(require(4));
+
+    int32_t value;
+    char* pp = (char*)&value;
+    pp[0] = *p++;
+    pp[1] = *p++;
+    pp[2] = *p++;
+    pp[3] = *p++;
+
     return value;
 }
 
@@ -170,6 +209,24 @@ int64_t SrsBuffer::read_8bytes()
     pp[1] = *p++;
     pp[0] = *p++;
     
+    return value;
+}
+
+int64_t SrsBuffer::read_le8bytes()
+{
+    srs_assert(require(8));
+
+    int64_t value;
+    char* pp = (char*)&value;
+    pp[0] = *p++;
+    pp[1] = *p++;
+    pp[2] = *p++;
+    pp[3] = *p++;
+    pp[4] = *p++;
+    pp[5] = *p++;
+    pp[6] = *p++;
+    pp[7] = *p++;
+
     return value;
 }
 
@@ -210,6 +267,15 @@ void SrsBuffer::write_2bytes(int16_t value)
     *p++ = pp[0];
 }
 
+void SrsBuffer::write_le2bytes(int16_t value)
+{
+    srs_assert(require(2));
+
+    char* pp = (char*)&value;
+    *p++ = pp[0];
+    *p++ = pp[1];
+}
+
 void SrsBuffer::write_4bytes(int32_t value)
 {
     srs_assert(require(4));
@@ -221,6 +287,17 @@ void SrsBuffer::write_4bytes(int32_t value)
     *p++ = pp[0];
 }
 
+void SrsBuffer::write_le4bytes(int32_t value)
+{
+    srs_assert(require(4));
+
+    char* pp = (char*)&value;
+    *p++ = pp[0];
+    *p++ = pp[1];
+    *p++ = pp[2];
+    *p++ = pp[3];
+}
+
 void SrsBuffer::write_3bytes(int32_t value)
 {
     srs_assert(require(3));
@@ -229,6 +306,16 @@ void SrsBuffer::write_3bytes(int32_t value)
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
+}
+
+void SrsBuffer::write_le3bytes(int32_t value)
+{
+    srs_assert(require(3));
+
+    char* pp = (char*)&value;
+    *p++ = pp[0];
+    *p++ = pp[1];
+    *p++ = pp[2];
 }
 
 void SrsBuffer::write_8bytes(int64_t value)
@@ -244,6 +331,21 @@ void SrsBuffer::write_8bytes(int64_t value)
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
+}
+
+void SrsBuffer::write_le8bytes(int64_t value)
+{
+    srs_assert(require(8));
+
+    char* pp = (char*)&value;
+    *p++ = pp[0];
+    *p++ = pp[1];
+    *p++ = pp[2];
+    *p++ = pp[3];
+    *p++ = pp[4];
+    *p++ = pp[5];
+    *p++ = pp[6];
+    *p++ = pp[7];
 }
 
 void SrsBuffer::write_string(string value)

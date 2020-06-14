@@ -5999,15 +5999,17 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
 
 VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
 {
+    srs_error_t err = srs_success;
+
     if (true) {
         MockBufferIO bio;
         SrsHttpParser hp;
 
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
-        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
 
         ISrsHttpMessage* req = NULL;
-        ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
 
         // We should read body, or next parsing message will fail.
         // @see https://github.com/ossrs/srs/issues/1181
@@ -6019,7 +6021,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
 
         // Should fail because there is body which not read.
         // @see https://github.com/ossrs/srs/issues/1181
-        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_FAILED(hp.parse_message(&bio, &req));
         srs_freep(req);
     }
 
@@ -6028,11 +6030,11 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
 
         bio.append("GET");
-        EXPECT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
 
 		// Should fail if not completed message.
         ISrsHttpMessage* req = NULL;
-        ASSERT_FALSE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_FAILED(hp.parse_message(&bio, &req));
         srs_freep(req);
     }
     
@@ -6041,14 +6043,14 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
-        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
-        ASSERT_TRUE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
         
         char v[64] = {0};
-        EXPECT_TRUE(0 == req->body_reader()->read(v, sizeof(v), NULL));
+        HELPER_ASSERT_SUCCESS(req->body_reader()->read(v, sizeof(v), NULL));
         EXPECT_TRUE(string("Hello") == string(v));
         
         EXPECT_TRUE(req->body_reader()->eof());
@@ -6059,11 +6061,11 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 0\r\n\r\n");
-        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
-        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
     }
     
     if (true) {
@@ -6071,11 +6073,11 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
-        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
-        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
     }
     
     if (true) {
@@ -6083,11 +6085,11 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
-        ASSERT_TRUE(0 == hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
-        EXPECT_TRUE(0 == hp.parse_message(&bio, &req));
+        HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
     }
 }
 

@@ -135,7 +135,7 @@ function show_help() {
 Presets:
   --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
   --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
-  --mips                    Enable crossbuild for MIPS
+  --osx                     Enable build for OSX/Darwin AppleOS.
 
 Features:
   -h, --help                Print this message and exit 0.
@@ -177,7 +177,6 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static                  Whether add '-static' to link options.
   --arm                     Enable crossbuild for ARM.
-  --mips                    Enable crossbuild for MIPS.
   --cc=<CC>                 Use c compiler CC, default is gcc.
   --cxx=<CXX>               Use c++ compiler CXX, default is g++.
   --ar=<AR>                 Use archive tool AR, default is ar.
@@ -197,8 +196,6 @@ Experts:
   --sys-ssl=on|off                  Do not compile ssl, use system ssl(-lssl) if required.
   --use-shared-st                   Use link shared libraries for ST which uses MPL license.
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
-  --export-librtmp-project=<path>   Export srs-librtmp to specified project in path.
-  --export-librtmp-single=<path>    Export srs-librtmp to a single file(.h+.cpp) in path.
   --build-tag=<TAG>                 Set the build object directory suffix.
   --with-clean                      Configure SRS and do make clean if possible.
   --without-clean                   Configure SRS and never make clean even possible.
@@ -452,8 +449,6 @@ function apply_user_presets() {
     if [ $SRS_DISABLE_ALL = YES ]; then
         SRS_HDS=NO
         SRS_LAS=NO
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -462,8 +457,6 @@ function apply_user_presets() {
     if [ $SRS_ENABLE_ALL = YES ]; then
         SRS_HDS=YES
         SRS_LAS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=YES
         SRS_UTEST=YES
         SRS_STATIC=NO
     fi
@@ -471,8 +464,6 @@ function apply_user_presets() {
     # only rtmp vp6
     if [ $SRS_FAST = YES ]; then
         SRS_HDS=NO
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -480,8 +471,6 @@ function apply_user_presets() {
     # only ssl for RTMP with complex handshake.
     if [ $SRS_PURE_RTMP = YES ]; then
         SRS_HDS=NO
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -489,8 +478,6 @@ function apply_user_presets() {
     # defaults for x86/x64
     if [ $SRS_X86_X64 = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -498,8 +485,6 @@ function apply_user_presets() {
     # if dev specified, open features if possible.
     if [ $SRS_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=YES
         SRS_UTEST=YES
         SRS_STATIC=NO
     fi
@@ -507,8 +492,6 @@ function apply_user_presets() {
     # if fast dev specified, open main server features.
     if [ $SRS_FAST_DEV = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -516,8 +499,6 @@ function apply_user_presets() {
     # for srs demo
     if [ $SRS_DEMO = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -525,8 +506,6 @@ function apply_user_presets() {
     # if raspberry-pi specified, open ssl/hls/static features
     if [ $SRS_PI = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -534,16 +513,12 @@ function apply_user_presets() {
     # if cubieboard specified, open features except ffmpeg/nginx.
     if [ $SRS_CUBIE = YES ]; then
         SRS_HDS=YES
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
 
     # if crossbuild, disable research and librtmp.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-        SRS_LIBRTMP=NO
-        SRS_RESEARCH=NO
         SRS_UTEST=NO
         SRS_STATIC=NO
     fi
@@ -587,29 +562,24 @@ function apply_user_detail_options() {
     
     # if specified export single file, export project first.
     if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        SRS_EXPORT_LIBRTMP_PROJECT=$SRS_EXPORT_LIBRTMP_SINGLE
+        echo "Not support --export-librtmp-single"
+        exit -1
     fi
-    
+
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        SRS_HDS=NO
-        SRS_LAS=NO
-        SRS_SSL=NO
-        SRS_TRANSCODE=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_INGEST=NO
-        SRS_STAT=NO
-        SRS_STREAM_CASTER=NO
-        SRS_LIBRTMP=YES
-        SRS_RESEARCH=YES
-        SRS_UTEST=NO
-        SRS_GPERF=NO
-        SRS_GPERF_MC=NO
-        SRS_GPERF_MD=NO
-        SRS_GPERF_MP=NO
-        SRS_GPERF_CP=NO
-        SRS_GPROF=NO
-        SRS_STATIC=NO
+        echo "Not support --export-librtmp-project"
+        exit -1
+    fi
+
+    if [[ $SRS_LIBRTMP != NO ]]; then
+        echo "Not support --librtmp"
+        exit -1
+    fi
+
+    if [[ $SRS_RESEARCH != NO ]]; then
+        echo "Not support --research"
+        exit -1
     fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
@@ -647,8 +617,6 @@ function regenerate_options() {
     if [ $SRS_HTTP_SERVER = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=on"; else     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=off"; fi
     if [ $SRS_STREAM_CASTER = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=off"; fi
     if [ $SRS_HTTP_API = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=off"; fi
-    if [ $SRS_LIBRTMP = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --librtmp=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --librtmp=off"; fi
-    if [ $SRS_RESEARCH = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --research=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --research=off"; fi
     if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
     if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
@@ -737,8 +705,6 @@ function check_option_conflicts() {
     if [ $SRS_LAS = RESERVED ]; then echo "you must specifies the las, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF = RESERVED ]; then echo "you must specifies the gperf, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MC = RESERVED ]; then echo "you must specifies the gperf-mc, see: ./configure --help"; __check_ok=NO; fi
