@@ -1468,9 +1468,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     root = conf->root;
     conf->root = NULL;
     
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
     // never support reload:
     //      daemon
     //

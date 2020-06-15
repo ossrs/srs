@@ -759,9 +759,6 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     SrsHlsSegment* first = dynamic_cast<SrsHlsSegment*>(segments->first());
     ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
     
-    // iterator shared for td generation and segemnts wrote.
-    std::vector<SrsHlsSegment*>::iterator it;
-    
     // #EXT-X-TARGETDURATION:4294967295\n
     /**
      * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
