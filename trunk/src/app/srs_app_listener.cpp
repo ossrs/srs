@@ -171,7 +171,7 @@ srs_error_t SrsUdpListener::listen()
     handler->set_stfd(lfd);
     
     srs_freep(trd);
-    trd = new SrsSTCoroutine("udp", this);
+    trd = new SrsSTCoroutine("udp", this, _srs_context->get_id());
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start thread");
     }
