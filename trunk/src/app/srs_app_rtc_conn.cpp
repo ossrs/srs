@@ -505,6 +505,7 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
+    keep_sequence_ = false;
 
     _srs_config->subscribe(this);
 }
@@ -530,8 +531,9 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
 
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
-    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_);
+    keep_sequence_ = _srs_config->get_rtc_keep_sequence(session_->req->vhost);
+    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d, keep-seq=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_, keep_sequence_);
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, session_->req)) != srs_success) {
@@ -708,7 +710,9 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         if (pkt->is_audio()) {
             info.nn_audios++;
 
-            pkt->header.set_sequence(audio_sequence++);
+            if (!keep_sequence_) {
+                pkt->header.set_sequence(audio_sequence++);
+            }
             pkt->header.set_ssrc(audio_ssrc);
             pkt->header.set_payload_type(audio_payload_type);
 
@@ -721,7 +725,9 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         info.nn_videos++;
 
         // For video, we should set the RTP packet informations about this consumer.
-        pkt->header.set_sequence(video_sequence++);
+        if (!keep_sequence_) {
+            pkt->header.set_sequence(video_sequence++);
+        }
         pkt->header.set_ssrc(video_ssrc);
         pkt->header.set_payload_type(video_payload_type);
     }

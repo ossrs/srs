@@ -213,6 +213,8 @@ private:
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
+    // Whether keep original sequence number.
+    bool keep_sequence_;
 public:
     SrsRtcPlayer(SrsRtcSession* s, int parent_cid);
     virtual ~SrsRtcPlayer();
