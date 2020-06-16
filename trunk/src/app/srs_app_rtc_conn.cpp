@@ -972,6 +972,12 @@ srs_error_t SrsRtcPlayer::on_rtcp_feedback(char* buf, int nb_buf)
     vector<SrsRtpPacket2*> resend_pkts;
     nack_fetch(resend_pkts, ssrc_of_media_source, pid);
 
+    // If NACK disabled, print a log.
+    if (!nack_enabled_) {
+        srs_trace("RTC NACK seq=%u, ignored", pid);
+        return err;
+    }
+
     uint16_t mask = 0x01;
     for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {
         if (!(blp & mask)) {
