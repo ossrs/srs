@@ -424,6 +424,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     discard_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
+    audio_timestamp = 0;
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -592,6 +593,10 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
+    pkt->header.set_timestamp(audio_timestamp);
+
+    // TODO: FIXME: Why 960? Need Refactoring?
+    audio_timestamp += 960;
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->payload = raw;

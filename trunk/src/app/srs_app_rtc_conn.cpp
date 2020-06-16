@@ -494,11 +494,8 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     session_ = s;
 
-    audio_timestamp = 0;
     audio_sequence = 0;
-
     video_sequence = 0;
-
     mw_msgs = 0;
     realtime = true;
 
@@ -711,15 +708,12 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         if (pkt->is_audio()) {
             info.nn_audios++;
 
-            pkt->header.set_timestamp(audio_timestamp);
             pkt->header.set_sequence(audio_sequence++);
             pkt->header.set_ssrc(audio_ssrc);
             pkt->header.set_payload_type(audio_payload_type);
 
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
 
-            // TODO: FIXME: Why 960? Need Refactoring?
-            audio_timestamp += 960;
             continue;
         }
 

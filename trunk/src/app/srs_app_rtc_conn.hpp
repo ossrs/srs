@@ -195,7 +195,6 @@ protected:
 private:
     // TODO: FIXME: How to handle timestamp overflow?
     // Information for audio.
-    uint32_t audio_timestamp;
     uint16_t audio_sequence;
     uint32_t audio_ssrc;
     uint16_t audio_payload_type;
