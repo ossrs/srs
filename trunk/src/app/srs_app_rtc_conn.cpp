@@ -496,6 +496,7 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     audio_sequence = 0;
     video_sequence = 0;
+    sequence_delta = 0;
     mw_msgs = 0;
     realtime = true;
 
@@ -532,8 +533,17 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
     keep_sequence_ = _srs_config->get_rtc_keep_sequence(session_->req->vhost);
-    srs_trace("RTC player video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d, keep-seq=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_, keep_sequence_);
+    if (!session_->sequence_startup.empty()) {
+        audio_sequence = video_sequence = uint16_t(::atoi(session_->sequence_startup.c_str()));
+    }
+    if (!session_->sequence_delta.empty()) {
+        sequence_delta = uint16_t(::atoi(session_->sequence_delta.c_str()));
+    }
+    if (!session_->sequence_keep.empty()) {
+        keep_sequence_ = (session_->sequence_keep == "true");
+    }
+    srs_trace("RTC player video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d, keep-seq=%d, sequence(audio=%u,video=%u,delta=%u)",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_, keep_sequence_, audio_sequence, video_sequence, sequence_delta);
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, session_->req)) != srs_success) {
@@ -706,30 +716,36 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         // Update stats.
         info.nn_bytes += pkt->nb_bytes();
 
-        // For audio, we transcoded AAC to opus in extra payloads.
+        uint16_t oseq = pkt->header.get_sequence();
         if (pkt->is_audio()) {
             info.nn_audios++;
 
             if (!keep_sequence_) {
-                pkt->header.set_sequence(audio_sequence++);
+                // TODO: FIXME: Should keep the order by original sequence.
+                pkt->header.set_sequence(sequence_delta + audio_sequence++);
+            } else {
+                pkt->header.set_sequence(sequence_delta + oseq);
             }
             pkt->header.set_ssrc(audio_ssrc);
             pkt->header.set_payload_type(audio_payload_type);
 
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
+        } else {
+            info.nn_videos++;
 
-            continue;
+            if (!keep_sequence_) {
+                // TODO: FIXME: Should keep the order by original sequence.
+                pkt->header.set_sequence(sequence_delta + video_sequence++);
+            } else {
+                pkt->header.set_sequence(sequence_delta + oseq);
+            }
+            pkt->header.set_ssrc(video_ssrc);
+            pkt->header.set_payload_type(video_payload_type);
         }
 
-        // For video, we should process all NALUs in samples.
-        info.nn_videos++;
-
-        // For video, we should set the RTP packet informations about this consumer.
-        if (!keep_sequence_) {
-            pkt->header.set_sequence(video_sequence++);
-        }
-        pkt->header.set_ssrc(video_ssrc);
-        pkt->header.set_payload_type(video_payload_type);
+        // Detail log, should disable it in release version.
+        srs_info("RTC: Update PT=%u, SSRC=%#x, OSEQ=%u, SEQ=%u, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
+            oseq, pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes());
     }
 
     // By default, we send packets by sendmmsg.
@@ -815,6 +831,10 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
 
         // TODO: FIXME: Handle error.
         session_->sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
+
+        // Detail log, should disable it in release version.
+        srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
+            pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
     }
 
     return err;

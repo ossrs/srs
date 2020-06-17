@@ -136,10 +136,16 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     string eip = r->query_get("eip");
     // For client to specifies whether encrypt by SRTP.
     string encrypt = r->query_get("encrypt");
+    // If keep_sequence is off, for client to specifies the startup sequence.
+    string sequence_startup = r->query_get("sequence_startup");
+    // If keep_sequence is on, for client to specifies the delta value for sequence.
+    string sequence_delta = r->query_get("sequence_delta");
+    // Whether keep sequence, overwrite the config for debugging each session.
+    string sequence_keep = r->query_get("sequence_keep");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(),
-        eip.c_str(), encrypt.c_str());
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s, sequence(startup=%s,delta=%s,keep=%s)",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(), encrypt.c_str(),
+        sequence_startup.c_str(), sequence_delta.c_str(), sequence_keep.c_str());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -188,6 +194,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     } else {
         session->set_encrypt(encrypt != "false");
     }
+
+    // Set the optional parameters from client.
+    session->sequence_startup = sequence_startup;
+    session->sequence_delta = sequence_delta;
+    session->sequence_keep = sequence_keep;
 
     ostringstream os;
     if ((err = local_sdp.encode(os)) != srs_success) {

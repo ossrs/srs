@@ -206,6 +206,7 @@ private:
     SrsRtpRingBuffer* audio_queue_;
     SrsRtpRingBuffer* video_queue_;
     // Simulators.
+    uint16_t sequence_delta;
     int nn_simulate_nack_drop;
 private:
     // For merged-write messages.
@@ -353,6 +354,11 @@ private:
     SrsRtcSource* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
+public:
+    // User debugging parameters, overwrite config.
+    std::string sequence_startup;
+    std::string sequence_delta;
+    std::string sequence_keep;
 private:
     bool blackhole;
     sockaddr_in* blackhole_addr;
