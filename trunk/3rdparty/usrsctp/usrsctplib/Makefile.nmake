@@ -1,0 +1,179 @@
+#
+# Copyright (C) 2011-2012 Michael Tuexen
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the project nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+CFLAGS=/I. /W3 /WX
+
+CVARSDLL=-DSCTP_DEBUG -DSCTP_SIMPLE_ALLOCATOR -DSCTP_PROCESS_LEVEL_LOCKS
+CVARSDLL=$(CVARSDLL) -D__Userspace__
+CVARSDLL=$(CVARSDLL) -DINET -DINET6
+CVARSDLL=$(CVARSDLL) -D_LIB
+
+LINKFLAGS=/LIBPATH:. Ws2_32.lib
+
+usrsctp_OBJECTS = \
+	user_environment.obj \
+	user_mbuf.obj \
+	user_recv_thread.obj \
+	user_socket.obj \
+	sctp_asconf.obj \
+	sctp_auth.obj \
+	sctp_bsd_addr.obj \
+	sctp_callout.obj \
+	sctp_cc_functions.obj \
+	sctp_crc32.obj \
+	sctp_indata.obj \
+	sctp_input.obj \
+	sctp_output.obj \
+	sctp_pcb.obj \
+	sctp_peeloff.obj \
+	sctp_sha1.obj \
+	sctp_ss_functions.obj \
+	sctp_sysctl.obj \
+	sctp_timer.obj \
+	sctp_userspace.obj  \
+	sctp_usrreq.obj \
+	sctputil.obj \
+	sctp6_usrreq.obj
+
+usrsctp_HEADERS = \
+	user_atomic.h \
+	user_environment.h \
+	user_inpcb.h \
+	user_ip6_var.h \
+	user_malloc.h \
+	user_mbuf.h \
+	user_recv_thread.h \
+	user_route.h \
+	user_socketvar.h \
+	user_uma.h \
+	user_queue.h \
+	user_ip_icmp.h \
+	user_ip6_var.h \
+	netinet\sctp.h \
+	netinet\sctp_asconf.h \
+	netinet\sctp_auth.h \
+	netinet\sctp_bsd_addr.h \
+	netinet\sctp_callout.h \
+	netinet\sctp_constants.h \
+	netinet\sctp_crc32.h \
+	netinet\sctp_header.h \
+	netinet\sctp_indata.h \
+	netinet\sctp_input.h \
+	netinet\sctp_lock_userspace.h \
+	netinet\sctp_os.h \
+	netinet\sctp_os_userspace.h \
+	netinet\sctp_output.h \
+	netinet\sctp_pcb.h \
+	netinet\sctp_peeloff.h \
+	netinet\sctp_process_lock.h \
+	netinet\sctp_sha1.h \
+	netinet\sctp_structs.h \
+	netinet\sctp_sysctl.h \
+	netinet\sctp_timer.h \
+	netinet\sctp_uio.h \
+	netinet\sctp_var.h \
+	netinet\sctputil.h \
+	netinet6\sctp6_var.h
+
+usrsctp.lib : $(usrsctp_OBJECTS)
+	lib /out:usrsctp.lib $(LINKFLAGS) $(usrsctp_OBJECTS)
+
+user_environment.obj : user_environment.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c user_environment.c
+
+user_mbuf.obj  : user_mbuf.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c user_mbuf.c
+
+user_recv_thread.obj: user_recv_thread.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c user_recv_thread.c
+
+user_socket.obj : user_socket.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c user_socket.c
+
+sctp_asconf.obj : netinet\sctp_asconf.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_asconf.c
+
+sctp_auth.obj : netinet\sctp_auth.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_auth.c
+
+sctp_bsd_addr.obj : netinet\sctp_bsd_addr.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_bsd_addr.c
+
+sctp_callout.obj : netinet\sctp_callout.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_callout.c
+
+sctp_cc_functions.obj : netinet\sctp_cc_functions.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_cc_functions.c
+
+sctp_crc32.obj : netinet\sctp_crc32.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_crc32.c
+
+sctp_indata.obj : netinet\sctp_indata.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_indata.c
+
+sctp_input.obj : netinet\sctp_input.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_input.c
+
+sctp_output.obj : netinet\sctp_output.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_output.c
+
+sctp_pcb.obj : netinet\sctp_pcb.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_pcb.c
+
+sctp_peeloff.obj : netinet\sctp_peeloff.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_peeloff.c
+
+sctp_sha1.obj : netinet\sctp_sha1.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_sha1.c
+
+sctp_ss_functions.obj : netinet\sctp_ss_functions.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_ss_functions.c
+
+sctp_sysctl.obj : netinet\sctp_sysctl.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_sysctl.c
+
+sctp_timer.obj : netinet\sctp_timer.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_timer.c
+
+sctp_userspace.obj : netinet\sctp_userspace.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_userspace.c
+
+sctp_usrreq.obj : netinet\sctp_usrreq.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctp_usrreq.c
+
+sctputil.obj : netinet\sctputil.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet\sctputil.c
+
+sctp6_usrreq.obj : netinet6\sctp6_usrreq.c $(usrsctp_HEADERS)
+	cl $(CVARSDLL) $(CFLAGS) -c netinet6\sctp6_usrreq.c
+
+clean:
+	del *.obj
+	del usrsctp.lib
