@@ -172,7 +172,7 @@ public:
     virtual std::string query();
     virtual std::string ext();
     // Get the RESTful matched id.
-    virtual int parse_rest_id(std::string pattern);
+    virtual std::string parse_rest_id(std::string pattern);
 public:
     virtual srs_error_t enter_infinite_chunked();
 public:

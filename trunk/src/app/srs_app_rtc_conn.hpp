@@ -189,7 +189,7 @@ public:
 class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
 protected:
-    int _parent_cid;
+    std::string _parent_cid;
     SrsCoroutine* trd;
     SrsRtcSession* session_;
 private:
@@ -217,7 +217,7 @@ private:
     // Whether keep original sequence number.
     bool keep_sequence_;
 public:
-    SrsRtcPlayer(SrsRtcSession* s, int parent_cid);
+    SrsRtcPlayer(SrsRtcSession* s, std::string parent_cid);
     virtual ~SrsRtcPlayer();
 public:
     srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
@@ -226,7 +226,7 @@ public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
 public:
-    virtual int cid();
+    virtual std::string cid();
 public:
     virtual srs_error_t start();
     virtual void stop();
@@ -344,7 +344,7 @@ private:
     srs_utime_t last_stun_time;
 private:
     // For each RTC session, we use a specified cid for debugging logs.
-    int cid;
+    std::string cid;
     // For each RTC session, whether requires encrypt.
     //      Read config value, rtc_server.encrypt, default to on.
     //      Sepcifies by HTTP API, query encrypt, optional.
@@ -379,9 +379,9 @@ public:
     std::string username();
     void set_encrypt(bool v);
     void switch_to_context();
-    int context_id();
+    std::string context_id();
 public:
-    srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, int context_id);
+    srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, std::string context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

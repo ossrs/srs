@@ -137,7 +137,7 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
+        srs_trace("update source_id=%d[%d]", source->source_id().c_str(), source->source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -242,7 +242,7 @@ ISrsRtcPublisher::~ISrsRtcPublisher()
 
 SrsRtcSource::SrsRtcSource()
 {
-    _source_id = _pre_source_id = -1;
+    _source_id = _pre_source_id = "";
     _can_publish = true;
     rtc_publisher_ = NULL;
 
@@ -278,7 +278,7 @@ void SrsRtcSource::update_auth(SrsRequest* r)
     req->update_auth(r);
 }
 
-srs_error_t SrsRtcSource::on_source_id_changed(int id)
+srs_error_t SrsRtcSource::on_source_id_changed(std::string id)
 {
     srs_error_t err = srs_success;
 
@@ -286,7 +286,7 @@ srs_error_t SrsRtcSource::on_source_id_changed(int id)
         return err;
     }
 
-    if (_pre_source_id == -1) {
+    if (_pre_source_id == "") {
         _pre_source_id = id;
     } else if (_pre_source_id != _source_id) {
         _pre_source_id = _source_id;
@@ -304,12 +304,12 @@ srs_error_t SrsRtcSource::on_source_id_changed(int id)
     return err;
 }
 
-int SrsRtcSource::source_id()
+std::string SrsRtcSource::source_id()
 {
     return _source_id;
 }
 
-int SrsRtcSource::pre_source_id()
+std::string SrsRtcSource::pre_source_id()
 {
     return _pre_source_id;
 }

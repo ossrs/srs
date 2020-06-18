@@ -74,14 +74,14 @@ srs_error_t SrsDummyCoroutine::pull()
     return srs_error_new(ERROR_THREAD_DUMMY, "dummy pull");
 }
 
-int SrsDummyCoroutine::cid()
+string SrsDummyCoroutine::cid()
 {
-    return 0;
+    return "";
 }
 
 _ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
 
-SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, int cid)
+SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, std::string cid)
 {
     name = n;
     handler = h;
@@ -180,7 +180,7 @@ srs_error_t SrsSTCoroutine::pull()
     return srs_error_copy(trd_err);
 }
 
-int SrsSTCoroutine::cid()
+string SrsSTCoroutine::cid()
 {
     return context;
 }
@@ -188,7 +188,7 @@ int SrsSTCoroutine::cid()
 srs_error_t SrsSTCoroutine::cycle()
 {
     if (_srs_context) {
-        if (context) {
+        if (!context.empty()) {
             _srs_context->set_id(context);
         } else {
             context = _srs_context->generate_id();

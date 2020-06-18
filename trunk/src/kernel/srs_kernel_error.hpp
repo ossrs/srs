@@ -411,7 +411,7 @@ private:
     std::string file;
     int line;
     
-    int cid;
+    std::string cid;
     int rerrno;
     
     std::string desc;

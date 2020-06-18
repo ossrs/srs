@@ -825,8 +825,8 @@ srs_error_t SrsServer::initialize_st()
         return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid);
     }
     
-    srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
-        _srs_context->get_id(), ::getpid(), ppid, asprocess);
+    srs_trace("server main cid=%s, pid=%d, ppid=%d, asprocess=%d",
+        _srs_context->get_id().c_str(), ::getpid(), ppid, asprocess);
     
     return err;
 }

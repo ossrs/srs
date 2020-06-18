@@ -490,7 +490,7 @@ public:
     // then the rest id is 100.
     // @param pattern the handler pattern which will serve the request.
     // @return the REST id; -1 if not matched.
-    virtual int parse_rest_id(std::string pattern) = 0;
+    virtual std::string parse_rest_id(std::string pattern) = 0;
 public:
     // The left all data is chunked body, the infinite chunked mode,
     // which is chunked encoding without chunked header.

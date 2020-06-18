@@ -520,7 +520,7 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     count = 0;
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
+        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
         should_update_source_id = false;
     }
     
@@ -1792,7 +1792,7 @@ void SrsSourceManager::dispose()
 
 srs_error_t SrsSourceManager::cycle()
 {
-    int cid = _srs_context->get_id();
+    std::string cid = _srs_context->get_id();
     srs_error_t err = do_cycle();
     _srs_context->set_id(cid);
     
@@ -1809,7 +1809,7 @@ srs_error_t SrsSourceManager::do_cycle()
         
         // Do cycle source to cleanup components, such as hls dispose.
         if ((err = source->cycle()) != srs_success) {
-            return srs_error_wrap(err, "source=%d/%d cycle", source->source_id(), source->pre_source_id());
+            return srs_error_wrap(err, "source=%s/%s cycle", source->source_id().c_str(), source->pre_source_id().c_str());
         }
         
         // TODO: FIXME: support source cleanup.
@@ -1866,7 +1866,7 @@ SrsSource::SrsSource()
     mix_queue = new SrsMixQueue();
     
     _can_publish = true;
-    _pre_source_id = _source_id = -1;
+    _pre_source_id = _source_id = "";
     die_at = 0;
 
     handler = NULL;
@@ -2065,7 +2065,7 @@ srs_error_t SrsSource::on_reload_vhost_play(string vhost)
     return err;
 }
 
-srs_error_t SrsSource::on_source_id_changed(int id)
+srs_error_t SrsSource::on_source_id_changed(string id)
 {
     srs_error_t err = srs_success;
     
@@ -2073,7 +2073,7 @@ srs_error_t SrsSource::on_source_id_changed(int id)
         return err;
     }
     
-    if (_pre_source_id == -1) {
+    if (_pre_source_id == "") {
         _pre_source_id = id;
     } else if (_pre_source_id != _source_id) {
         _pre_source_id = _source_id;
@@ -2091,12 +2091,12 @@ srs_error_t SrsSource::on_source_id_changed(int id)
     return err;
 }
 
-int SrsSource::source_id()
+string SrsSource::source_id()
 {
     return _source_id;
 }
 
-int SrsSource::pre_source_id()
+string SrsSource::pre_source_id()
 {
     return _pre_source_id;
 }

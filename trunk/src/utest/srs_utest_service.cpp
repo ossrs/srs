@@ -558,7 +558,7 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
-	    EXPECT_EQ(100, m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	    EXPECT_EQ("100", m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
 	}
 }
 
@@ -1268,12 +1268,12 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_EQ(0, ctx.set_id(100));
-        EXPECT_EQ(100, ctx.set_id(1000));
-        EXPECT_EQ(1000, ctx.get_id());
+        EXPECT_EQ("0", ctx.set_id("100"));
+        EXPECT_EQ("100", ctx.set_id("1000"));
+        EXPECT_EQ("1000", ctx.get_id());
 
         ctx.clear_cid();
-        EXPECT_EQ(0, ctx.set_id(100));
+        EXPECT_EQ("0", ctx.set_id("100"));
     }
 
     int base_size = 0;
@@ -1286,20 +1286,20 @@ VOID TEST(TCPServerTest, ContextUtility)
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", "100", "Trace", &size));
         EXPECT_EQ(base_size, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 5, size);
     }
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 8, size);
     }
 

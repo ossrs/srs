@@ -487,7 +487,7 @@ SrsRtcOutgoingInfo::~SrsRtcOutgoingInfo()
 {
 }
 
-SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
+SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, string parent_cid)
 {
     _parent_cid = parent_cid;
     trd = new SrsDummyCoroutine();
@@ -575,7 +575,7 @@ srs_error_t SrsRtcPlayer::on_reload_vhost_realtime(string vhost)
     return on_reload_vhost_play(vhost);
 }
 
-int SrsRtcPlayer::cid()
+std::string SrsRtcPlayer::cid()
 {
     return trd->cid();
 }
@@ -629,8 +629,8 @@ srs_error_t SrsRtcPlayer::cycle()
     realtime = _srs_config->get_realtime_enabled(req->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
 
-    srs_trace("RTC source url=%s, source_id=[%d][%d], encrypt=%d, realtime=%d, mw_msgs=%d", req->get_stream_url().c_str(),
-        ::getpid(), source->source_id(), session_->encrypt, realtime, mw_msgs);
+    srs_trace("RTC source url=%s, source_id=[%d][%s], encrypt=%d, realtime=%d, mw_msgs=%d", req->get_stream_url().c_str(),
+        ::getpid(), source->source_id().c_str(), session_->encrypt, realtime, mw_msgs);
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
@@ -1939,9 +1939,9 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 void SrsRtcPublisher::request_keyframe()
 {
-    int scid = _srs_context->get_id();
-    int pcid = session_->context_id();
-    srs_trace("RTC play=[%d][%d] request keyframe from publish=[%d][%d]", ::getpid(), scid, ::getpid(), pcid);
+    std::string scid = _srs_context->get_id();
+    std::string pcid = session_->context_id();
+    srs_trace("RTC play=[%d][%s] request keyframe from publish=[%d][%s]", ::getpid(), scid.c_str(), ::getpid(), pcid.c_str());
 
     request_keyframe_ = true;
 }
@@ -1975,7 +1975,7 @@ void SrsRtcPublisher::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
 SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
 {
     req = NULL;
-    cid = 0;
+    cid = "";
     is_publisher_ = false;
     encrypt = true;
 
@@ -2068,12 +2068,12 @@ void SrsRtcSession::switch_to_context()
     _srs_context->set_id(cid);
 }
 
-int SrsRtcSession::context_id()
+std::string SrsRtcSession::context_id()
 {
     return cid;
 }
 
-srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, int context_id)
+srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, std::string context_id)
 {
     srs_error_t err = srs_success;
 

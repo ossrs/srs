@@ -82,7 +82,7 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
     fw->config_cipher(key, iv);
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(string c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
 {
     req = r->copy();
     cid = c;
@@ -137,7 +137,7 @@ string SrsDvrAsyncCallOnHls::to_string()
     return "on_hls: " + path;
 }
 
-SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(int c, SrsRequest* r, string u)
+SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(string c, SrsRequest* r, string u)
 {
     cid = c;
     req = r->copy();

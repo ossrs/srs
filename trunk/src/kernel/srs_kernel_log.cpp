@@ -42,23 +42,23 @@ void ISrsLog::reopen()
 {
 }
 
-void ISrsLog::verbose(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+void ISrsLog::verbose(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
 {
 }
 
-void ISrsLog::info(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+void ISrsLog::info(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
 {
 }
 
-void ISrsLog::trace(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+void ISrsLog::trace(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
 {
 }
 
-void ISrsLog::warn(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+void ISrsLog::warn(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
 {
 }
 
-void ISrsLog::error(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+void ISrsLog::error(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
 {
 }
 
@@ -70,19 +70,19 @@ ISrsThreadContext::~ISrsThreadContext()
 {
 }
 
-int ISrsThreadContext::generate_id()
+std::string ISrsThreadContext::generate_id()
 {
-    return 0;
+    return "";
 }
 
-int ISrsThreadContext::get_id()
+std::string ISrsThreadContext::get_id()
 {
-    return 0;
+    return "";
 }
 
-int ISrsThreadContext::set_id(int /*v*/)
+std::string ISrsThreadContext::set_id(std::string /*v*/)
 {
-    return 0;
+    return "";
 }
 
 

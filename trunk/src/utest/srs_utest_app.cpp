@@ -88,7 +88,7 @@ public:
     srs_error_t err;
     srs_cond_t running;
     srs_cond_t exited;
-    int cid;
+    std::string cid;
     // Quit without error.
     bool quit;
 public:

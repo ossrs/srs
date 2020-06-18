@@ -74,7 +74,7 @@ public:
     //         ignore if empty.
     // @param file the file path, can be relative or absolute path.
     // @param cid the source connection cid, for the on_dvr is async call.
-    static srs_error_t on_dvr(int cid, std::string url, SrsRequest* req, std::string file);
+    static srs_error_t on_dvr(std::string cid, std::string url, SrsRequest* req, std::string file);
     // When hls reap segment, callback.
     // @param url the api server url, to process the event.
     //         ignore if empty.
@@ -85,7 +85,7 @@ public:
     // @param sn the seq_no, the sequence number of ts in hls/m3u8.
     // @param duration the segment duration in srs_utime_t.
     // @param cid the source connection cid, for the on_dvr is async call.
-    static srs_error_t on_hls(int cid, std::string url, SrsRequest* req, std::string file, std::string ts_url,
+    static srs_error_t on_hls(std::string cid, std::string url, SrsRequest* req, std::string file, std::string ts_url,
         std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     // When hls reap segment, callback.
     // @param url the api server url, to process the event.
@@ -93,7 +93,7 @@ public:
     // @param ts_url the ts uri, used to replace the variable [ts_url] in url.
     // @param nb_notify the max bytes to read from notify server.
     // @param cid the source connection cid, for the on_dvr is async call.
-    static srs_error_t on_hls_notify(int cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
+    static srs_error_t on_hls_notify(std::string cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
     // Discover co-workers for origin cluster.
     static srs_error_t discover_co_workers(std::string url, std::string& host, int& port);
 private:

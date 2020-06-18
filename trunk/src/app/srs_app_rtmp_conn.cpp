@@ -515,8 +515,8 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=[%d][%d]",
-        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge, ::getpid(), source->source_id());
+    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=[%d][%s]",
+        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge, ::getpid(), source->source_id().c_str());
     source->set_cache(enabled_cache);
     
     switch (info->type) {
