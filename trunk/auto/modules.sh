@@ -60,6 +60,7 @@ DEPS_NAME="${MODULE_ID}_DEPS"
 echo -n "${DEPS_NAME} = " >> ${FILE}
 for item in ${MODULE_FILES[*]}; do
     HEADER_FILE="${MODULE_DIR}/${item}.hpp"
+    if [[ ! -f ${HEADER_FILE} ]]; then HEADER_FILE="${MODULE_DIR}/${item}.h"; fi
     if [ -f ${HEADER_FILE} ]; then
         echo -n " ${HEADER_FILE}" >> ${FILE}
     fi
@@ -77,6 +78,7 @@ echo "# OBJ for ${MODULE_ID}, each object file" >> ${FILE}
 MODULE_OBJS=()
 for item in ${MODULE_FILES[*]}; do
     CPP_FILE="${MODULE_DIR}/${item}.cpp"
+    if [[ ! -f ${CPP_FILE} ]]; then CPP_FILE="${MODULE_DIR}/${item}.cc"; fi
     OBJ_FILE="${SRS_OBJS_DIR}/${MODULE_DIR}/${item}.o"
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then

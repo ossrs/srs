@@ -225,12 +225,12 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
-        if (iter->type_ != "audio" && iter->type_ != "video") {
+        if (iter->type_ != "audio" && iter->type_ != "video" && iter->type_ != "application") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
-            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
+        if (! iter->rtcp_mux_ && iter->type_ != "application") {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now media only support rtcp-mux");
         }
 
         for (std::vector<SrsMediaPayloadType>::const_iterator iter_media = iter->payload_types_.begin(); iter_media != iter->payload_types_.end(); ++iter_media) {
@@ -271,6 +271,8 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
             local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
         } else if (remote_media_desc.is_video()) {
             local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+        } else if (remote_media_desc.is_application()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -351,7 +353,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
         local_media_desc.port_ = 9;
-        local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        if (local_media_desc.is_audio() || local_media_desc.is_video()) {
+            local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        } else {
+            local_media_desc.protos_ = "UDP/DTLS/SCTP";
+        }
 
         if (remote_media_desc.session_info_.setup_ == "active") {
             local_media_desc.session_info_.setup_ = "passive";
@@ -620,6 +626,8 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
             local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
         } else if (remote_media_desc.is_video()) {
             local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+        } else if (remote_media_desc.is_application()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -722,13 +730,19 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
 
             // TODO: FIXME: Support RRTR?
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+        } else if (remote_media_desc.is_application()) {
         }
 
         local_media_desc.mid_ = remote_media_desc.mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
         local_media_desc.port_ = 9;
-        local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+
+        if (local_media_desc.is_audio() || local_media_desc.is_video()) {
+            local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        } else {
+            local_media_desc.protos_ = "UDP/DTLS/SCTP";
+        }
 
         if (remote_media_desc.session_info_.setup_ == "active") {
             local_media_desc.session_info_.setup_ = "passive";

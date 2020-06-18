@@ -173,6 +173,9 @@ private:
     SrsAudioRecode* codec;
     bool discard_bframe;
     bool merge_nalus;
+    uint32_t audio_timestamp;
+    uint16_t audio_sequence;
+    uint16_t video_sequence;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();

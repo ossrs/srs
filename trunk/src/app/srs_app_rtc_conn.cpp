@@ -57,6 +57,7 @@ using namespace std;
 #include <srs_service_st.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_sctp.hpp>
 
 // TODO: FIXME: Move to utility.
 string gen_random_str(int len)
@@ -110,10 +111,10 @@ SrsNtp SrsNtp::to_time_ms(uint64_t ntp)
     return srs_ntp;
 }
 
-
 SrsRtcDtls::SrsRtcDtls(SrsRtcSession* s)
 {
     session_ = s;
+    sctp_ = NULL;
 
     dtls = NULL;
     bio_in = NULL;
@@ -143,6 +144,8 @@ SrsRtcDtls::~SrsRtcDtls()
     if (srtp_recv) {
         srtp_dealloc(srtp_recv);
     }
+
+    srs_freep(sctp_);
 }
 
 srs_error_t SrsRtcDtls::initialize(SrsRequest* r)
@@ -250,7 +253,7 @@ srs_error_t SrsRtcDtls::on_dtls(char* data, int nb_data)
             int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
 
             if (nb > 0) {
-                if ((err =on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+                if ((err = on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
                     return srs_error_wrap(err, "dtls application data process");
                 }
             }
@@ -277,7 +280,32 @@ srs_error_t SrsRtcDtls::on_dtls_application_data(const char* buf, const int nb_b
 {
     srs_error_t err = srs_success;
 
-    // TODO: process SCTP protocol(WebRTC datachannel support)
+    if (sctp_ == NULL) {
+        sctp_ = new SrsSctp(this);
+        sctp_->connect_to_class();
+    }
+
+    sctp_->feed(buf, nb_buf);
+    return err;
+}
+
+srs_error_t SrsRtcDtls::send(const char* data, const int len)
+{
+    srs_error_t err = srs_success;
+
+	int ret = SSL_write(dtls, data, len);
+    if (ret <= 0) {
+        return srs_error_new(ERROR_RTC_DTLS, "SSL_write");
+    }
+
+    uint8_t dtls_send_buffer[4096];
+
+    while (BIO_ctrl_pending(bio_out) > 0) {
+        int dtls_send_bytes = BIO_read(bio_out, dtls_send_buffer, sizeof(dtls_send_buffer));
+        if (dtls_send_bytes > 0) {
+        	session_->sendonly_skt->sendto(dtls_send_buffer, dtls_send_bytes, 0);
+        }
+    }
 
     return err;
 }
@@ -494,11 +522,8 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     session_ = s;
 
-    audio_timestamp = 0;
     audio_sequence = 0;
-
     video_sequence = 0;
-
     mw_msgs = 0;
     realtime = true;
 
@@ -508,6 +533,7 @@ SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, int parent_cid)
 
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
+    keep_sequence_ = false;
 
     _srs_config->subscribe(this);
 }
@@ -533,8 +559,9 @@ srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assr
 
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
-    srs_trace("RTC publisher video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d",
-        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_);
+    keep_sequence_ = _srs_config->get_rtc_keep_sequence(session_->req->vhost);
+    srs_trace("RTC player video(ssrc=%d, pt=%d), audio(ssrc=%d, pt=%d), nack=%d, keep-seq=%d",
+        video_ssrc, video_payload_type, audio_ssrc, audio_payload_type, nack_enabled_, keep_sequence_);
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, session_->req)) != srs_success) {
@@ -711,15 +738,14 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         if (pkt->is_audio()) {
             info.nn_audios++;
 
-            pkt->header.set_timestamp(audio_timestamp);
-            pkt->header.set_sequence(audio_sequence++);
+            if (!keep_sequence_) {
+                pkt->header.set_sequence(audio_sequence++);
+            }
             pkt->header.set_ssrc(audio_ssrc);
             pkt->header.set_payload_type(audio_payload_type);
 
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
 
-            // TODO: FIXME: Why 960? Need Refactoring?
-            audio_timestamp += 960;
             continue;
         }
 
@@ -727,7 +753,9 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         info.nn_videos++;
 
         // For video, we should set the RTP packet informations about this consumer.
-        pkt->header.set_sequence(video_sequence++);
+        if (!keep_sequence_) {
+            pkt->header.set_sequence(video_sequence++);
+        }
         pkt->header.set_ssrc(video_ssrc);
         pkt->header.set_payload_type(video_payload_type);
     }
@@ -977,6 +1005,12 @@ srs_error_t SrsRtcPlayer::on_rtcp_feedback(char* buf, int nb_buf)
     // TODO: FIXME: Support ARQ.
     vector<SrsRtpPacket2*> resend_pkts;
     nack_fetch(resend_pkts, ssrc_of_media_source, pid);
+
+    // If NACK disabled, print a log.
+    if (!nack_enabled_) {
+        srs_trace("RTC NACK seq=%u, ignored", pid);
+        return err;
+    }
 
     uint16_t mask = 0x01;
     for (int i = 1; i < 16 && blp; ++i, mask <<= 1) {

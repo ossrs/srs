@@ -2189,6 +2189,8 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 } else if (sdir->name == "audio_enable") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
+                } else if (sdir->name == "jitterbuffer_enable") {
+                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "host") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "wait_keyframe") {
@@ -3749,7 +3751,7 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "caster" && n != "output"
                 && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
                 && n != "rtp_idle_timeout" && n != "sip"
-                && n != "audio_enable" && n != "wait_keyframe"
+                && n != "audio_enable" && n != "wait_keyframe" && n != "jitterbuffer_enable"
                 && n != "host" && n != "auto_create_channel") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
@@ -3935,7 +3937,8 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check") {
+                    if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
+                        && m != "keep_sequence") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4541,9 +4544,25 @@ bool SrsConfig::get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::get_stream_caster_gb28181_jitterbuffer_enable(SrsConfDirective* conf)
+{
+    static bool DEFAULT = true;
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("jitterbuffer_enable");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
 bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     if (!conf) {
         return DEFAULT;
@@ -4995,6 +5014,24 @@ bool SrsConfig::get_rtc_stun_strict_check(string vhost)
     }
 
     conf = conf->get("stun_strict_check");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_keep_sequence(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keep_sequence");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

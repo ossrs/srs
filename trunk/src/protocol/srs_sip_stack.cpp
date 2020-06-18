@@ -637,7 +637,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                 //map key:devicd_id value:status 
                 for(int i=0 ; i< (int)vec_device_id.size(); i++){
                     std::string status = "";
-                    if ((int)vec_device_id.size() > i) {
+                    if ((int)vec_device_status.size() > i) {
                         status = vec_device_status.at(i);
                     }
               

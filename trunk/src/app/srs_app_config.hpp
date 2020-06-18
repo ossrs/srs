@@ -508,6 +508,7 @@ public:
     virtual srs_utime_t get_stream_caster_gb28181_ack_timeout(SrsConfDirective* conf);
     virtual srs_utime_t get_stream_caster_gb28181_keepalive_timeout(SrsConfDirective* conf);
     virtual bool get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf);
+    virtual bool get_stream_caster_gb28181_jitterbuffer_enable(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_host(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_serial(SrsConfDirective* conf);
     virtual std::string get_stream_caster_gb28181_realm(SrsConfDirective* conf);
@@ -543,6 +544,7 @@ public:
     bool get_rtc_aac_discard(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
+    bool get_rtc_keep_sequence(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
 

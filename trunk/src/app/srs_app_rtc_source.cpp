@@ -424,6 +424,9 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     discard_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
+    audio_timestamp = 0;
+    audio_sequence = 0;
+    video_sequence = 0;
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -592,6 +595,11 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
+    pkt->header.set_sequence(audio_sequence++);
+    pkt->header.set_timestamp(audio_timestamp);
+
+    // TODO: FIXME: Why 960? Need Refactoring?
+    audio_timestamp += 960;
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->payload = raw;
@@ -649,25 +657,25 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
             return srs_error_wrap(err, "package nalus as one");
         }
-    }
+    } else {
+        // By default, we package each NALU(sample) to a RTP or FUA packet.
+        for (int i = 0; i < nn_samples; i++) {
+            SrsSample* sample = samples[i];
 
-    // By default, we package each NALU(sample) to a RTP or FUA packet.
-    for (int i = 0; i < nn_samples; i++) {
-        SrsSample* sample = samples[i];
-
-        // We always ignore bframe here, if config to discard bframe,
-        // the bframe flag will not be set.
-        if (sample->bframe) {
-            continue;
-        }
-
-        if (sample->size <= kRtpMaxPayloadSize) {
-            if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
-                return srs_error_wrap(err, "package single nalu");
+            // We always ignore bframe here, if config to discard bframe,
+            // the bframe flag will not be set.
+            if (sample->bframe) {
+                continue;
             }
-        } else {
-            if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
-                return srs_error_wrap(err, "package fu-a");
+
+            if (sample->size <= kRtpMaxPayloadSize) {
+                if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
+                    return srs_error_wrap(err, "package single nalu");
+                }
+            } else {
+                if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
+                    return srs_error_wrap(err, "package fu-a");
+                }
             }
         }
     }
@@ -728,6 +736,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_marker(false);
+    pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
@@ -797,6 +806,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
+        pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
         pkt->shared_msg = msg->copy();
@@ -826,6 +836,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
 
             SrsRtpPacket2* pkt = new SrsRtpPacket2();
             pkt->frame_type = SrsFrameTypeVideo;
+            pkt->header.set_sequence(video_sequence++);
             pkt->header.set_timestamp(msg->timestamp * 90);
 
             fua->nri = (SrsAvcNaluType)header;
@@ -851,6 +862,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
+    pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
@@ -880,6 +892,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
 
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
+        pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
 
         SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
