@@ -102,7 +102,6 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
     _fromlen = 0;
     _sip_cseq = 100;
 
-    lock_list = srs_mutex_new();
 }
 
 SrsGb28181SipSession::~SrsGb28181SipSession()
@@ -112,7 +111,6 @@ SrsGb28181SipSession::~SrsGb28181SipSession()
     srs_freep(req);
     srs_freep(trd);
     srs_freep(pprint);
-    srs_mutex_destroy(lock_list);
 }
 
 srs_error_t SrsGb28181SipSession::serve()
@@ -129,7 +127,6 @@ srs_error_t SrsGb28181SipSession::serve()
 void SrsGb28181SipSession::destroy()
 {
     //destory all device
-    SrsLocker(lock_list);
     std::map<std::string, SrsGb28181Device*>::iterator it;
     for (it = _device_list.begin(); it != _device_list.end(); ++it) {
         srs_freep(it->second);
@@ -166,7 +163,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
         if (_register_status == SrsGb28181SipSessionRegisterOk &&
             _alive_status == SrsGb28181SipSessionAliveOk)
         {
-            SrsLocker(lock_list);
+               
             std::map<std::string, SrsGb28181Device*>::iterator it;
             for (it = _device_list.begin(); it != _device_list.end(); it++) {
                 SrsGb28181Device *device = it->second;
@@ -195,8 +192,9 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 if (device->device_status != "ON" || 
                     device->invite_status != SrsGb28181SipSessionUnkonw) continue;
 
+
                 SrsGb28181StreamChannel ch;
-               
+            
                 ch.set_channel_id(_session_id + "@" + chid);
                 ch.set_ip(config->host);
 
@@ -212,7 +210,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 if ((err = _srs_gb28181->create_stream_channel(&ch)) == srs_success){
                     SrsSipRequest req;
                     req.sip_auth_id = _session_id;
-                   
+                
                     //send invite to device, req push av stream
                     err = servcie->send_invite(&req, ch.get_ip(),
                                 ch.get_rtp_port(), ch.get_ssrc(), chid);
@@ -222,10 +220,10 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 if (err != srs_success){
                     srs_error_reset(err);
                 }
-                                       
+                                    
                 //the same device can't be sent too fast. the device can't handle it
                 srs_usleep(1*SRS_UTIME_SECONDS);
-               
+            
                 srs_trace("gb28181: %s clients device=%s send invite code=%d", 
                     _session_id.c_str(), chid.c_str(), code);
             }//end for (it)
@@ -264,8 +262,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 srs_get_sip_session_status_str(_alive_status).c_str(),
                 (reg_duration / SRS_UTIME_SECONDS), 
                 (alive_duration / SRS_UTIME_SECONDS));
-     
-            SrsLocker(lock_list);
+              
             std::map<std::string, SrsGb28181Device*>::iterator it;
             for (it = _device_list.begin(); it != _device_list.end(); it++) {
                 SrsGb28181Device *device = it->second;
@@ -315,7 +312,6 @@ srs_error_t SrsGb28181SipSession::cycle()
 
 void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string> lst)
 {
-    SrsLocker(lock_list);
     std::map<std::string, std::string>::iterator it;
     for (it = lst.begin(); it != lst.end(); ++it) {
         std::string id = it->first;
@@ -334,15 +330,11 @@ void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string>
             device->device_status = status;
         }
 
-        // srs_trace("gb28181: sip session %s, deviceid=%s status=(%s,%s)", 
-        //     _session_id.c_str(), id.c_str(), status.c_str(),  
-        //     srs_get_sip_session_status_str(device.invite_status).c_str());
     }
 }
 
 SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
 {
-    SrsLocker(lock_list);
     if (_device_list.find(chid) != _device_list.end()){
         return _device_list[chid];
     }
@@ -351,7 +343,6 @@ SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
 
 void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
 {
-    SrsLocker(lock_list);
     obj->set("id", SrsJsonAny::str(_session_id.c_str()));
     obj->set("device_sumnum", SrsJsonAny::integer(_device_list.size()));
     
@@ -367,19 +358,6 @@ void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
         obj->set("invite_status", SrsJsonAny::str(srs_get_sip_session_status_str(device->invite_status).c_str()));
         obj->set("invite_time", SrsJsonAny::integer(device->invite_time/SRS_UTIME_SECONDS));
     }
-
-    //obj->set("rtmp_port", SrsJsonAny::integer(rtmp_port));
-    // obj->set("app", SrsJsonAny::str(app.c_str()));
-    // obj->set("stream", SrsJsonAny::str(stream.c_str()));
-    // obj->set("rtmp_url", SrsJsonAny::str(rtmp_url.c_str()));
-   
-    // obj->set("ssrc", SrsJsonAny::integer(ssrc));
-    // obj->set("rtp_port", SrsJsonAny::integer(rtp_port));
-    // obj->set("port_mode", SrsJsonAny::str(port_mode.c_str()));
-    // obj->set("rtp_peer_port", SrsJsonAny::integer(rtp_peer_port));
-    // obj->set("rtp_peer_ip", SrsJsonAny::str(rtp_peer_ip.c_str()));
-    // obj->set("recv_time", SrsJsonAny::integer(recv_time/SRS_UTIME_SECONDS));
-    // obj->set("recv_time_str", SrsJsonAny::str(recv_time_str.c_str()));
 }
 
 //gb28181 sip Service
@@ -388,6 +366,8 @@ SrsGb28181SipService::SrsGb28181SipService(SrsConfDirective* c)
     // TODO: FIXME: support reload.
     config = new SrsGb28181Config(c);
     sip = new SrsSipStack();
+    
+    lock_session = srs_mutex_new();
   
     if (_srs_gb28181){
         _srs_gb28181->set_sip_service(this);
@@ -397,6 +377,8 @@ SrsGb28181SipService::SrsGb28181SipService(SrsConfDirective* c)
 SrsGb28181SipService::~SrsGb28181SipService()
 {
     destroy();
+    srs_mutex_destroy(lock_session);
+
     srs_freep(sip);
     srs_freep(config);
 }
@@ -944,6 +926,8 @@ srs_error_t SrsGb28181SipService::fetch_or_create_sip_session(SrsSipRequest *req
 
 SrsGb28181SipSession* SrsGb28181SipService::fetch(std::string sid)
 {
+    SrsLocker(lock_session);
+
     std::map<std::string, SrsGb28181SipSession*>::iterator it = sessions.find(sid);
     if (it == sessions.end()){
         return NULL;
@@ -954,6 +938,8 @@ SrsGb28181SipSession* SrsGb28181SipService::fetch(std::string sid)
 
 void SrsGb28181SipService::remove_session(std::string sid)
 {
+    SrsLocker(lock_session);
+
     std::map<std::string, SrsGb28181SipSession*>::iterator it = sessions.find(sid);
     if (it != sessions.end()){
         //srs_freep(it->second);
