@@ -129,3 +129,11 @@ VOID TEST(SampleTest, FastSampleMacrosTest)
     EXPECT_NEAR(10, 15, 5);
 }
 
+VOID TEST(SampleTest, StringEQTest)
+{
+    string str = "100";
+    EXPECT_TRUE("100" == str);
+    EXPECT_EQ("100", str);
+    EXPECT_STREQ("100", str.c_str());
+}
+

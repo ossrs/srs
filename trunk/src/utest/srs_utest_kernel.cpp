@@ -4106,9 +4106,9 @@ VOID TEST(KernelLogTest, CoverAll)
         l.error("TAG", "0", "log");
         
         ISrsThreadContext ctx;
-        ctx.set_id(10);
-        EXPECT_EQ("0", ctx.get_id());
-        EXPECT_EQ("0", ctx.generate_id());
+        ctx.set_id("10");
+        EXPECT_EQ("", ctx.get_id());
+        EXPECT_EQ("", ctx.generate_id());
     }
 }
 

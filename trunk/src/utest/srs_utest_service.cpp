@@ -782,7 +782,7 @@ class MockOnCycleThread : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_cond_t cond;
-    MockOnCycleThread() : trd("mock", this, 0) {
+    MockOnCycleThread() : trd("mock", this, "0") {
         cond = srs_cond_new();
     };
     virtual ~MockOnCycleThread() {
@@ -822,7 +822,7 @@ class MockOnCycleThread2 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_mutex_t lock;
-    MockOnCycleThread2() : trd("mock", this, 0) {
+    MockOnCycleThread2() : trd("mock", this, "0") {
         lock = srs_mutex_new();
     };
     virtual ~MockOnCycleThread2() {
@@ -863,7 +863,7 @@ class MockOnCycleThread3 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread3() : trd("mock", this, 0) {
+    MockOnCycleThread3() : trd("mock", this, "0") {
         fd = NULL;
     };
     virtual ~MockOnCycleThread3() {
@@ -1116,7 +1116,7 @@ class MockOnCycleThread4 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread4() : trd("mock", this, 0) {
+    MockOnCycleThread4() : trd("mock", this, "0") {
         fd = NULL;
     };
     virtual ~MockOnCycleThread4() {
@@ -1268,18 +1268,18 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_EQ("0", ctx.set_id("100"));
-        EXPECT_EQ("100", ctx.set_id("1000"));
-        EXPECT_EQ("1000", ctx.get_id());
+        EXPECT_TRUE("" == ctx.set_id("100"));
+        EXPECT_TRUE("100" == ctx.set_id("1000"));
+        EXPECT_TRUE("1000" == ctx.get_id());
 
         ctx.clear_cid();
-        EXPECT_EQ("0", ctx.set_id("100"));
+        EXPECT_TRUE("" == ctx.set_id("100"));
     }
 
     int base_size = 0;
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", "100", "Trace", &size));
         base_size = size;
         EXPECT_TRUE(base_size > 0);
     }
