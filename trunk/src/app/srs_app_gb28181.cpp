@@ -983,7 +983,6 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
         SrsGb28181Config config = gb28181_manger->get_gb28181_config();
 
         if (config.jitterbuffer_enable){
-
             if(jitter_buffer->FoundFrame(cur_timestamp)){
                 jitter_buffer->GetPsFrame(ps_buffer, buffer_size, cur_timestamp);
             
@@ -1052,8 +1051,8 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
                 channel_id.c_str());
             rtmp_close();
         }
-      
-        srs_cond_timedwait(wait_ps_queue, 10 * SRS_UTIME_MILLISECONDS);
+        
+        srs_usleep(30 * SRS_UTIME_MILLISECONDS);
     }
     
     return err;
@@ -1074,7 +1073,7 @@ void SrsGb28181RtmpMuxer::insert_jitterbuffer(SrsPsRtpPacket *pkt)
 {
     recv_rtp_stream_time = srs_get_system_time();
     jitter_buffer->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
-    srs_cond_signal(wait_ps_queue);
+    //srs_cond_signal(wait_ps_queue);
 }
 
 void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
@@ -1096,7 +1095,7 @@ void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
     }
    
     ps_queue.push(pkt);
-    srs_cond_signal(wait_ps_queue);
+    //srs_cond_signal(wait_ps_queue);
 }
 
 srs_error_t SrsGb28181RtmpMuxer::cycle()
