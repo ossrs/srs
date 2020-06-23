@@ -212,6 +212,9 @@ srs_error_t do_main(int argc, char** argv)
 }
 
 int main(int argc, char** argv) {
+    // For background context id.
+    _srs_context->generate_id();
+
     srs_error_t err = do_main(argc, argv);
 
     if (err != srs_success) {
