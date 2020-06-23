@@ -92,7 +92,7 @@ public:
     virtual srs_error_t cycle();
 public:
     // Get the srs id which identify the client.
-    virtual int srs_id();
+    virtual std::string srs_id();
     // Get the remote ip of peer.
     virtual std::string remote_ip();
     // Set connection to expired.

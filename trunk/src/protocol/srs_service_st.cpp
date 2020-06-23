@@ -214,7 +214,7 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
         return srs_error_wrap(err, "set reuseport");
     }
 
-    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+    if (::bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 
@@ -279,7 +279,7 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo* r, srs_netfd_t* pfd)
         return srs_error_wrap(err, "set reuseport");
     }
 
-    if (bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+    if (::bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 

@@ -27,6 +27,7 @@
 #include <srs_kernel_log.hpp>
 
 #include <vector>
+#include <algorithm>
 using namespace std;
 
 SrsCoroutineManager::SrsCoroutineManager()
@@ -72,7 +73,9 @@ srs_error_t SrsCoroutineManager::cycle()
 
 void SrsCoroutineManager::remove(ISrsConnection* c)
 {
-    conns.push_back(c);
+    if (::find(conns.begin(), conns.end(), c) == conns.end()) {
+        conns.push_back(c);
+    }
     srs_cond_signal(cond);
 }
 
@@ -80,8 +83,8 @@ void SrsCoroutineManager::clear()
 {
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.
-    vector<ISrsConnection*> copy = conns;
-    conns.clear();
+    vector<ISrsConnection*> copy;
+    copy.swap(conns);
     
     vector<ISrsConnection*>::iterator it;
     for (it = copy.begin(); it != copy.end(); ++it) {

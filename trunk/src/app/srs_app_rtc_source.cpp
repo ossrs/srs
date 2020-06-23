@@ -137,7 +137,7 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
+        srs_trace("update source_id=%d[%d]", source->source_id().c_str(), source->source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -232,9 +232,17 @@ SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
 
 SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
 
+ISrsRtcPublisher::ISrsRtcPublisher()
+{
+}
+
+ISrsRtcPublisher::~ISrsRtcPublisher()
+{
+}
+
 SrsRtcSource::SrsRtcSource()
 {
-    _source_id = _pre_source_id = -1;
+    _source_id = _pre_source_id = "";
     _can_publish = true;
     rtc_publisher_ = NULL;
 
@@ -270,7 +278,7 @@ void SrsRtcSource::update_auth(SrsRequest* r)
     req->update_auth(r);
 }
 
-srs_error_t SrsRtcSource::on_source_id_changed(int id)
+srs_error_t SrsRtcSource::on_source_id_changed(std::string id)
 {
     srs_error_t err = srs_success;
 
@@ -278,7 +286,7 @@ srs_error_t SrsRtcSource::on_source_id_changed(int id)
         return err;
     }
 
-    if (_pre_source_id == -1) {
+    if (_pre_source_id == "") {
         _pre_source_id = id;
     } else if (_pre_source_id != _source_id) {
         _pre_source_id = _source_id;
@@ -296,12 +304,12 @@ srs_error_t SrsRtcSource::on_source_id_changed(int id)
     return err;
 }
 
-int SrsRtcSource::source_id()
+std::string SrsRtcSource::source_id()
 {
     return _source_id;
 }
 
-int SrsRtcSource::pre_source_id()
+std::string SrsRtcSource::pre_source_id()
 {
     return _pre_source_id;
 }
@@ -382,12 +390,12 @@ void SrsRtcSource::on_unpublish()
     // TODO: FIXME: Handle by statistic.
 }
 
-SrsRtcPublisher* SrsRtcSource::rtc_publisher()
+ISrsRtcPublisher* SrsRtcSource::rtc_publisher()
 {
     return rtc_publisher_;
 }
 
-void SrsRtcSource::set_rtc_publisher(SrsRtcPublisher* v)
+void SrsRtcSource::set_rtc_publisher(ISrsRtcPublisher* v)
 {
     rtc_publisher_ = v;
 }
@@ -416,6 +424,9 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     discard_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
+    audio_timestamp = 0;
+    audio_sequence = 0;
+    video_sequence = 0;
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -584,6 +595,11 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
+    pkt->header.set_sequence(audio_sequence++);
+    pkt->header.set_timestamp(audio_timestamp);
+
+    // TODO: FIXME: Why 960? Need Refactoring?
+    audio_timestamp += 960;
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
     pkt->payload = raw;
@@ -641,25 +657,25 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
         if ((err = package_nalus(msg, samples, pkts)) != srs_success) {
             return srs_error_wrap(err, "package nalus as one");
         }
-    }
+    } else {
+        // By default, we package each NALU(sample) to a RTP or FUA packet.
+        for (int i = 0; i < nn_samples; i++) {
+            SrsSample* sample = samples[i];
 
-    // By default, we package each NALU(sample) to a RTP or FUA packet.
-    for (int i = 0; i < nn_samples; i++) {
-        SrsSample* sample = samples[i];
-
-        // We always ignore bframe here, if config to discard bframe,
-        // the bframe flag will not be set.
-        if (sample->bframe) {
-            continue;
-        }
-
-        if (sample->size <= kRtpMaxPayloadSize) {
-            if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
-                return srs_error_wrap(err, "package single nalu");
+            // We always ignore bframe here, if config to discard bframe,
+            // the bframe flag will not be set.
+            if (sample->bframe) {
+                continue;
             }
-        } else {
-            if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
-                return srs_error_wrap(err, "package fu-a");
+
+            if (sample->size <= kRtpMaxPayloadSize) {
+                if ((err = package_single_nalu(msg, sample, pkts)) != srs_success) {
+                    return srs_error_wrap(err, "package single nalu");
+                }
+            } else {
+                if ((err = package_fu_a(msg, sample, kRtpMaxPayloadSize, pkts)) != srs_success) {
+                    return srs_error_wrap(err, "package fu-a");
+                }
             }
         }
     }
@@ -720,6 +736,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_marker(false);
+    pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
@@ -755,7 +772,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsShare
     }
 
     *ppkt = pkt;
-    srs_trace("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
+    srs_info("RTC STAP-A seq=%u, sps %d, pps %d bytes", pkt->header.get_sequence(), sps.size(), pps.size());
 
     return err;
 }
@@ -789,6 +806,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
+        pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
         pkt->shared_msg = msg->copy();
@@ -818,6 +836,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
 
             SrsRtpPacket2* pkt = new SrsRtpPacket2();
             pkt->frame_type = SrsFrameTypeVideo;
+            pkt->header.set_sequence(video_sequence++);
             pkt->header.set_timestamp(msg->timestamp * 90);
 
             fua->nri = (SrsAvcNaluType)header;
@@ -843,6 +862,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     pkt->frame_type = SrsFrameTypeVideo;
+    pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = new SrsRtpRawPayload();
@@ -872,6 +892,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
 
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
         pkt->frame_type = SrsFrameTypeVideo;
+        pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
 
         SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();

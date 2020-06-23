@@ -4099,16 +4099,16 @@ VOID TEST(KernelLogTest, CoverAll)
         HELPER_EXPECT_SUCCESS(l.initialize());
         
         l.reopen();
-        l.verbose("TAG", 0, "log");
-        l.info("TAG", 0, "log");
-        l.trace("TAG", 0, "log");
-        l.warn("TAG", 0, "log");
-        l.error("TAG", 0, "log");
+        l.verbose("TAG", "0", "log");
+        l.info("TAG", "0", "log");
+        l.trace("TAG", "0", "log");
+        l.warn("TAG", "0", "log");
+        l.error("TAG", "0", "log");
         
         ISrsThreadContext ctx;
-        ctx.set_id(10);
-        EXPECT_EQ(0, ctx.get_id());
-        EXPECT_EQ(0, ctx.generate_id());
+        ctx.set_id("10");
+        EXPECT_EQ("", ctx.get_id());
+        EXPECT_EQ("", ctx.generate_id());
     }
 }
 

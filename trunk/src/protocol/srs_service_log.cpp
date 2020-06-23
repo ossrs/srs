@@ -26,6 +26,7 @@
 #include <stdarg.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -41,29 +42,31 @@ SrsThreadContext::~SrsThreadContext()
 {
 }
 
-int SrsThreadContext::generate_id()
+string SrsThreadContext::generate_id()
 {
     static int id = 0;
 
     if (id == 0) {
         id = (100 + ((uint32_t)(int64_t)this)%1000);
     }
-    
     int gid = id++;
-    cache[srs_thread_self()] = gid;
-    return gid;
+
+    stringstream ss;
+    ss << gid;
+    cache[srs_thread_self()] = ss.str();
+    return ss.str();
 }
 
-int SrsThreadContext::get_id()
+string SrsThreadContext::get_id()
 {
     return cache[srs_thread_self()];
 }
 
-int SrsThreadContext::set_id(int v)
+string SrsThreadContext::set_id(string v)
 {
     srs_thread_t self = srs_thread_self();
     
-    int ov = 0;
+    string ov;
     if (cache.find(self) != cache.end()) {
         ov = cache[self];
     }
@@ -76,7 +79,7 @@ int SrsThreadContext::set_id(int v)
 void SrsThreadContext::clear_cid()
 {
     srs_thread_t self = srs_thread_self();
-    std::map<srs_thread_t, int>::iterator it = cache.find(self);
+    std::map<srs_thread_t, string>::iterator it = cache.find(self);
     if (it != cache.end()) {
         cache.erase(it);
     }
@@ -105,7 +108,7 @@ void SrsConsoleLog::reopen()
 {
 }
 
-void SrsConsoleLog::verbose(const char* tag, int context_id, const char* fmt, ...)
+void SrsConsoleLog::verbose(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelVerbose) {
         return;
@@ -125,7 +128,7 @@ void SrsConsoleLog::verbose(const char* tag, int context_id, const char* fmt, ..
     fprintf(stdout, "%s\n", buffer);
 }
 
-void SrsConsoleLog::info(const char* tag, int context_id, const char* fmt, ...)
+void SrsConsoleLog::info(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelInfo) {
         return;
@@ -145,7 +148,7 @@ void SrsConsoleLog::info(const char* tag, int context_id, const char* fmt, ...)
     fprintf(stdout, "%s\n", buffer);
 }
 
-void SrsConsoleLog::trace(const char* tag, int context_id, const char* fmt, ...)
+void SrsConsoleLog::trace(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelTrace) {
         return;
@@ -165,7 +168,7 @@ void SrsConsoleLog::trace(const char* tag, int context_id, const char* fmt, ...)
     fprintf(stdout, "%s\n", buffer);
 }
 
-void SrsConsoleLog::warn(const char* tag, int context_id, const char* fmt, ...)
+void SrsConsoleLog::warn(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelWarn) {
         return;
@@ -185,7 +188,7 @@ void SrsConsoleLog::warn(const char* tag, int context_id, const char* fmt, ...)
     fprintf(stderr, "%s\n", buffer);
 }
 
-void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
+void SrsConsoleLog::error(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelError) {
         return;
@@ -211,7 +214,7 @@ void SrsConsoleLog::error(const char* tag, int context_id, const char* fmt, ...)
 }
 // LCOV_EXCL_STOP
 
-bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize)
+bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, const char* cid, const char* level, int* psize)
 {
     // clock time
     timeval tv;
@@ -235,24 +238,24 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
     if (dangerous) {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d][%d] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%s][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, tag, getpid(), cid, errno);
         } else {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d][%d] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid, errno);
         }
     } else {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%s] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, tag, getpid(), cid);
         } else {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid);
         }

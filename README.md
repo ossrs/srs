@@ -159,7 +159,8 @@ For previous versions, please read:
 
 ## V4 changes
 
-* v4.0, 2020-06-13, GB28181 with JitterBuffer support. 4.0.29
+* v4.0, 2020-06-13, GB28181 with JitterBuffer support. 4.0.30
+* v4.0, 2020-06-03, Support enable C++11. 4.0.29
 * v4.0, 2020-05-31, Remove [srs-librtmp](https://github.com/ossrs/srs/issues/1535#issuecomment-633907655). 4.0.28
 * v4.0, 2020-05-21, For [#307][bug #307], disable GSO and sendmmsg. 4.0.27
 * v4.0, 2020-05-14, For [#307][bug #307], refine core structure, RTMP base on frame, RTC base on RTP. 4.0.26
@@ -1091,14 +1092,12 @@ SRS always use the simplest architecture to solve complex domain problems.
 ## Modularity Architecture
 
 ```
-+----------------+-------------------------------------+
-| SRS/SRT server |    Programs in Main or Research     |
-+----------------+--+------------+---------------------+
-|  App(For SRS)     | Modules(1) |  research/librtmp   |
-+-------------------+------------+---------------------+
-|    Service(C/S apps over ST)   |     srs-librtmp     |
-+--------------------------------+---------------------+
-|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Format)     |
++--------------------+---------------------------------+
+|   SRS/SRT server   |       Programs in Main          |
++--------------------+-------+-------------------------+
+|  App(For SRS)              |      Modules(1)         |
++----------------------------+-------------------------+
+|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Service)    |
 +------------------------------------------------------+
 |      Kernel(File, Codec, Stream, LB services)        |
 +------------------------------------------------------+

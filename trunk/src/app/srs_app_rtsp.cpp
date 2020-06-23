@@ -120,9 +120,11 @@ srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, c
     
     // always free it.
     SrsAutoFree(SrsRtpPacket, cache);
-    
-    if ((err = rtsp->on_rtp_packet(cache, stream_id)) != srs_success) {
-        return srs_error_wrap(err, "process rtp packet");
+
+    err = rtsp->on_rtp_packet(cache, stream_id);
+    if (err != srs_success) {
+        srs_warn("ignore RTP packet err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
     }
     
     return err;
@@ -495,54 +497,62 @@ srs_error_t SrsRtspConn::write_sequence_header()
     }
     
     // generate audio sh by audio specific config.
-    if (true) {
-        std::string sh = aac_specific_config;
-        
-        SrsFormat* format = new SrsFormat();
-        SrsAutoFree(SrsFormat, format);
-        
-        if ((err = format->on_aac_sequence_header((char*)sh.c_str(), (int)sh.length())) != srs_success) {
-            return srs_error_wrap(err, "on aac sequence header");
-        }
-        
-        SrsAudioCodecConfig* dec = format->acodec;
-        
-        acodec->sound_format = SrsAudioCodecIdAAC;
-        acodec->sound_type = (dec->aac_channels == 2)? SrsAudioChannelsStereo : SrsAudioChannelsMono;
-        acodec->sound_size = SrsAudioSampleBits16bit;
-        acodec->aac_packet_type = 0;
-        
-        static int srs_aac_srates[] = {
-            96000, 88200, 64000, 48000,
-            44100, 32000, 24000, 22050,
-            16000, 12000, 11025,  8000,
-            7350,     0,     0,    0
-        };
-        switch (srs_aac_srates[dec->aac_sample_rate]) {
-            case 11025:
-                acodec->sound_rate = SrsAudioSampleRate11025;
-                break;
-            case 22050:
-                acodec->sound_rate = SrsAudioSampleRate22050;
-                break;
-            case 44100:
-                acodec->sound_rate = SrsAudioSampleRate44100;
-                break;
-            default:
-                break;
-        };
-        
-        if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (uint32_t)dts)) != srs_success) {
-            return srs_error_wrap(err, "write audio raw frame");
-        }
+    if (aac_specific_config.empty()) {
+        srs_warn("no audio asc");
+        return err;
     }
-    
+
+    std::string sh = aac_specific_config;
+
+    SrsFormat* format = new SrsFormat();
+    SrsAutoFree(SrsFormat, format);
+
+    if ((err = format->on_aac_sequence_header((char*)sh.c_str(), (int)sh.length())) != srs_success) {
+        return srs_error_wrap(err, "on aac sequence header");
+    }
+
+    SrsAudioCodecConfig* dec = format->acodec;
+
+    acodec->sound_format = SrsAudioCodecIdAAC;
+    acodec->sound_type = (dec->aac_channels == 2)? SrsAudioChannelsStereo : SrsAudioChannelsMono;
+    acodec->sound_size = SrsAudioSampleBits16bit;
+    acodec->aac_packet_type = 0;
+
+    static int srs_aac_srates[] = {
+        96000, 88200, 64000, 48000,
+        44100, 32000, 24000, 22050,
+        16000, 12000, 11025,  8000,
+        7350,     0,     0,    0
+    };
+    switch (srs_aac_srates[dec->aac_sample_rate]) {
+        case 11025:
+            acodec->sound_rate = SrsAudioSampleRate11025;
+            break;
+        case 22050:
+            acodec->sound_rate = SrsAudioSampleRate22050;
+            break;
+        case 44100:
+            acodec->sound_rate = SrsAudioSampleRate44100;
+            break;
+        default:
+            break;
+    };
+
+    if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), acodec, (uint32_t)dts)) != srs_success) {
+        return srs_error_wrap(err, "write audio raw frame");
+    }
+
     return err;
 }
 
 srs_error_t SrsRtspConn::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
+
+    if (h264_sps.empty() || h264_pps.empty()) {
+        srs_warn("no sps=%dB or pps=%dB", (int)h264_sps.size(), (int)h264_pps.size());
+        return err;
+    }
     
     // h264 raw to h264 packet.
     std::string sh;
@@ -687,6 +697,7 @@ void SrsRtspConn::close()
 SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
+    engine = _srs_config->get_stream_caster_engine(c);
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
@@ -728,7 +739,7 @@ srs_error_t SrsRtspCaster::alloc_port(int* pport)
             break;
         }
     }
-    srs_info("rtsp: alloc port=%d-%d", *pport, *pport + 1);
+    srs_trace("rtsp: %s alloc port=%d-%d", engine.c_str(), *pport, *pport + 1);
     
     return err;
 }
@@ -738,7 +749,7 @@ void SrsRtspCaster::free_port(int lpmin, int lpmax)
     for (int i = lpmin; i < lpmax; i++) {
         used_ports[i] = false;
     }
-    srs_trace("rtsp: free rtp port=%d-%d", lpmin, lpmax);
+    srs_trace("rtsp: %s free rtp port=%d-%d", engine.c_str(), lpmin, lpmax);
 }
 
 srs_error_t SrsRtspCaster::on_tcp_client(srs_netfd_t stfd)

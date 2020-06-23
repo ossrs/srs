@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <map>
+#include <string>
 
 #include <srs_service_st.hpp>
 #include <srs_kernel_log.hpp>
@@ -36,14 +37,14 @@
 class SrsThreadContext : public ISrsThreadContext
 {
 private:
-    std::map<srs_thread_t, int> cache;
+    std::map<srs_thread_t, std::string> cache;
 public:
     SrsThreadContext();
     virtual ~SrsThreadContext();
 public:
-    virtual int generate_id();
-    virtual int get_id();
-    virtual int set_id(int v);
+    virtual std::string generate_id();
+    virtual std::string get_id();
+    virtual std::string set_id(std::string v);
 public:
     virtual void clear_cid();
 };
@@ -63,11 +64,11 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual void reopen();
-    virtual void verbose(const char* tag, int context_id, const char* fmt, ...);
-    virtual void info(const char* tag, int context_id, const char* fmt, ...);
-    virtual void trace(const char* tag, int context_id, const char* fmt, ...);
-    virtual void warn(const char* tag, int context_id, const char* fmt, ...);
-    virtual void error(const char* tag, int context_id, const char* fmt, ...);
+    virtual void verbose(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void info(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void trace(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void warn(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void error(const char* tag, const char* context_id, const char* fmt, ...);
 };
 
 // Generate the log header.
@@ -75,6 +76,6 @@ public:
 // @param utc Whether use UTC time format in the log header.
 // @param psize Output the actual header size.
 // @remark It's a internal API.
-bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, int cid, const char* level, int* psize);
+bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char* tag, const char* cid, const char* level, int* psize);
 
 #endif

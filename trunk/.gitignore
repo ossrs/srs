@@ -40,3 +40,7 @@ srs
 *.ts
 *.h264
 *.264
+/webrtc
+/configure.sh
+/janus
+

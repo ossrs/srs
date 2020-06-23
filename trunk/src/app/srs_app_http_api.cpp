@@ -699,10 +699,10 @@ srs_error_t SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessag
     
     // path: {pattern}{vhost_id}
     // e.g. /api/v1/vhosts/100     pattern= /api/v1/vhosts/, vhost_id=100
-    int vid = r->parse_rest_id(entry->pattern);
+    std::string vid = r->parse_rest_id(entry->pattern);
     SrsStatisticVhost* vhost = NULL;
     
-    if (vid > 0 && (vhost = stat->find_vhost(vid)) == NULL) {
+    if (vid != "" && (vhost = stat->find_vhost(vid)) == NULL) {
         return srs_api_response_code(w, r, ERROR_RTMP_VHOST_NOT_FOUND);
     }
     
@@ -755,10 +755,10 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     // path: {pattern}{stream_id}
     // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
-    int sid = r->parse_rest_id(entry->pattern);
+    std::string sid = r->parse_rest_id(entry->pattern);
     
     SrsStatisticStream* stream = NULL;
-    if (sid >= 0 && (stream = stat->find_stream(sid)) == NULL) {
+    if (sid != "" && (stream = stat->find_stream(sid)) == NULL) {
         return srs_api_response_code(w, r, ERROR_RTMP_STREAM_NOT_FOUND);
     }
     
@@ -811,10 +811,10 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     // path: {pattern}{client_id}
     // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
-    int cid = r->parse_rest_id(entry->pattern);
+    std::string cid = r->parse_rest_id(entry->pattern);
     
     SrsStatisticClient* client = NULL;
-    if (cid >= 0 && (client = stat->find_client(cid)) == NULL) {
+    if (cid != "" && (client = stat->find_client(cid)) == NULL) {
         return srs_api_response_code(w, r, ERROR_RTMP_CLIENT_NOT_FOUND);
     }
     
@@ -854,7 +854,7 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
         
         client->conn->expire();
-        srs_warn("kickoff client id=%d ok", cid);
+        srs_warn("kickoff client id=%s ok", cid.c_str());
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

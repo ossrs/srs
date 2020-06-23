@@ -122,7 +122,7 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
     // for edge to directly get the id of client.
     data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    data->set("srs_id", SrsAmf0Any::str(_srs_context->get_id().c_str()));
     
     // local ip of edge
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));

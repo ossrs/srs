@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <vector>
+#include <string>
 
 #include <srs_app_thread.hpp>
 #include <srs_protocol_stream.hpp>
@@ -80,16 +81,16 @@ protected:
     SrsCoroutine* trd;
     ISrsMessagePumper* pumper;
     SrsRtmpServer* rtmp;
-    int _parent_cid;
+    std::string _parent_cid;
     // The recv timeout in srs_utime_t.
     srs_utime_t timeout;
 public:
     // Constructor.
     // @param tm The receive timeout in srs_utime_t.
-    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid);
+    SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, std::string parent_cid);
     virtual ~SrsRecvThread();
 public:
-    virtual int cid();
+    virtual std::string cid();
 public:
     virtual srs_error_t start();
     virtual void stop();
@@ -116,7 +117,7 @@ private:
     SrsConsumer* _consumer;
 public:
 	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, int parent_cid);
+    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm,  std::string parent_cid);
     virtual ~SrsQueueRecvThread();
 public:
     virtual srs_error_t start();
@@ -167,11 +168,11 @@ private:
     // @see https://github.com/ossrs/srs/issues/244
     srs_cond_t error;
     // The merged context id.
-    int cid;
-    int ncid;
+    std::string cid;
+    std::string ncid;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, int parent_cid);
+        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, std::string parent_cid);
     virtual ~SrsPublishRecvThread();
 public:
     // Wait for error for some timeout.
@@ -179,8 +180,8 @@ public:
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual srs_error_t error_code();
-    virtual void set_cid(int v);
-    virtual int get_cid();
+    virtual void set_cid(std::string v);
+    virtual std::string get_cid();
 public:
     virtual srs_error_t start();
     virtual void stop();

@@ -2453,7 +2453,7 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
     }
     // for edge to directly get the id of client.
     data->set("srs_pid", SrsAmf0Any::number(getpid()));
-    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    data->set("srs_id", SrsAmf0Any::str(_srs_context->get_id().c_str()));
     
     if ((err = protocol->send_and_free_packet(pkt, 0)) != srs_success) {
         return srs_error_wrap(err, "send connect app response");

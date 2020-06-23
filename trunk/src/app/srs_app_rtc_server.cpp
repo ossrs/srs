@@ -320,7 +320,7 @@ srs_error_t SrsRtcServer::create_session(
         }
     }
 
-    int cid = _srs_context->get_id();
+    std::string cid = _srs_context->get_id();
     SrsRtcSession* session = new SrsRtcSession(this);
     if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
         srs_freep(session);
@@ -396,7 +396,7 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcSession* session, SrsRequest* req
     // TODO: FIXME: Collision detect.
     string username = session->get_local_sdp()->get_ice_ufrag() + ":" + remote_sdp.get_ice_ufrag();
 
-    int cid = _srs_context->get_id();
+    std::string cid = _srs_context->get_id();
     if ((err = session->initialize(source, req, false, username, cid)) != srs_success) {
         return srs_error_wrap(err, "init");
     }

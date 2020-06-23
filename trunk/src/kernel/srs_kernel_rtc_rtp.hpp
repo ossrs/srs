@@ -140,14 +140,15 @@ private:
     uint32_t ssrc;
     uint32_t csrc[15];
     uint16_t extension_length;
+    SrsRtpHeaderExtensionMap extension_map_;
     SrsRtpHeaderExtension header_extension;
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
 private:
-    srs_error_t parse_extension(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extension_map);
+    srs_error_t parse_extension(SrsBuffer* buf);
 public:
-    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
+    virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
@@ -163,6 +164,7 @@ public:
     uint32_t get_ssrc() const;
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
+    void set_extensions(const SrsRtpHeaderExtensionMap* extmap);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
 };
 
@@ -219,12 +221,13 @@ public:
     bool is_audio();
     // Copy the RTP packet.
     SrsRtpPacket2* copy();
+    // Set RTP header extensions for encoding or decoding header extension
+    void set_rtp_header_extensions(const SrsRtpHeaderExtensionMap* extmap);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
-    // TODO: FIXME: Should follow interface ISrsEncoder.
-    virtual srs_error_t decode(SrsBuffer* buf, const SrsRtpHeaderExtensionMap* extmap = NULL);
+    virtual srs_error_t decode(SrsBuffer* buf);
 };
 
 // Single payload data.

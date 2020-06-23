@@ -1468,9 +1468,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     root = conf->root;
     conf->root = NULL;
     
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
     // never support reload:
     //      daemon
     //
@@ -2246,7 +2243,7 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
         sobjs->set(dir->arg0(), sobj);
         
         SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
-        sobj->set("id", SrsJsonAny::integer(svhost? (double)svhost->id : 0));
+        sobj->set("id", SrsJsonAny::str(svhost? svhost->id.c_str() : ""));
         sobj->set("name", dir->dumps_arg0_to_str());
         sobj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(dir->arg0())));
         
@@ -2371,7 +2368,7 @@ srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj
     SrsStatistic* stat = SrsStatistic::instance();
     
     SrsStatisticVhost* svhost = stat->find_vhost(vhost->arg0());
-    obj->set("id", SrsJsonAny::integer(svhost? (double)svhost->id : 0));
+    obj->set("id", SrsJsonAny::str(svhost? svhost->id.c_str() : ""));
     
     obj->set("name", vhost->dumps_arg0_to_str());
     obj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(vhost)));
@@ -3937,7 +3934,8 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check") {
+                    if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
+                        && m != "keep_sequence") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5013,6 +5011,24 @@ bool SrsConfig::get_rtc_stun_strict_check(string vhost)
     }
 
     conf = conf->get("stun_strict_check");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_keep_sequence(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keep_sequence");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

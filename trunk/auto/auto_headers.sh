@@ -69,6 +69,18 @@ else
     srs_undefine_macro "SRS_SRT" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_CXX11 = YES ]; then
+    srs_define_macro "SRS_CXX11" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_CXX11" $SRS_AUTO_HEADERS_H
+fi
+
+if [ $SRS_CXX14 = YES ]; then
+    srs_define_macro "SRS_CXX14" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_CXX14" $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_RTC = YES ]; then
     srs_define_macro "SRS_RTC" $SRS_AUTO_HEADERS_H
 else

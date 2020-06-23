@@ -36,7 +36,7 @@ VOID TEST(AppCoroutineTest, Dummy)
     SrsDummyCoroutine dc;
 
     if (true) {
-        EXPECT_EQ(0, dc.cid());
+        EXPECT_EQ("", dc.cid());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -52,7 +52,7 @@ VOID TEST(AppCoroutineTest, Dummy)
     if (true) {
         dc.stop();
 
-        EXPECT_EQ(0, dc.cid());
+        EXPECT_EQ("", dc.cid());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -68,7 +68,7 @@ VOID TEST(AppCoroutineTest, Dummy)
     if (true) {
         dc.interrupt();
 
-        EXPECT_EQ(0, dc.cid());
+        EXPECT_EQ("", dc.cid());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -88,11 +88,11 @@ public:
     srs_error_t err;
     srs_cond_t running;
     srs_cond_t exited;
-    int cid;
+    std::string cid;
     // Quit without error.
     bool quit;
 public:
-    MockCoroutineHandler() : trd(NULL), err(srs_success), cid(0), quit(false) {
+    MockCoroutineHandler() : trd(NULL), err(srs_success), cid("0"), quit(false) {
         running = srs_cond_new();
         exited = srs_cond_new();
     }
@@ -128,12 +128,12 @@ VOID TEST(AppCoroutineTest, StartStop)
         MockCoroutineHandler ch;
         SrsSTCoroutine sc("test", &ch);
         ch.trd = &sc;
-        EXPECT_EQ(0, sc.cid());
+        EXPECT_EQ("", sc.cid());
 
         // Thread stop after created.
         sc.stop();
 
-        EXPECT_EQ(0, sc.cid());
+        EXPECT_EQ("", sc.cid());
 
         srs_error_t err = sc.pull();
         EXPECT_TRUE(srs_success != err);
@@ -151,13 +151,13 @@ VOID TEST(AppCoroutineTest, StartStop)
         MockCoroutineHandler ch;
         SrsSTCoroutine sc("test", &ch);
         ch.trd = &sc;
-        EXPECT_EQ(0, sc.cid());
+        EXPECT_EQ("", sc.cid());
 
         EXPECT_TRUE(srs_success == sc.start());
         EXPECT_TRUE(srs_success == sc.pull());
 
         srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
-        EXPECT_TRUE(sc.cid() > 0);
+        EXPECT_TRUE(!sc.cid().empty());
 
         // Thread stop after started.
         sc.stop();
@@ -178,7 +178,7 @@ VOID TEST(AppCoroutineTest, StartStop)
         MockCoroutineHandler ch;
         SrsSTCoroutine sc("test", &ch);
         ch.trd = &sc;
-        EXPECT_EQ(0, sc.cid());
+        EXPECT_EQ("", sc.cid());
 
         EXPECT_TRUE(srs_success == sc.start());
         EXPECT_TRUE(srs_success == sc.pull());
@@ -220,16 +220,16 @@ VOID TEST(AppCoroutineTest, Cycle)
 
     if (true) {
         MockCoroutineHandler ch;
-        SrsSTCoroutine sc("test", &ch, 250);
+        SrsSTCoroutine sc("test", &ch, "250");
         ch.trd = &sc;
-        EXPECT_EQ(250, sc.cid());
+        EXPECT_TRUE("250" == sc.cid());
 
         EXPECT_TRUE(srs_success == sc.start());
         EXPECT_TRUE(srs_success == sc.pull());
 
         // After running, the cid in cycle should equal to the thread.
         srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
-        EXPECT_EQ(250, ch.cid);
+        EXPECT_TRUE("250" == ch.cid);
     }
 
     if (true) {

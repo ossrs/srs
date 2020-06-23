@@ -87,8 +87,11 @@ GDBDebug=" -g -O0"
 WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
-if [[ $SRS_SRT == YES ]]; then
+if [[ $SRS_CXX11 == YES ]]; then
     CppStd="-std=c++11"
+fi
+if [[ $SRS_CXX14 == YES ]]; then
+    CppStd="-std=c++14"
 fi
 # performance of gprof
 SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
@@ -211,13 +214,15 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 #RTMP/HTTP/Raw Protocol, depends on core/kernel, provides rtmp/htttp protocol features.
 MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
-ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_rtmp_handshake" "srs_protocol_utility" "srs_rtmp_msg_array" "srs_protocol_stream"
         "srs_raw_avc" "srs_rtsp_stack" "srs_sip_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
-        "srs_protocol_format")
+        "srs_protocol_format" "srs_service_log" "srs_service_st" "srs_service_http_client" "srs_service_http_conn"
+        "srs_service_rtmp_conn" "srs_service_utility" "srs_service_conn")
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_rtc_stun_stack")
+    ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
 fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
@@ -225,7 +230,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #srt protocol features.
 if [ $SRS_SRT = YES ]; then
     MODULE_ID="SRT"
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     ModuleLibIncs=(${SRS_OBJS_DIR})
     MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data")
     SRT_INCS=${LibSRTRoot}; MODULE_DIR=${LibSRTRoot} . auto/modules.sh
@@ -233,25 +238,13 @@ if [ $SRS_SRT = YES ]; then
 fi
 
 #
-#Service Module, for both Server and Client Modules.
-# TODO: FIXME: Remove service module, https://github.com/ossrs/srs/issues/1535#issuecomment-633907655
-MODULE_ID="SERVICE"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot})
-if [[ $SRS_RTC == YES ]]; then
-    ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
-fi
-MODULE_FILES=("srs_service_log" "srs_service_st" "srs_service_http_client"
-    "srs_service_http_conn" "srs_service_rtmp_conn" "srs_service_utility"
-    "srs_service_conn")
-DEFINES=""
-SERVICE_INCS="src/service"; MODULE_DIR=${SERVICE_INCS} . auto/modules.sh
-SERVICE_OBJS="${MODULE_OBJS[@]}"
-#
 #App Module, for SRS server only.
 MODULE_ID="APP"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibSSLRoot} ${LibGperfRoot})
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
+if [ $SRS_GPERF = YES ]; then
+    ModuleLibIncs+=(${LibGperfRoot})
+fi
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
 fi
@@ -285,11 +278,11 @@ APP_OBJS="${MODULE_OBJS[@]}"
 #
 #Server Module, for SRS only.
 MODULE_ID="SERVER"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
 if [[ $SRS_SRT == YES ]]; then
     MODULE_DEPENDS+=("SRT")
 fi
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
 fi
@@ -302,8 +295,8 @@ SERVER_OBJS="${MODULE_OBJS[@]}"
 #
 #Main Module, for app from modules.
 MODULE_ID="MAIN"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE")
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
 fi
@@ -338,8 +331,8 @@ if [[ $SRS_SRT == YES ]]; then
     ModuleLibFiles+=("${LibSRTfile[*]}")
 fi
 # all depends objects
-MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}" ${LibSrtpRoot})
 fi
@@ -352,7 +345,7 @@ LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 #
 # For modules, without the app module.
-MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
 ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}" ${LibSrtpFile})
@@ -389,11 +382,11 @@ if [ $SRS_UTEST = YES ]; then
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     if [[ $SRS_SRT == YES ]]; then
         MODULE_DEPENDS+=("SRT")
     fi
-    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
 
