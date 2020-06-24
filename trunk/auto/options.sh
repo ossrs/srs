@@ -22,7 +22,6 @@ SRS_GB28181=NO
 SRS_CXX11=NO
 SRS_CXX14=NO
 SRS_NGINX=NO
-SRS_FFMPEG_TOOL=NO
 SRS_LIBRTMP=NO
 SRS_RESEARCH=NO
 SRS_UTEST=NO
@@ -46,8 +45,12 @@ SRS_HLS=YES
 SRS_DVR=YES
 # 
 ################################################################
-# libraries
+# FFmpeg stub is the stub code in SRS for ingester or encoder.
 SRS_FFMPEG_STUB=NO
+# FFmpeg tool is the binary for FFmpeg tool, to exec ingest or transcode.
+SRS_FFMPEG_TOOL=NO
+# FFmpeg fit is the source code for RTC, to transcode audio or video in SRS.
+SRS_FFMPEG_FIT=RESERVED
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
@@ -153,6 +156,7 @@ Features:
   --gb28181=on|off          Whether build the GB28181 support for SRS.
   --cxx11=on|off            Whether enable the C++11 support for SRS.
   --cxx14=on|off            Whether enable the C++14 support for SRS.
+  --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code) for SRS.
 
   --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
   --gcov=on|off             Whether enable the GCOV compiler options.
@@ -282,7 +286,7 @@ function parse_user_option() {
 
         --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
-        --ffmpeg)                       if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
+        --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
 
         --with-transcode)               SRS_TRANSCODE=YES           ;;
         --without-transcode)            echo "ignore option \"$option\"" ;;
@@ -327,6 +331,7 @@ function parse_user_option() {
 
         --cxx11)                        if [[ $value == off ]]; then SRS_CXX11=NO; else SRS_CXX11=YES; fi    ;;
         --cxx14)                        if [[ $value == off ]]; then SRS_CXX14=NO; else SRS_CXX14=YES; fi    ;;
+        --ffmpeg-fit)                   if [[ $value == off ]]; then SRS_FFMPEG_FIT=NO; else SRS_FFMPEG_FIT=YES; fi    ;;
 
         --with-clean)                   SRS_CLEAN=YES               ;;
         --without-clean)                SRS_CLEAN=NO                ;;
@@ -526,6 +531,11 @@ function apply_user_presets() {
     if [[ $SRS_SRT == YES ]]; then
         SRS_CXX11=YES
     fi
+
+    # Enable FFmpeg fit for RTC to trancode audio from AAC to OPUS, if user has't disabled it.
+    if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
+        SRS_FFMPEG_FIT=YES
+    fi
 }
 apply_user_presets
 
@@ -625,8 +635,9 @@ function regenerate_options() {
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
     if [ $SRS_SIMULATOR = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=off"; fi
     if [ $SRS_GB28181 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=off"; fi
-    if [ $SRS_CXX11 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=off"; fi
-    if [ $SRS_CXX14 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=off"; fi
+    if [ $SRS_CXX11 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=off"; fi
+    if [ $SRS_CXX14 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=off"; fi
+    if [ $SRS_FFMPEG_FIT = YES ]; then      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=on"; else      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=off"; fi
     if [ $SRS_NASM = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=off"; fi
     if [ $SRS_SRTP_ASM = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=off"; fi
     if [ $SRS_SENDMMSG = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=off"; fi

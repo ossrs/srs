@@ -247,7 +247,11 @@ SrsRtcSource::SrsRtcSource()
     rtc_publisher_ = NULL;
 
     req = NULL;
+#ifdef SRS_FFMPEG_FIT
     bridger_ = new SrsRtcFromRtmpBridger(this);
+#else
+    bridger_ = new SrsRtcDummyBridger();
+#endif
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -266,9 +270,12 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 
     req = r->copy();
 
-    if ((err = bridger_->initialize(req)) != srs_success) {
+#ifdef SRS_FFMPEG_FIT
+    SrsRtcFromRtmpBridger* bridger = dynamic_cast<SrsRtcFromRtmpBridger*>(bridger_);
+    if ((err = bridger->initialize(req)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
+#endif
 
     return err;
 }
@@ -414,6 +421,7 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
     return err;
 }
 
+#ifdef SRS_FFMPEG_FIT
 SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 {
     req = NULL;
@@ -935,5 +943,33 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacket2*>& pkts)
     }
 
     return err;
+}
+#endif
+
+SrsRtcDummyBridger::SrsRtcDummyBridger()
+{
+}
+
+SrsRtcDummyBridger::~SrsRtcDummyBridger()
+{
+}
+
+srs_error_t SrsRtcDummyBridger::on_publish()
+{
+    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+}
+
+srs_error_t SrsRtcDummyBridger::on_audio(SrsSharedPtrMessage* /*audio*/)
+{
+    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+}
+
+srs_error_t SrsRtcDummyBridger::on_video(SrsSharedPtrMessage* /*video*/)
+{
+    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+}
+
+void SrsRtcDummyBridger::on_unpublish()
+{
 }
 

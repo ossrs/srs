@@ -4820,8 +4820,10 @@ int SrsConfig::get_rtc_server_reuseport()
     int v = get_rtc_server_reuseport2();
 
 #if !defined(SO_REUSEPORT)
-    srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
-    v = 1
+    if (v > 1) {
+        srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
+        v = 1
+    }
 #endif
 
     return v;
@@ -4829,7 +4831,7 @@ int SrsConfig::get_rtc_server_reuseport()
 
 int SrsConfig::get_rtc_server_reuseport2()
 {
-    static int DEFAULT = 4;
+    static int DEFAULT = 1;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {

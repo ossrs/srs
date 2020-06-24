@@ -69,11 +69,20 @@ srs_error_t srs_st_init()
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
+
+    // Before ST init, we might have already inited the background cid.
+    string cid = _srs_context->get_id();
+    if (cid.empty()) {
+        cid = _srs_context->generate_id();
+    }
     
     int r0 = 0;
     if((r0 = st_init()) != 0){
         return srs_error_new(ERROR_ST_INITIALIZE, "st initialize failed, r0=%d", r0);
     }
+
+    // Switch to the background cid.
+    _srs_context->set_id(cid);
     srs_trace("st_init success, use %s", st_get_eventsys_name());
     
     return srs_success;

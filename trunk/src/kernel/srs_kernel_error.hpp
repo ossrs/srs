@@ -352,6 +352,7 @@
 #define ERROR_RTC_DISABLED                  5021
 #define ERROR_RTC_NO_SESSION                5022
 #define ERROR_RTC_INVALID_PARAMS            5023
+#define ERROR_RTC_DUMMY_BRIDGER             5024
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.
