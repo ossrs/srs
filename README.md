@@ -138,6 +138,7 @@ For previous versions, please read:
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
@@ -145,10 +146,9 @@ For previous versions, please read:
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
-- [ ] Support HLS+, the HLS edge server, please read [#466][bug #466] and [#468][bug #468].
+- [ ] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
 - [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
-- [ ] Support publishing stream by WebRTC, [#307][bug #307].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
 
@@ -1752,6 +1752,7 @@ Winlin
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
 [bug #1612]: https://github.com/ossrs/srs/issues/1612
 [bug #1636]: https://github.com/ossrs/srs/issues/1636
+[bug #1657]: https://github.com/ossrs/srs/issues/1657
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
