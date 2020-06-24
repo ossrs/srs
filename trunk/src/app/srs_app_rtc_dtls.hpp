@@ -48,7 +48,7 @@ public:
     srs_error_t init(SrsRequest* r);
 public:
     static SrsDtls* instance();
-    SSL_CTX* get_dtls_ctx(SrsRequest* r);
+    SSL_CTX* build_dtls_ctx();
 public:
     std::string get_fingerprint() const;
 };

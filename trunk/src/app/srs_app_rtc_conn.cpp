@@ -153,8 +153,8 @@ srs_error_t SrsRtcDtls::initialize(SrsRequest* r)
         return srs_error_wrap(err, "DTLS init");
     }
 
-    // TODO: FIXME: Support config by vhost to use RSA or ECDSA certificate.
-    if ((dtls = SSL_new(SrsDtls::instance()->get_dtls_ctx(r))) == NULL) {
+    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
+    if ((dtls = SSL_new(SrsDtls::instance()->build_dtls_ctx())) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
     }
 

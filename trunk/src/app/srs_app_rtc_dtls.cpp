@@ -216,7 +216,7 @@ SrsDtls* SrsDtls::instance()
     return _instance;
 }
 
-SSL_CTX* SrsDtls::get_dtls_ctx(SrsRequest* r)
+SSL_CTX* SrsDtls::build_dtls_ctx()
 {
     SSL_CTX* dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
@@ -228,6 +228,7 @@ SSL_CTX* SrsDtls::get_dtls_ctx(SrsRequest* r)
 #endif
 
     // Whether use ECDSA certificate.
+    // TODO: FIXME: Support config by vhost to use RSA or ECDSA certificate.
     bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
     if (is_ecdsa) { // By ECDSA, https://stackoverflow.com/a/6006898
         EC_KEY* eckey = EC_KEY_new();
