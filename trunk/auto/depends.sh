@@ -595,7 +595,7 @@ fi
 #####################################################################################
 # ffmpeg-fix, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_RTC == YES ]]; then
+if [[ $SRS_FFMPEG_FIT == YES ]]; then
     FFMPEG_OPTIONS=""
 
     # If disable nasm, disable all ASMs.

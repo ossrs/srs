@@ -115,7 +115,7 @@ private:
     SrsRequest* req;
     ISrsRtcPublisher* rtc_publisher_;
     // Transmux RTMP to RTC.
-    SrsRtcFromRtmpBridger* bridger_;
+    ISrsSourceBridger* bridger_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -159,6 +159,7 @@ public:
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
 };
 
+#ifdef SRS_FFMPEG_FIT
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
@@ -196,6 +197,19 @@ private:
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);
+};
+#endif
+
+class SrsRtcDummyBridger : public ISrsSourceBridger
+{
+public:
+    SrsRtcDummyBridger();
+    virtual ~SrsRtcDummyBridger();
+public:
+    virtual srs_error_t on_publish();
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
+    virtual void on_unpublish();
 };
 
 #endif
