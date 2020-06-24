@@ -32,7 +32,7 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && gi
 
 > Note: You can also build SRS in docker, please read [docker][docker-dev].
 
-**Step 3:** Run SRS 
+**>>> Step 3:** Run SRS 
 
 ```
 ./objs/srs -c conf/srs.conf
