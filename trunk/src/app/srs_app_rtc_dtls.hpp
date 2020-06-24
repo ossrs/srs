@@ -38,7 +38,9 @@ private:
     static SrsDtls* _instance;
 private:
     std::string fingerprint;
-    SSL_CTX* dtls_ctx;
+    X509* dtls_cert;
+    EVP_PKEY* dtls_pkey;
+    EC_KEY* eckey;
 private:
     SrsDtls();
     virtual ~SrsDtls();
@@ -46,7 +48,7 @@ public:
     srs_error_t init(SrsRequest* r);
 public:
     static SrsDtls* instance();
-    SSL_CTX* get_dtls_ctx();
+    SSL_CTX* get_dtls_ctx(SrsRequest* r);
 public:
     std::string get_fingerprint() const;
 };
