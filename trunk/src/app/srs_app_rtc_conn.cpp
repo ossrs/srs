@@ -149,10 +149,6 @@ srs_error_t SrsRtcDtls::initialize(SrsRequest* r)
 {    
     srs_error_t err = srs_success;
 
-    if ((err = SrsDtls::instance()->init(r)) != srs_success) {
-        return srs_error_wrap(err, "DTLS init");
-    }
-
     // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
     if ((dtls = SSL_new(SrsDtls::instance()->build_dtls_ctx())) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");

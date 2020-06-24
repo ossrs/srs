@@ -31,6 +31,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 

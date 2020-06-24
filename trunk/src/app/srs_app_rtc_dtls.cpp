@@ -34,16 +34,14 @@ using namespace std;
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
 
-SrsDtls* SrsDtls::_instance = NULL;
-
-SrsDtls::SrsDtls()
+SrsDtlsCertificate::SrsDtlsCertificate()
 {
     dtls_cert = NULL;
     dtls_pkey = NULL;
     eckey = NULL;
 }
 
-SrsDtls::~SrsDtls()
+SrsDtlsCertificate::~SrsDtlsCertificate()
 {
     if (eckey) {
         EC_KEY_free(eckey);
@@ -58,22 +56,7 @@ SrsDtls::~SrsDtls()
     }
 }
 
-// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
-// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
-// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
-// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
-// not be terminated with respect to verification failures and the connection will be established. The calling process
-// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
-// its own error storage managed by verify_callback.
-// @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-    // Always OK, we don't check the certificate of client,
-    // because we allow client self-sign certificate.
-    return 1;
-}
-
-srs_error_t SrsDtls::init(SrsRequest* r)
+srs_error_t SrsDtlsCertificate::initialize()
 {
     srs_error_t err = srs_success;
 
@@ -94,12 +77,12 @@ srs_error_t SrsDtls::init(SrsRequest* r)
     srs_assert(srtp_init() == 0);
 
     // Whether use ECDSA certificate.
-    bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
+    ecdsa_mode = _srs_config->get_rtc_server_ecdsa();
 
     // Create keys by RSA or ECDSA.
     dtls_pkey = EVP_PKEY_new();
     srs_assert(dtls_pkey);
-    if (!is_ecdsa) { // By RSA
+    if (!ecdsa_mode) { // By RSA
         RSA* rsa = RSA_new();
         srs_assert(rsa);
 
@@ -119,7 +102,7 @@ srs_error_t SrsDtls::init(SrsRequest* r)
         RSA_free(rsa);
         BN_free(exponent);
     }
-    if (is_ecdsa) { // By ECDSA, https://stackoverflow.com/a/6006898
+    if (ecdsa_mode) { // By ECDSA, https://stackoverflow.com/a/6006898
         eckey = EC_KEY_new();
         srs_assert(eckey);
 
@@ -208,6 +191,56 @@ srs_error_t SrsDtls::init(SrsRequest* r)
     return err;
 }
 
+X509* SrsDtlsCertificate::get_cert()
+{
+    return dtls_cert;
+}
+
+EVP_PKEY* SrsDtlsCertificate::get_public_key()
+{
+    return dtls_pkey;
+}
+    
+EC_KEY* SrsDtlsCertificate::get_ecdsa_key() 
+{
+    return eckey;
+}
+    
+std::string SrsDtlsCertificate::get_fingerprint()
+{
+    return fingerprint;
+}
+
+bool SrsDtlsCertificate::is_ecdsa()
+{
+    return ecdsa_mode;
+}
+
+SrsDtls* SrsDtls::_instance = NULL;
+
+SrsDtls::SrsDtls()
+{
+}
+
+SrsDtls::~SrsDtls()
+{
+}
+
+// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
+// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
+// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
+// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
+// not be terminated with respect to verification failures and the connection will be established. The calling process
+// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
+// its own error storage managed by verify_callback.
+// @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+    // Always OK, we don't check the certificate of client,
+    // because we allow client self-sign certificate.
+    return 1;
+}
+
 SrsDtls* SrsDtls::instance()
 {
     if (!_instance) {
@@ -227,12 +260,7 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
     //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
 #endif
 
-    // Whether use ECDSA certificate.
-    // TODO: FIXME: Support config by vhost to use RSA or ECDSA certificate.
-    bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
-    if (is_ecdsa) { // By ECDSA, https://stackoverflow.com/a/6006898
-        EC_KEY* eckey = EC_KEY_new();
-        srs_assert(eckey);
+    if (_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
 
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
         // For ECDSA, we could set the curves list.
@@ -244,7 +272,7 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
         // @see https://stackoverrun.com/cn/q/10791887
 #if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
     #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, eckey);
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, _rtc_dtls_certificate->get_ecdsa_key());
     #else
         SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
     #endif
@@ -258,8 +286,8 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
         srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
 
         // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, dtls_cert) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, dtls_pkey) == 1);
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _rtc_dtls_certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _rtc_dtls_certificate->get_public_key()) == 1);
 
         // Server will send Certificate Request.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
@@ -283,9 +311,3 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
 
     return dtls_ctx;
 }
-
-std::string SrsDtls::get_fingerprint() const
-{
-    return fingerprint;
-}
-
