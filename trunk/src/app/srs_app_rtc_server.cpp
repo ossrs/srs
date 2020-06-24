@@ -40,6 +40,9 @@
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
 
+// @global dtls certficate for rtc module.
+SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+
 using namespace std;
 
 static bool is_stun(const uint8_t* data, const int size)
@@ -333,7 +336,7 @@ srs_error_t SrsRtcServer::create_session(
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
-    local_sdp.set_fingerprint(_rtc_dtls_certificate->get_fingerprint());
+    local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
 
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
@@ -366,7 +369,7 @@ srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcSession** pse
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
-    local_sdp.set_fingerprint(_rtc_dtls_certificate->get_fingerprint());
+    local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
 
     // We allows to mock the eip of server.
     std::vector<string> candidate_ips = get_candidate_ips();
@@ -521,17 +524,13 @@ RtcServerAdapter::RtcServerAdapter()
 RtcServerAdapter::~RtcServerAdapter()
 {
     srs_freep(rtc);
-    
-    if (_rtc_dtls_certificate) {
-        srs_freep(_rtc_dtls_certificate);
-    }
 }
 
 srs_error_t RtcServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = _rtc_dtls_certificate->initialize()) != srs_success) {
+    if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtc dtls certificate initialize");
     }
 

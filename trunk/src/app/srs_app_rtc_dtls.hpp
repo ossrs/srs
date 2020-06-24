@@ -58,19 +58,16 @@ public:
     bool is_ecdsa();
 };
 
-// @global dtls certficate for rtc module.
-SrsDtlsCertificate* _rtc_dtls_certificate = new SrsDtlsCertificate();
+// @global config object.
+extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
 class SrsDtls
 {
-private:
-    static SrsDtls* _instance;
-private:
+public:
     SrsDtls();
     virtual ~SrsDtls();
 public:
-    static SrsDtls* instance();
-    SSL_CTX* build_dtls_ctx();
+    static SSL_CTX* build_dtls_ctx();
 };
 
 #endif
