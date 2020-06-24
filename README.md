@@ -1626,6 +1626,7 @@ Winlin
 [bug #1488]: https://github.com/ossrs/srs/issues/1488
 [bug #1551]: https://github.com/ossrs/srs/pull/1551
 [bug #1554]: https://github.com/ossrs/srs/pull/1554
+[bug #1672]: https://github.com/ossrs/srs/issues/1672
 [bug #xxxxxxxxxx]: https://github.com/ossrs/srs/issues/xxxxxxxxxx
 
 [bug #735]: https://github.com/ossrs/srs/issues/735
