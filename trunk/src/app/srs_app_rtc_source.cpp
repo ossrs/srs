@@ -33,9 +33,12 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_kernel_buffer.hpp>
-#include <srs_app_rtc_codec.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_core_autofree.hpp>
+
+#ifdef SRS_FFMPEG_FIT
+#include <srs_app_rtc_codec.hpp>
+#endif
 
 const int kChannel              = 2;
 const int kSamplerate           = 48000;
