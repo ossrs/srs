@@ -203,8 +203,7 @@ Experts:
   --use-shared-st                   Use link shared libraries for ST which uses MPL license.
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
   --build-tag=<TAG>                 Set the build object directory suffix.
-  --with-clean                      Configure SRS and do make clean if possible.
-  --without-clean                   Configure SRS and never make clean even possible.
+  --clean=on|off                    Whether do 'make clean' when configure.
   --detect-sendmmsg=on|off          Whether detect the sendmmsg API.
   --has-sendmmsg=on|off             Whether OS supports sendmmsg API.
   --simulator=on|off                Whether enable RTC network simulator.
@@ -437,7 +436,7 @@ if [ $help = yes ]; then
     exit 0
 fi
 
-function apply_user_presets() {
+function apply_detail_options() {
     # always set the log level for all presets.
     SRS_LOG_VERBOSE=NO
     SRS_LOG_INFO=NO
@@ -536,19 +535,7 @@ function apply_user_presets() {
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES
     fi
-}
-apply_user_presets
 
-#####################################################################################
-# parse detail feature options
-#####################################################################################
-for option
-do
-    parse_user_option_to_value_and_option
-    parse_user_option
-done
-
-function apply_user_detail_options() {
     # if transcode/ingest specified, requires the ffmpeg stub classes.
     SRS_FFMPEG_STUB=NO
     if [ $SRS_TRANSCODE = YES ]; then SRS_FFMPEG_STUB=YES; fi
@@ -611,7 +598,7 @@ function apply_user_detail_options() {
         SRS_SENDMMSG=NO
     fi
 }
-apply_user_detail_options
+apply_detail_options
 
 function regenerate_options() {
     # save all config options to macro to write to auto headers file
