@@ -136,20 +136,24 @@ END
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
+
 # srtp
 if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS_DIR}/srtp2/include"; LibSrtpFile="${SRS_OBJS_DIR}/srtp2/lib/libsrtp2.a"
 fi
+
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
   LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
   LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
 fi
+
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
     LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a";
 fi
+
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then
@@ -158,28 +162,35 @@ fi
 if [ $SRS_GPERF_MD = YES ]; then
     LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_debug.a";
 fi
+
 # srt code path
 if [[ $SRS_SRT == YES ]]; then
     LibSRTRoot="${SRS_WORKDIR}/src/srt"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
 fi
+
 # the link options, always use static link
 SrsLinkOptions="-ldl";
 if [[ $SRS_SRT == YES || $SRS_RTC == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lpthread";
 fi
+
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
-# if static specified, add static
-# TODO: FIXME: remove static.
+
+# Static link the c++ libraries, for user who build SRS by a new version of gcc,
+# so we need to link the c++ libraries staticly but not all.
+# @see https://stackoverflow.com/a/26107550
 if [ $SRS_STATIC = YES ]; then
-    SrsLinkOptions="${SrsLinkOptions} -static";
+    SrsLinkOptions="${SrsLinkOptions} -static-libstdc++";
 fi
+
 # For coverage.
 if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
+
 # For FFMPEG/RTC.
 if [[ $SRS_RTC == YES && $SRS_NASM == NO && $SRS_OSX == NO ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";

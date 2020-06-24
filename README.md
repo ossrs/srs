@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-06-24, Support static link c++ libraries. 4.0.32
 * v4.0, 2020-06-23, Change log cid from int to string. 4.0.31
 * v4.0, 2020-06-13, GB28181 with JitterBuffer support. 4.0.30
 * v4.0, 2020-06-03, Support enable C++11. 4.0.29
