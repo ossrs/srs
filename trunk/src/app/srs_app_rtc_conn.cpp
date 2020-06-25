@@ -43,7 +43,6 @@ using namespace std;
 #include <srs_rtc_stun_stack.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_rtmp_msg_array.hpp>
-#include <srs_app_rtc_dtls.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_rtc_queue.hpp>
@@ -111,13 +110,9 @@ SrsNtp SrsNtp::to_time_ms(uint64_t ntp)
 }
 
 
-SrsRtcDtls::SrsRtcDtls(SrsRtcSession* s)
+SrsSecurityTransport::SrsSecurityTransport(SrsRtcSession* s)
 {
     session_ = s;
-
-    dtls = NULL;
-    bio_in = NULL;
-    bio_out = NULL;
 
     client_key = "";
     server_key = "";
@@ -125,15 +120,16 @@ SrsRtcDtls::SrsRtcDtls(SrsRtcSession* s)
     srtp_send = NULL;
     srtp_recv = NULL;
 
+    dtls_ = new SrsDtls((ISrsDtlsCallback*)this);
+
     handshake_done = false;
 }
 
-SrsRtcDtls::~SrsRtcDtls()
+SrsSecurityTransport::~SrsSecurityTransport()
 {
-    if (dtls) {
-        // this function will free bio_in and bio_out
-        SSL_free(dtls);
-        dtls = NULL;
+    if (dtls_) {
+        srs_freep(dtls_);
+        dtls_ = NULL;
     }
 
     if (srtp_send) {
@@ -145,118 +141,40 @@ SrsRtcDtls::~SrsRtcDtls()
     }
 }
 
-srs_error_t SrsRtcDtls::initialize(SrsRequest* r)
-{    
-    srs_error_t err = srs_success;
-
-    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
-    if ((dtls = SSL_new(SrsDtls::build_dtls_ctx())) == NULL) {
-        return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
-    }
-
-    // Dtls setup passive, as server role.
-    SSL_set_accept_state(dtls);
-
-    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
-        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
-    }
-
-    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
-        BIO_free(bio_in);
-        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new out");
-    }
-
-    SSL_set_bio(dtls, bio_in, bio_out);
-
-    return err;
+srs_error_t SrsSecurityTransport::initialize(SrsRequest* r)
+{
+    return dtls_->initialize(r);
 }
 
-srs_error_t SrsRtcDtls::handshake()
+srs_error_t SrsSecurityTransport::do_handshake()
+{
+    return dtls_->do_handshake();
+}
+
+srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size) 
 {
     srs_error_t err = srs_success;
-
-    int ret = SSL_do_handshake(dtls);
-
-    unsigned char *out_bio_data;
-    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
-
-    int ssl_err = SSL_get_error(dtls, ret); 
-    switch(ssl_err) {   
-        case SSL_ERROR_NONE: {   
-            if ((err = on_dtls_handshake_done()) != srs_success) {
-                return srs_error_wrap(err, "dtls handshake done handle");
-            }
-            break;
-        }  
-
-        case SSL_ERROR_WANT_READ: {   
-            break;
-        }   
-
-        case SSL_ERROR_WANT_WRITE: {   
-            break;
-        }
-
-        default: {   
-            break;
-        }   
-    }   
-
-    if (out_bio_len) {
-        if ((err = session_->sendonly_skt->sendto(out_bio_data, out_bio_len, 0)) != srs_success) {
+    if (size) {
+        if ((err = session_->sendonly_skt->sendto(data, size, 0)) != srs_success) {
             return srs_error_wrap(err, "send dtls packet");
         }
     }
 
     if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
         // Ignore any error for black-hole.
-        void* p = out_bio_data; int len = out_bio_len; SrsRtcSession* s = session_;
+        void* p = data; int len = size; SrsRtcSession* s = session_;
         srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
     }
 
     return err;
 }
 
-srs_error_t SrsRtcDtls::on_dtls(char* data, int nb_data)
+srs_error_t SrsSecurityTransport::on_dtls(char* data, int nb_data)
 {
-    srs_error_t err = srs_success;
-    if (BIO_reset(bio_in) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
-    }
-    if (BIO_reset(bio_out) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
-    }
-
-    if (BIO_write(bio_in, data, nb_data) <= 0) {
-        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
-        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write");
-    }
-
-    if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
-        // Ignore any error for black-hole.
-        void* p = data; int len = nb_data; SrsRtcSession* s = session_;
-        srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
-    }
-
-    if (!handshake_done) {
-        err = handshake();
-    } else {
-        while (BIO_ctrl_pending(bio_in) > 0) {
-            char dtls_read_buf[8092];
-            int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
-
-            if (nb > 0) {
-                if ((err =on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
-                    return srs_error_wrap(err, "dtls application data process");
-                }
-            }
-        }
-    }
-
-    return err;
+    return dtls_->on_dtls(data, nb_data);
 }
 
-srs_error_t SrsRtcDtls::on_dtls_handshake_done()
+srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
     srs_trace("rtc session=%s, DTLS handshake done.", session_->id().c_str());
@@ -269,7 +187,7 @@ srs_error_t SrsRtcDtls::on_dtls_handshake_done()
     return session_->on_connection_established();
 }
 
-srs_error_t SrsRtcDtls::on_dtls_application_data(const char* buf, const int nb_buf)
+srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, const int nb_buf)
 {
     srs_error_t err = srs_success;
 
@@ -278,14 +196,15 @@ srs_error_t SrsRtcDtls::on_dtls_application_data(const char* buf, const int nb_b
     return err;
 }
 
-srs_error_t SrsRtcDtls::srtp_initialize()
+srs_error_t SrsSecurityTransport::srtp_initialize()
 {
     srs_error_t err = srs_success;
 
     unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
     static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
+
+    if ((err = dtls_->export_keying_material(material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) != srs_success) {
+        return err;
     }
 
     size_t offset = 0;
@@ -312,7 +231,7 @@ srs_error_t SrsRtcDtls::srtp_initialize()
     return err;
 }
 
-srs_error_t SrsRtcDtls::srtp_send_init()
+srs_error_t SrsSecurityTransport::srtp_send_init()
 {
     srs_error_t err = srs_success;
 
@@ -347,7 +266,7 @@ srs_error_t SrsRtcDtls::srtp_send_init()
     return err;
 }
 
-srs_error_t SrsRtcDtls::srtp_recv_init()
+srs_error_t SrsSecurityTransport::srtp_recv_init()
 {
     srs_error_t err = srs_success;
 
@@ -380,7 +299,7 @@ srs_error_t SrsRtcDtls::srtp_recv_init()
     return err;
 }
 
-srs_error_t SrsRtcDtls::protect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::protect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
 {
     srs_error_t err = srs_success;
 
@@ -398,7 +317,7 @@ srs_error_t SrsRtcDtls::protect_rtp(char* out_buf, const char* in_buf, int& nb_o
 }
 
 // TODO: FIXME: Merge with protect_rtp.
-srs_error_t SrsRtcDtls::protect_rtp2(void* rtp_hdr, int* len_ptr)
+srs_error_t SrsSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
     srs_error_t err = srs_success;
 
@@ -414,7 +333,7 @@ srs_error_t SrsRtcDtls::protect_rtp2(void* rtp_hdr, int* len_ptr)
     return err;
 }
 
-srs_error_t SrsRtcDtls::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
 {
     srs_error_t err = srs_success;
 
@@ -432,7 +351,7 @@ srs_error_t SrsRtcDtls::unprotect_rtp(char* out_buf, const char* in_buf, int& nb
     return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
 }
 
-srs_error_t SrsRtcDtls::protect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::protect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
 {
     srs_error_t err = srs_success;
 
@@ -449,7 +368,7 @@ srs_error_t SrsRtcDtls::protect_rtcp(char* out_buf, const char* in_buf, int& nb_
     return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
 }
 
-srs_error_t SrsRtcDtls::unprotect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::unprotect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
 {
     srs_error_t err = srs_success;
 
@@ -701,7 +620,7 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
     srs_error_t err = srs_success;
 
     // If DTLS is not OK, drop all messages.
-    if (!session_->dtls_) {
+    if (!session_->transport_) {
         return err;
     }
 
@@ -784,7 +703,7 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
         // Whether encrypt the RTP bytes.
         if (encrypt) {
             int nn_encrypt = (int)iov->iov_len;
-            if ((err = session_->dtls_->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
+            if ((err = session_->transport_->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
                 return srs_error_wrap(err, "srtp protect");
             }
             iov->iov_len = (size_t)nn_encrypt;
@@ -1172,7 +1091,7 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t 
 void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc)
 {
     // If DTLS is not OK, drop all messages.
-    if (!session_->dtls_) {
+    if (!session_->transport_) {
         return;
     }
 
@@ -1210,7 +1129,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssr
         int nb_protected_buf = stream.pos();
 
         // FIXME: Merge nack rtcp into one packets.
-        if (session_->dtls_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf) == srs_success) {
+        if (session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf) == srs_success) {
             // TODO: FIXME: Check error.
             session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
         }
@@ -1224,7 +1143,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_q
     srs_error_t err = srs_success;
 
     // If DTLS is not OK, drop all messages.
-    if (!session_->dtls_) {
+    if (!session_->transport_) {
         return err;
     }
 
@@ -1268,7 +1187,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_q
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->dtls_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp rr");
     }
 
@@ -1282,7 +1201,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(uint32_t ssrc)
     srs_error_t err = srs_success;
 
     // If DTLS is not OK, drop all messages.
-    if (!session_->dtls_) {
+    if (!session_->transport_) {
         return err;
     }
 
@@ -1328,7 +1247,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(uint32_t ssrc)
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->dtls_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp xr");
     }
 
@@ -1343,7 +1262,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
     srs_error_t err = srs_success;
 
     // If DTLS is not OK, drop all messages.
-    if (!session_->dtls_) {
+    if (!session_->transport_) {
         return err;
     }
 
@@ -1365,7 +1284,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->dtls_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp psfb pli");
     }
 
@@ -1396,7 +1315,7 @@ srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
         }
         int nb_protected_buf = buffer->pos();
         char protected_buf[kRtpPacketSize];
-        if (session_->dtls_->protect_rtcp(protected_buf, pkt, nb_protected_buf) == srs_success) {
+        if (session_->transport_->protect_rtcp(protected_buf, pkt, nb_protected_buf) == srs_success) {
             session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
         }
     }
@@ -1416,7 +1335,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
     char* unprotected_buf = new char[kRtpPacketSize];
-    if ((err = session_->dtls_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+    if ((err = session_->transport_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
         err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
@@ -1980,7 +1899,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
     player_ = NULL;
     sendonly_skt = NULL;
     server_ = s;
-    dtls_ = new SrsRtcDtls(this);
+    transport_ = new SrsSecurityTransport(this);
 
     state_ = INIT;
     last_stun_time = 0;
@@ -1996,7 +1915,7 @@ SrsRtcSession::~SrsRtcSession()
 {
     srs_freep(player_);
     srs_freep(publisher_);
-    srs_freep(dtls_);
+    srs_freep(transport_);
     srs_freep(req);
     srs_close_stfd(blackhole_stfd);
     srs_freep(blackhole_addr);
@@ -2079,7 +1998,7 @@ srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool 
     is_publisher_ = is_publisher;
     source_ = source;
 
-    if ((err = dtls_->initialize(req)) != srs_success) {
+    if ((err = transport_->initialize(req)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
@@ -2146,20 +2065,20 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
 
 srs_error_t SrsRtcSession::on_dtls(char* data, int nb_data)
 {
-    return dtls_->on_dtls(data, nb_data);
+    return transport_->on_dtls(data, nb_data);
 }
 
 srs_error_t SrsRtcSession::on_rtcp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    if (dtls_ == NULL) {
+    if (transport_ == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");
     }
 
     char unprotected_buf[kRtpPacketSize];
     int nb_unprotected_buf = nb_data;
-    if ((err = dtls_->unprotect_rtcp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+    if ((err = transport_->unprotect_rtcp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "rtcp unprotect failed");
     }
 
@@ -2186,7 +2105,7 @@ srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
         return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
     }
 
-    if (dtls_ == NULL) {
+    if (transport_ == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");
     }
 

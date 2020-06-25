@@ -61,13 +61,42 @@ public:
 // @global config object.
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
-class SrsDtls
+class ISrsDtlsCallback
 {
 public:
-    SrsDtls();
+    ISrsDtlsCallback();
+    virtual ~ISrsDtlsCallback();
+public:
+    // DTLS handshake done callback.
+    virtual srs_error_t on_dtls_handshake_done() = 0;
+    // DTLS receive application data callback.
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len) = 0;
+    // DTLS write dtls data.
+    virtual srs_error_t write_dtls_data(void* data, int size) = 0;
+};
+
+class SrsDtls
+{
+private:
+    SSL_CTX* dtls_ctx;
+    SSL* dtls;
+    BIO* bio_in;
+    BIO* bio_out;
+
+    ISrsDtlsCallback* callback;
+
+    bool handshake_done;
+public:
+    SrsDtls(ISrsDtlsCallback* callback);
     virtual ~SrsDtls();
 public:
-    static SSL_CTX* build_dtls_ctx();
+    srs_error_t initialize(SrsRequest* r);  
+    srs_error_t do_handshake();
+    srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t export_keying_material(unsigned char *out, size_t olen, const char *label, size_t llen, const unsigned char *p, size_t plen, int use_context);
+private:
+    SSL_CTX* build_dtls_ctx();
+    srs_error_t handshake();
 };
 
 #endif

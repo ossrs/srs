@@ -231,13 +231,32 @@ bool SrsDtlsCertificate::is_ecdsa()
     return ecdsa_mode;
 }
 
-
-SrsDtls::SrsDtls()
+ISrsDtlsCallback::ISrsDtlsCallback()
 {
+}
+
+ISrsDtlsCallback::~ISrsDtlsCallback()
+{
+}
+
+SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
+{
+    callback = cb;
+    handshake_done = false;
 }
 
 SrsDtls::~SrsDtls()
 {
+    if (dtls_ctx) {
+        SSL_CTX_free(dtls_ctx);
+        dtls_ctx = NULL;
+    }
+
+    if (dtls) {
+        // this function will free bio_in and bio_out
+        SSL_free(dtls);
+        dtls = NULL;
+    }
 }
 
 SSL_CTX* SrsDtls::build_dtls_ctx()
@@ -301,4 +320,120 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
     }
 
     return dtls_ctx;
+}
+
+srs_error_t SrsDtls::initialize(SrsRequest* r)
+{
+    srs_error_t err = srs_success;
+
+    dtls_ctx = build_dtls_ctx();
+    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
+    if ((dtls = SSL_new(dtls_ctx)) == NULL) {
+        return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
+    }
+
+    // Dtls setup passive, as server role.
+    SSL_set_accept_state(dtls);
+
+    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
+    }
+
+    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
+        BIO_free(bio_in);
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new out");
+    }
+
+    SSL_set_bio(dtls, bio_in, bio_out);
+
+    return err;
+}
+
+srs_error_t SrsDtls::handshake()
+{
+    srs_error_t err = srs_success;
+
+    int ret = SSL_do_handshake(dtls);
+
+    unsigned char *out_bio_data;
+    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
+
+    int ssl_err = SSL_get_error(dtls, ret); 
+    switch(ssl_err) {   
+        case SSL_ERROR_NONE: {   
+            if ((callback == NULL) || ((err = callback->on_dtls_handshake_done()) != srs_success)) {
+                return srs_error_wrap(err, "dtls handshake done handle");
+            }
+            break;
+        }  
+
+        case SSL_ERROR_WANT_READ: {   
+            break;
+        }   
+
+        case SSL_ERROR_WANT_WRITE: {   
+            break;
+        }
+
+        default: {   
+            break;
+        }   
+    }   
+
+    if (out_bio_len && callback) {
+        if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+            return srs_error_wrap(err, "send dtls packet");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+    if (BIO_reset(bio_in) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
+    }
+    if (BIO_reset(bio_out) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
+    }
+
+    if (BIO_write(bio_in, data, nb_data) <= 0) {
+        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write");
+    }
+
+    if (!handshake_done) {
+        err = handshake();
+    } else {
+        while (BIO_ctrl_pending(bio_in) > 0) {
+            char dtls_read_buf[8092];
+            int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
+
+            if (nb > 0 && callback) {
+                if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+                    return srs_error_wrap(err, "dtls application data process");
+                }
+            }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::do_handshake() 
+{
+    return handshake();
+}
+
+srs_error_t SrsDtls::export_keying_material(unsigned char *out, size_t olen, const char *label, size_t llen, const unsigned char *p, size_t plen, int use_context)
+{
+    srs_error_t err = srs_success;
+
+    if (!SSL_export_keying_material(dtls, out, olen, label, llen, p, plen, use_context)) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
+    }
+
+    return err;
 }

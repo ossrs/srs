@@ -37,6 +37,7 @@
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 #include <map>
@@ -108,14 +109,11 @@ enum SrsRtcSessionStateType
     CLOSED = 5,
 };
 
-class SrsRtcDtls
+class SrsSecurityTransport : public ISrsDtlsCallback
 {
 private:
     SrsRtcSession* session_;
-
-    SSL* dtls;
-    BIO* bio_in;
-    BIO* bio_out;
+    SrsDtls* dtls_;
 
     std::string client_key;
     std::string server_key;
@@ -124,24 +122,25 @@ private:
     srtp_t srtp_recv;
 
     bool handshake_done;
-
 public:
-    SrsRtcDtls(SrsRtcSession* s);
-    virtual ~SrsRtcDtls();
+    SrsSecurityTransport(SrsRtcSession* s);
+    virtual ~SrsSecurityTransport();
 
     srs_error_t initialize(SrsRequest* r);
 
+    srs_error_t do_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t on_dtls_handshake_done();
-    srs_error_t on_dtls_application_data(const char* data, const int len);
 public:
     srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
     srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
     srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
     srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
-private:
-    srs_error_t handshake();
+// implement ISrsDtlsCallback
+public:
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len);
+    virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
     srs_error_t srtp_send_init();
@@ -322,7 +321,7 @@ private:
 
 class SrsRtcSession
 {
-    friend class SrsRtcDtls;
+    friend class SrsSecurityTransport;
     friend class SrsRtcPlayer;
     friend class SrsRtcPublisher;
 public:
@@ -330,7 +329,7 @@ public:
 private:
     SrsRtcServer* server_;
     SrsRtcSessionStateType state_;
-    SrsRtcDtls* dtls_;
+    SrsSecurityTransport* transport_;
     SrsRtcPlayer* player_;
     SrsRtcPublisher* publisher_;
     bool is_publisher_;
