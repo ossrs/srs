@@ -34,7 +34,7 @@
 
 // The st thread context, get_id will get the st-thread id,
 // which identify the client.
-class SrsThreadContext : public ISrsThreadContext
+class SrsThreadContext : public ISrsContext
 {
 private:
     std::map<srs_thread_t, std::string> cache;

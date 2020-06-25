@@ -69,8 +69,8 @@ srs_error_t run_hybrid_server();
 void show_macro_features();
 
 // @global log and context.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
+ISrsLog* _srs_log = new SrsFileLog();
+ISrsContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
 

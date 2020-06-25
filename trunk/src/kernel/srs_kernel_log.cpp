@@ -23,8 +23,6 @@
 
 #include <srs_kernel_log.hpp>
 
-#include <srs_kernel_error.hpp>
-
 ISrsLog::ISrsLog()
 {
 }
@@ -33,56 +31,12 @@ ISrsLog::~ISrsLog()
 {
 }
 
-srs_error_t ISrsLog::initialize()
-{
-    return srs_success;
-}
-
-void ISrsLog::reopen()
+ISrsContext::ISrsContext()
 {
 }
 
-void ISrsLog::verbose(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
+ISrsContext::~ISrsContext()
 {
-}
-
-void ISrsLog::info(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
-{
-}
-
-void ISrsLog::trace(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
-{
-}
-
-void ISrsLog::warn(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
-{
-}
-
-void ISrsLog::error(const char* /*tag*/, const char* /*context_id*/, const char* /*fmt*/, ...)
-{
-}
-
-ISrsThreadContext::ISrsThreadContext()
-{
-}
-
-ISrsThreadContext::~ISrsThreadContext()
-{
-}
-
-std::string ISrsThreadContext::generate_id()
-{
-    return "";
-}
-
-std::string ISrsThreadContext::get_id()
-{
-    return "";
-}
-
-std::string ISrsThreadContext::set_id(std::string /*v*/)
-{
-    return "";
 }
 
 

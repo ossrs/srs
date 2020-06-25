@@ -41,7 +41,7 @@ srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 
 // kernel module.
 ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
+ISrsContext* _srs_context = new SrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;

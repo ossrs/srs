@@ -4090,28 +4090,6 @@ VOID TEST(KernelFLVTest, CoverSharedPtrMessage)
 	}
 }
 
-VOID TEST(KernelLogTest, CoverAll)
-{
-	srs_error_t err;
-
-    if (true) {
-        ISrsLog l;
-        HELPER_EXPECT_SUCCESS(l.initialize());
-        
-        l.reopen();
-        l.verbose("TAG", "0", "log");
-        l.info("TAG", "0", "log");
-        l.trace("TAG", "0", "log");
-        l.warn("TAG", "0", "log");
-        l.error("TAG", "0", "log");
-        
-        ISrsThreadContext ctx;
-        ctx.set_id("10");
-        EXPECT_EQ("", ctx.get_id());
-        EXPECT_EQ("", ctx.generate_id());
-    }
-}
-
 VOID TEST(KernelMp3Test, CoverAll)
 {
 	srs_error_t err;

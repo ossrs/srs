@@ -95,7 +95,7 @@ extern srs_utime_t _srs_tmp_timeout;
 // print the bytes.
 void srs_bytes_print(char* pa, int size);
 
-class MockEmptyLog : public SrsFastLog
+class MockEmptyLog : public SrsFileLog
 {
 public:
     MockEmptyLog(SrsLogLevel l);

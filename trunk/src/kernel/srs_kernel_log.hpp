@@ -60,49 +60,49 @@ public:
     virtual ~ISrsLog();
 public:
     // Initialize log utilities.
-    virtual srs_error_t initialize();
+    virtual srs_error_t initialize() = 0;
     // Reopen the log file for log rotate.
-    virtual void reopen();
+    virtual void reopen() = 0;
 public:
     // The log for verbose, very verbose information.
-    virtual void verbose(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void verbose(const char* tag, const char* context_id, const char* fmt, ...) = 0;
     // The log for debug, detail information.
-    virtual void info(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void info(const char* tag, const char* context_id, const char* fmt, ...) = 0;
     // The log for trace, important information.
-    virtual void trace(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void trace(const char* tag, const char* context_id, const char* fmt, ...) = 0;
     // The log for warn, warn is something should take attention, but not a error.
-    virtual void warn(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void warn(const char* tag, const char* context_id, const char* fmt, ...) = 0;
     // The log for error, something error occur, do something about the error, ie. close the connection,
     // but we will donot abort the program.
-    virtual void error(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void error(const char* tag, const char* context_id, const char* fmt, ...) = 0;
 };
 
-// The context id manager to identify context, for instance, the green-thread.
-// Usage:
-//      _srs_context->generate_id(); // when thread start.
-//      _srs_context->get_id(); // get current generated id.
-//      int old_id = _srs_context->set_id(1000); // set context id if need to merge thread context.
-// The context for multiple clients.
-class ISrsThreadContext
+// The logic context for a RTMP connection, or RTC Session.
+// We can grep the context id to identify the logic unit, for debugging.
+// For example:
+//      _srs_context->generate_id(); // Generate a new context.
+//      _srs_context->get_id(); // Get current context.
+//      int old_id = _srs_context->set_id("1000"); // Change the context.
+class ISrsContext
 {
 public:
-    ISrsThreadContext();
-    virtual ~ISrsThreadContext();
+    ISrsContext();
+    virtual ~ISrsContext();
 public:
     // Generate the id for current context.
-    virtual std::string generate_id();
+    virtual std::string generate_id() = 0;
     // Get the generated id of current context.
-    virtual std::string get_id();
+    virtual std::string get_id() = 0;
     // Set the id of current context.
     // @return the previous id value; 0 if no context.
-    virtual std::string set_id(std::string v);
+    virtual std::string set_id(std::string v) = 0;
 };
 
 // @global User must provides a log object
 extern ISrsLog* _srs_log;
 
 // @global User must implements the LogContext and define a global instance.
-extern ISrsThreadContext* _srs_context;
+extern ISrsContext* _srs_context;
 
 // Log style.
 // Use __FUNCTION__ to print c method

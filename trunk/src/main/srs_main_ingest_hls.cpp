@@ -52,7 +52,7 @@ srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
-ISrsThreadContext* _srs_context = new SrsThreadContext();
+ISrsContext* _srs_context = new SrsThreadContext();
 
 /**
  * main entrance.

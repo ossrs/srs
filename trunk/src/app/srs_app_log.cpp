@@ -44,7 +44,7 @@
 // reserved for the end of log data, it must be strlen(LOG_TAIL)
 #define LOG_TAIL_SIZE 1
 
-SrsFastLog::SrsFastLog()
+SrsFileLog::SrsFileLog()
 {
     level = SrsLogLevelTrace;
     log_data = new char[LOG_MAX_SIZE];
@@ -54,7 +54,7 @@ SrsFastLog::SrsFastLog()
     utc = false;
 }
 
-SrsFastLog::~SrsFastLog()
+SrsFileLog::~SrsFileLog()
 {
     srs_freepa(log_data);
     
@@ -68,7 +68,7 @@ SrsFastLog::~SrsFastLog()
     }
 }
 
-srs_error_t SrsFastLog::initialize()
+srs_error_t SrsFileLog::initialize()
 {
     if (_srs_config) {
         _srs_config->subscribe(this);
@@ -81,7 +81,7 @@ srs_error_t SrsFastLog::initialize()
     return srs_success;
 }
 
-void SrsFastLog::reopen()
+void SrsFileLog::reopen()
 {
     if (fd > 0) {
         ::close(fd);
@@ -94,7 +94,7 @@ void SrsFastLog::reopen()
     open_log_file();
 }
 
-void SrsFastLog::verbose(const char* tag, const char* context_id, const char* fmt, ...)
+void SrsFileLog::verbose(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelVerbose) {
         return;
@@ -114,7 +114,7 @@ void SrsFastLog::verbose(const char* tag, const char* context_id, const char* fm
     write_log(fd, log_data, size, SrsLogLevelVerbose);
 }
 
-void SrsFastLog::info(const char* tag, const char* context_id, const char* fmt, ...)
+void SrsFileLog::info(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelInfo) {
         return;
@@ -134,7 +134,7 @@ void SrsFastLog::info(const char* tag, const char* context_id, const char* fmt, 
     write_log(fd, log_data, size, SrsLogLevelInfo);
 }
 
-void SrsFastLog::trace(const char* tag, const char* context_id, const char* fmt, ...)
+void SrsFileLog::trace(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelTrace) {
         return;
@@ -154,7 +154,7 @@ void SrsFastLog::trace(const char* tag, const char* context_id, const char* fmt,
     write_log(fd, log_data, size, SrsLogLevelTrace);
 }
 
-void SrsFastLog::warn(const char* tag, const char* context_id, const char* fmt, ...)
+void SrsFileLog::warn(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelWarn) {
         return;
@@ -174,7 +174,7 @@ void SrsFastLog::warn(const char* tag, const char* context_id, const char* fmt, 
     write_log(fd, log_data, size, SrsLogLevelWarn);
 }
 
-void SrsFastLog::error(const char* tag, const char* context_id, const char* fmt, ...)
+void SrsFileLog::error(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelError) {
         return;
@@ -200,14 +200,14 @@ void SrsFastLog::error(const char* tag, const char* context_id, const char* fmt,
     write_log(fd, log_data, size, SrsLogLevelError);
 }
 
-srs_error_t SrsFastLog::on_reload_utc_time()
+srs_error_t SrsFileLog::on_reload_utc_time()
 {
     utc = _srs_config->get_utc_time();
     
     return srs_success;
 }
 
-srs_error_t SrsFastLog::on_reload_log_tank()
+srs_error_t SrsFileLog::on_reload_log_tank()
 {
     srs_error_t err = srs_success;
     
@@ -234,7 +234,7 @@ srs_error_t SrsFastLog::on_reload_log_tank()
     return err;
 }
 
-srs_error_t SrsFastLog::on_reload_log_level()
+srs_error_t SrsFileLog::on_reload_log_level()
 {
     srs_error_t err = srs_success;
     
@@ -247,7 +247,7 @@ srs_error_t SrsFastLog::on_reload_log_level()
     return err;
 }
 
-srs_error_t SrsFastLog::on_reload_log_file()
+srs_error_t SrsFileLog::on_reload_log_file()
 {
     srs_error_t err = srs_success;
     
@@ -267,7 +267,7 @@ srs_error_t SrsFastLog::on_reload_log_file()
     return err;
 }
 
-void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
+void SrsFileLog::write_log(int& fd, char *str_log, int size, int level)
 {
     // ensure the tail and EOF of string
     //      LOG_TAIL_SIZE for the TAIL char.
@@ -307,7 +307,7 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
     }
 }
 
-void SrsFastLog::open_log_file()
+void SrsFileLog::open_log_file()
 {
     if (!_srs_config) {
         return;
