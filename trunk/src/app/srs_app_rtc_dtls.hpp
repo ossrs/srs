@@ -31,6 +31,7 @@
 class SrsRequest;
 
 #include <openssl/ssl.h>
+#include <srtp2/srtp.h>
 
 class SrsDtlsCertificate
 {
@@ -93,10 +94,27 @@ public:
     srs_error_t initialize(SrsRequest* r);  
     srs_error_t do_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t export_keying_material(unsigned char *out, size_t olen, const char *label, size_t llen, const unsigned char *p, size_t plen, int use_context);
+    srs_error_t get_srtp_key(std::string& send_key, std::string& recv_key);
 private:
     SSL_CTX* build_dtls_ctx();
     srs_error_t handshake();
+};
+
+class SrsSRTP
+{
+private:
+    srtp_t srtp_ctx;
+public:
+    SrsSRTP();
+    virtual ~SrsSRTP();
+public:
+    srs_error_t initialize(std::string srtp_key, bool send);
+public:
+    srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
+    srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
 };
 
 #endif

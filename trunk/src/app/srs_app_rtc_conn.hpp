@@ -44,9 +44,6 @@
 #include <vector>
 #include <sys/socket.h>
 
-#include <openssl/ssl.h>
-#include <srtp2/srtp.h>
-
 class SrsUdpMuxSocket;
 class SrsConsumer;
 class SrsStunPacket;
@@ -114,12 +111,8 @@ class SrsSecurityTransport : public ISrsDtlsCallback
 private:
     SrsRtcSession* session_;
     SrsDtls* dtls_;
-
-    std::string client_key;
-    std::string server_key;
-
-    srtp_t srtp_send;
-    srtp_t srtp_recv;
+    SrsSRTP* srtp_send;
+    SrsSRTP* srtp_recv;
 
     bool handshake_done;
 public:
@@ -143,8 +136,6 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
-    srs_error_t srtp_send_init();
-    srs_error_t srtp_recv_init();
 };
 
 // A group of RTP packets for outgoing(send to players).
