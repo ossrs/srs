@@ -94,7 +94,7 @@ public:
     srs_error_t initialize(SrsRequest* r);  
     srs_error_t do_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t get_srtp_key(std::string& send_key, std::string& recv_key);
+    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 private:
     SSL_CTX* build_dtls_ctx();
     srs_error_t handshake();

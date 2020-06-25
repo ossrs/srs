@@ -429,7 +429,7 @@ srs_error_t SrsDtls::do_handshake()
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
-srs_error_t SrsDtls::get_srtp_key(std::string& client_key, std::string& server_key)
+srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
 {
     srs_error_t err = srs_success;
 
@@ -449,8 +449,8 @@ srs_error_t SrsDtls::get_srtp_key(std::string& client_key, std::string& server_k
     offset += SRTP_MASTER_KEY_SALT_LEN;
     std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
 
-    client_key = client_master_key + client_master_salt;
-    server_key = server_master_key + server_master_salt;
+    recv_key = client_master_key + client_master_salt;
+    send_key = server_master_key + server_master_salt;
 
     return err;
 }
