@@ -112,8 +112,7 @@ SrsSecurityTransport::SrsSecurityTransport(SrsRtcSession* s)
     session_ = s;
 
     dtls_ = new SrsDtls((ISrsDtlsCallback*)this);
-    srtp_send = new SrsSRTP();
-    srtp_recv = new SrsSRTP();
+    srtp_ = new SrsSRTP();
 
     handshake_done = false;
 }
@@ -125,12 +124,9 @@ SrsSecurityTransport::~SrsSecurityTransport()
         dtls_ = NULL;
     }
 
-    if (srtp_send) {
-        srs_freep(srtp_send);
-    }
-
-    if (srtp_recv) {
-        srs_freep(srtp_recv);
+    if (srtp_) {
+        srs_freep(srtp_);
+        srtp_ = NULL;
     }
 }
 
@@ -199,62 +195,58 @@ srs_error_t SrsSecurityTransport::srtp_initialize()
     if ((err = dtls_->get_srtp_key(recv_key, send_key)) != srs_success) {
         return err;
     }
-
-    if ((err = srtp_send->initialize(send_key, true)) != srs_success) {
-        return srs_error_wrap(err, "srtp send init failed");
-    }
-
-    if ((err = srtp_recv->initialize(recv_key, false)) != srs_success) {
-        return srs_error_wrap(err, "srtp recv init failed");
+    
+    if ((err = srtp_->initialize(recv_key, send_key)) != srs_success) {
+        return srs_error_wrap(err, "srtp init failed");
     }
 
     return err;
 }
 
-srs_error_t SrsSecurityTransport::protect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
 {
-    if (!srtp_send) {
+    if (!srtp_) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
     }
 
-    return srtp_send->protect_rtp(out_buf, in_buf, nb_out_buf);
+    return srtp_->protect_rtp(plaintext, cipher, nb_cipher);
+}
+
+srs_error_t SrsSecurityTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    if (!srtp_) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
+    }
+
+    return srtp_->protect_rtcp(plaintext, cipher, nb_cipher);
 }
 
 // TODO: FIXME: Merge with protect_rtp.
 srs_error_t SrsSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
-    if (!srtp_send) {
+    if (!srtp_) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
 
-    return srtp_send->protect_rtp2(rtp_hdr, len_ptr);
+    return srtp_->protect_rtp2(rtp_hdr, len_ptr);
 }
 
-srs_error_t SrsSecurityTransport::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
-    if (!srtp_recv) {
+    if (!srtp_) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
     }
     
-    return srtp_recv->unprotect_rtp(out_buf, in_buf, nb_out_buf);
+    return srtp_->unprotect_rtp(cipher, plaintext, nb_plaintext);
 }
 
-srs_error_t SrsSecurityTransport::protect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSecurityTransport::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
-    if (!srtp_send) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
-    }
-
-    return srtp_send->protect_rtcp(out_buf, in_buf, nb_out_buf);
-}
-
-srs_error_t SrsSecurityTransport::unprotect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
-{
-    if (!srtp_recv) {
+    if (!srtp_) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
     }
 
-    return srtp_recv->unprotect_rtcp(out_buf, in_buf, nb_out_buf);
+    return srtp_->unprotect_rtcp(cipher, plaintext, nb_plaintext);
 }
 
 SrsRtcOutgoingInfo::SrsRtcOutgoingInfo()
@@ -1059,7 +1051,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_q
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp rr");
     }
 
@@ -1119,7 +1111,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_xr_rrtr(uint32_t ssrc)
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp xr");
     }
 
@@ -1156,7 +1148,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 
     char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = session_->transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp psfb pli");
     }
 
@@ -1187,7 +1179,7 @@ srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
         }
         int nb_protected_buf = buffer->pos();
         char protected_buf[kRtpPacketSize];
-        if (session_->transport_->protect_rtcp(protected_buf, pkt, nb_protected_buf) == srs_success) {
+        if (session_->transport_->protect_rtcp(pkt, protected_buf, nb_protected_buf) == srs_success) {
             session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
         }
     }
@@ -1207,7 +1199,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
     char* unprotected_buf = new char[kRtpPacketSize];
-    if ((err = session_->transport_->unprotect_rtp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+    if ((err = session_->transport_->unprotect_rtp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
         err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
@@ -1950,7 +1942,7 @@ srs_error_t SrsRtcSession::on_rtcp(char* data, int nb_data)
 
     char unprotected_buf[kRtpPacketSize];
     int nb_unprotected_buf = nb_data;
-    if ((err = transport_->unprotect_rtcp(unprotected_buf, data, nb_unprotected_buf)) != srs_success) {
+    if ((err = transport_->unprotect_rtcp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "rtcp unprotect failed");
     }
 

@@ -111,9 +111,7 @@ class SrsSecurityTransport : public ISrsDtlsCallback
 private:
     SrsRtcSession* session_;
     SrsDtls* dtls_;
-    SrsSRTP* srtp_send;
-    SrsSRTP* srtp_recv;
-
+    SrsSRTP* srtp_;
     bool handshake_done;
 public:
     SrsSecurityTransport(SrsRtcSession* s);
@@ -124,11 +122,19 @@ public:
     srs_error_t do_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
 public:
-    srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
+    // @remark Note that the nb_cipher is the size of input plaintext, and 
+    // it also is the length of output cipher when return.
+    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    // Encrypt the input rtp_hdr with *len_ptr bytes.
+    // @remark the input plaintext and out cipher reuse rtp_hdr.
     srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
-    srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
-    srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
+    // Decrypt the input cipher to output cipher with nb_cipher bytes.
+    // @remark Note that the nb_plaintext is the size of input cipher, and 
+    // it also is the length of output plaintext when return.
+    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
 // implement ISrsDtlsCallback
 public:
     virtual srs_error_t on_dtls_handshake_done();

@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_config.hpp>
+#include <srs_core_autofree.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -457,17 +458,22 @@ srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
 
 SrsSRTP::SrsSRTP()
 {
-    srtp_ctx = NULL;
+    recv_ctx_ = NULL;
+    send_ctx_ = NULL;
 }
 
 SrsSRTP::~SrsSRTP()
 {
-    if (srtp_ctx) {
-        srtp_dealloc(srtp_ctx);
+    if (recv_ctx_) {
+        srtp_dealloc(recv_ctx_);
+    }
+
+    if (send_ctx_) {
+        srtp_dealloc(send_ctx_);
     }
 }
 
-srs_error_t SrsSRTP::initialize(string srtp_key, bool send)
+srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
 {
     srs_error_t err = srs_success;
 
@@ -480,43 +486,57 @@ srs_error_t SrsSRTP::initialize(string srtp_key, bool send)
     srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtp);
     srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtcp);
 
-    if (send) {
-        policy.ssrc.type = ssrc_any_outbound;
-    } else {
-        policy.ssrc.type = ssrc_any_inbound;
-    }
-    
-
     policy.ssrc.value = 0;
     // TODO: adjust window_size
     policy.window_size = 8192;
     policy.allow_repeat_tx = 1;
     policy.next = NULL;
 
-    //uint8_t *key = new uint8_t[server_key.size()];
-    //memcpy(key, server_key.data(), server_key.size());
-    uint8_t *key = new uint8_t[srtp_key.size()];
-    memcpy(key, srtp_key.data(), srtp_key.size());
-    policy.key = key;
+    // init recv context
+    policy.ssrc.type = ssrc_any_inbound;
+    uint8_t *rkey = new uint8_t[recv_key.size()];
+    SrsAutoFreeA(uint8_t, rkey);
+    memcpy(rkey, recv_key.data(), recv_key.size());
+    policy.key = rkey;
 
-    if (srtp_create(&srtp_ctx, &policy) != srtp_err_status_ok) {
-        srs_freepa(key);
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create failed");
+    if (srtp_create(&recv_ctx_, &policy) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
     }
 
-    srs_freepa(key);
+    policy.ssrc.type = ssrc_any_outbound;
+    uint8_t *skey = new uint8_t[send_key.size()];
+    SrsAutoFreeA(uint8_t, skey);
+    memcpy(skey, send_key.data(), send_key.size());
+    policy.key = skey;
+
+    if (srtp_create(&send_ctx_, &policy) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
+    }
 
     return err;
 }
 
-srs_error_t SrsSRTP::protect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSRTP::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
 {
     srs_error_t err = srs_success;
 
-    memcpy(out_buf, in_buf, nb_out_buf);
+    memcpy(cipher, plaintext, nb_cipher);
     // TODO: FIXME: Wrap error code.
-    if (srtp_protect(srtp_ctx, out_buf, &nb_out_buf) != 0) {
+    if (srtp_protect(send_ctx_, cipher, &nb_cipher) != 0) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    srs_error_t err = srs_success;
+
+    memcpy(cipher, plaintext, nb_cipher);
+    // TODO: FIXME: Wrap error code.
+    if (srtp_protect_rtcp(send_ctx_, cipher, &nb_cipher) != 0) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
     }
 
     return err;
@@ -527,19 +547,19 @@ srs_error_t SrsSRTP::protect_rtp2(void* rtp_hdr, int* len_ptr)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Wrap error code.
-    if (srtp_protect(srtp_ctx, rtp_hdr, len_ptr) != 0) {
+    if (srtp_protect(send_ctx_, rtp_hdr, len_ptr) != 0) {
         return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
     }
 
     return err;
 }
 
-srs_error_t SrsSRTP::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
     srs_error_t err = srs_success;
 
-    memcpy(out_buf, in_buf, nb_out_buf);
-    srtp_err_status_t r0 = srtp_unprotect(srtp_ctx, out_buf, &nb_out_buf);
+    memcpy(plaintext, cipher, nb_plaintext);
+    srtp_err_status_t r0 = srtp_unprotect(recv_ctx_, plaintext, &nb_plaintext);
     if (r0 != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "unprotect r0=%u", r0);
     }
@@ -547,26 +567,13 @@ srs_error_t SrsSRTP::unprotect_rtp(char* out_buf, const char* in_buf, int& nb_ou
     return err;
 }
 
-srs_error_t SrsSRTP::protect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
+srs_error_t SrsSRTP::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
     srs_error_t err = srs_success;
 
-    memcpy(out_buf, in_buf, nb_out_buf);
+    memcpy(plaintext, cipher, nb_plaintext);
     // TODO: FIXME: Wrap error code.
-    if (srtp_protect_rtcp(srtp_ctx, out_buf, &nb_out_buf) != 0) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
-    }
-
-    return err;
-}
-
-srs_error_t SrsSRTP::unprotect_rtcp(char* out_buf, const char* in_buf, int& nb_out_buf)
-{
-    srs_error_t err = srs_success;
-
-    memcpy(out_buf, in_buf, nb_out_buf);
-    // TODO: FIXME: Wrap error code.
-    if (srtp_unprotect_rtcp(srtp_ctx, out_buf, &nb_out_buf) != srtp_err_status_ok) {
+    if (srtp_unprotect_rtcp(recv_ctx_, plaintext, &nb_plaintext) != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
     }
 
