@@ -917,7 +917,7 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t 
     req = r;
 
     if (twcc_ext_id_ != 0) {
-        extension_map_.register_by_uri(twcc_ext_id_, kTWCCExt);
+        extension_types_.register_by_uri(twcc_ext_id_, kTWCCExt);
     }
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
@@ -1224,7 +1224,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 
     if (true) {
         pkt->set_decode_handler(this);
-        pkt->set_rtp_header_extensions(&extension_map_);
+        pkt->set_extension_types(&extension_types_);
         pkt->shared_msg = new SrsSharedPtrMessage();
         pkt->shared_msg->wrap(buf, nb_buf);
 

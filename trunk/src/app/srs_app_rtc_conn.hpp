@@ -277,7 +277,7 @@ private:
     uint8_t twcc_ext_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
-    SrsRtpHeaderExtensionMap extension_map_;
+    SrsRtpExtensionTypes extension_types_;
 public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
