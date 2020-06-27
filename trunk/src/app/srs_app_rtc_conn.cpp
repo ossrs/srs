@@ -1196,6 +1196,25 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         return err;
     }
 
+    if (0 != twcc_ext_id_) {
+        SrsBuffer b0(data, nb_data); SrsRtpHeader h0;
+        h0.set_decode_only_header(true);
+        h0.set_extensions(&extension_types_);
+        if ((err = h0.decode(&b0)) != srs_success) {
+            return srs_error_wrap(err, "process twcc to decode rtp header");
+        }
+
+        uint16_t twcc_sn = 0;
+        if ((err = h0.get_twcc_sequence_number(twcc_sn)) == srs_success) {
+            if((err = on_twcc(twcc_sn)) != srs_success) {
+                return srs_error_wrap(err, "fail to process twcc packet");
+            }
+        } else {
+            // TODO: FIXME: process no twcc seq number for audio ssrc
+            srs_error_reset(err);
+        }
+    }
+
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
     char* unprotected_buf = new char[kRtpPacketSize];
@@ -1231,18 +1250,6 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         SrsBuffer b(buf, nb_buf);
         if ((err = pkt->decode(&b)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
-        }
-
-        if (0 != twcc_ext_id_) {
-            uint16_t twcc_sn = 0;
-            if ((err = pkt->header.get_twcc_sequence_number(twcc_sn)) == srs_success) {
-                if((err = on_twcc(twcc_sn))) {
-                    return srs_error_wrap(err, "fail to process twcc packet");
-                }
-            } else {
-                // TODO: FIXME: process no twcc seq number for audio ssrc
-                srs_error_reset(err);
-            }
         }
     }
 
