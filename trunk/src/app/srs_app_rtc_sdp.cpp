@@ -206,6 +206,40 @@ srs_error_t SrsSSRCInfo::encode(std::ostringstream& os)
     return err;
 }
 
+SrsSSRCGroup::SrsSSRCGroup()
+{
+}
+
+SrsSSRCGroup::~SrsSSRCGroup()
+{
+}
+
+SrsSSRCGroup::SrsSSRCGroup(const std::string& semantic, const std::vector<uint32_t>& ssrcs)
+{
+    semantic_ = semantic;
+    ssrcs_ = ssrcs;
+}
+
+srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
+{
+    srs_error_t err = srs_success;
+
+    if (semantic_.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid semantics");
+    }
+
+    if (ssrcs_.size() == 0) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrcs");
+    }
+
+    os << "a=ssrc-group:" << semantic_;
+    for (int i = 0; i < (int)ssrcs_.size(); i++) {
+        os << " " << ssrcs_[i];
+    }
+
+    return err;
+}
+
 SrsMediaPayloadType::SrsMediaPayloadType(int payload_type)
 {
     payload_type_ = payload_type;
@@ -589,6 +623,7 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string& value)
         ssrc_info.cname_ = ssrc_value;
         ssrc_info.ssrc_ = ssrc;
     } else if (ssrc_attr == "msid") {
+        // @see: https://tools.ietf.org/html/draft-alvestrand-mmusic-msid-00#section-2
         std::vector<std::string> vec = split_str(ssrc_value, " ");
         if (vec.empty()) {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc line=%s", value.c_str());
@@ -618,9 +653,22 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc_group(const std::string& value)
     std::string semantics;
     FETCH(is, semantics);
 
-    // TODO: ssrc group process
-    if (semantics == "FID") {
+    std::string ssrc_ids = is.str().substr(is.tellg());
+    skip_first_spaces(ssrc_ids);
+
+    std::vector<std::string> vec = split_str(ssrc_ids, " ");
+    if (vec.size() == 0) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc-group line=%s", value.c_str());
     }
+
+    std::vector<uint32_t> ssrcs;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::istringstream in_stream(vec[i]);
+        uint32_t ssrc = 0;
+        in_stream >> ssrc;
+        ssrcs.push_back(ssrc);
+    }
+    ssrc_groups_.push_back(SrsSSRCGroup(semantics, ssrcs));
 
     return err;
 }

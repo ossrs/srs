@@ -78,6 +78,17 @@ public:
 
 class SrsSSRCGroup
 {
+public:
+    SrsSSRCGroup();
+    SrsSSRCGroup(const std::string& usage, const std::vector<uint32_t>& ssrcs);
+    virtual ~SrsSSRCGroup();
+public:
+    srs_error_t encode(std::ostringstream& os);
+public:
+    // e.g FIX, FEC, SIM.
+    std::string semantic_;
+    // SSRCs of this type. 
+    std::vector<uint32_t> ssrcs_;
 };
 
 struct H264SpecificParam
