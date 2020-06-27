@@ -175,7 +175,7 @@ private:
     uint32_t ssrc;
     uint32_t csrc[15];
     SrsRtpExtensions extensions_;
-    bool decode_only_header_;
+    bool ignore_padding_;
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
@@ -200,7 +200,7 @@ public:
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
     void set_extensions(const SrsRtpExtensionTypes* extmap);
-    void set_decode_only_header(bool only_header);
+    void ignore_padding(bool v);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
 };

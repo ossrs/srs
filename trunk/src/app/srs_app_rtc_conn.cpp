@@ -1196,21 +1196,24 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         return err;
     }
 
+    // We must parse the TWCC from RTP header before SRTP unprotect, because:
+    //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
+    //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
+    // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
     if (0 != twcc_ext_id_) {
         SrsBuffer b0(data, nb_data); SrsRtpHeader h0;
-        h0.set_decode_only_header(true);
+        h0.ignore_padding(true);
         h0.set_extensions(&extension_types_);
         if ((err = h0.decode(&b0)) != srs_success) {
-            return srs_error_wrap(err, "process twcc to decode rtp header");
+            return srs_error_wrap(err, "twcc decode header");
         }
 
         uint16_t twcc_sn = 0;
         if ((err = h0.get_twcc_sequence_number(twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
-                return srs_error_wrap(err, "fail to process twcc packet");
+                return srs_error_wrap(err, "on twcc");
             }
         } else {
-            // TODO: FIXME: process no twcc seq number for audio ssrc
             srs_error_reset(err);
         }
     }

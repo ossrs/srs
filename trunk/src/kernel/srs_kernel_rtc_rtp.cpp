@@ -319,7 +319,7 @@ SrsRtpHeader::SrsRtpHeader()
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
-    decode_only_header_ = false;
+    ignore_padding_  = false;
 }
 
 SrsRtpHeader::~SrsRtpHeader()
@@ -377,7 +377,7 @@ srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
         }
     }
 
-    if (padding && !buf->empty() && !decode_only_header_) {
+    if (padding && !ignore_padding_ && !buf->empty()) {
         padding_length = *(reinterpret_cast<uint8_t*>(buf->data() + buf->size() - 1));
         if (!buf->require(padding_length)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "padding requires %d bytes", padding_length);
@@ -449,9 +449,9 @@ void SrsRtpHeader::set_extensions(const SrsRtpExtensionTypes* extmap)
     }
 }
 
-void SrsRtpHeader::set_decode_only_header(bool only_header)
+void SrsRtpHeader::ignore_padding(bool v)
 {
-    decode_only_header_ = only_header;
+    ignore_padding_ = v;
 }
 
 srs_error_t SrsRtpHeader::get_twcc_sequence_number(uint16_t& twcc_sn)
