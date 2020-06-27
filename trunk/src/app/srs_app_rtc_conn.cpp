@@ -130,14 +130,14 @@ SrsSecurityTransport::~SrsSecurityTransport()
     }
 }
 
-srs_error_t SrsSecurityTransport::initialize(SrsRequest* r)
+srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig* cfg)
 {
-    return dtls_->initialize(r);
+    return dtls_->initialize(cfg->dtls_role, cfg->dtls_version);
 }
 
-srs_error_t SrsSecurityTransport::do_handshake()
+srs_error_t SrsSecurityTransport::start_active_handshake()
 {
-    return dtls_->do_handshake();
+    return dtls_->start_active_handshake();
 }
 
 srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size) 
@@ -1862,7 +1862,8 @@ srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool 
     is_publisher_ = is_publisher;
     source_ = source;
 
-    if ((err = transport_->initialize(req)) != srs_success) {
+    SrsSessionConfig* cfg = &local_sdp.session_config_;
+    if ((err = transport_->initialize(cfg)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
@@ -1872,7 +1873,8 @@ srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool 
 
     blackhole = _srs_config->get_rtc_server_black_hole();
 
-    srs_trace("RTC init session, timeout=%dms, blackhole=%d", srsu2msi(sessionStunTimeout), blackhole);
+    srs_trace("RTC init session, DTLS(role=%s, version=%s), timeout=%dms, blackhole=%d",
+        cfg->dtls_role.c_str(), cfg->dtls_version.c_str(), srsu2msi(sessionStunTimeout), blackhole);
 
     if (blackhole) {
         string blackhole_ep = _srs_config->get_rtc_server_black_hole_addr();
@@ -2150,6 +2152,10 @@ srs_error_t SrsRtcSession::on_binding_request(SrsStunPacket* r)
 
         state_ = DOING_DTLS_HANDSHAKE;
         srs_trace("rtc session=%s, STUN done, waitting DTLS handshake.", id().c_str());
+
+        if((err = transport_->start_active_handshake()) != srs_success) {
+            return srs_error_wrap(err, "fail to dtls handshake");
+        }
     }
 
     if (blackhole && blackhole_addr && blackhole_stfd) {

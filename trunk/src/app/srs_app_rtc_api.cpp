@@ -169,6 +169,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+
     if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
         return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
@@ -369,7 +374,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
         } else if (remote_media_desc.session_info_.setup_ == "passive") {
             local_media_desc.session_info_.setup_ = "active";
         } else if (remote_media_desc.session_info_.setup_ == "actpass") {
-            local_media_desc.session_info_.setup_ = "passive";
+            local_media_desc.session_info_.setup_ = local_sdp.session_config_.dtls_role;
         } else {
             // @see: https://tools.ietf.org/html/rfc4145#section-4.1
             // The default value of the setup attribute in an offer/answer exchange
@@ -527,6 +532,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
 
     SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+
     if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
         return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
@@ -746,7 +756,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
         } else if (remote_media_desc.session_info_.setup_ == "passive") {
             local_media_desc.session_info_.setup_ = "active";
         } else if (remote_media_desc.session_info_.setup_ == "actpass") {
-            local_media_desc.session_info_.setup_ = "passive";
+            local_media_desc.session_info_.setup_ = local_sdp.session_config_.dtls_role;
         } else {
             // @see: https://tools.ietf.org/html/rfc4145#section-4.1
             // The default value of the setup attribute in an offer/answer exchange

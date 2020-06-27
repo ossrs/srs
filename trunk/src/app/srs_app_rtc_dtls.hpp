@@ -62,6 +62,22 @@ public:
 // @global config object.
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
+// @remark: play the role of DTLS_CLIENT, will send handshake
+// packet first.
+enum SrsDtlsRole {
+    SrsDtlsRoleClient,
+    SrsDtlsRoleServer
+};
+
+// @remark: DTLS_10 will all be ignored, and only DTLS1_2 will be accepted,
+// DTLS_10 Support will be completely removed in M84 or later.
+// TODO(https://bugs.webrtc.org/10261).
+enum SrsDtlsVersion {
+    SrsDtlsVersionAuto = -1,
+    SrsDtlsVersion1_0,
+    SrsDtlsVersion1_2
+};
+
 class ISrsDtlsCallback
 {
 public:
@@ -85,19 +101,26 @@ private:
     BIO* bio_out;
 
     ISrsDtlsCallback* callback;
-
     bool handshake_done;
+
+    // @remark: dtls_role_ default value is DTLS_SERVER.
+    SrsDtlsRole role_;
+    // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
+    SrsDtlsVersion version_;
 public:
     SrsDtls(ISrsDtlsCallback* callback);
     virtual ~SrsDtls();
 public:
-    srs_error_t initialize(SrsRequest* r);  
-    srs_error_t do_handshake();
+    srs_error_t initialize(std::string role, std::string version);
+    // As DTLS client, start handshake actively, send the ClientHello packet.
+    srs_error_t start_active_handshake();
+    // When got DTLS packet, may handshake packets or application data.
+    // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 private:
     SSL_CTX* build_dtls_ctx();
-    srs_error_t handshake();
+    srs_error_t do_handshake();
 };
 
 class SrsSRTP

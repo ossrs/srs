@@ -34,6 +34,13 @@
 #include <map>
 const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
+struct SrsSessionConfig
+{
+public:
+    std::string dtls_role;
+    std::string dtls_version;
+};
+
 class SrsSessionInfo
 {
 public:
@@ -212,6 +219,7 @@ public:
     int64_t end_time_;
 
     SrsSessionInfo session_info_;
+    SrsSessionConfig session_config_;
 
     std::vector<std::string> groups_;
     std::string group_policy_;

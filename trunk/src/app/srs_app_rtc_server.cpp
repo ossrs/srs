@@ -323,16 +323,6 @@ srs_error_t SrsRtcServer::create_session(
         }
     }
 
-    std::string cid = _srs_context->get_id();
-    SrsRtcSession* session = new SrsRtcSession(this);
-    if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
-        srs_freep(session);
-        return srs_error_wrap(err, "init");
-    }
-
-    map_username_session.insert(make_pair(username, session));
-    *psession = session;
-
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
@@ -348,9 +338,21 @@ srs_error_t SrsRtcServer::create_session(
         }
     }
 
+    SrsRtcSession* session = new SrsRtcSession(this);
     session->set_remote_sdp(remote_sdp);
+    // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);
     session->set_state(WAITING_STUN);
+
+    std::string cid = _srs_context->get_id();
+    // Before session initialize, we must setup the local SDP.
+    if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "init");
+    }
+
+    map_username_session.insert(make_pair(username, session));
+    *psession = session;
 
     return err;
 }

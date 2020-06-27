@@ -117,9 +117,9 @@ public:
     SrsSecurityTransport(SrsRtcSession* s);
     virtual ~SrsSecurityTransport();
 
-    srs_error_t initialize(SrsRequest* r);
-
-    srs_error_t do_handshake();
+    srs_error_t initialize(SrsSessionConfig* cfg);
+    // When play role of dtls client, it send handshake. 
+    srs_error_t start_active_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
 public:
     // Encrypt the input plaintext to output cipher with nb_cipher bytes.
@@ -377,6 +377,7 @@ public:
     void switch_to_context();
     std::string context_id();
 public:
+    // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, std::string context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);

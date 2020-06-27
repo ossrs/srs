@@ -3935,7 +3935,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "keep_sequence") {
+                        && m != "keep_sequence" && m != "dtls_role" && m != "dtls_version") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5038,6 +5038,42 @@ bool SrsConfig::get_rtc_keep_sequence(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+std::string SrsConfig::get_rtc_dtls_role(string vhost)
+{
+    static std::string DEFAULT = "passive";
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("dtls_role");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+std::string SrsConfig::get_rtc_dtls_version(string vhost)
+{
+    static std::string DEFAULT = "auto";
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("dtls_version");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
 bool SrsConfig::get_rtc_nack_enabled(string vhost)
 {
     static bool DEFAULT = true;
@@ -5078,6 +5114,7 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
     }
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost, bool try_default_vhost)
 {
     srs_assert(root);

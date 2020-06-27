@@ -547,6 +547,8 @@ public:
     bool get_rtc_keep_sequence(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
+    std::string get_rtc_dtls_role(std::string vhost);
+    std::string get_rtc_dtls_version(std::string vhost);
 
 // vhost specified section
 public:
