@@ -1191,8 +1191,8 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
-        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
-        simulate_drop_packet(&h0, nb_data);
+        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.decode(&b);
+        simulate_drop_packet(&h, nb_data);
         return err;
     }
 
@@ -1201,15 +1201,15 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
     // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
     if (0 != twcc_ext_id_) {
-        SrsBuffer b0(data, nb_data); SrsRtpHeader h0;
-        h0.ignore_padding(true);
-        h0.set_extensions(&extension_types_);
-        if ((err = h0.decode(&b0)) != srs_success) {
+        SrsBuffer b(data, nb_data); SrsRtpHeader h;
+        h.ignore_padding(true);
+        h.set_extensions(&extension_types_);
+        if ((err = h.decode(&b)) != srs_success) {
             return srs_error_wrap(err, "twcc decode header");
         }
 
         uint16_t twcc_sn = 0;
-        if ((err = h0.get_twcc_sequence_number(twcc_sn)) == srs_success) {
+        if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
                 return srs_error_wrap(err, "on twcc");
             }
@@ -1223,9 +1223,9 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     char* unprotected_buf = new char[kRtpPacketSize];
     if ((err = session_->transport_->unprotect_rtp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
-        SrsBuffer b0(data, nb_data); SrsRtpHeader h0; h0.decode(&b0);
-        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h0.get_marker(), h0.get_payload_type(),
-            h0.get_sequence(), h0.get_timestamp(), h0.get_ssrc(), h0.get_padding(), nb_data - b0.pos());
+        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.decode(&b);
+        err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h.get_marker(), h.get_payload_type(),
+            h.get_sequence(), h.get_timestamp(), h.get_ssrc(), h.get_padding(), nb_data - b.pos());
 
         srs_freepa(unprotected_buf);
         return err;
