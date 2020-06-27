@@ -341,7 +341,7 @@ public:
     PsFrameBufferEnum InsertPacket(const SrsPsRtpPacket &packet, char *buf, int size, bool* retransmitted);
     void ReleaseFrame(SrsPsFrameBuffer* frame);
     bool FoundFrame(uint32_t& time_stamp);
-    bool GetPsFrame(char *buffer, int &size, const uint32_t time_stamp);
+    bool GetPsFrame(char **buffer, int &buf_len, int &size, const uint32_t time_stamp);
     void SetDecodeErrorMode(PsDecodeErrorMode error_mode);
     void SetNackMode(PsNackMode mode,int64_t low_rtt_nack_threshold_ms,
                                     int64_t high_rtt_nack_threshold_ms);
