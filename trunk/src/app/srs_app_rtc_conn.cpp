@@ -1715,11 +1715,16 @@ void SrsRtcPublisher::request_keyframe()
 srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
+
     // TODO: FIXME: Check error.
     send_rtcp_rr(video_ssrc, video_queue_);
     send_rtcp_rr(audio_ssrc, audio_queue_);
     send_rtcp_xr_rrtr(video_ssrc);
     send_rtcp_xr_rrtr(audio_ssrc);
+
+    // TODO: FIXME: Check error.
+    // We should not depends on the received packet,
+    // instead we should send feedback every Nms.
     send_periodic_twcc();
     
     return err;
