@@ -57,6 +57,7 @@ SrsBasicRtmpClient::~SrsBasicRtmpClient()
     close();
     srs_freep(kbps);
     srs_freep(clk);
+    srs_freep(req);
 }
 
 srs_error_t SrsBasicRtmpClient::connect()
