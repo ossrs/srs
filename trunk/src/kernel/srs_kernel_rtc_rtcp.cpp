@@ -682,15 +682,15 @@ srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::SrsRtcpTWCCChunk& chu
     pkt_len += sizeof(encoded_chunk);
 
     if (shift) {
+        chunk.size -= size;
         chunk.all_same = true;
         chunk.has_large_delta = false;
-        for (i = size; i < chunk.size; ++i) {
-            delta_size = chunk.delta_sizes[i];
-            chunk.delta_sizes[i - size] = delta_size;
+        for (i = 0; i < chunk.size; ++i) {
+            delta_size = chunk.delta_sizes[i + size];
+            chunk.delta_sizes[i] = delta_size;
             chunk.all_same = (chunk.all_same && delta_size == chunk.delta_sizes[0]);
             chunk.has_large_delta = chunk.has_large_delta || delta_size == kTwccFbLargeRecvDeltaBytes;
         }
-        chunk.size -= size;
     }
 
     return srs_success;
