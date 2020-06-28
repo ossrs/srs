@@ -290,6 +290,7 @@ private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);
     srs_error_t on_nack(SrsRtpPacket2* pkt);
+    srs_error_t send_periodic_twcc();
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:

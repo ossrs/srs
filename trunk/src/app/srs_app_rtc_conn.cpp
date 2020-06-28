@@ -1130,31 +1130,8 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 }
 
 srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
-    srs_error_t err = srs_success;
     srs_utime_t now = srs_get_system_time();
-    rtcp_twcc_.recv_packet(sn, now);
-    if(0 == last_twcc_feedback_time_) {
-        last_twcc_feedback_time_ = now;
-        return err;
-    }
-    srs_utime_t diff = now - last_twcc_feedback_time_;
-    if( diff >= 50 * SRS_UTIME_MILLISECONDS) {
-        last_twcc_feedback_time_ = now;
-        char pkt[kRtcpPacketSize];
-        SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
-        SrsAutoFree(SrsBuffer, buffer);
-        rtcp_twcc_.set_feedback_count(twcc_fb_count_);
-        twcc_fb_count_++;
-        if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
-            return srs_error_wrap(err, "fail to generate twcc feedback packet");
-        }
-        int nb_protected_buf = buffer->pos();
-        char protected_buf[kRtpPacketSize];
-        if (session_->transport_->protect_rtcp(pkt, protected_buf, nb_protected_buf) == srs_success) {
-            session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-        }
-    }
-    return err;
+    return rtcp_twcc_.recv_packet(sn, now);
 }
 srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 {
@@ -1351,6 +1328,35 @@ srs_error_t SrsRtcPublisher::on_nack(SrsRtpPacket2* pkt)
     ring_queue->set(seq, pkt->copy());
     // send_nack
     check_send_nacks(nack_receiver, ssrc);
+
+    return err;
+}
+
+srs_error_t SrsRtcPublisher::send_periodic_twcc()
+{
+    srs_error_t err = srs_success;
+    srs_utime_t now = srs_get_system_time();
+    if(0 == last_twcc_feedback_time_) {
+        last_twcc_feedback_time_ = now;
+        return err;
+    }
+    srs_utime_t diff = now - last_twcc_feedback_time_;
+    if( diff >= 50 * SRS_UTIME_MILLISECONDS) {
+        last_twcc_feedback_time_ = now;
+        char pkt[kRtcpPacketSize];
+        SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
+        SrsAutoFree(SrsBuffer, buffer);
+        rtcp_twcc_.set_feedback_count(twcc_fb_count_);
+        twcc_fb_count_++;
+        if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
+            return srs_error_wrap(err, "fail to generate twcc feedback packet");
+        }
+        int nb_protected_buf = buffer->pos();
+        char protected_buf[kRtpPacketSize];
+        if (session_->transport_->protect_rtcp(pkt, protected_buf, nb_protected_buf) == srs_success) {
+            session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+        }
+    }
 
     return err;
 }
@@ -1714,6 +1720,7 @@ srs_error_t SrsRtcPublisher::notify(int type, srs_utime_t interval, srs_utime_t 
     send_rtcp_rr(audio_ssrc, audio_queue_);
     send_rtcp_xr_rrtr(video_ssrc);
     send_rtcp_xr_rrtr(audio_ssrc);
+    send_periodic_twcc();
     
     return err;
 }
