@@ -3935,7 +3935,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "keep_sequence" && m != "dtls_role" && m != "dtls_version") {
+                        && m != "dtls_role" && m != "dtls_version") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5013,24 +5013,6 @@ bool SrsConfig::get_rtc_stun_strict_check(string vhost)
     }
 
     conf = conf->get("stun_strict_check");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
-
-bool SrsConfig::get_rtc_keep_sequence(string vhost)
-{
-    static bool DEFAULT = false;
-
-    SrsConfDirective* conf = get_rtc(vhost);
-
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("keep_sequence");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

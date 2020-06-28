@@ -191,18 +191,15 @@ protected:
 private:
     // TODO: FIXME: How to handle timestamp overflow?
     // Information for audio.
-    uint16_t audio_sequence;
     uint32_t audio_ssrc;
     uint16_t audio_payload_type;
     // Information for video.
-    uint16_t video_sequence;
     uint16_t video_payload_type;
     uint32_t video_ssrc;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* audio_queue_;
     SrsRtpRingBuffer* video_queue_;
     // Simulators.
-    uint16_t sequence_delta;
     int nn_simulate_nack_drop;
 private:
     // For merged-write messages.
@@ -210,8 +207,6 @@ private:
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
-    // Whether keep original sequence number.
-    bool keep_sequence_;
 public:
     SrsRtcPlayer(SrsRtcSession* s, std::string parent_cid);
     virtual ~SrsRtcPlayer();
