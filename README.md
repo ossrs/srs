@@ -130,6 +130,7 @@ Other important wiki:
 
 ## V3 changes
 
+* v3.0, 2021-10-08, Fix [#2606](https://github.com/ossrs/srs/issues/2606): Memory leak for RTMP client, pick from 4.0. v3.0.170
 * <strong>v3.0, 2021-08-14, [3.0 release8(3.0.168)](https://github.com/ossrs/srs/releases/tag/v3.0-r8) released. 124469 lines.</strong>
 * <strong>v3.0, 2021-07-04, [3.0 release7(3.0.164)](https://github.com/ossrs/srs/releases/tag/v3.0-r7) released. 123463 lines.</strong>
 * v3.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 3.0.164
