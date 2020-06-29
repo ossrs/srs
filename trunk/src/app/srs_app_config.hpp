@@ -546,6 +546,7 @@ public:
     bool get_rtc_stun_strict_check(std::string vhost);
     std::string get_rtc_dtls_role(std::string vhost);
     std::string get_rtc_dtls_version(std::string vhost);
+    int get_rtc_drop_for_pt(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
 

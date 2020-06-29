@@ -3935,7 +3935,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "dtls_role" && m != "dtls_version") {
+                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5054,6 +5054,23 @@ std::string SrsConfig::get_rtc_dtls_version(string vhost)
     }
 
     return conf->arg0();
+}
+
+int SrsConfig::get_rtc_drop_for_pt(string vhost)
+{
+    static int DEFAULT = 0;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("drop_for_pt");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_rtc_nack_enabled(string vhost)

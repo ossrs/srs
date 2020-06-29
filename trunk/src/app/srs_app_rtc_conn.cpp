@@ -855,6 +855,7 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     source = NULL;
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
+    pt_to_drop_ = 0;
 
     nn_audio_frames = 0;
     twcc_ext_id_ = 0;
@@ -892,9 +893,10 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t 
     }
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
+    pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(session_->req->vhost);
 
-    srs_trace("RTC publisher video(ssrc=%u), audio(ssrc=%u), nack=%d",
-        video_ssrc, audio_ssrc, nack_enabled_);
+    srs_trace("RTC publisher video(ssrc=%u), audio(ssrc=%u), nack=%d, pt-drop=%u",
+        video_ssrc, audio_ssrc, nack_enabled_, pt_to_drop_);
 
     if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
@@ -1133,6 +1135,7 @@ srs_error_t SrsRtcPublisher::on_twcc(uint16_t sn) {
     srs_utime_t now = srs_get_system_time();
     return rtcp_twcc_.recv_packet(sn, now);
 }
+
 srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
@@ -1144,18 +1147,21 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         return err;
     }
 
+    // Decode the header first.
+    SrsRtpHeader h;
+    if (pt_to_drop_ && twcc_ext_id_) {
+        SrsBuffer b(data, nb_data);
+        h.ignore_padding(true); h.set_extensions(&extension_types_);
+        if ((err = h.decode(&b)) != srs_success) {
+            return srs_error_wrap(err, "twcc decode header");
+        }
+    }
+
     // We must parse the TWCC from RTP header before SRTP unprotect, because:
     //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
     //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
     // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
-    if (0 != twcc_ext_id_) {
-        SrsBuffer b(data, nb_data); SrsRtpHeader h;
-        h.ignore_padding(true);
-        h.set_extensions(&extension_types_);
-        if ((err = h.decode(&b)) != srs_success) {
-            return srs_error_wrap(err, "twcc decode header");
-        }
-
+    if (twcc_ext_id_) {
         uint16_t twcc_sn = 0;
         if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
@@ -1164,6 +1170,11 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
         } else {
             srs_error_reset(err);
         }
+    }
+
+    // If payload type is configed to drop, ignore this packet.
+    if (pt_to_drop_ && pt_to_drop_ == h.get_payload_type()) {
+        return err;
     }
 
     // Decrypt the cipher to plaintext RTP data.

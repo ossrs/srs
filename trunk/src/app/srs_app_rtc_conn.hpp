@@ -251,6 +251,9 @@ private:
     SrsRtcSession* session_;
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
+    uint16_t pt_to_drop_;
+    // Whether enabled nack.
+    bool nack_enabled_;
 private:
     bool request_keyframe_;
     SrsRtpRingBuffer* video_queue_;
@@ -260,8 +263,6 @@ private:
 private:
     SrsRequest* req;
     SrsRtcSource* source;
-    // Whether enabled nack.
-    bool nack_enabled_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
