@@ -52,7 +52,7 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_sip_stack.hpp>
 
-//#define W_PS_FILE
+#define W_PS_FILE
 //#define W_VIDEO_FILE
 //#define W_AUDIO_FILE
 //#define W_UNKONW_FILE
@@ -489,10 +489,19 @@ SrsPsStreamDemixer::SrsPsStreamDemixer(ISrsPsStreamHander *h, std::string id, bo
     wait_first_keyframe = k;
     channel_id = id;
     first_keyframe_flag = false;
+
+    video_es_id = 0;
+    video_es_type = 0;
+    audio_es_id = 0;
+    audio_es_type = 0;
+    audio_check_aac_try_count = 0;
+
+    aac = new SrsRawAacStream();
 }
 
 SrsPsStreamDemixer::~SrsPsStreamDemixer()
 {
+    srs_freep(aac);
 }
 
 bool SrsPsStreamDemixer::can_send_ps_av_packet(){
@@ -503,6 +512,58 @@ bool SrsPsStreamDemixer::can_send_ps_av_packet(){
        return true;
 
     return false;
+}
+
+std::string SrsPsStreamDemixer::get_ps_map_type_str(uint8_t type)
+{
+    switch(type){
+        case STREAM_TYPE_VIDEO_MPEG1:     //0x01
+           return "mpeg1";
+        case STREAM_TYPE_VIDEO_MPEG2://     0x02
+            return "mpeg2";
+        case STREAM_TYPE_AUDIO_MPEG1://     0x03
+            return "mpeg1";
+        case STREAM_TYPE_AUDIO_MPEG2://     0x04
+            return "mpeg2";
+        case STREAM_TYPE_PRIVATE_SECTION:// 0x05
+            return "private_section";
+        case STREAM_TYPE_PRIVATE_DATA://    0x06
+            return "private_data";
+        case STREAM_TYPE_AUDIO_AAC://       0x0f
+            return "aac";
+        case STREAM_TYPE_VIDEO_MPEG4://     0x10
+            return "mpeg4";
+        case STREAM_TYPE_VIDEO_H264://      0x1b
+            return "h264";
+        case STREAM_TYPE_VIDEO_HEVC://      0x24
+            return "hevc";
+        case STREAM_TYPE_VIDEO_CAVS://      0x42
+            return "cavs";
+        case STREAM_TYPE_VIDEO_SAVC://      0x80
+            return "savc";
+
+        case STREAM_TYPE_AUDIO_AC3://       0x81
+            return "ac3";
+
+        case STREAM_TYPE_AUDIO_G711://      0x90
+            return "g711";
+        case STREAM_TYPE_AUDIO_G711ULAW://    0x91
+            return "g711ulaw";
+        case STREAM_TYPE_AUDIO_G722_1://    0x92
+            return "g722_1";
+        case STREAM_TYPE_AUDIO_G723_1://    0x93
+            return "g723_1";
+        case STREAM_TYPE_AUDIO_G726://      0x96
+            return "g726";
+        case STREAM_TYPE_AUDIO_G729_1://    0x99
+            return "g729_1";
+        case STREAM_TYPE_AUDIO_SVAC://      0x9b
+            return "svac";
+        case STREAM_TYPE_AUDIO_PCM://       0x9c
+            return "pcm";
+        default:
+            return "unknow";
+    }
 }
 
 int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
@@ -532,6 +593,18 @@ int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
 	return val;
 }
 
+bool SrsPsStreamDemixer::is_aac(){
+    // SrsBuffer  *avs = new SrsBuffer(stream->bytes(), stream->length());
+    // SrsAutoFree(SrsBuffer, avs);
+    // if (!avs->empty()) {
+    //     char* frame = NULL;
+    //     int frame_size = 0;
+    //     SrsRawAacStreamCodec codec;
+    //     if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
+    //         return srs_error_wrap(err, "demux adts");
+    //     }
+    return true;
+}
 
 srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc)
 {
@@ -594,12 +667,61 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             //program stream map 
 
 		    SrsPsMapPacket* psmap_pack = (SrsPsMapPacket*)next_ps_pack;
-          
             psmap_pack->length = htons(psmap_pack->length);
           
             next_ps_pack = next_ps_pack + psmap_pack->length + sizeof(SrsPsMapPacket);
             complete_len = complete_len + psmap_pack->length + sizeof(SrsPsMapPacket);
             incomplete_len = ps_size - complete_len;
+
+            //parse ps map
+            uint16_t psm_length=0, ps_info_length=0, es_map_length=0;
+            char *p = (char*)psmap_pack + sizeof(SrsPsMapPacket);
+
+            SrsBuffer buf(p, (int)psmap_pack->length);
+
+            psm_length =(int)psmap_pack->length;
+            buf.read_1bytes();
+            buf.read_1bytes();
+
+            ps_info_length = buf.read_2bytes();
+
+            /* skip program_stream_info */
+            buf.skip(ps_info_length);
+            /*es_map_length = */buf.read_2bytes();
+            /* Ignore es_map_length, trust psm_length */
+            es_map_length = psm_length - ps_info_length - 10;
+        
+            // /* at least one es available? */
+            while (es_map_length >= 4) {
+                uint8_t type      = buf.read_1bytes();
+                uint8_t es_id     = buf.read_1bytes();
+                uint16_t es_info_length = buf.read_2bytes();
+                std::string s_type = get_ps_map_type_str(type);
+
+                /* remember mapping from stream id to stream type */
+                if (es_id >= PS_AUDIO_ID && es_id <= PS_AUDIO_ID_END){
+                    if (audio_es_type != type){
+                        srs_trace("gb28181: ps map audio es_type=%s(%x), es_id=%0x, es_info_length=%d", 
+                         s_type.c_str(), type, es_id, es_info_length);
+                    }
+                    
+                    audio_es_id = es_id;
+                    audio_es_type = type;
+                }else if (es_id >= PS_VIDEO_ID && es_id <= PS_VIDEO_ID_END){
+                    
+                    if (video_es_type != type){
+                        srs_trace("gb28181: ps map video es_type=%s(%x), es_id=%0x, es_info_length=%d", 
+                         s_type.c_str(), type, es_id, es_info_length);
+                    }
+
+                    video_es_id = es_id;
+                    video_es_type = type;
+                }
+           
+                /* skip program_stream_info */
+                buf.skip(es_info_length);
+                es_map_length -= 4 + es_info_length;
+            }
     
         }
         else if(next_ps_pack
@@ -676,8 +798,37 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
 			int payload_len = packlength - 2 - 1 - pse_pack->stuffing_length;
             next_ps_pack = next_ps_pack + 9 + pse_pack->stuffing_length;
 
-            audio_stream.append(next_ps_pack, payload_len);
+            //if ps map is not aac, but stream  many be aac adts , try update type, 
+            //TODO: dahua audio ps map type always is 0x90(g711)
 
+            uint8_t p1 = (uint8_t)(next_ps_pack[0]);
+            uint8_t p2 = (uint8_t)(next_ps_pack[1]);
+            uint8_t p3 = (uint8_t)(next_ps_pack[2]);
+            uint8_t p4 = (uint8_t)(next_ps_pack[3]);
+
+            if (audio_enable && audio_es_type != STREAM_TYPE_AUDIO_AAC &&
+                (p1 & 0xFF) == 0xFF &&  (p2 & 0xF0) == 0xF0) {
+                
+                //try update aac type
+                SrsBuffer avs(next_ps_pack, payload_len);
+                char* frame = NULL;
+                int frame_size = 0;
+                SrsRawAacStreamCodec codec;
+
+                srs_error_t err2 = srs_success;
+                if ((err2 = aac->adts_demux(&avs, &frame, &frame_size, codec)) != srs_success) {
+                    srs_info("gb28181: client_id %s, audio data not aac adts (%#x/%u) %02x %02x %02x %02x\n", 
+                             channel_id.c_str(), ssrc, timestamp, p1, p2, p3, p4);  
+                    srs_error_reset(err);
+                }else{
+                    srs_warn("gb28181: client_id %s, ps map is not aac (%s) type, but stream many be aac adts, try update type",
+                         channel_id.c_str(), get_ps_map_type_str(audio_es_type).c_str());
+                    audio_es_type = STREAM_TYPE_AUDIO_AAC;
+                }
+            }
+         
+            audio_stream.append(next_ps_pack, payload_len);
+            
 #ifdef W_AUDIO_FILE            
             if (!audio_fw.is_open()) {
                  std::string filename = "test_audio_" + channel_id + ".aac";
@@ -691,7 +842,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             incomplete_len = ps_size - complete_len;
 
             if (hander && audio_enable && audio_stream.length() && can_send_ps_av_packet()) {
-                if ((err = hander->on_rtp_audio(&audio_stream, audio_pts)) != srs_success) {
+                if ((err = hander->on_rtp_audio(&audio_stream, audio_pts, audio_es_type)) != srs_success) {
                     return srs_error_wrap(err, "process ps audio packet");
                 }
             }
@@ -725,7 +876,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             first_keyframe_flag = false;
             srs_trace("gb28181: client_id %s, unkonw ps data (%#x/%u) %02x %02x %02x %02x\n", 
                 channel_id.c_str(), ssrc, timestamp,  
-                next_ps_pack[0], next_ps_pack[1], next_ps_pack[2], next_ps_pack[3]);
+                next_ps_pack[0]&0xFF, next_ps_pack[1]&0xFF, next_ps_pack[2]&0xFF, next_ps_pack[3]&0xFF);
             break;
         }
     }
@@ -733,9 +884,10 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
     if (complete_len != ps_size){
          srs_trace("gb28181: client_id %s decode ps packet error (%#x/%u)! ps_size=%d  complete=%d \n", 
                      channel_id.c_str(), ssrc, timestamp, ps_size, complete_len);
-    }else if (hander && video_stream.length() && can_send_ps_av_packet()) {
+    }else if (hander && video_stream.length() && can_send_ps_av_packet() && video_es_type == STREAM_TYPE_VIDEO_H264) {
          if ((err = hander->on_rtp_video(&video_stream, video_pts)) != srs_success) {
-             return srs_error_wrap(err, "process ps video packet");
+            video_es_type = 0;
+            return srs_error_wrap(err, "process ps video packet");
         }
     }
   
@@ -824,7 +976,8 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     source_publish = true;
 
     jitter_buffer = new SrsPsJitterBuffer(id);
-    ps_buffer = new char[1024*200];
+    ps_buflen = 0;
+    ps_buffer = NULL;
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
@@ -984,7 +1137,7 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
 
         if (config.jitterbuffer_enable){
             if(jitter_buffer->FoundFrame(cur_timestamp)){
-                jitter_buffer->GetPsFrame(ps_buffer, buffer_size, cur_timestamp);
+                jitter_buffer->GetPsFrame(&ps_buffer, ps_buflen, buffer_size, cur_timestamp);
             
                 if (buffer_size > 0){
                     if ((err = ps_demixer->on_ps_stream(ps_buffer, buffer_size, cur_timestamp, 0)) != srs_success){
@@ -1298,7 +1451,7 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t fdts)
+srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t fdts, int type)
 {
     srs_error_t err = srs_success;
     
@@ -1324,65 +1477,90 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
     SrsBuffer  *avs = new SrsBuffer(stream->bytes(), stream->length());
     SrsAutoFree(SrsBuffer, avs);
     if (!avs->empty()) {
-        char* frame = NULL;
-        int frame_size = 0;
-        SrsRawAacStreamCodec codec;
-        if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
-            return srs_error_wrap(err, "demux adts");
-        }
+        if (type == STREAM_TYPE_AUDIO_AAC) {
+            char* frame = NULL;
+            int frame_size = 0;
+            SrsRawAacStreamCodec codec;
+            if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
+                return srs_error_wrap(err, "demux adts");
+            }
 
-        if (frame_size <= 0) {
-            return err;
-        }
+            if (frame_size <= 0) {
+                return err;
+            }
 
-        bool send_adts = false;
-        static int srs_aac_srates[] = {
-            96000, 88200, 64000, 48000,
-            44100, 32000, 24000, 22050,
-            16000, 12000, 11025,  8000,
-            7350,     0,     0,    0
-        };
-        switch (srs_aac_srates[codec.sampling_frequency_index]) {
-            case 11025:
-                codec.sound_rate = SrsAudioSampleRate11025;
-                break;
-            case 22050:
-                codec.sound_rate = SrsAudioSampleRate22050;
-                break;
-            case 44100:
-                codec.sound_rate = SrsAudioSampleRate44100;
-                break;
-            default:
-                send_adts = true; //raw with adts
-                break;
-        };
+            bool send_adts = false;
+            static int srs_aac_srates[] = {
+                96000, 88200, 64000, 48000,
+                44100, 32000, 24000, 22050,
+                16000, 12000, 11025,  8000,
+                7350,     0,     0,    0
+            };
+            switch (srs_aac_srates[codec.sampling_frequency_index]) {
+                case 11025:
+                    codec.sound_rate = SrsAudioSampleRate11025;
+                    break;
+                case 22050:
+                    codec.sound_rate = SrsAudioSampleRate22050;
+                    break;
+                case 44100:
+                    codec.sound_rate = SrsAudioSampleRate44100;
+                    break;
+                default:
+                    send_adts = true; //raw with adts
+                    break;
+            };
 
-        std::string sh;
-        if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
-        }
-        
-        if (aac_specific_config != sh){
             std::string sh;
             if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
                 return srs_error_wrap(err, "mux sequence header");
             }
-            aac_specific_config = sh;
-            codec.aac_packet_type = 0;
-            if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
-                return srs_error_wrap(err, "write raw audio frame");
+            
+            if (aac_specific_config != sh){
+                std::string sh;
+                if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
+                    return srs_error_wrap(err, "mux sequence header");
+                }
+                aac_specific_config = sh;
+                codec.aac_packet_type = 0;
+                if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
+                    return srs_error_wrap(err, "write raw audio frame");
+                }
             }
-        }
 
-        codec.aac_packet_type = 1;
-        if  (send_adts) {  // audio raw data. with  adts header
-            if ((err = write_audio_raw_frame(stream->bytes(), stream->length(), &codec, dts)) != srs_success) {
-                    return srs_error_wrap(err, "write audio raw frame");
-                }
-        }else {  // audio raw data. without  adts header
-             if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
-                    return srs_error_wrap(err, "write audio raw frame");
-                }
+            codec.aac_packet_type = 1;
+            if  (send_adts) {  // audio raw data. with  adts header
+                if ((err = write_audio_raw_frame(stream->bytes(), stream->length(), &codec, dts)) != srs_success) {
+                        return srs_error_wrap(err, "write audio raw frame");
+                    }
+            }else {  // audio raw data. without  adts header
+                if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+                        return srs_error_wrap(err, "write audio raw frame");
+                    }
+            }
+        }else if (type != 0) {
+            SrsRawAacStreamCodec codec;
+            codec.aac_packet_type = 0;
+
+            if (type == STREAM_TYPE_AUDIO_G711){
+                codec.sound_format = SrsAudioCodecIdReservedG711AlawLogarithmicPCM;
+                codec.sound_rate = SrsAudioSampleRate5512;
+                codec.sound_type = 0;  //MONO = 0, STEREO = 1
+                codec.sound_size = 0;  //0=8K, 1=16K
+            }else if(type == STREAM_TYPE_AUDIO_G711ULAW){
+                codec.sound_format = SrsAudioCodecIdReservedG711MuLawLogarithmicPCM;
+                codec.sound_rate = SrsAudioSampleRate5512;
+                codec.sound_type = 0;
+                codec.sound_size = 0;
+            }else {
+                return srs_error_wrap(err, "write audio raw frame, type=%d not suppered", type);
+            }
+
+            char* frame = stream->bytes();
+            int frame_size = stream->length();
+            if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+                return srs_error_wrap(err, "write audio raw frame");
+            }
         }
     }//end if (!avs->empty()) 
    
