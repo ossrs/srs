@@ -1000,8 +1000,6 @@ VOID TEST(TCPServerTest, CoverUtility)
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 
-    EXPECT_FALSE(srs_net_device_is_internet("eth0"));
-
     if (true) {
         sockaddr_in addr;
         addr.sin_family = AF_INET;
