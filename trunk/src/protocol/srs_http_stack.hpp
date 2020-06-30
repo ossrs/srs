@@ -449,15 +449,11 @@ public:
 //
 // There are some modes to determine the length of body:
 //      1. content-length and chunked.
-//      2. user confirmed infinite chunked.
-//      3. no body or user not confirmed infinite chunked.
+//      2. infinite chunked.
+//      3. no body.
 // For example:
 //      ISrsHttpMessage* r = ...;
 //      while (!r->eof()) r->read(); // Read in mode 1 or 3.
-// For some server, we can confirm the body is infinite chunked:
-//      ISrsHttpMessage* r = ...;
-//      r->enter_infinite_chunked();
-//      while (!r->eof()) r->read(); // Read in mode 2
 // @rmark for mode 2, the infinite chunked, all left data is body.
 class ISrsHttpMessage
 {
@@ -492,10 +488,6 @@ public:
     // @return the REST id; -1 if not matched.
     virtual std::string parse_rest_id(std::string pattern) = 0;
 public:
-    // The left all data is chunked body, the infinite chunked mode,
-    // which is chunked encoding without chunked header.
-    // @remark error when message is in chunked or content-length specified.
-    virtual srs_error_t enter_infinite_chunked() = 0;
     // Read body to string.
     // @remark for small http body.
     virtual srs_error_t body_read_all(std::string& body) = 0;

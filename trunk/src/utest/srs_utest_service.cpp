@@ -480,7 +480,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageConnection)
+VOID TEST(HTTPServerTest, MessageConnection)
 {
     srs_error_t err;
 
@@ -534,7 +534,6 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    EXPECT_TRUE(m.is_keep_alive());
-	    EXPECT_FALSE(m.is_infinite_chunked());
 	}
 
 	if (true) {
@@ -562,42 +561,7 @@ VOID TEST(TCPServerTest, MessageConnection)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageInfinityChunked)
-{
-    srs_error_t err;
-
-	if (true) {
-	    SrsHttpMessage m;
-	    EXPECT_FALSE(m.is_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Transfer-Encoding", "chunked");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Content-Length", "100");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-}
-
-VOID TEST(TCPServerTest, MessageTurnRequest)
+VOID TEST(HTTPServerTest, MessageTurnRequest)
 {
     srs_error_t err;
 
@@ -645,7 +609,65 @@ VOID TEST(TCPServerTest, MessageTurnRequest)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageWritev)
+VOID TEST(HTTPServerTest, ContentLength)
+{
+    srs_error_t err;
+
+    // For infinite chunked mode, all data is content.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("World!");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, HTTPChunked)
+{
+    srs_error_t err;
+
+    // For infinite chunked mode, all data is content.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("5\r\nHello\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("6\r\nWorld!\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, InfiniteChunked)
 {
     srs_error_t err;
 
@@ -656,12 +678,6 @@ VOID TEST(TCPServerTest, MessageWritev)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-
-        if (true) {
-            SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(msg);
-            ASSERT_TRUE(hm != NULL);
-            hm->enter_infinite_chunked();
-        }
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -678,6 +694,11 @@ VOID TEST(TCPServerTest, MessageWritev)
         EXPECT_EQ(8, nread);
         EXPECT_STREQ("\r\nWorld!", buf);
     }
+}
+
+VOID TEST(HTTPServerTest, MessageWritev)
+{
+    srs_error_t err;
 
     // Directly writev, merge to one chunk.
     if (true) {
@@ -1174,7 +1195,7 @@ public:
     }
 };
 
-VOID TEST(TCPServerTest, HTTPClientUtility)
+VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
     srs_error_t err;
 

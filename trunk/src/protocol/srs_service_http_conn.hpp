@@ -99,8 +99,6 @@ private:
     // The body object, reader object.
     // @remark, user can get body in string by get_body().
     SrsHttpResponseReader* _body;
-    // Whether the body is infinite chunked.
-    bool infinite_chunked;
     // Use a buffer to read and send ts file.
     // The transport connection, can be NULL.
     ISrsConnection* owner_conn;
@@ -157,9 +155,6 @@ public:
     virtual bool is_http_options();
     // Whether body is chunked encoding, for reader only.
     virtual bool is_chunked();
-    // Whether body is infinite chunked encoding.
-    // @remark set by enter_infinite_chunked.
-    virtual bool is_infinite_chunked();
     // Whether should keep the connection alive.
     virtual bool is_keep_alive();
     // The uri contains the host and path.
@@ -173,8 +168,6 @@ public:
     virtual std::string ext();
     // Get the RESTful matched id.
     virtual std::string parse_rest_id(std::string pattern);
-public:
-    virtual srs_error_t enter_infinite_chunked();
 public:
     // Read body to string.
     // @remark for small http body.
