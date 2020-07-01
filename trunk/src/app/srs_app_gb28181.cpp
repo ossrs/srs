@@ -52,7 +52,7 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_sip_stack.hpp>
 
-#define W_PS_FILE
+//#define W_PS_FILE
 //#define W_VIDEO_FILE
 //#define W_AUDIO_FILE
 //#define W_UNKONW_FILE
