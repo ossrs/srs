@@ -1310,6 +1310,14 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
 {
     srs_error_t err = srs_success;
 
+    if (!frame){
+        return srs_error_new(ERROR_GB28181_H264_FRAME_FULL, "h264 frame null");
+    }
+
+    if (frame_size <= 0){
+        return srs_error_new(ERROR_GB28181_H264_FRAMESIZE, "h264 frame size");
+    }
+
     SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     // ignore the nalu type sei(6) aud(9) 
     if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter ||

@@ -375,6 +375,8 @@
 #define ERROR_GB28181_SIP_PTZ_FAILED        6016
 #define ERROR_GB28181_SIP_NOT_INVITE        6017
 #define ERROR_GB28181_SIP_PTZ_CMD_INVALID   6018
+#define ERROR_GB28181_H264_FRAMESIZE        6019
+#define ERROR_GB28181_H264_FRAME_FULL       6020
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
