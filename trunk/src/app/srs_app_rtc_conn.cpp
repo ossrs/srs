@@ -2006,7 +2006,11 @@ srs_error_t SrsRtcSession::start_play()
 {
     srs_error_t err = srs_success;
 
-    srs_freep(player_);
+    // If player is initialized, we think the session is started.
+    // To prevent play multiple times for the DTLS ARQ packet.
+    if (player_) {
+        return err;
+    }
     player_ = new SrsRtcPlayer(this, _srs_context->get_id());
 
     uint32_t video_ssrc = 0;
@@ -2039,7 +2043,11 @@ srs_error_t SrsRtcSession::start_publish()
 {
     srs_error_t err = srs_success;
 
-    srs_freep(publisher_);
+    // If publisher is initialized, we think the session is started.
+    // To prevent publish multiple times for the DTLS ARQ packet.
+    if (publisher_) {
+        return err;
+    }
     publisher_ = new SrsRtcPublisher(this);
     // Request PLI for exists players?
     //publisher_->request_keyframe();
