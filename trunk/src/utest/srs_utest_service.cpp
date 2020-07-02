@@ -678,6 +678,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -693,6 +694,65 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         HELPER_ASSERT_SUCCESS(r->read(buf, 8, &nread));
         EXPECT_EQ(8, nread);
         EXPECT_STREQ("\r\nWorld!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, OPTIONSRead)
+{
+    srs_error_t err;
+
+    // If OPTIONS, it has no content-length, not chunkted, but not infinite chunked,
+    // instead, it has no body.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+    }
+
+    // So if OPTIONS has body, with chunked or content-length, it's ok to parsing it.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_FALSE(br->eof());
+
+        string b; HELPER_ASSERT_SUCCESS(req->body_read_all(b));
+        EXPECT_STREQ("Hello", b.c_str());
+
+        // The body will use as next HTTP request message.
+        io.append("GET /rtc/v1/play HTTP/1.1\r\n\r\n");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
+    }
+
+    // So if OPTIONS has body, but not specified the size, we think it has no body,
+    // and the body is parsed fail as the next parsing.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+
+        // The body will use as next HTTP request message.
+        io.append("Hello");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_FAILED(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
     }
 }
 

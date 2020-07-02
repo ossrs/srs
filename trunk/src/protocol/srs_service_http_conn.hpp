@@ -264,6 +264,11 @@ public:
     // while buffer is a fast cache which may have cached some data from reader.
     SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* reader, SrsFastStream* buffer);
     virtual ~SrsHttpResponseReader();
+public:
+    // User close the HTTP response reader.
+    // For example, OPTIONS has no body, no content-length and not chunked,
+    // so we must close it(set to eof) to avoid reading the response body.
+    void close();
 // Interface ISrsHttpResponseReader
 public:
     virtual bool eof();

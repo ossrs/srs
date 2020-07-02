@@ -334,6 +334,12 @@ void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
     if (!clv.empty()) {
         _content_length = ::atoll(clv.c_str());
     }
+
+    // If method is OPTIONS, and no size(content-length or chunked), it's not infinite chunked,
+    // it means there is no body, so we must close the body reader.
+    if (_method == SRS_CONSTS_HTTP_OPTIONS && !chunked && _content_length == -1) {
+        _body->close();
+    }
 }
 
 srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
@@ -919,6 +925,11 @@ SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* re
 
 SrsHttpResponseReader::~SrsHttpResponseReader()
 {
+}
+
+void SrsHttpResponseReader::close()
+{
+    is_eof = true;
 }
 
 bool SrsHttpResponseReader::eof()
