@@ -38,10 +38,24 @@ SrsAudioDecoder::SrsAudioDecoder(std::string codec)
     frame_ = NULL;
     packet_ = NULL;
     codec_ctx_ = NULL;
+    decode_buf_ = NULL;
+    decode_linesize_ = 0;
 }
 
 SrsAudioDecoder::~SrsAudioDecoder()
 {
+    if(decode_buf_){
+        if(av_sample_fmt_is_planar(codec_ctx_->sample_fmt)){
+            for(int i=0; i<codec_ctx_->channels; i++){
+                av_freep(decode_buf_[i]);
+            }
+        }else{
+            av_freep(decode_buf_[0]);
+        }
+        av_freep(decode_buf_);
+        decode_buf_ = NULL;
+        decode_linesize_ = 0;
+    }
     if (codec_ctx_) {
         avcodec_free_context(&codec_ctx_);
         codec_ctx_ = NULL;
@@ -91,7 +105,7 @@ srs_error_t SrsAudioDecoder::initialize()
     return err;
 }
 
-srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
+srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char ***buf, int &size)
 {
     srs_error_t err = srs_success;
 
@@ -103,8 +117,18 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Error submitting the packet to the decoder");
     }
 
-    int max = size;
+    // prepare buffer for decode
+    if(decode_buf_ == NULL){
+        int r = av_samples_alloc_array_and_samples(&decode_buf_, &decode_linesize_, codec_ctx_->channels,
+                                                    codec_ctx_->frame_size, codec_ctx_->sample_fmt, 0);
+        if(r < 0){
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "Error alloc decoded sample buffer");
+        }
+    }
+
+    int max = decode_linesize_;
     size = 0;
+    *buf = (char**)decode_buf_;
 
     while (ret >= 0) {
         ret = avcodec_receive_frame(codec_ctx_, frame_);
@@ -120,9 +144,18 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
         }
 
         for (int i = 0; i < frame_->nb_samples; i++) {
-            if (size + pcm_size * codec_ctx_->channels <= max) {
-                memcpy(buf + size,frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
-                size += pcm_size * codec_ctx_->channels;
+            if(av_sample_fmt_is_planar(codec_ctx_->sample_fmt)){
+                if(size + pcm_size <= max) {
+                    for (int j = 0; j < codec_ctx_->channels; j++) {
+                        memcpy(decode_buf_[j] + size, frame_->extended_data[j] + (pcm_size * i), pcm_size);
+                    }
+                    size += pcm_size;
+                }
+            }else{
+                if (size + pcm_size * codec_ctx_->channels <= max) {
+                    memcpy(decode_buf_[0] + size, frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
+                    size += pcm_size * codec_ctx_->channels;
+                }
             }
         }
     }
@@ -295,14 +328,7 @@ srs_error_t SrsAudioResample::resample(SrsSample *pcm, char *buf, int &size)
 {
     srs_error_t err = srs_success;
 
-    int ret, plane = 1;
-    if (src_sample_fmt_ == AV_SAMPLE_FMT_FLTP) {
-        plane = 2;
-    }
-    if (src_linesize_ * plane < pcm->size || pcm->size < 0) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "size not ok");
-    }
-    memcpy(src_data_[0], pcm->bytes, pcm->size);
+    int ret;
 
     dst_nb_samples_ = av_rescale_rnd(swr_get_delay(swr_ctx_, src_rate_) +
                                     src_nb_samples_, dst_rate_, src_rate_, AV_ROUND_UP);
@@ -316,7 +342,7 @@ srs_error_t SrsAudioResample::resample(SrsSample *pcm, char *buf, int &size)
         max_dst_nb_samples_ = dst_nb_samples_;
     }
 
-    ret = swr_convert(swr_ctx_, dst_data_, dst_nb_samples_, (const uint8_t **)src_data_, src_nb_samples_);
+    ret = swr_convert(swr_ctx_, dst_data_, dst_nb_samples_, (const uint8_t **)pcm->ppBytes, src_nb_samples_);
     if (ret < 0) {
        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error while converting"); 
     }
@@ -392,9 +418,9 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
         return srs_error_new(ERROR_RTC_RTP_MUXER, "dec_ nullptr");
     }
 
-    int decode_len = kPacketBufMax;
-    static char decode_buffer[kPacketBufMax];
-    if ((err = dec_->decode(pkt, decode_buffer, decode_len)) != srs_success) {
+    int decode_len = 0;
+    char** decode_buffer = NULL;
+    if ((err = dec_->decode(pkt, &decode_buffer, decode_len)) != srs_success) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
     }
 
@@ -414,7 +440,7 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
     }
 
     SrsSample pcm;
-    pcm.bytes = decode_buffer;
+    pcm.ppBytes = decode_buffer;
     pcm.size = decode_len;
     int resample_len = kFrameBufMax;
     static char resample_buffer[kFrameBufMax];

@@ -55,11 +55,13 @@ private:
     AVPacket* packet_;
     AVCodecContext* codec_ctx_;
     std::string codec_name_;
+    uint8_t** decode_buf_;
+    int decode_linesize_;
 public:
     SrsAudioDecoder(std::string codec);
     virtual ~SrsAudioDecoder();
     srs_error_t initialize();
-    virtual srs_error_t decode(SrsSample *pkt, char *buf, int &size);
+    virtual srs_error_t decode(SrsSample *pkt, char ***buf, int &size);
     AVCodecContext* codec_ctx();
 };
 

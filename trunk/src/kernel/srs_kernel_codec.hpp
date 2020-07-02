@@ -534,6 +534,8 @@ public:
     int size;
     // The ptr of unit, user must free it.
     char* bytes;
+    // The double ptr of unit, for planar audio like aac
+    char** ppBytes;
     // Whether is B frame.
     bool bframe;
 public:

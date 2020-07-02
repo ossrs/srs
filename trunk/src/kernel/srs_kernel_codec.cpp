@@ -365,6 +365,7 @@ SrsSample::SrsSample()
 {
     size = 0;
     bytes = NULL;
+    ppBytes = NULL;
     bframe = false;
 }
 
