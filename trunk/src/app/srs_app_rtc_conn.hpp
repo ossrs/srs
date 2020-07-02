@@ -211,7 +211,7 @@ public:
     SrsRtcPlayer(SrsRtcSession* s, std::string parent_cid);
     virtual ~SrsRtcPlayer();
 public:
-    srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint16_t v_pt, uint16_t a_pt);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -270,7 +270,7 @@ private:
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;
 private:
     srs_utime_t last_twcc_feedback_time_;
-    uint8_t twcc_ext_id_;
+    int twcc_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
     SrsRtpExtensionTypes extension_types_;
@@ -278,7 +278,7 @@ public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* req);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, int twcc_id, SrsRequest* req);
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);

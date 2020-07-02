@@ -295,7 +295,7 @@ SrsRtcPlayer::~SrsRtcPlayer()
     srs_freep(video_queue_);
 }
 
-srs_error_t SrsRtcPlayer::initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt)
+srs_error_t SrsRtcPlayer::initialize(uint32_t vssrc, uint32_t assrc, uint16_t v_pt, uint16_t a_pt)
 {
     srs_error_t err = srs_success;
 
@@ -481,6 +481,7 @@ srs_error_t SrsRtcPlayer::send_packets(SrsRtcSource* source, const vector<SrsRtp
         // Update stats.
         info.nn_bytes += pkt->nb_bytes();
 
+        // For audio, we transcoded AAC to opus in extra payloads.
         if (pkt->is_audio()) {
             info.nn_audios++;
             pkt->header.set_ssrc(audio_ssrc);
@@ -526,6 +527,7 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
         iov->iov_base = iov_base;
         iov->iov_len = kRtpPacketSize;
 
+        uint16_t twcc_sn = 0;
         // Marshal packet to bytes in iovec.
         if (true) {
             SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
@@ -858,7 +860,7 @@ SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
     pt_to_drop_ = 0;
 
     nn_audio_frames = 0;
-    twcc_ext_id_ = 0;
+    twcc_id_ = 0;
     last_twcc_feedback_time_ = 0;
     twcc_fb_count_ = 0;
 }
@@ -878,25 +880,28 @@ SrsRtcPublisher::~SrsRtcPublisher()
     srs_freep(audio_queue_);
 }
 
-srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* r)
+srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, int twcc_id, SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
     video_ssrc = vssrc;
     audio_ssrc = assrc;
-    twcc_ext_id_ = twcc_ext_id;
-    rtcp_twcc_.set_media_ssrc(video_ssrc);
     req = r;
 
-    if (twcc_ext_id_ != 0) {
-        extension_types_.register_by_uri(twcc_ext_id_, kTWCCExt);
-    }
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(session_->req->vhost);
     pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(session_->req->vhost);
+    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    if (twcc_enabled) {
+        twcc_id_ = twcc_id;
+    }
+    srs_trace("RTC publisher video(ssrc=%u), audio(ssrc=%u), nack=%d, pt-drop=%u, twcc=%u/%d",
+        video_ssrc, audio_ssrc, nack_enabled_, pt_to_drop_, twcc_enabled, twcc_id);
 
-    srs_trace("RTC publisher video(ssrc=%u), audio(ssrc=%u), nack=%d, pt-drop=%u",
-        video_ssrc, audio_ssrc, nack_enabled_, pt_to_drop_);
+    if (twcc_id_) {
+        extension_types_.register_by_uri(twcc_id_, kTWCCExt);
+        rtcp_twcc_.set_media_ssrc(video_ssrc);
+    }
 
     if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
@@ -1149,7 +1154,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 
     // Decode the header first.
     SrsRtpHeader h;
-    if (pt_to_drop_ && twcc_ext_id_) {
+    if (pt_to_drop_ && twcc_id_) {
         SrsBuffer b(data, nb_data);
         h.ignore_padding(true); h.set_extensions(&extension_types_);
         if ((err = h.decode(&b)) != srs_success) {
@@ -1161,7 +1166,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
     //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
     //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
     // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
-    if (twcc_ext_id_) {
+    if (twcc_id_) {
         uint16_t twcc_sn = 0;
         if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
@@ -2017,6 +2022,7 @@ srs_error_t SrsRtcSession::start_play()
     uint32_t audio_ssrc = 0;
     uint16_t video_payload_type = 0;
     uint16_t audio_payload_type = 0;
+    int twcc_id = -1;
     for (size_t i = 0; i < local_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& media_desc = local_sdp.media_descs_[i];
         if (media_desc.is_audio()) {
@@ -2025,10 +2031,17 @@ srs_error_t SrsRtcSession::start_play()
         } else if (media_desc.is_video()) {
             video_ssrc = media_desc.ssrc_infos_[0].ssrc_;
             video_payload_type = media_desc.payload_types_[0].payload_type_;
+            //TODO: just judgement video media whether to support twcc
+            std::map<int, std::string> exts = media_desc.get_extmaps();
+            for(std::map<int, std::string>::iterator it = exts.begin(); it != exts.end(); ++it) {
+                if(kTWCCExt == it->second) {
+                    twcc_id = it->first;
+                }
+            }
         }
     }
 
-    if ((err = player_->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type)) != srs_success) {
+    if ((err = player_->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type, twcc_id)) != srs_success) {
         return srs_error_wrap(err, "SrsRtcPlayer init");
     }
 
@@ -2049,6 +2062,7 @@ srs_error_t SrsRtcSession::start_publish()
         return err;
     }
     publisher_ = new SrsRtcPublisher(this);
+
     // Request PLI for exists players?
     //publisher_->request_keyframe();
 
