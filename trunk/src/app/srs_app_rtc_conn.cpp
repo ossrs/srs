@@ -527,7 +527,6 @@ srs_error_t SrsRtcPlayer::do_send_packets(const std::vector<SrsRtpPacket2*>& pkt
         iov->iov_base = iov_base;
         iov->iov_len = kRtpPacketSize;
 
-        uint16_t twcc_sn = 0;
         // Marshal packet to bytes in iovec.
         if (true) {
             SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
@@ -2022,7 +2021,6 @@ srs_error_t SrsRtcSession::start_play()
     uint32_t audio_ssrc = 0;
     uint16_t video_payload_type = 0;
     uint16_t audio_payload_type = 0;
-    int twcc_id = -1;
     for (size_t i = 0; i < local_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& media_desc = local_sdp.media_descs_[i];
         if (media_desc.is_audio()) {
@@ -2031,17 +2029,10 @@ srs_error_t SrsRtcSession::start_play()
         } else if (media_desc.is_video()) {
             video_ssrc = media_desc.ssrc_infos_[0].ssrc_;
             video_payload_type = media_desc.payload_types_[0].payload_type_;
-            //TODO: just judgement video media whether to support twcc
-            std::map<int, std::string> exts = media_desc.get_extmaps();
-            for(std::map<int, std::string>::iterator it = exts.begin(); it != exts.end(); ++it) {
-                if(kTWCCExt == it->second) {
-                    twcc_id = it->first;
-                }
-            }
         }
     }
 
-    if ((err = player_->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type, twcc_id)) != srs_success) {
+    if ((err = player_->initialize(video_ssrc, audio_ssrc, video_payload_type, audio_payload_type)) != srs_success) {
         return srs_error_wrap(err, "SrsRtcPlayer init");
     }
 
