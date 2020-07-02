@@ -966,7 +966,15 @@ srs_error_t SrsHttpResponseReader::read(void* data, size_t nb_data, ssize_t* nb_
     // Infinite chunked mode.
     // If not chunked encoding, and no content-length, it's infinite chunked.
     // In this mode, all body is data and never EOF util socket closed.
-    return read_specified(data, nb_data, nb_read);
+    if ((err = read_specified(data, nb_data, nb_read)) != srs_success) {
+        // For infinite chunked, the socket close event is EOF.
+        if (srs_error_code(err) == ERROR_SOCKET_READ) {
+            srs_freep(err); is_eof = true;
+            return err;
+        }
+    }
+
+    return err;
 }
 
 srs_error_t SrsHttpResponseReader::read_chunked(void* data, size_t nb_data, ssize_t* nb_read)

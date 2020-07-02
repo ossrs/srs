@@ -613,7 +613,6 @@ VOID TEST(HTTPServerTest, ContentLength)
 {
     srs_error_t err;
 
-    // For infinite chunked mode, all data is content.
     if (true) {
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
@@ -642,7 +641,6 @@ VOID TEST(HTTPServerTest, HTTPChunked)
 {
     srs_error_t err;
 
-    // For infinite chunked mode, all data is content.
     if (true) {
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
@@ -694,6 +692,30 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         HELPER_ASSERT_SUCCESS(r->read(buf, 8, &nread));
         EXPECT_EQ(8, nread);
         EXPECT_STREQ("\r\nWorld!", buf);
+
+        EXPECT_FALSE(r->eof());
+    }
+
+    // If read error, it's EOF.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.in_err = srs_error_new(ERROR_SOCKET_READ, "EOF");
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_TRUE(r->eof());
     }
 }
 
