@@ -299,25 +299,18 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
         return kDuplicatePacket;
     }
 
-    if ((packet.isFirstPacket == 0)&&
+    if ((packets_.size() == 0)&&
         (first_packet_seq_num_ == -1 ||
         IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum))) {
         first_packet_seq_num_ = packet.seqNum;
-    }else if (first_packet_seq_num_ != -1 &&
-        IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum)) {
-        srs_warn("Received packet with a sequence number which is out of frame boundaries");
-        return kDuplicatePacket;
     }
-
-    if (packet.markerBit &&
-        (last_packet_seq_num_ == -1 ||
-        IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
-        last_packet_seq_num_ = packet.seqNum;
-    } else if (last_packet_seq_num_ != -1 &&
-        IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_)) {
-        srs_warn("Received packet with a sequence number which is out of frame boundaries");
-        return kDuplicatePacket;
-    }
+    
+    //TODO: not check marker, check a complete frame with timestamp
+    // if (packet.markerBit &&
+    //     (last_packet_seq_num_ == -1 ||
+    //     IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
+    //     last_packet_seq_num_ = packet.seqNum;
+    // }
 
     // The insert operation invalidates the iterator |rit|.
     PacketIterator packet_list_it = packets_.insert(rit.base(), packet);
@@ -1400,7 +1393,7 @@ bool SrsPsJitterBuffer::FoundFrame(uint32_t& time_stamp)
     return found_frame;
 }
 
-bool SrsPsJitterBuffer::GetPsFrame(char *buffer,  int &size, const uint32_t time_stamp)
+bool SrsPsJitterBuffer::GetPsFrame(char **buffer,  int &buf_len, int &size, const uint32_t time_stamp)
 {
     SrsPsFrameBuffer* frame = ExtractAndSetDecode(time_stamp);
 
@@ -1408,13 +1401,30 @@ bool SrsPsJitterBuffer::GetPsFrame(char *buffer,  int &size, const uint32_t time
         return false;
     }
 
+    size = frame->Length();
+    if (size <= 0){
+        return false;
+    }
+
     if (buffer == NULL){
         return false;
     }
    
-    size = frame->Length();
+    //verify and allocate ps buffer
+    if (buf_len < size || *buffer == NULL) {
+        srs_freepa(*buffer);
+
+        int resize = size + 10240;
+        *buffer = new char[resize];
+
+        srs_trace("gb28181: SrsPsJitterBuffer key=%s reallocate ps buffer size(%d>%d) resize(%d)", 
+            key_.c_str(), size, buf_len, resize);
+            
+        buf_len = resize;
+    }
+
     const uint8_t *frame_buffer = frame->Buffer();
-    memcpy(buffer, frame_buffer, size);
+    memcpy(*buffer, frame_buffer, size);
     
     frame->PrepareForDecode(false);
     ReleaseFrame(frame);

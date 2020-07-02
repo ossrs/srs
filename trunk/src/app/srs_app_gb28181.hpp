@@ -48,6 +48,38 @@
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
 
+#define PS_AUDIO_ID 0xc0
+#define PS_AUDIO_ID_END 0xdf
+#define PS_VIDEO_ID 0xe0
+#define PS_VIDEO_ID_END 0xef
+
+#define STREAM_TYPE_VIDEO_MPEG1     0x01
+#define STREAM_TYPE_VIDEO_MPEG2     0x02
+#define STREAM_TYPE_AUDIO_MPEG1     0x03
+#define STREAM_TYPE_AUDIO_MPEG2     0x04
+#define STREAM_TYPE_PRIVATE_SECTION 0x05
+#define STREAM_TYPE_PRIVATE_DATA    0x06
+#define STREAM_TYPE_AUDIO_AAC       0x0f
+#define STREAM_TYPE_VIDEO_MPEG4     0x10
+#define STREAM_TYPE_VIDEO_H264      0x1b
+#define STREAM_TYPE_VIDEO_HEVC      0x24
+#define STREAM_TYPE_VIDEO_CAVS      0x42
+#define STREAM_TYPE_VIDEO_SAVC      0x80
+
+#define STREAM_TYPE_AUDIO_AC3       0x81
+
+#define STREAM_TYPE_AUDIO_G711      0x90
+#define STREAM_TYPE_AUDIO_G711ULAW  0x91
+#define STREAM_TYPE_AUDIO_G722_1    0x92
+#define STREAM_TYPE_AUDIO_G723_1    0x93
+#define STREAM_TYPE_AUDIO_G726      0x96
+#define STREAM_TYPE_AUDIO_G729_1    0x99
+#define STREAM_TYPE_AUDIO_SVAC      0x9b
+#define STREAM_TYPE_AUDIO_PCM       0x9c
+
+
+
+
 class SrsConfDirective;
 class SrsRtpPacket;
 class SrsRtmpClient;
@@ -156,7 +188,7 @@ public:
     virtual ~ISrsPsStreamHander();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts)=0;
-    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts)=0;
+    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type)=0;
 };
 
 //analysis of PS stream and 
@@ -211,6 +243,14 @@ private:
     bool audio_enable;
     std::string channel_id;
 
+    uint8_t video_es_id;
+    uint8_t video_es_type;
+    uint8_t audio_es_id;
+    uint8_t audio_es_type;
+    int audio_check_aac_try_count;
+    
+    SrsRawAacStream *aac;
+
     ISrsPsStreamHander *hander;
 public:
     SrsPsStreamDemixer(ISrsPsStreamHander *h, std::string sid, bool a, bool k);
@@ -219,6 +259,8 @@ private:
     bool can_send_ps_av_packet();
 public:
     int64_t parse_ps_timestamp(const uint8_t* p);
+    std::string get_ps_map_type_str(uint8_t);
+    bool is_aac();
     virtual srs_error_t on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc);
 };
 
@@ -262,6 +304,7 @@ private:
 
     SrsPsJitterBuffer *jitter_buffer;
     char *ps_buffer;
+    int ps_buflen;
 
     bool source_publish; 
 
@@ -301,7 +344,7 @@ public:
     virtual std::string remote_ip();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
-    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts);
+    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type);
 private:
     
     srs_error_t replace_startcode_with_nalulen(char *video_data, int &size,  uint32_t pts, uint32_t dts);
