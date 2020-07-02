@@ -67,7 +67,7 @@ extern srs_utime_t _srs_tmp_timeout;
 
 // For init array data.
 #define HELPER_ARRAY_INIT(buf, sz, val) \
-    for (int i = 0; i < (int)sz; i++) (buf)[i]=val
+    memset(buf, val, sz)
 
 // Dump simple stream to string.
 #define HELPER_BUFFER2STR(io) \

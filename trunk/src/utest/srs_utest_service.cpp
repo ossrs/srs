@@ -1379,6 +1379,7 @@ VOID TEST(TCPServerTest, ContextUtility)
 
     int base_size = 0;
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", "100", "Trace", &size));
         base_size = size;
@@ -1386,6 +1387,7 @@ VOID TEST(TCPServerTest, ContextUtility)
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", "100", "Trace", &size));
         EXPECT_EQ(base_size, size);
@@ -1399,6 +1401,7 @@ VOID TEST(TCPServerTest, ContextUtility)
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 8, size);
