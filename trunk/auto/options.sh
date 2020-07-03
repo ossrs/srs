@@ -6,6 +6,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=YES
+SRS_H265=YES
 SRS_CXX11=NO
 SRS_CXX14=NO
 SRS_NGINX=NO
@@ -126,6 +127,7 @@ Features:
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
+  --h265=on|off             Whether build the H.265 support. Default: $(value2switch $SRS_H265)
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --config=<path>           The default config file for SRS. Default: $SRS_DEFAULT_CONFIG
@@ -287,6 +289,7 @@ function parse_user_option() {
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
 
+        --h265)                         if [[ $value == off ]]; then SRS_H265=NO; else SRS_H265=YES; fi    ;;
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
         --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
 
@@ -515,6 +518,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=$(value2switch $SRS_H265)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"

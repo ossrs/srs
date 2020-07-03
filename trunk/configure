@@ -238,6 +238,11 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
+
+SRS_H265="YES"
+if [[ $SRS_H265 == YES ]]; then
+    MODULE_FILES+=("srs_raw_hevc")
+fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
