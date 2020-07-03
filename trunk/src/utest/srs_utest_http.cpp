@@ -991,7 +991,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_POST, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, 200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1011,7 +1011,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_OPTIONS, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, 200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1031,7 +1031,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_POST, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, 200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1051,7 +1051,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerCORS)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        r.set_basic(HTTP_OPTIONS, 200, -1);
+        r.set_basic(HTTP_REQUEST, HTTP_OPTIONS, 200, -1);
         HELPER_ASSERT_SUCCESS(r.set_url("/index.html", false));
 
         SrsHttpCorsMux cs;
@@ -1662,7 +1662,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
         SrsHttpMessage m;
         m.set_header(&h, false);
-        m.set_basic(HTTP_POST, 200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 2);
         EXPECT_EQ(10, m.content_length());
     }
 
@@ -1672,7 +1672,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
         h.set("Content-Length", "10");
 
         SrsHttpMessage m;
-        m.set_basic(HTTP_POST, 200, 2);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 2);
         m.set_header(&h, false);
         EXPECT_EQ(10, m.content_length());
     }
@@ -1706,7 +1706,7 @@ VOID TEST(ProtocolHTTPTest, HTTPMessageUpdate)
 
     if (true) {
         SrsHttpMessage m;
-        m.set_basic(HTTP_POST, 200, 0);
+        m.set_basic(HTTP_REQUEST, HTTP_POST, 200, 0);
         EXPECT_EQ(0, m.content_length());
     }
 
