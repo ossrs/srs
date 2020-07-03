@@ -103,6 +103,10 @@ private:
     // The transport connection, can be NULL.
     ISrsConnection* owner_conn;
 private:
+    // The request type defined as
+    //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
+    uint8_t type_;
+    // The HTTP method defined by HTTP_METHOD_MAP
     uint8_t _method;
     uint16_t _status;
     int64_t _content_length;
@@ -133,7 +137,7 @@ public:
 public:
     // Set the basic information for HTTP request.
     // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
-    virtual void set_basic(uint8_t method, uint16_t status, int64_t content_length);
+    virtual void set_basic(uint8_t type, uint8_t method, uint16_t status, int64_t content_length);
     // Set HTTP header and whether the request require keep alive.
     // @remark User must call set_header before set_url, because the Host in header is used for url.
     virtual void set_header(SrsHttpHeader* header, bool keep_alive);
