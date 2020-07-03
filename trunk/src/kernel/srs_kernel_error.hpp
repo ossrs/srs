@@ -287,6 +287,8 @@
 #define ERROR_INOTIFY_CREATE                3092
 #define ERROR_INOTIFY_OPENFD                3093
 #define ERROR_INOTIFY_WATCH                 3094
+#define ERROR_HEVC_API_NO_PREFIXED          3095
+#define ERROR_HEVC_DROP_BEFORE_SPS_PPS      3096
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
@@ -324,6 +326,9 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
+#define ERROR_STREAM_CASTER_HEVC_PPS        4041
+#define ERROR_STREAM_CASTER_HEVC_VPS        4042
+#define ERROR_STREAM_CASTER_HEVC_SPS        4043
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.

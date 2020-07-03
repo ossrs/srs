@@ -382,6 +382,8 @@ srs_error_t SrsHlsMuxer::segment_open()
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
             default_vcodec = SrsVideoCodecIdAVC;
+        } else if (default_vcodec_str == "h265") {
+            default_vcodec = SrsVideoCodecIdHEVC;
         } else if (default_vcodec_str == "vn") {
             default_vcodec = SrsVideoCodecIdDisabled;
         } else {
@@ -1319,7 +1321,11 @@ srs_error_t SrsHls::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     }
     
     srs_assert(format->vcodec);
-    if (format->vcodec->id != SrsVideoCodecIdAVC) {
+    bool ignore_frame = (format->vcodec->id != SrsVideoCodecIdAVC);
+#ifdef SRS_H265
+    ignore_frame = ignore_frame && (format->vcodec->id != SrsVideoCodecIdHEVC);
+#endif
+    if (ignore_frame) {
         return err;
     }
     
