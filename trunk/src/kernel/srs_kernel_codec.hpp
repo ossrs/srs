@@ -676,6 +676,8 @@ public:
     bool has_aud;
     // Whether exists SPS/PPS NALU.
     bool has_sps_pps;
+	bool has_sps;
+	bool has_pps;
     // The first nalu type.
     SrsAvcNaluType first_nalu_type;
 public:

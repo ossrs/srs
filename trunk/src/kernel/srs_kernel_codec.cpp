@@ -481,6 +481,7 @@ SrsVideoFrame::SrsVideoFrame()
     frame_type = SrsVideoAvcFrameTypeForbidden;
     avc_packet_type = SrsVideoAvcFrameTraitForbidden;
     has_idr = has_aud = has_sps_pps = false;
+	has_sps = has_pps = false;
     first_nalu_type = SrsAvcNaluTypeForbidden;
 }
 
@@ -501,10 +502,16 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
         has_idr = true;
-    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
-        has_sps_pps = true;
+    } else if(nal_unit_type == SrsAvcNaluTypeSPS){
+    	has_sps = true;
+    } else if(nal_unit_type == SrsAvcNaluTypePPS){
+    	has_pps = true;
     } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
         has_aud = true;
+    }
+
+	if (has_sps && has_pps) {
+        has_sps_pps = true;
     }
     
     if (first_nalu_type == SrsAvcNaluTypeReserved) {
@@ -703,12 +710,17 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer* stream, int64_t timestamp)
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
             return srs_error_wrap(err, "demux SPS/PPS");
         }
+        //srs_trace("avc demux type=%d for sequence header:sps,pps", avc_packet_type);
     } else if (avc_packet_type == SrsVideoAvcFrameTraitNALU){
         if ((err = video_nalu_demux(stream)) != srs_success) {
             return srs_error_wrap(err, "demux NALU");
         }
+		/*srs_trace("avc demux type=%d for NALU;vcodec payload format:%d;video frame type:%d;nb_samples:%d,has idr:%d,has sps pps:%d,has sps:%d,has pps:%d", 
+			avc_packet_type,vcodec->payload_format,
+			video->frame_type,video->nb_samples,video->has_idr,video->has_sps_pps,video->has_sps,video->has_pps);*/	
     } else {
         // ignored.
+        srs_warn("ignored avc_packet_type=%d", avc_packet_type);
     }
     
     return err;
