@@ -99,7 +99,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     SrsHttpMessage* msg = new SrsHttpMessage(reader, buffer);
 
     // Initialize the basic information.
-    msg->set_basic(hp_header.method, hp_header.status_code, hp_header.content_length);
+    msg->set_basic(hp_header.type, hp_header.method, hp_header.status_code, hp_header.content_length);
     msg->set_header(header, http_should_keep_alive(&hp_header));
     if ((err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
@@ -312,8 +312,9 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_uri);
 }
 
-void SrsHttpMessage::set_basic(uint8_t method, uint16_t status, int64_t content_length)
+void SrsHttpMessage::set_basic(uint8_t type, uint8_t method, uint16_t status, int64_t content_length)
 {
+    type_ = type;
     _method = method;
     _status = status;
     if (_content_length == -1) {
@@ -335,10 +336,13 @@ void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
         _content_length = ::atoll(clv.c_str());
     }
 
-    // If method is OPTIONS, and no size(content-length or chunked), it's not infinite chunked,
+    // If no size(content-length or chunked), it's infinite chunked,
     // it means there is no body, so we must close the body reader.
-    if (_method == SRS_CONSTS_HTTP_OPTIONS && !chunked && _content_length == -1) {
-        _body->close();
+    if (!chunked && _content_length == -1) {
+        // The infinite chunked is only enabled for HTTP_RESPONSE, so we close the body for request.
+        if (type_ == HTTP_REQUEST) {
+            _body->close();
+        }
     }
 }
 
