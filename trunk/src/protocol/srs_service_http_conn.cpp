@@ -291,7 +291,6 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
 {
     owner_conn = NULL;
     chunked = false;
-    infinite_chunked = false;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, reader, buffer);
 
@@ -334,6 +333,12 @@ void SrsHttpMessage::set_header(SrsHttpHeader* header, bool keep_alive)
     string clv = header->get("Content-Length");
     if (!clv.empty()) {
         _content_length = ::atoll(clv.c_str());
+    }
+
+    // If method is OPTIONS, and no size(content-length or chunked), it's not infinite chunked,
+    // it means there is no body, so we must close the body reader.
+    if (_method == SRS_CONSTS_HTTP_OPTIONS && !chunked && _content_length == -1) {
+        _body->close();
     }
 }
 
@@ -476,11 +481,6 @@ bool SrsHttpMessage::is_keep_alive()
     return _keep_alive;
 }
 
-bool SrsHttpMessage::is_infinite_chunked()
-{
-    return infinite_chunked;
-}
-
 string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
@@ -548,23 +548,6 @@ std::string SrsHttpMessage::parse_rest_id(string pattern)
     }
     
     return "";
-}
-
-srs_error_t SrsHttpMessage::enter_infinite_chunked()
-{
-    srs_error_t err = srs_success;
-    
-    if (infinite_chunked) {
-        return err;
-    }
-    
-    if (is_chunked() || content_length() != -1) {
-        return srs_error_new(ERROR_HTTP_DATA_INVALID, "not infinited chunked");
-    }
-    
-    infinite_chunked = true;
-    
-    return err;
 }
 
 srs_error_t SrsHttpMessage::body_read_all(string& body)
@@ -944,6 +927,11 @@ SrsHttpResponseReader::~SrsHttpResponseReader()
 {
 }
 
+void SrsHttpResponseReader::close()
+{
+    is_eof = true;
+}
+
 bool SrsHttpResponseReader::eof()
 {
     return is_eof;
@@ -975,16 +963,17 @@ srs_error_t SrsHttpResponseReader::read(void* data, size_t nb_data, ssize_t* nb_
         return read_specified(data, nb_data, nb_read);
     }
     
-    // infinite chunked mode, directly read.
-    if (owner->is_infinite_chunked()) {
-        srs_assert(!owner->is_chunked() && owner->content_length() == -1);
-        return read_specified(data, nb_data, nb_read);
+    // Infinite chunked mode.
+    // If not chunked encoding, and no content-length, it's infinite chunked.
+    // In this mode, all body is data and never EOF util socket closed.
+    if ((err = read_specified(data, nb_data, nb_read)) != srs_success) {
+        // For infinite chunked, the socket close event is EOF.
+        if (srs_error_code(err) == ERROR_SOCKET_READ) {
+            srs_freep(err); is_eof = true;
+            return err;
+        }
     }
-    
-    // infinite chunked mode, but user not set it,
-    // we think there is no data left.
-    is_eof = true;
-    
+
     return err;
 }
 

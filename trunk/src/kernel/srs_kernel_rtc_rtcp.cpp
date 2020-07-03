@@ -682,15 +682,15 @@ srs_error_t SrsRtcpTWCC::encode_chunk_two_bit(SrsRtcpTWCC::SrsRtcpTWCCChunk& chu
     pkt_len += sizeof(encoded_chunk);
 
     if (shift) {
+        chunk.size -= size;
         chunk.all_same = true;
         chunk.has_large_delta = false;
-        for (i = size; i < chunk.size; ++i) {
-            delta_size = chunk.delta_sizes[i];
-            chunk.delta_sizes[i - size] = delta_size;
+        for (i = 0; i < chunk.size; ++i) {
+            delta_size = chunk.delta_sizes[i + size];
+            chunk.delta_sizes[i] = delta_size;
             chunk.all_same = (chunk.all_same && delta_size == chunk.delta_sizes[0]);
             chunk.has_large_delta = chunk.has_large_delta || delta_size == kTwccFbLargeRecvDeltaBytes;
         }
-        chunk.size -= size;
     }
 
     return srs_success;
@@ -773,6 +773,17 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 {
     srs_error_t err = srs_success;
 
+    err = do_encode(buffer);
+
+    clear();
+
+    return err;
+}
+
+srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
+{
+    srs_error_t err = srs_success;
+
     if(!buffer->require(nb_bytes())) {
         return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
     }
@@ -787,85 +798,79 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
     uint16_t last_sn = base_sn_;
     packet_count_ = recv_packes_.size();
 
-    do {
-        // encode chunk
-        SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
-        for(; it_sn != recv_sns_.end(); ++it_sn) {
-            uint16_t current_sn = *it_sn;
-            // calculate delta
-            it_ts = recv_packes_.find(current_sn);
-            srs_utime_t delta_us = calculate_delta_us(it_ts->second, last_ts);
-            uint16_t delta = delta_us;
-            if(delta != delta_us) {
-                return srs_error_new(ERROR_RTC_RTCP, "twcc: delta:%lld, exceeds the 16-bit base receive delta", delta_us);
-            }
-
-            if(current_sn > (last_sn + 1)) {
-                // lost packet
-                for(uint16_t lost_sn = last_sn + 1; lost_sn < current_sn; ++lost_sn) {
-                    process_pkt_chunk(chunk, 0);
-                    packet_count_++;
-                }
-            }
-
-            // FIXME 24-bit base receive delta not supported
-            int recv_delta_size = (delta >= 0 && delta <= 0xff) ? 1 : 2;
-            if ((err = process_pkt_chunk(chunk, recv_delta_size)) != srs_success) {
-                return srs_error_new(ERROR_RTC_RTCP, "delta_size %d, failed to append_recv_delta", recv_delta_size);
-            }
-
-            pkt_deltas_.push_back(delta);
-            last_ts += delta * kTwccFbDeltaUnit;
-            pkt_len += recv_delta_size;
-            last_sn = current_sn;
+    // encode chunk
+    SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
+    for(; it_sn != recv_sns_.end(); ++it_sn) {
+        uint16_t current_sn = *it_sn;
+        // calculate delta
+        it_ts = recv_packes_.find(current_sn);
+        srs_utime_t delta_us = calculate_delta_us(it_ts->second, last_ts);
+        int16_t delta = delta_us;
+        if(delta != delta_us) {
+            return srs_error_new(ERROR_RTC_RTCP, "twcc: delta:%" PRId64 ", exceeds the 16bits", delta_us);
         }
 
-        if(0 < chunk.size) {
-            if((err = encode_remaining_chunk(chunk)) != srs_success) {
-                return srs_error_wrap(err, "encode chunk");
+        if(current_sn > (last_sn + 1)) {
+            // lost packet
+            for(uint16_t lost_sn = last_sn + 1; lost_sn < current_sn; ++lost_sn) {
+                process_pkt_chunk(chunk, 0);
+                packet_count_++;
             }
         }
 
-        // encode rtcp twcc packet
-        if((pkt_len % 4) == 0) {
-            header_.length = pkt_len / 4;
+        // FIXME 24-bit base receive delta not supported
+        int recv_delta_size = (delta >= 0 && delta <= 0xff) ? 1 : 2;
+        if ((err = process_pkt_chunk(chunk, recv_delta_size)) != srs_success) {
+            return srs_error_new(ERROR_RTC_RTCP, "delta_size %d, failed to append_recv_delta", recv_delta_size);
+        }
+
+        pkt_deltas_.push_back(delta);
+        last_ts += delta * kTwccFbDeltaUnit;
+        pkt_len += recv_delta_size;
+        last_sn = current_sn;
+    }
+
+    if(0 < chunk.size) {
+        if((err = encode_remaining_chunk(chunk)) != srs_success) {
+            return srs_error_wrap(err, "encode chunk");
+        }
+    }
+
+    // encode rtcp twcc packet
+    if((pkt_len % 4) == 0) {
+        header_.length = pkt_len / 4;
+    } else {
+        header_.length = (pkt_len + 4 - (pkt_len%4)) / 4;
+    }
+    header_.length -= 1;
+
+    if(srs_success != (err = encode_header(buffer))) {
+        return srs_error_wrap(err, "encode header");
+    }
+    buffer->write_4bytes(sender_ssrc_);
+    buffer->write_4bytes(media_ssrc_);
+    buffer->write_2bytes(base_sn_);
+    buffer->write_2bytes(packet_count_);
+    buffer->write_3bytes(reference_time_);
+    buffer->write_1bytes(fb_pkt_count_);
+
+    for(vector<uint16_t>::iterator it = encoded_chucks_.begin(); it != encoded_chucks_.end(); ++it) {
+        buffer->write_2bytes(*it);
+    }
+    for(vector<uint16_t>::iterator it = pkt_deltas_.begin(); it != pkt_deltas_.end(); ++it) {
+        if(0 <= *it && 0xFF >= *it) {
+            // small delta
+            uint8_t delta = *it;
+            buffer->write_1bytes(delta);
         } else {
-            header_.length = (pkt_len + 4 - (pkt_len%4)) / 4;
-        }
-        header_.length -= 1;
-
-        if(srs_success != (err = encode_header(buffer))) {
-            err = srs_error_wrap(err, "encode header");
-            break;
-        }
-        buffer->write_4bytes(sender_ssrc_);
-        buffer->write_4bytes(media_ssrc_);
-        buffer->write_2bytes(base_sn_);
-        buffer->write_2bytes(packet_count_);
-        buffer->write_3bytes(reference_time_);
-        buffer->write_1bytes(fb_pkt_count_);
-
-        for(vector<uint16_t>::iterator it = encoded_chucks_.begin(); it != encoded_chucks_.end(); ++it) {
+            // large or negative delta
             buffer->write_2bytes(*it);
         }
-        for(vector<uint16_t>::iterator it = pkt_deltas_.begin(); it != pkt_deltas_.end(); ++it) {
-            if(0 <= *it && 0xFF >= *it) {
-                // small delta
-                uint8_t delta = *it;
-                buffer->write_1bytes(delta);
-            } else {
-                // large or negative delta
-                buffer->write_2bytes(*it);
-            }
-        }
-        while((pkt_len % 4) != 0) {
-            buffer->write_1bytes(0);
-            pkt_len++;
-        }
-
-    } while(0);
-    
-    clear();
+    }
+    while((pkt_len % 4) != 0) {
+        buffer->write_1bytes(0);
+        pkt_len++;
+    }
 
     return err;
 }

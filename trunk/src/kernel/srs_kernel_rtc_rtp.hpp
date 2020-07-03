@@ -99,7 +99,7 @@ const SrsExtensionInfo kExtensions[] = {
     {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
 };
 
-class SrsRtpHeaderExtensionMap
+class SrsRtpExtensionTypes
 {
 public:
     static const SrsRtpExtensionType kInvalidType = kRtpExtensionNone;
@@ -108,30 +108,65 @@ public:
     bool register_by_uri(int id, std::string uri);
     SrsRtpExtensionType get_type(int id) const;
 public:
-    SrsRtpHeaderExtensionMap();
-    virtual ~SrsRtpHeaderExtensionMap();
+    SrsRtpExtensionTypes();
+    virtual ~SrsRtpExtensionTypes();
 private:
     bool register_id(int id, SrsRtpExtensionType type, std::string uri);
 private:
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
-class SrsRtpHeaderExtension
+class SrsRtpExtensionTwcc : public ISrsCodec
 {
+    bool has_twcc_;
+    uint8_t id_;
+    uint16_t sn_;
 public:
-    bool has_transport_sequence_number;
-    uint16_t transport_sequence_number;
-    uint8_t transport_cc_ext_id;
-public:
-    SrsRtpHeaderExtension();
-    virtual ~SrsRtpHeaderExtension();
+    SrsRtpExtensionTwcc();
+    virtual ~SrsRtpExtensionTwcc();
+
+    bool has_twcc_ext();
+    uint8_t get_id();
+    void set_id(uint8_t id);
+    uint16_t get_sn();
+    void set_sn(uint16_t sn);
+
+public:  
+    // ISrsCodec
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual int nb_bytes();
 };
 
-class SrsRtpHeader
+class SrsRtpExtensions : public ISrsCodec
+{
+private:
+    bool has_ext_;
+    SrsRtpExtensionTypes types_;
+    SrsRtpExtensionTwcc twcc_;
+public:
+    SrsRtpExtensions();
+    virtual ~SrsRtpExtensions();
+
+    bool exists();
+    void set_types_(const SrsRtpExtensionTypes* types);
+    srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
+    srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
+
+// ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer* buf);
+private:
+    srs_error_t decode_0xbede(SrsBuffer* buf);
+public:
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual int nb_bytes();
+};
+
+class SrsRtpHeader : public ISrsCodec
 {
 private:
     uint8_t padding_length;
-    bool extension;
     uint8_t cc;
     bool marker;
     uint8_t payload_type;
@@ -139,16 +174,16 @@ private:
     uint32_t timestamp;
     uint32_t ssrc;
     uint32_t csrc[15];
-    uint16_t extension_length;
-    SrsRtpHeaderExtensionMap extension_map_;
-    SrsRtpHeaderExtension header_extension;
+    SrsRtpExtensions extensions_;
+    bool ignore_padding_;
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
-private:
-    srs_error_t parse_extension(SrsBuffer* buf);
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
+private:
+    srs_error_t parse_extensions(SrsBuffer* buf);
+public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual int nb_bytes();
 public:
@@ -164,8 +199,10 @@ public:
     uint32_t get_ssrc() const;
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
-    void set_extensions(const SrsRtpHeaderExtensionMap* extmap);
+    void set_extensions(const SrsRtpExtensionTypes* extmap);
+    void ignore_padding(bool v);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
+    srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
 };
 
 class ISrsRtpPayloader : public ISrsCodec
@@ -222,7 +259,7 @@ public:
     // Copy the RTP packet.
     SrsRtpPacket2* copy();
     // Set RTP header extensions for encoding or decoding header extension
-    void set_rtp_header_extensions(const SrsRtpHeaderExtensionMap* extmap);
+    void set_extension_types(const SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
 public:
     virtual int nb_bytes();

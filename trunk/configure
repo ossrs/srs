@@ -499,13 +499,13 @@ destroy:
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
 
 clean_srs:
-	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include/* lib/*)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find src -name "*.o" -delete)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find utest -name "*.o" -delete)
+	@(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
+	@(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf include/* lib/*)
+	@(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find src -name "*.o" -delete)
+	@(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && find utest -name "*.o" -delete)
 
 clean_modules:
-	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
+	@(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
 
 clean_openssl:
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
@@ -783,7 +783,7 @@ done
 # Do cleanup when configure done.
 #####################################################################################
 if [[ $SRS_CLEAN == YES && -f Makefile ]]; then
-    echo "Do full cleanup, you can disable it by: --without-clean"
+    echo "Do full cleanup, you can disable it by: --clean=off"
     make clean
 fi
 

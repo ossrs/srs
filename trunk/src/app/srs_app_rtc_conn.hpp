@@ -37,14 +37,12 @@
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 #include <map>
 #include <vector>
 #include <sys/socket.h>
-
-#include <openssl/ssl.h>
-#include <srtp2/srtp.h>
 
 class SrsUdpMuxSocket;
 class SrsConsumer;
@@ -108,44 +106,42 @@ enum SrsRtcSessionStateType
     CLOSED = 5,
 };
 
-class SrsRtcDtls
+class SrsSecurityTransport : public ISrsDtlsCallback
 {
 private:
     SrsRtcSession* session_;
-
-    SSL* dtls;
-    BIO* bio_in;
-    BIO* bio_out;
-
-    std::string client_key;
-    std::string server_key;
-
-    srtp_t srtp_send;
-    srtp_t srtp_recv;
-
+    SrsDtls* dtls_;
+    SrsSRTP* srtp_;
     bool handshake_done;
-
 public:
-    SrsRtcDtls(SrsRtcSession* s);
-    virtual ~SrsRtcDtls();
+    SrsSecurityTransport(SrsRtcSession* s);
+    virtual ~SrsSecurityTransport();
 
-    srs_error_t initialize(SrsRequest* r);
-
+    srs_error_t initialize(SrsSessionConfig* cfg);
+    // When play role of dtls client, it send handshake. 
+    srs_error_t start_active_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t on_dtls_handshake_done();
-    srs_error_t on_dtls_application_data(const char* data, const int len);
 public:
-    srs_error_t protect_rtp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
+    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
+    // @remark Note that the nb_cipher is the size of input plaintext, and 
+    // it also is the length of output cipher when return.
+    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    // Encrypt the input rtp_hdr with *len_ptr bytes.
+    // @remark the input plaintext and out cipher reuse rtp_hdr.
     srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    srs_error_t unprotect_rtp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
-    srs_error_t protect_rtcp(char* protected_buf, const char* ori_buf, int& nb_protected_buf);
-    srs_error_t unprotect_rtcp(char* unprotected_buf, const char* ori_buf, int& nb_unprotected_buf);
-private:
-    srs_error_t handshake();
+    // Decrypt the input cipher to output cipher with nb_cipher bytes.
+    // @remark Note that the nb_plaintext is the size of input cipher, and 
+    // it also is the length of output plaintext when return.
+    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+// implement ISrsDtlsCallback
+public:
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len);
+    virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
-    srs_error_t srtp_send_init();
-    srs_error_t srtp_recv_init();
 };
 
 // A group of RTP packets for outgoing(send to players).
@@ -195,18 +191,15 @@ protected:
 private:
     // TODO: FIXME: How to handle timestamp overflow?
     // Information for audio.
-    uint16_t audio_sequence;
     uint32_t audio_ssrc;
     uint16_t audio_payload_type;
     // Information for video.
-    uint16_t video_sequence;
     uint16_t video_payload_type;
     uint32_t video_ssrc;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* audio_queue_;
     SrsRtpRingBuffer* video_queue_;
     // Simulators.
-    uint16_t sequence_delta;
     int nn_simulate_nack_drop;
 private:
     // For merged-write messages.
@@ -214,13 +207,11 @@ private:
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
-    // Whether keep original sequence number.
-    bool keep_sequence_;
 public:
     SrsRtcPlayer(SrsRtcSession* s, std::string parent_cid);
     virtual ~SrsRtcPlayer();
 public:
-    srs_error_t initialize(const uint32_t& vssrc, const uint32_t& assrc, const uint16_t& v_pt, const uint16_t& a_pt);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint16_t v_pt, uint16_t a_pt);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -260,6 +251,9 @@ private:
     SrsRtcSession* session_;
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
+    uint16_t pt_to_drop_;
+    // Whether enabled nack.
+    bool nack_enabled_;
 private:
     bool request_keyframe_;
     SrsRtpRingBuffer* video_queue_;
@@ -269,8 +263,6 @@ private:
 private:
     SrsRequest* req;
     SrsRtcSource* source;
-    // Whether enabled nack.
-    bool nack_enabled_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -278,15 +270,15 @@ private:
     std::map<uint32_t, SrsNtp> last_sender_report_ntp;
 private:
     srs_utime_t last_twcc_feedback_time_;
-    uint8_t twcc_ext_id_;
+    int twcc_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
-    SrsRtpHeaderExtensionMap extension_map_;
+    SrsRtpExtensionTypes extension_types_;
 public:
     SrsRtcPublisher(SrsRtcSession* session);
     virtual ~SrsRtcPublisher();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint8_t twcc_ext_id, SrsRequest* req);
+    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, int twcc_id, SrsRequest* req);
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);
@@ -299,6 +291,7 @@ private:
     srs_error_t on_audio(SrsRtpPacket2* pkt);
     srs_error_t on_video(SrsRtpPacket2* pkt);
     srs_error_t on_nack(SrsRtpPacket2* pkt);
+    srs_error_t send_periodic_twcc();
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
@@ -322,7 +315,7 @@ private:
 
 class SrsRtcSession
 {
-    friend class SrsRtcDtls;
+    friend class SrsSecurityTransport;
     friend class SrsRtcPlayer;
     friend class SrsRtcPublisher;
 public:
@@ -330,7 +323,7 @@ public:
 private:
     SrsRtcServer* server_;
     SrsRtcSessionStateType state_;
-    SrsRtcDtls* dtls_;
+    SrsSecurityTransport* transport_;
     SrsRtcPlayer* player_;
     SrsRtcPublisher* publisher_;
     bool is_publisher_;
@@ -381,6 +374,7 @@ public:
     void switch_to_context();
     std::string context_id();
 public:
+    // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, std::string context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);

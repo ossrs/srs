@@ -480,7 +480,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageConnection)
+VOID TEST(HTTPServerTest, MessageConnection)
 {
     srs_error_t err;
 
@@ -534,7 +534,6 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    EXPECT_TRUE(m.is_keep_alive());
-	    EXPECT_FALSE(m.is_infinite_chunked());
 	}
 
 	if (true) {
@@ -562,42 +561,7 @@ VOID TEST(TCPServerTest, MessageConnection)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageInfinityChunked)
-{
-    srs_error_t err;
-
-	if (true) {
-	    SrsHttpMessage m;
-	    EXPECT_FALSE(m.is_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Transfer-Encoding", "chunked");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Content-Length", "100");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-}
-
-VOID TEST(TCPServerTest, MessageTurnRequest)
+VOID TEST(HTTPServerTest, MessageTurnRequest)
 {
     srs_error_t err;
 
@@ -645,7 +609,63 @@ VOID TEST(TCPServerTest, MessageTurnRequest)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageWritev)
+VOID TEST(HTTPServerTest, ContentLength)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("World!");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, HTTPChunked)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("5\r\nHello\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("6\r\nWorld!\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, InfiniteChunked)
 {
     srs_error_t err;
 
@@ -656,12 +676,7 @@ VOID TEST(TCPServerTest, MessageWritev)
 
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-
-        if (true) {
-            SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(msg);
-            ASSERT_TRUE(hm != NULL);
-            hm->enter_infinite_chunked();
-        }
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -677,7 +692,95 @@ VOID TEST(TCPServerTest, MessageWritev)
         HELPER_ASSERT_SUCCESS(r->read(buf, 8, &nread));
         EXPECT_EQ(8, nread);
         EXPECT_STREQ("\r\nWorld!", buf);
+
+        EXPECT_FALSE(r->eof());
     }
+
+    // If read error, it's EOF.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.in_err = srs_error_new(ERROR_SOCKET_READ, "EOF");
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_TRUE(r->eof());
+    }
+}
+
+VOID TEST(HTTPServerTest, OPTIONSRead)
+{
+    srs_error_t err;
+
+    // If OPTIONS, it has no content-length, not chunkted, but not infinite chunked,
+    // instead, it has no body.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+    }
+
+    // So if OPTIONS has body, with chunked or content-length, it's ok to parsing it.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_FALSE(br->eof());
+
+        string b; HELPER_ASSERT_SUCCESS(req->body_read_all(b));
+        EXPECT_STREQ("Hello", b.c_str());
+
+        // The body will use as next HTTP request message.
+        io.append("GET /rtc/v1/play HTTP/1.1\r\n\r\n");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
+    }
+
+    // So if OPTIONS has body, but not specified the size, we think it has no body,
+    // and the body is parsed fail as the next parsing.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+
+        // The body will use as next HTTP request message.
+        io.append("Hello");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_FAILED(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
+    }
+}
+
+VOID TEST(HTTPServerTest, MessageWritev)
+{
+    srs_error_t err;
 
     // Directly writev, merge to one chunk.
     if (true) {
@@ -1000,8 +1103,6 @@ VOID TEST(TCPServerTest, CoverUtility)
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 
-    EXPECT_FALSE(srs_net_device_is_internet("eth0"));
-
     if (true) {
         sockaddr_in addr;
         addr.sin_family = AF_INET;
@@ -1176,7 +1277,7 @@ public:
     }
 };
 
-VOID TEST(TCPServerTest, HTTPClientUtility)
+VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
     srs_error_t err;
 
@@ -1278,6 +1379,7 @@ VOID TEST(TCPServerTest, ContextUtility)
 
     int base_size = 0;
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", "100", "Trace", &size));
         base_size = size;
@@ -1285,6 +1387,7 @@ VOID TEST(TCPServerTest, ContextUtility)
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", "100", "Trace", &size));
         EXPECT_EQ(base_size, size);
@@ -1298,6 +1401,7 @@ VOID TEST(TCPServerTest, ContextUtility)
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
         ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 8, size);

@@ -136,16 +136,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     string eip = r->query_get("eip");
     // For client to specifies whether encrypt by SRTP.
     string encrypt = r->query_get("encrypt");
-    // If keep_sequence is off, for client to specifies the startup sequence.
-    string sequence_startup = r->query_get("sequence_startup");
-    // If keep_sequence is on, for client to specifies the delta value for sequence.
-    string sequence_delta = r->query_get("sequence_delta");
-    // Whether keep sequence, overwrite the config for debugging each session.
-    string sequence_keep = r->query_get("sequence_keep");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s, sequence(startup=%s,delta=%s,keep=%s)",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(), encrypt.c_str(),
-        sequence_startup.c_str(), sequence_delta.c_str(), sequence_keep.c_str());
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(), encrypt.c_str());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -169,6 +162,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+
     if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
         return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
@@ -194,11 +192,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     } else {
         session->set_encrypt(encrypt != "false");
     }
-
-    // Set the optional parameters from client.
-    session->sequence_startup = sequence_startup;
-    session->sequence_delta = sequence_delta;
-    session->sequence_keep = sequence_keep;
 
     ostringstream os;
     if ((err = local_sdp.encode(os)) != srs_success) {
@@ -369,7 +362,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
         } else if (remote_media_desc.session_info_.setup_ == "passive") {
             local_media_desc.session_info_.setup_ = "active";
         } else if (remote_media_desc.session_info_.setup_ == "actpass") {
-            local_media_desc.session_info_.setup_ = "passive";
+            local_media_desc.session_info_.setup_ = local_sdp.session_config_.dtls_role;
         } else {
             // @see: https://tools.ietf.org/html/rfc4145#section-4.1
             // The default value of the setup attribute in an offer/answer exchange
@@ -527,6 +520,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
 
     SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+
     if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
         return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
     }
@@ -635,6 +633,21 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
 
+        // Whether feature enabled in remote extmap.
+        int remote_twcc_id = 0;
+        if (true) {
+            map<int, string> extmaps = remote_media_desc.get_extmaps();
+            for(map<int, string>::iterator it = extmaps.begin(); it != extmaps.end(); ++it) {
+                if (it->second == kTWCCExt) {
+                    remote_twcc_id = it->first;
+                    break;
+                }
+            }
+        }
+        if (twcc_enabled && remote_twcc_id) {
+            local_media_desc.extmaps_[remote_twcc_id] = kTWCCExt;
+        }
+
         if (remote_media_desc.is_audio()) {
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
@@ -651,7 +664,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                             payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                         }
                     }
-                    if (twcc_enabled) {
+                    if (twcc_enabled && remote_twcc_id) {
                         if (rtcp_fb.at(j) == "transport-cc") {
                             payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                         }
@@ -660,13 +673,6 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
 
                 // Only choose one match opus codec.
                 break;
-            }
-            map<int, string> extmaps = remote_media_desc.get_extmaps();
-            for(map<int, string>::iterator it_ext = extmaps.begin(); it_ext != extmaps.end(); ++it_ext) {
-                if (it_ext->second == kTWCCExt) {
-                    local_media_desc.extmaps_[it_ext->first] = kTWCCExt;
-                    break;
-                }
             }
 
             if (local_media_desc.payload_types_.empty()) {
@@ -700,7 +706,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                                 payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                             }
                         }
-                        if (twcc_enabled) {
+                        if (twcc_enabled && remote_twcc_id) {
                             if (rtcp_fb.at(j) == "transport-cc") {
                                 payload_type.rtcp_fb_.push_back(rtcp_fb.at(j));
                             }
@@ -712,13 +718,6 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                 }
 
                 backup_payloads.push_back(*iter);
-            }
-            map<int, string> extmaps = remote_media_desc.get_extmaps();
-            for(map<int, string>::iterator it_ext = extmaps.begin(); it_ext != extmaps.end(); ++it_ext) {
-                if (it_ext->second == kTWCCExt) {
-                    local_media_desc.extmaps_[it_ext->first] = kTWCCExt;
-                    break;
-                }
             }
 
             // Try my best to pick at least one media payload type.
@@ -746,7 +745,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
         } else if (remote_media_desc.session_info_.setup_ == "passive") {
             local_media_desc.session_info_.setup_ = "active";
         } else if (remote_media_desc.session_info_.setup_ == "actpass") {
-            local_media_desc.session_info_.setup_ = "passive";
+            local_media_desc.session_info_.setup_ = local_sdp.session_config_.dtls_role;
         } else {
             // @see: https://tools.ietf.org/html/rfc4145#section-4.1
             // The default value of the setup attribute in an offer/answer exchange

@@ -127,7 +127,7 @@ public:
     bool require(int required_size);
 public:
     // Skip some size.
-    // @param size can be any value. positive to forward; nagetive to backward.
+    // @param size can be any value. positive to forward; negative to backward.
     // @remark to skip(pos()) to reset buffer.
     // @remark assert initialized, the data() not NULL.
     void skip(int size);

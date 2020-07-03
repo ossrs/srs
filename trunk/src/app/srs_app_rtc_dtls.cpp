@@ -30,21 +30,11 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_config.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_rtmp_stack.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
-
-SrsDtls* SrsDtls::_instance = NULL;
-
-SrsDtls::SrsDtls()
-{
-    dtls_ctx = NULL;
-}
-
-SrsDtls::~SrsDtls()
-{
-    SSL_CTX_free(dtls_ctx);
-}
 
 // The return value of verify_callback controls the strategy of the further verification process. If verify_callback
 // returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
@@ -61,12 +51,34 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-srs_error_t SrsDtls::init(SrsRequest* r)
+SrsDtlsCertificate::SrsDtlsCertificate()
+{
+    dtls_cert = NULL;
+    dtls_pkey = NULL;
+    eckey = NULL;
+}
+
+SrsDtlsCertificate::~SrsDtlsCertificate()
+{
+    if (eckey) {
+        EC_KEY_free(eckey);
+    }
+
+    if (dtls_pkey) {
+        EVP_PKEY_free(dtls_pkey);
+    }
+
+    if (dtls_cert) {
+        X509_free(dtls_cert);
+    }
+}
+
+srs_error_t SrsDtlsCertificate::initialize()
 {
     srs_error_t err = srs_success;
 
     // Initialize once.
-    if (dtls_ctx) {
+    if (dtls_cert) {
         return err;
     }
 
@@ -78,24 +90,16 @@ srs_error_t SrsDtls::init(SrsRequest* r)
     OpenSSL_add_ssl_algorithms();
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-    dtls_ctx = SSL_CTX_new(DTLSv1_method());
-#else
-    dtls_ctx = SSL_CTX_new(DTLS_method());
-    //dtls_ctx = SSL_CTX_new(DTLSv1_method());
-    //dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
-#endif
-
     // Initialize SRTP first.
     srs_assert(srtp_init() == 0);
 
     // Whether use ECDSA certificate.
-    bool is_ecdsa = _srs_config->get_rtc_server_ecdsa();
+    ecdsa_mode = _srs_config->get_rtc_server_ecdsa();
 
     // Create keys by RSA or ECDSA.
-    EVP_PKEY* dtls_pkey = EVP_PKEY_new();
+    dtls_pkey = EVP_PKEY_new();
     srs_assert(dtls_pkey);
-    if (!is_ecdsa) { // By RSA
+    if (!ecdsa_mode) { // By RSA
         RSA* rsa = RSA_new();
         srs_assert(rsa);
 
@@ -115,15 +119,10 @@ srs_error_t SrsDtls::init(SrsRequest* r)
         RSA_free(rsa);
         BN_free(exponent);
     }
-    if (is_ecdsa) { // By ECDSA, https://stackoverflow.com/a/6006898
-        EC_KEY* eckey = EC_KEY_new();
+    if (ecdsa_mode) { // By ECDSA, https://stackoverflow.com/a/6006898
+        eckey = EC_KEY_new();
         srs_assert(eckey);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
-        // For ECDSA, we could set the curves list.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
-        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
-#endif
         // Should use the curves in ClientHello.supported_groups
         // For example:
         //      Supported Group: x25519 (0x001d)
@@ -145,25 +144,15 @@ srs_error_t SrsDtls::init(SrsRequest* r)
         srs_assert(EC_KEY_set_group(eckey, ecgroup) == 1);
         srs_assert(EC_KEY_generate_key(eckey) == 1);
 
-        // For openssl <1.1, we must set the ECDH manually.
-        // @see https://stackoverrun.com/cn/q/10791887
-#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
-    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, eckey);
-    #else
-        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
-    #endif
-#endif
         // @see https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_type.html
         srs_assert(EVP_PKEY_set1_EC_KEY(dtls_pkey, eckey) == 1);
 
         EC_GROUP_free(ecgroup);
-        EC_KEY_free(eckey);
     }
 
     // Create certificate, from previous generated pkey.
     // TODO: Support ECDSA certificate.
-    X509* dtls_cert = X509_new();
+    dtls_cert = X509_new();
     srs_assert(dtls_cert);
     if (true) {
         X509_NAME* subject = X509_NAME_new();
@@ -189,36 +178,6 @@ srs_error_t SrsDtls::init(SrsRequest* r)
         srs_assert(X509_sign(dtls_cert, dtls_pkey, EVP_sha1()) != 0);
 
         X509_NAME_free(subject);
-    }
-
-    // Setup DTLS context.
-    if (true) {
-        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
-        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
-
-        // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, dtls_cert) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, dtls_pkey) == 1);
-
-        // Server will send Certificate Request.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        // TODO: FIXME: Config it, default to off to make the packet smaller.
-        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
-        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
-        // "level 2: higher level CA certificate", and so on.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        SSL_CTX_set_verify_depth(dtls_ctx, 4);
-
-        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
-        SSL_CTX_set_read_ahead(dtls_ctx, 1);
-
-        // TODO: Maybe we can use SRTP-GCM in future.
-        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
-        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
-        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
-        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
     }
 
     // Show DTLS fingerprint
@@ -249,21 +208,412 @@ srs_error_t SrsDtls::init(SrsRequest* r)
     return err;
 }
 
-SrsDtls* SrsDtls::instance()
+X509* SrsDtlsCertificate::get_cert()
 {
-    if (!_instance) {
-        _instance = new SrsDtls();
-    }
-    return _instance;
+    return dtls_cert;
 }
 
-SSL_CTX* SrsDtls::get_dtls_ctx()
+EVP_PKEY* SrsDtlsCertificate::get_public_key()
 {
-    return dtls_ctx;
+    return dtls_pkey;
 }
-
-std::string SrsDtls::get_fingerprint() const
+    
+EC_KEY* SrsDtlsCertificate::get_ecdsa_key() 
+{
+    return eckey;
+}
+    
+std::string SrsDtlsCertificate::get_fingerprint()
 {
     return fingerprint;
 }
 
+bool SrsDtlsCertificate::is_ecdsa()
+{
+    return ecdsa_mode;
+}
+
+ISrsDtlsCallback::ISrsDtlsCallback()
+{
+}
+
+ISrsDtlsCallback::~ISrsDtlsCallback()
+{
+}
+
+SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
+{
+    callback = cb;
+    handshake_done = false;
+
+    role_ = SrsDtlsRoleServer;
+    version_ = SrsDtlsVersionAuto;
+}
+
+SrsDtls::~SrsDtls()
+{
+    if (dtls_ctx) {
+        SSL_CTX_free(dtls_ctx);
+        dtls_ctx = NULL;
+    }
+
+    if (dtls) {
+        // this function will free bio_in and bio_out
+        SSL_free(dtls);
+        dtls = NULL;
+    }
+}
+
+SSL_CTX* SrsDtls::build_dtls_ctx()
+{
+    SSL_CTX* dtls_ctx;
+#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+    dtls_ctx = SSL_CTX_new(DTLSv1_method());
+#else
+    if (version_ == SrsDtlsVersion1_0) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_method());
+    } else if (version_ == SrsDtlsVersion1_2) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+    } else {
+        // SrsDtlsVersionAuto, use version-flexible DTLS methods
+        dtls_ctx = SSL_CTX_new(DTLS_method());
+    }
+#endif
+
+    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
+
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
+        // For ECDSA, we could set the curves list.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
+        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
+#endif
+
+        // For openssl <1.1, we must set the ECDH manually.
+        // @see https://stackoverrun.com/cn/q/10791887
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
+    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
+    #else
+        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
+    #endif
+#endif
+    }
+
+    // Setup DTLS context.
+    if (true) {
+        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
+        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
+
+        // Setup the certificate.
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
+
+        // Server will send Certificate Request.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        // TODO: FIXME: Config it, default to off to make the packet smaller.
+        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
+        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
+        // "level 2: higher level CA certificate", and so on.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        SSL_CTX_set_verify_depth(dtls_ctx, 4);
+
+        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
+        SSL_CTX_set_read_ahead(dtls_ctx, 1);
+
+        // TODO: Maybe we can use SRTP-GCM in future.
+        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
+        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
+        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
+    }
+
+    return dtls_ctx;
+}
+
+srs_error_t SrsDtls::initialize(std::string role, std::string version)
+{
+    srs_error_t err = srs_success;
+
+    role_ = SrsDtlsRoleServer;
+    if (role == "active") {
+        role_ = SrsDtlsRoleClient;
+    }
+
+    if (version == "dtls1.0") {
+        version_ = SrsDtlsVersion1_0;
+    } else if (version == "dtls1.2") {
+        version_ = SrsDtlsVersion1_2;
+    } else {
+        version_ = SrsDtlsVersionAuto;
+    }
+
+    dtls_ctx = build_dtls_ctx();
+
+    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
+    if ((dtls = SSL_new(dtls_ctx)) == NULL) {
+        return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
+    }
+
+    if (role == "active") {
+        // Dtls setup active, as client role.
+        SSL_set_connect_state(dtls);
+        SSL_set_max_send_fragment(dtls, 1500);
+    } else {
+        // Dtls setup passive, as server role.
+        SSL_set_accept_state(dtls);
+    }
+
+    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
+    }
+
+    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
+        BIO_free(bio_in);
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new out");
+    }
+
+    SSL_set_bio(dtls, bio_in, bio_out);
+
+    return err;
+}
+
+srs_error_t SrsDtls::do_handshake()
+{
+    srs_error_t err = srs_success;
+
+    int ret = SSL_do_handshake(dtls);
+
+    unsigned char *out_bio_data;
+    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
+
+    int ssl_err = SSL_get_error(dtls, ret); 
+    switch(ssl_err) {   
+        case SSL_ERROR_NONE: {   
+            if ((callback == NULL) || ((err = callback->on_dtls_handshake_done()) != srs_success)) {
+                return srs_error_wrap(err, "dtls handshake done handle");
+            }
+            break;
+        }  
+
+        case SSL_ERROR_WANT_READ: {   
+            break;
+        }   
+
+        case SSL_ERROR_WANT_WRITE: {   
+            break;
+        }
+
+        default: {   
+            break;
+        }   
+    }   
+
+    if (out_bio_len && callback) {
+        if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+            return srs_error_wrap(err, "send dtls packet");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+    if (BIO_reset(bio_in) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
+    }
+    if (BIO_reset(bio_out) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
+    }
+
+    if (BIO_write(bio_in, data, nb_data) <= 0) {
+        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write");
+    }
+
+    if (!handshake_done) {
+        err = do_handshake();
+    } else {
+        while (BIO_ctrl_pending(bio_in) > 0) {
+            char dtls_read_buf[8092];
+            int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
+
+            if (nb > 0 && callback) {
+                if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+                    return srs_error_wrap(err, "dtls application data process");
+                }
+            }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::start_active_handshake()
+{
+    if (role_ == SrsDtlsRoleClient) {
+        return do_handshake();
+    }
+
+    return srs_success;
+}
+
+const int SRTP_MASTER_KEY_KEY_LEN = 16;
+const int SRTP_MASTER_KEY_SALT_LEN = 14;
+srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
+    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
+    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
+    }
+
+    size_t offset = 0;
+
+    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    offset += SRTP_MASTER_KEY_SALT_LEN;
+    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+
+    if (role_ == SrsDtlsRoleClient) {
+        recv_key = server_master_key + server_master_salt;
+        send_key = client_master_key + client_master_salt;
+    } else {
+        recv_key = client_master_key + client_master_salt;
+        send_key = server_master_key + server_master_salt;
+    }
+
+    return err;
+}
+
+SrsSRTP::SrsSRTP()
+{
+    recv_ctx_ = NULL;
+    send_ctx_ = NULL;
+}
+
+SrsSRTP::~SrsSRTP()
+{
+    if (recv_ctx_) {
+        srtp_dealloc(recv_ctx_);
+    }
+
+    if (send_ctx_) {
+        srtp_dealloc(send_ctx_);
+    }
+}
+
+srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
+{
+    srs_error_t err = srs_success;
+
+    srtp_policy_t policy;
+    bzero(&policy, sizeof(policy));
+
+    // TODO: Maybe we can use SRTP-GCM in future.
+    // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+    // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
+    srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtp);
+    srtp_crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtcp);
+
+    policy.ssrc.value = 0;
+    // TODO: adjust window_size
+    policy.window_size = 8192;
+    policy.allow_repeat_tx = 1;
+    policy.next = NULL;
+
+    // init recv context
+    policy.ssrc.type = ssrc_any_inbound;
+    uint8_t *rkey = new uint8_t[recv_key.size()];
+    SrsAutoFreeA(uint8_t, rkey);
+    memcpy(rkey, recv_key.data(), recv_key.size());
+    policy.key = rkey;
+
+    if (srtp_create(&recv_ctx_, &policy) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
+    }
+
+    policy.ssrc.type = ssrc_any_outbound;
+    uint8_t *skey = new uint8_t[send_key.size()];
+    SrsAutoFreeA(uint8_t, skey);
+    memcpy(skey, send_key.data(), send_key.size());
+    policy.key = skey;
+
+    if (srtp_create(&send_ctx_, &policy) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    srs_error_t err = srs_success;
+
+    memcpy(cipher, plaintext, nb_cipher);
+    // TODO: FIXME: Wrap error code.
+    if (srtp_protect(send_ctx_, cipher, &nb_cipher) != 0) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    srs_error_t err = srs_success;
+
+    memcpy(cipher, plaintext, nb_cipher);
+    // TODO: FIXME: Wrap error code.
+    if (srtp_protect_rtcp(send_ctx_, cipher, &nb_cipher) != 0) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::protect_rtp2(void* rtp_hdr, int* len_ptr)
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: Wrap error code.
+    if (srtp_protect(send_ctx_, rtp_hdr, len_ptr) != 0) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
+{
+    srs_error_t err = srs_success;
+
+    memcpy(plaintext, cipher, nb_plaintext);
+    srtp_err_status_t r0 = srtp_unprotect(recv_ctx_, plaintext, &nb_plaintext);
+    if (r0 != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "unprotect r0=%u", r0);
+    }
+
+    return err;
+}
+
+srs_error_t SrsSRTP::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
+{
+    srs_error_t err = srs_success;
+
+    memcpy(plaintext, cipher, nb_plaintext);
+    // TODO: FIXME: Wrap error code.
+    if (srtp_unprotect_rtcp(recv_ctx_, plaintext, &nb_plaintext) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
+    }
+
+    return err;
+}
