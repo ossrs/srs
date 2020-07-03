@@ -331,6 +331,11 @@
 #define ERROR_HTTPS_READ                    4043
 #define ERROR_HTTPS_WRITE                   4044
 #define ERROR_HTTPS_KEY_CRT                 4045
+#define ERROR_STREAM_CASTER_HEVC_PPS        4046
+#define ERROR_STREAM_CASTER_HEVC_VPS        4047
+#define ERROR_STREAM_CASTER_HEVC_SPS        4048
+#define ERROR_HEVC_API_NO_PREFIXED          4049
+#define ERROR_HEVC_DROP_BEFORE_SPS_PPS      4050
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.
