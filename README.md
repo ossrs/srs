@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-07-04, Fix some bugs for RTC. 4.0.34
 * v4.0, 2020-07-03, Merge [#1830][bug #1830] to fix bugs in GB28181. 4.0.33
 * v4.0, 2020-06-24, Support static link c++ libraries. 4.0.32
 * v4.0, 2020-06-23, Change log cid from int to string. 4.0.31
