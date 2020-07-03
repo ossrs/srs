@@ -149,6 +149,10 @@ enum SrsTsStream
     // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved
     // 0x15-0x7F
     SrsTsStreamVideoH264 = 0x1b,
+#ifdef SRS_H265
+    SrsTsStreamVideoHEVC = 0x24,
+#endif
+
     // User Private
     // 0x80-0xFF
     SrsTsStreamAudioAC3 = 0x81,
@@ -261,6 +265,9 @@ public:
     uint8_t continuity_counter;
     // The payload bytes.
     SrsSimpleStream* payload;
+public:
+    SrsVideoCodecId _id;
+
 public:
     SrsTsMessage(SrsTsChannel* c = NULL, SrsTsPacket* p = NULL);
     virtual ~SrsTsMessage();
@@ -1278,6 +1285,7 @@ public:
 public:
     // get the video codec of ts muxer.
     virtual SrsVideoCodecId video_codec();
+    virtual void update_vcodec(SrsVideoCodecId id);
 };
 
 // Used for HLS Encryption

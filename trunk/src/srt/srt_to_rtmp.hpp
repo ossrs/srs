@@ -36,6 +36,8 @@
 #include <srs_kernel_ts.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_raw_hevc.hpp>
+
 #include <srs_protocol_utility.hpp>
 #include <unordered_map>
 
@@ -47,6 +49,7 @@
 
 typedef std::shared_ptr<SrsSimpleRtmpClient> RTMP_CONN_PTR;
 typedef std::shared_ptr<SrsRawH264Stream> AVC_PTR;
+typedef std::shared_ptr<SrsRawHEVCStream> HEVC_PTR;
 typedef std::shared_ptr<SrsRawAacStream> AAC_PTR;
 
 #define DEFAULT_VHOST "__default_host__"
@@ -98,10 +101,14 @@ private:
     virtual void on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts);
 
 private:
-    srs_error_t on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
-    srs_error_t on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
+    srs_error_t on_ts_h264(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
+    srs_error_t on_ts_hevc(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
+    srs_error_t on_ts_aac(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts);
+
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
     virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_hevc_sps_pps(uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_hevc_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
 
     int get_sample_rate(char sound_rate);
@@ -126,6 +133,17 @@ private:
     std::string _h264_pps;
     bool _h264_pps_changed;
     bool _h264_sps_pps_sent;
+
+private:
+    HEVC_PTR _hevc_ptr;
+    std::string _hevc_vps;
+    bool _hevc_vps_changed;
+    std::string _hevc_sps;
+    bool _hevc_sps_changed;
+    std::string _hevc_pps;
+    bool _hevc_pps_changed;
+    bool _hevc_sps_pps_sent;
+
 private:
     std::string _aac_specific_config;
     AAC_PTR _aac_ptr;
