@@ -390,7 +390,8 @@ srs_error_t SrsDtls::do_handshake()
 
     int ssl_err = SSL_get_error(dtls, ret); 
     switch(ssl_err) {   
-        case SSL_ERROR_NONE: {   
+        case SSL_ERROR_NONE: {
+            handshake_done = true;
             if ((callback == NULL) || ((err = callback->on_dtls_handshake_done()) != srs_success)) {
                 return srs_error_wrap(err, "dtls handshake done handle");
             }

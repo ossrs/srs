@@ -166,6 +166,11 @@ srs_error_t SrsSecurityTransport::on_dtls(char* data, int nb_data)
 srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
+
+    if (handshake_done) {
+        return err;
+    }
+
     srs_trace("rtc session=%s, DTLS handshake done.", session_->id().c_str());
 
     handshake_done = true;
