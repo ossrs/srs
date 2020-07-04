@@ -43,6 +43,7 @@ SrsHttpParser::SrsHttpParser()
     header = NULL;
 
     p_body_start = p_header_tail = NULL;
+    type_ = HTTP_REQUEST;
 }
 
 SrsHttpParser::~SrsHttpParser()
@@ -54,8 +55,13 @@ SrsHttpParser::~SrsHttpParser()
 srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
 {
     srs_error_t err = srs_success;
-    
+
     jsonp = allow_jsonp;
+    type_ = type;
+
+    // Initialize the parser, however it's not necessary.
+    http_parser_init(&parser, type_);
+    parser.data = (void*)this;
     
     memset(&settings, 0, sizeof(settings));
     settings.on_message_begin = on_message_begin;
@@ -65,10 +71,6 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
     settings.on_headers_complete = on_headers_complete;
     settings.on_body = on_body;
     settings.on_message_complete = on_message_complete;
-    
-    http_parser_init(&parser, type);
-    // callback object ptr.
-    parser.data = (void*)this;
     
     return err;
 }
@@ -81,7 +83,7 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     
     // Reset request data.
     state = SrsHttpParseStateInit;
-    hp_header = http_parser();
+    memset(&hp_header, 0, sizeof(http_parser));
     // The body that we have read from cache.
     p_body_start = p_header_tail = NULL;
     // We must reset the field name and value, because we may get a partial value in on_header_value.
@@ -89,6 +91,19 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     // The header of the request.
     srs_freep(header);
     header = new SrsHttpHeader();
+
+    // Reset parser for each message.
+    // If the request is large, such as the fifth message at @utest ProtocolHTTPTest.ParsingLargeMessages,
+    // we got header and part of body, so the parser will stay at SrsHttpParseStateBody:
+    //      ***MESSAGE BEGIN***
+    //      ***HEADERS COMPLETE***
+    //      Body: xxx
+    // when got next message, the whole next message is parsed as the body of previous one,
+    // and the message fail.
+    // @note You can comment the bellow line, the utest will fail.
+    http_parser_init(&parser, type_);
+    // callback object ptr.
+    parser.data = (void*)this;
     
     // do parse
     if ((err = parse_message_imp(reader)) != srs_success) {
