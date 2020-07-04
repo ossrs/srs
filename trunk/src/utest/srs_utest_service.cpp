@@ -723,8 +723,8 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
 {
     srs_error_t err;
 
-    // If OPTIONS, it has no content-length, not chunkted, but not infinite chunked,
-    // instead, it has no body.
+    // If request, it has no content-length, not chunked, it's not infinite chunked,
+    // actually, it has no body.
     if (true) {
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
@@ -735,6 +735,19 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
 
         ISrsHttpResponseReader* br = req->body_reader();
         EXPECT_TRUE(br->eof());
+    }
+
+    // If response, it has no content-length, not chunked, it's infinite chunked,
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_FALSE(br->eof());
     }
 
     // So if OPTIONS has body, with chunked or content-length, it's ok to parsing it.
