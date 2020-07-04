@@ -50,8 +50,9 @@ protected:
     IConnectionManager* manager;
     // The underlayer st fd handler.
     srs_netfd_t stfd;
-    // The ip of client.
+    // The ip and port of client.
     std::string ip;
+    int port;
     // The underlayer socket.
     SrsStSocket* skt;
     // The connection total kbps.
@@ -64,7 +65,7 @@ protected:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip);
+    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip, int cport);
     virtual ~SrsConnection();
 // Interface ISrsKbpsDelta
 public:

@@ -117,7 +117,7 @@ private:
     // About the rtmp client.
     SrsClientInfo* info;
 public:
-    SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip);
+    SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port);
     virtual ~SrsRtmpConn();
 public:
     virtual void dispose();

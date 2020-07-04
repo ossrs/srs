@@ -31,11 +31,12 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip)
+SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;
     stfd = c;
     ip = cip;
+    port = cport;
     create_time = srsu2ms(srs_get_system_time());
     
     skt = new SrsStSocket();
@@ -205,7 +206,8 @@ string SrsConnection::srs_id()
     return trd->cid();
 }
 
-string SrsConnection::remote_ip() {
+string SrsConnection::remote_ip()
+{
     return ip;
 }
 

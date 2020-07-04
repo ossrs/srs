@@ -1526,6 +1526,7 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     
     int fd = srs_netfd_fileno(stfd);
     string ip = srs_get_peer_ip(fd);
+    int port = srs_get_peer_port(fd);
     
     // for some keep alive application, for example, the keepalived,
     // will send some tcp packet which we cann't got the ip,
@@ -1537,13 +1538,12 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
     if (handler && (err = handler->on_accept_client(max_connections, (int)conns.size())) != srs_success) {
-        return srs_error_wrap(err, "drop client fd=%d, max=%d, cur=%d for err: %s",
-            fd, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
+        return srs_error_wrap(err, "drop client fd=%d, ip=%s:%d, max=%d, cur=%d for err: %s",
+            fd, ip.c_str(), port, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
     }
     if ((int)conns.size() >= max_connections) {
-        return srs_error_new(ERROR_EXCEED_CONNECTIONS,
-            "drop fd=%d, max=%d, cur=%d for exceed connection limits",
-            fd, max_connections, (int)conns.size());
+        return srs_error_new(ERROR_EXCEED_CONNECTIONS, "drop fd=%d, ip=%s:%d, max=%d, cur=%d for exceed connection limits",
+            fd, ip.c_str(), port, max_connections, (int)conns.size());
     }
     
     // avoid fd leak when fork.
@@ -1560,13 +1560,13 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     }
     
     if (type == SrsListenerRtmpStream) {
-        *pconn = new SrsRtmpConn(this, stfd, ip);
+        *pconn = new SrsRtmpConn(this, stfd, ip, port);
     } else if (type == SrsListenerHttpApi) {
-        *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip);
+        *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpStream) {
-        *pconn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip);
+        *pconn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip, port);
     } else {
-        srs_warn("close for no service handler. fd=%d, ip=%s", fd, ip.c_str());
+        srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
         srs_close_stfd(stfd);
         return err;
     }

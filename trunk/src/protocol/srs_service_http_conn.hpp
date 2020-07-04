@@ -55,6 +55,7 @@ private:
     http_parser hp_header;
     std::string url;
     SrsHttpHeader* header;
+    enum http_parser_type type_;
 private:
     // Point to the start of body.
     const char* p_body_start;

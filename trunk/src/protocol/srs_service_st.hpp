@@ -74,6 +74,7 @@ extern int srs_cond_destroy(srs_cond_t cond);
 extern int srs_cond_wait(srs_cond_t cond);
 extern int srs_cond_timedwait(srs_cond_t cond, srs_utime_t timeout);
 extern int srs_cond_signal(srs_cond_t cond);
+extern int srs_cond_broadcast(srs_cond_t cond);
 
 extern srs_mutex_t srs_mutex_new();
 extern int srs_mutex_destroy(srs_mutex_t mutex);

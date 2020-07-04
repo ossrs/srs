@@ -79,7 +79,7 @@ private:
     SrsPithyPrint* pprint;
     SrsSimpleRtmpClient* sdk;
 public:
-    SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
+    SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsDynamicHttpConn();
 public:
     virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);

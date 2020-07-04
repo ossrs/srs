@@ -358,6 +358,11 @@ int srs_cond_signal(srs_cond_t cond)
     return st_cond_signal((st_cond_t)cond);
 }
 
+int srs_cond_broadcast(srs_cond_t cond)
+{
+    return st_cond_broadcast((st_cond_t)cond);
+}
+
 srs_mutex_t srs_mutex_new()
 {
     return (srs_mutex_t)st_mutex_new();
