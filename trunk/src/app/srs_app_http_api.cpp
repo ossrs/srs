@@ -1674,8 +1674,7 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
-SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
-    : SrsConnection(cm, fd, cip)
+SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port) : SrsConnection(cm, fd, cip, port)
 {
     mux = m;
     cors = new SrsHttpCorsMux();
@@ -1701,7 +1700,7 @@ srs_error_t SrsHttpApi::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    srs_trace("API server client, ip=%s", ip.c_str());
+    srs_trace("API server client, ip=%s:%d", ip.c_str(), port);
     
     // initialize parser
     if ((err = parser->initialize(HTTP_REQUEST, true)) != srs_success) {
@@ -1717,7 +1716,7 @@ srs_error_t SrsHttpApi::do_cycle()
     if ((err = cors->initialize(mux, crossdomain_enabled)) != srs_success) {
         return srs_error_wrap(err, "init cors");
     }
-    
+
     // process http messages.
     while ((err = trd->pull()) == srs_success) {
         ISrsHttpMessage* req = NULL;
@@ -1773,8 +1772,8 @@ srs_error_t SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessa
     SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(r);
     srs_assert(hm);
     
-    srs_trace("HTTP API %s %s, content-length=%" PRId64 ", chunked=%d", r->method_str().c_str(), r->url().c_str(),
-        r->content_length(), hm->is_chunked());
+    srs_trace("HTTP API %s:%d %s %s, content-length=%" PRId64 ", chunked=%d", ip.c_str(), port, r->method_str().c_str(),
+        r->url().c_str(), r->content_length(), hm->is_chunked());
     
     // use cors server mux to serve http request, which will proxy to mux.
     if ((err = cors->serve_http(w, r)) != srs_success) {

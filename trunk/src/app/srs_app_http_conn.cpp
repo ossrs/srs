@@ -59,7 +59,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip) : SrsConnection(cm, fd, cip)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsConnection(cm, fd, cip, port)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
@@ -102,7 +102,7 @@ srs_error_t SrsHttpConn::do_cycle()
     // process http messages.
     for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
         // Try to receive a message from http.
-        srs_trace("HTTP client ip=%s, request=%d, to=%dms", ip.c_str(), req_id, srsu2ms(SRS_HTTP_RECV_TIMEOUT));
+        srs_trace("HTTP client ip=%s:%d, request=%d, to=%dms", ip.c_str(), port, req_id, srsu2ms(SRS_HTTP_RECV_TIMEOUT));
 
         // get a http message
         ISrsHttpMessage* req = NULL;
@@ -154,8 +154,8 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMess
 {
     srs_error_t err = srs_success;
     
-    srs_trace("HTTP %s %s, content-length=%" PRId64 "",
-        r->method_str().c_str(), r->url().c_str(), r->content_length());
+    srs_trace("HTTP %s:%d %s %s, content-length=%" PRId64 "",
+        ip.c_str(), port, r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use cors server mux to serve http request, which will proxy to http_remux.
     if ((err = cors->serve_http(w, r)) != srs_success) {
@@ -184,8 +184,7 @@ srs_error_t SrsHttpConn::on_reload_http_stream_crossdomain()
     return err;
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip)
-: SrsHttpConn(cm, fd, m, cip)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
 {
 }
 

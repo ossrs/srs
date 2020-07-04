@@ -77,12 +77,15 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
 
-    string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    int fd = srs_netfd_fileno(stfd);
+    string ip = srs_get_peer_ip(fd);
+    int port = srs_get_peer_port(fd);
+
     if (ip.empty() && !_srs_config->empty_ip_ok()) {
         srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
     }
 
-    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip);
+    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux, ip, port);
     conns.push_back(conn);
     
     if ((err = conn->start()) != srs_success) {
@@ -138,8 +141,7 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return err;
 }
 
-SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip)
-: SrsHttpConn(cm, fd, m, cip)
+SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
 {
     sdk = NULL;
     pprint = SrsPithyPrint::create_caster();
@@ -161,7 +163,7 @@ srs_error_t SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage
     srs_error_t err = srs_success;
     
     output = o;
-    srs_trace("flv: proxy %s to %s", r->uri().c_str(), output.c_str());
+    srs_trace("flv: proxy %s:%d %s to %s", ip.c_str(), port, r->uri().c_str(), output.c_str());
     
     char* buffer = new char[SRS_HTTP_FLV_STREAM_BUFFER];
     SrsAutoFreeA(char, buffer);

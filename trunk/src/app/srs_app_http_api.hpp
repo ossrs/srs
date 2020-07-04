@@ -261,7 +261,7 @@ private:
     SrsHttpCorsMux* cors;
     SrsHttpServeMux* mux;
 public:
-    SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
+    SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
 // Interface ISrsKbpsDelta
 public:

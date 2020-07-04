@@ -640,6 +640,7 @@ extern std::string srs_get_local_ip(int fd);
 extern int srs_get_local_port(int fd);
 // Where peer ip is the client public ip which connected to server.
 extern std::string srs_get_peer_ip(int fd);
+extern int srs_get_peer_port(int fd);
 
 // Whether string is boolean
 //      is_bool("true") == true
