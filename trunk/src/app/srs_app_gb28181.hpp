@@ -303,8 +303,16 @@ private:
     SrsServer* server;
 
     SrsPsJitterBuffer *jitter_buffer;
+    SrsPsJitterBuffer *jitter_buffer_audio;
+
     char *ps_buffer;
+    char *ps_buffer_audio;
+
     int ps_buflen;
+    int ps_buflen_auido;
+
+    uint32_t ps_rtp_video_ts;
+    uint32_t ps_rtp_audio_ts;
 
     bool source_publish; 
 
