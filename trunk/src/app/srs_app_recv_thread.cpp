@@ -373,7 +373,7 @@ srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     srs_error_t err = srs_success;
     
     // when cid changed, change it.
-    if (!ncid.equals(cid)) {
+    if (ncid.compare(cid)) {
         _srs_context->set_id(ncid);
         cid = ncid;
     }

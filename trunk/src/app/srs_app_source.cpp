@@ -2068,13 +2068,13 @@ srs_error_t SrsSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
     
-    if (_source_id.equals(id)) {
+    if (!_source_id.compare(id)) {
         return err;
     }
     
     if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (!_pre_source_id.equals(_source_id)) {
+    } else if (_pre_source_id.compare(_source_id)) {
         _pre_source_id = _source_id;
     }
     

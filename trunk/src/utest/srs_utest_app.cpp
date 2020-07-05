@@ -222,14 +222,14 @@ VOID TEST(AppCoroutineTest, Cycle)
         MockCoroutineHandler ch;
         SrsSTCoroutine sc("test", &ch, SrsContextId("250"));
         ch.trd = &sc;
-        EXPECT_TRUE(sc.cid().equals(SrsContextId("250")));
+        EXPECT_TRUE(!sc.cid().compare(SrsContextId("250")));
 
         EXPECT_TRUE(srs_success == sc.start());
         EXPECT_TRUE(srs_success == sc.pull());
 
         // After running, the cid in cycle should equal to the thread.
         srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
-        EXPECT_TRUE(ch.cid.equals(SrsContextId("250")));
+        EXPECT_TRUE(!ch.cid.compare(SrsContextId("250")));
     }
 
     if (true) {
