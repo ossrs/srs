@@ -1792,7 +1792,7 @@ void SrsSourceManager::dispose()
 
 srs_error_t SrsSourceManager::cycle()
 {
-    std::string cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     srs_error_t err = do_cycle();
     _srs_context->set_id(cid);
     
@@ -1866,7 +1866,6 @@ SrsSource::SrsSource()
     mix_queue = new SrsMixQueue();
     
     _can_publish = true;
-    _pre_source_id = _source_id = "";
     die_at = 0;
 
     handler = NULL;
@@ -2065,17 +2064,17 @@ srs_error_t SrsSource::on_reload_vhost_play(string vhost)
     return err;
 }
 
-srs_error_t SrsSource::on_source_id_changed(string id)
+srs_error_t SrsSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
     
-    if (_source_id == id) {
+    if (_source_id.equals(id)) {
         return err;
     }
     
-    if (_pre_source_id == "") {
+    if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (_pre_source_id != _source_id) {
+    } else if (!_pre_source_id.equals(_source_id)) {
         _pre_source_id = _source_id;
     }
     
@@ -2091,12 +2090,12 @@ srs_error_t SrsSource::on_source_id_changed(string id)
     return err;
 }
 
-string SrsSource::source_id()
+SrsContextId SrsSource::source_id()
 {
     return _source_id;
 }
 
-string SrsSource::pre_source_id()
+SrsContextId SrsSource::pre_source_id()
 {
     return _pre_source_id;
 }
@@ -2560,7 +2559,7 @@ void SrsSource::on_unpublish()
     srs_trace("cleanup when unpublish");
     
     _can_publish = true;
-    _source_id = -1;
+    _source_id = SrsContextId();
     
     // notify the handler.
     srs_assert(handler);

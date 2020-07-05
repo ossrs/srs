@@ -113,4 +113,29 @@
 class SrsCplxError;
 typedef SrsCplxError* srs_error_t;
 
+// The context ID, it default to a string object, we can also use other objects.
+#include <string>
+struct _SrsContextId
+{
+    std::string v_;
+    _SrsContextId() {
+    }
+    _SrsContextId(std::string v) {
+        v_ = v;
+    }
+    _SrsContextId(const _SrsContextId& cp) {
+        v_ = cp.v_;
+    }
+    const char* c_str() {
+        return v_.c_str();
+    }
+    bool empty() {
+        return v_.empty();
+    }
+    bool equals(const _SrsContextId& to) {
+        return v_ == to.v_;
+    }
+};
+typedef _SrsContextId SrsContextId;
+
 #endif

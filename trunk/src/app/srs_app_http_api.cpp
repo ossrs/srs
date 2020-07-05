@@ -811,10 +811,10 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     
     // path: {pattern}{client_id}
     // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
-    std::string cid = r->parse_rest_id(entry->pattern);
+    std::string client_id = r->parse_rest_id(entry->pattern);
     
     SrsStatisticClient* client = NULL;
-    if (cid != "" && (client = stat->find_client(cid)) == NULL) {
+    if (client_id != "" && (client = stat->find_client(client_id)) == NULL) {
         return srs_api_response_code(w, r, ERROR_RTMP_CLIENT_NOT_FOUND);
     }
     
@@ -854,7 +854,7 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         }
         
         client->conn->expire();
-        srs_warn("kickoff client id=%s ok", cid.c_str());
+        srs_warn("kickoff client id=%s ok", client_id.c_str());
     } else {
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }

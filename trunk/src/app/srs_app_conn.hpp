@@ -93,7 +93,8 @@ public:
     virtual srs_error_t cycle();
 public:
     // Get the srs id which identify the client.
-    virtual std::string srs_id();
+    // TODO: FIXME: Rename to cid.
+    virtual SrsContextId srs_id();
     // Get the remote ip of peer.
     virtual std::string remote_ip();
     // Set connection to expired.

@@ -71,7 +71,7 @@ srs_error_t srs_st_init()
     }
 
     // Before ST init, we might have already inited the background cid.
-    string cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     if (cid.empty()) {
         cid = _srs_context->generate_id();
     }

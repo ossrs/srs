@@ -28,6 +28,7 @@
 
 #include <string>
 
+#include <srs_kernel_log.hpp>
 #include <srs_service_st.hpp>
 #include <srs_protocol_io.hpp>
 
@@ -80,7 +81,7 @@ public:
     // @return a copy of error, which should be freed by user.
     //      NULL if not terminated and user should pull again.
     virtual srs_error_t pull() = 0;
-    virtual std::string cid() = 0;
+    virtual SrsContextId cid() = 0;
 };
 
 // An empty coroutine, user can default to this object before create any real coroutine.
@@ -95,7 +96,7 @@ public:
     virtual void stop();
     virtual void interrupt();
     virtual srs_error_t pull();
-    virtual std::string cid();
+    virtual SrsContextId cid();
 };
 
 // For utest to mock the thread create.
@@ -121,7 +122,7 @@ private:
     ISrsCoroutineHandler* handler;
 private:
     srs_thread_t trd;
-    std::string context;
+    SrsContextId cid_;
     srs_error_t trd_err;
 private:
     bool started;
@@ -132,7 +133,8 @@ private:
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.
-    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, std::string cid = "");
+    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h);
+    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
     virtual ~SrsSTCoroutine();
 public:
     // Start the thread.
@@ -154,7 +156,7 @@ public:
     // @remark Return ERROR_THREAD_INTERRUPED when thread is interrupted.
     virtual srs_error_t pull();
     // Get the context id of thread.
-    virtual std::string cid();
+    virtual SrsContextId cid();
 private:
     virtual srs_error_t cycle();
     static void* pfn(void* arg);

@@ -201,7 +201,7 @@ srs_error_t SrsConnection::cycle()
     return srs_success;
 }
 
-string SrsConnection::srs_id()
+SrsContextId SrsConnection::srs_id()
 {
     return trd->cid();
 }

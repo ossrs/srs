@@ -533,7 +533,7 @@ srs_error_t SrsDvrMp4Segmenter::close_encoder()
     return err;
 }
 
-SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(std::string c, SrsRequest* r, string p)
+SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsContextId c, SrsRequest* r, string p)
 {
     cid = c;
     req = r->copy();
@@ -673,7 +673,7 @@ srs_error_t SrsDvrPlan::on_reap_segment()
 {
     srs_error_t err = srs_success;
     
-    std::string cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsFragment* fragment = segment->current();
     string fullpath = fragment->fullpath();
