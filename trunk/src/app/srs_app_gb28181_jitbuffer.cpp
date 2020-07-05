@@ -306,11 +306,11 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
     }
     
     //TODO: not check marker, check a complete frame with timestamp
-    // if (packet.markerBit &&
-    //     (last_packet_seq_num_ == -1 ||
-    //     IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
-    //     last_packet_seq_num_ = packet.seqNum;
-    // }
+    if (packet.markerBit &&
+        (last_packet_seq_num_ == -1 ||
+        IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
+        last_packet_seq_num_ = packet.seqNum;
+    }
 
     // The insert operation invalidates the iterator |rit|.
     PacketIterator packet_list_it = packets_.insert(rit.base(), packet);
