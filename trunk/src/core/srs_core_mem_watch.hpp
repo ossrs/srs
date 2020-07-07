@@ -26,7 +26,7 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
 
 #warning "MemoryWatch is deprecated."
 

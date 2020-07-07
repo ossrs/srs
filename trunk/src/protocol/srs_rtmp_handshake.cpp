@@ -45,9 +45,10 @@ using namespace _srs_internal;
 // For randomly generate the handshake bytes.
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_VERSION ")"
 
+// @see https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
-static HMAC_CTX *HMAC_CTX_new(void)
+HMAC_CTX *HMAC_CTX_new(void)
 {
     HMAC_CTX *ctx = (HMAC_CTX *)malloc(sizeof(*ctx));
     if (ctx != NULL) {
@@ -56,7 +57,7 @@ static HMAC_CTX *HMAC_CTX_new(void)
     return ctx;
 }
 
-static void HMAC_CTX_free(HMAC_CTX *ctx)
+void HMAC_CTX_free(HMAC_CTX *ctx)
 {
     if (ctx != NULL) {
         HMAC_CTX_cleanup(ctx);

@@ -58,6 +58,10 @@
 #define SRS_PERF_MR_ENABLED false
 #define SRS_PERF_MR_SLEEP (350 * SRS_UTIME_MILLISECONDS)
 
+// For tcmalloc, set the default release rate.
+// @see https://gperftools.github.io/gperftools/tcmalloc.html
+#define SRS_PERF_TCMALLOC_RELEASE_RATE 0.8
+
 /**
  * the MW(merged-write) send cache time in srs_utime_t.
  * the default value, user can override it in config.
@@ -121,9 +125,15 @@
  * @remark this improve performance for large connectios.
  * @see https://github.com/ossrs/srs/issues/251
  */
+// TODO: FIXME: Should always enable it.
 #define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
+    // For RTMP, use larger wait queue.
     #define SRS_PERF_MW_MIN_MSGS 8
+    // For RTC, use smaller wait queue.
+    #define SRS_PERF_MW_MIN_MSGS_FOR_RTC 1
+    // For Real-Time, never wait messages.
+    #define SRS_PERF_MW_MIN_MSGS_REALTIME 0
 #endif
 /**
  * the default value of vhost for

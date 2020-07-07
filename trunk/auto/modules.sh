@@ -29,8 +29,8 @@ echo "# INCS for ${MODULE_ID}, headers of module and its depends to compile" >> 
 echo "${MODULE_ID}_MODULE_INCS = -I${MODULE_DIR} " >> ${FILE}
 #
 # the private include files, for example:
-#       CORE_INCS = -Isrc/core -Iobjs/st -Iobjs -Iobjs/hp -Iobjs 
-#       MAIN_INCS = -Isrc/main $(CORE_MODULE_INCS) -Iobjs/st -Iobjs
+#       CORE_INCS = -Isrc/core -Iobjs
+#       CORE_LIBS_INCS = -Iobjs/st -Iobjs/ffmpeg/include
 # where the public will be used for other modules which depends on it.
 INCS_NAME="${MODULE_ID}_INCS"
 #
@@ -39,12 +39,14 @@ echo -n "${INCS_NAME} = -I${MODULE_DIR} " >> ${FILE}
 #
 # depends module header files
 for item in ${MODULE_DEPENDS[*]}; do
-    DEP_INCS_NAME="${item}_INCS"do
     DEP_INCS_NAME="${item}_MODULE_INCS"
     echo -n "\$(${DEP_INCS_NAME})" >> ${FILE}
 done
+echo "" >> ${FILE}
 #
 # depends library header files
+INCS_LIBS_NAME="${MODULE_ID}_LIBS_INCS"
+echo -n "${INCS_LIBS_NAME} = " >> ${FILE}
 for item in ${ModuleLibIncs[*]}; do
     echo -n "-I${item} " >> ${FILE}
 done
@@ -58,6 +60,7 @@ DEPS_NAME="${MODULE_ID}_DEPS"
 echo -n "${DEPS_NAME} = " >> ${FILE}
 for item in ${MODULE_FILES[*]}; do
     HEADER_FILE="${MODULE_DIR}/${item}.hpp"
+    if [[ ! -f ${HEADER_FILE} ]]; then HEADER_FILE="${MODULE_DIR}/${item}.h"; fi
     if [ -f ${HEADER_FILE} ]; then
         echo -n " ${HEADER_FILE}" >> ${FILE}
     fi
@@ -75,13 +78,16 @@ echo "# OBJ for ${MODULE_ID}, each object file" >> ${FILE}
 MODULE_OBJS=()
 for item in ${MODULE_FILES[*]}; do
     CPP_FILE="${MODULE_DIR}/${item}.cpp"
+    if [[ ! -f ${CPP_FILE} ]]; then CPP_FILE="${MODULE_DIR}/${item}.cc"; fi
     OBJ_FILE="${SRS_OBJS_DIR}/${MODULE_DIR}/${item}.o"
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
         echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES}\\" >> ${FILE}
-        echo "          \$(${INCS_NAME})\\" >> ${FILE}
-        echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
+        echo "    \$(${INCS_NAME})\\" >> ${FILE}
+        echo "    \$(${INCS_LIBS_NAME})\\" >> ${FILE}
+        echo "    -o ${OBJ_FILE} \\" >> ${FILE}
+        echo "    ${CPP_FILE}" >> ${FILE}
     fi
 done
 echo "" >> ${FILE}

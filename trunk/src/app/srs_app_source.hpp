@@ -54,11 +54,12 @@ class SrsNgExec;
 class SrsConnection;
 class SrsMessageHeader;
 class SrsHls;
+class SrsRtc;
 class SrsDvr;
 class SrsDash;
 class SrsEncoder;
 class SrsBuffer;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
 class SrsHds;
 #endif
 
@@ -182,7 +183,7 @@ public:
 };
 
 // The consumer for SrsSource, that is a play client.
-class SrsConsumer : public ISrsWakable
+class SrsConsumer : virtual public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
@@ -343,7 +344,7 @@ private:
     SrsDvr* dvr;
     // transcoding handler.
     SrsEncoder* encoder;
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
     // adobe hds(http dynamic streaming).
     SrsHds *hds;
 #endif
@@ -477,13 +478,26 @@ public:
 private:
     virtual srs_error_t do_cycle();
 public:
-    // when system exit, destroy the sources,
+    // when system exit, destroy th`e sources,
     // For gmc to analysis mem leaks.
     virtual void destroy();
 };
 
 // Global singleton instance.
 extern SrsSourceManager* _srs_sources;
+
+// For two sources to bridge with each other.
+class ISrsSourceBridger
+{
+public:
+    ISrsSourceBridger();
+    virtual ~ISrsSourceBridger();
+public:
+    virtual srs_error_t on_publish() = 0;
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
+    virtual srs_error_t on_video(SrsSharedPtrMessage* video) = 0;
+    virtual void on_unpublish() = 0;
+};
 
 // live streaming source.
 class SrsSource : public ISrsReloadHandler
@@ -494,9 +508,9 @@ private:
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_id_changed() to let all clients know.
-    int _source_id;
+    std::string _source_id;
     // previous source id.
-    int _pre_source_id;
+    std::string _pre_source_id;
     // deep copy of client request.
     SrsRequest* req;
     // To delivery stream to clients.
@@ -518,6 +532,8 @@ private:
     int64_t last_packet_time;
     // The event handler.
     ISrsSourceHandler* handler;
+    // The source bridger for other source.
+    ISrsSourceBridger* bridger;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -544,15 +560,17 @@ public:
 public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
+    // Bridge to other source, forward packets to it.
+    void bridge_to(ISrsSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
 public:
     // The source id changed.
-    virtual srs_error_t on_source_id_changed(int id);
+    virtual srs_error_t on_source_id_changed(std::string id);
     // Get current source id.
-    virtual int source_id();
-    virtual int pre_source_id();
+    virtual std::string source_id();
+    virtual std::string pre_source_id();
     // Whether source is inactive, which means there is no publishing stream source.
     // @remark For edge, it's inactive util stream has been pulled from origin.
     virtual bool inactive();
@@ -562,10 +580,12 @@ public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_audio(SrsCommonMessage* audio);
 private:
     virtual srs_error_t on_audio_imp(SrsSharedPtrMessage* audio);
 public:
+    // TODO: FIXME: Use SrsSharedPtrMessage instead.
     virtual srs_error_t on_video(SrsCommonMessage* video);
 private:
     virtual srs_error_t on_video_imp(SrsSharedPtrMessage* video);
@@ -577,12 +597,14 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 public:
-    // Create consumer and dumps packets in cache.
+    // Create consumer
     // @param consumer, output the create consumer.
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
+    // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();

@@ -65,10 +65,10 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
         return srs_error_wrap(err, "http uri parse hartbeart url failed. url=%s", url.c_str());
     }
     
-    std::string ip = "";
+    SrsIPAddress* ip = NULL;
     std::string device_id = _srs_config->get_heartbeat_device_id();
     
-    vector<string>& ips = srs_get_local_ips();
+    vector<SrsIPAddress*>& ips = srs_get_local_ips();
     if (!ips.empty()) {
         ip = ips[_srs_config->get_stats_network() % (int)ips.size()];
     }
@@ -77,7 +77,7 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("device_id", SrsJsonAny::str(device_id.c_str()));
-    obj->set("ip", SrsJsonAny::str(ip.c_str()));
+    obj->set("ip", SrsJsonAny::str(ip->ip.c_str()));
     
     if (_srs_config->get_heartbeat_summaries()) {
         SrsJsonObject* summaries = SrsJsonAny::object();

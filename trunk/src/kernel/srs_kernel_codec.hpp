@@ -304,6 +304,9 @@ extern int srs_flv_srates[];
  */
 extern int srs_aac_srates[];
 
+// The number of aac samplerates, size for srs_aac_srates.
+#define SrsAAcSampleRateNumbers 16
+
 // The impossible aac sample rate index.
 #define SrsAacSampleRateUnset 15
 
@@ -394,6 +397,24 @@ enum SrsAvcNaluType
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
+
+/**
+ * Table 7-6 – Name association to slice_type
+ * ISO_IEC_14496-10-AVC-2012.pdf, page 105.
+ */
+enum SrsAvcSliceType
+{
+    SrsAvcSliceTypeP   = 0,
+    SrsAvcSliceTypeB   = 1,
+    SrsAvcSliceTypeI   = 2,
+    SrsAvcSliceTypeSP  = 3,
+    SrsAvcSliceTypeSI  = 4,
+    SrsAvcSliceTypeP1  = 5,
+    SrsAvcSliceTypeB1  = 6,
+    SrsAvcSliceTypeI1  = 7,
+    SrsAvcSliceTypeSP1 = 8,
+    SrsAvcSliceTypeSI1 = 9,
+};
 
 /**
  * the avc payload format, must be ibmf or annexb format.
@@ -511,11 +532,18 @@ class SrsSample
 public:
     // The size of unit.
     int size;
-    // The ptr of unit, user must manage it.
+    // The ptr of unit, user must free it.
     char* bytes;
+    // Whether is B frame.
+    bool bframe;
 public:
     SrsSample();
-    virtual ~SrsSample();
+    ~SrsSample();
+public:
+    // If we need to know whether sample is bframe, we have to parse the NALU payload.
+    srs_error_t parse_bframe();
+    // Copy sample, share the bytes pointer.
+    SrsSample* copy();
 };
 
 /**
@@ -608,6 +636,7 @@ public:
     SrsAvcLevel avc_level;
     // lengthSizeMinusOne, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     int8_t NAL_unit_length;
+    // Note that we may resize the vector, so the under-layer bytes may change.
     std::vector<char> sequenceParameterSetNALUnit;
     std::vector<char> pictureParameterSetNALUnit;
 public:
@@ -682,6 +711,8 @@ public:
     SrsVideoFrame();
     virtual ~SrsVideoFrame();
 public:
+    // Initialize the frame, to parse sampels.
+    virtual srs_error_t initialize(SrsCodecConfig* c);
     // Add the sample without ANNEXB or IBMF header, or RAW AAC or MP3 data.
     virtual srs_error_t add_sample(char* bytes, int size);
 public:

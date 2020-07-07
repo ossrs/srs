@@ -1173,7 +1173,7 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4DataEntryBox* entry_at(int index);
-    virtual SrsMp4DataReferenceBox* append(SrsMp4DataEntryBox* v);
+    virtual void append(SrsMp4Box* v);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1520,7 +1520,7 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4SampleEntry* entrie_at(int index);
-    virtual SrsMp4SampleDescriptionBox* append(SrsMp4SampleEntry* v);
+    virtual void append(SrsMp4Box* v);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -2105,7 +2105,6 @@ class SrsMp4M2tsSegmentEncoder
 {
 private:
     ISrsWriter* writer;
-    SrsBuffer* buffer;
     uint32_t sequence_number;
     srs_utime_t decode_basetime;
     uint32_t track_id;

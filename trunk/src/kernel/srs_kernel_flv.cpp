@@ -161,7 +161,7 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
@@ -174,7 +174,7 @@ void SrsCommonMessage::create_payload(int size)
     payload = new char[size];
     srs_verbose("create payload for RTMP message. size=%d", size);
     
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_watch(payload, "RTMP.msg.payload", size);
 #endif
 }
@@ -191,8 +191,11 @@ srs_error_t SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int 
     return srs_success;
 }
 
-SrsSharedMessageHeader::SrsSharedMessageHeader() : payload_length(0), message_type(0), perfer_cid(0)
+SrsSharedMessageHeader::SrsSharedMessageHeader()
 {
+    payload_length = 0;
+    message_type = 0;
+    perfer_cid = 0;
 }
 
 SrsSharedMessageHeader::~SrsSharedMessageHeader()
@@ -208,7 +211,7 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_unwatch(payload);
 #endif
     srs_freepa(payload);
@@ -274,6 +277,18 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
     this->size = ptr->size;
     
     return err;
+}
+
+void SrsSharedPtrMessage::wrap(char* payload, int size)
+{
+    srs_assert(!ptr);
+    ptr = new SrsSharedPtrPayload();
+
+    ptr->payload = payload;
+    ptr->size = size;
+
+    this->payload = ptr->payload;
+    this->size = ptr->size;
 }
 
 int SrsSharedPtrMessage::count()
@@ -345,7 +360,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
-    
+
     return copy;
 }
 

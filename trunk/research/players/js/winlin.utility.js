@@ -3,9 +3,9 @@
 /**
  * common utilities
  * depends: jquery1.10
- * https://code.csdn.net/snippets/147103
+ * https://gitee.com/winlinvip/codes/rpn0c2ewbomj81augzk4y59
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.17
+ * v 1.0.20
  */
 
 /**
@@ -293,7 +293,9 @@ function __fill_query(query_string, obj) {
 function parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
-    a.href = rtmp_url.replace("rtmp://", "http://");
+    a.href = rtmp_url.replace("rtmp://", "http://")
+        .replace("webrtc://", "http://")
+        .replace("rtc://", "http://");
 
     var vhost = a.hostname;
     var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
@@ -327,7 +329,19 @@ function parse_rtmp_url(rtmp_url) {
     if (rtmp_url.indexOf("://") > 0) {
         schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
     }
-    var port = (a.port == "")? (schema=="http"?"80":"1935"):a.port;
+
+    var port = a.port;
+    if (!port) {
+        if (schema === 'http') {
+            port = 80;
+        } else if (schema === 'https') {
+            port = 443;
+        } else if (schema === 'rtmp') {
+            port = 1935;
+        } else if (schema === 'webrtc' || schema === 'rtc') {
+            port = 1985;
+        }
+    }
 
     var ret = {
         url: rtmp_url,

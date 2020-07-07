@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <algorithm>
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
 #include <sys/inotify.h>
 #endif
 using namespace std;
@@ -54,6 +54,8 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
+#include <srs_app_gb28181.hpp>
+#include <srs_app_gb28181_sip.hpp>
 
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
@@ -111,6 +113,10 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerGb28181Sip:
+            return "GB28181-SIP over UDP";
+        case SrsListenerGb28181RtpMux:
+            return "GB28181-Stream over RTP";
         default:
             return "UNKONWN";
     }
@@ -182,6 +188,9 @@ SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirec
     srs_assert(type == SrsListenerRtsp);
     if (type == SrsListenerRtsp) {
         caster = new SrsRtspCaster(c);
+
+        // TODO: FIXME: Must check error.
+        caster->initialize();
     }
 }
 
@@ -300,7 +309,9 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp 
+            || type == SrsListenerGb28181Sip 
+            || type == SrsListenerGb28181RtpMux);
     
     ip = i;
     port = p;
@@ -337,6 +348,29 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
 {
     srs_freep(caster);
 }
+
+#ifdef SRS_GB28181
+
+SrsGb28181Listener::SrsGb28181Listener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
+{
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerGb28181Sip 
+             ||type == SrsListenerGb28181RtpMux);
+
+    if (type == SrsListenerGb28181Sip) {
+        caster = new SrsGb28181SipService(c);
+    }else if(type == SrsListenerGb28181RtpMux){
+        caster = new SrsGb28181RtpMuxService(c);
+    }
+}
+
+SrsGb28181Listener::~SrsGb28181Listener()
+{
+    srs_freep(caster);
+}
+
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -480,7 +514,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     // Whether enable auto reload config.
     bool auto_reload = _srs_config->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && _srs_config->auto_reload_for_docker()) {
@@ -560,7 +594,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     string config_path = _srs_config->config();
     string config_file = srs_path_basename(config_path);
     string k8s_file = "..data";
@@ -660,6 +694,11 @@ void SrsServer::destroy()
     
     srs_freep(signal_manager);
     srs_freep(conn_manager);
+
+#ifdef SRS_GB28181
+    //free global gb28181 manager
+    srs_freep(_srs_gb28181);
+#endif
 }
 
 void SrsServer::dispose()
@@ -682,7 +721,7 @@ void SrsServer::dispose()
     
     // @remark don't dispose all connections, for too slow.
     
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_report();
 #endif
 }
@@ -724,7 +763,7 @@ void SrsServer::gracefully_dispose()
     _srs_sources->dispose();
     srs_trace("source disposed");
 
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
     srs_memory_report();
 #endif
 
@@ -764,11 +803,6 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
 srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
-    
-    // init st
-    if ((err = srs_st_init()) != srs_success) {
-        return srs_error_wrap(err, "initialize st failed");
-    }
 
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
@@ -791,8 +825,8 @@ srs_error_t SrsServer::initialize_st()
         return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid);
     }
     
-    srs_trace("server main cid=%d, pid=%d, ppid=%d, asprocess=%d",
-        _srs_context->get_id(), ::getpid(), ppid, asprocess);
+    srs_trace("server main cid=%s, pid=%d, ppid=%d, asprocess=%d",
+        _srs_context->get_id().c_str(), ::getpid(), ppid, asprocess);
     
     return err;
 }
@@ -888,7 +922,7 @@ srs_error_t SrsServer::listen()
     if ((err = conn_manager->start()) != srs_success) {
         return srs_error_wrap(err, "connection manager");
     }
-    
+
     return err;
 }
 
@@ -907,8 +941,8 @@ srs_error_t SrsServer::http_handle()
 {
     srs_error_t err = srs_success;
     
-    if ((err = http_api_mux->handle("/", new SrsHttpNotFoundHandler())) != srs_success) {
-        return srs_error_wrap(err, "handle not found");
+    if ((err = http_api_mux->handle("/", new SrsGoApiRoot())) != srs_success) {
+        return srs_error_wrap(err, "handle /");
     }
     if ((err = http_api_mux->handle("/api/", new SrsGoApiApi())) != srs_success) {
         return srs_error_wrap(err, "handle api");
@@ -953,8 +987,16 @@ srs_error_t SrsServer::http_handle()
         return srs_error_wrap(err, "handle raw");
     }
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
+        return srs_error_wrap(err, "handle clusters");
+    }
+    if ((err = http_api_mux->handle("/api/v1/perf", new SrsGoApiPerf())) != srs_success) {
+        return srs_error_wrap(err, "handle perf");
+    }
+#ifdef SRS_GB28181
+    if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
     }
+#endif
     
     // test the request info.
     if ((err = http_api_mux->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != srs_success) {
@@ -972,6 +1014,14 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("error.srs.com/api/v1/tests/errors", new SrsGoApiError())) != srs_success) {
         return srs_error_wrap(err, "handle tests errors for error.srs.com");
     }
+
+#ifdef SRS_GPERF
+    // The test api for get tcmalloc stats.
+    // @see Memory Introspection in https://gperftools.github.io/gperftools/tcmalloc.html
+    if ((err = http_api_mux->handle("/api/v1/tcmalloc", new SrsGoApiTcmalloc())) != srs_success) {
+        return srs_error_wrap(err, "handle tests errors");
+    }
+#endif
     
     // TODO: FIXME: for console.
     // TODO: FIXME: support reload.
@@ -1008,7 +1058,7 @@ srs_error_t SrsServer::cycle()
     // Do server main cycle.
      err = do_cycle();
     
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
     destroy();
     
     // remark, for gmc, never invoke the exit().
@@ -1054,7 +1104,7 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-#ifndef SRS_AUTO_GPERF_MC
+#ifndef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
         srs_warn("reopen log file, signo=%d", signo);
@@ -1062,7 +1112,7 @@ void SrsServer::on_signal(int signo)
     }
 #endif
     
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         signal_gmc_stop = true;
         srs_warn("for gmc, the SIGUSR1 used as SIGINT, signo=%d", signo);
@@ -1076,11 +1126,11 @@ void SrsServer::on_signal(int signo)
     }
     
     if (signo == SIGINT) {
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
 #else
-        #ifdef SRS_AUTO_MEM_WATCH
+        #ifdef SRS_MEM_WATCH
         srs_memory_report();
         #endif
 #endif
@@ -1156,7 +1206,7 @@ srs_error_t SrsServer::do_cycle()
             // if user interrupt the program, exit to check mem leak.
             // but, if gperf, use reload to ensure main return normally,
             // because directly exit will cause core-dump.
-#ifdef SRS_AUTO_GPERF_MC
+#ifdef SRS_GPERF_MC
             if (signal_gmc_stop) {
                 srs_warn("gmc got singal to stop server.");
                 return err;
@@ -1309,6 +1359,32 @@ srs_error_t SrsServer::listen_http_stream()
     return err;
 }
 
+#ifdef SRS_GB28181
+srs_error_t SrsServer::listen_gb28181_sip(SrsConfDirective* stream_caster)
+{ 
+    srs_error_t err = srs_success;
+
+    SrsListener* sip_listener = NULL;
+    sip_listener = new SrsGb28181Listener(this, SrsListenerGb28181Sip, stream_caster);
+               
+    int port =  _srs_config->get_stream_caster_gb28181_sip_listen(stream_caster);
+    if (port <= 0) {
+        return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid sip port=%d", port);
+    }
+    
+    srs_assert(sip_listener != NULL);
+    
+    listeners.push_back(sip_listener);
+
+    // TODO: support listen at <[ip:]port>
+    if ((err = sip_listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
+        return srs_error_wrap(err, "listen at %d", port);
+    }
+
+    return err;
+}
+#endif
+
 srs_error_t SrsServer::listen_stream_caster()
 {
     srs_error_t err = srs_success;
@@ -1333,18 +1409,39 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
+        } else if (srs_stream_caster_is_gb28181(caster)) {
+#ifdef SRS_GB28181
+            //init global gb28181 manger
+            if (_srs_gb28181 == NULL){
+                _srs_gb28181 = new SrsGb28181Manger(this, stream_caster);
+                if ((err = _srs_gb28181->initialize()) != srs_success){
+                    return err;
+                }
+            }
+
+            //sip listener
+            if (_srs_config->get_stream_caster_gb28181_sip_enable(stream_caster)){
+                if ((err = listen_gb28181_sip(stream_caster)) != srs_success){
+                    return err;
+                }
+            }
+
+            //gb28181 stream listener
+            listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
+#else
+            srs_warn("gb28181 is disabled, please enable it by: ./configure --with-gb28181");
+            continue;
+#endif
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());
         }
         srs_assert(listener != NULL);
         
         listeners.push_back(listener);
-        
         int port = _srs_config->get_stream_caster_listen(stream_caster);
         if (port <= 0) {
             return srs_error_new(ERROR_STREAM_CASTER_PORT, "invalid port=%d", port);
         }
-        
         // TODO: support listen at <[ip:]port>
         if ((err = listener->listen(srs_any_address_for_listener(), port)) != srs_success) {
             return srs_error_wrap(err, "listen at %d", port);
@@ -1416,6 +1513,11 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     }
     
     return err;
+}
+
+SrsHttpServeMux* SrsServer::api_server()
+{
+    return http_api_mux;
 }
 
 srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)

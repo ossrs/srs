@@ -22,12 +22,22 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] Patch [st.osx10.14.build.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/6.st.osx10.14.build.patch), for osx 10.14 build.
 - [x] Support macro `MD_ST_NO_ASM` to disable ASM, [#8](https://github.com/ossrs/state-threads/issues/8).
 - [x] Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
+- [x] Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
+- [x] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## Docs
 
 * Introduction: http://ossrs.github.io/state-threads/docs/st.html
 * API reference: http://ossrs.github.io/state-threads/docs/reference.html
 * Programming notes: http://ossrs.github.io/state-threads/docs/notes.html
+
+## Analysis
+
+* About setjmp and longjmp, read [setjmp](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-setjmp.jpg).
+* About the stack structure, read [stack](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-stack.jpg)
+* About asm code comments, read [#91d530e](https://github.com/ossrs/state-threads/commit/91d530e#diff-ed9428b14ff6afda0e9ab04cc91d4445R25).
+* About the scheduler, read [#13-scheduler](https://github.com/ossrs/state-threads/issues/13#issuecomment-616025527).
+* About the IO event system, read [#13-IO](https://github.com/ossrs/state-threads/issues/13#issuecomment-616096568).
 
 ## Usage
 

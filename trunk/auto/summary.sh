@@ -12,9 +12,6 @@ SrsHttpCallbackSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_CALLBACK = Y
 SrsHttpServerSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
 SrsStreamCasterSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamCasterSummaryColor="\${GREEN}"; fi
-SrsLibrtmpSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\${GREEN}"; fi
-SrsLibrtmpSSLSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\${GREEN}"; fi fi
-SrsResearchSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\${GREEN}"; fi
 SrsUtestSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\${GREEN}"; fi
 SrsGperfSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\${GREEN}"; fi
 SrsGperfMCSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\${YELLOW}"; fi
@@ -24,8 +21,7 @@ SrsGperfCPSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPERF_CP = YES ]; then 
 SrsGprofSummaryColor="\${GREEN}(Disabled) "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
 SrsValgrindSummaryColor="\${YELLOW}(Disabled) "; if [ $SRS_VALGRIND = YES ]; then SrsValgrindSummaryColor="\${GREEN}"; fi
 
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
+cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
 #!/bin/bash
 
 #####################################################################################
@@ -58,22 +54,4 @@ echo "You can:"
 echo "      ./objs/srs -c conf/srs.conf"
 echo "                  to start the srs server, with config conf/srs.conf."
 END
-else
-    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
-#!/bin/bash
 
-#####################################################################################
-# linux shell color support.
-RED="\\${RED}"
-GREEN="\\${GREEN}"
-YELLOW="\\${YELLOW}"
-BLACK="\\${BLACK}"
-
-echo -e "\${BLACK}You can use srs-librtmp at:\${BLACK}"
-echo -e "\${GREEN}      objs/include/srs_librtmp.h\${BLACK}"
-echo -e "\${GREEN}      objs/lib/srs_librtmp.a\${BLACK}"
-echo -e "\${BLACK}Examples for srs-librtmp at:\${BLACK}"
-echo -e "\${GREEN}      objs/research/librtmp\${BLACK}"
-echo -e "\${GREEN}      Examples: https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples\${BLACK}"
-END
-fi

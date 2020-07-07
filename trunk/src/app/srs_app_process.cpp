@@ -180,7 +180,7 @@ srs_error_t SrsProcess::start()
     srs_info("fork process: %s", cli.c_str());
     
     // for log
-    int cid = _srs_context->get_id();
+    std::string cid = _srs_context->get_id();
     int ppid = getpid();
     
     // TODO: fork or vfork?
@@ -221,8 +221,8 @@ srs_error_t SrsProcess::start()
         // log basic info to stderr.
         if (true) {
             fprintf(stdout, "\n");
-            fprintf(stdout, "process ppid=%d, cid=%d, pid=%d, in=%d, out=%d, err=%d\n",
-                ppid, cid, getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
+            fprintf(stdout, "process ppid=%d, cid=%s, pid=%d, in=%d, out=%d, err=%d\n",
+                ppid, cid.c_str(), getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
             fprintf(stdout, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
             fprintf(stdout, "process actual cli: %s\n", actual_cli.c_str());
         }

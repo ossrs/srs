@@ -33,6 +33,7 @@
 #include <srs_app_source.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_statistic.hpp>
 
 #include <sys/socket.h>
 using namespace std;
@@ -56,7 +57,7 @@ ISrsMessagePumper::~ISrsMessagePumper()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, int parent_cid)
+SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, std::string parent_cid)
 {
     rtmp = r;
     pumper = p;
@@ -70,7 +71,7 @@ SrsRecvThread::~SrsRecvThread()
     srs_freep(trd);
 }
 
-int SrsRecvThread::cid()
+std::string SrsRecvThread::cid()
 {
     return trd->cid();
 }
@@ -160,7 +161,7 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, int parent_cid)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, std::string parent_cid)
 	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;
@@ -186,6 +187,9 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
 srs_error_t SrsQueueRecvThread::start()
 {
     srs_error_t err = srs_success;
+
+    SrsStatistic* stat = SrsStatistic::instance();
+    rtmp->set_perf(stat);
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "queue recv thread");
@@ -274,7 +278,7 @@ void SrsQueueRecvThread::on_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, int parent_cid)
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, std::string parent_cid)
     : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
@@ -286,7 +290,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     _nb_msgs = 0;
     video_frames = 0;
     error = srs_cond_new();
-    ncid = cid = 0;
+    ncid = cid = "";
     
     req = _req;
     mr_fd = mr_sock_fd;
@@ -337,12 +341,12 @@ srs_error_t SrsPublishRecvThread::error_code()
     return srs_error_copy(recv_error);
 }
 
-void SrsPublishRecvThread::set_cid(int v)
+void SrsPublishRecvThread::set_cid(std::string v)
 {
     ncid = v;
 }
 
-int SrsPublishRecvThread::get_cid()
+std::string SrsPublishRecvThread::get_cid()
 {
     return ncid;
 }

@@ -110,6 +110,7 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 		EXPECT_TRUE(h.fd != NULL);
 	}
 
@@ -122,7 +123,10 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
@@ -141,7 +145,10 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello", 5, NULL));
@@ -149,7 +156,7 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.write((void*)"SRS", 3, NULL));
 
 		char buf[16] = {0};
-		HELPER_EXPECT_SUCCESS(skt.read(buf, 9, NULL));
+		HELPER_EXPECT_SUCCESS(skt.read_fully(buf, 9, NULL));
 		EXPECT_STREQ(buf, "Hello SRS");
 	}
 
@@ -162,7 +169,10 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 
 		HELPER_EXPECT_SUCCESS(c.write((void*)"Hello SRS", 9, NULL));
@@ -194,7 +204,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -213,7 +226,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -232,7 +248,10 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 		skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -363,7 +382,9 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"!1234567890";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
+#endif
         EXPECT_EQ(str, parsed);
     }
 
@@ -379,7 +400,9 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
+#endif
         EXPECT_EQ(str, parsed);
     }
 
@@ -405,7 +428,10 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 
 		iovec iovs[3];
@@ -432,7 +458,10 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
+#endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
 
 		iovec iovs[3];
@@ -529,7 +558,7 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
-	    EXPECT_EQ(100, m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	    EXPECT_EQ("100", m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
 	}
 }
 
@@ -753,7 +782,7 @@ class MockOnCycleThread : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_cond_t cond;
-    MockOnCycleThread() : trd("mock", this, 0) {
+    MockOnCycleThread() : trd("mock", this, "0") {
         cond = srs_cond_new();
     };
     virtual ~MockOnCycleThread() {
@@ -793,7 +822,7 @@ class MockOnCycleThread2 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_mutex_t lock;
-    MockOnCycleThread2() : trd("mock", this, 0) {
+    MockOnCycleThread2() : trd("mock", this, "0") {
         lock = srs_mutex_new();
     };
     virtual ~MockOnCycleThread2() {
@@ -834,7 +863,7 @@ class MockOnCycleThread3 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread3() : trd("mock", this, 0) {
+    MockOnCycleThread3() : trd("mock", this, "0") {
         fd = NULL;
     };
     virtual ~MockOnCycleThread3() {
@@ -1087,7 +1116,7 @@ class MockOnCycleThread4 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread4() : trd("mock", this, 0) {
+    MockOnCycleThread4() : trd("mock", this, "0") {
         fd = NULL;
     };
     virtual ~MockOnCycleThread4() {
@@ -1239,38 +1268,38 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_EQ(0, ctx.set_id(100));
-        EXPECT_EQ(100, ctx.set_id(1000));
-        EXPECT_EQ(1000, ctx.get_id());
+        EXPECT_TRUE("" == ctx.set_id("100"));
+        EXPECT_TRUE("100" == ctx.set_id("1000"));
+        EXPECT_TRUE("1000" == ctx.get_id());
 
         ctx.clear_cid();
-        EXPECT_EQ(0, ctx.set_id(100));
+        EXPECT_TRUE("" == ctx.set_id("100"));
     }
 
     int base_size = 0;
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", "100", "Trace", &size));
         base_size = size;
         EXPECT_TRUE(base_size > 0);
     }
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", "100", "Trace", &size));
         EXPECT_EQ(base_size, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 5, size);
     }
 
     if (true) {
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, "100", "Trace", &size));
         EXPECT_EQ(base_size - 8, size);
     }
 

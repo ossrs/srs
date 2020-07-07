@@ -94,7 +94,7 @@ void SrsFastLog::reopen()
     open_log_file();
 }
 
-void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
+void SrsFastLog::verbose(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelVerbose) {
         return;
@@ -114,7 +114,7 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     write_log(fd, log_data, size, SrsLogLevelVerbose);
 }
 
-void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
+void SrsFastLog::info(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelInfo) {
         return;
@@ -134,7 +134,7 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     write_log(fd, log_data, size, SrsLogLevelInfo);
 }
 
-void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
+void SrsFastLog::trace(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelTrace) {
         return;
@@ -154,7 +154,7 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     write_log(fd, log_data, size, SrsLogLevelTrace);
 }
 
-void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
+void SrsFastLog::warn(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelWarn) {
         return;
@@ -174,7 +174,7 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     write_log(fd, log_data, size, SrsLogLevelWarn);
 }
 
-void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
+void SrsFastLog::error(const char* tag, const char* context_id, const char* fmt, ...)
 {
     if (level > SrsLogLevelError) {
         return;

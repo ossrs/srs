@@ -296,7 +296,7 @@ srs_error_t SrsFileReader::lseek(off_t offset, int whence, off_t* seeked)
 {
     off_t sk = _srs_lseek_fn(fd, offset, whence);
     if (sk < 0) {
-        return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek %v failed", (int)sk);
+        return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek %d failed", (int)sk);
     }
     
     if (seeked) {

@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <sstream>
 using namespace std;
@@ -127,10 +128,13 @@ srs_error_t SrsBufferCache::cycle()
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
-    if ((err = source->create_consumer(NULL, consumer, false, false, true)) != srs_success) {
+    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer");
+    }
     
     SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream_cache();
     SrsAutoFree(SrsPithyPrint, pprint);
@@ -582,12 +586,14 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((err = source->create_consumer(NULL, consumer, true, true, !enc->has_cache())) != srs_success) {
+    SrsAutoFree(SrsConsumer, consumer);
+    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
-    SrsAutoFree(SrsConsumer, consumer);
-    srs_verbose("http: consumer created success.");
-    
+    if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
+        return srs_error_wrap(err, "dumps consumer");
+    }
+
     SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream();
     SrsAutoFree(SrsPithyPrint, pprint);
     
@@ -659,7 +665,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         if ((err = consumer->dump_packets(&msgs, count)) != srs_success) {
             return srs_error_wrap(err, "consumer dump packets");
         }
-        
+
+        // TODO: FIXME: Support merged-write wait.
         if (count <= 0) {
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
             srs_usleep(mw_sleep);
@@ -678,6 +685,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         } else {
             err = streaming_send_messages(enc, msgs.msgs, count);
         }
+
+        // TODO: FIXME: Update the stat.
 
         // free the messages.
         for (int i = 0; i < count; i++) {
@@ -1132,8 +1141,8 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
-    srs_trace("flv: source url=%s, is_edge=%d, source_id=%d[%d]",
-        r->get_stream_url().c_str(), vhost_is_edge, s->source_id(), s->source_id());
+    srs_trace("flv: source url=%s, is_edge=%d, source_id=[%d][%s]",
+        r->get_stream_url().c_str(), vhost_is_edge, ::getpid(), s->source_id().c_str());
     
     return err;
 }

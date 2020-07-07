@@ -526,6 +526,8 @@ VOID TEST(ProtocolAMF0Test, ApiAnyElem)
 */
 VOID TEST(ProtocolAMF0Test, ApiAnyIO) 
 {
+    srs_error_t err;
+
     SrsAmf0Any* o = NULL;
     
     char buf[1024];
@@ -539,14 +541,15 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         
         o = SrsAmf0Any::object_eof();
         SrsAutoFree(SrsAmf0Any, o);
-        
-        EXPECT_EQ(srs_success, o->read(&s));
+
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_EQ(3, s.pos());
         
         s.skip(-1 * s.pos());
         (s.data() + s.pos())[0] = 0x01;
-        EXPECT_NE(srs_success, o->read(&s));
+
+        HELPER_EXPECT_FAILED(o->read(&s));
     }
     if (true) {
         s.skip(-1 * s.pos());
@@ -580,7 +583,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         
         s.skip(-1 * s.pos());
         (s.data() + s.pos())[3] = 'x';
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_STREQ("xinlin", o->to_str().c_str());
     }
@@ -599,7 +602,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         EXPECT_EQ(0, s.read_1bytes());
         
         s.skip(-1 * s.pos());
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_DOUBLE_EQ(10, o->to_number());
     }
@@ -618,7 +621,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         EXPECT_EQ(1, s.read_1bytes());
         
         s.skip(-1 * s.pos());
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_TRUE(o->to_boolean());
     }
@@ -635,7 +638,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         EXPECT_EQ(1, s.read_1bytes());
         
         s.skip(-1 * s.pos());
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_FALSE(o->to_boolean());
     }
@@ -654,7 +657,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         EXPECT_EQ(5, s.read_1bytes());
         
         s.skip(-1 * s.pos());
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_TRUE(o->is_null());
     }
@@ -673,7 +676,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
         EXPECT_EQ(6, s.read_1bytes());
         
         s.skip(-1 * s.pos());
-        EXPECT_EQ(srs_success, o->read(&s));
+        HELPER_EXPECT_SUCCESS(o->read(&s));
         EXPECT_EQ(o->total_size(), s.pos());
         EXPECT_TRUE(o->is_undefined());
     }
@@ -838,6 +841,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
 */
 VOID TEST(ProtocolAMF0Test, ApiAnyTypeAssert)
 {
+    srs_error_t err;
     SrsAmf0Any* o = NULL;
     
     char buf[1024];
@@ -848,7 +852,7 @@ VOID TEST(ProtocolAMF0Test, ApiAnyTypeAssert)
     if (true) {
         s.skip(-1 * s.pos());
         (s.data() + s.pos())[0] = 0x12;
-        EXPECT_NE(srs_success, srs_amf0_read_any(&s, &o));
+        HELPER_EXPECT_FAILED(srs_amf0_read_any(&s, &o));
         EXPECT_TRUE(NULL == o);
         srs_freep(o);
     }
@@ -1319,7 +1323,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::str();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1350,7 +1354,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesString)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::str();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1448,7 +1452,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::boolean();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1463,7 +1467,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesBoolean)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::boolean();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1545,7 +1549,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::number();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -1560,7 +1564,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesNumber)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::number();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1669,14 +1673,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesNull)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::null();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::null();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1735,14 +1739,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesUndefined)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::undefined();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* o = SrsAmf0Any::undefined();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
@@ -1807,14 +1811,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesObject)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Object* o = SrsAmf0Any::object();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Object* o = SrsAmf0Any::object();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2010,14 +2014,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesObjectEOF)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0ObjectEOF* o = new SrsAmf0ObjectEOF();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2102,14 +2106,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesEcmaArray)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2229,14 +2233,14 @@ VOID TEST(ProtocolAMF0Test, InterfacesStrictArray)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
         HELPER_EXPECT_FAILED(o->read(&b));
         srs_freep(o);
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0StrictArray* o = SrsAmf0Any::strict_array();
         HELPER_EXPECT_FAILED(o->write(&b));
         srs_freep(o);
@@ -2342,7 +2346,7 @@ VOID TEST(ProtocolAMF0Test, InterfacesError)
     srs_error_t err;
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_FAILED(SrsAmf0Any::discovery(&b, NULL));
     }
 
@@ -2486,7 +2490,7 @@ VOID TEST(ProtocolAMF0Test, Amf0Object2)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsAmf0Any* eof = SrsAmf0Any::object_eof();
         HELPER_EXPECT_FAILED(srs_amf0_write_object_eof(&b, (SrsAmf0ObjectEOF*)eof));
         srs_freep(eof);

@@ -27,6 +27,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 // For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -38,6 +39,7 @@ class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
+class SrsSample;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -155,6 +157,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // 4bytes.
     // Four-byte field that identifies the stream of the message. These
@@ -242,6 +245,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // Get the perfered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
@@ -285,6 +289,7 @@ public:
     // @remark, not all message payload can be decoded to packet. for example,
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
+
 private:
     class SrsSharedPtrPayload
     {
@@ -318,6 +323,9 @@ public:
     // @remark user should never free the payload.
     // @param pheader, the header to copy to the message. NULL to ignore.
     virtual srs_error_t create(SrsMessageHeader* pheader, char* payload, int size);
+    // Create shared ptr message from RAW payload.
+    // @remark Note that the header is set to zero.
+    virtual void wrap(char* payload, int size);
     // Get current reference count.
     // when this object created, count set to 0.
     // if copy() this object, count increase 1.

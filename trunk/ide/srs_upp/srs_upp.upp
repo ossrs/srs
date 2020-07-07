@@ -4,13 +4,6 @@ file
     ../../src/main/srs_main_ingest_hls.cpp,
     auto readonly separator,
     ../../objs/srs_auto_headers.hpp,
-    libs readonly separator,
-    ../../src/libs/srs_librtmp.hpp,
-    ../../src/libs/srs_librtmp.cpp,
-    ../../src/libs/srs_lib_bandwidth.hpp,
-    ../../src/libs/srs_lib_bandwidth.cpp,
-    ../../src/libs/srs_lib_simple_socket.hpp,
-    ../../src/libs/srs_lib_simple_socket.cpp,
     core readonly separator,
     ../../src/core/srs_core.hpp,
     ../../src/core/srs_core.cpp,
@@ -167,21 +160,7 @@ file
     ../../src/utest/srs_utest_protocol.hpp,
     ../../src/utest/srs_utest_protocol.cpp,
     ../../src/utest/srs_utest_reload.hpp,
-    ../../src/utest/srs_utest_reload.cpp,
-    research readonly separator,
-    ../../research/librtmp/srs_aac_raw_publish.c,
-    ../../research/librtmp/srs_audio_raw_publish.c,
-    ../../research/librtmp/srs_bandwidth_check.c,
-    ../../research/librtmp/srs_detect_rtmp.c,
-    ../../research/librtmp/srs_flv_injecter.c,
-    ../../research/librtmp/srs_flv_parser.c,
-    ../../research/librtmp/srs_h264_raw_publish.c,
-    ../../research/librtmp/srs_ingest_flv.c,
-    ../../research/librtmp/srs_ingest_rtmp.c,
-    ../../research/librtmp/srs_play.c,
-    ../../research/librtmp/srs_publish.c,
-    ../../research/librtmp/srs_rtmp_dump.c,
-    ../../research/hls/ts_info.cc;
+    ../../src/utest/srs_utest_reload.cpp;
 
 mainconfig
     "" = "MAIN";

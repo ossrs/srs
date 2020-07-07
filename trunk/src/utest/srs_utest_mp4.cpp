@@ -220,7 +220,7 @@ VOID TEST(KernelMp4Test, DiscoveryBox)
     SrsMp4Box* pbox;
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_ASSERT_FAILED(SrsMp4Box::discovery(&b, &pbox));
     }
 
@@ -419,7 +419,7 @@ VOID TEST(KernelMp4Test, UUIDBoxDecode)
     }
 
     if (true) {
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         SrsMp4Box box;
         HELPER_ASSERT_FAILED(box.decode(&b));
     }

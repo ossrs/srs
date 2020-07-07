@@ -55,11 +55,11 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual void reopen();
-    virtual void verbose(const char* tag, int context_id, const char* fmt, ...);
-    virtual void info(const char* tag, int context_id, const char* fmt, ...);
-    virtual void trace(const char* tag, int context_id, const char* fmt, ...);
-    virtual void warn(const char* tag, int context_id, const char* fmt, ...);
-    virtual void error(const char* tag, int context_id, const char* fmt, ...);
+    virtual void verbose(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void info(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void trace(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void warn(const char* tag, const char* context_id, const char* fmt, ...);
+    virtual void error(const char* tag, const char* context_id, const char* fmt, ...);
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_utc_time();

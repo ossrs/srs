@@ -26,7 +26,11 @@
 
 #include <srs_core.hpp>
 
+#include <srs_app_st.hpp>
+
 #include <map>
+
+class SrsCoroutine;
 
 // The handler for the tick.
 class ISrsHourGlass
@@ -36,40 +40,41 @@ public:
     virtual ~ISrsHourGlass();
 public:
     // When time is ticked, this function is called.
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick) = 0;
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick) = 0;
 };
 
-// he hourglass used to do some specieal task,
-// while these task is cycle when some interval, for example,
-// there are N=3 tasks to do:
-//          1. heartbeat every 3s.
-//          2. print message every 5s.
-//          3. notify backend every 7s.
+// The hourglass(timer or SrsTimer) for special tasks,
+// while these tasks are attached to some intervals, for example,
+// there are N=3 tasks bellow:
+//          1. A heartbeat every 3s.
+//          2. A print message every 5s.
+//          3. A notify backend every 7s.
 // The hourglass will call back when ticks:
-//          1. notify(type=1, time=3)
-//          2. notify(type=2, time=5)
-//          3. notify(type=1, time=6)
-//          4. notify(type=3, time=7)
-//          5. notify(type=1, time=9)
-//          6. notify(type=2, time=10)
-// This is used for server and bocar server and other manager.
+//          1. Got notify(event=1, time=3)
+//          2. Got notify(event=2, time=5)
+//          3. Got notify(event=1, time=6)
+//          4. Got notify(event=3, time=7)
+//          5. Got notify(event=1, time=9)
+//          6. Got notify(event=2, time=10)
+// It's a complex and high-performance timer.
 //
 // Usage:
 //      SrsHourGlass* hg = new SrsHourGlass(handler, 1 * SRS_UTIME_MILLISECONDS);
+//
 //      hg->tick(1, 3 * SRS_UTIME_MILLISECONDS);
 //      hg->tick(2, 5 * SRS_UTIME_MILLISECONDS);
 //      hg->tick(3, 7 * SRS_UTIME_MILLISECONDS);
-//      // create a thread to cycle, which will call handerl when ticked.
-//      while (true) {
-//          hg->cycle();
-//      }
-class SrsHourGlass
+//
+//      // The hg will create a thread for timer.
+//      hg->start();
+class SrsHourGlass : virtual public ISrsCoroutineHandler
 {
 private:
+    SrsCoroutine* trd;
     ISrsHourGlass* handler;
     srs_utime_t _resolution;
     // The ticks:
-    //      key: the type of tick.
+    //      key: the event of tick.
     //      value: the interval of tick.
     std::map<int, srs_utime_t> ticks;
     // The total elapsed time,
@@ -79,10 +84,14 @@ public:
     SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
 public:
-    // Add a pair of tick(type, interval).
-    // @param type the type of tick.
+    // Start the hourglass.
+    virtual srs_error_t start();
+public:
+    // Add a pair of tick(event, interval).
+    // @param event the event of tick, default is 0.
     // @param interval the interval in srs_utime_t of tick.
-    virtual srs_error_t tick(int type, srs_utime_t interval);
+    virtual srs_error_t tick(srs_utime_t interval);
+    virtual srs_error_t tick(int event, srs_utime_t interval);
 public:
     // Cycle the hourglass, which will sleep resolution every time.
     // and call handler when ticked.
