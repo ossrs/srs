@@ -48,7 +48,7 @@ class SrsUdpMuxSocket;
 class SrsConsumer;
 class SrsStunPacket;
 class SrsRtcServer;
-class SrsRtcSession;
+class SrsRtcConnection;
 class SrsSharedPtrMessage;
 class SrsRtcSource;
 class SrsRtpPacket2;
@@ -95,7 +95,7 @@ public:
     static uint64_t kMagicNtpFractionalUnit;
 };
 
-enum SrsRtcSessionStateType
+enum SrsRtcConnectionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
     INIT = -1,
@@ -109,12 +109,12 @@ enum SrsRtcSessionStateType
 class SrsSecurityTransport : public ISrsDtlsCallback
 {
 private:
-    SrsRtcSession* session_;
+    SrsRtcConnection* session_;
     SrsDtls* dtls_;
     SrsSRTP* srtp_;
     bool handshake_done;
 public:
-    SrsSecurityTransport(SrsRtcSession* s);
+    SrsSecurityTransport(SrsRtcConnection* s);
     virtual ~SrsSecurityTransport();
 
     srs_error_t initialize(SrsSessionConfig* cfg);
@@ -187,7 +187,7 @@ class SrsRtcPlayer : virtual public ISrsCoroutineHandler, virtual public ISrsRel
 protected:
     SrsContextId _parent_cid;
     SrsCoroutine* trd;
-    SrsRtcSession* session_;
+    SrsRtcConnection* session_;
 private:
     // TODO: FIXME: How to handle timestamp overflow?
     // Information for audio.
@@ -208,7 +208,7 @@ private:
     // Whether enabled nack.
     bool nack_enabled_;
 public:
-    SrsRtcPlayer(SrsRtcSession* s, SrsContextId parent_cid);
+    SrsRtcPlayer(SrsRtcConnection* s, SrsContextId parent_cid);
     virtual ~SrsRtcPlayer();
 public:
     srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint16_t v_pt, uint16_t a_pt);
@@ -248,7 +248,7 @@ private:
     SrsHourGlass* report_timer;
     uint64_t nn_audio_frames;
 private:
-    SrsRtcSession* session_;
+    SrsRtcConnection* session_;
     uint32_t video_ssrc;
     uint32_t audio_ssrc;
     uint16_t pt_to_drop_;
@@ -275,7 +275,7 @@ private:
     SrsRtcpTWCC rtcp_twcc_;
     SrsRtpExtensionTypes extension_types_;
 public:
-    SrsRtcPublisher(SrsRtcSession* session);
+    SrsRtcPublisher(SrsRtcConnection* session);
     virtual ~SrsRtcPublisher();
 public:
     srs_error_t initialize(uint32_t vssrc, uint32_t assrc, int twcc_id, SrsRequest* req);
@@ -313,7 +313,8 @@ private:
     srs_error_t on_twcc(uint16_t sn);
 };
 
-class SrsRtcSession
+// A RTC Peer Connection, SDP level object.
+class SrsRtcConnection
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayer;
@@ -322,7 +323,7 @@ public:
     bool disposing_;
 private:
     SrsRtcServer* server_;
-    SrsRtcSessionStateType state_;
+    SrsRtcConnectionStateType state_;
     SrsSecurityTransport* transport_;
     SrsRtcPlayer* player_;
     SrsRtcPublisher* publisher_;
@@ -357,15 +358,15 @@ private:
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
 public:
-    SrsRtcSession(SrsRtcServer* s);
-    virtual ~SrsRtcSession();
+    SrsRtcConnection(SrsRtcServer* s);
+    virtual ~SrsRtcConnection();
 public:
     SrsSdp* get_local_sdp();
     void set_local_sdp(const SrsSdp& sdp);
     SrsSdp* get_remote_sdp();
     void set_remote_sdp(const SrsSdp& sdp);
-    SrsRtcSessionStateType state();
-    void set_state(SrsRtcSessionStateType state);
+    SrsRtcConnectionStateType state();
+    void set_state(SrsRtcConnectionStateType state);
     std::string id();
     std::string peer_id();
     void set_peer_id(std::string v);
@@ -401,13 +402,13 @@ public:
     virtual ~ISrsRtcHijacker();
 public:
     // When start publisher by RTC.
-    virtual srs_error_t on_start_publish(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
+    virtual srs_error_t on_start_publish(SrsRtcConnection* session, SrsRtcPublisher* publisher, SrsRequest* req) = 0;
     // When got RTP plaintext packet.
-    virtual srs_error_t on_rtp_packet(SrsRtcSession* session, SrsRtcPublisher* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublisher* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
     // When start player by RTC.
-    virtual srs_error_t on_start_play(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req) = 0;
+    virtual srs_error_t on_start_play(SrsRtcConnection* session, SrsRtcPlayer* player, SrsRequest* req) = 0;
     // When start consuming for player for RTC.
-    virtual srs_error_t on_start_consume(SrsRtcSession* session, SrsRtcPlayer* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
+    virtual srs_error_t on_start_consume(SrsRtcConnection* session, SrsRtcPlayer* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
 };
 
 extern ISrsRtcHijacker* _srs_rtc_hijacker;

@@ -36,7 +36,7 @@
 
 class SrsRtcServer;
 class SrsHourGlass;
-class SrsRtcSession;
+class SrsRtcConnection;
 class SrsRequest;
 class SrsSdp;
 
@@ -47,7 +47,7 @@ public:
     virtual ~ISrsRtcServerHandler();
 public:
     // When server detect the timeout for session object.
-    virtual void on_timeout(SrsRtcSession* session) = 0;
+    virtual void on_timeout(SrsRtcConnection* session) = 0;
 };
 
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
@@ -57,10 +57,10 @@ private:
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
 private:
-    std::map<std::string, SrsRtcSession*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
-    std::map<std::string, SrsRtcSession*> map_id_session; // key: peerip(ip + ":" + port)
+    std::map<std::string, SrsRtcConnection*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
+    std::map<std::string, SrsRtcConnection*> map_id_session; // key: peerip(ip + ":" + port)
     // The zombie sessions, we will free them.
-    std::vector<SrsRtcSession*> zombies_;
+    std::vector<SrsRtcConnection*> zombies_;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
@@ -78,20 +78,20 @@ public:
     // Peer start offering, we answer it.
     srs_error_t create_session(
         SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
-        SrsRtcSession** psession
+        SrsRtcConnection** psession
     );
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
-    srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcSession** psession);
-    srs_error_t setup_session2(SrsRtcSession* session, SrsRequest* req, const SrsSdp& remote_sdp);
+    srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcConnection** psession);
+    srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
     // Destroy the session from server.
-    void destroy(SrsRtcSession* session);
+    void destroy(SrsRtcConnection* session);
 public:
-    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcSession* session);
+    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
     void check_and_clean_timeout_session();
     int nn_sessions();
-    SrsRtcSession* find_session_by_username(const std::string& ufrag);
+    SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 private:
-    SrsRtcSession* find_session_by_peer_id(const std::string& peer_id);
+    SrsRtcConnection* find_session_by_peer_id(const std::string& peer_id);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);

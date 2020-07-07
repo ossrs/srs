@@ -107,7 +107,7 @@ SrsNtp SrsNtp::to_time_ms(uint64_t ntp)
 }
 
 
-SrsSecurityTransport::SrsSecurityTransport(SrsRtcSession* s)
+SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s)
 {
     session_ = s;
 
@@ -151,7 +151,7 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size)
 
     if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
         // Ignore any error for black-hole.
-        void* p = data; int len = size; SrsRtcSession* s = session_;
+        void* p = data; int len = size; SrsRtcConnection* s = session_;
         srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
     }
 
@@ -271,7 +271,7 @@ SrsRtcOutgoingInfo::~SrsRtcOutgoingInfo()
 {
 }
 
-SrsRtcPlayer::SrsRtcPlayer(SrsRtcSession* s, SrsContextId parent_cid)
+SrsRtcPlayer::SrsRtcPlayer(SrsRtcConnection* s, SrsContextId parent_cid)
 {
     _parent_cid = parent_cid;
     trd = new SrsDummyCoroutine();
@@ -847,7 +847,7 @@ srs_error_t SrsRtcPlayer::on_rtcp_rr(char* data, int nb_data)
     return err;
 }
 
-SrsRtcPublisher::SrsRtcPublisher(SrsRtcSession* session)
+SrsRtcPublisher::SrsRtcPublisher(SrsRtcConnection* session)
 {
     report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
@@ -967,7 +967,7 @@ void SrsRtcPublisher::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssr
 
         if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
             // Ignore any error for black-hole.
-            void* p = stream.data(); int len = stream.pos(); SrsRtcSession* s = session_;
+            void* p = stream.data(); int len = stream.pos(); SrsRtcConnection* s = session_;
             srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
         }
 
@@ -1124,7 +1124,7 @@ srs_error_t SrsRtcPublisher::send_rtcp_fb_pli(uint32_t ssrc)
 
     if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
         // Ignore any error for black-hole.
-        void* p = stream.data(); int len = stream.pos(); SrsRtcSession* s = session_;
+        void* p = stream.data(); int len = stream.pos(); SrsRtcConnection* s = session_;
         srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
     }
 
@@ -1201,7 +1201,7 @@ srs_error_t SrsRtcPublisher::on_rtp(char* data, int nb_data)
 
     if (session_->blackhole && session_->blackhole_addr && session_->blackhole_stfd) {
         // Ignore any error for black-hole.
-        void* p = unprotected_buf; int len = nb_unprotected_buf; SrsRtcSession* s = session_;
+        void* p = unprotected_buf; int len = nb_unprotected_buf; SrsRtcConnection* s = session_;
         srs_sendto(s->blackhole_stfd, p, len, (sockaddr*)s->blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
     }
 
@@ -1764,7 +1764,7 @@ void SrsRtcPublisher::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
     nn_simulate_nack_drop--;
 }
 
-SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
+SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s)
 {
     req = NULL;
     is_publisher_ = false;
@@ -1787,7 +1787,7 @@ SrsRtcSession::SrsRtcSession(SrsRtcServer* s)
     blackhole_stfd = NULL;
 }
 
-SrsRtcSession::~SrsRtcSession()
+SrsRtcConnection::~SrsRtcConnection()
 {
     srs_freep(player_);
     srs_freep(publisher_);
@@ -1798,73 +1798,73 @@ SrsRtcSession::~SrsRtcSession()
     srs_freep(sendonly_skt);
 }
 
-SrsSdp* SrsRtcSession::get_local_sdp()
+SrsSdp* SrsRtcConnection::get_local_sdp()
 {
     return &local_sdp;
 }
 
-void SrsRtcSession::set_local_sdp(const SrsSdp& sdp)
+void SrsRtcConnection::set_local_sdp(const SrsSdp& sdp)
 {
     local_sdp = sdp;
 }
 
-SrsSdp* SrsRtcSession::get_remote_sdp()
+SrsSdp* SrsRtcConnection::get_remote_sdp()
 {
     return &remote_sdp;
 }
 
-void SrsRtcSession::set_remote_sdp(const SrsSdp& sdp)
+void SrsRtcConnection::set_remote_sdp(const SrsSdp& sdp)
 {
     remote_sdp = sdp;
 }
 
-SrsRtcSessionStateType SrsRtcSession::state()
+SrsRtcConnectionStateType SrsRtcConnection::state()
 {
     return state_;
 }
 
-void SrsRtcSession::set_state(SrsRtcSessionStateType state)
+void SrsRtcConnection::set_state(SrsRtcConnectionStateType state)
 {
     state_ = state;
 }
 
-string SrsRtcSession::id()
+string SrsRtcConnection::id()
 {
     return peer_id_ + "/" + username_;
 }
 
 
-string SrsRtcSession::peer_id()
+string SrsRtcConnection::peer_id()
 {
     return peer_id_;
 }
 
-void SrsRtcSession::set_peer_id(string v)
+void SrsRtcConnection::set_peer_id(string v)
 {
     peer_id_ = v;
 }
 
-string SrsRtcSession::username()
+string SrsRtcConnection::username()
 {
     return username_;
 }
 
-void SrsRtcSession::set_encrypt(bool v)
+void SrsRtcConnection::set_encrypt(bool v)
 {
     encrypt = v;
 }
 
-void SrsRtcSession::switch_to_context()
+void SrsRtcConnection::switch_to_context()
 {
     _srs_context->set_id(cid);
 }
 
-SrsContextId SrsRtcSession::context_id()
+SrsContextId SrsRtcConnection::context_id()
 {
     return cid;
 }
 
-srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, SrsContextId context_id)
+srs_error_t SrsRtcConnection::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, SrsContextId context_id)
 {
     srs_error_t err = srs_success;
 
@@ -1911,7 +1911,7 @@ srs_error_t SrsRtcSession::initialize(SrsRtcSource* source, SrsRequest* r, bool 
     return err;
 }
 
-srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
+srs_error_t SrsRtcConnection::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
 {
     srs_error_t err = srs_success;
 
@@ -1941,12 +1941,12 @@ srs_error_t SrsRtcSession::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
     return err;
 }
 
-srs_error_t SrsRtcSession::on_dtls(char* data, int nb_data)
+srs_error_t SrsRtcConnection::on_dtls(char* data, int nb_data)
 {
     return transport_->on_dtls(data, nb_data);
 }
 
-srs_error_t SrsRtcSession::on_rtcp(char* data, int nb_data)
+srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -1977,7 +1977,7 @@ srs_error_t SrsRtcSession::on_rtcp(char* data, int nb_data)
     return err;
 }
 
-srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
+srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
 {
     if (publisher_ == NULL) {
         return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
@@ -1990,7 +1990,7 @@ srs_error_t SrsRtcSession::on_rtp(char* data, int nb_data)
     return publisher_->on_rtp(data, nb_data);
 }
 
-srs_error_t SrsRtcSession::on_connection_established()
+srs_error_t SrsRtcConnection::on_connection_established()
 {
     srs_error_t err = srs_success;
 
@@ -2010,7 +2010,7 @@ srs_error_t SrsRtcSession::on_connection_established()
     return err;
 }
 
-srs_error_t SrsRtcSession::start_play()
+srs_error_t SrsRtcConnection::start_play()
 {
     srs_error_t err = srs_success;
 
@@ -2047,7 +2047,7 @@ srs_error_t SrsRtcSession::start_play()
     return err;
 }
 
-srs_error_t SrsRtcSession::start_publish()
+srs_error_t SrsRtcConnection::start_publish()
 {
     srs_error_t err = srs_success;
 
@@ -2099,12 +2099,12 @@ srs_error_t SrsRtcSession::start_publish()
     return err;
 }
 
-bool SrsRtcSession::is_stun_timeout()
+bool SrsRtcConnection::is_stun_timeout()
 {
     return last_stun_time + sessionStunTimeout < srs_get_system_time();
 }
 
-void SrsRtcSession::update_sendonly_socket(SrsUdpMuxSocket* skt)
+void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 {
     if (sendonly_skt) {
         srs_trace("session %s address changed, update %s -> %s",
@@ -2115,7 +2115,7 @@ void SrsRtcSession::update_sendonly_socket(SrsUdpMuxSocket* skt)
     sendonly_skt = skt->copy_sendonly();
 }
 
-void SrsRtcSession::simulate_nack_drop(int nn)
+void SrsRtcConnection::simulate_nack_drop(int nn)
 {
     if (player_) {
         player_->simulate_nack_drop(nn);
@@ -2133,7 +2133,7 @@ void SrsRtcSession::simulate_nack_drop(int nn)
 #define be32toh ntohl
 #endif
 
-srs_error_t SrsRtcSession::on_binding_request(SrsStunPacket* r)
+srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
 {
     srs_error_t err = srs_success;
 
