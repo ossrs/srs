@@ -103,6 +103,7 @@ public:
     virtual void request_keyframe() = 0;
 };
 
+// A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
 class SrsRtcSource
 {
 private:
