@@ -235,18 +235,18 @@ SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
 
 SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
 
-ISrsRtcPublisher::ISrsRtcPublisher()
+ISrsRtcPublishStream::ISrsRtcPublishStream()
 {
 }
 
-ISrsRtcPublisher::~ISrsRtcPublisher()
+ISrsRtcPublishStream::~ISrsRtcPublishStream()
 {
 }
 
 SrsRtcSource::SrsRtcSource()
 {
     _can_publish = true;
-    rtc_publisher_ = NULL;
+    publish_stream_ = NULL;
 
     req = NULL;
 #ifdef SRS_FFMPEG_FIT
@@ -399,14 +399,14 @@ void SrsRtcSource::on_unpublish()
     // TODO: FIXME: Handle by statistic.
 }
 
-ISrsRtcPublisher* SrsRtcSource::rtc_publisher()
+ISrsRtcPublishStream* SrsRtcSource::publish_stream()
 {
-    return rtc_publisher_;
+    return publish_stream_;
 }
 
-void SrsRtcSource::set_rtc_publisher(ISrsRtcPublisher* v)
+void SrsRtcSource::set_publish_stream(ISrsRtcPublishStream* v)
 {
-    rtc_publisher_ = v;
+    publish_stream_ = v;
 }
 
 srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)

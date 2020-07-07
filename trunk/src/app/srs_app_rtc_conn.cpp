@@ -813,7 +813,7 @@ srs_error_t SrsRtcPlayer::on_rtcp_ps_feedback(char* buf, int nb_buf)
 
     switch (fmt) {
         case kPLI: {
-            ISrsRtcPublisher* publisher = session_->source_->rtc_publisher();
+            ISrsRtcPublishStream* publisher = session_->source_->publish_stream();
             if (publisher) {
                 publisher->request_keyframe();
                 srs_trace("RTC request PLI");
@@ -873,7 +873,7 @@ SrsRtcPublisher::~SrsRtcPublisher()
 {
     // TODO: FIXME: Do unpublish when session timeout.
     if (source) {
-        source->set_rtc_publisher(NULL);
+        source->set_publish_stream(NULL);
         source->on_unpublish();
     }
 
@@ -923,7 +923,7 @@ srs_error_t SrsRtcPublisher::initialize(uint32_t vssrc, uint32_t assrc, int twcc
         return srs_error_wrap(err, "on publish");
     }
 
-    source->set_rtc_publisher(this);
+    source->set_publish_stream(this);
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req)) != srs_success) {

@@ -93,11 +93,12 @@ private:
 // Global singleton instance.
 extern SrsRtcSourceManager* _srs_rtc_sources;
 
-class ISrsRtcPublisher
+// A publish stream interface, for source to callback with.
+class ISrsRtcPublishStream
 {
 public:
-    ISrsRtcPublisher();
-    virtual ~ISrsRtcPublisher();
+    ISrsRtcPublishStream();
+    virtual ~ISrsRtcPublishStream();
 public:
     virtual void request_keyframe() = 0;
 };
@@ -113,7 +114,7 @@ private:
     // previous source id.
     SrsContextId _pre_source_id;
     SrsRequest* req;
-    ISrsRtcPublisher* rtc_publisher_;
+    ISrsRtcPublishStream* publish_stream_;
     // Transmux RTMP to RTC.
     ISrsSourceBridger* bridger_;
 private:
@@ -153,8 +154,8 @@ public:
     virtual void on_unpublish();
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
-    ISrsRtcPublisher* rtc_publisher();
-    void set_rtc_publisher(ISrsRtcPublisher* v);
+    ISrsRtcPublishStream* publish_stream();
+    void set_publish_stream(ISrsRtcPublishStream* v);
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
 };

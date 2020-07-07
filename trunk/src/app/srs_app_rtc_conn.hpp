@@ -242,7 +242,7 @@ private:
     srs_error_t on_rtcp_rr(char* data, int nb_data);
 };
 
-class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublisher
+class SrsRtcPublisher : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
     SrsHourGlass* report_timer;
