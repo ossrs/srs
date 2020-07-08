@@ -50,7 +50,7 @@ class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcConnection;
 class SrsSharedPtrMessage;
-class SrsRtcSource;
+class SrsRtcStream;
 class SrsRtpPacket2;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
@@ -226,7 +226,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_packets(SrsRtcSource* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
+    srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
@@ -264,7 +264,7 @@ private:
     SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
-    SrsRtcSource* source;
+    SrsRtcStream* source;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -347,7 +347,7 @@ private:
     // TODO: FIXME: Support reload.
     bool encrypt;
     SrsRequest* req;
-    SrsRtcSource* source_;
+    SrsRtcStream* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 public:
@@ -378,7 +378,7 @@ public:
     SrsContextId context_id();
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
-    srs_error_t initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, std::string username, SrsContextId context_id);
+    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username, SrsContextId context_id);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

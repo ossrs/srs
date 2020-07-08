@@ -378,7 +378,7 @@ srs_error_t SrsRtcPlayStream::cycle()
 {
     srs_error_t err = srs_success;
 
-    SrsRtcSource* source = NULL;
+    SrsRtcStream* source = NULL;
     SrsRequest* req = session_->req;
 
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
@@ -470,7 +470,7 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayStream::send_packets(SrsRtcSource* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -1864,7 +1864,7 @@ SrsContextId SrsRtcConnection::context_id()
     return cid;
 }
 
-srs_error_t SrsRtcConnection::initialize(SrsRtcSource* source, SrsRequest* r, bool is_publisher, string username, SrsContextId context_id)
+srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, string username, SrsContextId context_id)
 {
     srs_error_t err = srs_success;
 

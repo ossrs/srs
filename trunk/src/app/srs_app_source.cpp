@@ -1728,7 +1728,7 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     bool rtc_enabled = _srs_config->get_rtc_enabled(r->vhost);
 
     // Get the RTC source and bridger.
-    SrsRtcSource* rtc = NULL;
+    SrsRtcStream* rtc = NULL;
     if (rtc_server_enabled && rtc_enabled) {
         if ((err = _srs_rtc_sources->fetch_or_create(r, &rtc)) != srs_success) {
             err = srs_error_wrap(err, "init rtc %s", r->get_stream_url().c_str());

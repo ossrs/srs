@@ -300,7 +300,7 @@ srs_error_t SrsRtcServer::create_session(
 ) {
     srs_error_t err = srs_success;
 
-    SrsRtcSource* source = NULL;
+    SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
@@ -393,7 +393,7 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
         return err;
     }
 
-    SrsRtcSource* source = NULL;
+    SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
