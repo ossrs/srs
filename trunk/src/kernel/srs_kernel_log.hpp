@@ -80,21 +80,22 @@ public:
 // The logic context, for example, a RTMP connection, or RTC Session, etc.
 // We can grep the context id to identify the logic unit, for debugging.
 // For example:
-//      _srs_context->generate_id(); // Generate a new context id.
-//      _srs_context->get_id(); // Get current context id.
-//      int old_id = _srs_context->set_id("1000"); // Change the context id.
+//      SrsContextId cid = _srs_context->get_id(); // Get current context id.
+//      SrsContextId new_cid = _srs_context->generate_id(); // Generate a new context id.
+//      SrsContextId old_cid = _srs_context->set_id(new_cid); // Change the context id.
 class ISrsContext
 {
 public:
     ISrsContext();
     virtual ~ISrsContext();
 public:
-    // Generate the id for current context.
+    // Generate a new context id.
+    // @remark We do not set to current thread, user should do this.
     virtual SrsContextId generate_id() = 0;
-    // Get the generated id of current context.
+    // Get the context id of current thread.
     virtual SrsContextId get_id() = 0;
-    // Set the id of current context.
-    // @return the previous id value; 0 if no context.
+    // Set the context id of current thread.
+    // @return the previous context id.
     virtual SrsContextId set_id(SrsContextId v) = 0;
 };
 

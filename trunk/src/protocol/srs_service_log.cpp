@@ -46,7 +46,6 @@ SrsThreadContext::~SrsThreadContext()
 SrsContextId SrsThreadContext::generate_id()
 {
     SrsContextId cid = SrsContextId(srs_random_str(8));
-    cache[srs_thread_self()] = cid;
     return cid;
 }
 

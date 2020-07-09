@@ -817,7 +817,7 @@ srs_error_t SrsServer::initialize_st()
     }
     
     // set current log id.
-    _srs_context->generate_id();
+    _srs_context->set_id(_srs_context->generate_id());
     
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();

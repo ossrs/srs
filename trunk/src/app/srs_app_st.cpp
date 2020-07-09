@@ -197,11 +197,10 @@ SrsContextId SrsSTCoroutine::cid()
 srs_error_t SrsSTCoroutine::cycle()
 {
     if (_srs_context) {
-        if (!cid_.empty()) {
-            _srs_context->set_id(cid_);
-        } else {
+        if (cid_.empty()) {
             cid_ = _srs_context->generate_id();
         }
+        _srs_context->set_id(cid_);
     }
     
     srs_error_t err = handler->cycle();
