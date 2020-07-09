@@ -816,9 +816,6 @@ srs_error_t SrsServer::initialize_st()
             _srs_config->get_max_connections(), __MMAP_MAX_CONNECTIONS);
     }
     
-    // set current log id.
-    _srs_context->set_id(_srs_context->generate_id());
-    
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
     if (asprocess && ppid == 1) {
