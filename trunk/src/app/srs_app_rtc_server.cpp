@@ -37,6 +37,7 @@
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
 
@@ -310,12 +311,12 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
-    std::string local_pwd = gen_random_str(32);
+    std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
     // TODO: FIXME: Rename for a better name, it's not an username.
     std::string username = "";
     while (true) {
-        local_ufrag = gen_random_str(8);
+        local_ufrag = srs_random_str(8);
 
         username = local_ufrag + ":" + remote_sdp.get_ice_ufrag();
         if (!map_username_session.count(username)) {
@@ -361,9 +362,9 @@ srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcConnection** 
 {
     srs_error_t err = srs_success;
 
-    std::string local_pwd = gen_random_str(32);
+    std::string local_pwd = srs_random_str(32);
     // TODO: FIXME: Collision detect.
-    std::string local_ufrag = gen_random_str(8);
+    std::string local_ufrag = srs_random_str(8);
 
     SrsRtcConnection* session = new SrsRtcConnection(this);
     *psession = session;

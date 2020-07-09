@@ -31,6 +31,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_BASIC_LOG_SIZE 1024
 
@@ -44,14 +45,7 @@ SrsThreadContext::~SrsThreadContext()
 
 SrsContextId SrsThreadContext::generate_id()
 {
-    static int id = 0;
-
-    if (id == 0) {
-        id = (100 + ((uint32_t)(int64_t)this)%1000);
-    }
-    int gid = id++;
-
-    SrsContextId cid = SrsContextId(srs_int2str(gid));
+    SrsContextId cid = SrsContextId(srs_random_str(8));
     cache[srs_thread_self()] = cid;
     return cid;
 }
