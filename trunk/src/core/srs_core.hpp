@@ -125,14 +125,15 @@ public:
     _SrsContextId();
     _SrsContextId(std::string v);
     _SrsContextId(const _SrsContextId& cp);
+    virtual ~_SrsContextId();
 public:
-    const char* c_str();
-    bool empty();
+    const char* c_str() const;
+    bool empty() const;
     // Compare the two context id. @see http://www.cplusplus.com/reference/string/string/compare/
     //      0	They compare equal
     //      <0	Either the value of the first character that does not match is lower in the compared string, or all compared characters match but the compared string is shorter.
     //      >0	Either the value of the first character that does not match is greater in the compared string, or all compared characters match but the compared string is longer.
-    int compare(const _SrsContextId& to);
+    int compare(const _SrsContextId& to) const;
 };
 typedef _SrsContextId SrsContextId;
 #else
