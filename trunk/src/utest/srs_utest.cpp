@@ -137,3 +137,47 @@ VOID TEST(SampleTest, StringEQTest)
     EXPECT_STREQ("100", str.c_str());
 }
 
+class MockSrsContextId
+{
+public:
+    MockSrsContextId() {
+        bind_ = NULL;
+    }
+    MockSrsContextId(const MockSrsContextId& cp){
+        bind_ = NULL;
+        if (cp.bind_) {
+            bind_ = cp.bind_->copy();
+        }
+    }
+    MockSrsContextId& operator= (const MockSrsContextId& cp) {
+        srs_freep(bind_);
+        if (cp.bind_) {
+            bind_ = cp.bind_->copy();
+        }
+        return *this;
+    }
+    virtual ~MockSrsContextId() {
+        srs_freep(bind_);
+    }
+public:
+    MockSrsContextId* copy() const {
+        MockSrsContextId* cp = new MockSrsContextId();
+        if (bind_) {
+            cp->bind_ = bind_->copy();
+        }
+        return cp;
+    }
+private:
+    MockSrsContextId* bind_;
+};
+
+VOID TEST(SampleTest, ContextTest)
+{
+    MockSrsContextId cid;
+    cid.bind_ = new MockSrsContextId();
+
+    static std::map<int, MockSrsContextId> cache;
+    cache[0] = cid;
+    cache[0] = cid;
+}
+

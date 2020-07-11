@@ -125,6 +125,7 @@ public:
     _SrsContextId();
     _SrsContextId(std::string v);
     _SrsContextId(const _SrsContextId& cp);
+    _SrsContextId& operator=(const _SrsContextId& cp);
     virtual ~_SrsContextId();
 public:
     const char* c_str() const;
