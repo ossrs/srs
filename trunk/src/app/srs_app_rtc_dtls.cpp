@@ -281,7 +281,6 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
 #endif
 
     if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
-
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
         // For ECDSA, we could set the curves list.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
