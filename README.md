@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-07-11, Refine log context with random string. 4.0.35
 * v4.0, 2020-07-04, Fix some bugs for RTC. 4.0.34
 * v4.0, 2020-07-03, Merge [#1830][bug #1830] to fix bugs in GB28181. 4.0.33
 * v4.0, 2020-06-24, Support static link c++ libraries. 4.0.32
