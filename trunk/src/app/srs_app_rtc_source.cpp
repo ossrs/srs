@@ -140,7 +140,7 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%d[%d]", source->source_id().c_str(), source->source_id().c_str());
+        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
         should_update_source_id = false;
     }
 
