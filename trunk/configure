@@ -679,6 +679,11 @@ if [ $SRS_HLS = YES ]; then
 else
     echo -e "${YELLOW}Warning: HLS is disabled.${BLACK}"
 fi
+if [ $SRS_LAS = YES ]; then
+    echo -e "${YELLOW}Experiment: LAS is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Warning: LAS is disabled.${BLACK}"
+fi
 if [ $SRS_STREAM_CASTER = YES ]; then
     echo -e "${YELLOW}Experiment: StreamCaster is enabled.${BLACK}"
 else
