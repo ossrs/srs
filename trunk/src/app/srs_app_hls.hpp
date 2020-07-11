@@ -80,7 +80,7 @@ public:
 class SrsDvrAsyncCallOnHls : public ISrsAsyncCallTask
 {
 private:
-    std::string cid;
+    SrsContextId cid;
     std::string path;
     std::string ts_url;
     std::string m3u8;
@@ -90,7 +90,7 @@ private:
     srs_utime_t duration;
 public:
     // TODO: FIXME: Use TBN 1000.
-    SrsDvrAsyncCallOnHls(std::string c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, srs_utime_t d);
+    SrsDvrAsyncCallOnHls(SrsContextId c, SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, srs_utime_t d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual srs_error_t call();
@@ -101,11 +101,11 @@ public:
 class SrsDvrAsyncCallOnHlsNotify : public ISrsAsyncCallTask
 {
 private:
-    std::string cid;
+    SrsContextId cid;
     std::string ts_url;
     SrsRequest* req;
 public:
-    SrsDvrAsyncCallOnHlsNotify(std::string c, SrsRequest* r, std::string u);
+    SrsDvrAsyncCallOnHlsNotify(SrsContextId c, SrsRequest* r, std::string u);
     virtual ~SrsDvrAsyncCallOnHlsNotify();
 public:
     virtual srs_error_t call();

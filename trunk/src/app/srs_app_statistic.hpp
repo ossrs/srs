@@ -67,7 +67,7 @@ public:
     std::string stream;
     std::string url;
     bool active;
-    std::string connection_cid;
+    SrsContextId connection_cid;
     int nb_clients;
     uint64_t nb_frames;
 public:
@@ -101,7 +101,7 @@ public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
     // Publish the stream.
-    virtual void publish(std::string cid);
+    virtual void publish(SrsContextId cid);
     // Close the stream.
     virtual void close();
 };
@@ -181,7 +181,7 @@ public:
 public:
     virtual SrsStatisticVhost* find_vhost(std::string vid);
     virtual SrsStatisticStream* find_stream(std::string sid);
-    virtual SrsStatisticClient* find_client(std::string cid);
+    virtual SrsStatisticClient* find_client(std::string client_id);
 public:
     // When got video info for stream.
     virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile,
@@ -195,7 +195,7 @@ public:
     // When publish stream.
     // @param req the request object of publish connection.
     // @param cid the cid of publish connection.
-    virtual void on_stream_publish(SrsRequest* req, std::string cid);
+    virtual void on_stream_publish(SrsRequest* req, SrsContextId cid);
     // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
@@ -204,12 +204,14 @@ public:
     // @param req, the client request object.
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
-    virtual srs_error_t on_client(std::string id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
+    // TODO: FIXME: We should not use context id as client id.
+    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    virtual void on_disconnect(std::string id);
+    // TODO: FIXME: We should not use context id as client id.
+    virtual void on_disconnect(SrsContextId id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
     // TODO: FIXME: the add delta must use ISrsKbpsDelta interface instead.

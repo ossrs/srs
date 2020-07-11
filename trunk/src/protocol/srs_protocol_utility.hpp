@@ -65,10 +65,11 @@ extern void srs_discovery_tc_url(std::string tcUrl, std::string& schema, std::st
 // must format as key=value&...&keyN=valueN
 extern void srs_parse_query_string(std::string q, std::map<std::string, std::string>& query);
 
-/**
- * generate ramdom data for handshake.
- */
+// Generate ramdom data for handshake.
 extern void srs_random_generate(char* bytes, int size);
+
+// Generate random string [0-9a-z] in size of len bytes.
+extern std::string srs_random_str(int len);
 
 /**
  * generate the tcUrl without param.

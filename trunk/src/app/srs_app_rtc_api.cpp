@@ -183,7 +183,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* session = NULL;
+    SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
@@ -541,7 +541,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    SrsRtcSession* session = NULL;
+    SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
@@ -808,7 +808,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_error_new(ERROR_RTC_INVALID_PARAMS, "invalid drop=%s/%d", dropv.c_str(), drop);
     }
 
-    SrsRtcSession* session = server_->find_session_by_username(username);
+    SrsRtcConnection* session = server_->find_session_by_username(username);
     if (!session) {
         return srs_error_new(ERROR_RTC_NO_SESSION, "no session username=%s", username.c_str());
     }

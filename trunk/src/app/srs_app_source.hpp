@@ -508,9 +508,9 @@ private:
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_id_changed() to let all clients know.
-    std::string _source_id;
+    SrsContextId _source_id;
     // previous source id.
-    std::string _pre_source_id;
+    SrsContextId _pre_source_id;
     // deep copy of client request.
     SrsRequest* req;
     // To delivery stream to clients.
@@ -567,10 +567,10 @@ public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
 public:
     // The source id changed.
-    virtual srs_error_t on_source_id_changed(std::string id);
+    virtual srs_error_t on_source_id_changed(SrsContextId id);
     // Get current source id.
-    virtual std::string source_id();
-    virtual std::string pre_source_id();
+    virtual SrsContextId source_id();
+    virtual SrsContextId pre_source_id();
     // Whether source is inactive, which means there is no publishing stream source.
     // @remark For edge, it's inactive util stream has been pulled from origin.
     virtual bool inactive();

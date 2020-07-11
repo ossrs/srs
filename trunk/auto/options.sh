@@ -65,7 +65,7 @@ SRS_GCOV=NO
 # always enable the warn/error level.
 SRS_LOG_VERBOSE=NO
 SRS_LOG_INFO=NO
-SRS_LOG_TRACE=NO
+SRS_LOG_TRACE=YES
 #
 ################################################################
 # experts
@@ -437,11 +437,6 @@ if [ $help = yes ]; then
 fi
 
 function apply_detail_options() {
-    # always set the log level for all presets.
-    SRS_LOG_VERBOSE=NO
-    SRS_LOG_INFO=NO
-    SRS_LOG_TRACE=YES
-    
     # set default preset if not specifies
     if [[ $SRS_PURE_RTMP == NO && $SRS_FAST == NO && $SRS_DISABLE_ALL == NO && $SRS_ENABLE_ALL == NO && \
         $SRS_DEV == NO && $SRS_FAST_DEV == NO && $SRS_DEMO == NO && $SRS_PI == NO && $SRS_CUBIE == NO && \

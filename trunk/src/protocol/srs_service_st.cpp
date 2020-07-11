@@ -70,8 +70,8 @@ srs_error_t srs_st_init()
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
 
-    // Before ST init, we might have already inited the background cid.
-    string cid = _srs_context->get_id();
+    // Before ST init, we might have already initialized the background cid.
+    SrsContextId cid = _srs_context->get_id();
     if (cid.empty()) {
         cid = _srs_context->generate_id();
     }

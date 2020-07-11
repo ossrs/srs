@@ -180,7 +180,7 @@ srs_error_t SrsProcess::start()
     srs_info("fork process: %s", cli.c_str());
     
     // for log
-    std::string cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     int ppid = getpid();
     
     // TODO: fork or vfork?

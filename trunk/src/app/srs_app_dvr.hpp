@@ -159,11 +159,11 @@ protected:
 class SrsDvrAsyncCallOnDvr : public ISrsAsyncCallTask
 {
 private:
-    std::string cid;
+    SrsContextId cid;
     std::string path;
     SrsRequest* req;
 public:
-    SrsDvrAsyncCallOnDvr(std::string c, SrsRequest* r, std::string p);
+    SrsDvrAsyncCallOnDvr(SrsContextId c, SrsRequest* r, std::string p);
     virtual ~SrsDvrAsyncCallOnDvr();
 public:
     virtual srs_error_t call();

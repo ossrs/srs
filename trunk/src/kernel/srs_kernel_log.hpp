@@ -65,37 +65,38 @@ public:
     virtual void reopen() = 0;
 public:
     // The log for verbose, very verbose information.
-    virtual void verbose(const char* tag, const char* context_id, const char* fmt, ...) = 0;
+    virtual void verbose(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
     // The log for debug, detail information.
-    virtual void info(const char* tag, const char* context_id, const char* fmt, ...) = 0;
+    virtual void info(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
     // The log for trace, important information.
-    virtual void trace(const char* tag, const char* context_id, const char* fmt, ...) = 0;
+    virtual void trace(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
     // The log for warn, warn is something should take attention, but not a error.
-    virtual void warn(const char* tag, const char* context_id, const char* fmt, ...) = 0;
+    virtual void warn(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
     // The log for error, something error occur, do something about the error, ie. close the connection,
     // but we will donot abort the program.
-    virtual void error(const char* tag, const char* context_id, const char* fmt, ...) = 0;
+    virtual void error(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
 };
 
-// The logic context for a RTMP connection, or RTC Session.
+// The logic context, for example, a RTMP connection, or RTC Session, etc.
 // We can grep the context id to identify the logic unit, for debugging.
 // For example:
-//      _srs_context->generate_id(); // Generate a new context.
-//      _srs_context->get_id(); // Get current context.
-//      int old_id = _srs_context->set_id("1000"); // Change the context.
+//      SrsContextId cid = _srs_context->get_id(); // Get current context id.
+//      SrsContextId new_cid = _srs_context->generate_id(); // Generate a new context id.
+//      SrsContextId old_cid = _srs_context->set_id(new_cid); // Change the context id.
 class ISrsContext
 {
 public:
     ISrsContext();
     virtual ~ISrsContext();
 public:
-    // Generate the id for current context.
-    virtual std::string generate_id() = 0;
-    // Get the generated id of current context.
-    virtual std::string get_id() = 0;
-    // Set the id of current context.
-    // @return the previous id value; 0 if no context.
-    virtual std::string set_id(std::string v) = 0;
+    // Generate a new context id.
+    // @remark We do not set to current thread, user should do this.
+    virtual SrsContextId generate_id() = 0;
+    // Get the context id of current thread.
+    virtual SrsContextId get_id() = 0;
+    // Set the context id of current thread.
+    // @return the previous context id.
+    virtual SrsContextId set_id(SrsContextId v) = 0;
 };
 
 // @global User must provides a log object
@@ -108,25 +109,25 @@ extern ISrsContext* _srs_context;
 // Use __FUNCTION__ to print c method
 // Use __PRETTY_FUNCTION__ to print c++ class:method
 #if 1
-    #define srs_verbose(msg, ...) _srs_log->verbose(NULL, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_info(msg, ...)    _srs_log->info(NULL, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_trace(msg, ...)   _srs_log->trace(NULL, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_warn(msg, ...)    _srs_log->warn(NULL, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_error(msg, ...)   _srs_log->error(NULL, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
+    #define srs_verbose(msg, ...) _srs_log->verbose(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_info(msg, ...)    _srs_log->info(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_trace(msg, ...)   _srs_log->trace(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_warn(msg, ...)    _srs_log->warn(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_error(msg, ...)   _srs_log->error(NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #endif
 #if 0
-    #define srs_verbose(msg, ...) _srs_log->verbose(__FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_info(msg, ...)    _srs_log->info(__FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_trace(msg, ...)   _srs_log->trace(__FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_warn(msg, ...)    _srs_log->warn(__FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_error(msg, ...)   _srs_log->error(__FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
+    #define srs_verbose(msg, ...) _srs_log->verbose(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_info(msg, ...)    _srs_log->info(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_trace(msg, ...)   _srs_log->trace(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_warn(msg, ...)    _srs_log->warn(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_error(msg, ...)   _srs_log->error(__FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #endif
 #if 0
-    #define srs_verbose(msg, ...) _srs_log->verbose(__PRETTY_FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_info(msg, ...)    _srs_log->info(__PRETTY_FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_trace(msg, ...)   _srs_log->trace(__PRETTY_FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_warn(msg, ...)    _srs_log->warn(__PRETTY_FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
-    #define srs_error(msg, ...)   _srs_log->error(__PRETTY_FUNCTION__, _srs_context->get_id().c_str(), msg, ##__VA_ARGS__)
+    #define srs_verbose(msg, ...) _srs_log->verbose(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_info(msg, ...)    _srs_log->info(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_trace(msg, ...)   _srs_log->trace(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_warn(msg, ...)    _srs_log->warn(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
+    #define srs_error(msg, ...)   _srs_log->error(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #endif
 
 // TODO: FIXME: Add more verbose and info logs.

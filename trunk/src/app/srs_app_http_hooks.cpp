@@ -60,15 +60,13 @@ srs_error_t SrsHttpHooks::on_connect(string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
-    // TODO: FIXME: check client_id must be int?
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_connect"));
-    // obj->set("client_id", SrsJsonAny::integer(client_id));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -82,11 +80,11 @@ srs_error_t SrsHttpHooks::on_connect(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_connect failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
     
     srs_trace("http: on_connect ok, client_id=%s, url=%s, request=%s, response=%s",
-              client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+              cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return err;
 }
@@ -95,13 +93,13 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_close"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -117,12 +115,12 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_close failed, client_id=%s, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http: on_close ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return;
 }
@@ -131,13 +129,13 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_publish"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -152,11 +150,11 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_publish failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
     
     srs_trace("http: on_publish ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return err;
 }
@@ -165,13 +163,13 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_unpublish"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -187,12 +185,12 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_unpublish failed, client_id=%s, url=%s, request=%s, response=%s, status=%d, ret=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http: on_unpublish ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return;
 }
@@ -201,13 +199,13 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_play"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -222,11 +220,11 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
     SrsHttpClient http;
     if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http: on_play failed, client_id=%s, url=%s, request=%s, response=%s, status=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
     
     srs_trace("http: on_play ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return err;
 }
@@ -235,13 +233,13 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_stop"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -257,28 +255,28 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
         int ret = srs_error_code(err);
         srs_freep(err);
         srs_warn("http: ignore on_stop failed, client_id=%s, url=%s, request=%s, response=%s, code=%d, ret=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
     srs_trace("http: on_stop ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return;
 }
 
-srs_error_t SrsHttpHooks::on_dvr(std::string cid, string url, SrsRequest* req, string file)
+srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, SrsRequest* req, string file)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = cid;
+    SrsContextId cid = c;
     std::string cwd = _srs_config->cwd();
     
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_dvr"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -294,20 +292,20 @@ srs_error_t SrsHttpHooks::on_dvr(std::string cid, string url, SrsRequest* req, s
     SrsHttpClient http;
     if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
         return srs_error_wrap(err, "http post on_dvr uri failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
-            client_id.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
     
     srs_trace("http hook on_dvr success. client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return err;
 }
 
-srs_error_t SrsHttpHooks::on_hls(std::string cid, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, srs_utime_t duration)
+srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, srs_utime_t duration)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = cid;
+    SrsContextId cid = c;
     std::string cwd = _srs_config->cwd();
     
     // the ts_url is under the same dir of m3u8_url.
@@ -320,7 +318,7 @@ srs_error_t SrsHttpHooks::on_hls(std::string cid, string url, SrsRequest* req, s
     SrsAutoFree(SrsJsonObject, obj);
     
     obj->set("action", SrsJsonAny::str("on_hls"));
-    obj->set("client_id", SrsJsonAny::str(client_id.c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
@@ -344,16 +342,16 @@ srs_error_t SrsHttpHooks::on_hls(std::string cid, string url, SrsRequest* req, s
     }
     
     srs_trace("http: on_hls ok, client_id=%s, url=%s, request=%s, response=%s",
-        client_id.c_str(), url.c_str(), data.c_str(), res.c_str());
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
     
     return err;
 }
 
-srs_error_t SrsHttpHooks::on_hls_notify(std::string cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
+srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
     srs_error_t err = srs_success;
     
-    std::string client_id = cid;
+    SrsContextId cid = c;
     std::string cwd = _srs_config->cwd();
     
     if (srs_string_is_http(ts_url)) {
@@ -409,7 +407,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(std::string cid, std::string url, SrsReq
     
     int spenttime = (int)(srsu2ms(srs_update_system_time()) - starttime);
     srs_trace("http hook on_hls_notify success. client_id=%s, url=%s, code=%d, spent=%dms, read=%dB, err=%s",
-        client_id.c_str(), url.c_str(), msg->status_code(), spenttime, nb_read, srs_error_desc(err).c_str());
+        cid.c_str(), url.c_str(), msg->status_code(), spenttime, nb_read, srs_error_desc(err).c_str());
     
     // ignore any error for on_hls_notify.
     srs_error_reset(err);

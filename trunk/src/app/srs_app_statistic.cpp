@@ -101,8 +101,7 @@ SrsStatisticStream::SrsStatisticStream()
     id = srs_generate_id();
     vhost = NULL;
     active = false;
-    connection_cid = -1;
-    
+
     has_video = false;
     vcodec = SrsVideoCodecIdReserved;
     avc_profile = SrsAvcProfileReserved;
@@ -184,7 +183,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     return err;
 }
 
-void SrsStatisticStream::publish(string cid)
+void SrsStatisticStream::publish(SrsContextId cid)
 {
     connection_cid = cid;
     active = true;
@@ -337,10 +336,10 @@ SrsStatisticStream* SrsStatistic::find_stream(string sid)
     return NULL;
 }
 
-SrsStatisticClient* SrsStatistic::find_client(string cid)
+SrsStatisticClient* SrsStatistic::find_client(string client_id)
 {
     std::map<std::string, SrsStatisticClient*>::iterator it;
-    if ((it = clients.find(cid)) != clients.end()) {
+    if ((it = clients.find(client_id)) != clients.end()) {
         return it->second;
     }
     return NULL;
@@ -392,7 +391,7 @@ srs_error_t SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
     return err;
 }
 
-void SrsStatistic::on_stream_publish(SrsRequest* req, string cid)
+void SrsStatistic::on_stream_publish(SrsRequest* req, SrsContextId cid)
 {
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
@@ -423,10 +422,13 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
-srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
-    
+
+    // TODO: FIXME: We should use UUID for client ID.
+    std::string id = cid.c_str();
+
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     
@@ -451,8 +453,11 @@ srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, SrsConnecti
     return err;
 }
 
-void SrsStatistic::on_disconnect(std::string id)
+void SrsStatistic::on_disconnect(SrsContextId cid)
 {
+    // TODO: FIXME: We should use UUID for client ID.
+    std::string id = cid.c_str();
+
     std::map<std::string, SrsStatisticClient*>::iterator it;
     if ((it = clients.find(id)) == clients.end()) {
         return;
@@ -471,7 +476,8 @@ void SrsStatistic::on_disconnect(std::string id)
 
 void SrsStatistic::kbps_add_delta(SrsConnection* conn)
 {
-    std::string id = conn->srs_id();
+    // TODO: FIXME: Should not use context id as connection id.
+    std::string id = conn->srs_id().c_str();
     if (clients.find(id) == clients.end()) {
         return;
     }

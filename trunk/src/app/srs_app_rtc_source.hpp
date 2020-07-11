@@ -38,7 +38,7 @@ class SrsMetaCache;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
-class SrsRtcSource;
+class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
 class SrsAudioRecode;
 class SrsRtpPacket2;
@@ -47,7 +47,7 @@ class SrsSample;
 class SrsRtcConsumer
 {
 private:
-    SrsRtcSource* source;
+    SrsRtcStream* source;
     std::vector<SrsRtpPacket2*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -57,7 +57,7 @@ private:
     bool mw_waiting;
     int mw_min_msgs;
 public:
-    SrsRtcConsumer(SrsRtcSource* s);
+    SrsRtcConsumer(SrsRtcStream* s);
     virtual ~SrsRtcConsumer();
 public:
     // When source id changed, notice client to print.
@@ -71,49 +71,51 @@ public:
     virtual void wait(int nb_msgs);
 };
 
-class SrsRtcSourceManager
+class SrsRtcStreamManager
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsRtcSource*> pool;
+    std::map<std::string, SrsRtcStream*> pool;
 public:
-    SrsRtcSourceManager();
-    virtual ~SrsRtcSourceManager();
+    SrsRtcStreamManager();
+    virtual ~SrsRtcStreamManager();
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcStream** pps);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
-    virtual SrsRtcSource* fetch(SrsRequest* r);
+    virtual SrsRtcStream* fetch(SrsRequest* r);
 };
 
 // Global singleton instance.
-extern SrsRtcSourceManager* _srs_rtc_sources;
+extern SrsRtcStreamManager* _srs_rtc_sources;
 
-class ISrsRtcPublisher
+// A publish stream interface, for source to callback with.
+class ISrsRtcPublishStream
 {
 public:
-    ISrsRtcPublisher();
-    virtual ~ISrsRtcPublisher();
+    ISrsRtcPublishStream();
+    virtual ~ISrsRtcPublishStream();
 public:
     virtual void request_keyframe() = 0;
 };
 
-class SrsRtcSource
+// A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
+class SrsRtcStream
 {
 private:
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_id_changed() to let all clients know.
-    std::string _source_id;
+    SrsContextId _source_id;
     // previous source id.
-    std::string _pre_source_id;
+    SrsContextId _pre_source_id;
     SrsRequest* req;
-    ISrsRtcPublisher* rtc_publisher_;
+    ISrsRtcPublishStream* publish_stream_;
     // Transmux RTMP to RTC.
     ISrsSourceBridger* bridger_;
 private:
@@ -122,17 +124,17 @@ private:
     // Whether source is avaiable for publishing.
     bool _can_publish;
 public:
-    SrsRtcSource();
-    virtual ~SrsRtcSource();
+    SrsRtcStream();
+    virtual ~SrsRtcStream();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
     // The source id changed.
-    virtual srs_error_t on_source_id_changed(std::string id);
+    virtual srs_error_t on_source_id_changed(SrsContextId id);
     // Get current source id.
-    virtual std::string source_id();
-    virtual std::string pre_source_id();
+    virtual SrsContextId source_id();
+    virtual SrsContextId pre_source_id();
     // Get the bridger.
     ISrsSourceBridger* bridger();
 public:
@@ -153,8 +155,8 @@ public:
     virtual void on_unpublish();
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
-    ISrsRtcPublisher* rtc_publisher();
-    void set_rtc_publisher(ISrsRtcPublisher* v);
+    ISrsRtcPublishStream* publish_stream();
+    void set_publish_stream(ISrsRtcPublishStream* v);
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
 };
@@ -164,7 +166,7 @@ class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
     SrsRequest* req;
-    SrsRtcSource* source_;
+    SrsRtcStream* source_;
     // The format, codec information.
     SrsRtmpFormat* format;
     // The metadata cache.
@@ -178,7 +180,7 @@ private:
     uint16_t audio_sequence;
     uint16_t video_sequence;
 public:
-    SrsRtcFromRtmpBridger(SrsRtcSource* source);
+    SrsRtcFromRtmpBridger(SrsRtcStream* source);
     virtual ~SrsRtcFromRtmpBridger();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
@@ -192,7 +194,7 @@ public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
     srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt);
+    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt);
     srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);

@@ -57,7 +57,7 @@ ISrsMessagePumper::~ISrsMessagePumper()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, std::string parent_cid)
+SrsRecvThread::SrsRecvThread(ISrsMessagePumper* p, SrsRtmpServer* r, srs_utime_t tm, SrsContextId parent_cid)
 {
     rtmp = r;
     pumper = p;
@@ -71,7 +71,7 @@ SrsRecvThread::~SrsRecvThread()
     srs_freep(trd);
 }
 
-std::string SrsRecvThread::cid()
+SrsContextId SrsRecvThread::cid()
 {
     return trd->cid();
 }
@@ -161,7 +161,7 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, std::string parent_cid)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid)
 	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;
@@ -278,7 +278,7 @@ void SrsQueueRecvThread::on_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, std::string parent_cid)
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, SrsContextId parent_cid)
     : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
@@ -290,8 +290,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     _nb_msgs = 0;
     video_frames = 0;
     error = srs_cond_new();
-    ncid = cid = "";
-    
+
     req = _req;
     mr_fd = mr_sock_fd;
     
@@ -346,7 +345,7 @@ void SrsPublishRecvThread::set_cid(std::string v)
     ncid = v;
 }
 
-std::string SrsPublishRecvThread::get_cid()
+SrsContextId SrsPublishRecvThread::get_cid()
 {
     return ncid;
 }
@@ -374,7 +373,7 @@ srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     srs_error_t err = srs_success;
     
     // when cid changed, change it.
-    if (ncid != cid) {
+    if (ncid.compare(cid)) {
         _srs_context->set_id(ncid);
         cid = ncid;
     }

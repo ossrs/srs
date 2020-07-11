@@ -90,7 +90,7 @@ srs_error_t aac_raw_append_adts_header(SrsSharedPtrMessage* shared_audio, SrsFor
     return err;
 }
 
-SrsRtcConsumer::SrsRtcConsumer(SrsRtcSource* s)
+SrsRtcConsumer::SrsRtcConsumer(SrsRtcStream* s)
 {
     source = s;
     should_update_source_id = false;
@@ -140,7 +140,7 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%d[%d]", source->source_id().c_str(), source->source_id().c_str());
+        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -165,21 +165,21 @@ void SrsRtcConsumer::wait(int nb_msgs)
     srs_cond_wait(mw_wait);
 }
 
-SrsRtcSourceManager::SrsRtcSourceManager()
+SrsRtcStreamManager::SrsRtcStreamManager()
 {
     lock = NULL;
 }
 
-SrsRtcSourceManager::~SrsRtcSourceManager()
+SrsRtcStreamManager::~SrsRtcStreamManager()
 {
     srs_mutex_destroy(lock);
 }
 
-srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** pps)
+srs_error_t SrsRtcStreamManager::fetch_or_create(SrsRequest* r, SrsRtcStream** pps)
 {
     srs_error_t err = srs_success;
 
-    // Lazy create lock, because ST is not ready in SrsRtcSourceManager constructor.
+    // Lazy create lock, because ST is not ready in SrsRtcStreamManager constructor.
     if (!lock) {
         lock = srs_mutex_new();
     }
@@ -188,7 +188,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
     // @bug https://github.com/ossrs/srs/issues/1230
     SrsLocker(lock);
 
-    SrsRtcSource* source = NULL;
+    SrsRtcStream* source = NULL;
     if ((source = fetch(r)) != NULL) {
         *pps = source;
         return err;
@@ -202,7 +202,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
 
     srs_trace("new source, stream_url=%s", stream_url.c_str());
 
-    source = new SrsRtcSource();
+    source = new SrsRtcStream();
     if ((err = source->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
@@ -214,9 +214,9 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
     return err;
 }
 
-SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
+SrsRtcStream* SrsRtcStreamManager::fetch(SrsRequest* r)
 {
-    SrsRtcSource* source = NULL;
+    SrsRtcStream* source = NULL;
 
     string stream_url = r->get_stream_url();
     if (pool.find(stream_url) == pool.end()) {
@@ -233,21 +233,20 @@ SrsRtcSource* SrsRtcSourceManager::fetch(SrsRequest* r)
     return source;
 }
 
-SrsRtcSourceManager* _srs_rtc_sources = new SrsRtcSourceManager();
+SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
 
-ISrsRtcPublisher::ISrsRtcPublisher()
+ISrsRtcPublishStream::ISrsRtcPublishStream()
 {
 }
 
-ISrsRtcPublisher::~ISrsRtcPublisher()
+ISrsRtcPublishStream::~ISrsRtcPublishStream()
 {
 }
 
-SrsRtcSource::SrsRtcSource()
+SrsRtcStream::SrsRtcStream()
 {
-    _source_id = _pre_source_id = "";
     _can_publish = true;
-    rtc_publisher_ = NULL;
+    publish_stream_ = NULL;
 
     req = NULL;
 #ifdef SRS_FFMPEG_FIT
@@ -257,7 +256,7 @@ SrsRtcSource::SrsRtcSource()
 #endif
 }
 
-SrsRtcSource::~SrsRtcSource()
+SrsRtcStream::~SrsRtcStream()
 {
     // never free the consumers,
     // for all consumers are auto free.
@@ -267,7 +266,7 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(bridger_);
 }
 
-srs_error_t SrsRtcSource::initialize(SrsRequest* r)
+srs_error_t SrsRtcStream::initialize(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
@@ -283,22 +282,22 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
     return err;
 }
 
-void SrsRtcSource::update_auth(SrsRequest* r)
+void SrsRtcStream::update_auth(SrsRequest* r)
 {
     req->update_auth(r);
 }
 
-srs_error_t SrsRtcSource::on_source_id_changed(std::string id)
+srs_error_t SrsRtcStream::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
 
-    if (_source_id == id) {
+    if (!_source_id.compare(id)) {
         return err;
     }
 
-    if (_pre_source_id == "") {
+    if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (_pre_source_id != _source_id) {
+    } else if (_pre_source_id.compare(_source_id)) {
         _pre_source_id = _source_id;
     }
 
@@ -314,22 +313,22 @@ srs_error_t SrsRtcSource::on_source_id_changed(std::string id)
     return err;
 }
 
-std::string SrsRtcSource::source_id()
+SrsContextId SrsRtcStream::source_id()
 {
     return _source_id;
 }
 
-std::string SrsRtcSource::pre_source_id()
+SrsContextId SrsRtcStream::pre_source_id()
 {
     return _pre_source_id;
 }
 
-ISrsSourceBridger* SrsRtcSource::bridger()
+ISrsSourceBridger* SrsRtcStream::bridger()
 {
     return bridger_;
 }
 
-srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
+srs_error_t SrsRtcStream::create_consumer(SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
@@ -341,7 +340,7 @@ srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
     return err;
 }
 
-srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool dm, bool dg)
+srs_error_t SrsRtcStream::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool dm, bool dg)
 {
     srs_error_t err = srs_success;
 
@@ -351,7 +350,7 @@ srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool
     return err;
 }
 
-void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
+void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
 {
     std::vector<SrsRtcConsumer*>::iterator it;
     it = std::find(consumers.begin(), consumers.end(), consumer);
@@ -360,12 +359,12 @@ void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
     }
 }
 
-bool SrsRtcSource::can_publish(bool is_edge)
+bool SrsRtcStream::can_publish(bool is_edge)
 {
     return _can_publish;
 }
 
-srs_error_t SrsRtcSource::on_publish()
+srs_error_t SrsRtcStream::on_publish()
 {
     srs_error_t err = srs_success;
 
@@ -385,7 +384,7 @@ srs_error_t SrsRtcSource::on_publish()
     return err;
 }
 
-void SrsRtcSource::on_unpublish()
+void SrsRtcStream::on_unpublish()
 {
     // ignore when already unpublished.
     if (_can_publish) {
@@ -395,22 +394,22 @@ void SrsRtcSource::on_unpublish()
     srs_trace("cleanup when unpublish");
 
     _can_publish = true;
-    _source_id = -1;
+    _source_id = SrsContextId();
 
     // TODO: FIXME: Handle by statistic.
 }
 
-ISrsRtcPublisher* SrsRtcSource::rtc_publisher()
+ISrsRtcPublishStream* SrsRtcStream::publish_stream()
 {
-    return rtc_publisher_;
+    return publish_stream_;
 }
 
-void SrsRtcSource::set_rtc_publisher(ISrsRtcPublisher* v)
+void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
 {
-    rtc_publisher_ = v;
+    publish_stream_ = v;
 }
 
-srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -425,7 +424,7 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket2* pkt)
 }
 
 #ifdef SRS_FFMPEG_FIT
-SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
+SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
 {
     req = NULL;
     source_ = source;
@@ -728,7 +727,7 @@ srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* f
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt)
+srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacket2** ppkt)
 {
     srs_error_t err = srs_success;
 
