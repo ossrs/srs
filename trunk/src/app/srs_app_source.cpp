@@ -1095,6 +1095,7 @@ void SrsLasCache::clear()
     }
     cache_vec.clear();
     cache_idr_index.clear();
+    cache_header_index.clear();
     wait_keyframe = true;
     srs_freep(cached_video_header);
     srs_freep(cached_audio_header);
