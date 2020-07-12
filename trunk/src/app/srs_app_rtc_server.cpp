@@ -455,7 +455,7 @@ void SrsRtcServer::check_and_clean_timeout_session()
         // Now, we got the RTC session to cleanup, switch to its context
         // to make all logs write to the "correct" pid+cid.
         session->switch_to_context();
-        srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
+        srs_trace("RTC session=%s, STUN timeout", session->id().c_str());
 
         session->disposing_ = true;
         zombies_.push_back(session);

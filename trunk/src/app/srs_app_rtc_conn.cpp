@@ -157,7 +157,7 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
         return err;
     }
 
-    srs_trace("rtc session=%s, DTLS handshake done.", session_->id().c_str());
+    srs_trace("RTC session=%s, DTLS handshake done.", session_->id().c_str());
 
     handshake_done = true;
     if ((err = srtp_initialize()) != srs_success) {
@@ -391,7 +391,7 @@ srs_error_t SrsRtcPlayStream::cycle()
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
-    srs_trace("rtc session=%s, start play", session_->id().c_str());
+    srs_trace("RTC session=%s, start play", session_->id().c_str());
     bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
     SrsStatistic* stat = SrsStatistic::instance();
 
@@ -2158,7 +2158,7 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
         server_->insert_into_id_sessions(peer_id_, this);
 
         state_ = DOING_DTLS_HANDSHAKE;
-        srs_trace("rtc session=%s, STUN done, waitting DTLS handshake.", id().c_str());
+        srs_trace("RTC session=%s, STUN done, waitting DTLS handshake.", id().c_str());
 
         if((err = transport_->start_active_handshake()) != srs_success) {
             return srs_error_wrap(err, "fail to dtls handshake");
