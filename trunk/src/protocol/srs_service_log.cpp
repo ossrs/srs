@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
-#define SRS_BASIC_LOG_SIZE 1024
+#define SRS_BASIC_LOG_SIZE 8192
 
 SrsThreadContext::SrsThreadContext()
 {
