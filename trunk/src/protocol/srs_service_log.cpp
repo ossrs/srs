@@ -77,6 +77,16 @@ void SrsThreadContext::clear_cid()
     }
 }
 
+impl_SrsContextRestore::impl_SrsContextRestore(SrsContextId cid)
+{
+    cid_ = cid;
+}
+
+impl_SrsContextRestore::~impl_SrsContextRestore()
+{
+    _srs_context->set_id(cid_);
+}
+
 // LCOV_EXCL_START
 SrsConsoleLog::SrsConsoleLog(SrsLogLevel l, bool u)
 {
