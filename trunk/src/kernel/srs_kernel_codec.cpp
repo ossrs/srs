@@ -1323,12 +1323,12 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     // Update the RAW MP3 data.
     raw = stream->data() + stream->pos();
     nb_raw = stream->size() - stream->pos();
-    
-    stream->skip(1);
+
+    //stream->skip(1);
     if (stream->empty()) {
         return err;
     }
-    
+    	
     char* data = stream->data() + stream->pos();
     int size = stream->size() - stream->pos();
     
@@ -1336,7 +1336,7 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     if ((err = audio->add_sample(data, size)) != srs_success) {
         return srs_error_wrap(err, "add audio frame");
     }
-    
+   
     return err;
 }
 
