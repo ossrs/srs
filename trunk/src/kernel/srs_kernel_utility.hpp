@@ -145,12 +145,17 @@ extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plainte
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)
 
-// Convert hex string to data, for example, p=config='139056E5A0'
-// The output data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0} as such.
+// Covert hex string to uint8 data, for example:
+//      srs_hex_to_data(data, string("139056E5A0"))
+//      which outputs the data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0}.
 extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
 
-// Convert data string to hex.
-extern char *srs_data_to_hex(char *des, const uint8_t *src, int len);
+// Convert data string to hex, for example:
+//      srs_data_to_hex(des, {0xf3, 0x3f}, 2)
+//      which outputs the des is string("F33F").
+extern char* srs_data_to_hex(char* des, const uint8_t* src, int len);
+// Output in lowercase, such as string("f33f").
+extern char* srs_data_to_hex_lowercase(char* des, const uint8_t* src, int len);
 
 // Generate the c0 chunk header for msg.
 // @param cache, the cache to write header.

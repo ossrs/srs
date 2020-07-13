@@ -1078,6 +1078,22 @@ char* srs_data_to_hex(char* des, const u_int8_t* src, int len)
     return des;
 }
 
+char* srs_data_to_hex_lowercase(char* des, const u_int8_t* src, int len)
+{
+    if(src == NULL || len == 0 || des == NULL){
+        return NULL;
+    }
+
+    const char *hex_table = "0123456789abcdef";
+
+    for (int i=0; i<len; i++) {
+        des[i * 2]     = hex_table[src[i] >> 4];
+        des[i * 2 + 1] = hex_table[src[i] & 0x0F];
+    }
+
+    return des;
+}
+
 int srs_hex_to_data(uint8_t* data, const char* p, int size)
 {
     if (size <= 0 || (size%2) == 1) {
