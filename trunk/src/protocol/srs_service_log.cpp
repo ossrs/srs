@@ -49,22 +49,22 @@ SrsContextId SrsThreadContext::generate_id()
     return cid;
 }
 
-SrsContextId SrsThreadContext::get_id()
+const SrsContextId& SrsThreadContext::get_id()
 {
     return cache[srs_thread_self()];
 }
 
-SrsContextId SrsThreadContext::set_id(SrsContextId v)
+const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
 {
     srs_thread_t self = srs_thread_self();
-    
-    SrsContextId ov;
-    if (cache.find(self) != cache.end()) {
-        ov = cache[self];
+
+    if (cache.find(self) == cache.end()) {
+        cache[self] = v;
+        return v;
     }
-    
+
+    const SrsContextId& ov = cache[self];
     cache[self] = v;
-    
     return ov;
 }
 

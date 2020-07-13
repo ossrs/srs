@@ -1382,12 +1382,12 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_TRUE(ctx.set_id(SrsContextId("100")).empty());
-        EXPECT_TRUE(!ctx.set_id(SrsContextId("1000")).compare(SrsContextId("100")));
+        EXPECT_TRUE(!ctx.set_id(SrsContextId("100")).compare(SrsContextId("100")));
+        EXPECT_TRUE(!ctx.set_id(SrsContextId("1000")).compare(SrsContextId("1000")));
         EXPECT_TRUE(!ctx.get_id().compare(SrsContextId("1000")));
 
         ctx.clear_cid();
-        EXPECT_TRUE(ctx.set_id(SrsContextId("100")).empty());
+        EXPECT_TRUE(!ctx.set_id(SrsContextId("100")).compare(SrsContextId("100")));
     }
 
     int base_size = 0;

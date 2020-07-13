@@ -43,8 +43,8 @@ public:
     virtual ~SrsThreadContext();
 public:
     virtual SrsContextId generate_id();
-    virtual SrsContextId get_id();
-    virtual SrsContextId set_id(SrsContextId v);
+    virtual const SrsContextId& get_id();
+    virtual const SrsContextId& set_id(const SrsContextId& v);
 public:
     virtual void clear_cid();
 };
