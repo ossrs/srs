@@ -1572,11 +1572,25 @@ SrsJsonArray* SrsJsonAny::to_array()
     return p;
 }
 
+string escape(string v)
+{
+    stringstream ss;
+
+    for (int i = 0; i < v.length(); i++) {
+        if (v.at(i) == '"') {
+            ss << '\\';
+        }
+        ss << v.at(i);
+    }
+
+    return ss.str();
+}
+
 string SrsJsonAny::dumps()
 {
     switch (marker) {
         case SRS_JSON_String: {
-            return "\"" + to_str() + "\"";
+            return "\"" + escape(to_str()) + "\"";
         }
         case SRS_JSON_Boolean: {
             return to_boolean()? "true" : "false";
