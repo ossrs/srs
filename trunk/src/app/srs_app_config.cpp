@@ -5078,7 +5078,6 @@ bool SrsConfig::get_rtc_nack_enabled(string vhost)
     static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_vhost(vhost);
-
     if (!conf) {
         return DEFAULT;
     }
@@ -5099,18 +5098,22 @@ bool SrsConfig::get_rtc_nack_enabled(string vhost)
 bool SrsConfig::get_rtc_twcc_enabled(string vhost)
 {
     static bool DEFAULT = true;
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return DEFAULT;
     }
+
     conf = conf->get("twcc");
     if (!conf) {
         return DEFAULT;
     }
+
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
+
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
