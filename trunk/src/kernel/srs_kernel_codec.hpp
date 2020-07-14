@@ -530,6 +530,19 @@ public:
     virtual ~SrsCodecConfig();
 };
 
+class SrsMp3DecodeHeader{
+public:
+	SrsMp3DecodeHeader();
+    virtual ~SrsMp3DecodeHeader();
+public:	
+	int8_t   layer;
+	int8_t   lsf;
+	uint16_t mp3_sample_rate; 
+	int8_t   mp3_sample_rate_index;
+	int8_t   nb_channels;
+	int32_t  nb_samples;
+};
+
 /**
  * The audio codec info.
  */
@@ -564,8 +577,10 @@ public:
      * channelConfiguration
      */
     uint8_t aac_channels;
-    // Sequence header payload.
+	/*ISO_IEC_13818-3 and ISO_IEC_11172-3*/
+    SrsMp3DecodeHeader mp3_header_info;
 public:
+	// Sequence header payload.
     /**
      * the aac extra data, the AAC sequence header,
      * without the flv codec header,
@@ -753,6 +768,10 @@ private:
 public:
     // Directly demux the sequence header, without RTMP packet header.
     virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);
+	//decode mp3 header
+	virtual srs_error_t audio_mp3_header_demux(uint32_t header);
+	//check mp3 header
+	srs_error_t mpeg_audio_check_header(uint32_t header);
 };
 
 #endif

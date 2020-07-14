@@ -378,6 +378,21 @@ SrsCodecConfig::~SrsCodecConfig()
 {
 }
 
+SrsMp3DecodeHeader::SrsMp3DecodeHeader()
+{
+	layer = 0;
+	lsf = 0;
+	mp3_sample_rate = 0;
+	mp3_sample_rate_index = SrsAudioSampleRateForbidden;
+	nb_channels = 0;
+	nb_samples = 0;
+}
+
+SrsMp3DecodeHeader::~SrsMp3DecodeHeader()
+{
+}
+
+
 SrsAudioCodecConfig::SrsAudioCodecConfig()
 {
     id = SrsAudioCodecIdForbidden;
@@ -1324,6 +1339,29 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     raw = stream->data() + stream->pos();
     nb_raw = stream->size() - stream->pos();
 
+	//mp3 header check
+	if(stream->require(4)){
+		uint32_t header = raw[0]<<24 |raw[1]<<16 |raw[2]<<8 |raw[3];
+		bool skip = false;
+		if(srs_success!=mpeg_audio_check_header(header)){
+			if(stream->require(5)){
+				header = header<<8|raw[4];
+				skip = true;
+			}
+		}
+		
+		//uint16_t audio_sample_rate=0;
+		//uint8_t audio_nb_channel =0;
+		srs_error_t err_demux = audio_mp3_header_demux(header);
+		if(srs_success!=err_demux){
+			srs_warn("audio mp3 header demux failed");
+		}else{
+			if(skip)
+				stream->skip(1);
+		}		
+	}
+	
+	
     //stream->skip(1);
     if (stream->empty()) {
         return err;
@@ -1338,6 +1376,99 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     }
    
     return err;
+}
+
+/*doc:ISO_IEC_11172-3  2.4,page 21*/
+ srs_error_t SrsFormat::mpeg_audio_check_header(uint32_t header){
+    /* sync word check*/
+    if ((header & 0xffe00000) != 0xffe00000)
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(sync word check failed)");
+    /* version check */
+    if ((header & (3<<19)) == 1<<19)
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(version check failed)");
+        ;
+    /* layer check */
+    if ((header & (3<<17)) == 0)
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(layer check failed)");
+    /* bit rate */
+    if ((header & (0xf<<12)) == 0xf<<12)
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(bitrate check failed)");
+    /* frequency */
+    if ((header & (3<<10)) == 3<<10)
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(frequency check failed)");
+    return srs_success;
+}
+
+/*doc:ISO_IEC_13818-3(MPEG-2_Audio_layer3) ,2.4*/
+srs_error_t SrsFormat::audio_mp3_header_demux(uint32_t header){
+	srs_error_t err = mpeg_audio_check_header(header);
+	if(err!=srs_success)
+		return err;
+	
+	static const uint16_t mpeg_audio_freq_tab[3] = { 44100, 48000, 32000 };
+	uint16_t sample_rate = 0; 
+	int32_t frame_size = -1;
+	int8_t mpeg25 = 0, padding = 0,nb_channels = 2;
+    int8_t id = (header>>19)&0x1;
+	int8_t layer = 4 - (header>>17)&0x3;
+	//int8_t bitrate_index = (header>>12)&0xf;
+	int8_t sample_rate_index = (header>>10)&0x3;
+	int8_t mode_index = (header>>6)&0x3;
+	
+	if(id==0)
+		mpeg25 = 1;
+
+	if(sample_rate_index>=sizeof(mpeg_audio_freq_tab)){//reserved
+		return srs_error_new(ERROR_HLS_DECODE_ERROR, "audio codec decode mpeg header(frequency)");
+	}
+	
+	sample_rate = mpeg_audio_freq_tab[sample_rate_index] >> mpeg25;
+
+	if(mode_index == 3)
+		nb_channels = 1;
+
+	acodec->mp3_header_info.layer = layer;
+	acodec->mp3_header_info.lsf = mpeg25;
+	acodec->mp3_header_info.nb_channels = nb_channels;
+	acodec->mp3_header_info.mp3_sample_rate = sample_rate;
+	//samples
+	switch(layer){
+	case 1:
+		acodec->mp3_header_info.nb_samples = 384;
+		break;
+	case 2:
+		acodec->mp3_header_info.nb_samples = 1152;
+		break;
+	case 3:
+		if(mpeg25){
+			acodec->mp3_header_info.nb_samples = 576;
+		}else{
+			acodec->mp3_header_info.nb_samples = 1152;
+		}
+		break;
+	};
+	//sample rate
+	switch (sample_rate) {
+		case 16000:
+            acodec->mp3_header_info.mp3_sample_rate_index = SrsAudioSampleRateWB16kHz;
+            break;
+		case 24000:
+			acodec->mp3_header_info.mp3_sample_rate_index = SrsAudioSampleRateSWB24kHz;
+			break;
+		case 48000:
+			acodec->mp3_header_info.mp3_sample_rate_index = SrsAudioSampleRateFB48kHz;
+			break;
+        case 22050:
+            acodec->mp3_header_info.mp3_sample_rate_index = SrsAudioSampleRate22050;
+            break;						
+        case 44100:
+            acodec->mp3_header_info.mp3_sample_rate_index = SrsAudioSampleRate44100;
+            break;			
+        default:
+            break;
+       };	
+			
+	return err;
 }
 
 srs_error_t SrsFormat::audio_aac_sequence_header_demux(char* data, int size)

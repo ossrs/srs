@@ -1264,22 +1264,31 @@ srs_error_t SrsHls::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* forma
     // If samples is 1024, the sample-rate is 44100HZ, the diff should be 1024/44100s=23ms.
     // If samples is 2048, the sample-rate is 44100HZ, the diff should be 2048/44100s=46ms.
     int nb_samples_per_frame = 0;
-    int guessNumberOfSamples = diff * srs_flv_srates[format->acodec->sound_rate] / 1000;
-    if (guessNumberOfSamples > 0) {
-        if (guessNumberOfSamples < 960) {
-            nb_samples_per_frame = 960;
-        } else if (guessNumberOfSamples < 1536) {
-            nb_samples_per_frame = 1024;
-        } else if (guessNumberOfSamples < 3072) {
-            nb_samples_per_frame = 2048;
-        } else {
-            nb_samples_per_frame = 4096;
-        }
-    }
+	int sample_rate = srs_flv_srates[format->acodec->sound_rate];
+	if(acodec == SrsAudioCodecIdAAC){
+		int guessNumberOfSamples = diff * srs_flv_srates[format->acodec->sound_rate] / 1000;
+		if (guessNumberOfSamples > 0) {
+	        if (guessNumberOfSamples < 960) {
+	            nb_samples_per_frame = 960;
+	        } else if (guessNumberOfSamples < 1536) {
+	            nb_samples_per_frame = 1024;
+	        } else if (guessNumberOfSamples < 3072) {
+	            nb_samples_per_frame = 2048;
+	        } else {
+	            nb_samples_per_frame = 4096;
+	        }
+    	}
+	}else{//MP3
+		//decode header info
+		nb_samples_per_frame = format->acodec->mp3_header_info.nb_samples;
+		sample_rate = format->acodec->mp3_header_info.mp3_sample_rate;
+	}
+    
+	//srs_trace("hls:nb_samples_per_frame=%d,sample_rate:%d,timestamp diff=%d,",nb_samples_per_frame,sample_rate,diff);
     
     // Recalc the DTS by the samples of AAC.
     aac_samples += nb_samples_per_frame;
-    int64_t dts = 90000 * aac_samples / srs_flv_srates[format->acodec->sound_rate];
+    int64_t dts = 90000 * aac_samples / sample_rate;
 
     // If directly turn FLV timestamp, overwrite the guessed DTS.
     // @doc https://github.com/ossrs/srs/issues/1506#issuecomment-562063095
