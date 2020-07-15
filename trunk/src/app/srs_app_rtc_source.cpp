@@ -1409,14 +1409,6 @@ SrsRtcTrackDescription* SrsRtcStreamDescription::find_track_description_by_ssrc(
     return NULL;
 }
 
-ISrsRtcTrack::ISrsRtcTrack()
-{
-}
-
-ISrsRtcTrack::~ISrsRtcTrack()
-{
-}
-
 SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;

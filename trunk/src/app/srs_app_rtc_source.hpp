@@ -385,15 +385,6 @@ public:
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
 };
 
-class ISrsRtcTrack
-{
-public:
-    ISrsRtcTrack();
-    virtual ~ISrsRtcTrack();
-public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt) = 0;
-};
-
 class SrsRtcRecvTrack
 {
 protected:

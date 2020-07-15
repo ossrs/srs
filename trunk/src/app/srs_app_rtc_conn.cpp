@@ -1866,7 +1866,7 @@ srs_error_t SrsRtcConnection::start_publish()
     srs_error_t err = srs_success;
 
     if ((err = publisher_->start()) != srs_success) {
-        return srs_error_wrap(err, "start SrsRtcPlayStream");
+        return srs_error_wrap(err, "start");
     }
 
     return err;
