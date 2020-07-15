@@ -243,6 +243,9 @@ ISrsDtlsCallback::~ISrsDtlsCallback()
 
 SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
 {
+    dtls_ctx = NULL;
+    dtls = NULL;
+
     callback = cb;
     handshake_done = false;
 

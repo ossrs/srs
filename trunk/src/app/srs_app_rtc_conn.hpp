@@ -57,6 +57,8 @@ class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
 class SrsRtpRingBuffer;
 class SrsRtcConsumer;
+class SrsRtcAudioSendTrack;
+class SrsRtcVideoSendTrack;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -74,23 +76,6 @@ const uint8_t kPLI  = 1;
 const uint8_t kSLI  = 2;
 const uint8_t kRPSI = 3;
 const uint8_t kAFB  = 15;
-
-class SrsNtp
-{
-public:
-    uint64_t system_ms_;
-    uint64_t ntp_;
-    uint32_t ntp_second_;
-    uint32_t ntp_fractions_;
-public:
-    SrsNtp();
-    virtual ~SrsNtp();
-public:
-    static SrsNtp from_time_ms(uint64_t ms);
-    static SrsNtp to_time_ms(uint64_t ntp);
-public:
-    static uint64_t kMagicNtpFractionalUnit;
-};
 
 enum SrsRtcConnectionStateType
 {
@@ -187,16 +172,9 @@ protected:
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
 private:
-    // TODO: FIXME: How to handle timestamp overflow?
-    // Information for audio.
-    uint32_t audio_ssrc;
-    uint16_t audio_payload_type;
-    // Information for video.
-    uint16_t video_payload_type;
-    uint32_t video_ssrc;
-    // NACK ARQ ring buffer.
-    SrsRtpRingBuffer* audio_queue_;
-    SrsRtpRingBuffer* video_queue_;
+    // key: publish_ssrc, value: send track to process rtp/rtcp
+    std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
+    std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -205,11 +183,15 @@ private:
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
+    // Whether palyer started.
+    bool is_started;
+    // statistic send packets.
+    SrsRtcOutgoingInfo info;
 public:
     SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid);
     virtual ~SrsRtcPlayStream();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, uint16_t v_pt, uint16_t a_pt);
+    srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -238,6 +220,7 @@ private:
     srs_error_t on_rtcp_feedback(char* data, int nb_data);
     srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
     srs_error_t on_rtcp_rr(char* data, int nb_data);
+    uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
@@ -248,48 +231,41 @@ private:
     uint64_t nn_audio_frames;
 private:
     SrsRtcConnection* session_;
-    uint32_t video_ssrc;
-    uint32_t audio_ssrc;
     uint16_t pt_to_drop_;
     // Whether enabled nack.
     bool nack_enabled_;
 private:
     bool request_keyframe_;
-    SrsRtpRingBuffer* video_queue_;
-    SrsRtpNackForReceiver* video_nack_;
-    SrsRtpRingBuffer* audio_queue_;
-    SrsRtpNackForReceiver* audio_nack_;
 private:
     SrsRequest* req;
     SrsRtcStream* source;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
-    std::map<uint32_t, uint64_t> last_sender_report_sys_time;
-    std::map<uint32_t, SrsNtp> last_sender_report_ntp;
+    // track vector
+    std::vector<SrsRtcAudioRecvTrack*> audio_tracks_;
+    std::vector<SrsRtcVideoRecvTrack*> video_tracks_;
 private:
     srs_utime_t last_twcc_feedback_time_;
     int twcc_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
     SrsRtpExtensionTypes extension_types_;
+    bool is_started;
 public:
     SrsRtcPublishStream(SrsRtcConnection* session);
     virtual ~SrsRtcPublishStream();
 public:
-    srs_error_t initialize(uint32_t vssrc, uint32_t assrc, int twcc_id, SrsRequest* req);
+    srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
+    srs_error_t start();
 private:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
-    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue);
-    srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
-    srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
+    srs_error_t send_rtcp_rr();
+    srs_error_t send_rtcp_xr_rrtr();
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 private:
-    srs_error_t on_audio(SrsRtpPacket2* pkt);
-    srs_error_t on_video(SrsRtpPacket2* pkt);
-    srs_error_t on_nack(SrsRtpPacket2* pkt);
     srs_error_t send_periodic_twcc();
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
@@ -300,7 +276,7 @@ private:
     srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
     srs_error_t on_rtcp_rr(char* data, int nb_data);
 public:
-    void request_keyframe();
+    void request_keyframe(uint32_t ssrc);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
@@ -310,6 +286,10 @@ private:
     void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
 private:
     srs_error_t on_twcc(uint16_t sn);
+    SrsRtcAudioRecvTrack* get_audio_track(uint32_t ssrc);
+    SrsRtcVideoRecvTrack* get_video_track(uint32_t ssrc);
+    void update_rtt(uint32_t ssrc, int rtt);
+    void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp);
 };
 
 // A RTC Peer Connection, SDP level object.
@@ -320,6 +300,8 @@ class SrsRtcConnection
     friend class SrsRtcPublishStream;
 public:
     bool disposing_;
+private:
+    static uint32_t ssrc_num;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
@@ -360,6 +342,7 @@ public:
     SrsRtcConnection(SrsRtcServer* s);
     virtual ~SrsRtcConnection();
 public:
+    // TODO: FIXME: save only connection info.
     SrsSdp* get_local_sdp();
     void set_local_sdp(const SrsSdp& sdp);
     SrsSdp* get_remote_sdp();
@@ -373,6 +356,8 @@ public:
     void set_encrypt(bool v);
     void switch_to_context();
     SrsContextId context_id();
+    srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username, SrsContextId context_id);
@@ -388,10 +373,24 @@ public:
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 public:
+    // send rtcp
+    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
+    srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp);
+    srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
+    srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
+public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
+    // publish media capabilitiy negotiate
+    srs_error_t negotiate_publish_capability(SrsRequest* req, const SrsSdp& remote_sdp, SrsRtcStreamDescription* stream_desc);
+    srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
+    // play media capabilitiy negotiate
+    srs_error_t negotiate_play_capability(SrsRequest* req, const SrsSdp& remote_sdp, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
+    srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
+    srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
+    srs_error_t create_publisher(SrsRequest* request, SrsRtcStreamDescription* stream_desc);
 };
 
 class ISrsRtcHijacker

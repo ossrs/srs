@@ -39,6 +39,7 @@ class SrsHourGlass;
 class SrsRtcConnection;
 class SrsRequest;
 class SrsSdp;
+class SrsRtcStream;
 
 class ISrsRtcServerHandler
 {
@@ -80,6 +81,12 @@ public:
         SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
         SrsRtcConnection** psession
     );
+private:
+    srs_error_t do_create_session(
+        SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
+        const std::string& mock_eip, bool publish, SrsRtcStream* source
+    );
+public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
     srs_error_t create_session2(SrsSdp& local_sdp, SrsRtcConnection** psession);
     srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);

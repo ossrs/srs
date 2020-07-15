@@ -34,6 +34,9 @@
 #include <map>
 const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
+// TDOO: FIXME: Rename it, and add utest.
+extern std::vector<std::string> split_str(const std::string& str, const std::string& delim);
+
 struct SrsSessionConfig
 {
 public:
@@ -64,6 +67,7 @@ class SrsSSRCInfo
 {
 public:
     SrsSSRCInfo();
+    SrsSSRCInfo(uint32_t ssrc, std::string cname, std::string stream_id, std::string track_id);
     virtual ~SrsSSRCInfo();
 public:
     srs_error_t encode(std::ostringstream& os);
@@ -192,12 +196,14 @@ public:
 public:
     void set_ice_ufrag(const std::string& ufrag);
     void set_ice_pwd(const std::string& pwd);
+    void set_dtls_role(const std::string& dtls_role);
     void set_fingerprint_algo(const std::string& algo);
     void set_fingerprint(const std::string& fingerprint);
     void add_candidate(const std::string& ip, const int& port, const std::string& type);
 
     std::string get_ice_ufrag() const;
     std::string get_ice_pwd() const;
+    std::string get_dtls_role() const;
 private:
     srs_error_t parse_line(const std::string& line);
 private:

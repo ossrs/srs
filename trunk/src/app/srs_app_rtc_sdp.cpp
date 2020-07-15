@@ -46,7 +46,7 @@ if (!getline(is,word,delim)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed");\
 }\
 
-static std::vector<std::string> split_str(const std::string& str, const std::string& delim)
+std::vector<std::string> split_str(const std::string& str, const std::string& delim)
 {
     std::vector<std::string> ret;
     size_t pre_pos = 0;
@@ -174,6 +174,16 @@ bool SrsSessionInfo::operator=(const SrsSessionInfo& rhs)
 SrsSSRCInfo::SrsSSRCInfo()
 {
     ssrc_ = 0;
+}
+
+SrsSSRCInfo::SrsSSRCInfo(uint32_t ssrc, std::string cname, std::string stream_id, std::string track_id)
+{
+    ssrc_ = ssrc;
+    cname_ = cname;
+    msid_ = stream_id;
+    msid_tracker_ = track_id;
+    mslabel_ = msid_;
+    label_ = msid_tracker_;
 }
 
 SrsSSRCInfo::~SrsSSRCInfo()
@@ -802,6 +812,13 @@ void SrsSdp::set_ice_pwd(const std::string& pwd)
     }
 }
 
+void SrsSdp::set_dtls_role(const std::string& dtls_role)
+{
+    for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        iter->session_info_.setup_ = dtls_role;
+    }
+}
+
 void SrsSdp::set_fingerprint_algo(const std::string& algo)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
@@ -844,6 +861,16 @@ std::string SrsSdp::get_ice_pwd() const
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         return iter->session_info_.ice_pwd_;
+    }
+
+    return "";
+}
+
+std::string SrsSdp::get_dtls_role() const
+{
+    // Becaues we use BUNDLE, so we can choose the first element.
+    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        return iter->session_info_.setup_;
     }
 
     return "";

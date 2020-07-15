@@ -311,6 +311,36 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
+    // TODO: FIXME: add do_create_session to error process.
+    SrsRtcConnection* session = new SrsRtcConnection(this);
+    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, source)) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "create session");
+    }
+
+    *psession = session;
+
+    return err;
+}
+
+srs_error_t SrsRtcServer::do_create_session(
+    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+    SrsRtcStream* source
+)
+{
+    srs_error_t err = srs_success;
+
+    // first add publisher/player for negotiate sdp media info
+    if (publish) {
+        if ((err = session->add_publisher(req, remote_sdp, local_sdp)) != srs_success) {
+            return srs_error_wrap(err, "add publisher");
+        }
+    } else {
+        if ((err = session->add_player(req, remote_sdp, local_sdp)) != srs_success) {
+            return srs_error_wrap(err, "add publisher");
+        }
+    }
+
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
     // TODO: FIXME: Rename for a better name, it's not an username.
@@ -339,7 +369,19 @@ srs_error_t SrsRtcServer::create_session(
         }
     }
 
-    SrsRtcConnection* session = new SrsRtcConnection(this);
+    if (remote_sdp.get_dtls_role() == "active") {
+        local_sdp.set_dtls_role("passive");
+    } else if (remote_sdp.get_dtls_role() == "passive") {
+        local_sdp.set_dtls_role("active");
+    } else if (remote_sdp.get_dtls_role() == "actpass") {
+        local_sdp.set_dtls_role(local_sdp.session_config_.dtls_role);
+    } else {
+        // @see: https://tools.ietf.org/html/rfc4145#section-4.1
+        // The default value of the setup attribute in an offer/answer exchange
+        // is 'active' in the offer and 'passive' in the answer.
+        local_sdp.set_dtls_role("passive");
+    }
+
     session->set_remote_sdp(remote_sdp);
     // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);
@@ -348,13 +390,10 @@ srs_error_t SrsRtcServer::create_session(
     SrsContextId cid = _srs_context->get_id();
     // Before session initialize, we must setup the local SDP.
     if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
-        srs_freep(session);
         return srs_error_wrap(err, "init");
     }
 
     map_username_session.insert(make_pair(username, session));
-    *psession = session;
-
     return err;
 }
 

@@ -167,10 +167,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
     local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
 
-    if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
-        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
-    }
-
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
@@ -521,13 +517,10 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     SrsSdp local_sdp;
 
+    // TODO: FIXME: move to create_session.
     // Config for SDP and session.
     local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
     local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
-
-    if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
-        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
-    }
 
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
