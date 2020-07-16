@@ -337,7 +337,7 @@ srs_error_t SrsRtcServer::do_create_session(
         }
     } else {
         if ((err = session->add_player(req, remote_sdp, local_sdp)) != srs_success) {
-            return srs_error_wrap(err, "add publisher");
+            return srs_error_wrap(err, "add player");
         }
     }
 
@@ -397,7 +397,7 @@ srs_error_t SrsRtcServer::do_create_session(
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, SrsRtcConnection** psession)
 {
     srs_error_t err = srs_success;
 
@@ -406,8 +406,14 @@ srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcConnection** 
     std::string local_ufrag = srs_random_str(8);
 
     SrsRtcConnection* session = new SrsRtcConnection(this);
+    // first add player for negotiate local sdp media info
+    if ((err = session->add_player2(req, local_sdp)) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "add player2");
+    }
     *psession = session;
 
+    local_sdp.set_dtls_role("actpass");
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
