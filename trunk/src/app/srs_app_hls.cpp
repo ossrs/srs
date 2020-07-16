@@ -349,7 +349,7 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     return err;
 }
 
-srs_error_t SrsHlsMuxer::segment_open()
+srs_error_t SrsHlsMuxer::segment_open(SrsAudioCodecId default_acodec,SrsVideoCodecId default_vcodec)
 {
     srs_error_t err = srs_success;
     
@@ -362,7 +362,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     srs_assert(!current);
     
     // load the default acodec from config.
-    SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
+    /*SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
     if (true) {
         std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
         if (default_acodec_str == "mp3") {
@@ -374,10 +374,10 @@ srs_error_t SrsHlsMuxer::segment_open()
         } else {
             srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
         }
-    }
+    }*/
     
     // load the default vcodec from config.
-    SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
+    /*SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
     if (true) {
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
@@ -387,7 +387,7 @@ srs_error_t SrsHlsMuxer::segment_open()
         } else {
             srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
         }
-    }
+    }*/
     
     // new segment.
     current = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
@@ -532,6 +532,31 @@ bool SrsHlsMuxer::pure_audio()
     return current && current->tscw && current->tscw->video_codec() == SrsVideoCodecIdDisabled;
 }
 
+srs_error_t SrsHlsMuxer::write(SrsTsMessage* ts_msg){
+	srs_error_t err = srs_success;
+	if(!ts_msg||ts_msg->payload->length() <= 0){
+		srs_warn("write audio or video ignored, ts message is empty.");
+        return err;
+	}
+	if(ts_msg->is_audio()){
+		// update the duration of segment.
+		current->append(ts_msg->pts / 90);
+		if ((err = current->tscw->write_audio(ts_msg)) != srs_success) {
+			return srs_error_wrap(err, "hls: write audio");
+		}
+	}else if(ts_msg->is_video()){
+		 // update the duration of segment.
+    	 current->append(ts_msg->dts / 90);
+		  if ((err = current->tscw->write_video(ts_msg)) != srs_success) {
+        	return srs_error_wrap(err, "hls: write video");
+    	}
+	}
+	// write success, clear and free the msg
+    srs_freep(ts_msg);
+	return err;
+}
+
+
 srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
 {
     srs_error_t err = srs_success;
@@ -558,6 +583,34 @@ srs_error_t SrsHlsMuxer::flush_audio(SrsTsMessageCache* cache)
     
     return err;
 }
+
+srs_error_t SrsHlsMuxer::flush_audio2(SrsTsMessageCache* cache,SrsAudioCodecId acodec_id)
+{
+    srs_error_t err = srs_success;
+    
+    // if current is NULL, segment is not open, ignore the flush event.
+    if (!current) {
+        srs_warn("flush audio ignored, for segment is not open.");
+        return err;
+    }
+    
+    if (!cache->audio || cache->audio->payload->length() <= 0) {
+        return err;
+    }
+    
+    // update the duration of segment.
+    current->append(cache->audio->pts / 90);
+    
+    if ((err = current->tscw->write_audio2(cache->audio,acodec_id)) != srs_success) {
+        return srs_error_wrap(err, "hls: write audio");
+    }
+    
+    // write success, clear and free the msg
+    srs_freep(cache->audio);
+    
+    return err;
+}
+
 
 srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
 {
@@ -587,6 +640,36 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache* cache)
     
     return err;
 }
+
+srs_error_t SrsHlsMuxer::flush_video2(SrsTsMessageCache* cache,SrsVideoCodecId vcodec_id)
+{
+    srs_error_t err = srs_success;
+    
+    // if current is NULL, segment is not open, ignore the flush event.
+    if (!current) {
+        srs_warn("flush video ignored, for segment is not open.");
+        return err;
+    }
+    
+    if (!cache->video || cache->video->payload->length() <= 0) {
+        return err;
+    }
+    
+    srs_assert(current);
+    
+    // update the duration of segment.
+    current->append(cache->video->dts / 90);
+    
+    if ((err = current->tscw->write_video2(cache->video,vcodec_id)) != srs_success) {
+        return srs_error_wrap(err, "hls: write video");
+    }
+    
+    // write success, clear and free the msg
+    srs_freep(cache->video);
+    
+    return err;
+}
+
 
 srs_error_t SrsHlsMuxer::segment_close()
 {
@@ -832,6 +915,8 @@ SrsHlsController::SrsHlsController()
 {
     tsmc = new SrsTsMessageCache();
     muxer = new SrsHlsMuxer();
+	vcodec_id = SrsVideoCodecIdAVC;
+	acodec_id = SrsAudioCodecIdAAC;
 }
 
 SrsHlsController::~SrsHlsController()
@@ -918,8 +1003,8 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
         hls_key_file, hls_key_file_path, hls_key_url)) != srs_success ) {
         return srs_error_wrap(err, "hls: update config");
     }
-    
-    if ((err = muxer->segment_open()) != srs_success) {
+    //don't know audiocodecid and videocodecid
+    if ((err = muxer->segment_open(acodec_id,vcodec_id)) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
 
@@ -929,7 +1014,6 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
         srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
         hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
-    
     return err;
 }
 
@@ -948,7 +1032,6 @@ srs_error_t SrsHlsController::on_unpublish()
     if ((err = muxer->segment_close()) != srs_success) {
         return srs_error_wrap(err, "hls: segment close");
     }
-    
     return err;
 }
 
@@ -966,7 +1049,6 @@ srs_error_t SrsHlsController::on_sequence_header()
 srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
 {
     srs_error_t err = srs_success;
-    
     // write audio to cache.
     if ((err = tsmc->cache_audio(frame, pts)) != srs_success) {
         return srs_error_wrap(err, "hls: cache audio");
@@ -998,10 +1080,13 @@ srs_error_t SrsHlsController::write_audio(SrsAudioFrame* frame, int64_t pts)
     // it's ok for the hls overload, or maybe cause the audio corrupt,
     // which introduced by aggregate the audios to a big one.
     // @see https://github.com/ossrs/srs/issues/512
-    if ((err = muxer->flush_audio(tsmc)) != srs_success) {
+    //if ((err = muxer->flush_audio(tsmc)) != srs_success) {
+    //    return srs_error_wrap(err, "hls: flush audio");
+    //}
+	acodec_id=frame->acodec()->id;
+    if ((err = muxer->flush_audio2(tsmc,acodec_id)) != srs_success) {
         return srs_error_wrap(err, "hls: flush audio");
     }
-    
     return err;
 }
 
@@ -1028,7 +1113,11 @@ srs_error_t SrsHlsController::write_video(SrsVideoFrame* frame, int64_t dts)
     }
     
     // flush video when got one
-    if ((err = muxer->flush_video(tsmc)) != srs_success) {
+    //if ((err = muxer->flush_video(tsmc)) != srs_success) {
+    //    return srs_error_wrap(err, "hls: flush video");
+    //}
+	vcodec_id = frame->vcodec()->id;
+	if ((err = muxer->flush_video2(tsmc,vcodec_id)) != srs_success) {
         return srs_error_wrap(err, "hls: flush video");
     }
     
@@ -1045,7 +1134,7 @@ srs_error_t SrsHlsController::reap_segment()
     // close current ts.
     if ((err = muxer->segment_close()) != srs_success) {
         // When close segment error, we must reopen it for next packet to write.
-        srs_error_t r0 = muxer->segment_open();
+        srs_error_t r0 = muxer->segment_open(acodec_id,vcodec_id);
         if (r0 != srs_success) {
             srs_warn("close segment err %s", srs_error_desc(r0).c_str());
             srs_freep(r0);
@@ -1055,7 +1144,7 @@ srs_error_t SrsHlsController::reap_segment()
     }
     
     // open new ts.
-    if ((err = muxer->segment_open()) != srs_success) {
+    if ((err = muxer->segment_open(acodec_id,vcodec_id)) != srs_success) {
         return srs_error_wrap(err, "hls: segment open");
     }
     

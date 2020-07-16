@@ -1275,6 +1275,11 @@ public:
     virtual srs_error_t write_audio(SrsTsMessage* audio);
     // Write a video frame to ts,
     virtual srs_error_t write_video(SrsTsMessage* video);
+
+	 // Write an audio frame to ts,
+    virtual srs_error_t write_audio2(SrsTsMessage* audio,SrsAudioCodecId acodec_id);
+    // Write a video frame to ts,
+    virtual srs_error_t write_video2(SrsTsMessage* video,SrsVideoCodecId vcodec_id);
 public:
     // get the video codec of ts muxer.
     virtual SrsVideoCodecId video_codec();

@@ -49,6 +49,7 @@ class SrsTsAacJitter;
 class SrsTsMessageCache;
 class SrsHlsSegment;
 class SrsTsContext;
+class SrsTsMessage;
 
 // The wrapper of m3u8 segment from specification:
 //
@@ -195,7 +196,7 @@ public:
         bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
         std::string key_file, std::string key_file_path, std::string key_url);
     // Open a new segment(a new ts file)
-    virtual srs_error_t segment_open();
+    virtual srs_error_t segment_open(SrsAudioCodecId default_acodec,SrsVideoCodecId default_vcodec);
     virtual srs_error_t on_sequence_header();
     // Whether segment overflow,
     // that is whether the current segment duration>=(the segment in config)
@@ -211,6 +212,11 @@ public:
     virtual bool pure_audio();
     virtual srs_error_t flush_audio(SrsTsMessageCache* cache);
     virtual srs_error_t flush_video(SrsTsMessageCache* cache);
+
+	virtual srs_error_t flush_audio2(SrsTsMessageCache* cache,SrsAudioCodecId acodec_id);
+    virtual srs_error_t flush_video2(SrsTsMessageCache* cache,SrsVideoCodecId vcodec_id);
+	//write ts message
+	virtual srs_error_t write(SrsTsMessage* ts_msg);
     // Close segment(ts).
     virtual srs_error_t segment_close();
 private:
@@ -243,6 +249,9 @@ private:
     SrsHlsMuxer* muxer;
     // The TS cache
     SrsTsMessageCache* tsmc;
+	//
+	SrsVideoCodecId vcodec_id;
+    SrsAudioCodecId acodec_id;
 public:
     SrsHlsController();
     virtual ~SrsHlsController();
@@ -273,6 +282,7 @@ private:
     // so, user must reap_segment then flush_video to hls muxer.
     virtual srs_error_t reap_segment();
 };
+
 
 // Transmux RTMP stream to HLS(m3u8 and ts).
 // TODO: FIXME: add utest for hls.
