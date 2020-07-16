@@ -2368,7 +2368,6 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("red"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
-        track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rsfec"));
 
         std::string track_id;
         for (int i = 0; i < remote_media_desc.ssrc_infos_.size(); ++i) {
@@ -2583,12 +2582,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
                 srs_freep(track->ulpfec_);
                 track->fec_ssrc_ = 0;
             }
-            // TODO: FIXME: if we support downlink , MUST assign fec_ssrc_
-            // set_rsfec_config;
-            if (true) {
-                srs_freep(track->rsfec_);
-                track->fec_ssrc_ = 0;
-            }
 
             track->set_direction("sendonly");
             sub_relations.insert(make_pair(publish_ssrc, track));
@@ -2647,11 +2640,6 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
         // TODO: FIXME: if we support downlink ulpfec, MUST assign ulpfec params
         // set_ulpfec_config;
         srs_freep(track->ulpfec_);
-        track->fec_ssrc_ = 0;
-        
-        // TODO: FIXME: if we support downlink , MUST assign fec_ssrc_
-        // set_rsfec_config;
-        srs_freep(track->rsfec_);
         track->fec_ssrc_ = 0;
 
         track->set_direction("sendonly");
@@ -2718,7 +2706,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         SrsAudioPayload* payload = (SrsAudioPayload*)audio_track->media_;
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
 
-        //TODO: FIXME: add red, rtx, ulpfec, rsfec..., payload_types_.
+        //TODO: FIXME: add red, rtx, ulpfec..., payload_types_.
         //local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
 
         local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(audio_track->ssrc_, cname, stream_id, audio_track->id_));
@@ -2732,7 +2720,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(audio_track->rtx_ssrc_, cname, stream_id, audio_track->id_));
         }
 
-        if (audio_track->ulpfec_ || audio_track->rsfec_) {
+        if (audio_track->ulpfec_) {
             std::vector<uint32_t> group_ssrcs;
             group_ssrcs.push_back(audio_track->ssrc_);
             group_ssrcs.push_back(audio_track->fec_ssrc_);
@@ -2787,7 +2775,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(track->rtx_ssrc_, cname, stream_id, track->id_));
         }
 
-        if ((track->ulpfec_ || track->rsfec_) && track->fec_ssrc_) {
+        if (track->ulpfec_ && track->fec_ssrc_) {
             std::vector<uint32_t> group_ssrcs;
             group_ssrcs.push_back(track->ssrc_);
             group_ssrcs.push_back(track->fec_ssrc_);

@@ -1260,7 +1260,6 @@ SrsRtcTrackDescription::SrsRtcTrackDescription()
     red_ = NULL;
     rtx_ = NULL;
     ulpfec_ = NULL;
-    rsfec_ = NULL;
 }
 
 SrsRtcTrackDescription::~SrsRtcTrackDescription()
@@ -1269,7 +1268,6 @@ SrsRtcTrackDescription::~SrsRtcTrackDescription()
     srs_freep(red_);
     srs_freep(rtx_);
     srs_freep(ulpfec_);
-    srs_freep(rsfec_);
 }
 
 bool SrsRtcTrackDescription::has_ssrc(uint32_t ssrc)
@@ -1311,9 +1309,6 @@ void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMedia
     } else if (payload.encoding_name_ == "ulpfec") {
         srs_freep(ulpfec_);
         ulpfec_ = new SrsCodecPayload(payload.payload_type_, "ulpfec", payload.clock_rate_);
-    } else if (payload.encoding_name_ == "rsfec") {
-        srs_freep(rsfec_);
-        rsfec_ = new SrsCodecPayload(payload.payload_type_, "rsfec", payload.clock_rate_);
     }
 }
 
@@ -1360,7 +1355,6 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
     cp->red_ = red_ ? red_->copy():NULL;
     cp->rtx_ = rtx_ ? rtx_->copy():NULL;
     cp->ulpfec_ = ulpfec_ ? ulpfec_->copy():NULL;
-    cp->rsfec_ = rsfec_ ? rsfec_->copy():NULL;
 
     return cp;
 }
