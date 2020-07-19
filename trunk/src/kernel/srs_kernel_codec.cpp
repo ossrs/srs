@@ -178,6 +178,22 @@ bool SrsFlvVideo::acceptable(char* data, int size)
     return true;
 }
 
+#ifdef SRS_LAS
+int64_t SrsFlvVideo::cts(char *data, int size)
+{
+    if (!h264(data, size) || size < 6) {
+        return -1;
+    } else {
+        int32_t cts = 0x00;
+        char* pp = (char*)&cts;
+        pp[2] = data[2];
+        pp[1] = data[3];
+        pp[0] = data[4];
+        return cts;
+    }
+}
+#endif
+
 SrsFlvAudio::SrsFlvAudio()
 {
 }

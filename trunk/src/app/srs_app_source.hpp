@@ -29,6 +29,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <list>
 
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
@@ -202,8 +203,39 @@ private:
     int mw_min_msgs;
     srs_utime_t mw_duration;
 #endif
+
+#ifdef SRS_LAS
+    //LAS1.0 chapter 4 exeParam @startPts
+    int64_t lasspts;
+    //LAS1.0 chapter 4 exeParam @onlyAudio
+    bool only_audio;
+    //if have send first data msg
+    bool have_first_msg;
+    //if have send first key frame
+    bool have_keyframe;
+    //count of droped frames, (when lasspts > 0, if not have_first_msg, droped frame when pts < lasspts)
+    int64_t frames_dropped_by_lasspts;
+    //count of deroped frames,(when first video is not key frame drop it)
+    int64_t frames_dropped_by_first_keyframe;
+    //cache {metadata,video sequence header, audio header} and send with data timstamp just after them.
+    std::list<SrsSharedPtrMessage*> headers_queue;
+    //LAS1.5 chapter 5.3, not use timeoutPts, but wait mode with a timeout
+    int64_t lasspts_max_wait_time;
+    //comsumer create time is to check if expire lasspts_max_wait_time
+    srs_utime_t create_time;
+#endif
+
 public:
+#ifdef SRS_LAS
+    //@param s consumer source
+    //@param c consumer connection
+    //@param lasspts LAS1.0 chapter 4 exeParam stratPts
+    //@param only_audio LAS1.0 chapter 4 exeParam onlyAudio
+    SrsConsumer(SrsSource* s, SrsConnection* c, int64_t lasspts = 0, bool onlyAudio = false);
+#else
     SrsConsumer(SrsSource* s, SrsConnection* c);
+#endif
+
     virtual ~SrsConsumer();
 public:
     // Set the size of queue.
@@ -292,6 +324,91 @@ public:
     // when no video in gop cache, the stream is pure audio right now.
     virtual bool pure_audio();
 };
+#ifdef SRS_LAS
+#define SRS_NO_DTAT_INDEX -1 
+#define SRS_DEFAULT_LAS_MAX_CACHE_DUR 12000 //LAS1.0 chapter 5.2 @cacheLen  TODO use config, 
+class SrsLasCache {
+private:
+    /**
+     * if disabled the gop cache,
+     * the client will wait for the next keyframe for h264,
+     * and will be black-screen.
+     */
+    bool enable_gop_cache;
+
+    /**
+     * max cached duration.
+     */
+    int max_cache_dur;
+    int max_cache_size;
+
+    //latest headers before cache_vec
+    SrsSharedPtrMessage* cached_video_header;
+    SrsSharedPtrMessage* cached_audio_header;
+    SrsSharedPtrMessage* cached_metadata_header;
+
+    //if have video must start from keyframe frame
+    bool wait_keyframe;
+
+    //cache buffer, cache all msg include (data/headers/metadata)
+    std::vector<SrsSharedPtrMessage*> cache_vec;
+    //key_frame index in cache_vec
+    std::vector<int> cache_idr_index;
+    //header index in cache_vec
+    std::vector<int> cache_header_index;
+
+    int last_video_index;
+    int last_audio_index;
+public:
+    SrsLasCache(int cache_dur = SRS_DEFAULT_LAS_MAX_CACHE_DUR);
+    virtual ~SrsLasCache();
+
+    /**
+     * cleanup when system quit.
+     */
+    virtual void dispose();
+    /**
+     * to enable or disable the gop cache.
+     */
+    virtual void set(bool enabled);
+    virtual bool enabled();
+
+    /**
+     * cache msg to buffer
+     * @param shared_msg, directly ptr, copy it if need to save it. shared_msg may be data/headers/metadata
+     */
+    virtual srs_error_t cache(SrsSharedPtrMessage* shared_msg);
+
+    /**
+     * dump the cached gop to consumer.
+     * @param consumer the consumer we should give buffer to.
+     * @param lasspts: LAS1.0 chapter 5.3, may have the follow value
+     * 0> : give the buffer form pts>=lasspts 
+     * =0 : from the newest gop
+     * <0 : from the newest_pts - |lasspts|
+     */
+    virtual srs_error_t dump(SrsConsumer* consumer, bool dm, bool ds, int64_t lasspts = 0);
+    //@param begin_index the index of first msg to dump in cache_vec
+    virtual srs_error_t do_dump(SrsConsumer* consumer,  bool dm, bool ds, int begin_index);
+    //set LAS1.0 chapter 5.2 @cacheLen
+    virtual void set_max_cache_duration(int duration) {max_cache_dur = duration;};
+    /**
+     * clear all cached msg
+     */
+    virtual void clear();
+    /** 
+     * is cache empty, if have any of data|header|metadata, it return false
+     */
+    virtual bool empty();
+
+private:
+    //dorp old cache if overflow max_cache_dur or max_cache_size
+    virtual void try_drop_old_cache();
+    virtual std::string to_str();
+    //clear cache_vec msg, but keep headers
+    virtual void erase_data(int count);
+};
+#endif
 
 // The handler to handle the event of srs source.
 // For example, the http flv streaming module handle the event and
@@ -538,7 +655,11 @@ private:
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
     // The gop cache for client fast startup.
+#ifdef SRS_LAS
+    SrsLasCache* gop_cache;
+#else
     SrsGopCache* gop_cache;
+#endif
     // The hub for origin server.
     SrsOriginHub* hub;
     // The metadata cache.
@@ -597,6 +718,20 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 public:
+
+#ifdef SRS_LAS
+    // Create consumer
+    // @param consumer, output the create consumer.
+    // @param lasspts, @startPts in las1.0
+    // @param only_audio, whether comsumer want audio only
+    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer, int64_t lasspts = 0, bool only_audio = false);
+    // Dumps packets in cache to consumer.
+    // @param ds, whether dumps the sequence header.
+    // @param dm, whether dumps the metadata.
+    // @param dg, whether dumps the gop cache.
+    // @param lasspts, @startPts in las1.0
+    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true, int64_t lasspts = 0);
+#else
     // Create consumer
     // @param consumer, output the create consumer.
     virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
@@ -605,6 +740,7 @@ public:
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
     virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
+#endif
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();

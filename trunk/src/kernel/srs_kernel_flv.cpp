@@ -220,6 +220,11 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
+#ifdef SRS_LAS
+    is_keyframe = false;
+    is_header = false;
+    pts = 0;
+#endif 
 }
 
 SrsSharedPtrMessage::~SrsSharedPtrMessage()
@@ -232,6 +237,23 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
         }
     }
 }
+#ifdef SRS_LAS
+std::string SrsSharedPtrMessage::to_str() {
+    stringstream ss;
+    ss << "{";
+    ss << "dts=" << timestamp;
+    ss << ",pts=" << pts;
+    ss << ",is_k=" << is_keyframe;
+    ss << ",is_h=" << is_header;
+    if (ptr) {
+        ss << ",type=" << (int)ptr->header.message_type;
+    } else {
+        ss << ",type=unknow";
+    }
+    ss << "}";
+    return ss.str();
+};
+#endif
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
 {
@@ -268,6 +290,19 @@ srs_error_t SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload
         ptr->header.perfer_cid = pheader->perfer_cid;
         this->timestamp = pheader->timestamp;
         this->stream_id = pheader->stream_id;
+#ifdef SRS_LAS
+        if (ptr->header.message_type == RTMP_MSG_VideoMessage) {
+            is_header = SrsFlvVideo::sh(payload, size);
+            is_keyframe =  SrsFlvVideo::keyframe(payload, size) && !is_header;
+            pts = this->timestamp + SrsFlvVideo::cts(payload, size);
+        } else if (ptr->header.message_type == RTMP_MSG_AudioMessage) {
+            is_header = SrsFlvAudio::sh(payload, size);
+            pts=this->timestamp;
+        } else {  // metadate
+            is_header = true;
+            pts=this->timestamp;
+        }
+#endif
     }
     ptr->payload = payload;
     ptr->size = size;
@@ -360,6 +395,12 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
+
+#ifdef SRS_LAS
+    copy->pts = pts;
+    copy->is_header = is_header;
+    copy->is_keyframe = is_keyframe;
+#endif
 
     return copy;
 }
