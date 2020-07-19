@@ -1554,8 +1554,6 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
-uint32_t SrsRtcConnection::ssrc_num = 0;
-
 SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s)
 {
     req = NULL;
@@ -2516,11 +2514,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
         return srs_error_wrap(err, "fetch rtc source");
     }
 
-    // TODO: FIXME: Avoid SSRC collision.
-    if (!ssrc_num) {
-        ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
-    }
-
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
         // Whether feature enabled in remote extmap.
@@ -2536,12 +2529,17 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
         }
 
         std::vector<SrsRtcTrackDescription*> track_descs;
+        std::vector<std::string> remote_rtcp_fb;
         if (remote_media_desc.is_audio()) {
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
             }
+
+            SrsMediaPayloadType payload = payloads.at(0);
+            remote_rtcp_fb = payload.rtcp_fb_;
+
             track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
@@ -2549,25 +2547,34 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
             }
+
+            SrsMediaPayloadType payload = payloads.at(0);
+            remote_rtcp_fb = payload.rtcp_fb_;
+
             track_descs = source->get_track_desc("video", "H264");
         }
 
         for (int i = 0; i < track_descs.size(); ++i) {
             SrsRtcTrackDescription* track = track_descs[i]->copy();
+            track->mid_ = remote_media_desc.mid_;
             uint32_t publish_ssrc = track->ssrc_;
 
             track->media_->rtcp_fbs_.clear();
-            if (nack_enabled) {
-                track->media_->rtcp_fbs_.push_back("nack");
-                track->media_->rtcp_fbs_.push_back("nack pli");
+            track->extmaps_.clear();
+
+            for (int j = 0; j < (int)remote_rtcp_fb.size(); j++) {
+                if (nack_enabled) {
+                    if (remote_rtcp_fb.at(j) == "nack" || remote_rtcp_fb.at(j) == "nack pli" || remote_rtcp_fb.at(j) == "transport-cc") {
+                        track->media_->rtcp_fbs_.push_back(remote_rtcp_fb.at(j));
+                    }
+                }
             }
 
-            track->extmaps_.clear();
             if (twcc_enabled && remote_twcc_id) {
                 track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
             }
 
-            track->ssrc_ = ++ssrc_num;
+            track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
             // TODO: FIXME: set audio_payload rtcp_fbs_,
             // according by whether downlink is support transport algorithms.
             // TODO: FIXME: if we support downlink RTX, MUST assign rtx_ssrc_, rtx_pt, rtx_apt
@@ -2603,11 +2610,6 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
         return srs_error_wrap(err, "fetch rtc source");
     }
 
-    // TODO: FIXME: Avoid SSRC collision.
-    if (!ssrc_num) {
-        ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
-    }
-
     std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("audio", "opus");
     std::vector<SrsRtcTrackDescription*> video_track_desc = source->get_track_desc("video", "H264");
     
@@ -2629,7 +2631,7 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
             track->add_rtp_extension_desc(local_twcc_id, kTWCCExt);
         }
 
-        track->ssrc_ = ++ssrc_num;
+        track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
         // TODO: FIXME: set audio_payload rtcp_fbs_,
         // according by whether downlink is support transport algorithms.
         // TODO: FIXME: if we support downlink RTX, MUST assign rtx_ssrc_, rtx_pt, rtx_apt

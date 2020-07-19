@@ -23,6 +23,8 @@
 
 #include <srs_app_rtc_source.hpp>
 
+#include <unistd.h>
+
 #include <srs_app_conn.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_config.hpp>
@@ -37,13 +39,18 @@
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_protocol_utility.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
 #endif
 
-const int kChannel              = 2;
-const int kSamplerate           = 48000;
+const int kAudioPayloadType     = 111;
+const int kAudioChannel         = 2;
+const int kAudioSamplerate      = 48000;
+
+const int kVideoPayloadType = 102;
+const int kVideoSamplerate  = 90000;
 
 // An AAC packet may be transcoded to many OPUS packets.
 const int kMaxOpusPackets = 8;
@@ -284,6 +291,7 @@ SrsRtcStream::SrsRtcStream()
 {
     _can_publish = true;
     publish_stream_ = NULL;
+    stream_desc_ = NULL;
 
     req = NULL;
 #ifdef SRS_FFMPEG_FIT
@@ -291,7 +299,6 @@ SrsRtcStream::SrsRtcStream()
 #else
     bridger_ = new SrsRtcDummyBridger();
 #endif
-    stream_desc_ = NULL;
 }
 
 SrsRtcStream::~SrsRtcStream()
@@ -498,7 +505,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     req = NULL;
     source_ = source;
     format = new SrsRtmpFormat();
-    codec = new SrsAudioRecode(kChannel, kSamplerate);
+    codec = new SrsAudioRecode(kAudioChannel, kAudioSamplerate);
     discard_aac = false;
     discard_bframe = false;
     merge_nalus = false;
@@ -506,6 +513,39 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     audio_timestamp = 0;
     audio_sequence = 0;
     video_sequence = 0;
+
+    SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
+    SrsAutoFree(SrsRtcStreamDescription, stream_desc);
+
+    // audio track description
+    if (true) {
+        SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
+        audio_track_desc->type_ = "audio";
+        audio_track_desc->id_ = "audio-"  + srs_random_str(8);
+
+        audio_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        audio_track_desc->ssrc_ = audio_ssrc;
+        audio_track_desc->direction_ = "recvonly";
+
+        audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
+        stream_desc->audio_track_desc_ = audio_track_desc->copy();
+    }
+
+    // video track description
+    if (true) {
+        SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
+        video_track_desc->type_ = "video";
+        video_track_desc->id_ = "video-"  + srs_random_str(8);
+
+        video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        video_track_desc->ssrc_ = video_ssrc;
+        video_track_desc->direction_ = "recvonly";
+
+        video_track_desc->media_ = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
+        stream_desc->video_track_descs_.push_back(video_track_desc->copy());
+    }
+
+    source_->set_stream_desc(stream_desc);
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
@@ -672,6 +712,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     srs_error_t err = srs_success;
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    pkt->header.set_payload_type(kAudioPayloadType);
+    pkt->header.set_ssrc(audio_ssrc);
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
     pkt->header.set_sequence(audio_sequence++);
@@ -813,6 +855,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcStream* source, SrsShare
     }
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_marker(false);
     pkt->header.set_sequence(video_sequence++);
@@ -884,6 +928,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
     if (nn_bytes < kRtpMaxPayloadSize) {
         // Package NALUs in a single RTP packet.
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
+        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
@@ -914,6 +960,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
             }
 
             SrsRtpPacket2* pkt = new SrsRtpPacket2();
+            pkt->header.set_payload_type(kVideoPayloadType);
+            pkt->header.set_ssrc(video_ssrc);
             pkt->frame_type = SrsFrameTypeVideo;
             pkt->header.set_sequence(video_sequence++);
             pkt->header.set_timestamp(msg->timestamp * 90);
@@ -940,6 +988,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     srs_error_t err = srs_success;
 
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
@@ -970,6 +1020,8 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         int packet_size = srs_min(nb_left, fu_payload_size);
 
         SrsRtpPacket2* pkt = new SrsRtpPacket2();
+        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
@@ -1700,3 +1752,30 @@ srs_error_t SrsRtcVideoSendTrack::on_rtcp(SrsRtpPacket2* pkt)
     return err;
 }
 
+SrsRtcSSRCGenerator* SrsRtcSSRCGenerator::_instance = NULL;
+
+SrsRtcSSRCGenerator::SrsRtcSSRCGenerator()
+{
+    ssrc_num = 0;
+}
+
+SrsRtcSSRCGenerator::~SrsRtcSSRCGenerator()
+{
+}
+
+SrsRtcSSRCGenerator* SrsRtcSSRCGenerator::instance()
+{
+    if (!_instance) {
+        _instance = new SrsRtcSSRCGenerator();
+    }
+    return _instance;
+}
+
+uint32_t SrsRtcSSRCGenerator::generate_ssrc()
+{
+    if (!ssrc_num) {
+        ssrc_num = ::getpid() * 10000 + ::getpid() * 100 + ::getpid();
+    }
+
+    return ++ssrc_num;
+}

@@ -211,6 +211,8 @@ private:
     uint32_t audio_timestamp;
     uint16_t audio_sequence;
     uint16_t video_sequence;
+    uint32_t audio_ssrc;
+    uint32_t video_ssrc;
 public:
     SrsRtcFromRtmpBridger(SrsRtcStream* source);
     virtual ~SrsRtcFromRtmpBridger();
@@ -471,6 +473,20 @@ public:
 public:
     virtual srs_error_t on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
+};
+
+class SrsRtcSSRCGenerator
+{
+private:
+    static SrsRtcSSRCGenerator* _instance;
+private:
+    uint32_t ssrc_num;
+private:
+    SrsRtcSSRCGenerator();
+    virtual ~SrsRtcSSRCGenerator();
+public:
+    static SrsRtcSSRCGenerator* instance();
+    uint32_t generate_ssrc();
 };
 
 #endif
