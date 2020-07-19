@@ -39,6 +39,7 @@
 #include <srs_service_utility.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
+#include <srs_protocol_utility.hpp>
 
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
@@ -331,11 +332,13 @@ srs_error_t SrsRtcServer::create_session(
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
         local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
+        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
             local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
         }
+        srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
     SrsRtcSession* session = new SrsRtcSession(this);
@@ -357,7 +360,7 @@ srs_error_t SrsRtcServer::create_session(
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcSession** psession)
+srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcSession** psession)
 {
     srs_error_t err = srs_success;
 
@@ -374,9 +377,15 @@ srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcSession** pse
     local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
 
     // We allows to mock the eip of server.
-    std::vector<string> candidate_ips = get_candidate_ips();
-    for (int i = 0; i < (int)candidate_ips.size(); ++i) {
-        local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+    if (!mock_eip.empty()) {
+        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
+        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+    } else {
+        std::vector<string> candidate_ips = get_candidate_ips();
+        for (int i = 0; i < (int)candidate_ips.size(); ++i) {
+            local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+        }
+        srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
     session->set_local_sdp(local_sdp);
