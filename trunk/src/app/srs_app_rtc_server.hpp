@@ -88,7 +88,7 @@ private:
     );
 public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
-    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, SrsRtcConnection** psession);
+    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcConnection** psession);
     srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
     // Destroy the session from server.
     void destroy(SrsRtcConnection* session);

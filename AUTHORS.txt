@@ -66,3 +66,4 @@ CONTRIBUTORS ordered by first contribution.
 * LiPeng<mozhan.lp@alibaba-inc.com>
 * xiaozhihong<hondaxiao@tencent.com>
 * yajun18<yajun18@staff.sina.com.cn>
+* liulichuan<liulichuan@kuaishou.com>
