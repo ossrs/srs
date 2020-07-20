@@ -385,6 +385,10 @@ srs_error_t SrsDtls::do_handshake()
 {
     srs_error_t err = srs_success;
 
+    if (!callback) {
+        return srs_error_new(ERROR_RTC_DTLS, "no callback");
+    }
+
     int ret = SSL_do_handshake(dtls);
 
     unsigned char *out_bio_data;
@@ -394,8 +398,8 @@ srs_error_t SrsDtls::do_handshake()
     switch(ssl_err) {   
         case SSL_ERROR_NONE: {
             handshake_done = true;
-            if ((callback == NULL) || ((err = callback->on_dtls_handshake_done()) != srs_success)) {
-                return srs_error_wrap(err, "dtls handshake done handle");
+            if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
+                return srs_error_wrap(err, "dtls done");
             }
             break;
         }  
@@ -413,9 +417,9 @@ srs_error_t SrsDtls::do_handshake()
         }   
     }   
 
-    if (out_bio_len && callback) {
+    if (out_bio_len) {
         if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-            return srs_error_wrap(err, "send dtls packet");
+            return srs_error_wrap(err, "dtls send");
         }
     }
 
