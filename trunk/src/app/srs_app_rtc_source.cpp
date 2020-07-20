@@ -1787,7 +1787,6 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packe
         return err;
     }
 
-    // TODO: FIXME: rtmp->rtc, need set payload type.
     pkt->header.set_ssrc(track_desc_->ssrc_);
 
     send_packets.push_back(pkt);
