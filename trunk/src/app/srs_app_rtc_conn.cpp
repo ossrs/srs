@@ -1463,11 +1463,12 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     return err;
 }
 
+// TODO: FIXME: Use async request PLI to prevent dup requests.
 void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
 {
     SrsContextId scid = _srs_context->get_id();
     SrsContextId pcid = session_->context_id();
-    srs_trace("RTC play=[%d][%s] request keyframe from publish=[%d][%s]", ::getpid(), scid.c_str(), ::getpid(), pcid.c_str());
+    srs_trace("RTC play=[%d][%s] SSRC=%u PLI from publish=[%d][%s]", ::getpid(), scid.c_str(), ssrc, ::getpid(), pcid.c_str());
 
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (video_track) {
