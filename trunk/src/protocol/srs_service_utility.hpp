@@ -76,5 +76,8 @@ extern bool srs_net_device_is_internet(const sockaddr* addr);
 // Get the original ip from query and header by proxy.
 extern std::string srs_get_original_ip(ISrsHttpMessage* r);
 
+// Get hostname
+extern std::string srs_get_system_hostname(void);
+
 #endif
 
