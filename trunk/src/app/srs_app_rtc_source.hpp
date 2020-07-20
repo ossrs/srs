@@ -53,6 +53,7 @@ class SrsRtcTrackDescription;
 class SrsRtcConnection;
 class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
+class SrsJsonObject;
 
 class SrsNtp
 {
@@ -314,6 +315,20 @@ public:
     srs_error_t set_opus_param_desc(std::string fmtp);
 };
 
+// TODO: FIXME: Rename it.
+class SrsRedPayload : public SrsCodecPayload
+{
+public:
+    int channel_;
+public:
+    SrsRedPayload();
+    SrsRedPayload(uint8_t pt, std::string encode_name, int sample, int channel);
+    virtual ~SrsRedPayload();
+public:
+    virtual SrsRedPayload* copy();
+    virtual SrsMediaPayloadType generate_media_payload_type();
+};
+
 class SrsRtcTrackDescription
 {
 public:
@@ -338,6 +353,8 @@ public:
     std::string direction_;
     // TODO: FIXME: whether mid is needed?
     std::string mid_;
+    // msid_: track stream id
+    std::string msid_;
 
     // meida payload, such as opus, h264.
     SrsCodecPayload* media_;
@@ -450,6 +467,8 @@ public:
 public:
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
+    void set_track_status(bool active);
+    std::string get_track_id();
 public:
     virtual srs_error_t on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);

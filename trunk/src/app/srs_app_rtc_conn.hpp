@@ -301,8 +301,6 @@ class SrsRtcConnection
 public:
     bool disposing_;
 private:
-    static uint32_t ssrc_num;
-private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
     SrsSecurityTransport* transport_;

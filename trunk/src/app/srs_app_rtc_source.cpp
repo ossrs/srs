@@ -40,6 +40,7 @@
 #include <srs_app_rtc_queue.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_protocol_json.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -1301,6 +1302,48 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
     return err;
 }
 
+SrsRedPayload::SrsRedPayload()
+{
+}
+
+SrsRedPayload::SrsRedPayload(uint8_t pt, std::string encode_name, int sample, int channel)
+    :SrsCodecPayload(pt, encode_name, sample)
+{
+    channel_ = channel;
+}
+
+SrsRedPayload::~SrsRedPayload()
+{
+}
+
+SrsRedPayload* SrsRedPayload::copy()
+{
+    SrsRedPayload* cp = new SrsRedPayload();
+
+    cp->type_ = type_;
+    cp->pt_ = pt_;
+    cp->name_ = name_;
+    cp->sample_ = sample_;
+    cp->rtcp_fbs_ = rtcp_fbs_;
+    cp->channel_ = channel_;
+
+    return cp;
+}
+
+SrsMediaPayloadType SrsRedPayload::generate_media_payload_type()
+{
+    SrsMediaPayloadType media_payload_type(pt_);
+
+    media_payload_type.encoding_name_ = name_;
+    media_payload_type.clock_rate_ = sample_;
+    if (channel_ != 0) {
+        media_payload_type.encoding_param_ = srs_int2str(channel_);
+    }
+    media_payload_type.rtcp_fb_ = rtcp_fbs_;
+
+    return media_payload_type;
+}
+
 SrsRtcTrackDescription::SrsRtcTrackDescription()
 {
     ssrc_ = 0;
@@ -1324,6 +1367,10 @@ SrsRtcTrackDescription::~SrsRtcTrackDescription()
 
 bool SrsRtcTrackDescription::has_ssrc(uint32_t ssrc)
 {
+    if (!is_active_) {
+        return false;
+    }
+
     if (ssrc == ssrc_ || ssrc == rtx_ssrc_ || ssrc == fec_ssrc_) {
         return true;
     }
@@ -1354,7 +1401,7 @@ void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMedia
     SrsMediaPayloadType payload = payloads.at(0);
     if (payload.encoding_name_ == "red"){
         srs_freep(red_);
-        red_ = new SrsCodecPayload(payload.payload_type_, "red", payload.clock_rate_);
+        red_ = new SrsRedPayload(payload.payload_type_, "red", payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
     } else if (payload.encoding_name_ == "rtx") {
         srs_freep(rtx_);
         rtx_ = new SrsCodecPayload(payload.payload_type_, "rtx", payload.clock_rate_);
@@ -1402,6 +1449,7 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
     cp->extmaps_ = extmaps_;
     cp->direction_ = direction_;
     cp->mid_ = mid_;
+    cp->msid_ = msid_;
     cp->is_active_ = is_active_;
     cp->media_ = media_ ? media_->copy():NULL;
     cp->red_ = red_ ? red_->copy():NULL;
@@ -1572,17 +1620,6 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
-    // uint8_t pt = pkt->header.get_payload_type();
-
-    // SrsRtcTrackDescription track = rtc_stream_desc_->get_audio_tracks();
-    // // process red packet.
-    // if (pt == red_pt) {
-
-    // } else if (pt == rtx_pt) { // process rtx_pt.
-    //     // restore retranmission packet.
-    // } else if (pt == fec_pt) {
-
-    // }
 
     if (source) {
         if ((err = source->on_rtp(pkt)) != srs_success) {
@@ -1614,18 +1651,18 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
     pkt->frame_type = SrsFrameTypeVideo;
 
+    if (source) {
+        if ((err = source->on_rtp(pkt)) != srs_success) {
+            return srs_error_wrap(err, "source on rtp");
+        }
+    }
+
     // TODO: FIXME: add rtp process
     if (request_key_frame_) {
         // TODO: FIXME: add coroutine to request key frame.
         request_key_frame_ = false;
         // TODO: FIXME: Check error.
         session_->send_rtcp_fb_pli(track_desc_->ssrc_);
-    }
-
-    if (source) {
-        if ((err = source->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "source on rtp");
-        }
     }
 
     // For NACK to handle packet.
@@ -1666,6 +1703,7 @@ bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
 
     return false;
 }
+
 SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
 {
     if (rtp_queue_) {
@@ -1673,6 +1711,16 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     }
 
     return NULL;
+}
+
+void SrsRtcSendTrack::set_track_status(bool active)
+{
+    track_desc_->is_active_ = active;
+}
+
+std::string SrsRtcSendTrack::get_track_id()
+{
+    return track_desc_->id_;
 }
 
 srs_error_t SrsRtcSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt)
@@ -1698,15 +1746,19 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packe
 {
     srs_error_t err = srs_success;
 
+    if (!track_desc_->is_active_) {
+        return err;
+    }
+
     pkt->header.set_ssrc(track_desc_->ssrc_);
-    pkt->header.set_payload_type(track_desc_->media_->pt_);
+
+    send_packets.push_back(pkt);
 
     // Put rtp packet to NACK/ARQ queue
     if (true) {
         SrsRtpPacket2* nack = pkt->copy();
         rtp_queue_->set(nack->header.get_sequence(), nack);
     }
-    send_packets.push_back(pkt);
 
     return err;
 }
@@ -1731,16 +1783,19 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packe
 {
     srs_error_t err = srs_success;
 
-    pkt->header.set_ssrc(track_desc_->ssrc_);
-    pkt->header.set_payload_type(track_desc_->media_->pt_);
+    if (!track_desc_->is_active_) {
+        return err;
+    }
 
+    // TODO: FIXME: rtmp->rtc, need set payload type.
+    pkt->header.set_ssrc(track_desc_->ssrc_);
+
+    send_packets.push_back(pkt);
     // Put rtp packet to NACK/ARQ queue
     if (true) {
         SrsRtpPacket2* nack = pkt->copy();
         rtp_queue_->set(nack->header.get_sequence(), nack);
     }
-
-    send_packets.push_back(pkt);
 
     return err;
 }
@@ -1779,3 +1834,4 @@ uint32_t SrsRtcSSRCGenerator::generate_ssrc()
 
     return ++ssrc_num;
 }
+
