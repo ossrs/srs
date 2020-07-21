@@ -175,14 +175,13 @@ private:
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
-    // Simulators.
-    int nn_simulate_nack_drop;
 private:
     // For merged-write messages.
     int mw_msgs;
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
+private:
     // Whether palyer started.
     bool is_started;
     // statistic send packets.
@@ -206,12 +205,8 @@ public:
     virtual srs_error_t cycle();
 private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
-    srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
-    void simulate_nack_drop(int nn);
-private:
-    void simulate_drop_packet(SrsRtpHeader* h, int nn_bytes);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
@@ -336,6 +331,11 @@ private:
     bool blackhole;
     sockaddr_in* blackhole_addr;
     srs_netfd_t blackhole_stfd;
+private:
+    // twcc handler
+    int twcc_id_;
+    // Simulators.
+    int nn_simulate_player_nack_drop;
 public:
     SrsRtcConnection(SrsRtcServer* s);
     virtual ~SrsRtcConnection();
@@ -366,6 +366,7 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
     srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtcp_feedback(char* buf, int nb_buf);
 public:
     srs_error_t on_connection_established();
     srs_error_t start_play();
@@ -381,6 +382,8 @@ public:
 public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
+    void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
+    srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate

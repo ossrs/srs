@@ -1723,7 +1723,7 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-srs_error_t SrsRtcSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt)
+srs_error_t SrsRtcSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info)
 {
     return srs_success;
 }
@@ -1742,7 +1742,7 @@ SrsRtcAudioSendTrack::~SrsRtcAudioSendTrack()
 {
 }
 
-srs_error_t SrsRtcAudioSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt)
+srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
@@ -1750,14 +1750,23 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packe
         return err;
     }
 
+    std::vector<SrsRtpPacket2*> pkts;
     pkt->header.set_ssrc(track_desc_->ssrc_);
-
-    send_packets.push_back(pkt);
 
     // Put rtp packet to NACK/ARQ queue
     if (true) {
         SrsRtpPacket2* nack = pkt->copy();
         rtp_queue_->set(nack->header.get_sequence(), nack);
+    }
+
+    pkts.push_back(pkt);
+
+    // Update stats.
+    info.nn_bytes += pkt->nb_bytes();
+    info.nn_audios++;
+
+    if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
     }
 
     return err;
@@ -1779,23 +1788,32 @@ SrsRtcVideoSendTrack::~SrsRtcVideoSendTrack()
 {
 }
 
-srs_error_t SrsRtcVideoSendTrack::on_rtp(std::vector<SrsRtpPacket2*>& send_packets, SrsRtpPacket2* pkt)
+srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info)
 {
     srs_error_t err = srs_success;
 
     if (!track_desc_->is_active_) {
         return err;
     }
-
+    
+    std::vector<SrsRtpPacket2*> pkts;
+    
     pkt->header.set_ssrc(track_desc_->ssrc_);
-
-    send_packets.push_back(pkt);
     // Put rtp packet to NACK/ARQ queue
     if (true) {
         SrsRtpPacket2* nack = pkt->copy();
         rtp_queue_->set(nack->header.get_sequence(), nack);
     }
 
+    pkts.push_back(pkt);
+    // Update stats.
+    info.nn_bytes += pkt->nb_bytes();
+    info.nn_videos++;
+
+    if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+    
     return err;
 }
 

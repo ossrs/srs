@@ -225,7 +225,6 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
     mw_msgs = 0;
     realtime = true;
 
-    nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
 
     _srs_config->subscribe(this);
@@ -432,9 +431,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         return err;
     }
 
-    // TODO: FIXME: find track when send
-    // TODO: FIXME: Fix the stat bug.
-    // TODO: FIXME: Any simple solution?
     vector<SrsRtpPacket2*> send_pkts;
     // Covert kernel messages to RTP packets.
     for (int i = 0; i < (int)pkts.size(); i++) {
@@ -444,17 +440,12 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
             continue;
         }
-
-        // Update stats.
-        info.nn_bytes += pkt->nb_bytes();
-
+        
         // For audio, we transcoded AAC to opus in extra payloads.
         if (pkt->is_audio()) {
-            info.nn_audios++;
-
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
             // TODO: FIXME: Any simple solution?
-            if ((err = audio_track->on_rtp(send_pkts, pkt)) != srs_success) {
+            if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "audio_track on rtp");
             }
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
@@ -463,7 +454,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
 
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
             // TODO: FIXME: Any simple solution?
-            if ((err = video_track->on_rtp(send_pkts, pkt)) != srs_success) {
+            if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "audio_track on rtp");
             }
         }
@@ -471,80 +462,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         // Detail log, should disable it in release version.
         srs_info("RTC: Update PT=%u, SSRC=%#x, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
             pkt->header.get_timestamp(), pkt->nb_bytes());
-    }
-
-    // By default, we send packets by sendmmsg.
-    if ((err = do_send_packets(send_pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "raw send");
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcPlayStream::do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
-{
-    srs_error_t err = srs_success;
-
-    // Cache the encrypt flag and sender.
-    bool encrypt = session_->encrypt;
-
-    for (int i = 0; i < (int)pkts.size(); i++) {
-        SrsRtpPacket2* pkt = pkts.at(i);
-
-        // For this message, select the first iovec.
-        iovec* iov = new iovec();
-        SrsAutoFree(iovec, iov);
-
-        char* iov_base = new char[kRtpPacketSize];
-        SrsAutoFreeA(char, iov_base);
-
-        iov->iov_base = iov_base;
-        iov->iov_len = kRtpPacketSize;
-
-        // Marshal packet to bytes in iovec.
-        if (true) {
-#ifdef SRS_CXX14
-            // should set twcc sn before packet encode.
-            if(twcc_id_) {
-                twcc_sn = twcc_controller.allocate_twcc_sn();
-                pkt->header.set_twcc_sequence_number(twcc_id_, twcc_sn);
-            }
-#endif
-
-            SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
-            if ((err = pkt->encode(&stream)) != srs_success) {
-                return srs_error_wrap(err, "encode packet");
-            }
-            iov->iov_len = stream.pos();
-        }
-
-        // Whether encrypt the RTP bytes.
-        if (encrypt) {
-            int nn_encrypt = (int)iov->iov_len;
-            if ((err = session_->transport_->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
-                return srs_error_wrap(err, "srtp protect");
-            }
-            iov->iov_len = (size_t)nn_encrypt;
-        }
-
-        info.nn_rtp_bytes += (int)iov->iov_len;
-
-        // When we send out a packet, increase the stat counter.
-        info.nn_rtp_pkts++;
-
-        // For NACK simulator, drop packet.
-        if (nn_simulate_nack_drop) {
-            simulate_drop_packet(&pkt->header, (int)iov->iov_len);
-            iov->iov_len = 0;
-            continue;
-        }
-
-        // TODO: FIXME: Handle error.
-        session_->sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
-
-        // Detail log, should disable it in release version.
-        srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
-            pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
     }
 
     return err;
@@ -577,20 +494,6 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
             }
         }
     }
-}
-
-void SrsRtcPlayStream::simulate_nack_drop(int nn)
-{
-    nn_simulate_nack_drop = nn;
-}
-
-void SrsRtcPlayStream::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
-{
-    srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_nack_drop,
-        h->get_sequence(), h->get_ssrc(), h->get_timestamp(),
-        nn_bytes);
-
-    nn_simulate_nack_drop--;
 }
 
 srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
@@ -697,10 +600,13 @@ srs_error_t SrsRtcPlayStream::on_rtcp_feedback(char* buf, int nb_buf)
        :            Feedback Control Information (FCI)                 :
        :                                                               :
     */
-    /*uint8_t first = */stream->read_1bytes();
+    uint8_t first = stream->read_1bytes();
     //uint8_t version = first & 0xC0;
     //uint8_t padding = first & 0x20;
-    //uint8_t fmt = first & 0x1F;
+    uint8_t fmt = first & 0x1F;
+    if(15 == fmt) {
+        return session_->on_rtcp_feedback(buf, nb_buf);
+    }
 
     /*uint8_t payload_type = */stream->read_1bytes();
     /*uint16_t length = */stream->read_2bytes();
@@ -746,7 +652,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_feedback(char* buf, int nb_buf)
     }
 
     // By default, we send packets by sendmmsg.
-    if ((err = do_send_packets(resend_pkts, info)) != srs_success) {
+    if ((err = session_->do_send_packets(resend_pkts, info)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
 
@@ -1577,6 +1483,8 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s)
     blackhole = false;
     blackhole_addr = NULL;
     blackhole_stfd = NULL;
+    twcc_id_ = 0;
+    nn_simulate_player_nack_drop = 0;
 }
 
 SrsRtcConnection::~SrsRtcConnection()
@@ -1877,6 +1785,11 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
     return err;
 }
 
+srs_error_t SrsRtcConnection::on_rtcp_feedback(char* data, int nb_data) 
+{
+    return srs_success;
+}
+
 srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
 {
     if (publisher_ == NULL) {
@@ -2166,13 +2079,78 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
 
 void SrsRtcConnection::simulate_nack_drop(int nn)
 {
-    if (player_) {
-        player_->simulate_nack_drop(nn);
-    }
-
     if (publisher_) {
         publisher_->simulate_nack_drop(nn);
     }
+
+    nn_simulate_player_nack_drop = nn;
+}
+
+void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes)
+{
+    srs_warn("RTC NACK simulator #%d player drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_player_nack_drop,
+        h->get_sequence(), h->get_ssrc(), h->get_timestamp(),
+        nn_bytes);
+
+    nn_simulate_player_nack_drop--;
+}
+
+srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcOutgoingInfo& info)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket2* pkt = pkts.at(i);
+
+        // For this message, select the first iovec.
+        iovec* iov = new iovec();
+        SrsAutoFree(iovec, iov);
+
+        char* iov_base = new char[kRtpPacketSize];
+        SrsAutoFreeA(char, iov_base);
+
+        iov->iov_base = iov_base;
+        iov->iov_len = kRtpPacketSize;
+
+        // Marshal packet to bytes in iovec.
+        if (true) {
+            SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
+            if ((err = pkt->encode(&stream)) != srs_success) {
+                return srs_error_wrap(err, "encode packet");
+            }
+            iov->iov_len = stream.pos();
+        }
+
+        // Whether encrypt the RTP bytes.
+        if (encrypt) {
+            int nn_encrypt = (int)iov->iov_len;
+            if ((err = transport_->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
+                return srs_error_wrap(err, "srtp protect");
+            }
+            iov->iov_len = (size_t)nn_encrypt;
+        }
+
+        info.nn_rtp_bytes += (int)iov->iov_len;
+
+        // When we send out a packet, increase the stat counter.
+        info.nn_rtp_pkts++;
+
+        // For NACK simulator, drop packet.
+        if (nn_simulate_player_nack_drop) {
+            simulate_player_drop_packet(&pkt->header, (int)iov->iov_len);
+            iov->iov_len = 0;
+            continue;
+        }
+
+        // TODO: FIXME: Handle error.
+        sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
+
+        // Detail log, should disable it in release version.
+        srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
+            pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
+    }
+
+    return err;
 }
 
 #ifdef SRS_OSX
@@ -2833,6 +2811,22 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
     if ((err = player_->initialize(req, sub_relations)) != srs_success) {
         return srs_error_wrap(err, "SrsRtcPlayStream init");
     }
+
+    // TODO: FIXME: Support reload.
+    // The TWCC ID is the ext-map ID in local SDP, and we set to enable GCC.
+    // Whatever the ext-map, we will disable GCC when config disable it.
+    int twcc_id = 0;
+    if (true) {
+        std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin();
+        while (it != sub_relations.end()) {
+            if (it->second->type_ == "video") {
+                SrsRtcTrackDescription* track = it->second;
+                twcc_id = track->get_rtp_extension_id(kTWCCExt);
+            }
+            ++it;
+        }
+    }
+    srs_trace("RTC connection player gcc=%d", twcc_id);
 
     return err;
 }
