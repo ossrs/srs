@@ -337,7 +337,7 @@ private:
     // Simulators.
     int nn_simulate_player_nack_drop;
 public:
-    SrsRtcConnection(SrsRtcServer* s);
+    SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id);
     virtual ~SrsRtcConnection();
 public:
     // TODO: FIXME: save only connection info.
@@ -360,7 +360,7 @@ public:
     srs_error_t add_player2(SrsRequest* request, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
-    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username, SrsContextId context_id);
+    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

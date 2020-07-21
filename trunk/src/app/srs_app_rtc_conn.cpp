@@ -1462,11 +1462,12 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
-SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s)
+SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
 {
     req = NULL;
     is_publisher_ = false;
     encrypt = true;
+    cid = context_id;
 
     source_ = NULL;
     publisher_ = NULL;
@@ -1672,13 +1673,12 @@ srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, SrsSdp& local_sdp)
     return err;
 }
 
-srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, string username, SrsContextId context_id)
+srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, string username)
 {
     srs_error_t err = srs_success;
 
     username_ = username;
     req = r->copy();
-    cid = context_id;
     is_publisher_ = is_publisher;
     source_ = source;
 
