@@ -1938,15 +1938,27 @@ bool SrsRtcConnection::is_stun_timeout()
     return last_stun_time + sessionStunTimeout < srs_get_system_time();
 }
 
+// TODO: FIXME: We should support multiple addresses, because client may use more than one addresses.
 void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 {
+    std::string old_peer_id;
     if (sendonly_skt) {
         srs_trace("session %s address changed, update %s -> %s",
             id().c_str(), sendonly_skt->peer_id().c_str(), skt->peer_id().c_str());
+        old_peer_id = sendonly_skt->peer_id();
     }
 
+    // Update the transport.
     srs_freep(sendonly_skt);
     sendonly_skt = skt->copy_sendonly();
+
+    // Update the sessions to handle packets from the new address.
+    server_->insert_into_id_sessions(sendonly_skt->peer_id().c_str(), this);
+
+    // Remove the old address.
+    if (!old_peer_id.empty()) {
+        server_->remove_id_sessions(old_peer_id);
+    }
 }
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc)

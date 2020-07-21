@@ -494,6 +494,14 @@ bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnecti
     return map_id_session.insert(make_pair(peer_id, session)).second;
 }
 
+void SrsRtcServer::remove_id_sessions(const string& peer_id)
+{
+    std::map<std::string, SrsRtcConnection*>::iterator it;
+    if ((it = map_id_session.find(peer_id)) != map_id_session.end()) {
+        map_id_session.erase(it);
+    }
+}
+
 void SrsRtcServer::check_and_clean_timeout_session()
 {
     map<string, SrsRtcConnection*>::iterator iter = map_username_session.begin();
