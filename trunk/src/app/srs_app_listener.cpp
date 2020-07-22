@@ -506,6 +506,9 @@ srs_error_t SrsUdpMuxListener::cycle()
     uint64_t nn_loop = 0;
     srs_utime_t time_last = srs_get_system_time();
 
+    SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
+    SrsAutoFree(SrsErrorPithyPrint, epp);
+
     set_socket_buffer();
     
     while (true) {
@@ -524,7 +527,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
             if (nread < 0) {
-                srs_warn("udp recv error");
+                srs_warn("udp recv error nn=%d", nread);
             }
             // remux udp never return
             continue;
@@ -539,8 +542,9 @@ srs_error_t SrsUdpMuxListener::cycle()
             err = handler->on_udp_packet(&skt);
         }
         if (err != srs_success) {
-            // remux udp never return
-            srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
+            if (epp->can_print(err)) {
+                srs_warn("handle udp pkt err: %s", srs_error_desc(err).c_str());
+            }
             srs_freep(err);
         }
 

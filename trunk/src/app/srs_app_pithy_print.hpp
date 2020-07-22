@@ -26,6 +26,8 @@
 
 #include <srs_core.hpp>
 
+#include <map>
+
 #include <srs_app_reload.hpp>
 
 // The stage info to calc the age.
@@ -46,6 +48,35 @@ public:
     virtual bool can_print();
 public:
     virtual srs_error_t on_reload_pithy_print();
+};
+
+// The manager for stages, it's used for a single client stage.
+// Of course, we can add the multiple user support, which is SrsPithyPrint.
+class SrsStageManager
+{
+private:
+    std::map<int, SrsStageInfo*> stages;
+public:
+    SrsStageManager();
+    virtual ~SrsStageManager();
+public:
+    // Fetch a stage, create one if not exists.
+    SrsStageInfo* fetch_or_create(int stage_id, bool* pnew = NULL);
+};
+
+// The error pithy print is a single client stage manager, each stage only has one client.
+// For example, we use it for error pithy print for each UDP packet processing.
+class SrsErrorPithyPrint
+{
+private:
+    SrsStageManager stages;
+    std::map<int, srs_utime_t> ticks;
+public:
+    SrsErrorPithyPrint();
+    virtual ~SrsErrorPithyPrint();
+public:
+    // Whether specified stage is ready for print.
+    bool can_print(srs_error_t err);
 };
 
 // The stage is used for a collection of object to do print,
