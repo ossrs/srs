@@ -52,8 +52,7 @@ public:
 // The context restore stores the context and restore it when done.
 // Usage:
 //      SrsContextRestore(_srs_context->get_id());
-#define SrsContextRestore(cid) \
-    impl_SrsContextRestore _context_restore_instance(cid)
+#define SrsContextRestore(cid) impl_SrsContextRestore _context_restore_instance(cid)
 class impl_SrsContextRestore
 {
 private:
