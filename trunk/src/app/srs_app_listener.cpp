@@ -416,6 +416,7 @@ SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
     buf = new char[nb_buf];
 
     trd = new SrsDummyCoroutine();
+    cid = _srs_context->generate_id();
 }
 
 SrsUdpMuxListener::~SrsUdpMuxListener()
@@ -442,11 +443,9 @@ srs_error_t SrsUdpMuxListener::listen()
     if ((err = srs_udp_listen(ip, port, &lfd)) != srs_success) {
         return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
     }
-
-    set_socket_buffer();
     
     srs_freep(trd);
-    trd = new SrsSTCoroutine("udp", this);
+    trd = new SrsSTCoroutine("udp", this, cid);
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start thread");
     }
@@ -506,6 +505,8 @@ srs_error_t SrsUdpMuxListener::cycle()
     uint64_t nn_msgs_last = 0;
     uint64_t nn_loop = 0;
     srs_utime_t time_last = srs_get_system_time();
+
+    set_socket_buffer();
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -531,8 +532,13 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         nn_msgs++;
         nn_msgs_stage++;
-    
-        if ((err = handler->on_udp_packet(&skt)) != srs_success) {
+
+        // Restore context when packets processed.
+        if (true) {
+            SrsContextRestore(cid);
+            err = handler->on_udp_packet(&skt);
+        }
+        if (err != srs_success) {
             // remux udp never return
             srs_warn("udp packet handler error:%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
