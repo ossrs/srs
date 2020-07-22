@@ -328,10 +328,6 @@ public:
     std::string sequence_delta;
     std::string sequence_keep;
 private:
-    bool blackhole;
-    sockaddr_in* blackhole_addr;
-    srs_netfd_t blackhole_stfd;
-private:
     // twcc handler
     int twcc_id_;
     // Simulators.
@@ -345,15 +341,20 @@ public:
     void set_local_sdp(const SrsSdp& sdp);
     SrsSdp* get_remote_sdp();
     void set_remote_sdp(const SrsSdp& sdp);
+    // Connection level state machine, for ARQ of UDP packets.
     SrsRtcConnectionStateType state();
     void set_state(SrsRtcConnectionStateType state);
+    // TODO: FIXME: Rename it.
     std::string id();
+    // TODO: FIXME: Rename it.
     std::string peer_id();
-    void set_peer_id(std::string v);
+    // TODO: FIXME: Rename it.
     std::string username();
+public:
     void set_encrypt(bool v);
     void switch_to_context();
     SrsContextId context_id();
+public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     // server send offer sdp to client, local sdp derivate from source stream desc.

@@ -41,6 +41,27 @@ class SrsRequest;
 class SrsSdp;
 class SrsRtcStream;
 
+// The UDP black hole, for developer to use wireshark to catch plaintext packets.
+// For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
+// we can use wireshark to capture the plaintext.
+class SrsRtcBlackhole
+{
+public:
+    bool blackhole;
+private:
+    sockaddr_in* blackhole_addr;
+    srs_netfd_t blackhole_stfd;
+public:
+    SrsRtcBlackhole();
+    virtual ~SrsRtcBlackhole();
+public:
+    srs_error_t initialize();
+    void sendto(void* data, int len);
+};
+
+extern SrsRtcBlackhole* _srs_blackhole;
+
+// The handler for RTC server to call.
 class ISrsRtcServerHandler
 {
 public:
@@ -51,6 +72,7 @@ public:
     virtual void on_timeout(SrsRtcConnection* session) = 0;
 };
 
+// The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
 {
 private:
@@ -58,7 +80,9 @@ private:
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
 private:
+    // TODO: FIXME: Rename it.
     std::map<std::string, SrsRtcConnection*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
+    // TODO: FIXME: Rename it.
     std::map<std::string, SrsRtcConnection*> map_id_session; // key: peerip(ip + ":" + port)
     // The zombie sessions, we will free them.
     std::vector<SrsRtcConnection*> zombies_;

@@ -23,6 +23,8 @@
 
 #include <srs_app_rtc_server.hpp>
 
+using namespace std;
+
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
@@ -42,10 +44,66 @@
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 
+SrsRtcBlackhole::SrsRtcBlackhole()
+{
+    blackhole = false;
+    blackhole_addr = NULL;
+    blackhole_stfd = NULL;
+}
+
+SrsRtcBlackhole::~SrsRtcBlackhole()
+{
+    srs_close_stfd(blackhole_stfd);
+    srs_freep(blackhole_addr);
+}
+
+srs_error_t SrsRtcBlackhole::initialize()
+{
+    srs_error_t err = srs_success;
+
+    blackhole = _srs_config->get_rtc_server_black_hole();
+    if (!blackhole) {
+        return err;
+    }
+
+    string blackhole_ep = _srs_config->get_rtc_server_black_hole_addr();
+    if (blackhole_ep.empty()) {
+        blackhole = false;
+        srs_warn("disable black hole for no endpoint");
+        return err;
+    }
+
+    string host; int port;
+    srs_parse_hostport(blackhole_ep, host, port);
+
+    srs_freep(blackhole_addr);
+    blackhole_addr = new sockaddr_in();
+    blackhole_addr->sin_family = AF_INET;
+    blackhole_addr->sin_addr.s_addr = inet_addr(host.c_str());
+    blackhole_addr->sin_port = htons(port);
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    blackhole_stfd = srs_netfd_open_socket(fd);
+    srs_assert(blackhole_stfd);
+
+    srs_trace("RTC blackhole %s:%d, fd=%d", host.c_str(), port, fd);
+
+    return err;
+}
+
+void SrsRtcBlackhole::sendto(void* data, int len)
+{
+    if (!blackhole) {
+        return;
+    }
+
+    srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+}
+
+SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
+
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
-
-using namespace std;
 
 static bool is_stun(const uint8_t* data, const int size)
 {
@@ -174,6 +232,10 @@ srs_error_t SrsRtcServer::initialize()
 
     if ((err = timer->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
+    }
+
+    if ((err = _srs_blackhole->initialize()) != srs_success) {
+        return srs_error_wrap(err, "black hole");
     }
 
     srs_trace("RTC server init ok");
