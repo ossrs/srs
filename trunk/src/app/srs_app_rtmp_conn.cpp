@@ -381,7 +381,6 @@ srs_error_t SrsRtmpConn::service_cycle()
     }
     
     while (true) {
-        srs_error_t err = srs_success;
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
@@ -406,7 +405,7 @@ srs_error_t SrsRtmpConn::service_cycle()
             rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT);
             rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT);
             
-            srs_trace("rtmp: retry for republish");
+            srs_info("rtmp: retry for republish");
             srs_freep(err);
             continue;
         }
@@ -496,7 +495,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     
     // find a source to serve.
     SrsSource* source = NULL;
-    if ((err = SrsSource::fetch_or_create(req, server, &source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req, server, &source)) != srs_success) {
         return srs_error_wrap(err, "rtmp: fetch source");
     }
     srs_assert(source != NULL);
@@ -621,8 +620,10 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
                 }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
             }
-            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s",
-                req->host.c_str(), req->port, host.c_str(), port, url.c_str());
+
+            string rurl = srs_generate_rtmp_url(host, port, req->host, req->vhost, req->app, req->stream, req->param);
+            srs_trace("rtmp: redirect in cluster, from=%s:%d, target=%s:%d, url=%s, rurl=%s",
+                req->host.c_str(), req->port, host.c_str(), port, url.c_str(), rurl.c_str());
 
             // Ignore if host or port is invalid.
             if (host.empty() || port == 0) {
@@ -630,7 +631,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
             }
             
             bool accepted = false;
-            if ((err = rtmp->redirect(req, host, port, accepted)) != srs_success) {
+            if ((err = rtmp->redirect(req, rurl, accepted)) != srs_success) {
                 srs_error_reset(err);
             } else {
                 return srs_error_new(ERROR_CONTROL_REDIRECT, "redirected");
@@ -702,14 +703,14 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         srsu2msi(send_min_interval), srsu2msi(mw_sleep), mw_enabled, realtime, tcp_nodelay);
     
     while (true) {
-        // collect elapse for pithy print.
-        pprint->elapse();
-        
         // when source is set to expired, disconnect it.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        // collect elapse for pithy print.
+        pprint->elapse();
+
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/ossrs/srs/issues/196
         // @see: https://github.com/ossrs/srs/issues/217
@@ -870,12 +871,12 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* 
     int64_t nb_msgs = 0;
     uint64_t nb_frames = 0;
     while (true) {
-        pprint->elapse();
-        
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
         }
-        
+
+        pprint->elapse();
+
         // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.

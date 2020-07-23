@@ -82,8 +82,9 @@ public:
 // Transmux RTMP to HTTP Live Streaming.
 class SrsFlvStreamEncoder : public ISrsBufferEncoder
 {
-protected:
+private:
     SrsFlvTransmuxer* enc;
+    bool header_written;
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
@@ -95,21 +96,12 @@ public:
 public:
     virtual bool has_cache();
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
-};
-
-#ifdef SRS_PERF_FAST_FLV_ENCODER
-// A Fast HTTP FLV Live Streaming, to write multiple tags by writev.
-// @see https://github.com/ossrs/srs/issues/405
-class SrsFastFlvStreamEncoder : public SrsFlvStreamEncoder
-{
-public:
-    SrsFastFlvStreamEncoder();
-    virtual ~SrsFastFlvStreamEncoder();
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
+private:
+    virtual srs_error_t write_header(bool has_video = true, bool has_audio = true);
 };
-#endif
 
 // Transmux RTMP to HTTP TS Streaming.
 class SrsTsStreamEncoder : public ISrsBufferEncoder
@@ -215,7 +207,9 @@ private:
     bool _is_aac;
     bool _is_mp3;
 public:
+    // We will free the request.
     SrsRequest* req;
+    // Shared source.
     SrsSource* source;
 public:
     // For template, the mount contains variables.
@@ -226,6 +220,7 @@ public:
     SrsBufferCache* cache;
     
     SrsLiveEntry(std::string m);
+    virtual ~SrsLiveEntry();
     
     bool is_flv();
     bool is_ts();

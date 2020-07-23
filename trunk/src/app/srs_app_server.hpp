@@ -184,6 +184,24 @@ private:
     static void sig_catcher(int signo);
 };
 
+// Auto reload by inotify.
+// @see https://github.com/ossrs/srs/issues/1635
+class SrsInotifyWorker : public ISrsCoroutineHandler
+{
+private:
+    SrsServer* server;
+    SrsCoroutine* trd;
+    srs_netfd_t inotify_fd;
+public:
+    SrsInotifyWorker(SrsServer* s);
+    virtual ~SrsInotifyWorker();
+public:
+    virtual srs_error_t start();
+// Interface ISrsEndlessThreadHandler.
+public:
+    virtual srs_error_t cycle();
+};
+
 // A handler to the handle cycle in SRS RTMP server.
 class ISrsServerCycle
 {
@@ -227,6 +245,7 @@ private:
     bool signal_reload;
     bool signal_persistence_config;
     bool signal_gmc_stop;
+    bool signal_fast_quit;
     bool signal_gracefully_quit;
     // Parent pid for asprocess.
     int ppid;
@@ -241,6 +260,9 @@ private:
     // When SIGTERM, SRS should do cleanup, for example,
     // to stop all ingesters, cleanup HLS and dvr.
     virtual void dispose();
+    // Close listener to stop accepting new connections,
+    // then wait and quit when all connections finished.
+    virtual void gracefully_dispose();
 // server startup workflow, @see run_master()
 public:
     // Initialize server with callback handler ch.
@@ -260,12 +282,13 @@ public:
     // The signal manager convert signal to io message,
     // whatever, we will got the signo like the orignal signal(int signo) handler.
     // @param signo the signal number from user, where:
-    //      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGTERM, dispose then quit.
+    //      SRS_SIGNAL_FAST_QUIT, the SIGTERM, do essential dispose then quit.
+    //      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGQUIT, do careful dispose then quit.
     //      SRS_SIGNAL_REOPEN_LOG, the SIGUSR1, reopen the log file.
     //      SRS_SIGNAL_RELOAD, the SIGHUP, reload the config.
     //      SRS_SIGNAL_PERSISTENCE_CONFIG, application level signal, persistence config to file.
     // @remark, for SIGINT:
-    //       no gmc, directly exit.
+    //       no gmc, fast quit, do essential dispose then quit.
     //       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
     // @remark, maybe the HTTP RAW API will trigger the on_signal() also.
     virtual void on_signal(int signo);

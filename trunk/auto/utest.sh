@@ -16,18 +16,9 @@ mkdir -p ${SRS_OBJS}/utest
 # the prefix to generate the objs/utest/Makefile
 # dirs relative to current dir(objs/utest), it's trunk/objs/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
-SRS_TRUNK_PREFIX=../..
+SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
 GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
-
-# the extra defines to compile utest.
-EXTRA_DEFINES=""
-
-# for osx to disable the error.
-# gtest/include/gtest/internal/gtest-port.h:499:13: fatal error: 'tr1/tuple' file not found
-if [ $SRS_OSX = YES ]; then
-    EXTRA_DEFINES="$EXTRA_DEFINES -DGTEST_HAS_TR1_TUPLE=0"
-fi
 
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS_DIR}/utest dir
@@ -173,7 +164,11 @@ echo "" >> ${FILE}
 echo "# link all depends libraries" >> ${FILE}
 echo -n "DEPS_LIBRARIES_FILES = " >> ${FILE}
 for item in ${ModuleLibFiles[*]}; do
-    echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    if [[ -f ${item} ]]; then
+        echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    else
+        echo -n "${item} " >> ${FILE}
+    fi
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}
 #

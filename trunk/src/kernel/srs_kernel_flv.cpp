@@ -291,7 +291,7 @@ bool SrsSharedPtrMessage::check(int stream_id)
 
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
-    if (ptr->header.perfer_cid < 2) {
+    if (ptr->header.perfer_cid < 2 || ptr->header.perfer_cid > 63) {
         srs_info("change the chunk_id=%d to default=%d", ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
         ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
     }
@@ -353,23 +353,19 @@ SrsFlvTransmuxer::SrsFlvTransmuxer()
 {
     writer = NULL;
     
-#ifdef SRS_PERF_FAST_FLV_ENCODER
     nb_tag_headers = 0;
     tag_headers = NULL;
     nb_iovss_cache = 0;
     iovss_cache = NULL;
     nb_ppts = 0;
     ppts = NULL;
-#endif
 }
 
 SrsFlvTransmuxer::~SrsFlvTransmuxer()
 {
-#ifdef SRS_PERF_FAST_FLV_ENCODER
     srs_freepa(tag_headers);
     srs_freepa(iovss_cache);
     srs_freepa(ppts);
-#endif
 }
 
 srs_error_t SrsFlvTransmuxer::initialize(ISrsWriter* fw)
@@ -379,15 +375,19 @@ srs_error_t SrsFlvTransmuxer::initialize(ISrsWriter* fw)
     return srs_success;
 }
 
-srs_error_t SrsFlvTransmuxer::write_header()
+srs_error_t SrsFlvTransmuxer::write_header(bool has_video, bool has_audio)
 {
     srs_error_t err = srs_success;
-    
+
+    uint8_t av_flag = 0;
+    av_flag += (has_audio? 4:0);
+    av_flag += (has_video? 1:0);
+
     // 9bytes header and 4bytes first previous-tag-size
     char flv_header[] = {
         'F', 'L', 'V', // Signatures "FLV"
         (char)0x01, // File version (for example, 0x01 for FLV version 1)
-        (char)0x05, // 4, audio; 1, video; 5 audio+video.
+        (char)av_flag, // 4, audio; 1, video; 5 audio+video.
         (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
     };
     
@@ -472,7 +472,6 @@ int SrsFlvTransmuxer::size_tag(int data_size)
     return SRS_FLV_TAG_HEADER_SIZE + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
 }
 
-#ifdef SRS_PERF_FAST_FLV_ENCODER
 srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
 {
     srs_error_t err = srs_success;
@@ -542,7 +541,6 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsSharedPtrMessage** msgs, int count)
     
     return err;
 }
-#endif
 
 void SrsFlvTransmuxer::cache_metadata(char type, char* data, int size, char* cache)
 {

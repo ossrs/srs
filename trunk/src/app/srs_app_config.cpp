@@ -735,10 +735,25 @@ SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0)
     if (!conf) {
         conf = new SrsConfDirective();
         conf->name = n;
-        conf->set_arg0(a0);
+        conf->args.push_back(a0);
         directives.push_back(conf);
     }
     
+    return conf;
+}
+
+SrsConfDirective* SrsConfDirective::get_or_create(string n, string a0, string a1)
+{
+    SrsConfDirective* conf = get(n, a0);
+
+    if (!conf) {
+        conf = new SrsConfDirective();
+        conf->name = n;
+        conf->args.push_back(a0);
+        conf->args.push_back(a1);
+        directives.push_back(conf);
+    }
+
     return conf;
 }
 
@@ -3472,6 +3487,9 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_server" && n != "stream_caster"
             && n != "utc_time" && n != "work_dir" && n != "asprocess"
+            && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
+            && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
+            && n != "inotify_auto_reload" && n != "auto_reload_for_docker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -4032,6 +4050,90 @@ bool SrsConfig::get_asprocess()
     }
     
     return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::empty_ip_ok()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("empty_ip_ok");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_grace_start_wait()
+{
+    static srs_utime_t DEFAULT = 2300 * SRS_UTIME_MILLISECONDS;
+
+    SrsConfDirective* conf = root->get("grace_start_wait");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atol(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+srs_utime_t SrsConfig::get_grace_final_wait()
+{
+    static srs_utime_t DEFAULT = 3200 * SRS_UTIME_MILLISECONDS;
+
+    SrsConfDirective* conf = root->get("grace_final_wait");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atol(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
+}
+
+bool SrsConfig::is_force_grace_quit()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("force_grace_quit");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::disable_daemon_for_docker()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("disable_daemon_for_docker");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::inotify_auto_reload()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("inotify_auto_reload");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::auto_reload_for_docker()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("auto_reload_for_docker");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()
@@ -5749,13 +5851,13 @@ string SrsConfig::get_log_file()
     return conf->arg0();
 }
 
-bool SrsConfig::get_ffmpeg_log_enabled()
+bool SrsConfig::get_ff_log_enabled()
 {
-    string log = get_ffmpeg_log_dir();
+    string log = get_ff_log_dir();
     return log != SRS_CONSTS_NULL_FILE;
 }
 
-string SrsConfig::get_ffmpeg_log_dir()
+string SrsConfig::get_ff_log_dir()
 {
     static string DEFAULT = "./objs";
     
@@ -5764,6 +5866,18 @@ string SrsConfig::get_ffmpeg_log_dir()
         return DEFAULT;
     }
     
+    return conf->arg0();
+}
+
+string SrsConfig::get_ff_log_level()
+{
+    static string DEFAULT = "info";
+
+    SrsConfDirective* conf = root->get("ff_log_level");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
     return conf->arg0();
 }
 
@@ -6771,22 +6885,22 @@ string SrsConfig::get_vhost_http_dir(string vhost)
 bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
 {
     static bool DEFAULT = false;
-    
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("http_remux");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    
+
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 

@@ -45,24 +45,20 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
+bool _srs_in_docker = false;
 
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
 #include <srs_app_st.hpp>
-#endif
 
 // Initialize global settings.
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
-    #if !defined(SRS_OSX)
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "init st");
     }
 
     srs_freep(_srs_context);
     _srs_context = new SrsThreadContext();
-    #endif
 
     return err;
 }

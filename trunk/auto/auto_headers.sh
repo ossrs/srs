@@ -40,9 +40,6 @@ function srs_undefine_macro()
 }
 
 # export the preset.
-if [ $SRS_OSX = YES ]; then
-    srs_define_macro "SRS_OSX" $SRS_AUTO_HEADERS_H
-fi
 if [ $SRS_X86_X64 = YES ]; then
     srs_define_macro "SRS_X86_X64" $SRS_AUTO_HEADERS_H
 fi
@@ -134,6 +131,16 @@ if [ $SRS_LOG_TRACE = YES ]; then
     srs_define_macro "SRS_AUTO_TRACE" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_AUTO_TRACE" $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_CROSS_BUILD = YES ]; then
+    srs_define_macro "SRS_AUTO_CROSSBUILD" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_CROSSBUILD" $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_OSX = YES ]; then
+    srs_define_macro "SRS_AUTO_OSX" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_AUTO_OSX" $SRS_AUTO_HEADERS_H
 fi
 
 # prefix

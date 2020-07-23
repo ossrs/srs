@@ -52,3 +52,6 @@ CONTRIBUTORS ordered by first contribution.
 * xialixin<xlx0625@163.com>
 * alphonsetai<tyh_123@163.com>
 * Michael.Ma<wnpllr@gmail.com>
+* lam2003<linmin3@yy.com>
+* l<22312935+lam2003@users.noreply.github.com>
+* xfalcon<x-falcon@users.noreply.github.com>

@@ -707,9 +707,9 @@ public:
     // @param server_ip the ip of server.
     virtual srs_error_t response_connect_app(SrsRequest* req, const char* server_ip = NULL);
     // Redirect the connection to another rtmp server.
-    // @param the hostname or ip of target.
+    // @param a RTMP url to redirect to.
     // @param whether the client accept the redirect.
-    virtual srs_error_t redirect(SrsRequest* r, std::string host, int port, bool& accepted);
+    virtual srs_error_t redirect(SrsRequest* r, std::string url, bool& accepted);
     // Reject the connect app request.
     virtual void response_connect_reject(SrsRequest* req, const char* desc);
     // Response  client the onBWDone message.

@@ -124,7 +124,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
             enum http_errno code;
 	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
 	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
-	                buffer->size(), consumed, http_errno_name(code), http_errno_description(code));
+	                buffer->size(), consumed, code, http_errno_name(code), http_errno_description(code));
 	        }
 
             // When buffer consumed these bytes, it's dropped so the new ptr is actually the HTTP body. But http-parser

@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
@@ -94,14 +95,16 @@ srs_error_t SrsEncoder::cycle()
     srs_error_t err = srs_success;
     
     while (true) {
-        if ((err = do_cycle()) != srs_success) {
-            srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
-            srs_error_reset(err);
-        }
-        
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd->pull()) != srs_success) {
             err = srs_error_wrap(err, "encoder");
             break;
+        }
+
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("Encoder: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
         }
     
         srs_usleep(SRS_RTMP_ENCODER_CIMS);
@@ -282,11 +285,12 @@ srs_error_t SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, Sr
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[param]", req->param);
     output = srs_string_replace(output, "[engine]", engine->arg0());
+    output = srs_path_build_timestamp(output);
     
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
-    if (_srs_config->get_ffmpeg_log_enabled()) {
-        log_file = _srs_config->get_ffmpeg_log_dir();
+    if (_srs_config->get_ff_log_enabled()) {
+        log_file = _srs_config->get_ff_log_dir();
         log_file += "/";
         log_file += "ffmpeg-encoder";
         log_file += "-";

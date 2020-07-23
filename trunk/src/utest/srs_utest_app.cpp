@@ -26,9 +26,8 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_app_fragment.hpp>
-
-// Disable coroutine test for OSX.
-#if !defined(SRS_OSX)
+#include <srs_app_security.hpp>
+#include <srs_app_config.hpp>
 
 #include <srs_app_st.hpp>
 
@@ -375,5 +374,186 @@ VOID TEST(AppFragmentTest, CheckDuration)
 	}
 }
 
-#endif
+VOID TEST(AppSecurity, CheckSecurity)
+{
+    srs_error_t err;
+
+    // Deny if no rules.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr;
+        HELPER_EXPECT_FAILED(sec.do_check(NULL, SrsRtmpConnUnknown, "", &rr));
+    }
+
+    // Deny if not allowed.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("others"); rules.get_or_create("any");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "", &rr));
+    }
+
+    // Deny by rule.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "all");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "11.12.13.14");
+        if (true) {
+            SrsConfDirective* d = new SrsConfDirective();
+            d->name = "deny";
+            d->args.push_back("play");
+            d->args.push_back("12.13.14.15");
+            rules.directives.push_back(d);
+        }
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "all");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+
+    // Allowed if not denied.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "11.12.13.14", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnUnknown, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "11.12.13.14", &rr));
+    }
+
+    // Allowed by rule.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "play", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "play", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFlashPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+
+    // Allowed if not denied.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "12.13.14.15");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("deny", "play", "all");
+        HELPER_EXPECT_SUCCESS(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+
+    // Denied if not allowd.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "play", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnFMLEPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "play", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "12.13.14.15");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnHaivisionPublish, "12.13.14.15", &rr));
+    }
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "publish", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnUnknown, "11.12.13.14", &rr));
+    }
+
+    // Denied if dup.
+    if (true) {
+        SrsSecurity sec; SrsRequest rr; SrsConfDirective rules;
+        rules.get_or_create("allow", "play", "11.12.13.14");
+        rules.get_or_create("deny", "play", "11.12.13.14");
+        HELPER_EXPECT_FAILED(sec.do_check(&rules, SrsRtmpConnPlay, "11.12.13.14", &rr));
+    }
+
+    // SRS apply the following simple strategies one by one:
+    //       1. allow all if security disabled.
+    //       2. default to deny all when security enabled.
+    //       3. allow if matches allow strategy.
+    //       4. deny if matches deny strategy.
+}
 

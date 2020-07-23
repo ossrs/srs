@@ -243,6 +243,9 @@ srs_error_t SrsRtspConn::do_cycle()
     
     // retrieve ip of client.
     std::string ip = srs_get_peer_ip(srs_netfd_fileno(stfd));
+    if (ip.empty() && !_srs_config->empty_ip_ok()) {
+        srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
+    }
     srs_trace("rtsp: serve %s", ip.c_str());
     
     // consume all rtsp messages.

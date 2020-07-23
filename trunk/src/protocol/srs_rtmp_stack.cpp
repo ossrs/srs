@@ -2415,17 +2415,20 @@ srs_error_t SrsRtmpServer::response_connect_app(SrsRequest *req, const char* ser
 }
 
 #define SRS_RTMP_REDIRECT_TIMEOUT (3 * SRS_UTIME_SECONDS)
-srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string host, int port, bool& accepted)
+srs_error_t SrsRtmpServer::redirect(SrsRequest* r, string url, bool& accepted)
 {
     srs_error_t err = srs_success;
     
     if (true) {
-        string url = srs_generate_rtmp_url(host, port, r->host, r->vhost, r->app, r->stream, r->param);
-        
         SrsAmf0Object* ex = SrsAmf0Any::object();
         ex->set("code", SrsAmf0Any::number(302));
-        ex->set("redirect", SrsAmf0Any::str(url.c_str()));
-        
+
+        // The redirect is tcUrl while redirect2 is RTMP URL.
+        // https://github.com/ossrs/srs/issues/1575#issuecomment-574999798
+        string tcUrl = srs_path_dirname(url);
+        ex->set("redirect", SrsAmf0Any::str(tcUrl.c_str()));
+        ex->set("redirect2", SrsAmf0Any::str(url.c_str()));
+
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));

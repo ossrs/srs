@@ -152,7 +152,7 @@ srs_error_t srs_redirect_output(string from_file, int to_fd)
     
     // redirect the fd to file.
     int fd = -1;
-    int flags = O_CREAT|O_WRONLY|O_APPEND;
+    int flags = O_CREAT|O_RDWR|O_APPEND;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
     if ((fd = ::open(from_file.c_str(), flags, mode)) < 0) {
@@ -197,10 +197,7 @@ srs_error_t SrsProcess::start()
         // ignore the SIGINT and SIGTERM
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
-        
-        // for the stdin,
-        // should never close it or ffmpeg will error.
-        
+
         // for the stdout, ignore when not specified.
         // redirect stdout to file if possible.
         if ((err = srs_redirect_output(stdout_file, STDOUT_FILENO)) != srs_success) {
@@ -212,16 +209,22 @@ srs_error_t SrsProcess::start()
         if ((err = srs_redirect_output(stderr_file, STDERR_FILENO)) != srs_success) {
             return srs_error_wrap(err, "redirect output");
         }
-        
+
+        // No stdin for process, @bug https://github.com/ossrs/srs/issues/1592
+        if ((err = srs_redirect_output("/dev/null", STDIN_FILENO)) != srs_success) {
+            return srs_error_wrap(err, "redirect input");
+        }
+
         // should never close the fd 3+, for it myabe used.
         // for fd should close at exec, use fnctl to set it.
         
         // log basic info to stderr.
         if (true) {
-            fprintf(stderr, "\n");
-            fprintf(stderr, "process ppid=%d, cid=%d, pid=%d\n", ppid, cid, getpid());
-            fprintf(stderr, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
-            fprintf(stderr, "process actual cli: %s\n", actual_cli.c_str());
+            fprintf(stdout, "\n");
+            fprintf(stdout, "process ppid=%d, cid=%d, pid=%d, in=%d, out=%d, err=%d\n",
+                ppid, cid, getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
+            fprintf(stdout, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
+            fprintf(stdout, "process actual cli: %s\n", actual_cli.c_str());
         }
         
         // memory leak in child process, it's ok.
@@ -245,6 +248,10 @@ srs_error_t SrsProcess::start()
     
     // parent.
     if (pid > 0) {
+        // Wait for a while for process to really started.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597568840
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
         is_started = true;
         srs_trace("fored process, pid=%d, bin=%s, stdout=%s, stderr=%s, argv=%s",
                   pid, bin.c_str(), stdout_file.c_str(), stderr_file.c_str(), actual_cli.c_str());
@@ -324,6 +331,31 @@ void SrsProcess::fast_stop()
         return;
     }
     
+    return;
+}
+
+void SrsProcess::fast_kill()
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!is_started) {
+        return;
+    }
+
+    if (pid <= 0) {
+        return;
+    }
+
+    if (kill(pid, SIGKILL) < 0) {
+        ret = ERROR_SYSTEM_KILL;
+        srs_warn("ignore fast kill process failed, pid=%d. ret=%d", pid, ret);
+        return;
+    }
+
+    // Try to wait pid to avoid zombie FFMEPG.
+    int status = 0;
+    waitpid(pid, &status, WNOHANG);
+
     return;
 }
 

@@ -26,16 +26,11 @@ BLACK="\\033[0m"
 # setup variables when options parsed.
 . auto/setup_variables.sh
 
-# clean the exists, when not export srs-librtmp.
-# do this only when the options is ok.
-if [[ -f Makefile ]]; then
-make clean
-fi
-# remove makefile
+# We don't need to cleanup the exists files.
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 # create objs
-mkdir -p ${SRS_OBJS}
+mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}
 
 # for export srs-librtmp, change target to it.
 . auto/generate-srs-librtmp-project.sh
@@ -57,7 +52,7 @@ SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
-if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(MAKE))"; fi
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/utest && \$(MAKE))"; fi
 
 #####################################################################################
 # finger out modules to install.
@@ -119,16 +114,16 @@ if [[ $SRS_GCOV == YES ]]; then
     CXXFLAGS="${CXXFLAGS} ${SrsGcov}";
 fi
 # User configed options.
-if [[ $SRS_EXTRA_CFLAGS != '' ]]; then
-    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_CFLAGS";
+if [[ $SRS_EXTRA_FLAGS != '' ]]; then
+    CXXFLAGS="${CXXFLAGS} $SRS_EXTRA_FLAGS";
 fi
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
-GCC = gcc
-CXX = g++
-AR = ar
+GCC = ${SRS_TOOL_CC}
+CXX = ${SRS_TOOL_CXX}
+AR = ${SRS_TOOL_AR}
 ARFLAGS = -rs
-LINK = g++
+LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
 .PHONY: default srs srs_ingest_hls librtmp
@@ -144,6 +139,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
 # openssl-1.1.0e, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
@@ -179,7 +175,7 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_autofree" "srs_core_performance"
+MODULE_FILES=("srs_core" "srs_core_version3" "srs_core_autofree" "srs_core_performance"
 		"srs_core_mem_watch" "srs_core_time")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
@@ -318,6 +314,11 @@ if [ $SRS_LIBRTMP = YES ]; then
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${LIBS_OBJS[@]}"
     BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
 fi
+# For utest on mac.
+# @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
+if [[ $SRS_OSX == YES ]]; then
+    EXTRA_DEFINES="-DGTEST_USE_OWN_TR1_TUPLE=1"
+fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 if [ $SRS_UTEST = YES ]; then
@@ -345,7 +346,9 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+.PHONY: st
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -364,24 +367,58 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
-	@echo "     clean              cleanup project"
+	@echo "     clean              cleanup project and all depends"
+	@echo "     destroy            Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
 	@echo "     install-api        install srs and api-server to the prefix path"
 	@echo "     uninstall          uninstall srs from prefix path"
+	@echo "To clean special module:"
+	@echo "     clean_st           Clean depend st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
+	@echo "     clean_openssl      Clean depend openssl in objs"
+	@echo "     clean_ffmpeg       Clean depend ffmpeg in objs"
 	@echo "@remark all modules will auto genearted and build"
 	@echo "For example:"
 	@echo "     make"
 	@echo "     make help"
 
-clean: 
+doclean:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
-	(cd ${SRS_OBJS_DIR} && rm -rf src include lib)
-	(cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
+	(cd ${SRS_OBJS_DIR} && rm -rf src/* include lib)
+	(mkdir -p ${SRS_OBJS_DIR}/utest && cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
+	(cd research/librtmp && make clean)
+	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
+
+clean: clean_srs clean_modules
+	@echo "You can clean each some components, see make help"
+
+destroy: clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
+	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
+
+clean_srs:
+	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf src include lib utest)
+
+clean_modules:
+	(cd ${SRS_OBJS_DIR} && rm -rf $__mdefaults)
+
+clean_st:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && make clean)
+
+clean_openssl:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf openssl*)
+
+clean_ffmpeg:
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf ffmpeg)
+
+clean_nginx:
+	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
+
+clean_cherrypy:
 	(cd research/librtmp && make clean)
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
@@ -513,7 +550,7 @@ librtmp: server
 	@echo "Building the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "Building the srs-librtmp example."
-	(cd research/librtmp; \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp && \$(MAKE) EXTRA_CXXFLAGS="${SrsGcov}" ${SrsLibrtmpSampleEntry})
 
 END
 else
@@ -568,7 +605,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo ""
     echo "Configure summary:"
     echo "     ${SRS_AUTO_USER_CONFIGURE}"
-    echo "      ${SRS_AUTO_CONFIGURE}"
+    echo "     ${SRS_AUTO_CONFIGURE}"
     if [ $SRS_HLS = YES ]; then
         echo -e "${GREEN}HLS is enabled.${BLACK}"
     else

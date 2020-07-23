@@ -40,3 +40,4 @@ srs
 *.ts
 *.h264
 *.264
+3rdparty/ffmpeg-4.2-fit

@@ -82,9 +82,9 @@ SrsFFMPEG::~SrsFFMPEG()
     srs_freep(process);
 }
 
-void SrsFFMPEG::set_iparams(string iparams)
+void SrsFFMPEG::append_iparam(string iparam)
 {
-    _iparams = iparams;
+    iparams.push_back(iparam);
 }
 
 void SrsFFMPEG::set_oformat(string format)
@@ -230,8 +230,11 @@ srs_error_t SrsFFMPEG::start()
     params.push_back(ffmpeg);
     
     // input params
-    if (!_iparams.empty()) {
-        params.push_back(_iparams);
+    for (int i = 0; i < (int)iparams.size(); i++) {
+        string iparam = iparams.at(i);
+        if (!iparam.empty()) {
+            params.push_back(iparam);
+        }
     }
     
     // build the perfile
@@ -416,6 +419,11 @@ void SrsFFMPEG::stop()
 void SrsFFMPEG::fast_stop()
 {
     process->fast_stop();
+}
+
+void SrsFFMPEG::fast_kill()
+{
+    process->fast_kill();
 }
 
 #endif

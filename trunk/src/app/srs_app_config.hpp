@@ -215,6 +215,7 @@ public:
 public:
     virtual SrsConfDirective* get_or_create(std::string n);
     virtual SrsConfDirective* get_or_create(std::string n, std::string a0);
+    virtual SrsConfDirective* get_or_create(std::string n, std::string a0, std::string a1);
     virtual SrsConfDirective* set_arg0(std::string a0);
     // Remove the v from sub directives, user must free the v.
     virtual void remove(SrsConfDirective* v);
@@ -467,6 +468,20 @@ public:
     virtual std::string get_work_dir();
     // Whether use asprocess mode.
     virtual bool get_asprocess();
+    // Whether empty client IP is ok.
+    virtual bool empty_ip_ok();
+    // Get the start wait in ms for gracefully quit.
+    virtual srs_utime_t get_grace_start_wait();
+    // Get the final wait in ms for gracefully quit.
+    virtual srs_utime_t get_grace_final_wait();
+    // Whether force to gracefully quit, never fast quit.
+    virtual bool is_force_grace_quit();
+    // Whether disable daemon for docker.
+    virtual bool disable_daemon_for_docker();
+    // Whether use inotify to auto reload by watching config file changes.
+    virtual bool inotify_auto_reload();
+    // Whether enable auto reload config for docker.
+    virtual bool auto_reload_for_docker();
 // stream_caster section
 public:
     // Get all stream_caster in config file.
@@ -778,10 +793,12 @@ public:
     // Get the log file path.
     virtual std::string get_log_file();
     // Whether ffmpeg log enabled
-    virtual bool get_ffmpeg_log_enabled();
+    virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.
     // @remark, /dev/null to disable it.
-    virtual std::string get_ffmpeg_log_dir();
+    virtual std::string get_ff_log_dir();
+    // The ffmpeg log level.
+    virtual std::string get_ff_log_level();
 // The MPEG-DASH section.
 private:
     virtual SrsConfDirective* get_dash(std::string vhost);
