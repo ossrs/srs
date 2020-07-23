@@ -35,6 +35,8 @@ SrsFragment::SrsFragment()
 {
     dur = 0;
     start_dts = -1;
+    audio_start_dts = -1;
+    video_start_dts = -1;
     sequence_header = false;
 }
 
@@ -61,6 +63,36 @@ void SrsFragment::append(int64_t dts)
     // TODO: FIXME: Use cumulus dts.
     start_dts = srs_min(start_dts, dts_in_tbn);
     dur = dts_in_tbn - start_dts;
+}
+
+void SrsFragment::append(int64_t dts, bool is_video) 
+{
+    // The max positive ms is 0x7fffffffffffffff/1000.
+    static const int64_t maxMS = 0x20c49ba5e353f7LL;
+
+    // We reset negative or overflow dts to zero.
+    if (dts > maxMS || dts < 0) {
+        dts = 0;
+    }
+
+    srs_utime_t dts_in_tbn = dts * SRS_UTIME_MILLISECONDS;
+
+    if (is_video) {
+        if (video_start_dts == -1) {
+            video_start_dts = dts_in_tbn;
+        }
+        
+        video_start_dts = srs_min(video_start_dts, dts_in_tbn);
+        dur = srs_max(dts_in_tbn - video_start_dts, dur);
+    }
+    else {
+        if (audio_start_dts == -1) {
+            audio_start_dts = dts_in_tbn;
+        }
+
+        audio_start_dts = srs_min(audio_start_dts, dts_in_tbn);
+        dur = srs_max(dts_in_tbn - audio_start_dts, dur);
+    }
 }
 
 srs_utime_t SrsFragment::duration()

@@ -40,6 +40,10 @@ private:
     std::string filepath;
     // The start DTS in srs_utime_t of segment.
     srs_utime_t start_dts;
+    // The video start DTS in srs_utime_t of segment.
+    srs_utime_t audio_start_dts;
+    // The audio start DTS in srs_utime_t of segment.
+    srs_utime_t video_start_dts;
     // Whether current segement contains sequence header.
     bool sequence_header;
 public:
@@ -49,6 +53,9 @@ public:
     // Append a frame with dts into fragment.
     // @dts The dts of frame in ms.
     virtual void append(int64_t dts);
+    // Append a video frame or a audio frame with dts info fragment.
+    // Duration: audio duration and video duration are the larger one 
+    virtual void append(int64_t dts, bool is_video);
     // Get the duration of fragment in srs_utime_t.
     virtual srs_utime_t duration();
     // Whether the fragment contains any sequence header.
