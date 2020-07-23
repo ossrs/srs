@@ -257,6 +257,8 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
     srs_trace("RTC player nack=%d", nack_enabled_);
 
+    session_->stat_->nn_subscribers++;
+
     return err;
 }
 
@@ -385,6 +387,9 @@ srs_error_t SrsRtcPlayStream::cycle()
             continue;
         }
 
+        // Update stats for session.
+        session_->stat_->nn_out_rtp += msg_count;
+
         // Send-out all RTP packets and do cleanup.
         // TODO: FIXME: Handle error.
         send_packets(source, pkts, info);
@@ -448,8 +453,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             }
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
         } else {
-            info.nn_videos++;
-
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
             // TODO: FIXME: Any simple solution?
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
@@ -562,14 +565,22 @@ srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
 srs_error_t SrsRtcPlayStream::on_rtcp_sr(char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
+
     // TODO: FIXME: Implements it.
+
+    session_->stat_->nn_sr++;
+
     return err;
 }
 
 srs_error_t SrsRtcPlayStream::on_rtcp_xr(char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
+
     // TODO: FIXME: Implements it.
+
+    session_->stat_->nn_xr++;
+
     return err;
 }
 
@@ -654,6 +665,8 @@ srs_error_t SrsRtcPlayStream::on_rtcp_feedback(char* buf, int nb_buf)
         return srs_error_wrap(err, "raw send");
     }
 
+    session_->stat_->nn_nack++;
+
     return err;
 }
 
@@ -688,6 +701,8 @@ srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(char* buf, int nb_buf)
                     srs_trace("RTC request PLI");
                 }
             }
+
+            session_->stat_->nn_pli++;
             break;
         }
         case kSLI: {
@@ -713,7 +728,11 @@ srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(char* buf, int nb_buf)
 srs_error_t SrsRtcPlayStream::on_rtcp_rr(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
+
     // TODO: FIXME: Implements it.
+
+    session_->stat_->nn_rr++;
+
     return err;
 }
 
@@ -793,6 +812,8 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled, twcc_id);
 
+    session_->stat_->nn_publishers++;
+
     return err;
 }
 
@@ -848,6 +869,8 @@ srs_error_t SrsRtcPublishStream::send_rtcp_rr()
         track->send_rtcp_rr();
     }
 
+    session_->stat_->nn_rr++;
+
     return err;
 }
 
@@ -865,17 +888,27 @@ srs_error_t SrsRtcPublishStream::send_rtcp_xr_rrtr()
         track->send_rtcp_xr_rrtr();
     }
 
+    session_->stat_->nn_xr++;
+
     return err;
 }
 
 srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn) {
+    srs_error_t err = srs_success;
+
     srs_utime_t now = srs_get_system_time();
-    return rtcp_twcc_.recv_packet(sn, now);
+    err = rtcp_twcc_.recv_packet(sn, now);
+
+    session_->stat_->nn_in_twcc++;
+
+    return err;
 }
 
 srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
+
+    session_->stat_->nn_in_rtp++;
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
@@ -1376,6 +1409,8 @@ void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
     if (video_track) {
         video_track->request_keyframe();
     }
+
+    session_->stat_->nn_pli++;
 }
 
 srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
@@ -1458,12 +1493,58 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
+SrsRtcConnectionStat::SrsRtcConnectionStat()
+{
+    dead = born = srs_get_system_time();
+    nn_publishers = nn_subscribers = 0;
+    nn_rr = nn_xr = 0;
+    nn_sr = nn_nack = nn_pli = 0;
+    nn_in_twcc = nn_in_rtp = nn_in_audios = nn_in_videos = 0;
+    nn_out_twcc = nn_out_rtp = nn_out_audios = nn_out_videos = 0;
+}
+
+SrsRtcConnectionStat::~SrsRtcConnectionStat()
+{
+}
+
+string SrsRtcConnectionStat::summary()
+{
+    dead = srs_get_system_time();
+
+    stringstream ss;
+
+    ss << "alive=" << srsu2msi(dead - born) << "ms";
+
+    if (nn_publishers) ss << ", npub=" << nn_publishers;
+    if (nn_subscribers) ss << ", nsub=" << nn_subscribers;
+
+    if (nn_rr) ss << ", nrr=" << nn_rr;
+    if (nn_xr) ss << ", nxr=" << nn_xr;
+    
+    if (nn_sr) ss << ", nsr=" << nn_sr;
+    if (nn_nack) ss << ", nnack=" << nn_nack;
+    if (nn_pli) ss << ", npli=" << nn_pli;
+
+    if (nn_in_twcc) ss << ", in_ntwcc=" << nn_in_twcc;
+    if (nn_in_rtp) ss << ", in_nrtp=" << nn_in_rtp;
+    if (nn_in_audios) ss << ", in_naudio=" << nn_in_audios;
+    if (nn_in_videos) ss << ", in_nvideo=" << nn_in_videos;
+
+    if (nn_out_twcc) ss << ", out_ntwcc=" << nn_out_twcc;
+    if (nn_out_rtp) ss << ", out_nrtp=" << nn_out_rtp;
+    if (nn_out_audios) ss << ", out_naudio=" << nn_out_audios;
+    if (nn_out_videos) ss << ", out_nvideo=" << nn_out_videos;
+
+    return ss.str();
+}
+
 SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
 {
     req = NULL;
     is_publisher_ = false;
     encrypt = true;
     cid = context_id;
+    stat_ = new SrsRtcConnectionStat();
 
     source_ = NULL;
     publisher_ = NULL;
@@ -1488,6 +1569,7 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(transport_);
     srs_freep(req);
     srs_freep(sendonly_skt);
+    srs_freep(stat_);
 }
 
 SrsSdp* SrsRtcConnection::get_local_sdp()

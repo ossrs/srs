@@ -550,6 +550,10 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
         map_id_session.erase(it);
     }
 
+    SrsContextRestore(_srs_context->get_id());
+    session->switch_to_context();
+    srs_trace("RTC session=%s, destroy, summary: %s", session->id().c_str(), session->stat_->summary().c_str());
+
     zombies_.push_back(session);
 }
 
@@ -581,7 +585,7 @@ void SrsRtcServer::check_and_clean_timeout_session()
         // Now, we got the RTC session to cleanup, switch to its context
         // to make all logs write to the "correct" pid+cid.
         session->switch_to_context();
-        srs_trace("RTC session=%s, STUN timeout", session->id().c_str());
+        srs_trace("RTC session=%s, STUN timeout, summary: %s", session->id().c_str(), session->stat_->summary().c_str());
 
         session->disposing_ = true;
         zombies_.push_back(session);

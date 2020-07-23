@@ -200,6 +200,7 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
+    // TODO: FIXME: Remove dead code.
     virtual void stop_loop();
 public:
     virtual srs_error_t cycle();
@@ -287,6 +288,26 @@ private:
     void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp);
 };
 
+// The statistics for RTC connection.
+class SrsRtcConnectionStat
+{
+public:
+    int nn_publishers;
+    int nn_subscribers;
+    int nn_rr; int nn_xr;
+    int nn_sr; int nn_nack; int nn_pli;
+    uint64_t nn_in_twcc; uint64_t nn_in_rtp; uint64_t nn_in_audios; uint64_t nn_in_videos;
+    uint64_t nn_out_twcc; uint64_t nn_out_rtp; uint64_t nn_out_audios; uint64_t nn_out_videos;
+private:
+    srs_utime_t born;
+    srs_utime_t dead;
+public:
+    SrsRtcConnectionStat();
+    virtual ~SrsRtcConnectionStat();
+public:
+    std::string summary();
+};
+
 // A RTC Peer Connection, SDP level object.
 class SrsRtcConnection
 {
@@ -295,6 +316,7 @@ class SrsRtcConnection
     friend class SrsRtcPublishStream;
 public:
     bool disposing_;
+    SrsRtcConnectionStat* stat_;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;

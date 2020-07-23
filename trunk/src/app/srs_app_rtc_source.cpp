@@ -1632,6 +1632,8 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
         return srs_error_wrap(err, "on nack");
     }
 
+    session_->stat_->nn_in_audios++;
+
     return err;
 }
 
@@ -1669,6 +1671,8 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     if ((err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
+
+    session_->stat_->nn_in_videos++;
 
     return err;
 }
@@ -1713,6 +1717,7 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     return NULL;
 }
 
+// TODO: FIXME: Should refine logs, set tracks in a time.
 void SrsRtcSendTrack::set_track_status(bool active)
 {
     track_desc_->is_active_ = active;
@@ -1764,6 +1769,7 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo&
     // Update stats.
     info.nn_bytes += pkt->nb_bytes();
     info.nn_audios++;
+    session_->stat_->nn_out_audios++;
 
     if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
         return srs_error_wrap(err, "raw send");
@@ -1809,6 +1815,7 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo&
     // Update stats.
     info.nn_bytes += pkt->nb_bytes();
     info.nn_videos++;
+    session_->stat_->nn_out_videos++;
 
     if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
         return srs_error_wrap(err, "raw send");
