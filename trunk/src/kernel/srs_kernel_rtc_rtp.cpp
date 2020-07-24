@@ -126,11 +126,10 @@ srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
         return srs_error_new(ERROR_RTC_RTP, "invalid twcc id=%d, len=%d", id_, len);
     }
 
-    if (!buf->require(3)) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
     }
     sn_ = buf->read_2bytes();
-    buf->read_1bytes();
 
     has_twcc_ = true;
     return err;
@@ -144,10 +143,17 @@ int SrsRtpExtensionTwcc::nb_bytes()
 srs_error_t SrsRtpExtensionTwcc::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
+
+    // TODO: FIXME: Only requires 3 bytes.
+    if(!buf->require(4)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 4);
+    }
  
     uint8_t id_len = (id_ & 0x0F)<< 4| 0x01;
     buf->write_1bytes(id_len);
     buf->write_2bytes(sn_);
+
+    // TODO: FIXME: Should padding in the final of SrsRtpExtensions::encode.
     buf->write_1bytes(0x00);
     
     return err;
@@ -245,7 +251,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
         SrsRtpExtensionType xtype = types_.get_type(id);
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if(srs_success != (err = twcc_.decode(buf))) {
+            if (srs_success != (err = twcc_.decode(buf))) {
                 return srs_error_wrap(err, "decode twcc extension");
             }
             has_ext_ = true;
@@ -265,16 +271,18 @@ int SrsRtpExtensions::nb_bytes()
 srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
+
     buf->write_2bytes(0xBEDE);
+
     int len = 0;
     //TODO: When add new rtp extension, it should add the extension length into len
-    if(twcc_.has_twcc_ext()) {
+    if (twcc_.has_twcc_ext()) {
         len += twcc_.nb_bytes();
     }
     buf->write_2bytes(len / 4);
 
-    if(twcc_.has_twcc_ext()) {
-        if(srs_success != (err = twcc_.encode(buf))) {
+    if (twcc_.has_twcc_ext()) {
+        if (srs_success != (err = twcc_.encode(buf))) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }
@@ -295,7 +303,7 @@ void SrsRtpExtensions::set_types_(const SrsRtpExtensionTypes* types)
 
 srs_error_t SrsRtpExtensions::get_twcc_sequence_number(uint16_t& twcc_sn)
 {
-    if(twcc_.has_twcc_ext()) {
+    if (twcc_.has_twcc_ext()) {
         twcc_sn = twcc_.get_sn();
         return srs_success;
     }
