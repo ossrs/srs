@@ -233,6 +233,20 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
     _srs_config->unsubscribe(this);
 
     srs_freep(trd);
+
+    if (true) {
+        std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
+        for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+            srs_freep(it->second);
+        }
+    }
+
+    if (true) {
+        std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator it;
+        for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+            srs_freep(it->second);
+        }
+    }
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
