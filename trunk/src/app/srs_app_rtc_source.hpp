@@ -54,7 +54,7 @@ class SrsRtcConnection;
 class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
-class SrsRtcOutgoingInfo;
+class SrsRtcPlayStreamStatistic;
 
 class SrsNtp
 {
@@ -471,7 +471,7 @@ public:
     void set_track_status(bool active);
     std::string get_track_id();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
 };
 
@@ -481,7 +481,7 @@ public:
     SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcAudioSendTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
 };
 
@@ -491,7 +491,7 @@ public:
     SrsRtcVideoSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcVideoSendTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcOutgoingInfo& info);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
 };
 
