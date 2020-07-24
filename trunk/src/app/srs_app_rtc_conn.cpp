@@ -2524,6 +2524,11 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         SrsVideoPayload* payload = (SrsVideoPayload*)video_track->media_;
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
 
+        if (video_track->red_) {
+            SrsRedPayload* payload = (SrsRedPayload*)video_track->red_;
+            local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+        }
+
         // only need media desc info, not ssrc info;
         break;
     }
@@ -2614,12 +2619,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
                 srs_freep(track->rtx_);
                 track->rtx_ssrc_ = 0;
             }
-            // TODO: FIXME: if we support downlink ulpfec, MUST assign ulpfec params
-            // set_ulpfec_config;
-            if (true) {
-                srs_freep(track->ulpfec_);
-                track->fec_ssrc_ = 0;
-            }
 
             track->set_direction("sendonly");
             sub_relations.insert(make_pair(publish_ssrc, track));
@@ -2675,11 +2674,6 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
         // not support rtx
         srs_freep(track->rtx_);
         track->rtx_ssrc_ = 0;
-
-        // TODO: FIXME: if we support downlink ulpfec, MUST assign ulpfec params
-        // set_ulpfec_config;
-        srs_freep(track->ulpfec_);
-        track->fec_ssrc_ = 0;
 
         track->set_direction("sendonly");
         sub_relations.insert(make_pair(publish_ssrc, track));
@@ -2805,6 +2799,11 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             SrsVideoPayload* payload = (SrsVideoPayload*)track->media_;
 
             local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+
+            if (track->red_) {
+                SrsRedPayload* red_payload = (SrsRedPayload*)track->red_;
+                local_media_desc.payload_types_.push_back(red_payload->generate_media_payload_type());
+            }
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
