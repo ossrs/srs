@@ -289,21 +289,19 @@ private:
 };
 
 // The statistics for RTC connection.
-class SrsRtcConnectionStat
+class SrsRtcConnectionStatistic
 {
 public:
-    int nn_publishers;
-    int nn_subscribers;
-    int nn_rr; int nn_xr;
-    int nn_sr; int nn_nack; int nn_pli;
+    int nn_publishers; int nn_subscribers;
+    int nn_rr; int nn_xr; int nn_sr; int nn_nack; int nn_pli;
     uint64_t nn_in_twcc; uint64_t nn_in_rtp; uint64_t nn_in_audios; uint64_t nn_in_videos;
     uint64_t nn_out_twcc; uint64_t nn_out_rtp; uint64_t nn_out_audios; uint64_t nn_out_videos;
 private:
     srs_utime_t born;
     srs_utime_t dead;
 public:
-    SrsRtcConnectionStat();
-    virtual ~SrsRtcConnectionStat();
+    SrsRtcConnectionStatistic();
+    virtual ~SrsRtcConnectionStatistic();
 public:
     std::string summary();
 };
@@ -316,7 +314,7 @@ class SrsRtcConnection
     friend class SrsRtcPublishStream;
 public:
     bool disposing_;
-    SrsRtcConnectionStat* stat_;
+    SrsRtcConnectionStatistic* stat_;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;

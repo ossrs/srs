@@ -1493,7 +1493,7 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
-SrsRtcConnectionStat::SrsRtcConnectionStat()
+SrsRtcConnectionStatistic::SrsRtcConnectionStatistic()
 {
     dead = born = srs_get_system_time();
     nn_publishers = nn_subscribers = 0;
@@ -1503,11 +1503,11 @@ SrsRtcConnectionStat::SrsRtcConnectionStat()
     nn_out_twcc = nn_out_rtp = nn_out_audios = nn_out_videos = 0;
 }
 
-SrsRtcConnectionStat::~SrsRtcConnectionStat()
+SrsRtcConnectionStatistic::~SrsRtcConnectionStatistic()
 {
 }
 
-string SrsRtcConnectionStat::summary()
+string SrsRtcConnectionStatistic::summary()
 {
     dead = srs_get_system_time();
 
@@ -1544,7 +1544,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
     is_publisher_ = false;
     encrypt = true;
     cid = context_id;
-    stat_ = new SrsRtcConnectionStat();
+    stat_ = new SrsRtcConnectionStatistic();
 
     source_ = NULL;
     publisher_ = NULL;
