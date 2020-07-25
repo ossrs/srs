@@ -284,13 +284,20 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 {
     srs_error_t err = srs_success;
 
+    string peer_id = skt->peer_id();
     char* data = skt->data(); int size = skt->size();
-    SrsRtcConnection* session = find_session_by_peer_id(skt->peer_id());
 
-    if (session) {
-        // Now, we got the RTC session to handle the packet, switch to its context
-        // to make all logs write to the "correct" pid+cid.
-        session->switch_to_context();
+    SrsRtcConnection* session = NULL;
+    if (true) {
+        map<string, SrsRtcConnection*>::iterator it = map_id_session.find(peer_id);
+        if (it != map_id_session.end()) {
+            session = it->second;
+
+            // Switch to the session to write logs to the context.
+            if (session) {
+                session->switch_to_context();
+            }
+        }
     }
 
     // For STUN, the peer address may change.
@@ -299,27 +306,29 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
         }
-        srs_verbose("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            skt->peer_id().c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
+        srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
+            peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
             session = find_session_by_username(ping.get_username());
+
+            // Switch to the session to write logs to the context.
             if (session) {
                 session->switch_to_context();
             }
         }
-        if (session == NULL) {
+        if (!session) {
             return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
-                ping.get_username().c_str(), skt->peer_id().c_str());
+                ping.get_username().c_str(), peer_id.c_str());
         }
 
         return session->on_stun(skt, &ping);
     }
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
-    if (session == NULL) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", skt->peer_id().c_str());
+    if (!session) {
+        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", peer_id.c_str());
     }
 
     if (is_dtls((uint8_t*)data, size)) {
@@ -598,21 +607,6 @@ void SrsRtcServer::check_and_clean_timeout_session()
             handler->on_timeout(session);
         }
     }
-}
-
-int SrsRtcServer::nn_sessions()
-{
-    return (int)map_username_session.size();
-}
-
-SrsRtcConnection* SrsRtcServer::find_session_by_peer_id(const string& peer_id)
-{
-    map<string, SrsRtcConnection*>::iterator iter = map_id_session.find(peer_id);
-    if (iter == map_id_session.end()) {
-        return NULL;
-    }
-
-    return iter->second;
 }
 
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)

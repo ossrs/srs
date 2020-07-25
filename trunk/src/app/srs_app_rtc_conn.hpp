@@ -200,8 +200,6 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
-    // TODO: FIXME: Remove dead code.
-    virtual void stop_loop();
 public:
     virtual srs_error_t cycle();
 private:
@@ -345,12 +343,6 @@ private:
     SrsRtcStream* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
-public:
-    // TODO: FIXME: Remove dead code.
-    // User debugging parameters, overwrite config.
-    std::string sequence_startup;
-    std::string sequence_delta;
-    std::string sequence_keep;
 private:
     // twcc handler
     int twcc_id_;

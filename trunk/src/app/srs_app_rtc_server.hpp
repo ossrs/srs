@@ -118,12 +118,10 @@ public:
     void destroy(SrsRtcConnection* session);
 public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
-    // TODO: FIXME: Change to private.
-    void check_and_clean_timeout_session();
-    int nn_sessions();
-    SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 private:
-    SrsRtcConnection* find_session_by_peer_id(const std::string& peer_id);
+    void check_and_clean_timeout_session();
+public:
+    SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);

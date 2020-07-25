@@ -337,11 +337,6 @@ void SrsRtcPlayStream::stop()
     trd->stop();
 }
 
-void SrsRtcPlayStream::stop_loop()
-{
-    trd->interrupt();
-}
-
 srs_error_t SrsRtcPlayStream::cycle()
 {
     srs_error_t err = srs_success;
