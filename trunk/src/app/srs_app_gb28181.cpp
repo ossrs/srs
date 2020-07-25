@@ -593,19 +593,6 @@ int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
 	return val;
 }
 
-bool SrsPsStreamDemixer::is_aac(){
-    // SrsBuffer  *avs = new SrsBuffer(stream->bytes(), stream->length());
-    // SrsAutoFree(SrsBuffer, avs);
-    // if (!avs->empty()) {
-    //     char* frame = NULL;
-    //     int frame_size = 0;
-    //     SrsRawAacStreamCodec codec;
-    //     if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
-    //         return srs_error_wrap(err, "demux adts");
-    //     }
-    return true;
-}
-
 srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc)
 {
     srs_error_t err = srs_success;

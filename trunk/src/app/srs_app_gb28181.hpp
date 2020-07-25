@@ -260,7 +260,6 @@ private:
 public:
     int64_t parse_ps_timestamp(const uint8_t* p);
     std::string get_ps_map_type_str(uint8_t);
-    bool is_aac();
     virtual srs_error_t on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc);
 };
 
