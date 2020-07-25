@@ -323,9 +323,12 @@ private:
     SrsRtcPublishStream* publisher_;
     bool is_publisher_;
 private:
-    SrsUdpMuxSocket* sendonly_skt;
+    // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
-    std::string peer_id_;
+    // The peer address, client maybe use more than one address, it's the current selected one.
+    SrsUdpMuxSocket* sendonly_skt;
+    // The address list, client may use multiple addresses.
+    std::map<std::string, SrsUdpMuxSocket*> peer_addresses_;
 private:
     // The timeout of session, keep alive by STUN ping pong.
     srs_utime_t session_timeout;
@@ -343,6 +346,7 @@ private:
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 public:
+    // TODO: FIXME: Remove dead code.
     // User debugging parameters, overwrite config.
     std::string sequence_startup;
     std::string sequence_delta;
@@ -364,12 +368,10 @@ public:
     // Connection level state machine, for ARQ of UDP packets.
     SrsRtcConnectionStateType state();
     void set_state(SrsRtcConnectionStateType state);
-    // TODO: FIXME: Rename it.
-    std::string id();
-    // TODO: FIXME: Rename it.
-    std::string peer_id();
-    // TODO: FIXME: Rename it.
+    // Get username pair for this connection, used as ID of session.
     std::string username();
+    // Get all addresses client used.
+    std::vector<SrsUdpMuxSocket*> peer_addresses();
 public:
     void set_encrypt(bool v);
     void switch_to_context();

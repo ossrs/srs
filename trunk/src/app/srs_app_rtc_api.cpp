@@ -808,8 +808,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     session->simulate_nack_drop(drop);
 
-    srs_trace("RTC NACK session peer_id=%s, username=%s, drop=%s/%d", session->peer_id().c_str(),
-        username.c_str(), dropv.c_str(), drop);
+    srs_trace("RTC: NACK session username=%s, drop=%s/%d", username.c_str(), dropv.c_str(), drop);
 
     return srs_success;
 }

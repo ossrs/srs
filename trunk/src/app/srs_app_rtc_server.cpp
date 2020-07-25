@@ -542,17 +542,20 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 
     std::map<std::string, SrsRtcConnection*>::iterator it;
 
-    if ((it = map_username_session.find(session->username())) != map_username_session.end()) {
+    string username = session->username();
+    if ((it = map_username_session.find(username)) != map_username_session.end()) {
         map_username_session.erase(it);
     }
 
-    if ((it = map_id_session.find(session->peer_id())) != map_id_session.end()) {
-        map_id_session.erase(it);
+    vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
+    for (int i = 0; i < (int)addresses.size(); i++) {
+        SrsUdpMuxSocket* addr = addresses.at(i);
+        map_id_session.erase(addr->peer_id());
     }
 
     SrsContextRestore(_srs_context->get_id());
     session->switch_to_context();
-    srs_trace("RTC session=%s, destroy, summary: %s", session->id().c_str(), session->stat_->summary().c_str());
+    srs_trace("RTC: session destroy, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
 
     zombies_.push_back(session);
 }
@@ -560,14 +563,6 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
 {
     return map_id_session.insert(make_pair(peer_id, session)).second;
-}
-
-void SrsRtcServer::remove_id_sessions(const string& peer_id)
-{
-    std::map<std::string, SrsRtcConnection*>::iterator it;
-    if ((it = map_id_session.find(peer_id)) != map_id_session.end()) {
-        map_id_session.erase(it);
-    }
 }
 
 void SrsRtcServer::check_and_clean_timeout_session()
@@ -585,14 +580,19 @@ void SrsRtcServer::check_and_clean_timeout_session()
         // Now, we got the RTC session to cleanup, switch to its context
         // to make all logs write to the "correct" pid+cid.
         session->switch_to_context();
-        srs_trace("RTC session=%s, STUN timeout, summary: %s", session->id().c_str(), session->stat_->summary().c_str());
+        srs_trace("RTC: session STUN timeout, summary: %s", session->stat_->summary().c_str());
 
         session->disposing_ = true;
         zombies_.push_back(session);
 
         // Use C++98 style: https://stackoverflow.com/a/4636230
         map_username_session.erase(iter++);
-        map_id_session.erase(session->peer_id());
+
+        vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
+        for (int i = 0; i < (int)addresses.size(); i++) {
+            SrsUdpMuxSocket* addr = addresses.at(i);
+            map_id_session.erase(addr->peer_id());
+        }
 
         if (handler) {
             handler->on_timeout(session);

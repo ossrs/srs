@@ -113,7 +113,8 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
         return err;
     }
 
-    srs_trace("RTC session=%s, DTLS handshake done.", session_->id().c_str());
+    // TODO: FIXME: Add cost for DTLS.
+    srs_trace("RTC: DTLS handshake done.");
 
     handshake_done = true;
     if ((err = srtp_initialize()) != srs_success) {
@@ -366,13 +367,13 @@ srs_error_t SrsRtcPlayStream::cycle()
     realtime = _srs_config->get_realtime_enabled(req->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime, true);
 
-    srs_trace("RTC source url=%s, source_id=[%d][%s], encrypt=%d, realtime=%d, mw_msgs=%d", req->get_stream_url().c_str(),
+    // TODO: FIXME: Add cost in ms.
+    srs_trace("RTC: start play, url=%s, source_id=[%d][%s], encrypt=%d, realtime=%d, mw_msgs=%d", req->get_stream_url().c_str(),
         ::getpid(), source->source_id().c_str(), session_->encrypt, realtime, mw_msgs);
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
-    srs_trace("RTC session=%s, start play", session_->id().c_str());
     bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
     SrsStatistic* stat = SrsStatistic::instance();
 
@@ -1582,8 +1583,15 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(publisher_);
     srs_freep(transport_);
     srs_freep(req);
-    srs_freep(sendonly_skt);
     srs_freep(stat_);
+
+    // Note that we should never delete the sendonly_skt,
+    // it's just point to the object in peer_addresses_.
+    map<string, SrsUdpMuxSocket*>::iterator it;
+    for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
+        SrsUdpMuxSocket* addr = it->second;
+        srs_freep(addr);
+    }
 }
 
 SrsSdp* SrsRtcConnection::get_local_sdp()
@@ -1616,20 +1624,22 @@ void SrsRtcConnection::set_state(SrsRtcConnectionStateType state)
     state_ = state;
 }
 
-string SrsRtcConnection::id()
-{
-    return peer_id_ + "/" + username_;
-}
-
-
-string SrsRtcConnection::peer_id()
-{
-    return peer_id_;
-}
-
 string SrsRtcConnection::username()
 {
     return username_;
+}
+
+vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
+{
+    vector<SrsUdpMuxSocket*> addresses;
+
+    map<string, SrsUdpMuxSocket*>::iterator it;
+    for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
+        SrsUdpMuxSocket* addr = it->second;
+        addresses.push_back(addr);
+    }
+
+    return addresses;
 }
 
 void SrsRtcConnection::set_encrypt(bool v)
@@ -1774,8 +1784,8 @@ srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bo
     session_timeout = _srs_config->get_rtc_stun_timeout(req->vhost);
     last_stun_time = srs_get_system_time();
 
-    srs_trace("RTC init session, DTLS(role=%s, version=%s), timeout=%dms",
-        cfg->dtls_role.c_str(), cfg->dtls_version.c_str(), srsu2msi(session_timeout));
+    srs_trace("RTC init session, user=%s, url=%s, DTLS(role=%s, version=%s), timeout=%dms", username.c_str(),
+        r->get_stream_url().c_str(), cfg->dtls_role.c_str(), cfg->dtls_version.c_str(), srsu2msi(session_timeout));
 
     return err;
 }
@@ -1792,9 +1802,7 @@ srs_error_t SrsRtcConnection::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
 
     // We are running in the ice-lite(server) mode. If client have multi network interface,
     // we only choose one candidate pair which is determined by client.
-    if (!sendonly_skt || sendonly_skt->peer_id() != skt->peer_id()) {
-        update_sendonly_socket(skt);
-    }
+    update_sendonly_socket(skt);
 
     // Write STUN messages to blackhole.
     if (_srs_blackhole->blackhole) {
@@ -1865,8 +1873,8 @@ srs_error_t SrsRtcConnection::on_connection_established()
 {
     srs_error_t err = srs_success;
 
-    srs_trace("RTC %s session=%s, to=%dms connection established", (is_publisher_? "Publisher":"Subscriber"),
-        id().c_str(), srsu2msi(session_timeout));
+    srs_trace("RTC: session %s, to=%dms connection established", (is_publisher_? "Publisher":"Subscriber"),
+        srsu2msi(session_timeout));
 
     if (is_publisher_) {
         if ((err = start_publish()) != srs_success) {
@@ -1908,28 +1916,44 @@ bool SrsRtcConnection::is_stun_timeout()
     return last_stun_time + session_timeout < srs_get_system_time();
 }
 
-// TODO: FIXME: We should support multiple addresses, because client may use more than one addresses.
 void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 {
-    std::string old_peer_id;
+    // TODO: FIXME: Refine performance.
+    string prev_peer_id, peer_id = skt->peer_id();
     if (sendonly_skt) {
-        srs_trace("session %s address changed, update %s -> %s",
-            id().c_str(), sendonly_skt->peer_id().c_str(), skt->peer_id().c_str());
-        old_peer_id = sendonly_skt->peer_id();
+        prev_peer_id = sendonly_skt->peer_id();
+    }
+
+    // Ignore if same address.
+    if (prev_peer_id == peer_id) {
+        return;
+    }
+
+    // Detect address change.
+    if (prev_peer_id.empty()) {
+        srs_trace("RTC: session address init %s", peer_id.c_str());
+    } else {
+        srs_trace("RTC: session address changed, update %s -> %s, total %u", prev_peer_id.c_str(),
+            peer_id.c_str(), peer_addresses_.size());
+    }
+
+    // Find object from cache.
+    SrsUdpMuxSocket* addr_cache = NULL;
+    if (true) {
+        map<string, SrsUdpMuxSocket*>::iterator it = peer_addresses_.find(peer_id);
+        if (it != peer_addresses_.end()) {
+            addr_cache = it->second;
+        }
+    }
+
+    // If no cache, build cache and setup the relations in connection.
+    if (!addr_cache) {
+        peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
+        server_->insert_into_id_sessions(peer_id, this);
     }
 
     // Update the transport.
-    srs_freep(sendonly_skt);
-    sendonly_skt = skt->copy_sendonly();
-
-    // Update the sessions to handle packets from the new address.
-    peer_id_ = sendonly_skt->peer_id();
-    server_->insert_into_id_sessions(peer_id_, this);
-
-    // Remove the old address.
-    if (!old_peer_id.empty()) {
-        server_->remove_id_sessions(old_peer_id);
-    }
+    sendonly_skt = addr_cache;
 }
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc)
@@ -2248,7 +2272,8 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
 
     if (state_ == WAITING_STUN) {
         state_ = DOING_DTLS_HANDSHAKE;
-        srs_trace("RTC session=%s, STUN done, waiting DTLS handshake.", id().c_str());
+        // TODO: FIXME: Add cost.
+        srs_trace("RTC: session STUN done, waiting DTLS handshake.");
 
         if((err = transport_->start_active_handshake()) != srs_success) {
             return srs_error_wrap(err, "fail to dtls handshake");

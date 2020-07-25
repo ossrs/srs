@@ -118,7 +118,7 @@ public:
     void destroy(SrsRtcConnection* session);
 public:
     bool insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
-    void remove_id_sessions(const std::string& peer_id);
+    // TODO: FIXME: Change to private.
     void check_and_clean_timeout_session();
     int nn_sessions();
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
