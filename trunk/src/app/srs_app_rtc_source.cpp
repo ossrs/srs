@@ -1649,6 +1649,10 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     // connection level statistic
     session_->stat_->nn_in_audios++;
 
+    // track level statistic
+    statistic_->packets++;
+    statistic_->bytes += pkt->nb_bytes();
+
     if (source) {
         if ((err = source->on_rtp(pkt)) != srs_success) {
             return srs_error_wrap(err, "source on rtp");
@@ -1679,6 +1683,10 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
     // connection level statistic
     session_->stat_->nn_in_videos++;
+
+    // track level statistic
+    statistic_->packets++;
+    statistic_->bytes += pkt->nb_bytes();
 
     pkt->frame_type = SrsFrameTypeVideo;
 
