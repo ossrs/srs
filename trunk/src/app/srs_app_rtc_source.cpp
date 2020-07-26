@@ -1769,6 +1769,13 @@ srs_error_t SrsRtcSendTrack::on_rtcp(SrsRtpPacket2* pkt)
     return srs_success;
 }
 
+void SrsRtcSendTrack::on_recv_nack()
+{
+    SrsRtcTrackStatistic* statistic = statistic_;
+
+    statistic->nacks++;
+}
+
 SrsRtcAudioSendTrack::SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtcSendTrack(session, track_desc, true)
 {

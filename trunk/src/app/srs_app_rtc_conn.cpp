@@ -486,6 +486,9 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
             SrsRtcAudioSendTrack* track = it->second;
 
             if (track->has_ssrc(ssrc)) {
+                // update recv nack statistic
+                track->on_recv_nack();
+
                 SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
                 if (pkt != NULL) {
                     pkts.push_back(pkt);
@@ -501,6 +504,9 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
             SrsRtcVideoSendTrack* track = it->second;
 
             if (track->has_ssrc(ssrc)) {
+                // update recv nack statistic
+                track->on_recv_nack();
+
                 SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
                 if (pkt != NULL) {
                     pkts.push_back(pkt);
