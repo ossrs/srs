@@ -483,8 +483,10 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
     if (true) {
         std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-            if (it->second->has_ssrc(ssrc)) {
-                SrsRtpPacket2* pkt = it->second->fetch_rtp_packet(seq);
+            SrsRtcAudioSendTrack* track = it->second;
+
+            if (track->has_ssrc(ssrc)) {
+                SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
                 if (pkt != NULL) {
                     pkts.push_back(pkt);
                 }
@@ -496,8 +498,10 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
     if (true) {
         std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-            if (it->second->has_ssrc(ssrc)) {
-                SrsRtpPacket2* pkt = it->second->fetch_rtp_packet(seq);
+            SrsRtcVideoSendTrack* track = it->second;
+
+            if (track->has_ssrc(ssrc)) {
+                SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
                 if (pkt != NULL) {
                     pkts.push_back(pkt);
                 }
@@ -1951,7 +1955,7 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
     sendonly_skt = addr_cache;
 }
 
-void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc)
+void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks)
 {
     // If DTLS is not OK, drop all messages.
     if (!transport_) {
@@ -1996,6 +2000,7 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
         }
 
         ++iter;
+        ++sent_nacks;
     }
 }
 

@@ -253,7 +253,6 @@ public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
     srs_error_t start();
 private:
-    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
 public:
@@ -390,7 +389,7 @@ public:
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 public:
     // send rtcp
-    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
+    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
