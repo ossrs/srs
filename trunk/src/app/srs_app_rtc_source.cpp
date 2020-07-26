@@ -1504,10 +1504,31 @@ SrsRtcTrackDescription* SrsRtcStreamDescription::find_track_description_by_ssrc(
     return NULL;
 }
 
+SrsRtcTrackStatistic::SrsRtcTrackStatistic()
+{
+    last_written = 0;
+    packets = 0;
+    last_packets = 0;
+    bytes = 0;
+    last_bytes = 0;
+    nacks = 0;
+    last_nacks = 0;
+    padding_packets = 0;
+    last_padding_packets = 0;
+    padding_bytes = 0;
+    last_padding_bytes = 0;
+    replay_packets = 0;
+    last_replay_packets = 0;
+    replay_bytes = 0;
+    last_replay_bytes = 0;
+}
+
 SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
+    statistic_ = new SrsRtcTrackStatistic();
+
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
         nack_receiver_ = new SrsRtpNackForReceiver(rtp_queue_, 100 * 2 / 3);
@@ -1522,6 +1543,7 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
     srs_freep(rtp_queue_);
     srs_freep(nack_receiver_);
     srs_freep(track_desc_);
+    srs_freep(statistic_);
 }
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
@@ -1601,6 +1623,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     // send_nack
     uint32_t sent_nacks = 0;
     session_->check_send_nacks(nack_receiver_, ssrc, sent_nacks);
+    statistic_->nacks += sent_nacks;
 
     return err;
 }
@@ -1691,16 +1714,20 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
 {
     session_ = session;
     track_desc_ = track_desc->copy();
+    statistic_ = new SrsRtcTrackStatistic();
+
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
     } else {
         rtp_queue_ = new SrsRtpRingBuffer(1000);
     }
 }
+
 SrsRtcSendTrack::~SrsRtcSendTrack()
 {
     srs_freep(rtp_queue_);
     srs_freep(track_desc_);
+    srs_freep(statistic_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -1759,7 +1786,6 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
         return err;
     }
 
-    std::vector<SrsRtpPacket2*> pkts;
     pkt->header.set_ssrc(track_desc_->ssrc_);
 
     // Put rtp packet to NACK/ARQ queue
@@ -1768,15 +1794,22 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
         rtp_queue_->set(nack->header.get_sequence(), nack);
     }
 
-    pkts.push_back(pkt);
-
     // Update stats.
     info.nn_bytes += pkt->nb_bytes();
     info.nn_audios++;
     session_->stat_->nn_out_audios++;
 
-    if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "raw send");
+    // track level statistic
+    statistic_->packets++;
+    statistic_->bytes += pkt->nb_bytes();
+
+    if (true) {
+        std::vector<SrsRtpPacket2*> pkts;
+        pkts.push_back(pkt);
+
+        if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
+            return srs_error_wrap(err, "raw send");
+        }
     }
 
     return err;
@@ -1805,24 +1838,33 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     if (!track_desc_->is_active_) {
         return err;
     }
-    
-    std::vector<SrsRtpPacket2*> pkts;
+
+    SrsRtcTrackStatistic* statistic = statistic_;
     
     pkt->header.set_ssrc(track_desc_->ssrc_);
+
     // Put rtp packet to NACK/ARQ queue
     if (true) {
         SrsRtpPacket2* nack = pkt->copy();
         rtp_queue_->set(nack->header.get_sequence(), nack);
     }
 
-    pkts.push_back(pkt);
     // Update stats.
     info.nn_bytes += pkt->nb_bytes();
     info.nn_videos++;
     session_->stat_->nn_out_videos++;
 
-    if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "raw send");
+    // track level statistic
+    statistic->packets++;
+    statistic->bytes += pkt->nb_bytes();
+
+    if (true) {
+        std::vector<SrsRtpPacket2*> pkts;
+        pkts.push_back(pkt);
+
+        if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
+            return srs_error_wrap(err, "raw send");
+        }
     }
     
     return err;

@@ -404,10 +404,52 @@ public:
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
 };
 
+class SrsRtcTrackStatistic
+{
+public:
+    srs_utime_t last_written;
+
+	// packets received or sent.
+	uint32_t packets;
+	// packets received or sent at last statistic time.
+    uint32_t last_packets;
+    // bytes received or sent.
+    uint64_t bytes;
+    // bytes received or sent at last statistic time.
+    uint32_t last_bytes;
+
+    // nacks received or sent.
+	uint32_t nacks;
+    // nacks received or sent at last statistic time.
+    uint32_t last_nacks;
+
+    // padding packets received or sent.
+	uint32_t padding_packets;
+    // padding packets received or sent at last statistic time.
+    uint32_t last_padding_packets;
+    // padding bytes received or sent.
+	uint32_t padding_bytes;
+    // padding bytes received or sent at last statistic time.
+    uint32_t last_padding_bytes;
+
+    // replay packets received or sent.
+	uint32_t replay_packets;
+    // replay packets received or sent at last statistic time.
+    uint32_t last_replay_packets;
+    // replay bytes received or sent.
+	uint64_t replay_bytes;
+    // replay bytes received or sent at last statistic time.
+    uint64_t last_replay_bytes;
+
+public:
+    SrsRtcTrackStatistic();
+};
+
 class SrsRtcRecvTrack
 {
 protected:
     SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackStatistic* statistic_;
 
     SrsRtcConnection* session_;
     SrsRtpRingBuffer* rtp_queue_;
@@ -458,7 +500,9 @@ class SrsRtcSendTrack
 protected:
     // send track description
     SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackStatistic* statistic_;
 
+    // The owner connection for this track.
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
