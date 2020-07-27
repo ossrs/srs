@@ -1946,18 +1946,18 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
         }
     }
 
-    // If no cache, build cache and setup the relations in connection.
-    if (!addr_cache) {
-        peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        server_->insert_into_id_sessions(peer_id, this);
-    }
-
-    // Detect address change.
+    // Show address change log.
     if (prev_peer_id.empty()) {
         srs_trace("RTC: session address init %s", peer_id.c_str());
     } else if (pp_address_change->can_print(skt->get_peer_port())) {
         srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u, nn_address=%u", prev_peer_id.c_str(),
             peer_id.c_str(), (addr_cache? 1:0), pp_address_change->nn_count, peer_addresses_.size());
+    }
+
+    // If no cache, build cache and setup the relations in connection.
+    if (!addr_cache) {
+        peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
+        server_->insert_into_id_sessions(peer_id, this);
     }
 
     // Update the transport.
