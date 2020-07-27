@@ -1956,8 +1956,8 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
     if (prev_peer_id.empty()) {
         srs_trace("RTC: session address init %s", peer_id.c_str());
     } else if (pp_address_change->can_print(skt->get_peer_port())) {
-        srs_trace("RTC: session address changed, update %s -> %s, cached=%d, total=%u", prev_peer_id.c_str(),
-            peer_id.c_str(), (addr_cache? 1:0), peer_addresses_.size());
+        srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u, nn_address=%u", prev_peer_id.c_str(),
+            peer_id.c_str(), (addr_cache? 1:0), pp_address_change->nn_count, peer_addresses_.size());
     }
 
     // Update the transport.

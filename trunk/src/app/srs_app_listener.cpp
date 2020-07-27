@@ -506,8 +506,8 @@ srs_error_t SrsUdpMuxListener::cycle()
     uint64_t nn_loop = 0;
     srs_utime_t time_last = srs_get_system_time();
 
-    SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
-    SrsAutoFree(SrsErrorPithyPrint, epp);
+    SrsErrorPithyPrint* pp_pkt_handler_err = new SrsErrorPithyPrint();
+    SrsAutoFree(SrsErrorPithyPrint, pp_pkt_handler_err);
 
     set_socket_buffer();
     
@@ -542,8 +542,8 @@ srs_error_t SrsUdpMuxListener::cycle()
             err = handler->on_udp_packet(&skt);
         }
         if (err != srs_success) {
-            if (epp->can_print(err)) {
-                srs_warn("handle udp pkt err: %s", srs_error_desc(err).c_str());
+            if (pp_pkt_handler_err->can_print(err)) {
+                srs_warn("handle udp pkt, count=%u, err: %s", pp_pkt_handler_err->nn_count, srs_error_desc(err).c_str());
             }
             srs_freep(err);
         }
