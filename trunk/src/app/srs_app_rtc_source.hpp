@@ -407,8 +407,6 @@ public:
 class SrsRtcTrackStatistic
 {
 public:
-    srs_utime_t last_written;
-
 	// packets received or sent.
 	uint32_t packets;
 	// packets received or sent at last statistic time.

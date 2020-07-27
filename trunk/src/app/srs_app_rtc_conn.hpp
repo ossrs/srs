@@ -166,13 +166,14 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler, virtual public ISrsHourGlass
 {
-protected:
+private:
     SrsContextId _parent_cid;
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
 private:
+    SrsHourGlass* timer_;
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
@@ -207,6 +208,9 @@ private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
@@ -222,7 +226,7 @@ private:
 class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
-    SrsHourGlass* report_timer;
+    SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
 private:
     SrsRtcConnection* session_;

@@ -58,6 +58,8 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
 
+#define SRS_TICKID_RTCP 0
+
 SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s)
 {
     session_ = s;
@@ -227,6 +229,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
     nack_enabled_ = false;
 
     _srs_config->subscribe(this);
+    timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -234,6 +237,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
     _srs_config->unsubscribe(this);
 
     srs_freep(trd);
+    srs_freep(timer_);
 
     if (true) {
         std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
@@ -319,6 +323,10 @@ srs_error_t SrsRtcPlayStream::start()
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "rtc_sender");
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
     }
 
     if (_srs_rtc_hijacker) {
@@ -515,6 +523,17 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
             }
         }
     }
+}
+
+srs_error_t SrsRtcPlayStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    if (!is_started) {
+        return err;
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
@@ -770,7 +789,7 @@ uint32_t SrsRtcPlayStream::get_video_publish_ssrc(uint32_t play_ssrc)
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
 {
-    report_timer = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
     session_ = session;
     request_keyframe_ = false;
@@ -795,7 +814,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     }
 
     srs_freep(req);
-    srs_freep(report_timer);
+    srs_freep(timer_);
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescription* stream_desc)
@@ -841,17 +860,16 @@ srs_error_t SrsRtcPublishStream::start()
 {
     srs_error_t err = srs_success;
 
-    // If report_timer started, we think the publisher is started.
     if (is_started) {
         return err;
     }
 
-    if ((err = report_timer->tick(0 * SRS_UTIME_MILLISECONDS)) != srs_success) {
-        return srs_error_wrap(err, "hourglass tick");
+    if ((err = timer_->tick(SRS_TICKID_RTCP, 200 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "rtcp tick");
     }
 
-    if ((err = report_timer->start()) != srs_success) {
-        return srs_error_wrap(err, "start report_timer");
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
     }
 
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
@@ -1437,14 +1455,20 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Check error.
-    send_rtcp_rr();
-    send_rtcp_xr_rrtr();
+    if (!is_started) {
+        return err;
+    }
 
-    // TODO: FIXME: Check error.
-    // We should not depends on the received packet,
-    // instead we should send feedback every Nms.
-    send_periodic_twcc();
+    if (type == SRS_TICKID_RTCP) {
+        // TODO: FIXME: Check error.
+        send_rtcp_rr();
+        send_rtcp_xr_rrtr();
+
+        // TODO: FIXME: Check error.
+        // We should not depends on the received packet,
+        // instead we should send feedback every Nms.
+        send_periodic_twcc();
+    }
 
     return err;
 }
