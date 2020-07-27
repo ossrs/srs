@@ -77,6 +77,8 @@ public:
 public:
     // Whether specified stage is ready for print.
     bool can_print(srs_error_t err);
+    // We also support int error code.
+    bool can_print(int err);
 };
 
 // The stage is used for a collection of object to do print,
