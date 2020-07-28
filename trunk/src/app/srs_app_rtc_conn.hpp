@@ -309,7 +309,7 @@ public:
 };
 
 // A RTC Peer Connection, SDP level object.
-class SrsRtcConnection
+class SrsRtcConnection : virtual public ISrsHourGlass
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -324,6 +324,7 @@ private:
     SrsRtcPlayStream* player_;
     SrsRtcPublishStream* publisher_;
     bool is_publisher_;
+    SrsHourGlass* timer_;
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
@@ -394,6 +395,9 @@ public:
     srs_error_t start_publish();
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     // send rtcp
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks);
