@@ -191,7 +191,7 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     last_remove_packet_time_ = -1;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
-        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
+        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts_.first_nack_interval, opts_.nack_interval);
 }
 
 SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
