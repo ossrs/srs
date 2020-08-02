@@ -176,7 +176,7 @@ srs_error_t SrsCoWorkers::on_reload_vhost_cluster_coworkers(string vhost, string
     srs_error_t err = srs_success;
 
     vector<string> arr =  _srs_config->get_vhost_coworkers(vhost);
-    string old_value, new_value = srs_string_trim_end(coworkers);
+    string old_value, new_value = srs_string_trim_end(coworkers, " ");
 
     for (int i = 0; i < (int)arr.size(); i++) {
         old_value += arr.at(i);
