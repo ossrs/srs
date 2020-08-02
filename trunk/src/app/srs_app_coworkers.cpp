@@ -176,7 +176,7 @@ srs_error_t SrsCoWorkers::on_reload_vhost_cluster_coworkers(string vhost, string
     srs_error_t err = srs_success;
 
     vector<string> arr =  _srs_config->get_vhost_coworkers(vhost);
-    string old_value;
+    string old_value, new_value = srs_string_trim_end(coworkers);
 
     for (int i = 0; i < (int)arr.size(); i++) {
         old_value += arr.at(i);
@@ -185,14 +185,14 @@ srs_error_t SrsCoWorkers::on_reload_vhost_cluster_coworkers(string vhost, string
         }
     }
 
-    if (coworkers == old_value) {
+    if (new_value == old_value) {
         return srs_error_new(1, "coworkes no apply");
     }
 
     SrsConfDirective* conf = _srs_config->get_vhost(vhost)->get("cluster")->get("coworkers");
 
     conf->args.clear();
-    conf->args.push_back(coworkers);
+    conf->args.push_back(new_value);
     
     return err;
 }
