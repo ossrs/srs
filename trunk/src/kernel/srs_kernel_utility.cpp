@@ -388,6 +388,20 @@ string srs_string_remove(string str, string remove_chars)
     return ret;
 }
 
+string srs_string_lower(string str)
+{
+    std::string out_str(str);
+    std::transform(str.begin(), str.end(), out_str.begin(), ::tolower);
+    return out_str;
+}
+
+string srs_string_upper(string str)
+{
+    std::string out_str(str);
+    std::transform(str.begin(), str.end(), out_str.begin(), ::toupper);
+    return out_str;
+}
+
 string srs_erase_first_substr(string str, string erase_string)
 {
 	std::string ret = str;

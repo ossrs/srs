@@ -871,6 +871,8 @@ SrsGoApiRaw::SrsGoApiRaw(SrsServer* svr)
     allow_query = _srs_config->get_raw_api_allow_query();
     allow_update = _srs_config->get_raw_api_allow_update();
     
+    SrsCoWorkers::instance();
+
     _srs_config->subscribe(this);
 }
 
@@ -1024,7 +1026,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         if (scope != "listen" && scope != "pid" && scope != "chunk_size"
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
             && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
-            && scope != "pithy_print_ms" && scope != "vhost" && scope != "dvr"
+            && scope != "pithy_print_ms" && scope != "vhost" && scope != "dvr" && scope != "cluster"
             ) {
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
         }
@@ -1240,6 +1242,29 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
                     srs_error_reset(err);
                     return srs_api_response_code(w, r, code);
                 }
+            }
+        } else if (scope == "cluster") {
+            // POST: /api/v1/raw?rpc=update&scope=cluster&value=__defaultVhost__&param=coworkers&data=127.0.0.1%3A9090%20127.0.0.1%3A9091
+            std::string action = r->query_get("param");
+            std::string data = srs_string_lower(r->query_get("data"));
+
+            data = srs_string_replace(data, "%20", " ");
+            data = srs_string_replace(data, "%3a", ":");
+
+            extra += " " + action + "=\"" + data + "\"";
+
+            if (action == "coworkers") {
+                if (!_srs_config->get_vhost_origin_cluster(value) || data.empty()) {
+                    return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
+                }
+
+                if ((err = _srs_config->raw_update_cluster_coworkers(value, data, applied)) != srs_success) {
+                    int code = srs_error_code(err);
+                    srs_error_reset(err);
+                    return srs_api_response_code(w, r, code);
+                }
+            } else {
+                // TODO: support other param.
             }
         } else {
             // TODO: support other scope.

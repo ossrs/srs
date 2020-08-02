@@ -25,6 +25,7 @@
 #define SRS_APP_COWORKERS_HPP
 
 #include <srs_core.hpp>
+#include <srs_app_reload.hpp>
 
 #include <string>
 #include <map>
@@ -34,7 +35,7 @@ class SrsRequest;
 class SrsSource;
 
 // For origin cluster.
-class SrsCoWorkers
+class SrsCoWorkers : public ISrsReloadHandler
 {
 private:
     static SrsCoWorkers* _instance;
@@ -52,6 +53,8 @@ private:
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+public:
+    virtual srs_error_t on_reload_vhost_cluster_coworkers(std::string vhost, std::string coworkers);
 };
 
 #endif

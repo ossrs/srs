@@ -79,6 +79,7 @@ public:
     virtual srs_error_t on_reload_ingest_added(std::string vhost, std::string ingest_id);
     virtual srs_error_t on_reload_ingest_updated(std::string vhost, std::string ingest_id);
     virtual srs_error_t on_reload_user_info();
+    virtual srs_error_t on_reload_vhost_cluster_coworkers(std::string vhost, std::string coworkers);
 };
 
 #endif

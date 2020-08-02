@@ -38,6 +38,7 @@ SrsCoWorkers* SrsCoWorkers::_instance = NULL;
 
 SrsCoWorkers::SrsCoWorkers()
 {
+    _srs_config->subscribe(this);
 }
 
 SrsCoWorkers::~SrsCoWorkers()
@@ -48,6 +49,8 @@ SrsCoWorkers::~SrsCoWorkers()
         srs_freep(r);
     }
     streams.clear();
+
+    _srs_config->unsubscribe(this);
 }
 
 SrsCoWorkers* SrsCoWorkers::instance()
@@ -168,3 +171,28 @@ void SrsCoWorkers::on_unpublish(SrsSource* s, SrsRequest* r)
     }
 }
 
+srs_error_t SrsCoWorkers::on_reload_vhost_cluster_coworkers(string vhost, string coworkers)
+{
+    srs_error_t err = srs_success;
+
+    vector<string> arr =  _srs_config->get_vhost_coworkers(vhost);
+    string old_value;
+
+    for (int i = 0; i < (int)arr.size(); i++) {
+        old_value += arr.at(i);
+        if (i < (int)arr.size() - 1) {
+            old_value += " ";
+        }
+    }
+
+    if (coworkers == old_value) {
+        return srs_error_new(1, "coworkes no apply");
+    }
+
+    SrsConfDirective* conf = _srs_config->get_vhost(vhost)->get("cluster")->get("coworkers");
+
+    conf->args.clear();
+    conf->args.push_back(coworkers);
+    
+    return err;
+}

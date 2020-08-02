@@ -225,3 +225,7 @@ srs_error_t ISrsReloadHandler::on_reload_user_info()
     return srs_success;
 }
 
+srs_error_t ISrsReloadHandler::on_reload_vhost_cluster_coworkers(string /*vhost*/, string /*coworkers*/)
+{
+    return srs_success;
+}

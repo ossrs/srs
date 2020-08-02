@@ -80,6 +80,10 @@ extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
 extern std::string srs_string_trim_start(std::string str, std::string trim_chars);
 // Remove char in remove_chars of str
 extern std::string srs_string_remove(std::string str, std::string remove_chars);
+
+extern std::string srs_string_lower(std::string str);
+extern std::string srs_string_upper(std::string str);
+
 // Remove first substring from str
 extern std::string srs_erase_first_substr(std::string str, std::string erase_string);
 // Remove last substring from str

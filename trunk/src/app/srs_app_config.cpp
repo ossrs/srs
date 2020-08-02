@@ -3224,6 +3224,21 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     
     return err;
 }
+
+srs_error_t SrsConfig::raw_update_cluster_coworkers(string vhost, string coworkers, bool& applied)
+{
+    srs_error_t err = srs_success;
+
+    applied = false;
+        
+    if ((err = do_reload_vhost_cluster_coworkers(vhost, coworkers)) != srs_success) {
+        return srs_error_wrap(err, "reload vhost cluster_coworkers");
+    }
+
+    applied = true;
+
+    return err;
+}
 // LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::do_reload_listen()
@@ -3403,6 +3418,22 @@ srs_error_t SrsConfig::do_reload_vhost_dvr_apply(string vhost)
         }
     }
     srs_trace("vhost %s reload dvr_apply success.", vhost.c_str());
+    
+    return err;
+}
+
+srs_error_t SrsConfig::do_reload_vhost_cluster_coworkers(string vhost, string coworkers)
+{
+    srs_error_t err = srs_success;
+
+    vector<ISrsReloadHandler*>::iterator it;
+    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+        ISrsReloadHandler* subscribe = *it;
+        if ((err = subscribe->on_reload_vhost_cluster_coworkers(vhost, coworkers)) != srs_success) {
+            return srs_error_wrap(err, "vhost %s notify subscribes cluster_coworkers failed", vhost.c_str());
+        }
+    }
+    srs_trace("vhost %s reload cluster_coworkers success.", vhost.c_str());
     
     return err;
 }

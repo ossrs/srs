@@ -393,6 +393,8 @@ public:
     virtual srs_error_t raw_enable_dvr(std::string vhost, std::string stream, bool& applied);
     // RAW  disable the dvr of stream of vhost.
     virtual srs_error_t raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
+    // RAW  update coworkers the cluster of vhost.
+    virtual srs_error_t raw_update_cluster_coworkers(std::string vhost, std::string coworkers, bool& applied);
 private:
     virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
@@ -405,6 +407,7 @@ private:
     virtual srs_error_t do_reload_vhost_added(std::string vhost);
     virtual srs_error_t do_reload_vhost_removed(std::string vhost);
     virtual srs_error_t do_reload_vhost_dvr_apply(std::string vhost);
+    virtual srs_error_t do_reload_vhost_cluster_coworkers(std::string vhost, std::string coworkers);
 public:
     // Get the config file path.
     virtual std::string config();
