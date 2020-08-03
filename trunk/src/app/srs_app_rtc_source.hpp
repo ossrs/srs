@@ -510,7 +510,7 @@ public:
 public:
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
-    void set_track_status(bool active);
+    bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
 public:

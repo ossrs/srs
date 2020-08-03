@@ -525,6 +525,35 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
     }
 }
 
+void SrsRtcPlayStream::set_track_status(bool status)
+{
+    std::ostringstream merged_log;
+
+    // set video track status
+    if (true) {
+        std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator it;
+        for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+            SrsRtcVideoSendTrack* track = it->second;
+
+            bool previous = track->set_track_status(status);
+            merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
+        }
+    }
+
+    // set audio track status
+    if (true) {
+        std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
+        for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+            SrsRtcAudioSendTrack* track = it->second;
+
+            bool previous = track->set_track_status(status);
+            merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
+        }
+    }
+
+    srs_trace("set status, %s", merged_log.str().c_str());
+}
+
 srs_error_t SrsRtcPlayStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
@@ -2272,6 +2301,19 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
         srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
             pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::set_play_track_status(bool status)
+{
+    srs_error_t err = srs_success;
+
+    if (!player_) {
+        return srs_error_new(ERROR_RTC_NO_PLAYER, "set play track status");
+    }
+
+    player_->set_track_status(status);
 
     return err;
 }

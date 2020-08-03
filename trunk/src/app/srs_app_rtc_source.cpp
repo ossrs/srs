@@ -1756,9 +1756,11 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
 }
 
 // TODO: FIXME: Should refine logs, set tracks in a time.
-void SrsRtcSendTrack::set_track_status(bool active)
+bool SrsRtcSendTrack::set_track_status(bool active)
 {
+    bool previous_status = track_desc_->is_active_;
     track_desc_->is_active_ = active;
+    return previous_status;
 }
 
 bool SrsRtcSendTrack::get_track_status()
