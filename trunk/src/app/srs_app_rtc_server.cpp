@@ -309,7 +309,6 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
             peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
             session = find_session_by_username(ping.get_username());
 
@@ -318,8 +317,10 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
                 session->switch_to_context();
             }
         }
+
+        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
-            return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
+            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s",
                 ping.get_username().c_str(), peer_id.c_str());
         }
 
@@ -328,7 +329,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
     if (!session) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", peer_id.c_str());
+        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s", peer_id.c_str());
     }
 
     if (is_dtls((uint8_t*)data, size)) {
@@ -340,7 +341,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         return session->on_rtp(data, size);
     }
 
-    return srs_error_new(ERROR_RTC_UDP, "unknown udp packet type");
+    return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
 srs_error_t SrsRtcServer::listen_api()

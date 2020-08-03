@@ -42,12 +42,14 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
 // sleep in srs_utime_t for udp recv packet.
 #define SrsUdpPacketRecvCycleInterval 0
+
+// Set the byte at specified position.
+#define _srs_set_byte(data, size, b, index) if (index < size) b = data[index]
 
 ISrsUdpHandler::ISrsUdpHandler()
 {
@@ -541,8 +543,16 @@ srs_error_t SrsUdpMuxListener::cycle()
             SrsContextRestore(cid);
             err = handler->on_udp_packet(&skt);
         }
+        // Use pithy print to show more smart information.
         if (err != srs_success) {
             if (pp_pkt_handler_err->can_print(err)) {
+                // Append more information.
+                if (true) {
+                    char* data = skt.data(); int size = skt.size();
+                    uint8_t b0 = 0, b1 = 0; _srs_set_byte(data, size, b0, 0); _srs_set_byte(data, size, b1, 1); uint8_t b2 = 0, b3 = 0; _srs_set_byte(data, size, b2, 2); _srs_set_byte(data, size, b3, 3);
+                    uint8_t b4 = 0, b5 = 0; _srs_set_byte(data, size, b4, 4); _srs_set_byte(data, size, b5, 5); uint8_t b6 = 0, b7 = 0; _srs_set_byte(data, size, b6, 6); _srs_set_byte(data, size, b7, 7);
+                    err = srs_error_wrap(err, "size=%u, data=[%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x]", size, b0, b1, b2, b3, b4, b5, b6, b7);
+                }
                 srs_warn("handle udp pkt, count=%u, err: %s", pp_pkt_handler_err->nn_count, srs_error_desc(err).c_str());
             }
             srs_freep(err);
