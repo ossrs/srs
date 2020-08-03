@@ -590,11 +590,13 @@ function check_option_conflicts() {
     fi
 
     if [[ $SRS_CROSS_BUILD == YES && ($SRS_TOOL_CC == 'gcc' || $SRS_TOOL_CXX == 'g++' || $SRS_TOOL_AR == 'ar') ]]; then
-        echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
+        echo "Warning: For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"
+        SRS_CROSS_BUILD=NO
     fi
 
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+        echo "Warning: Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
+        SRS_NGINX=NO
     fi
 
     # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
