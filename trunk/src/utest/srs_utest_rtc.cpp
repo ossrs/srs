@@ -151,7 +151,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
         EXPECT_FALSE(audio->get_track_status());
         EXPECT_FALSE(video->get_track_status());
 
-        play.set_track_status(true);
+        play.set_all_tracks_status(true);
         EXPECT_TRUE(audio->get_track_status());
         EXPECT_TRUE(video->get_track_status());
     }

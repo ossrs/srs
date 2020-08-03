@@ -209,7 +209,7 @@ private:
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
     // Directly set the status of track, generally for init to set the default value.
-    void set_track_status(bool status);
+    void set_all_tracks_status(bool status);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
@@ -412,7 +412,7 @@ public:
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     // Directly set the status of play track, generally for init to set the default value.
-    srs_error_t set_play_track_status(bool status);
+    srs_error_t set_all_tracks_status_for_play(bool status);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate

@@ -416,7 +416,7 @@ srs_error_t SrsRtcServer::do_create_session(
 
         // TODO: FIXME: Handle error.
         // All tracks default as inactive, so we must enable them.
-        session->set_play_track_status(true);
+        session->set_all_tracks_status_for_play(true);
     }
 
     std::string local_pwd = srs_random_str(32);

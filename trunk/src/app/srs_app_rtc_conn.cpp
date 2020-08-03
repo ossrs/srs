@@ -525,7 +525,7 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
     }
 }
 
-void SrsRtcPlayStream::set_track_status(bool status)
+void SrsRtcPlayStream::set_all_tracks_status(bool status)
 {
     std::ostringstream merged_log;
 
@@ -2305,7 +2305,7 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
     return err;
 }
 
-srs_error_t SrsRtcConnection::set_play_track_status(bool status)
+srs_error_t SrsRtcConnection::set_all_tracks_status_for_play(bool status)
 {
     srs_error_t err = srs_success;
 
@@ -2313,7 +2313,7 @@ srs_error_t SrsRtcConnection::set_play_track_status(bool status)
         return srs_error_new(ERROR_RTC_NO_PLAYER, "set play track status");
     }
 
-    player_->set_track_status(status);
+    player_->set_all_tracks_status(status);
 
     return err;
 }
