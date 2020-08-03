@@ -112,14 +112,13 @@ void srt_handle::close_pull_conn(SRTSOCKET srtsocket, std::string stream_id) {
 
     auto streamid_iter = _streamid_map.find(stream_id);
     if (streamid_iter != _streamid_map.end()) {
-        auto srtsocket_map = streamid_iter->second;
-        if (srtsocket_map.size() == 0) {
+        if (streamid_iter->second.size() == 0) {
             _streamid_map.erase(stream_id);
-        } else if (srtsocket_map.size() == 1) {
-            srtsocket_map.erase(srtsocket);
+        } else if (streamid_iter->second.size() == 1) {
+            streamid_iter->second.erase(srtsocket);
             _streamid_map.erase(stream_id);
         } else {
-            srtsocket_map.erase(srtsocket);
+            streamid_iter->second.erase(srtsocket);
         }
     } else {
         assert(0);
