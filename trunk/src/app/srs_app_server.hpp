@@ -313,6 +313,7 @@ public:
     //       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
     // @remark, maybe the HTTP RAW API will trigger the on_signal() also.
     virtual void on_signal(int signo);
+    virtual srs_error_t sync_configmap(std::string path);
 private:
     // The server thread main cycle,
     // update the global static data, for instance, the current time,

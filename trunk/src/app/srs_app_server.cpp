@@ -1153,6 +1153,34 @@ void SrsServer::on_signal(int signo)
     }
 }
 
+srs_error_t SrsServer::sync_configmap(string path){
+    srs_error_t err = srs_success;
+
+    string config_file = _srs_config->config();
+
+    if (path.empty()) {
+        path = "/app/srs.conf";
+    }
+
+    FILE * src  = fopen(path.c_str(), "rb");
+    FILE * dest = fopen(config_file.c_str(), "wb");
+
+    const int size = 16384;
+    char buffer[size];
+
+    while (!feof(src)) {
+        int n = fread(buffer, 1, size, src);
+        fwrite(buffer, 1, n, dest);
+    }
+    fflush(dest);
+
+    fclose(src);
+    fclose(dest);
+
+    srs_trace("%s -> %s", path.c_str(), config_file.c_str());
+    return err;
+}
+
 srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;

@@ -922,6 +922,11 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_DISABLED);
         }
         
+        std::string scope = r->query_get("scope");
+        if (scope == "configmap") {
+            server->sync_configmap(r->query_get("data"));
+        }
+
         server->on_signal(SRS_SIGNAL_RELOAD);
         return srs_api_response_code(w, r, ERROR_SUCCESS);
     }
