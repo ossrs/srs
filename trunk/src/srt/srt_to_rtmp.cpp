@@ -32,6 +32,7 @@
 #include <srs_app_config.hpp>
 #include <srs_kernel_stream.hpp>
 #include <list>
+#include <sstream>
 
 std::shared_ptr<srt2rtmp> srt2rtmp::s_srt2rtmp_ptr;
 
@@ -229,7 +230,7 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
         _appname = ret_vec[0];
         _streamname = ret_vec[1]; 
     }
-    char url_sz[128];
+    std::stringstream url_ss;
     
     std::vector<std::string> ip_ports = _srs_config->get_listens();
     int port = 0;
@@ -243,21 +244,29 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
     }
     port = (port == 0) ? 1935 : port;
     if (_vhost == DEF_VHOST) {
-        sprintf(url_sz, "rtmp://127.0.0.1:%d/%s/%s", port,
-            _appname.c_str(), _streamname.c_str());
+        url_ss << "rtmp://127.0.0.1:" << port
+                << "/" << _appname
+                << "/" <<  _streamname;
     } else {
-        sprintf(url_sz, "rtmp://127.0.0.1:%d/%s?vhost=%s/%s", port,
-            _appname.c_str(), _vhost.c_str(), _streamname.c_str());
+        if (_appname.find("?") == std::string::npos) {
+            url_ss << "rtmp://127.0.0.1:" << port
+                    << "/" << _appname << "?vhost=" << _vhost
+                    << "/" <<  _streamname;
+        } else {
+            url_ss << "rtmp://127.0.0.1:" << port
+                    << "/" << _appname << "&vhost=" << _vhost
+                    << "/" <<  _streamname;
+        }
     }
-    
-    _url = url_sz;
+
+    _url = url_ss.str();
 
     _h264_sps_changed = false;
     _h264_pps_changed = false;
     _h264_sps_pps_sent = false;
 
     _last_live_ts = now_ms();
-    srs_trace("rtmp client construct url:%s", url_sz);
+    srs_trace("rtmp client construct url:%s", url_ss.str().c_str());
 }
 
 rtmp_client::~rtmp_client() {
