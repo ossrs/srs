@@ -1349,7 +1349,7 @@ SrsRtcTrackDescription::SrsRtcTrackDescription()
     ssrc_ = 0;
     rtx_ssrc_ = 0;
     fec_ssrc_ = 0;
-    is_active_ = true;
+    is_active_ = false;
 
     media_ = NULL;
     red_ = NULL;
