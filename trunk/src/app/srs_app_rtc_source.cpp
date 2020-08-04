@@ -1374,6 +1374,7 @@ bool SrsRtcTrackDescription::has_ssrc(uint32_t ssrc)
     if (ssrc == ssrc_ || ssrc == rtx_ssrc_ || ssrc == fec_ssrc_) {
         return true;
     }
+
     return false;
 }
 
@@ -1547,18 +1548,12 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
 {
-    if (track_desc_) {
-        return track_desc_->has_ssrc(ssrc);
-    }
-
-    return false;
+    return track_desc_->has_ssrc(ssrc);
 }
 
 void SrsRtcRecvTrack::update_rtt(int rtt)
 {
-    if (nack_receiver_) {
-        nack_receiver_->update_rtt(rtt);
-    }
+    nack_receiver_->update_rtt(rtt);
 }
 
 void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp)
@@ -1569,24 +1564,12 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp)
 
 srs_error_t SrsRtcRecvTrack::send_rtcp_rr()
 {
-    srs_error_t err = srs_success;
-
-    if (session_) {
-        return session_->send_rtcp_rr(track_desc_->ssrc_, rtp_queue_, last_sender_report_sys_time, last_sender_report_ntp);
-    }
-
-    return err;
+    return session_->send_rtcp_rr(track_desc_->ssrc_, rtp_queue_, last_sender_report_sys_time, last_sender_report_ntp);
 }
 
 srs_error_t SrsRtcRecvTrack::send_rtcp_xr_rrtr()
 {
-    srs_error_t err = srs_success;
-
-    if (track_desc_) {
-        return session_->send_rtcp_xr_rrtr(track_desc_->ssrc_);
-    }
-
-    return err;
+    return session_->send_rtcp_xr_rrtr(track_desc_->ssrc_);
 }
 
 bool SrsRtcRecvTrack::set_track_status(bool active)
@@ -1669,10 +1652,8 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     statistic_->packets++;
     statistic_->bytes += pkt->nb_bytes();
 
-    if (source) {
-        if ((err = source->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "source on rtp");
-        }
+    if ((err = source->on_rtp(pkt)) != srs_success) {
+        return srs_error_wrap(err, "source on rtp");
     }
 
     // For NACK to handle packet.
@@ -1706,10 +1687,8 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
     pkt->frame_type = SrsFrameTypeVideo;
 
-    if (source) {
-        if ((err = source->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "source on rtp");
-        }
+    if ((err = source->on_rtp(pkt)) != srs_success) {
+        return srs_error_wrap(err, "source on rtp");
     }
 
     // TODO: FIXME: add rtp process
@@ -1756,11 +1735,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
 {
-    if (track_desc_) {
-        return track_desc_->has_ssrc(ssrc);
-    }
-
-    return false;
+    return track_desc_->has_ssrc(ssrc);
 }
 
 SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
