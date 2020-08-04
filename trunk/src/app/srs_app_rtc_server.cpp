@@ -414,11 +414,10 @@ srs_error_t SrsRtcServer::do_create_session(
         if ((err = session->add_player(req, remote_sdp, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add player");
         }
-
-        // TODO: FIXME: Handle error.
-        // All tracks default as inactive, so we must enable them.
-        session->set_all_tracks_status_for_play(true);
     }
+
+    // All tracks default as inactive, so we must enable them.
+    session->set_all_tracks_status(true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";

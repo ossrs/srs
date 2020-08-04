@@ -551,7 +551,7 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
         }
     }
 
-    srs_trace("set status, %s", merged_log.str().c_str());
+    srs_trace("RTC: Init tracks %s ok", merged_log.str().c_str());
 }
 
 srs_error_t SrsRtcPlayStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
@@ -920,6 +920,35 @@ srs_error_t SrsRtcPublishStream::start()
     is_started = true;
 
     return err;
+}
+
+void SrsRtcPublishStream::set_all_tracks_status(bool status)
+{
+    std::ostringstream merged_log;
+
+    // set video track status
+    if (true) {
+        std::vector<SrsRtcVideoRecvTrack*>::iterator it;
+        for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+            SrsRtcVideoRecvTrack* track = *it;
+
+            bool previous = track->set_track_status(status);
+            merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
+        }
+    }
+
+    // set audio track status
+    if (true) {
+        std::vector<SrsRtcAudioRecvTrack*>::iterator it;
+        for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+            SrsRtcAudioRecvTrack* track = *it;
+
+            bool previous = track->set_track_status(status);
+            merged_log << "{track: " << track->get_track_id() << ", is_active: " << previous << "=>" << status << "},";
+        }
+    }
+
+    srs_trace("RTC: Init tracks %s ok", merged_log.str().c_str());
 }
 
 srs_error_t SrsRtcPublishStream::send_rtcp_rr()
@@ -2305,17 +2334,15 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
     return err;
 }
 
-srs_error_t SrsRtcConnection::set_all_tracks_status_for_play(bool status)
+void SrsRtcConnection::set_all_tracks_status(bool status)
 {
-    srs_error_t err = srs_success;
-
-    if (!player_) {
-        return srs_error_new(ERROR_RTC_NO_PLAYER, "set play track status");
+    if (player_) {
+        player_->set_all_tracks_status(status);
     }
 
-    player_->set_all_tracks_status(status);
-
-    return err;
+    if (publisher_) {
+        publisher_->set_all_tracks_status(status);
+    }
 }
 
 #ifdef SRS_OSX

@@ -465,6 +465,9 @@ public:
     void update_send_report_time(const SrsNtp& ntp);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
+    bool set_track_status(bool active);
+    bool get_track_status();
+    std::string get_track_id();
 protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:

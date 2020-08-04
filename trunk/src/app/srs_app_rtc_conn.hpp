@@ -259,6 +259,8 @@ public:
 public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
     srs_error_t start();
+    // Directly set the status of track, generally for init to set the default value.
+    void set_all_tracks_status(bool status);
 private:
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
@@ -412,7 +414,7 @@ public:
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     // Directly set the status of play track, generally for init to set the default value.
-    srs_error_t set_all_tracks_status_for_play(bool status);
+    void set_all_tracks_status(bool status);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate

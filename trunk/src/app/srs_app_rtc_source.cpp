@@ -1589,6 +1589,23 @@ srs_error_t SrsRtcRecvTrack::send_rtcp_xr_rrtr()
     return err;
 }
 
+bool SrsRtcRecvTrack::set_track_status(bool active)
+{
+    bool previous_status = track_desc_->is_active_;
+    track_desc_->is_active_ = active;
+    return previous_status;
+}
+
+bool SrsRtcRecvTrack::get_track_status()
+{
+    return track_desc_->is_active_;
+}
+
+std::string SrsRtcRecvTrack::get_track_id()
+{
+    return track_desc_->id_;
+}
+
 srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;

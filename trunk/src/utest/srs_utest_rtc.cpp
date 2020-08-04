@@ -135,7 +135,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
         EXPECT_FALSE(td.is_active_);
     }
 
-    // Enable it by player or connection.
+    // Enable it by player.
     if (true) {
         SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPlayStream play(&s, SrsContextId());
         SrsRtcAudioSendTrack* audio; SrsRtcVideoSendTrack *video;
@@ -152,6 +152,27 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
         EXPECT_FALSE(video->get_track_status());
 
         play.set_all_tracks_status(true);
+        EXPECT_TRUE(audio->get_track_status());
+        EXPECT_TRUE(video->get_track_status());
+    }
+
+    // Enable it by publisher.
+    if (true) {
+        SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPublishStream publish(&s);
+        SrsRtcAudioRecvTrack* audio; SrsRtcVideoRecvTrack *video;
+
+        if (true) {
+            SrsRtcTrackDescription ds; ds.type_ = "audio"; ds.id_ = "NSNWOn19NDn12o8nNeji2"; ds.ssrc_ = 100;
+            audio = new SrsRtcAudioRecvTrack(&s, &ds); publish.audio_tracks_.push_back(audio);
+        }
+        if (true) {
+            SrsRtcTrackDescription ds; ds.type_ = "video"; ds.id_ = "VMo22nfLDn122nfnDNL2"; ds.ssrc_ = 200;
+            video = new SrsRtcVideoRecvTrack(&s, &ds); publish.video_tracks_.push_back(video);
+        }
+        EXPECT_FALSE(audio->get_track_status());
+        EXPECT_FALSE(video->get_track_status());
+
+        publish.set_all_tracks_status(true);
         EXPECT_TRUE(audio->get_track_status());
         EXPECT_TRUE(video->get_track_status());
     }
