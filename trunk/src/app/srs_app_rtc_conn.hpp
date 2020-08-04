@@ -132,11 +132,6 @@ private:
 class SrsRtcPlayStreamStatistic
 {
 public:
-#if defined(SRS_DEBUG)
-    // Debug id.
-    uint32_t debug_id;
-#endif
-public:
     // The total bytes of AVFrame packets.
     int nn_bytes;
     // The total bytes of RTP packets.

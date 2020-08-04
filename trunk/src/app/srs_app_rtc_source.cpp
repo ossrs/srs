@@ -1627,11 +1627,6 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
-{
-    return srs_success;
-}
-
 SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtcRecvTrack(session, track_desc, true)
 {
@@ -1763,16 +1758,6 @@ bool SrsRtcSendTrack::get_track_status()
 std::string SrsRtcSendTrack::get_track_id()
 {
     return track_desc_->id_;
-}
-
-srs_error_t SrsRtcSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info)
-{
-    return srs_success;
-}
-
-srs_error_t SrsRtcSendTrack::on_rtcp(SrsRtpPacket2* pkt)
-{
-    return srs_success;
 }
 
 void SrsRtcSendTrack::on_recv_nack()

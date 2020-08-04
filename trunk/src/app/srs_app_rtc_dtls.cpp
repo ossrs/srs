@@ -35,6 +35,7 @@ using namespace std;
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 // The return value of verify_callback controls the strategy of the further verification process. If verify_callback
 // returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
@@ -161,7 +162,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         int serial = rand();
         ASN1_INTEGER_set(X509_get_serialNumber(dtls_cert), serial);
 
-        const std::string& aor = "ossrs.net";
+        const std::string& aor = RTMP_SIG_SRS_DOMAIN;
         X509_NAME_add_entry_by_txt(subject, "CN", MBSTRING_ASC, (unsigned char *) aor.data(), aor.size(), -1, 0);
 
         X509_set_issuer_name(dtls_cert, subject);
@@ -385,10 +386,6 @@ srs_error_t SrsDtls::do_handshake()
 {
     srs_error_t err = srs_success;
 
-    if (!callback) {
-        return srs_error_new(ERROR_RTC_DTLS, "no callback");
-    }
-
     int ret = SSL_do_handshake(dtls);
 
     unsigned char *out_bio_data;
@@ -419,7 +416,7 @@ srs_error_t SrsDtls::do_handshake()
 
     if (out_bio_len) {
         if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-            return srs_error_wrap(err, "dtls send");
+            return srs_error_wrap(err, "dtls send size=%u", out_bio_len);
         }
     }
 
@@ -450,7 +447,7 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 
             if (nb > 0 && callback) {
                 if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
-                    return srs_error_wrap(err, "dtls application data process");
+                    return srs_error_wrap(err, "on DTLS data, size=%u", nb);
                 }
             }
         }
@@ -477,7 +474,7 @@ srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
     unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
     static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
     if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL_export_keying_material failed");
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
     }
 
     size_t offset = 0;
@@ -544,8 +541,9 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     memcpy(rkey, recv_key.data(), recv_key.size());
     policy.key = rkey;
 
-    if (srtp_create(&recv_ctx_, &policy) != srtp_err_status_ok) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_create(&recv_ctx_, &policy)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp create r0=%u", r0);
     }
 
     policy.ssrc.type = ssrc_any_outbound;
@@ -554,8 +552,8 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     memcpy(skey, send_key.data(), send_key.size());
     policy.key = skey;
 
-    if (srtp_create(&send_ctx_, &policy) != srtp_err_status_ok) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp_create recv failed");
+    if ((r0 = srtp_create(&send_ctx_, &policy)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "srtp create r0=%u", r0);
     }
 
     return err;
@@ -565,10 +563,16 @@ srs_error_t SrsSRTP::protect_rtp(const char* plaintext, char* cipher, int& nb_ci
 {
     srs_error_t err = srs_success;
 
+    // If DTLS/SRTP is not ready, fail.
+    if (!send_ctx_) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "not ready");
+    }
+
     memcpy(cipher, plaintext, nb_cipher);
-    // TODO: FIXME: Wrap error code.
-    if (srtp_protect(send_ctx_, cipher, &nb_cipher) != 0) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
+
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_protect(send_ctx_, cipher, &nb_cipher)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect r0=%u", r0);
     }
 
     return err;
@@ -578,10 +582,16 @@ srs_error_t SrsSRTP::protect_rtcp(const char* plaintext, char* cipher, int& nb_c
 {
     srs_error_t err = srs_success;
 
+    // If DTLS/SRTP is not ready, fail.
+    if (!send_ctx_) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "not ready");
+    }
+
     memcpy(cipher, plaintext, nb_cipher);
-    // TODO: FIXME: Wrap error code.
-    if (srtp_protect_rtcp(send_ctx_, cipher, &nb_cipher) != 0) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
+
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_protect_rtcp(send_ctx_, cipher, &nb_cipher)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect r0=%u", r0);
     }
 
     return err;
@@ -591,9 +601,14 @@ srs_error_t SrsSRTP::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Wrap error code.
-    if (srtp_protect(send_ctx_, rtp_hdr, len_ptr) != 0) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
+    // If DTLS/SRTP is not ready, fail.
+    if (!send_ctx_) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "not ready");
+    }
+
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_protect(send_ctx_, rtp_hdr, len_ptr)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect r0=%u", r0);
     }
 
     return err;
@@ -603,10 +618,16 @@ srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_
 {
     srs_error_t err = srs_success;
 
+    // If DTLS/SRTP is not ready, fail.
+    if (!recv_ctx_) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "not ready");
+    }
+
     memcpy(plaintext, cipher, nb_plaintext);
-    srtp_err_status_t r0 = srtp_unprotect(recv_ctx_, plaintext, &nb_plaintext);
-    if (r0 != srtp_err_status_ok) {
-        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "unprotect r0=%u", r0);
+
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_unprotect(recv_ctx_, plaintext, &nb_plaintext)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect r0=%u", r0);
     }
 
     return err;
@@ -616,11 +637,18 @@ srs_error_t SrsSRTP::unprotect_rtcp(const char* cipher, char* plaintext, int& nb
 {
     srs_error_t err = srs_success;
 
+    // If DTLS/SRTP is not ready, fail.
+    if (!recv_ctx_) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "not ready");
+    }
+
     memcpy(plaintext, cipher, nb_plaintext);
-    // TODO: FIXME: Wrap error code.
-    if (srtp_unprotect_rtcp(recv_ctx_, plaintext, &nb_plaintext) != srtp_err_status_ok) {
-        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
+
+    srtp_err_status_t r0 = srtp_err_status_ok;
+    if ((r0 = srtp_unprotect_rtcp(recv_ctx_, plaintext, &nb_plaintext)) != srtp_err_status_ok) {
+        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect r0=%u", r0);
     }
 
     return err;
 }
+

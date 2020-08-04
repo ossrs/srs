@@ -89,10 +89,13 @@ srs_error_t SrsSecurityTransport::start_active_handshake()
 srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size) 
 {
     srs_error_t err = srs_success;
-    if (size) {
-        if ((err = session_->sendonly_skt->sendto(data, size, 0)) != srs_success) {
-            return srs_error_wrap(err, "send dtls packet");
-        }
+
+    if (!size) {
+        return err;
+    }
+
+    if ((err = session_->sendonly_skt->sendto(data, size, 0)) != srs_success) {
+        return srs_error_wrap(err, "send dtls packet");
     }
 
     if (_srs_blackhole->blackhole) {
@@ -114,13 +117,13 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
     if (handshake_done) {
         return err;
     }
+    handshake_done = true;
 
     // TODO: FIXME: Add cost for DTLS.
     srs_trace("RTC: DTLS handshake done.");
 
-    handshake_done = true;
     if ((err = srtp_initialize()) != srs_success) {
-        return srs_error_wrap(err, "srtp init failed");
+        return srs_error_wrap(err, "srtp init");
     }
 
     return session_->on_connection_established();
@@ -147,7 +150,7 @@ srs_error_t SrsSecurityTransport::srtp_initialize()
     }
     
     if ((err = srtp_->initialize(recv_key, send_key)) != srs_success) {
-        return srs_error_wrap(err, "srtp init failed");
+        return srs_error_wrap(err, "srtp init");
     }
 
     return err;
@@ -155,56 +158,32 @@ srs_error_t SrsSecurityTransport::srtp_initialize()
 
 srs_error_t SrsSecurityTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
 {
-    if (!srtp_) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect failed");
-    }
-
     return srtp_->protect_rtp(plaintext, cipher, nb_cipher);
 }
 
 srs_error_t SrsSecurityTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
 {
-    if (!srtp_) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtcp protect failed");
-    }
-
     return srtp_->protect_rtcp(plaintext, cipher, nb_cipher);
 }
 
 // TODO: FIXME: Merge with protect_rtp.
 srs_error_t SrsSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
 {
-    if (!srtp_) {
-        return srs_error_new(ERROR_RTC_SRTP_PROTECT, "rtp protect");
-    }
-
     return srtp_->protect_rtp2(rtp_hdr, len_ptr);
 }
 
 srs_error_t SrsSecurityTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
-    if (!srtp_) {
-        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect failed");
-    }
-    
     return srtp_->unprotect_rtp(cipher, plaintext, nb_plaintext);
 }
 
 srs_error_t SrsSecurityTransport::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
-    if (!srtp_) {
-        return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect failed");
-    }
-
     return srtp_->unprotect_rtcp(cipher, plaintext, nb_plaintext);
 }
 
 SrsRtcPlayStreamStatistic::SrsRtcPlayStreamStatistic()
 {
-#if defined(SRS_DEBUG)
-    debug_id = 0;
-#endif
-
     nn_rtp_pkts = 0;
     nn_audios = nn_extras = 0;
     nn_videos = nn_samples = 0;
@@ -353,18 +332,18 @@ srs_error_t SrsRtcPlayStream::cycle()
     SrsRequest* req = session_->req;
 
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "rtc fetch source failed");
+        return srs_error_wrap(err, "fetch source");
     }
 
     SrsRtcConsumer* consumer = NULL;
     SrsAutoFree(SrsRtcConsumer, consumer);
     if ((err = source->create_consumer(consumer)) != srs_success) {
-        return srs_error_wrap(err, "rtc create consumer, source url=%s", req->get_stream_url().c_str());
+        return srs_error_wrap(err, "create consumer, source=%s", req->get_stream_url().c_str());
     }
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer)) != srs_success) {
-        return srs_error_wrap(err, "dumps consumer, source url=%s", req->get_stream_url().c_str());
+        return srs_error_wrap(err, "dumps consumer, url=%s", req->get_stream_url().c_str());
     }
 
     realtime = _srs_config->get_realtime_enabled(req->vhost, true);
@@ -446,11 +425,6 @@ srs_error_t SrsRtcPlayStream::cycle()
 srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info)
 {
     srs_error_t err = srs_success;
-
-    // If DTLS is not OK, drop all messages.
-    if (!session_->transport_) {
-        return err;
-    }
 
     vector<SrsRtpPacket2*> send_pkts;
     // Covert kernel messages to RTP packets.
