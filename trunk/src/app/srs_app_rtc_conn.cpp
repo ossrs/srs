@@ -823,6 +823,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
     session_ = session;
     request_keyframe_ = false;
 
+    req = NULL;
     source = NULL;
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
