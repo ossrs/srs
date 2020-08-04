@@ -29,6 +29,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_conn.hpp>
 
+#include <vector>
+using namespace std;
+
 VOID TEST(KernelRTCTest, SequenceCompare)
 {
     if (true) {
@@ -122,6 +125,106 @@ VOID TEST(KernelRTCTest, SequenceCompare)
 
         EXPECT_FALSE(srs_seq_is_rollback(32768, 0));
         EXPECT_FALSE(srs_seq_is_rollback(0, 32768));
+    }
+}
+
+extern bool srs_is_stun(const uint8_t* data, size_t size);
+extern bool srs_is_dtls(const uint8_t* data, size_t len);
+extern bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len);
+extern bool srs_is_rtcp(const uint8_t* data, size_t len);
+
+#define mock_arr_push(arr, elem) arr.push_back(vector<uint8_t>(elem, elem + sizeof(elem)))
+
+VOID TEST(KernelRTCTest, TestPacketType)
+{
+    // DTLS packet.
+    vector< vector<uint8_t> > dtlss;
+    if (true) { uint8_t data[13] = {20}; mock_arr_push(dtlss, data); } // change_cipher_spec(20)
+    if (true) { uint8_t data[13] = {21}; mock_arr_push(dtlss, data); } // alert(21)
+    if (true) { uint8_t data[13] = {22}; mock_arr_push(dtlss, data); } // handshake(22)
+    if (true) { uint8_t data[13] = {23}; mock_arr_push(dtlss, data); } // application_data(23)
+    for (int i = 0; i < (int)dtlss.size(); i++) {
+        vector<uint8_t> elem = dtlss.at(i);
+        EXPECT_TRUE(srs_is_dtls(&elem[0], (size_t)elem.size()));
+    }
+
+    for (int i = 0; i < (int)dtlss.size(); i++) {
+        vector<uint8_t> elem = dtlss.at(i);
+        EXPECT_FALSE(srs_is_dtls(&elem[0], 1));
+
+        // All DTLS should not be other packets.
+        EXPECT_FALSE(srs_is_stun(&elem[0], (size_t)elem.size()));
+        EXPECT_TRUE(srs_is_dtls(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtp_or_rtcp(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
+    }
+
+    // STUN packet.
+    vector< vector<uint8_t> > stuns;
+    if (true) { uint8_t data[1] = {0}; mock_arr_push(stuns, data); } // binding request.
+    if (true) { uint8_t data[1] = {1}; mock_arr_push(stuns, data); } // binding success response.
+    for (int i = 0; i < (int)stuns.size(); i++) {
+        vector<uint8_t> elem = stuns.at(i);
+        EXPECT_TRUE(srs_is_stun(&elem[0], (size_t)elem.size()));
+    }
+
+    for (int i = 0; i < (int)stuns.size(); i++) {
+        vector<uint8_t> elem = stuns.at(i);
+        EXPECT_FALSE(srs_is_stun(&elem[0], 0));
+
+        // All STUN should not be other packets.
+        EXPECT_TRUE(srs_is_stun(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_dtls(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtp_or_rtcp(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
+    }
+
+    // RTCP packet.
+    vector< vector<uint8_t> > rtcps;
+    if (true) { uint8_t data[12] = {0x80, 192}; mock_arr_push(rtcps, data); }
+    if (true) { uint8_t data[12] = {0x80, 200}; mock_arr_push(rtcps, data); } // SR
+    if (true) { uint8_t data[12] = {0x80, 201}; mock_arr_push(rtcps, data); } // RR
+    if (true) { uint8_t data[12] = {0x80, 202}; mock_arr_push(rtcps, data); } // SDES
+    if (true) { uint8_t data[12] = {0x80, 203}; mock_arr_push(rtcps, data); } // BYE
+    if (true) { uint8_t data[12] = {0x80, 204}; mock_arr_push(rtcps, data); } // APP
+    if (true) { uint8_t data[12] = {0x80, 223}; mock_arr_push(rtcps, data); }
+    for (int i = 0; i < (int)rtcps.size(); i++) {
+        vector<uint8_t> elem = rtcps.at(i);
+        EXPECT_TRUE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
+    }
+
+    for (int i = 0; i < (int)rtcps.size(); i++) {
+        vector<uint8_t> elem = rtcps.at(i);
+        EXPECT_FALSE(srs_is_rtcp(&elem[0], 2));
+
+        // All RTCP should not be other packets.
+        EXPECT_FALSE(srs_is_stun(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_dtls(&elem[0], (size_t)elem.size()));
+        EXPECT_TRUE(srs_is_rtp_or_rtcp(&elem[0], (size_t)elem.size()));
+        EXPECT_TRUE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
+    }
+
+    // RTP packet.
+    vector< vector<uint8_t> > rtps;
+    if (true) { uint8_t data[12] = {0x80, 96}; mock_arr_push(rtps, data); }
+    if (true) { uint8_t data[12] = {0x80, 127}; mock_arr_push(rtps, data); }
+    if (true) { uint8_t data[12] = {0x80, 224}; mock_arr_push(rtps, data); }
+    if (true) { uint8_t data[12] = {0x80, 255}; mock_arr_push(rtps, data); }
+    for (int i = 0; i < (int)rtps.size(); i++) {
+        vector<uint8_t> elem = rtps.at(i);
+        EXPECT_TRUE(srs_is_rtp_or_rtcp(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
+    }
+
+    for (int i = 0; i < (int)rtps.size(); i++) {
+        vector<uint8_t> elem = rtps.at(i);
+        EXPECT_FALSE(srs_is_rtp_or_rtcp(&elem[0], 2));
+
+        // All RTP should not be other packets.
+        EXPECT_FALSE(srs_is_stun(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_dtls(&elem[0], (size_t)elem.size()));
+        EXPECT_TRUE(srs_is_rtp_or_rtcp(&elem[0], (size_t)elem.size()));
+        EXPECT_FALSE(srs_is_rtcp(&elem[0], (size_t)elem.size()));
     }
 }
 
