@@ -2226,10 +2226,7 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
         return srs_error_wrap(err, "protect rtcp psfb pli");
     }
 
-    // TDOO: FIXME: Check error.
-    sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-
-    return err;
+    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)

@@ -1704,8 +1704,11 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     if (request_key_frame_) {
         // TODO: FIXME: add coroutine to request key frame.
         request_key_frame_ = false;
-        // TODO: FIXME: Check error.
-        session_->send_rtcp_fb_pli(track_desc_->ssrc_);
+
+        if ((err = session_->send_rtcp_fb_pli(track_desc_->ssrc_)) != srs_success) {
+            srs_warn("PLI err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
     }
 
     // For NACK to handle packet.
