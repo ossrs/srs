@@ -935,12 +935,16 @@ srs_error_t SrsRtcPublishStream::send_rtcp_rr()
 
     for (int i = 0; i < (int)video_tracks_.size(); ++i) {
         SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
-        track->send_rtcp_rr();
+        if ((err = track->send_rtcp_rr()) != srs_success) {
+            return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
+        }
     }
 
     for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
         SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
-        track->send_rtcp_rr();
+        if ((err = track->send_rtcp_rr()) != srs_success) {
+            return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
+        }
     }
 
     session_->stat_->nn_rr++;
@@ -1512,8 +1516,12 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
     }
 
     if (type == SRS_TICKID_RTCP) {
+        if ((err = send_rtcp_rr()) != srs_success) {
+            srs_warn("RR err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+
         // TODO: FIXME: Check error.
-        send_rtcp_rr();
         send_rtcp_xr_rrtr();
 
         // TODO: FIXME: Check error.
@@ -2051,11 +2059,6 @@ srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks)
 {
-    // If DTLS is not OK, drop all messages.
-    if (!transport_) {
-        return;
-    }
-
     // @see: https://tools.ietf.org/html/rfc4585#section-6.1
     vector<uint16_t> nack_seqs;
     nack->get_nack_seqs(nack_seqs);
@@ -2102,11 +2105,6 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
 {
     srs_error_t err = srs_success;
 
-    // If DTLS is not OK, drop all messages.
-    if (!transport_) {
-        return err;
-    }
-
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2115,8 +2113,6 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     stream.write_2bytes(7);
     stream.write_4bytes(ssrc); // TODO: FIXME: Should be 1?
 
-    // TODO: FIXME: Implements it.
-    // TODO: FIXME: See https://github.com/ossrs/srs/blob/f81d35d20f04ebec01915cb78a882e45b7ee8800/trunk/src/app/srs_app_rtc_queue.cpp
     uint8_t fraction_lost = 0;
     uint32_t cumulative_number_of_packets_lost = 0 & 0x7FFFFF;
     uint32_t extended_highest_sequence = rtp_queue->get_extended_highest_sequence();
@@ -2139,7 +2135,7 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     stream.write_4bytes(rr_lsr);
     stream.write_4bytes(rr_dlsr);
 
-    srs_verbose("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
+    srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
     char protected_buf[kRtpPacketSize];
@@ -2148,19 +2144,12 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
         return srs_error_wrap(err, "protect rtcp rr");
     }
 
-    // TDOO: FIXME: Check error.
-    sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-    return err;
+    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
     srs_error_t err = srs_success;
-
-    // If DTLS is not OK, drop all messages.
-    if (!transport_) {
-        return err;
-    }
 
     /*
      @see: http://www.rfc-editor.org/rfc/rfc3611.html#section-2
@@ -2217,11 +2206,6 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
 {
     srs_error_t err = srs_success;
-
-    // If DTLS is not OK, drop all messages.
-    if (!transport_) {
-        return err;
-    }
 
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
