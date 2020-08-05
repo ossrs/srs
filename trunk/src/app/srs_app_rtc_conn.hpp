@@ -242,7 +242,6 @@ private:
     std::vector<SrsRtcAudioRecvTrack*> audio_tracks_;
     std::vector<SrsRtcVideoRecvTrack*> video_tracks_;
 private:
-    srs_utime_t last_twcc_feedback_time_;
     int twcc_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
