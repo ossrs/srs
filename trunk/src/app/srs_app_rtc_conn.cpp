@@ -1915,14 +1915,10 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    if (transport_ == NULL) {
-        return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");
-    }
-
     char unprotected_buf[kRtpPacketSize];
     int nb_unprotected_buf = nb_data;
     if ((err = transport_->unprotect_rtcp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
-        return srs_error_wrap(err, "rtcp unprotect failed");
+        return srs_error_wrap(err, "rtcp unprotect");
     }
 
     if (_srs_blackhole->blackhole) {
@@ -1930,11 +1926,16 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
     }
 
     if (player_) {
-        return player_->on_rtcp(unprotected_buf, nb_unprotected_buf);
+        err = player_->on_rtcp(unprotected_buf, nb_unprotected_buf);
     }
 
     if (publisher_) {
-        return publisher_->on_rtcp(unprotected_buf, nb_unprotected_buf);
+        err = publisher_->on_rtcp(unprotected_buf, nb_unprotected_buf);
+    }
+
+    if (err != srs_success) {
+        return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=%s", nb_data, nb_unprotected_buf,
+            srs_string_dumps_hex(unprotected_buf, nb_unprotected_buf, 8).c_str());
     }
 
     return err;
@@ -1948,11 +1949,7 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback(char* data, int nb_data)
 srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
 {
     if (publisher_ == NULL) {
-        return srs_error_new(ERROR_RTC_RTCP, "rtc publisher null");
-    }
-
-    if (transport_ == NULL) {
-        return srs_error_new(ERROR_RTC_RTCP, "recv unexpect rtp packet before dtls done");
+        return srs_error_new(ERROR_RTC_RTCP, "no publisher");
     }
 
     //TODO: FIXME: add unprotect_rtcp.
