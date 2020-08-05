@@ -1038,8 +1038,24 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
     }
 
-    char* buf = unprotected_buf;
-    int nb_buf = nb_unprotected_buf;
+    // Handle the plaintext RTP packet.
+    if ((err = do_on_rtp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
+        int nb_header = h.nb_bytes();
+        const char* body = unprotected_buf + nb_header;
+        int nb_body = nb_unprotected_buf - nb_header;
+        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=%s", nb_data, nb_unprotected_buf,
+            srs_string_dumps_hex(body, nb_body, 8).c_str());
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
+{
+    srs_error_t err = srs_success;
+
+    char* buf = plaintext;
+    int nb_buf = nb_plaintext;
 
     // Decode the RTP packet from buffer.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();

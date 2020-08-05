@@ -261,6 +261,9 @@ private:
     srs_error_t send_rtcp_xr_rrtr();
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
+private:
+    srs_error_t do_on_rtp(char* plaintext, int nb_plaintext);
+public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 private:
     srs_error_t send_periodic_twcc();
