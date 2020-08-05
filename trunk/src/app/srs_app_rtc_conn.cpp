@@ -543,8 +543,10 @@ srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+    // TODO: Use SrsBuffer to parse it.
     char* ph = data;
     int nb_left = nb_data;
+
     while (nb_left) {
         uint8_t payload_type = ph[1];
         uint16_t length_4bytes = (((uint16_t)ph[2]) << 8) | ph[3];
@@ -552,7 +554,8 @@ srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
         int length = (length_4bytes + 1) * 4;
 
         if (length > nb_data) {
-            return srs_error_new(ERROR_RTC_RTCP, "invalid rtcp packet, length=%u", length);
+            return srs_error_new(ERROR_RTC_RTCP, "invalid length=%u/%u, left=%u, bytes=%s",
+                length, nb_data, nb_left, srs_string_dumps_hex(ph, nb_left, 8).c_str());
         }
 
         srs_verbose("on rtcp, payload_type=%u", payload_type);
@@ -594,7 +597,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp(char* data, int nb_data)
         }
 
         if (err != srs_success) {
-            return srs_error_wrap(err, "rtcp");
+            return srs_error_wrap(err, "rtcp left=%u, bytes=%s", nb_left, srs_string_dumps_hex(ph, nb_left, 8).c_str());
         }
 
         ph += length;

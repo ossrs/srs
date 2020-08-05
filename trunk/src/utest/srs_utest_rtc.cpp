@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_queue.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -125,6 +126,41 @@ VOID TEST(KernelRTCTest, SequenceCompare)
 
         EXPECT_FALSE(srs_seq_is_rollback(32768, 0));
         EXPECT_FALSE(srs_seq_is_rollback(0, 32768));
+    }
+}
+
+VOID TEST(KernelRTCTest, DumpsHexToString)
+{
+    if (true) {
+        EXPECT_STREQ("", srs_string_dumps_hex(NULL, 0).c_str());
+    }
+
+    if (true) {
+        uint8_t data[] = {0, 0, 0, 0};
+        EXPECT_STREQ("00 00 00 00", srs_string_dumps_hex((const char*)data, sizeof(data)).c_str());
+    }
+
+    if (true) {
+        uint8_t data[] = {0, 1, 2, 3};
+        EXPECT_STREQ("00 01 02 03", srs_string_dumps_hex((const char*)data, sizeof(data)).c_str());
+    }
+
+    if (true) {
+        uint8_t data[] = {0xa, 3, 0xf, 3};
+        EXPECT_STREQ("0a 03 0f 03", srs_string_dumps_hex((const char*)data, sizeof(data)).c_str());
+    }
+
+    if (true) {
+        uint8_t data[] = {0xa, 3, 0xf, 3};
+        EXPECT_STREQ("0a,03,0f,03", srs_string_dumps_hex((const char*)data, sizeof(data), INT_MAX, ',', 0, 0).c_str());
+        EXPECT_STREQ("0a030f03", srs_string_dumps_hex((const char*)data, sizeof(data), INT_MAX, '\0', 0, 0).c_str());
+        EXPECT_STREQ("0a,03,\n0f,03", srs_string_dumps_hex((const char*)data, sizeof(data), INT_MAX, ',', 2, '\n').c_str());
+        EXPECT_STREQ("0a,03,0f,03", srs_string_dumps_hex((const char*)data, sizeof(data), INT_MAX, ',', 2,'\0').c_str());
+    }
+
+    if (true) {
+        uint8_t data[] = {0xa, 3, 0xf};
+        EXPECT_STREQ("0a 03", srs_string_dumps_hex((const char*)data, sizeof(data), 2).c_str());
     }
 }
 
