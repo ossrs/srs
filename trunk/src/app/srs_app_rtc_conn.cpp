@@ -958,12 +958,16 @@ srs_error_t SrsRtcPublishStream::send_rtcp_xr_rrtr()
 
     for (int i = 0; i < (int)video_tracks_.size(); ++i) {
         SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
-        track->send_rtcp_xr_rrtr();
+        if ((err = track->send_rtcp_xr_rrtr()) != srs_success) {
+            return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
+        }
     }
 
     for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
         SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
-        track->send_rtcp_xr_rrtr();
+        if ((err = track->send_rtcp_xr_rrtr()) != srs_success) {
+            return srs_error_wrap(err, "track=%s", track->get_track_id().c_str());
+        }
     }
 
     session_->stat_->nn_xr++;
@@ -1521,8 +1525,10 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
             srs_freep(err);
         }
 
-        // TODO: FIXME: Check error.
-        send_rtcp_xr_rrtr();
+        if ((err = send_rtcp_xr_rrtr()) != srs_success) {
+            srs_warn("XR err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
 
         // TODO: FIXME: Check error.
         // We should not depends on the received packet,
@@ -2197,10 +2203,7 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
         return srs_error_wrap(err, "protect rtcp xr");
     }
 
-    // TDOO: FIXME: Check error.
-    sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-
-    return err;
+    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
