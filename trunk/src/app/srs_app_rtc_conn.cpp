@@ -1875,10 +1875,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bo
 
     username_ = username;
     is_publisher_ = is_publisher;
-
-    if (r) { //TODO: FIXME: SrsRequest owner by Stream, not connection
-        req = r->copy();
-    }
+    req = r->copy();
 
     SrsSessionConfig* cfg = &local_sdp.session_config_;
     if ((err = transport_->initialize(cfg)) != srs_success) {
