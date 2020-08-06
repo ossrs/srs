@@ -2758,6 +2758,49 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
     return err;
 }
 
+srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcStreamDescription* req_stream_desc,
+        std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
+{
+    srs_error_t err = srs_success;
+    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
+    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+
+    SrsRtcStream* source = NULL;
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
+        return srs_error_wrap(err, "fetch rtc source");
+    }
+
+    std::vector<SrsRtcTrackDescription*> src_track_descs;
+    //negotiate audio media
+    if(NULL != req_stream_desc->audio_track_desc_) {
+        src_track_descs = source->get_track_desc("audio", "opus");
+        if (src_track_descs.size() > 0) {
+            // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
+            SrsRtcTrackDescription *track = src_track_descs[0]->copy();
+            sub_relations.insert(make_pair(track->ssrc_, track));
+            track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        }
+    }
+
+    //negotiate audio media
+    std::vector<SrsRtcTrackDescription*> req_video_tracks = req_stream_desc->video_track_descs_;
+    src_track_descs = source->get_track_desc("video", "h264");
+    for(int i = 0; i < req_video_tracks.size(); ++i) {
+        SrsRtcTrackDescription* req_video = req_video_tracks.at(i);
+        for(int j = 0; j < src_track_descs.size(); ++j) {
+            SrsRtcTrackDescription* src_video = src_track_descs.at(j);
+            if(req_video->id_ == src_video->id_) {
+                // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
+                SrsRtcTrackDescription *track = src_video->copy();
+                sub_relations.insert(make_pair(track->ssrc_, track));
+                track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+            }
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
 {
     srs_error_t err = srs_success;
