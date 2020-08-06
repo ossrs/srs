@@ -191,6 +191,7 @@ string SrsDvrAsyncCallOnHlsNotify::to_string()
 SrsHlsMuxer::SrsHlsMuxer()
 {
     req = NULL;
+    writer = NULL;
     hls_fragment = hls_window = 0;
     hls_aof_ratio = 1.0;
     deviation_ts = 0;
