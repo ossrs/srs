@@ -2762,8 +2762,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
         std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
 {
     srs_error_t err = srs_success;
-    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
-    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
 
     SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
