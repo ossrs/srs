@@ -1138,11 +1138,13 @@ SrsMediaPayloadType SrsCodecPayload::generate_media_payload_type()
 
 SrsVideoPayload::SrsVideoPayload()
 {
+    type_ = "video";
 }
 
 SrsVideoPayload::SrsVideoPayload(uint8_t pt, std::string encode_name, int sample)
     :SrsCodecPayload(pt, encode_name, sample)
 {
+    type_ = "video";
     h264_param_.profile_level_id = "";
     h264_param_.packetization_mode = "";
     h264_param_.level_asymmerty_allow = "";
@@ -1224,11 +1226,13 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 
 SrsAudioPayload::SrsAudioPayload()
 {
+    type_ = "audio";
 }
 
 SrsAudioPayload::SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel)
     :SrsCodecPayload(pt, encode_name, sample)
 {
+    type_ = "audio";
     channel_ = channel;
     opus_param_.minptime = 0;
     opus_param_.use_inband_fec = false;
@@ -1340,6 +1344,47 @@ SrsMediaPayloadType SrsRedPayload::generate_media_payload_type()
         media_payload_type.encoding_param_ = srs_int2str(channel_);
     }
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
+
+    return media_payload_type;
+}
+
+SrsRtxPayloadDes::SrsRtxPayloadDes()
+{
+}
+
+SrsRtxPayloadDes::SrsRtxPayloadDes(uint8_t pt, uint8_t apt):SrsCodecPayload(pt, "rtx", 8000), apt_(apt)
+{
+}
+
+SrsRtxPayloadDes::~SrsRtxPayloadDes()
+{
+}
+
+
+SrsRtxPayloadDes* SrsRtxPayloadDes::copy()
+{
+    SrsRtxPayloadDes* cp = new SrsRtxPayloadDes();
+
+    cp->type_ = type_;
+    cp->pt_ = pt_;
+    cp->name_ = name_;
+    cp->sample_ = sample_;
+    cp->rtcp_fbs_ = rtcp_fbs_;
+    cp->apt_ = apt_;
+
+    return cp;
+}
+
+SrsMediaPayloadType SrsRtxPayloadDes::generate_media_payload_type()
+{
+    SrsMediaPayloadType media_payload_type(pt_);
+
+    media_payload_type.encoding_name_ = name_;
+    media_payload_type.clock_rate_ = sample_;
+    std::ostringstream format_specific_param;
+    format_specific_param << "fmtp:" << pt_ << " apt="<< apt_;
+
+    media_payload_type.format_specific_param_ = format_specific_param.str();
 
     return media_payload_type;
 }
