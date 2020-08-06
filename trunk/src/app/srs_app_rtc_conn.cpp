@@ -366,6 +366,7 @@ srs_error_t SrsRtcPlayStream::cycle()
 
     // TODO: FIXME: Use cache for performance?
     vector<SrsRtpPacket2*> pkts;
+    uint64_t total_pkts = 0;
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_consume(session_, this, req_, consumer)) != srs_success) {
@@ -391,6 +392,7 @@ srs_error_t SrsRtcPlayStream::cycle()
 
         // Update stats for session.
         session_->stat_->nn_out_rtp += msg_count;
+        total_pkts += msg_count;
 
         // Send-out all RTP packets and do cleanup.
         // TODO: FIXME: Handle error.
@@ -421,7 +423,7 @@ srs_error_t SrsRtcPlayStream::cycle()
         if (pprint->can_print()) {
             // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
             srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes, %d pad, %d/%d cache",
-                msg_count, msg_count, info.nn_rtp_pkts, info.nn_audios, info.nn_extras, info.nn_videos, info.nn_samples, info.nn_bytes,
+                total_pkts, msg_count, info.nn_rtp_pkts, info.nn_audios, info.nn_extras, info.nn_videos, info.nn_samples, info.nn_bytes,
                 info.nn_rtp_bytes, info.nn_padding_bytes, info.nn_paddings, msg_count, msg_count);
         }
     }
