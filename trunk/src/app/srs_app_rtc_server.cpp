@@ -564,8 +564,9 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 
     std::map<std::string, SrsRtcConnection*>::iterator it;
 
+    // We allows username is optional.
     string username = session->username();
-    if ((it = map_username_session.find(username)) != map_username_session.end()) {
+    if (!username.empty() && (it = map_username_session.find(username)) != map_username_session.end()) {
         map_username_session.erase(it);
     }
 
