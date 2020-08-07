@@ -109,7 +109,7 @@ public:
 private:
     srs_error_t do_create_session(
         SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
-        const std::string& mock_eip, bool publish, bool dtls, bool srtp, SrsRtcStream* source
+        const std::string& mock_eip, bool publish, bool dtls, bool srtp
     );
 public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
