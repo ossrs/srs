@@ -326,7 +326,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     // Notify hijack to handle the UDP packet.
     if (hijacker) {
         bool consumed = false;
-        if ((err = hijacker->on_udp_packet(&consumed)) != srs_success) {
+        if ((err = hijacker->on_udp_packet(pkt, session, &consumed)) != srs_success) {
             return srs_error_wrap(err, "hijack consumed=%u", consumed);
         }
 

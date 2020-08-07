@@ -80,7 +80,7 @@ public:
     virtual ~ISrsRtcServerHijacker();
 public:
     // If consumed set to true, server will ignore the packet.
-    virtual srs_error_t on_udp_packet(bool* pconsumed) = 0;
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt, SrsRtcConnection* session, bool* pconsumed) = 0;
 };
 
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
