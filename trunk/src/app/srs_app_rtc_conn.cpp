@@ -541,6 +541,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
 
         // TODO: FIXME: Maybe refine for performance issue.
         if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
+            srs_warn("ssrc %u not found", pkt->header.get_ssrc());
             continue;
         }
         
