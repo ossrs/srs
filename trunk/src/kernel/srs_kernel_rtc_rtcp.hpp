@@ -51,6 +51,7 @@ enum SrsRtcpType
 };
 
 // RTCP Header, @see http://tools.ietf.org/html/rfc3550#section-6.1
+// @remark The header must be 4 bytes, which align with the max field size 2B.
 struct SrsRtcpHeader
 {
 	uint16_t rc:5;
@@ -84,14 +85,13 @@ public:
 class SrsRtcpApp : public SrsRtcpCommon 
 {
 private:
-    SrsRtcpHeader header_;
     uint32_t ssrc_;
     uint8_t name_[4];
-    uint8_t payload_[kRtcpPacketSize];
-    int payload_len_;
 public:
     SrsRtcpApp();
     virtual ~SrsRtcpApp();
+
+    static bool is_rtcp_app(uint8_t *data, int nb_data);
 
     virtual uint8_t type() const;
     

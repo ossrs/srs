@@ -330,6 +330,20 @@ public:
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 
+class SrsRtxPayloadDes : public SrsCodecPayload
+{
+public:
+    uint8_t apt_;
+public:
+    SrsRtxPayloadDes();
+    SrsRtxPayloadDes(uint8_t pt, uint8_t apt);
+    virtual ~SrsRtxPayloadDes();
+
+public:
+    virtual SrsRtxPayloadDes* copy();
+    virtual SrsMediaPayloadType generate_media_payload_type();
+};
+
 class SrsRtcTrackDescription
 {
 public:

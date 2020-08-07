@@ -178,15 +178,17 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             server_enabled, rtc_enabled, request.vhost.c_str());
     }
 
+    bool srtp_enabled = true;
+    if (encrypt.empty()) {
+        srtp_enabled = _srs_config->get_rtc_server_encrypt();
+    } else {
+        srtp_enabled = (encrypt != "false");
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
-    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, &session)) != srs_success) {
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, true, srtp_enabled, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
-    }
-    if (encrypt.empty()) {
-        session->set_encrypt(_srs_config->get_rtc_server_encrypt());
-    } else {
-        session->set_encrypt(encrypt != "false");
     }
 
     ostringstream os;
@@ -206,8 +208,8 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
-    srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
-        remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC username=%s, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
+        srtp_enabled, remote_sdp_str.length(), local_sdp_str.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_str.c_str());
 
@@ -537,7 +539,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
-    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, &session)) != srs_success) {
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, true, true, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
 

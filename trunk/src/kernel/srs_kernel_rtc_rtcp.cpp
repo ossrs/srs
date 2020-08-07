@@ -84,10 +84,30 @@ srs_error_t SrsRtcpCommon::encode(SrsBuffer *buffer)
 
 SrsRtcpApp::SrsRtcpApp():ssrc_(0)
 {
+    header_.padding = 0;
+    header_.type = SrsRtcpType_app;
+    header_.rc = 0;
+    header_.version = kRtcpVersion;
 }
 
 SrsRtcpApp::~SrsRtcpApp()
 {
+}
+
+bool SrsRtcpApp::is_rtcp_app(uint8_t *data, int nb_data)
+{
+    if (!data || nb_data <12) {
+        return false;
+    }
+
+    SrsRtcpHeader *header = (SrsRtcpHeader*)data;
+    if (header->version == kRtcpVersion
+            && header->type == SrsRtcpType_app
+            && ntohs(header->length) >= 2) {
+        return true;
+    }
+
+    return false;
 }
 
 uint8_t SrsRtcpApp::type() const
@@ -147,8 +167,12 @@ srs_error_t SrsRtcpApp::set_payload(uint8_t* payload, int len)
         return srs_error_new(ERROR_RTC_RTCP, "invalid payload length %d", len);
     }
 
-    payload_len_ = len;
+    payload_len_ = (len + 3)/ 4 * 4;;
     memcpy(payload_, payload, len);
+    if (payload_len_ > len) {
+        memset(&payload_[len], 0, payload_len_ - len); //padding
+    }
+    header_.length = payload_len_/4 + 3 - 1;
 
     return srs_success;
 }
@@ -164,6 +188,10 @@ srs_error_t SrsRtcpApp::decode(SrsBuffer *buffer)
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
+    }
+
+    if (header_.type != SrsRtcpType_app || !buffer->require(8)) {
+        return srs_error_new(ERROR_RTC_RTCP, "not rtcp app");
     }
 
     ssrc_ = buffer->read_4bytes();
