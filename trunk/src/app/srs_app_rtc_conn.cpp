@@ -2190,6 +2190,23 @@ srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t
     return err;
 }
 
+srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    int  nb_buf = nb_data;
+    char protected_buf[kRtpPacketSize];
+    if ((err = transport_->protect_rtcp(data, protected_buf, nb_buf)) != srs_success) {
+        return srs_error_wrap(err, "protect rtcp");
+    }
+
+    if ((err = sendonly_skt->sendto(protected_buf, nb_buf, 0)) != srs_success) {
+        return srs_error_wrap(err, "send");
+    }
+
+    return err;
+}
+
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks)
 {
     // @see: https://tools.ietf.org/html/rfc4585#section-6.1
