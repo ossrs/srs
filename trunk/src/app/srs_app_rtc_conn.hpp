@@ -89,8 +89,26 @@ enum SrsRtcConnectionStateType
     CLOSED = 5,
 };
 
+// The transport for RTC connection.
+class ISrsRtcTransport : public ISrsDtlsCallback
+{
+public:
+    ISrsRtcTransport();
+    virtual ~ISrsRtcTransport();
+public:
+    virtual srs_error_t initialize(SrsSessionConfig* cfg) = 0;
+    virtual srs_error_t start_active_handshake() = 0;
+    virtual srs_error_t on_dtls(char* data, int nb_data) = 0;
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr) = 0;
+    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+};
+
 // The security transport, use DTLS/SRTP to protect the data.
-class SrsSecurityTransport : public ISrsDtlsCallback
+class SrsSecurityTransport : public ISrsRtcTransport
 {
 private:
     SrsRtcConnection* session_;
@@ -126,6 +144,18 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
+};
+
+// Semi security transport, setup DTLS and SRTP, with SRTP decrypt, without SRTP encrypt.
+class SrsSemiSecurityTransport : public SrsSecurityTransport
+{
+public:
+    SrsSemiSecurityTransport(SrsRtcConnection* s);
+    virtual ~SrsSemiSecurityTransport();
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
 };
 
 // A group of RTP packets for outgoing(send to players).
@@ -323,7 +353,7 @@ public:
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
-    SrsSecurityTransport* transport_;
+    ISrsRtcTransport* transport_;
     SrsRtcPlayStream* player_;
     SrsRtcPublishStream* publisher_;
     bool is_publisher_;
@@ -342,11 +372,6 @@ private:
 private:
     // For each RTC session, we use a specified cid for debugging logs.
     SrsContextId cid;
-    // For each RTC session, whether requires encrypt.
-    //      Read config value, rtc_server.encrypt, default to on.
-    //      Sepcifies by HTTP API, query encrypt, optional.
-    // TODO: FIXME: Support reload.
-    bool encrypt;
     SrsRequest* req;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
@@ -374,7 +399,6 @@ public:
     // Get all addresses client used.
     std::vector<SrsUdpMuxSocket*> peer_addresses();
 public:
-    void set_encrypt(bool v);
     void switch_to_context();
     SrsContextId context_id();
 public:
@@ -384,7 +408,7 @@ public:
     srs_error_t add_player2(SrsRequest* request, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
-    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username);
+    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, bool dtls, bool srtp, std::string username);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);

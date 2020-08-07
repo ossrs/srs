@@ -102,13 +102,14 @@ public:
 public:
     // Peer start offering, we answer it.
     srs_error_t create_session(
-        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+        bool publish, bool dtls, bool srtp,
         SrsRtcConnection** psession
     );
 private:
     srs_error_t do_create_session(
         SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
-        const std::string& mock_eip, bool publish, SrsRtcStream* source
+        const std::string& mock_eip, bool publish, bool dtls, bool srtp, SrsRtcStream* source
     );
 public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
