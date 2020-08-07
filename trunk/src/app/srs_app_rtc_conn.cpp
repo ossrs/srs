@@ -203,6 +203,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
     req_ = NULL;
     source_ = NULL;
 
+    is_started = false;
     session_ = s;
 
     mw_msgs = 0;
@@ -804,6 +805,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
 {
     timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
+    is_started = false;
     session_ = session;
     request_keyframe_ = false;
 
