@@ -213,6 +213,75 @@ srs_error_t SrsSemiSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
     return srs_success;
 }
 
+SrsPlaintextTransport::SrsPlaintextTransport(SrsRtcConnection* s)
+{
+    session_ = s;
+}
+
+SrsPlaintextTransport::~SrsPlaintextTransport()
+{
+}
+
+srs_error_t SrsPlaintextTransport::initialize(SrsSessionConfig* cfg)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::start_active_handshake()
+{
+    return on_dtls_handshake_done();
+}
+
+srs_error_t SrsPlaintextTransport::on_dtls(char* data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::on_dtls_handshake_done()
+{
+    srs_trace("RTC: DTLS handshake done.");
+    return session_->on_connection_established();
+}
+
+srs_error_t SrsPlaintextTransport::on_dtls_application_data(const char* data, const int len)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::write_dtls_data(void* data, int size)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    memcpy(cipher, plaintext, nb_cipher);
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
+{
+    memcpy(cipher, plaintext, nb_cipher);
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
+{
+    memcpy(plaintext, cipher, nb_plaintext);
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
+{
+    memcpy(plaintext, cipher, nb_plaintext);
+    return srs_success;
+}
+
 SrsRtcPlayStreamStatistic::SrsRtcPlayStreamStatistic()
 {
     nn_rtp_pkts = 0;
@@ -1906,7 +1975,11 @@ srs_error_t SrsRtcConnection::initialize(SrsRtcStream* source, SrsRequest* r, bo
 
     if (!srtp) {
         srs_freep(transport_);
-        transport_ = new SrsSemiSecurityTransport(this);
+        if (dtls) {
+            transport_ = new SrsSemiSecurityTransport(this);
+        } else {
+            transport_ = new SrsPlaintextTransport(this);
+        }
     }
 
     SrsSessionConfig* cfg = &local_sdp.session_config_;

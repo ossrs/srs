@@ -158,6 +158,29 @@ public:
     virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
 };
 
+// Plaintext transport, without DTLS or SRTP.
+class SrsPlaintextTransport : public ISrsRtcTransport
+{
+private:
+    SrsRtcConnection* session_;
+public:
+    SrsPlaintextTransport(SrsRtcConnection* s);
+    virtual ~SrsPlaintextTransport();
+public:
+    virtual srs_error_t initialize(SrsSessionConfig* cfg);
+    virtual srs_error_t start_active_handshake();
+    virtual srs_error_t on_dtls(char* data, int nb_data);
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len);
+    virtual srs_error_t write_dtls_data(void* data, int size);
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
+    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+};
+
 // A group of RTP packets for outgoing(send to players).
 class SrsRtcPlayStreamStatistic
 {
