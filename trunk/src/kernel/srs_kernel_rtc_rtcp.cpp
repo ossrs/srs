@@ -501,6 +501,11 @@ srs_error_t SrsRtcpRR::encode(SrsBuffer *buffer)
     return err;
 }
 
+SrsRtcpTWCC::SrsRtcpTWCCChunk::SrsRtcpTWCCChunk()
+        : size(0), all_same(true), has_large_delta(false)
+{
+}
+
 SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : sender_ssrc_(sender_ssrc), pkt_len(0)
 {
     header_.padding = 0;

@@ -252,6 +252,7 @@ private:
         uint16_t size;
         bool all_same;
         bool has_large_delta;
+        SrsRtcpTWCCChunk();
     };
 
     int pkt_len;
