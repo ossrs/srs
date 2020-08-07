@@ -204,9 +204,18 @@ ISrsRtcServerHandler::~ISrsRtcServerHandler()
 {
 }
 
+ISrsRtcServerHijacker::ISrsRtcServerHijacker()
+{
+}
+
+ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
+{
+}
+
 SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
+    hijacker = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -255,6 +264,11 @@ srs_error_t SrsRtcServer::initialize()
 void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 {
     handler = h;
+}
+
+void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
+{
+    hijacker = h;
 }
 
 srs_error_t SrsRtcServer::listen_udp()
@@ -306,6 +320,18 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
             if (session) {
                 session->switch_to_context();
             }
+        }
+    }
+
+    // Notify hijack to handle the UDP packet.
+    if (hijacker) {
+        bool consumed = false;
+        if ((err = hijacker->on_udp_packet(&consumed)) != srs_success) {
+            return srs_error_wrap(err, "hijack consumed=%u", consumed);
+        }
+
+        if (consumed) {
+            return err;
         }
     }
 
