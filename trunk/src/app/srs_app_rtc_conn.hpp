@@ -364,6 +364,16 @@ public:
     std::string summary();
 };
 
+// Callback for RTC connection.
+class ISrsRtcConnectionHijacker
+{
+public:
+    ISrsRtcConnectionHijacker();
+    virtual ~ISrsRtcConnectionHijacker();
+public:
+    virtual srs_error_t on_dtls_done() = 0;
+};
+
 // A RTC Peer Connection, SDP level object.
 class SrsRtcConnection : virtual public ISrsHourGlass
 {
@@ -373,6 +383,7 @@ class SrsRtcConnection : virtual public ISrsHourGlass
 public:
     bool disposing_;
     SrsRtcConnectionStatistic* stat_;
+    ISrsRtcConnectionHijacker* hijacker_;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
@@ -439,6 +450,7 @@ public:
     srs_error_t on_rtp(char* data, int nb_data);
     srs_error_t on_rtcp(char* data, int nb_data);
     srs_error_t on_rtcp_feedback(char* buf, int nb_buf);
+    void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();
     srs_error_t start_play();
