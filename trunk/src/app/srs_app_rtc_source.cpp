@@ -1867,6 +1867,7 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     session_->stat_->nn_out_audios++;
 
     // track level statistic
+    // TODO: FIXME: if send packets failed, statistic is no correct.
     statistic_->packets++;
     statistic_->bytes += pkt->nb_bytes();
 
@@ -1922,6 +1923,7 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     session_->stat_->nn_out_videos++;
 
     // track level statistic
+    // TODO: FIXME: if send packets failed, statistic is no correct.
     statistic->packets++;
     statistic->bytes += pkt->nb_bytes();
 

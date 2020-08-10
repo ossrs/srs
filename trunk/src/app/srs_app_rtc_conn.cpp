@@ -495,15 +495,23 @@ srs_error_t SrsRtcPlayStream::cycle()
         session_->stat_->nn_out_rtp += msg_count;
         total_pkts += msg_count;
 
-        // Send-out all RTP packets and do cleanup.
-        // TODO: FIXME: Handle error.
-        send_packets(source, pkts, info);
+        // Send-out all RTP packets and do cleanup
+        if (true) {
+            err = send_packets(source, pkts, info);
 
-        for (int i = 0; i < msg_count; i++) {
-            SrsRtpPacket2* pkt = pkts[i];
-            srs_freep(pkt);
+            // TODO: FIXME: Use pithy print to show more smart information.
+            if (err != srs_success) {
+                err = srs_error_wrap(err, "RTP, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
+                srs_warn("play send packets, err: %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+
+            for (int i = 0; i < msg_count; i++) {
+                SrsRtpPacket2* pkt = pkts[i];
+                srs_freep(pkt);
+            }
+            pkts.clear();
         }
-        pkts.clear();
 
         // Stat for performance analysis.
         if (!stat_enabled) {
@@ -547,17 +555,18 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         
         // For audio, we transcoded AAC to opus in extra payloads.
         if (pkt->is_audio()) {
-            SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
             // TODO: FIXME: Any simple solution?
+            SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
             if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
-                return srs_error_wrap(err, "audio_track on rtp");
+                return srs_error_wrap(err, "audio track");
             }
+
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
         } else {
-            SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
             // TODO: FIXME: Any simple solution?
+            SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
-                return srs_error_wrap(err, "audio_track on rtp");
+                return srs_error_wrap(err, "video track");
             }
         }
 
