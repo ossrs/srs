@@ -544,10 +544,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         if (err != srs_success) {
             if (pp_pkt_handler_err->can_print(err)) {
                 // Append more information.
-                if (true) {
-                    char* data = skt.data(); int size = skt.size();
-                    err = srs_error_wrap(err, "size=%u, data=[%s]", size, srs_string_dumps_hex(data, size, 8).c_str());
-                }
+                err = srs_error_wrap(err, "size=%u, data=[%s]", skt.size(), srs_string_dumps_hex(skt.data(), skt.size(), 8).c_str());
                 srs_warn("handle udp pkt, count=%u, err: %s", pp_pkt_handler_err->nn_count, srs_error_desc(err).c_str());
             }
             srs_freep(err);

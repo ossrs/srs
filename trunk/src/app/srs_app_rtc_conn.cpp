@@ -459,6 +459,7 @@ srs_error_t SrsRtcPlayStream::cycle()
     srs_trace("RTC: start play url=%s, source_id=[%d][%s], realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
         ::getpid(), cid.c_str(), realtime, mw_msgs);
 
+    SrsErrorPithyPrint epp;
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
@@ -499,12 +500,11 @@ srs_error_t SrsRtcPlayStream::cycle()
         if (true) {
             err = send_packets(source, pkts, info);
 
-            // TODO: FIXME: Use pithy print to show more smart information.
-            if (err != srs_success) {
-                err = srs_error_wrap(err, "RTP, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
+            if (epp.can_print(err)) {
+                err = srs_error_wrap(err, "RTP packets=%u, SSRC=%u, SEQ=%u", pkts.size(), pkt->header.get_ssrc(), pkt->header.get_sequence());
                 srs_warn("play send packets, err: %s", srs_error_desc(err).c_str());
-                srs_freep(err);
             }
+            srs_freep(err);
 
             for (int i = 0; i < msg_count; i++) {
                 SrsRtpPacket2* pkt = pkts[i];
