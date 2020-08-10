@@ -580,50 +580,48 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
 
 void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq)
 {
-    if (true) {
-        std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
-        for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-            SrsRtcAudioSendTrack* track = it->second;
+    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioSendTrack* track = it->second;
 
-            // If track is inactive, not process nack request.
-            if (!track->get_track_status()){
-                continue;
-            }
-
-            if (track->has_ssrc(ssrc)) {
-                // update recv nack statistic
-                track->on_recv_nack();
-
-                SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
-                if (pkt != NULL) {
-                    pkts.push_back(pkt);
-                }
-                return;
-            }
+        // If track is inactive, not process nack request.
+        if (!track->get_track_status()){
+            continue;
         }
+
+        if (!track->has_ssrc(ssrc)) {
+            continue;
+        }
+
+        // update recv nack statistic
+        track->on_recv_nack();
+
+        SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
+        if (pkt != NULL) {
+            pkts.push_back(pkt);
+        }
+        return;
     }
 
-    if (true) {
-        std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator it;
-        for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-            SrsRtcVideoSendTrack* track = it->second;
+    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+        SrsRtcVideoSendTrack* track = it->second;
 
-            // If track is inactive, not process nack request.
-            if (!track->get_track_status()){
-                continue;
-            }
-
-            if (track->has_ssrc(ssrc)) {
-                // update recv nack statistic
-                track->on_recv_nack();
-
-                SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
-                if (pkt != NULL) {
-                    pkts.push_back(pkt);
-                }
-                return;
-            }
+        // If track is inactive, not process nack request.
+        if (!track->get_track_status()){
+            continue;
         }
+
+        if (!track->has_ssrc(ssrc)) {
+            continue;
+        }
+
+        // update recv nack statistic
+        track->on_recv_nack();
+
+        SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
+        if (pkt != NULL) {
+            pkts.push_back(pkt);
+        }
+        return;
     }
 }
 
