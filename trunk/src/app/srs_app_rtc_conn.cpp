@@ -501,8 +501,7 @@ srs_error_t SrsRtcPlayStream::cycle()
             err = send_packets(source, pkts, info);
 
             if (epp.can_print(err)) {
-                err = srs_error_wrap(err, "RTP packets=%u, SSRC=%u, SEQ=%u", pkts.size(), pkt->header.get_ssrc(), pkt->header.get_sequence());
-                srs_warn("play send packets, err: %s", srs_error_desc(err).c_str());
+                srs_warn("play send packets=%u, err: %s", pkts.size(), srs_error_desc(err).c_str());
             }
             srs_freep(err);
 
@@ -558,7 +557,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
             if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
-                return srs_error_wrap(err, "audio track");
+                return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
 
             // TODO: FIXME: Padding audio to the max payload in RTP packets.
@@ -566,7 +565,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
-                return srs_error_wrap(err, "video track");
+                return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
         }
 
