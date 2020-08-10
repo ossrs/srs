@@ -1796,11 +1796,19 @@ bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
 
 SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
 {
-    if (rtp_queue_) {
-        return rtp_queue_->at(seq);
+    SrsRtpPacket2* pkt = rtp_queue_->at(seq);
+
+    if (pkt == NULL) {
+        return pkt;
     }
 
-    return NULL;
+    // For NACK, it sequence must match exactly, or it cause SRTP fail.
+    if (pkt->header.get_sequence() != seq) {
+        srs_trace("miss match seq=%u, pkt seq=%u", seq, pkt->header.get_sequence());
+        return NULL;
+    }
+
+    return pkt;
 }
 
 // TODO: FIXME: Should refine logs, set tracks in a time.

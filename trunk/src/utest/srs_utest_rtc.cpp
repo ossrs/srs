@@ -164,6 +164,46 @@ VOID TEST(KernelRTCTest, DumpsHexToString)
     }
 }
 
+VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
+{
+    SrsRtcConnection s(NULL, SrsContextId());
+    SrsRtcPlayStream play(&s, SrsContextId());
+
+    SrsRtcTrackDescription ds;
+    SrsRtcVideoSendTrack *track = new SrsRtcVideoSendTrack(&s, &ds);
+
+    // The RTP queue will free the packet.
+    if (true) {
+        SrsRtpPacket2* pkt = new SrsRtpPacket2();
+        pkt->header.set_sequence(100);
+        track->rtp_queue_->set(pkt->header.get_sequence(), pkt);
+    }
+
+    // If sequence not match, packet not found.
+    if (true) {
+        SrsRtpPacket2* pkt = track->fetch_rtp_packet(10);
+        EXPECT_TRUE(pkt == NULL);
+    }
+
+    // The sequence matched, we got the packet.
+    if (true) {
+        SrsRtpPacket2* pkt = track->fetch_rtp_packet(100);
+        EXPECT_TRUE(pkt != NULL);
+    }
+
+    // NACK special case.
+    if (true) {
+        // The sequence is the "same", 1100%1000 is 100,
+        // so we can also get it from the RTP queue.
+        SrsRtpPacket2* pkt = track->rtp_queue_->at(1100);
+        EXPECT_TRUE(pkt != NULL);
+
+        // But the track requires exactly match, so it returns NULL.
+        pkt = track->fetch_rtp_packet(1100);
+        EXPECT_TRUE(pkt == NULL);
+    }
+}
+
 extern bool srs_is_stun(const uint8_t* data, size_t size);
 extern bool srs_is_dtls(const uint8_t* data, size_t len);
 extern bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len);
