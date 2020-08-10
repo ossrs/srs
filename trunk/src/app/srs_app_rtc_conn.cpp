@@ -585,6 +585,11 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
             SrsRtcAudioSendTrack* track = it->second;
 
+            // If track is inactive, not process nack request.
+            if (!track->get_track_status()){
+                continue;
+            }
+
             if (track->has_ssrc(ssrc)) {
                 // update recv nack statistic
                 track->on_recv_nack();
@@ -602,6 +607,11 @@ void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, u
         std::map<uint32_t, SrsRtcVideoSendTrack*>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
             SrsRtcVideoSendTrack* track = it->second;
+
+            // If track is inactive, not process nack request.
+            if (!track->get_track_status()){
+                continue;
+            }
 
             if (track->has_ssrc(ssrc)) {
                 // update recv nack statistic
