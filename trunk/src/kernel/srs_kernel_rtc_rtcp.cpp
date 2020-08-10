@@ -826,11 +826,6 @@ srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
     data_ = buffer->head();
     nb_data_ = buffer->left();
 
-    uint16_t base_sn_;
-    uint16_t packet_count_;
-    int32_t reference_time_;
-    uint8_t fb_pkt_count_;
-
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
@@ -1470,6 +1465,10 @@ srs_error_t SrsRtcpPli::encode(SrsBuffer *buffer)
 
 SrsRtcpSli::SrsRtcpSli(uint32_t sender_ssrc/*= 0*/)
 {
+    first_ = 0;
+    number_ = 0;
+    picture_ = 0;
+
     header_.padding = 0;
     header_.type = SrsRtcpType_psfb;
     header_.rc = kSLI;
@@ -1535,6 +1534,11 @@ srs_error_t SrsRtcpSli::encode(SrsBuffer *buffer)
 
 SrsRtcpRpsi::SrsRtcpRpsi(uint32_t sender_ssrc/* = 0*/)
 {
+    pb_ = 0;
+    payload_type_ = 0;
+    native_rpsi_ = NULL;
+    nb_native_rpsi_ = 0;
+
     header_.padding = 0;
     header_.type = SrsRtcpType_psfb;
     header_.rc = kRPSI;
@@ -1544,7 +1548,6 @@ SrsRtcpRpsi::SrsRtcpRpsi(uint32_t sender_ssrc/* = 0*/)
 
 SrsRtcpRpsi::~SrsRtcpRpsi()
 {
-
 }
 
 srs_error_t SrsRtcpRpsi::decode(SrsBuffer *buffer)

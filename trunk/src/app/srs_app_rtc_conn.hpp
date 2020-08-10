@@ -72,12 +72,6 @@ const uint8_t kRtpFb = 205;
 const uint8_t kPsFb  = 206;
 const uint8_t kXR    = 207;
 
-// @see: https://tools.ietf.org/html/rfc4585#section-6.3
-const uint8_t kPLI  = 1;
-const uint8_t kSLI  = 2;
-const uint8_t kRPSI = 3;
-const uint8_t kAFB  = 15;
-
 enum SrsRtcConnectionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
