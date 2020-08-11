@@ -1754,93 +1754,82 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Refine the logic code, simple it.
-    map<uint32_t, SrsRtcPublishStream*>::iterator it_pub;
-    map<uint32_t, SrsRtcPlayStream*>::iterator it_player;
-    SrsRtcPlayStream* player = NULL;
-    SrsRtcPublishStream* publisher = NULL;
+    // For TWCC packet.
+    if (SrsRtcpType_rtpfb == rtcp->type() && 15 == rtcp->get_rc()) {
+        if(srs_success != (err = on_rtcp_feedback_twcc(rtcp->data(), rtcp->size()))) {
+            return srs_error_wrap(err, "twcc feedback");
+        }
+    }
 
-    if(SrsRtcpType_sr == rtcp->type()) {
-        it_pub = publishers_ssrc_map_.find(rtcp->get_ssrc());
-        if(publishers_ssrc_map_.end() == it_pub) {
-            srs_warn("SR: ssrc %d is unknown", rtcp->get_ssrc());
-            return err;
-        }
-        publisher = it_pub->second;
-        if(srs_success != (err = publisher->on_rtcp(rtcp))) {
-            return srs_error_wrap(err, "handle sr");
-        }
-    } else if(SrsRtcpType_rr == rtcp->type()) {
-        SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
-        srs_assert(NULL != rr);
-        if (rr->get_rb_ssrc() == 0) { //for native client
-            return err;
-        }
-        it_player = players_ssrc_map_.find(rr->get_rb_ssrc());
-        if(players_ssrc_map_.end() == it_player) {
-            srs_warn("RR: ssrc %d is unknown", rr->get_rb_ssrc());
-            return err;
-        }
-        player = it_player->second;
-        if(srs_success != (err = player->on_rtcp(rtcp))) {
-            return srs_error_wrap(err, "handle rr");
-        }
-    } else if(SrsRtcpType_rtpfb == rtcp->type()) {
-        if(1 == rtcp->get_rc()) {
-            //nack
-            SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
-            srs_assert(NULL != nack);
-            it_player = players_ssrc_map_.find(nack->get_media_ssrc());
-            if(players_ssrc_map_.end() == it_player) {
-                srs_warn("ftpfb: ssrc %d is unknown", nack->get_media_ssrc());
-                return err;
-            }
-            player = it_player->second;
-            if(srs_success != (err = player->on_rtcp(rtcp))) {
-                return srs_error_wrap(err, "handle nack");
-            }
-        } else if(15 == rtcp->get_rc()) {
-            // twcc
-            if(srs_success != (err = on_rtcp_feedback_twcc(rtcp->data(), rtcp->size()))) {
-                return srs_error_wrap(err, "handle twcc feedback");
-            }
-        }
-    } else if(SrsRtcpType_psfb == rtcp->type()) {
+    // For REMB packet.
+    if (SrsRtcpType_psfb == rtcp->type()) {
         SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
-        srs_assert(psfb != NULL);
         //TODO: user const to replace 15
         if(15 == psfb->get_rc()) {
             return on_rtcp_feedback_remb(psfb);
         }
+    }
 
-        it_player = players_ssrc_map_.find(psfb->get_media_ssrc());
-        if(players_ssrc_map_.end() == it_player) {
-            srs_warn("psfb: ssrc %d is unknown", psfb->get_media_ssrc());
+    // Ignore special packet.
+    if (SrsRtcpType_rr == rtcp->type()) {
+        SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
+        if (rr->get_rb_ssrc() == 0) { //for native client
             return err;
         }
-        player = it_player->second;
-        if(srs_success != (err = player->on_rtcp(rtcp))) {
-            return srs_error_wrap(err, "handle nack");
-        }
-    } else {
-        // try to find player to assign rtcp
-        it_player = players_ssrc_map_.find(rtcp->get_ssrc());
-        if(players_ssrc_map_.end() != it_player) {
-            player = it_player->second;
-            if(srs_success != (err = player->on_rtcp(rtcp))) {
-                return srs_error_wrap(err, "handle common rtcp");
-            }
-            return err;
-        }
+    }
 
-        // try to find publisher to assign rtcp
-        it_pub = publishers_ssrc_map_.find(rtcp->get_ssrc());
-        if(publishers_ssrc_map_.end() != it_pub) {
-            publisher = it_pub->second;
-            if(srs_success != (err = publisher->on_rtcp(rtcp))) {
-                return srs_error_wrap(err, "handle sr");
-            }
+    // The feedback packet for specified SSRC.
+    // For example, if got SR packet, we required a publisher to handle it.
+    uint32_t required_publisher_ssrc = 0, required_player_ssrc = 0;
+    if (SrsRtcpType_sr == rtcp->type()) {
+        required_publisher_ssrc = rtcp->get_ssrc();
+    } else if (SrsRtcpType_rr == rtcp->type()) {
+        SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
+        required_player_ssrc = rr->get_rb_ssrc();
+    } else if (SrsRtcpType_rtpfb == rtcp->type()) {
+        if(1 == rtcp->get_rc()) {
+            SrsRtcpNack* nack = dynamic_cast<SrsRtcpNack*>(rtcp);
+            required_player_ssrc = nack->get_media_ssrc();
         }
+    } else if(SrsRtcpType_psfb == rtcp->type()) {
+        SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
+        required_player_ssrc = psfb->get_media_ssrc();
+    }
+
+    // Find the publisher or player by SSRC, always try to got one.
+    SrsRtcPlayStream* player = NULL;
+    SrsRtcPublishStream* publisher = NULL;
+    if (true) {
+        uint32_t ssrc = required_publisher_ssrc? required_publisher_ssrc : rtcp->get_ssrc();
+        map<uint32_t, SrsRtcPublishStream*>::iterator it = publishers_ssrc_map_.find(ssrc);
+        if (it != publishers_ssrc_map_.end()) {
+            publisher = it->second;
+        }
+    }
+    if (true) {
+        uint32_t ssrc = required_player_ssrc? required_player_ssrc : rtcp->get_ssrc();
+        map<uint32_t, SrsRtcPlayStream*>::iterator it = players_ssrc_map_.find(ssrc);
+        if (it != players_ssrc_map_.end()) {
+            player = it->second;
+        }
+    }
+
+    // Ignore if packet is required by publisher or player.
+    if (required_publisher_ssrc && !publisher) {
+        srs_warn("SR: no ssrc %u in publishers", required_publisher_ssrc);
+        return err;
+    }
+    if (required_player_ssrc && !player) {
+        srs_warn("SR: no ssrc %u in players", required_player_ssrc);
+        return err;
+    }
+
+    // Handle packet by publisher or player.
+    if (publisher && srs_success != (err = publisher->on_rtcp(rtcp))) {
+        return srs_error_wrap(err, "handle rtcp");
+    }
+    if (player && srs_success != (err = player->on_rtcp(rtcp))) {
+        return srs_error_wrap(err, "handle rtcp");
     }
 
     return err;
