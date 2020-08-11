@@ -1756,16 +1756,13 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 
     // For TWCC packet.
     if (SrsRtcpType_rtpfb == rtcp->type() && 15 == rtcp->get_rc()) {
-        if(srs_success != (err = on_rtcp_feedback_twcc(rtcp->data(), rtcp->size()))) {
-            return srs_error_wrap(err, "twcc feedback");
-        }
+        return on_rtcp_feedback_twcc(rtcp->data(), rtcp->size());
     }
 
     // For REMB packet.
     if (SrsRtcpType_psfb == rtcp->type()) {
         SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
-        //TODO: user const to replace 15
-        if(15 == psfb->get_rc()) {
+        if (15 == psfb->get_rc()) {
             return on_rtcp_feedback_remb(psfb);
         }
     }
