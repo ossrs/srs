@@ -494,10 +494,16 @@ public:
     ISrsRtcHijacker();
     virtual ~ISrsRtcHijacker();
 public:
+    // Initialize the hijacker.
+    virtual srs_error_t initialize() = 0;
     // When start publisher by RTC.
     virtual srs_error_t on_start_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
+    // When stop publish by RTC.
+    virtual void on_stop_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
     // When got RTP plaintext packet.
     virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    // When before play by RTC. (wait source to ready in cascade scenario)
+    virtual srs_error_t on_before_play(SrsRtcConnection* session, SrsRequest* req) = 0;
     // When start player by RTC.
     virtual srs_error_t on_start_play(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req) = 0;
     // When start consuming for player for RTC.

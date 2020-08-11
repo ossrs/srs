@@ -815,7 +815,10 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
-    // TODO: FIXME: Do unpublish when session timeout.
+    if (_srs_rtc_hijacker) {
+        _srs_rtc_hijacker->on_stop_publish(session_, this, req);
+    }
+
     if (source) {
         source->set_publish_stream(NULL);
         source->on_unpublish();
@@ -1101,6 +1104,7 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
     }
 
     if (_srs_rtc_hijacker) {
+        // TODO: FIXME: copy pkt by hijacker itself
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt->copy())) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
         }
@@ -1548,6 +1552,13 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
 srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
+
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
+            return srs_error_wrap(err, "before play check");
+        }
+    }
+
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
     if ((err = negotiate_play_capability(req, remote_sdp, play_sub_relations)) != srs_success) {
         return srs_error_wrap(err, "play negotiate");
@@ -1587,6 +1598,12 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
 srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
+
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
+            return srs_error_wrap(err, "before play check");
+        }
+    }
 
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
     if ((err = fetch_source_capability(req, play_sub_relations)) != srs_success) {
