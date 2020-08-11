@@ -1735,7 +1735,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
     SrsRtcpCommon* rtcp = NULL;
     while(NULL != (rtcp = rtcp_compound.get_next_rtcp())) {
         err = dispatch_rtcp(rtcp);
-        srs_freep(rtcp);
+        SrsAutoFree(SrsRtcpCommon, rtcp);
 
         if(srs_success != err) {
             return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=%s, rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
