@@ -1725,30 +1725,12 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 {
     srs_error_t err = srs_success;
 
-    if(SrsRtcpType_sr == rtcp->type()) {
-        return publisher_->on_rtcp(rtcp);
-    } else if(SrsRtcpType_rr == rtcp->type()) {
-        SrsRtcpRR* rr = dynamic_cast<SrsRtcpRR*>(rtcp);
-        if (rr->get_rb_ssrc()) {
-            return player_->on_rtcp(rtcp);
-        }
-    } else if(SrsRtcpType_rtpfb == rtcp->type()) {
-        if(1 == rtcp->get_rc()) {
-            //nack
-            return player_->on_rtcp(rtcp);
-        } else if(15 == rtcp->get_rc()) {
-            // twcc
-            return on_rtcp_feedback(rtcp->data(), rtcp->size());
-        }
-    } else if(SrsRtcpType_psfb == rtcp->type()) {
+    if (player_) {
         return player_->on_rtcp(rtcp);
-    } else {
-        if (player_) {
-            return player_->on_rtcp(rtcp);
-        }
-        if (publisher_) {
-            return publisher_->on_rtcp(rtcp);
-        }
+    }
+
+    if (publisher_) {
+        return publisher_->on_rtcp(rtcp);
     }
 
     return err;
