@@ -1862,6 +1862,12 @@ srs_error_t SrsRtcConnection::on_connection_established()
 {
     srs_error_t err = srs_success;
 
+    // If DTLS done packet received many times, such as ARQ, ignore.
+    if(ESTABLISHED == state_) {
+        return err;
+    }
+    state_ = ESTABLISHED;
+
     srs_trace("RTC: session pub=%u, sub=%u, to=%dms connection established", publishers_.size(), players_.size(),
         srsu2msi(session_timeout));
 
@@ -3008,6 +3014,13 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
     }
     srs_trace("RTC connection player gcc=%d", twcc_id);
 
+    // If DLTS done, start the player. Because maybe create some players after DTLS done.
+    if(ESTABLISHED == state_) {
+        if(srs_success != (err = player->start())) {
+            return srs_error_wrap(err, "start player");
+        }
+    }
+
     return err;
 }
 
@@ -3079,6 +3092,13 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
                     track_desc->rtx_ssrc_, track_desc->id_.c_str());
             }
             publishers_ssrc_map_[track_desc->rtx_ssrc_] = publisher;
+        }
+    }
+
+    // If DLTS done, start the publisher. Because maybe create some publishers after DTLS done.
+    if(ESTABLISHED == state()) {
+        if(srs_success != (err = publisher->start())) {
+            return srs_error_wrap(err, "start publisher");
         }
     }
 
