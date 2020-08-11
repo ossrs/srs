@@ -378,10 +378,16 @@ private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
     ISrsRtcTransport* transport_;
-    SrsRtcPlayStream* player_;
-    SrsRtcPublishStream* publisher_;
-    bool is_publisher_;
     SrsHourGlass* timer_;
+private:
+    // key: stream id
+    std::map<std::string, SrsRtcPlayStream*> players_;
+    //key: player track's ssrc
+    std::map<uint32_t, SrsRtcPlayStream*> players_ssrc_map_;
+    // key: stream id
+    std::map<std::string, SrsRtcPublishStream*> publishers_;
+    // key: publisher track's ssrc
+    std::map<uint32_t, SrsRtcPublishStream*> publishers_ssrc_map_;
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
@@ -433,7 +439,7 @@ public:
     srs_error_t add_player2(SrsRequest* request, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
-    srs_error_t initialize(SrsRequest* r, bool is_publisher, bool dtls, bool srtp, std::string username);
+    srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);
@@ -446,8 +452,8 @@ public:
     void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();
-    srs_error_t start_play();
-    srs_error_t start_publish();
+    srs_error_t start_play(std::string stream_uri);
+    srs_error_t start_publish(std::string stream_uri);
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 // interface ISrsHourGlass
@@ -466,7 +472,7 @@ public:
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     // Directly set the status of play track, generally for init to set the default value.
-    void set_all_tracks_status(bool status);
+    void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate

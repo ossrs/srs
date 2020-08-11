@@ -453,7 +453,7 @@ srs_error_t SrsRtcServer::do_create_session(
     }
 
     // All tracks default as inactive, so we must enable them.
-    session->set_all_tracks_status(true);
+    session->set_all_tracks_status(req->get_stream_url(), publish, true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
@@ -504,7 +504,7 @@ srs_error_t SrsRtcServer::do_create_session(
     session->set_state(WAITING_STUN);
 
     // Before session initialize, we must setup the local SDP.
-    if ((err = session->initialize(req, publish, dtls, srtp, username)) != srs_success) {
+    if ((err = session->initialize(req, dtls, srtp, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
@@ -567,7 +567,7 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     // TODO: FIXME: Collision detect.
     string username = session->get_local_sdp()->get_ice_ufrag() + ":" + remote_sdp.get_ice_ufrag();
 
-    if ((err = session->initialize(req, false, true, true, username)) != srs_success) {
+    if ((err = session->initialize(req, true, true, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
