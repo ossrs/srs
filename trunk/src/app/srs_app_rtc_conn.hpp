@@ -448,7 +448,8 @@ public:
 private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
 public:
-    srs_error_t on_rtcp_feedback(char* buf, int nb_buf);
+    srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
+    srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
     void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();

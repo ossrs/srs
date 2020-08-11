@@ -1167,6 +1167,9 @@ srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
     } else if(SrsRtcpType_xr == rtcp->type()) {
         SrsRtcpXr* xr = dynamic_cast<SrsRtcpXr*>(rtcp);
         return on_rtcp_xr(xr);
+    } else if(SrsRtcpType_sdes == rtcp->type()) {
+        //ignore RTCP SDES
+        return srs_success;
     } else {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", rtcp->type());
     }
@@ -1798,13 +1801,18 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
             }
         } else if(15 == rtcp->get_rc()) {
             // twcc
-            if(srs_success != (err = on_rtcp_feedback(rtcp->data(), rtcp->size()))) {
+            if(srs_success != (err = on_rtcp_feedback_twcc(rtcp->data(), rtcp->size()))) {
                 return srs_error_wrap(err, "handle twcc feedback");
             }
         }
     } else if(SrsRtcpType_psfb == rtcp->type()) {
         SrsRtcpPsfbCommon* psfb = dynamic_cast<SrsRtcpPsfbCommon*>(rtcp);
         srs_assert(psfb != NULL);
+        //TODO: user const to replace 15
+        if(15 == psfb->get_rc()) {
+            return on_rtcp_feedback_remb(psfb);
+        }
+
         it_player = players_ssrc_map_.find(psfb->get_media_ssrc());
         if(players_ssrc_map_.end() == it_player) {
             srs_warn("psfb: ssrc %d is unknown", psfb->get_media_ssrc());
@@ -1838,8 +1846,14 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
     return err;
 }
 
-srs_error_t SrsRtcConnection::on_rtcp_feedback(char* data, int nb_data) 
+srs_error_t SrsRtcConnection::on_rtcp_feedback_twcc(char* data, int nb_data)
 {
+    return srs_success;
+}
+
+srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp)
+{
+    //ignore REMB
     return srs_success;
 }
 
