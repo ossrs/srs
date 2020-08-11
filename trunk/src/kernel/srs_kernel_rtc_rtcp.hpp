@@ -427,6 +427,7 @@ public:
     SrsRtcpCompound();
     virtual ~SrsRtcpCompound();
 
+    // TODO: FIXME: Should rename it to pop(), because it's not a GET method.
     SrsRtcpCommon* get_next_rtcp();
     srs_error_t add_rtcp(SrsRtcpCommon *rtcp);
     void clear();

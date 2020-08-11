@@ -250,21 +250,20 @@ public:
     virtual srs_error_t cycle();
 private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
-public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
-    srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtcp(SrsRtcpCommon* rtcp);
 private:
-    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_rr(char* data, int nb_data);
+    srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
+    srs_error_t on_rtcp_nack(SrsRtcpNack* rtcp);
+    srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
+    srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 };
 
@@ -316,13 +315,10 @@ public:
 private:
     srs_error_t send_periodic_twcc();
 public:
-    srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtcp(SrsRtcpCommon* rtcp);
 private:
-    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_rr(char* data, int nb_data);
+    srs_error_t on_rtcp_sr(SrsRtcpSR* rtcp);
+    srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
 public:
     void request_keyframe(uint32_t ssrc);
 // interface ISrsHourGlass
@@ -443,6 +439,9 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
     srs_error_t on_rtcp(char* data, int nb_data);
+private:
+    srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
+public:
     srs_error_t on_rtcp_feedback(char* buf, int nb_buf);
     void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
