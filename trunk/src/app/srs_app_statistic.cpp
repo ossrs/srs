@@ -47,7 +47,7 @@ int64_t srs_generate_id()
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
-    id = srs_generate_id();
+    id = std::to_string(srs_generate_id());
     
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
@@ -98,7 +98,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
 
 SrsStatisticStream::SrsStatisticStream()
 {
-    id = srs_generate_id();
+    id = std::to_string(srs_generate_id());
     vhost = NULL;
     active = false;
 
