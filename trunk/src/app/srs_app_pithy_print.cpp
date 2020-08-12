@@ -36,6 +36,7 @@ SrsStageInfo::SrsStageInfo(int _stage_id)
     stage_id = _stage_id;
     nb_clients = 0;
     age = 0;
+    nn_count = 0;
     
     update_print_time();
     
@@ -123,18 +124,24 @@ SrsErrorPithyPrint::~SrsErrorPithyPrint()
 {
 }
 
-bool SrsErrorPithyPrint::can_print(srs_error_t err)
+bool SrsErrorPithyPrint::can_print(srs_error_t err, uint32_t* pnn)
 {
     int error_code = srs_error_code(err);
-    return can_print(error_code);
+    return can_print(error_code, pnn);
 }
 
-bool SrsErrorPithyPrint::can_print(int error_code)
+bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
 {
-    nn_count++;
-
     bool new_stage = false;
     SrsStageInfo* stage = stages.fetch_or_create(error_code, &new_stage);
+
+    // Increase the count.
+    stage->nn_count++;
+    nn_count++;
+
+    if (pnn) {
+        *pnn = stage->nn_count;
+    }
 
     // Always and only one client.
     if (new_stage) {

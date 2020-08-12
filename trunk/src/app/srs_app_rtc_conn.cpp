@@ -501,8 +501,9 @@ srs_error_t SrsRtcPlayStream::cycle()
         // Send-out all RTP packets and do cleanup
         if (true) {
             if ((err = send_packets(source, pkts, info)) != srs_success) {
-                if (epp->can_print(err)) {
-                    srs_warn("play send packets=%u, nn=%u, err: %s", pkts.size(), epp->nn_count, srs_error_desc(err).c_str());
+                uint32_t nn = 0;
+                if (epp->can_print(err, &nn)) {
+                    srs_warn("play send packets=%u, nn=%u/%u, err: %s", pkts.size(), epp->nn_count, nn, srs_error_desc(err).c_str());
                 }
                 srs_freep(err);
             }
@@ -1986,9 +1987,12 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
     // Show address change log.
     if (prev_peer_id.empty()) {
         srs_trace("RTC: session address init %s", peer_id.c_str());
-    } else if (pp_address_change->can_print(skt->get_peer_port())) {
-        srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u, nn_address=%u", prev_peer_id.c_str(),
-            peer_id.c_str(), (addr_cache? 1:0), pp_address_change->nn_count, peer_addresses_.size());
+    } else {
+        uint32_t nn = 0;
+        if (pp_address_change->can_print(skt->get_peer_port(), &nn)) {
+            srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u/%u, nn_address=%u", prev_peer_id.c_str(),
+                peer_id.c_str(), (addr_cache? 1:0), pp_address_change->nn_count, nn, peer_addresses_.size());
+        }
     }
 
     // If no cache, build cache and setup the relations in connection.

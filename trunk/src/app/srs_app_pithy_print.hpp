@@ -37,6 +37,8 @@ public:
     int stage_id;
     srs_utime_t interval;
     int nb_clients;
+    // The number of call of can_print().
+    uint32_t nn_count;
 public:
     srs_utime_t age;
 public:
@@ -79,9 +81,9 @@ public:
     virtual ~SrsErrorPithyPrint();
 public:
     // Whether specified stage is ready for print.
-    bool can_print(srs_error_t err);
+    bool can_print(srs_error_t err, uint32_t* pnn = NULL);
     // We also support int error code.
-    bool can_print(int err);
+    bool can_print(int err, uint32_t* pnn = NULL);
 };
 
 // The stage is used for a collection of object to do print,
