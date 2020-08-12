@@ -31,12 +31,13 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsStageInfo::SrsStageInfo(int _stage_id)
+SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
 {
     stage_id = _stage_id;
     nb_clients = 0;
     age = 0;
     nn_count = 0;
+    interval_ratio = ratio;
     
     update_print_time();
     
@@ -50,7 +51,7 @@ SrsStageInfo::~SrsStageInfo()
 
 void SrsStageInfo::update_print_time()
 {
-    interval = _srs_config->get_pithy_print();
+    interval = (srs_utime_t)(interval_ratio * _srs_config->get_pithy_print());
 }
 
 void SrsStageInfo::elapse(srs_utime_t diff)
@@ -115,9 +116,10 @@ SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
     return stage;
 }
 
-SrsErrorPithyPrint::SrsErrorPithyPrint()
+SrsErrorPithyPrint::SrsErrorPithyPrint(double ratio)
 {
     nn_count = 0;
+    ratio_ = ratio;
 }
 
 SrsErrorPithyPrint::~SrsErrorPithyPrint()
@@ -146,6 +148,7 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
     // Always and only one client.
     if (new_stage) {
         stage->nb_clients = 1;
+        stage->interval_ratio = ratio_;
     }
 
     srs_utime_t tick = ticks[error_code];
