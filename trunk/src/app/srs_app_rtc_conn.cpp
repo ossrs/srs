@@ -998,7 +998,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
-        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.decode(&b);
+        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true); h.decode(&b);
         simulate_drop_packet(&h, nb_data);
         return err;
     }
@@ -1038,7 +1038,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
     char* unprotected_buf = new char[kRtpPacketSize];
     if ((err = session_->transport_->unprotect_rtp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
-        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.decode(&b);
+        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true); h.decode(&b);
         err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h.get_marker(), h.get_payload_type(),
             h.get_sequence(), h.get_timestamp(), h.get_ssrc(), h.get_padding(), nb_data - b.pos());
 
@@ -1860,7 +1860,7 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
     if (true) {
         SrsBuffer* buffer = new SrsBuffer(data, nb_data);
         SrsAutoFree(SrsBuffer, buffer);
-
+        header.ignore_padding(true);
         if(srs_success != (err = header.decode(buffer))) {
             return srs_error_wrap(err, "decode rtp header");
         }
