@@ -459,7 +459,9 @@ srs_error_t SrsRtcPlayStream::cycle()
     srs_trace("RTC: start play url=%s, source_id=[%d][%s], realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
         ::getpid(), cid.c_str(), realtime, mw_msgs);
 
-    SrsErrorPithyPrint epp;
+    SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
+    SrsAutoFree(SrsErrorPithyPrint, epp);
+
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
@@ -499,8 +501,8 @@ srs_error_t SrsRtcPlayStream::cycle()
         // Send-out all RTP packets and do cleanup
         if (true) {
             if ((err = send_packets(source, pkts, info)) != srs_success) {
-                if (epp.can_print(err)) {
-                    srs_warn("play send packets=%u, err: %s", pkts.size(), srs_error_desc(err).c_str());
+                if (epp->can_print(err)) {
+                    srs_warn("play send packets=%u, nn=%u, err: %s", pkts.size(), epp->nn_count, srs_error_desc(err).c_str());
                 }
                 srs_freep(err);
             }
