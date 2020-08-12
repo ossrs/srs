@@ -1449,7 +1449,8 @@ void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMedia
         red_ = new SrsRedPayload(payload.payload_type_, "red", payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
     } else if (payload.encoding_name_ == "rtx") {
         srs_freep(rtx_);
-        rtx_ = new SrsCodecPayload(payload.payload_type_, "rtx", payload.clock_rate_);
+        // TODO: FIXME: Rtx clock_rate should be payload.clock_rate_
+        rtx_ = new SrsRtxPayloadDes(payload.payload_type_, ::atol(payload.encoding_param_.c_str()));
     } else if (payload.encoding_name_ == "ulpfec") {
         srs_freep(ulpfec_);
         ulpfec_ = new SrsCodecPayload(payload.payload_type_, "ulpfec", payload.clock_rate_);
