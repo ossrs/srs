@@ -51,7 +51,7 @@ SrsStageInfo::~SrsStageInfo()
 
 void SrsStageInfo::update_print_time()
 {
-    interval = (srs_utime_t)(interval_ratio * _srs_config->get_pithy_print());
+    interval = _srs_config->get_pithy_print();
 }
 
 void SrsStageInfo::elapse(srs_utime_t diff)
@@ -61,7 +61,7 @@ void SrsStageInfo::elapse(srs_utime_t diff)
 
 bool SrsStageInfo::can_print()
 {
-    srs_utime_t can_print_age = nb_clients * interval;
+    srs_utime_t can_print_age = nb_clients * (srs_utime_t)(interval_ratio * interval);
     
     bool can_print = age >= can_print_age;
     if (can_print) {
