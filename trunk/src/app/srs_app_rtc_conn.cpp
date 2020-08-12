@@ -1558,7 +1558,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
-            return srs_error_wrap(err, "before play check");
+            return srs_error_wrap(err, "before play");
         }
     }
 
@@ -1604,7 +1604,7 @@ srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, SrsSdp& local_sdp)
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
-            return srs_error_wrap(err, "before play check");
+            return srs_error_wrap(err, "before play");
         }
     }
 
