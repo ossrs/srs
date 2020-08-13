@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -251,6 +252,9 @@ SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
     callback = cb;
     handshake_done_for_us = false;
 
+    last_outgoing_packet_cache = new uint8_t[kRtpPacketSize];
+    nn_last_outgoing_packet = 0;
+
     role_ = SrsDtlsRoleServer;
     version_ = SrsDtlsVersionAuto;
 }
@@ -267,6 +271,8 @@ SrsDtls::~SrsDtls()
         SSL_free(dtls);
         dtls = NULL;
     }
+
+    srs_freepa(last_outgoing_packet_cache);
 }
 
 srs_error_t SrsDtls::initialize(std::string role, std::string version)
@@ -296,7 +302,7 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
     if (role == "active") {
         // Dtls setup active, as client role.
         SSL_set_connect_state(dtls);
-        SSL_set_max_send_fragment(dtls, 1500);
+        SSL_set_max_send_fragment(dtls, kRtpPacketSize);
     } else {
         // Dtls setup passive, as server role.
         SSL_set_accept_state(dtls);
@@ -417,7 +423,7 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     }
 
     // Trace the detail of DTLS packet.
-    trace((uint8_t*)data, nb_data, true, SSL_ERROR_NONE);
+    trace((uint8_t*)data, nb_data, true, SSL_ERROR_NONE, false);
 
     if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
@@ -477,8 +483,22 @@ srs_error_t SrsDtls::do_handshake()
         }
     }
 
+    // If outgoing packet is empty, we use the last cache.
+    bool cache = false;
+    if (size <= 0 && nn_last_outgoing_packet) {
+        size = nn_last_outgoing_packet;
+        data = last_outgoing_packet_cache;
+        cache = true;
+    }
+
     // Trace the detail of DTLS packet.
-    trace((uint8_t*)data, size, false, ssl_err);
+    trace((uint8_t*)data, size, false, ssl_err, cache);
+
+    // Update the packet cache.
+    if (size > 0 && data != last_outgoing_packet_cache && size < kRtpPacketSize) {
+        memcpy(last_outgoing_packet_cache, data, size);
+        nn_last_outgoing_packet = size;
+    }
 
     if (size > 0 && (err = callback->write_dtls_data(data, size)) != srs_success) {
         return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
@@ -494,7 +514,7 @@ srs_error_t SrsDtls::do_handshake()
     return err;
 }
 
-void SrsDtls::trace(uint8_t* data, int length, bool incoming, int ssl_err)
+void SrsDtls::trace(uint8_t* data, int length, bool incoming, int ssl_err, bool cache)
 {
     uint8_t content_type = 0;
     if (length >= 1) {
@@ -511,8 +531,8 @@ void SrsDtls::trace(uint8_t* data, int length, bool incoming, int ssl_err)
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s done=%u, ssl-err=%d, length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
-        handshake_done_for_us, ssl_err, length, content_type, size, handshake_type);
+    srs_trace("DTLS: %s done=%u, cache=%u, ssl-err=%d, length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
+        handshake_done_for_us, cache, ssl_err, length, content_type, size, handshake_type);
 }
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;

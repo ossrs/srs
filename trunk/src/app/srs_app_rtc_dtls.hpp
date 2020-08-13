@@ -106,6 +106,10 @@ private:
     // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
     bool handshake_done_for_us;
 
+    // DTLS packet cache, only last out-going packet.
+    uint8_t* last_outgoing_packet_cache;
+    int nn_last_outgoing_packet;
+
     // @remark: dtls_role_ default value is DTLS_SERVER.
     SrsDtlsRole role_;
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
@@ -126,7 +130,7 @@ public:
 private:
     srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
-    void trace(uint8_t* data, int length, bool incoming, int ssl_err);
+    void trace(uint8_t* data, int length, bool incoming, int ssl_err, bool cache);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 };
