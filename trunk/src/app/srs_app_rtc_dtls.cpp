@@ -316,6 +316,73 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
     return err;
 }
 
+SSL_CTX* SrsDtls::build_dtls_ctx()
+{
+    SSL_CTX* dtls_ctx;
+#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+    dtls_ctx = SSL_CTX_new(DTLSv1_method());
+#else
+    if (version_ == SrsDtlsVersion1_0) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_method());
+    } else if (version_ == SrsDtlsVersion1_2) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+    } else {
+        // SrsDtlsVersionAuto, use version-flexible DTLS methods
+        dtls_ctx = SSL_CTX_new(DTLS_method());
+    }
+#endif
+
+    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
+        // For ECDSA, we could set the curves list.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
+        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
+#endif
+
+        // For openssl <1.1, we must set the ECDH manually.
+        // @see https://stackoverrun.com/cn/q/10791887
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
+    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
+    #else
+        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
+    #endif
+#endif
+    }
+
+    // Setup DTLS context.
+    if (true) {
+        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
+        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
+
+        // Setup the certificate.
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
+
+        // Server will send Certificate Request.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        // TODO: FIXME: Config it, default to off to make the packet smaller.
+        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
+        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
+        // "level 2: higher level CA certificate", and so on.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        SSL_CTX_set_verify_depth(dtls_ctx, 4);
+
+        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
+        SSL_CTX_set_read_ahead(dtls_ctx, 1);
+
+        // TODO: Maybe we can use SRTP-GCM in future.
+        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
+        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
+        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
+    }
+
+    return dtls_ctx;
+}
+
 srs_error_t SrsDtls::start_active_handshake()
 {
     if (role_ == SrsDtlsRoleClient) {
@@ -479,73 +546,6 @@ srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
     }
 
     return err;
-}
-
-SSL_CTX* SrsDtls::build_dtls_ctx()
-{
-    SSL_CTX* dtls_ctx;
-#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-    dtls_ctx = SSL_CTX_new(DTLSv1_method());
-#else
-    if (version_ == SrsDtlsVersion1_0) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_method());
-    } else if (version_ == SrsDtlsVersion1_2) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
-    } else {
-        // SrsDtlsVersionAuto, use version-flexible DTLS methods
-        dtls_ctx = SSL_CTX_new(DTLS_method());
-    }
-#endif
-
-    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
-        // For ECDSA, we could set the curves list.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
-        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
-#endif
-
-        // For openssl <1.1, we must set the ECDH manually.
-        // @see https://stackoverrun.com/cn/q/10791887
-#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
-    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
-    #else
-        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
-    #endif
-#endif
-    }
-
-    // Setup DTLS context.
-    if (true) {
-        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
-        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
-
-        // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
-
-        // Server will send Certificate Request.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        // TODO: FIXME: Config it, default to off to make the packet smaller.
-        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
-        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
-        // "level 2: higher level CA certificate", and so on.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        SSL_CTX_set_verify_depth(dtls_ctx, 4);
-
-        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
-        SSL_CTX_set_read_ahead(dtls_ctx, 1);
-
-        // TODO: Maybe we can use SRTP-GCM in future.
-        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
-        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
-        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
-        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
-    }
-
-    return dtls_ctx;
 }
 
 SrsSRTP::SrsSRTP()

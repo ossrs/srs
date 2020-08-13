@@ -112,6 +112,9 @@ public:
     virtual ~SrsDtls();
 public:
     srs_error_t initialize(std::string role, std::string version);
+private:
+    SSL_CTX* build_dtls_ctx();
+public:
     // As DTLS client, start handshake actively, send the ClientHello packet.
     srs_error_t start_active_handshake();
     // When got DTLS packet, may handshake packets or application data.
@@ -123,8 +126,6 @@ private:
     void trace(uint8_t* data, int length, bool incoming);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
-private:
-    SSL_CTX* build_dtls_ctx();
 };
 
 class SrsSRTP
