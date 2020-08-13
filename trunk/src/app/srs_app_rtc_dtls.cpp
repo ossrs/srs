@@ -519,20 +519,20 @@ srs_error_t SrsDtls::do_handshake()
     // Driven ARQ and state for DTLS client.
     if (role_ == SrsDtlsRoleClient) {
         // If we are sending client hello, change from init to new state.
-        if (client_state_ == SrsDtlsStateInit && size > 14 && data[13] == 1) {
-            client_state_ = SrsDtlsStateClientHello;
+        if (state_ == SrsDtlsStateInit && size > 14 && data[13] == 1) {
+            state_ = SrsDtlsStateClientHello;
         }
         // If we are sending certificate, change from SrsDtlsStateServerHello to new state.
-        if (client_state_ == SrsDtlsStateServerHello && size > 14 && data[13] == 11) {
-            client_state_ = SrsDtlsStateClientCertificate;
+        if (state_ == SrsDtlsStateServerHello && size > 14 && data[13] == 11) {
+            state_ = SrsDtlsStateClientCertificate;
         }
 
         // Try to start the ARQ for client.
-        if ((client_state_ == SrsDtlsStateClientHello || client_state_ == SrsDtlsStateClientCertificate)) {
-            if (client_state_ == SrsDtlsStateClientHello) {
-                client_state_ = SrsDtlsStateServerHello;
-            } else if (client_state_ == SrsDtlsStateClientCertificate) {
-                client_state_ = SrsDtlsStateServerDone;
+        if ((state_ == SrsDtlsStateClientHello || state_ == SrsDtlsStateClientCertificate)) {
+            if (state_ == SrsDtlsStateClientHello) {
+                state_ = SrsDtlsStateServerHello;
+            } else if (state_ == SrsDtlsStateClientCertificate) {
+                state_ = SrsDtlsStateServerDone;
             }
 
             if ((err = start_arq()) != srs_success) {
@@ -549,7 +549,7 @@ srs_error_t SrsDtls::do_handshake()
     if (handshake_done_for_us) {
         // When handshake done, stop the ARQ.
         if (role_ == SrsDtlsRoleClient) {
-            client_state_ = SrsDtlsStateClientDone;
+            state_ = SrsDtlsStateClientDone;
             stop_arq();
         }
 
@@ -570,7 +570,7 @@ srs_error_t SrsDtls::cycle()
     srs_usleep(50 * SRS_UTIME_MILLISECONDS);
 
     while (true) {
-        srs_info("arq cycle, state=%u", client_state_);
+        srs_info("arq cycle, state=%u", state_);
 
         // We ignore any error for ARQ thread.
         if ((err = trd->pull()) != srs_success) {
@@ -584,7 +584,7 @@ srs_error_t SrsDtls::cycle()
         }
 
         // For DTLS client ARQ, the state should be specified.
-        if (client_state_ != SrsDtlsStateServerHello && client_state_ != SrsDtlsStateServerDone) {
+        if (state_ != SrsDtlsStateServerHello && state_ != SrsDtlsStateServerDone) {
             return err;
         }
 
@@ -628,7 +628,7 @@ void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int ssl_err,
 
     srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, ssl-err=%d, length=%u, content=%u, size=%u, handshake=%u",
         (role_ == SrsDtlsRoleClient? "Client":"Server"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
-        client_state_, ssl_err, length, content_type, size, handshake_type);
+        state_, ssl_err, length, content_type, size, handshake_type);
 }
 
 srs_error_t SrsDtls::start_arq()
@@ -639,7 +639,7 @@ srs_error_t SrsDtls::start_arq()
         return err;
     }
 
-    srs_info("start arq, state=%u", client_state_);
+    srs_info("start arq, state=%u", state_);
 
     // Dispose the previous ARQ thread.
     srs_freep(trd);
@@ -655,7 +655,7 @@ srs_error_t SrsDtls::start_arq()
 
 void SrsDtls::stop_arq()
 {
-    srs_info("stop arq, state=%u", client_state_);
+    srs_info("stop arq, state=%u", state_);
     srs_freep(trd);
     srs_info("stop arq, done");
 }
