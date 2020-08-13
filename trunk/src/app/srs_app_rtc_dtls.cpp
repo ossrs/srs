@@ -476,15 +476,15 @@ srs_error_t SrsDtls::do_handshake()
     // Trace the detail of DTLS packet.
     trace((uint8_t*)out_bio_data, out_bio_len, false);
 
+    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
+            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
+    }
+
     if (handshake_done) {
         if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
             return srs_error_wrap(err, "dtls done");
         }
-    }
-
-    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
-            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
     }
 
     return err;
@@ -511,8 +511,8 @@ void SrsDtls::trace(uint8_t* data, int length, bool incoming)
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
-        length, content_type, size, handshake_type);
+    srs_trace("DTLS: %s done=%u, length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
+        handshake_done, length, content_type, size, handshake_type);
 }
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
