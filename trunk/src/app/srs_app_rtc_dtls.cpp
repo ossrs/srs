@@ -396,9 +396,6 @@ srs_error_t SrsDtls::do_handshake()
     switch(ssl_err) {   
         case SSL_ERROR_NONE: {
             handshake_done = true;
-            if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
-                return srs_error_wrap(err, "dtls done");
-            }
             break;
         }  
 
@@ -413,16 +410,18 @@ srs_error_t SrsDtls::do_handshake()
         default: {   
             break;
         }   
-    }   
-
-    if (out_bio_len <= 0) {
-        return err;
     }
 
     // Trace the detail of DTLS packet.
-    trace((char*)out_bio_data, out_bio_len, false);
+    trace((uint8_t*)out_bio_data, out_bio_len, false);
 
-    if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+    if (handshake_done) {
+        if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
+            return srs_error_wrap(err, "dtls done");
+        }
+    }
+
+    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
         return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
             srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
     }
@@ -455,7 +454,7 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     }
 
     // Trace the detail of DTLS packet.
-    trace((char*)data, nb_data, true);
+    trace((uint8_t*)data, nb_data, true);
 
     if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
@@ -482,11 +481,29 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     return err;
 }
 
-void SrsDtls::trace(char* data, int size, bool incoming)
+void SrsDtls::trace(uint8_t* data, int length, bool incoming)
 {
-    // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
-    // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
-    srs_trace("DTLS: %s size=%u", (incoming? "RECV":"SEND"), size);
+    if (length <= 0) {
+        return;
+    }
+
+    uint8_t content_type = 0;
+    if (length >= 1) {
+        content_type = (uint8_t)data[0];
+    }
+
+    uint16_t size = 0;
+    if (length >= 13) {
+        size = uint16_t(data[11])<<8 | uint16_t(data[12]);
+    }
+
+    uint8_t handshake_type = 0;
+    if (length >= 14) {
+        handshake_type = (uint8_t)data[13];
+    }
+
+    srs_trace("DTLS: %s length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
+        length, content_type, size, handshake_type);
 }
 
 srs_error_t SrsDtls::start_active_handshake()

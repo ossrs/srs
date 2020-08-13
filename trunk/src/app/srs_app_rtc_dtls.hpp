@@ -119,7 +119,7 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
 private:
     srs_error_t do_on_dtls(char* data, int nb_data);
-    void trace(char* data, int size, bool incoming);
+    void trace(uint8_t* data, int length, bool incoming);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 private:
