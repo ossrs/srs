@@ -627,7 +627,7 @@ void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int ssl_err,
     }
 
     srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, ssl-err=%d, length=%u, content=%u, size=%u, handshake=%u",
-        (role_ == SrsDtlsRoleClient? "Client":"Server"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
+        (role_ == SrsDtlsRoleClient? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
         state_, ssl_err, length, content_type, size, handshake_type);
 }
 
