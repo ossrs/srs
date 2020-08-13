@@ -97,12 +97,12 @@ public:
 
 // The state for DTLS client.
 enum SrsDtlsState {
-    SrsDtlsStateInit,
-    SrsDtlsStateClientHello,
-    SrsDtlsStateServerHello,
-    SrsDtlsStateClientCertificate,
-    SrsDtlsStateServerDone,
-    SrsDtlsStateClientDone,
+    SrsDtlsStateInit, // Start.
+    SrsDtlsStateClientHello, // Should start ARQ thread.
+    SrsDtlsStateServerHello, // We are in the first ARQ state.
+    SrsDtlsStateClientCertificate, // Should start ARQ thread again.
+    SrsDtlsStateServerDone, // We are in the second ARQ state.
+    SrsDtlsStateClientDone, // Done.
 };
 
 class SrsDtls : public ISrsCoroutineHandler
@@ -127,7 +127,7 @@ private:
     // @note If passive(DTLS server), the ARQ is driven by DTLS client.
     SrsCoroutine* trd;
     // The DTLS-client state to drive the ARQ thread.
-    SrsDtlsState client_state_;
+    SrsDtlsState state_;
 
     // @remark: dtls_role_ default value is DTLS_SERVER.
     SrsDtlsRole role_;

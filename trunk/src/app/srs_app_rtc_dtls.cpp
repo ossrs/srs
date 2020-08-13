@@ -259,7 +259,7 @@ SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
     version_ = SrsDtlsVersionAuto;
 
     trd = NULL;
-    client_state_ = SrsDtlsStateInit;
+    state_ = SrsDtlsStateInit;
 }
 
 SrsDtls::~SrsDtls()
@@ -409,8 +409,11 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // When got packet, always stop the ARQ.
-    if (role_ == SrsDtlsRoleClient && client_state_ == SrsDtlsStateServerHello) {
+    // When got packet, stop the ARQ if server in the first ARQ state SrsDtlsStateServerHello.
+    // @note But for ARQ state, we should never stop the ARQ, for example, we are in the second ARQ sate
+    //      SrsDtlsStateServerDone, but we got previous late wrong packet ServeHello, which is not the expect
+    //      packet SessionNewTicket, we should never stop the ARQ thread.
+    if (role_ == SrsDtlsRoleClient && state_ == SrsDtlsStateServerHello) {
         stop_arq();
     }
 
