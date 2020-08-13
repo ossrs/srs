@@ -269,6 +269,218 @@ SrsDtls::~SrsDtls()
     }
 }
 
+srs_error_t SrsDtls::initialize(std::string role, std::string version)
+{
+    srs_error_t err = srs_success;
+
+    role_ = SrsDtlsRoleServer;
+    if (role == "active") {
+        role_ = SrsDtlsRoleClient;
+    }
+
+    if (version == "dtls1.0") {
+        version_ = SrsDtlsVersion1_0;
+    } else if (version == "dtls1.2") {
+        version_ = SrsDtlsVersion1_2;
+    } else {
+        version_ = SrsDtlsVersionAuto;
+    }
+
+    dtls_ctx = build_dtls_ctx();
+
+    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
+    if ((dtls = SSL_new(dtls_ctx)) == NULL) {
+        return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
+    }
+
+    if (role == "active") {
+        // Dtls setup active, as client role.
+        SSL_set_connect_state(dtls);
+        SSL_set_max_send_fragment(dtls, 1500);
+    } else {
+        // Dtls setup passive, as server role.
+        SSL_set_accept_state(dtls);
+    }
+
+    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
+    }
+
+    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
+        BIO_free(bio_in);
+        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new out");
+    }
+
+    SSL_set_bio(dtls, bio_in, bio_out);
+
+    return err;
+}
+
+srs_error_t SrsDtls::start_active_handshake()
+{
+    if (role_ == SrsDtlsRoleClient) {
+        return do_handshake();
+    }
+
+    return srs_success;
+}
+
+srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = do_on_dtls(data, nb_data)) != srs_success) {
+        return srs_error_wrap(err, "on_dtls size=%u, data=[%s]", nb_data,
+            srs_string_dumps_hex(data, nb_data, 32).c_str());
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    int r0 = 0;
+    if ((r0 = BIO_reset(bio_in)) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
+    }
+    if ((r0 = BIO_reset(bio_out)) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
+    }
+
+    // Trace the detail of DTLS packet.
+    trace((uint8_t*)data, nb_data, true);
+
+    if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
+        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write r0=%d", r0);
+    }
+
+    if (!handshake_done) {
+        return do_handshake();
+    }
+
+    while (BIO_ctrl_pending(bio_in) > 0) {
+        char dtls_read_buf[8092];
+        int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
+        if (!callback || nb <= 0) {
+            continue;
+        }
+
+        if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+            return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
+                srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtls::do_handshake()
+{
+    srs_error_t err = srs_success;
+
+    int ret = SSL_do_handshake(dtls);
+
+    unsigned char *out_bio_data;
+    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
+
+    int ssl_err = SSL_get_error(dtls, ret);
+    switch(ssl_err) {
+        case SSL_ERROR_NONE: {
+            handshake_done = true;
+            break;
+        }
+
+        case SSL_ERROR_WANT_READ: {
+            break;
+        }
+
+        case SSL_ERROR_WANT_WRITE: {
+            break;
+        }
+
+        default: {
+            break;
+        }
+    }
+
+    // Trace the detail of DTLS packet.
+    trace((uint8_t*)out_bio_data, out_bio_len, false);
+
+    if (handshake_done) {
+        if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
+            return srs_error_wrap(err, "dtls done");
+        }
+    }
+
+    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
+            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
+    }
+
+    return err;
+}
+
+void SrsDtls::trace(uint8_t* data, int length, bool incoming)
+{
+    if (length <= 0) {
+        return;
+    }
+
+    uint8_t content_type = 0;
+    if (length >= 1) {
+        content_type = (uint8_t)data[0];
+    }
+
+    uint16_t size = 0;
+    if (length >= 13) {
+        size = uint16_t(data[11])<<8 | uint16_t(data[12]);
+    }
+
+    uint8_t handshake_type = 0;
+    if (length >= 14) {
+        handshake_type = (uint8_t)data[13];
+    }
+
+    srs_trace("DTLS: %s length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
+        length, content_type, size, handshake_type);
+}
+
+const int SRTP_MASTER_KEY_KEY_LEN = 16;
+const int SRTP_MASTER_KEY_SALT_LEN = 14;
+srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
+    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
+    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
+    }
+
+    size_t offset = 0;
+
+    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    offset += SRTP_MASTER_KEY_SALT_LEN;
+    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+
+    if (role_ == SrsDtlsRoleClient) {
+        recv_key = server_master_key + server_master_salt;
+        send_key = client_master_key + client_master_salt;
+    } else {
+        recv_key = client_master_key + client_master_salt;
+        send_key = server_master_key + server_master_salt;
+    }
+
+    return err;
+}
+
 SSL_CTX* SrsDtls::build_dtls_ctx()
 {
     SSL_CTX* dtls_ctx;
@@ -334,218 +546,6 @@ SSL_CTX* SrsDtls::build_dtls_ctx()
     }
 
     return dtls_ctx;
-}
-
-srs_error_t SrsDtls::initialize(std::string role, std::string version)
-{
-    srs_error_t err = srs_success;
-
-    role_ = SrsDtlsRoleServer;
-    if (role == "active") {
-        role_ = SrsDtlsRoleClient;
-    }
-
-    if (version == "dtls1.0") {
-        version_ = SrsDtlsVersion1_0;
-    } else if (version == "dtls1.2") {
-        version_ = SrsDtlsVersion1_2;
-    } else {
-        version_ = SrsDtlsVersionAuto;
-    }
-
-    dtls_ctx = build_dtls_ctx();
-
-    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
-    if ((dtls = SSL_new(dtls_ctx)) == NULL) {
-        return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
-    }
-
-    if (role == "active") {
-        // Dtls setup active, as client role.
-        SSL_set_connect_state(dtls);
-        SSL_set_max_send_fragment(dtls, 1500);
-    } else {
-        // Dtls setup passive, as server role.
-        SSL_set_accept_state(dtls);
-    }
-
-    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
-        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
-    }
-
-    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
-        BIO_free(bio_in);
-        return srs_error_new(ERROR_OpenSslBIONew, "BIO_new out");
-    }
-
-    SSL_set_bio(dtls, bio_in, bio_out);
-
-    return err;
-}
-
-srs_error_t SrsDtls::do_handshake()
-{
-    srs_error_t err = srs_success;
-
-    int ret = SSL_do_handshake(dtls);
-
-    unsigned char *out_bio_data;
-    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
-
-    int ssl_err = SSL_get_error(dtls, ret); 
-    switch(ssl_err) {   
-        case SSL_ERROR_NONE: {
-            handshake_done = true;
-            break;
-        }  
-
-        case SSL_ERROR_WANT_READ: {   
-            break;
-        }   
-
-        case SSL_ERROR_WANT_WRITE: {   
-            break;
-        }
-
-        default: {   
-            break;
-        }   
-    }
-
-    // Trace the detail of DTLS packet.
-    trace((uint8_t*)out_bio_data, out_bio_len, false);
-
-    if (handshake_done) {
-        if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
-            return srs_error_wrap(err, "dtls done");
-        }
-    }
-
-    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
-            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
-{
-    srs_error_t err = srs_success;
-
-    if ((err = do_on_dtls(data, nb_data)) != srs_success) {
-        return srs_error_wrap(err, "on_dtls size=%u, data=[%s]", nb_data,
-            srs_string_dumps_hex(data, nb_data, 32).c_str());
-    }
-
-    return err;
-}
-
-srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
-{
-    srs_error_t err = srs_success;
-
-    int r0 = 0;
-    if ((r0 = BIO_reset(bio_in)) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
-    }
-    if ((r0 = BIO_reset(bio_out)) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
-    }
-
-    // Trace the detail of DTLS packet.
-    trace((uint8_t*)data, nb_data, true);
-
-    if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
-        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
-        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write r0=%d", r0);
-    }
-
-    if (!handshake_done) {
-        return do_handshake();
-    }
-    
-    while (BIO_ctrl_pending(bio_in) > 0) {
-        char dtls_read_buf[8092];
-        int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
-        if (!callback || nb <= 0) {
-            continue;
-        }
-
-        if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
-            return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
-                srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
-        }
-    }
-
-    return err;
-}
-
-void SrsDtls::trace(uint8_t* data, int length, bool incoming)
-{
-    if (length <= 0) {
-        return;
-    }
-
-    uint8_t content_type = 0;
-    if (length >= 1) {
-        content_type = (uint8_t)data[0];
-    }
-
-    uint16_t size = 0;
-    if (length >= 13) {
-        size = uint16_t(data[11])<<8 | uint16_t(data[12]);
-    }
-
-    uint8_t handshake_type = 0;
-    if (length >= 14) {
-        handshake_type = (uint8_t)data[13];
-    }
-
-    srs_trace("DTLS: %s length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
-        length, content_type, size, handshake_type);
-}
-
-srs_error_t SrsDtls::start_active_handshake()
-{
-    if (role_ == SrsDtlsRoleClient) {
-        return do_handshake();
-    }
-
-    return srs_success;
-}
-
-const int SRTP_MASTER_KEY_KEY_LEN = 16;
-const int SRTP_MASTER_KEY_SALT_LEN = 14;
-srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
-{
-    srs_error_t err = srs_success;
-
-    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
-    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
-    }
-
-    size_t offset = 0;
-
-    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-    offset += SRTP_MASTER_KEY_SALT_LEN;
-    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-
-    if (role_ == SrsDtlsRoleClient) {
-        recv_key = server_master_key + server_master_salt;
-        send_key = client_master_key + client_master_salt;
-    } else {
-        recv_key = client_master_key + client_master_salt;
-        send_key = server_master_key + server_master_salt;
-    }
-
-    return err;
 }
 
 SrsSRTP::SrsSRTP()
