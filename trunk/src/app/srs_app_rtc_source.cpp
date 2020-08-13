@@ -1194,32 +1194,35 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
 
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
-    // TODO: FIXME: Refine code.
-    // for example: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     srs_error_t err = srs_success;
-    std::vector<std::string> vec = split_str(fmtp, ";");
-    for (size_t i = 0; i < vec.size(); ++i) {
-        std::vector<std::string> kv = split_str(vec[i], "=");
-        if (kv.size() == 2) {
-            if (kv[0] == "profile-level-id") {
-                h264_param_.profile_level_id = kv[1];
-            } else if (kv[0] == "packetization-mode") {
-                // 6.3.  Non-Interleaved Mode
-                // This mode is in use when the value of the OPTIONAL packetization-mode
-                // media type parameter is equal to 1.  This mode SHOULD be supported.
-                // It is primarily intended for low-delay applications.  Only single NAL
-                // unit packets, STAP-As, and FU-As MAY be used in this mode.  STAP-Bs,
-                // MTAPs, and FU-Bs MUST NOT be used.  The transmission order of NAL
-                // units MUST comply with the NAL unit decoding order.
-                // @see https://tools.ietf.org/html/rfc6184#section-6.3
-                h264_param_.packetization_mode = kv[1];
-            } else if (kv[0] == "level-asymmetry-allowed") {
-                h264_param_.level_asymmerty_allow = kv[1];
-            } else {
-                return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
-            }
+
+    // For example: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
+    std::vector<std::string> attributes = split_str(fmtp, ";");
+
+    for (size_t i = 0; i < attributes.size(); ++i) {
+        std::string attribute = attributes.at(i);
+
+        std::vector<std::string> kv = split_str(attribute, "=");
+        if (kv.size() != 2) {
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", attribute.c_str());
+        }
+
+        if (kv[0] == "profile-level-id") {
+            h264_param_.profile_level_id = kv[1];
+        } else if (kv[0] == "packetization-mode") {
+            // 6.3.  Non-Interleaved Mode
+            // This mode is in use when the value of the OPTIONAL packetization-mode
+            // media type parameter is equal to 1.  This mode SHOULD be supported.
+            // It is primarily intended for low-delay applications.  Only single NAL
+            // unit packets, STAP-As, and FU-As MAY be used in this mode.  STAP-Bs,
+            // MTAPs, and FU-Bs MUST NOT be used.  The transmission order of NAL
+            // units MUST comply with the NAL unit decoding order.
+            // @see https://tools.ietf.org/html/rfc6184#section-6.3
+            h264_param_.packetization_mode = kv[1];
+        } else if (kv[0] == "level-asymmetry-allowed") {
+            h264_param_.level_asymmerty_allow = kv[1];
         } else {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", vec[i].c_str());
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
         }
     }
 
