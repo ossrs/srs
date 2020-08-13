@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_app_utility.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -414,10 +415,16 @@ srs_error_t SrsDtls::do_handshake()
         }   
     }   
 
-    if (out_bio_len) {
-        if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-            return srs_error_wrap(err, "dtls send size=%u", out_bio_len);
-        }
+    if (out_bio_len <= 0) {
+        return err;
+    }
+
+    // Trace the detail of DTLS packet.
+    trace((char*)out_bio_data, out_bio_len, false);
+
+    if ((err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
+        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
+            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
     }
 
     return err;
@@ -426,16 +433,33 @@ srs_error_t SrsDtls::do_handshake()
 srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
-    if (BIO_reset(bio_in) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
-    }
-    if (BIO_reset(bio_out) != 1) {
-        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset");
+
+    if ((err = do_on_dtls(data, nb_data)) != srs_success) {
+        return srs_error_wrap(err, "on_dtls size=%u, data=[%s]", nb_data,
+            srs_string_dumps_hex(data, nb_data, 32).c_str());
     }
 
-    if (BIO_write(bio_in, data, nb_data) <= 0) {
+    return err;
+}
+
+srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    int r0 = 0;
+    if ((r0 = BIO_reset(bio_in)) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
+    }
+    if ((r0 = BIO_reset(bio_out)) != 1) {
+        return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
+    }
+
+    // Trace the detail of DTLS packet.
+    trace((char*)data, nb_data, true);
+
+    if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
-        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write");
+        return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write r0=%d", r0);
     }
 
     if (!handshake_done) {
@@ -444,16 +468,24 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
         while (BIO_ctrl_pending(bio_in) > 0) {
             char dtls_read_buf[8092];
             int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
-
-            if (nb > 0 && callback) {
+            
+            if (callback && nb > 0) {
                 if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
-                    return srs_error_wrap(err, "on DTLS data, size=%u", nb);
+                    return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
+                        srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
                 }
             }
         }
     }
 
     return err;
+}
+
+void SrsDtls::trace(char* data, int size, bool incoming)
+{
+    // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+    // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
+    srs_trace("DTLS: %s size=%u", (incoming? "RECV":"SEND"), size);
 }
 
 srs_error_t SrsDtls::start_active_handshake()

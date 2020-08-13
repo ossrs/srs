@@ -1058,7 +1058,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         int nb_header = h.nb_bytes();
         const char* body = unprotected_buf + nb_header;
         int nb_body = nb_unprotected_buf - nb_header;
-        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=%s", nb_data, nb_unprotected_buf,
+        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=[%s]", nb_data, nb_unprotected_buf,
             srs_string_dumps_hex(body, nb_body, 8).c_str());
     }
 
@@ -1733,7 +1733,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 
     SrsRtcpCompound rtcp_compound;
     if(srs_success != (err = rtcp_compound.decode(buffer))) {
-        return srs_error_wrap(err, "decode rtcp plaintext=%u, bytes=%s, at=%s", nb_unprotected_buf,
+        return srs_error_wrap(err, "decode rtcp plaintext=%u, bytes=[%s], at=%s", nb_unprotected_buf,
             srs_string_dumps_hex(unprotected_buf, nb_unprotected_buf, 8).c_str(),
             srs_string_dumps_hex(buffer->head(), buffer->left(), 8).c_str());
     }
@@ -1744,7 +1744,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
         SrsAutoFree(SrsRtcpCommon, rtcp);
 
         if(srs_success != err) {
-            return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=%s, rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
+            return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
                 srs_string_dumps_hex(unprotected_buf, nb_unprotected_buf, 8).c_str(),
                 rtcp->get_rc(), rtcp->type(), rtcp->get_ssrc(), rtcp->size());
         }
