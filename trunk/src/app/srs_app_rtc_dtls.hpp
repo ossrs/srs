@@ -27,11 +27,14 @@
 #include <srs_core.hpp>
 
 #include <string>
-
-class SrsRequest;
+#include <vector>
 
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
+
+#include <srs_app_st.hpp>
+
+class SrsRequest;
 
 class SrsDtlsCertificate
 {
@@ -92,7 +95,17 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size) = 0;
 };
 
-class SrsDtls
+// The state for DTLS client.
+enum SrsDtlsState {
+    SrsDtlsStateInit,
+    SrsDtlsStateClientHello,
+    SrsDtlsStateServerHello,
+    SrsDtlsStateClientCertificate,
+    SrsDtlsStateServerDone,
+    SrsDtlsStateClientDone,
+};
+
+class SrsDtls : public ISrsCoroutineHandler
 {
 private:
     SSL_CTX* dtls_ctx;
@@ -109,6 +122,12 @@ private:
     // DTLS packet cache, only last out-going packet.
     uint8_t* last_outgoing_packet_cache;
     int nn_last_outgoing_packet;
+
+    // ARQ thread, for role active(DTLS client).
+    // @note If passive(DTLS server), the ARQ is driven by DTLS client.
+    SrsCoroutine* trd;
+    // The DTLS-client state to drive the ARQ thread.
+    SrsDtlsState client_state_;
 
     // @remark: dtls_role_ default value is DTLS_SERVER.
     SrsDtlsRole role_;
@@ -130,7 +149,14 @@ public:
 private:
     srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
-    void trace(uint8_t* data, int length, bool incoming, int ssl_err, bool cache);
+// interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+private:
+    void state_trace(uint8_t* data, int length, bool incoming, int ssl_err, bool cache, bool arq);
+private:
+    srs_error_t start_arq();
+    void stop_arq();
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 };
