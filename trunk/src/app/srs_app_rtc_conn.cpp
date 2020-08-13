@@ -1806,6 +1806,7 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
             publisher = it->second;
         }
     }
+
     if (true) {
         uint32_t ssrc = required_player_ssrc? required_player_ssrc : rtcp->get_ssrc();
         map<uint32_t, SrsRtcPlayStream*>::iterator it = players_ssrc_map_.find(ssrc);
@@ -1816,11 +1817,11 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon* rtcp)
 
     // Ignore if packet is required by publisher or player.
     if (required_publisher_ssrc && !publisher) {
-        srs_warn("SR: no ssrc %u in publishers", required_publisher_ssrc);
+        srs_warn("no ssrc %u in publishers. rtcp type:%u", required_publisher_ssrc, rtcp->type());
         return err;
     }
     if (required_player_ssrc && !player) {
-        srs_warn("SR: no ssrc %u in players", required_player_ssrc);
+        srs_warn("no ssrc %u in players. rtcp type:%u", required_player_ssrc, rtcp->type());
         return err;
     }
 
@@ -2686,7 +2687,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             // TODO: check opus format specific param
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
             }
 
             SrsMediaPayloadType payload = payloads.at(0);
@@ -2757,7 +2758,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
         }
     }
 
-    //negotiate audio media
+    //negotiate video media
     std::vector<SrsRtcTrackDescription*> req_video_tracks = req_stream_desc->video_track_descs_;
     src_track_descs = source->get_track_desc("video", "h264");
     for(int i = 0; i < req_video_tracks.size(); ++i) {
@@ -2998,7 +2999,8 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
     // make map between ssrc and player for fastly searching
     for(map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin(); it != sub_relations.end(); ++it) {
         SrsRtcTrackDescription* track_desc = it->second;
-        if(players_ssrc_map_.end() != players_ssrc_map_.find(track_desc->ssrc_)) {
+        map<uint32_t, SrsRtcPlayStream*>::iterator it_player = players_ssrc_map_.find(track_desc->ssrc_);
+        if((players_ssrc_map_.end() != it_player) && (player != it_player->second)) {
             return srs_error_new(ERROR_RTC_DUPLICATED_SSRC, "duplicate ssrc %d, track id: %s",
                 track_desc->ssrc_, track_desc->id_.c_str());
         }

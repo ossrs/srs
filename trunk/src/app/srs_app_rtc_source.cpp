@@ -1194,6 +1194,8 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
 
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
+    // TODO: FIXME: Refine code.
+    // for example: level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
     srs_error_t err = srs_success;
     std::vector<std::string> vec = split_str(fmtp, ";");
     for (size_t i = 0; i < vec.size(); ++i) {
