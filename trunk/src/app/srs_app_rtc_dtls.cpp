@@ -249,7 +249,7 @@ SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
     dtls = NULL;
 
     callback = cb;
-    handshake_done = false;
+    handshake_done_for_us = false;
 
     role_ = SrsDtlsRoleServer;
     version_ = SrsDtlsVersionAuto;
@@ -417,27 +417,31 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     }
 
     // Trace the detail of DTLS packet.
-    trace((uint8_t*)data, nb_data, true);
+    trace((uint8_t*)data, nb_data, true, SSL_ERROR_NONE);
 
     if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
         return srs_error_new(ERROR_OpenSslBIOWrite, "BIO_write r0=%d", r0);
     }
 
-    if (!handshake_done) {
-        return do_handshake();
+    // Always do handshake, even the handshake is done, because the last DTLS packet maybe dropped,
+    // so we thought the DTLS is done, but client need us to retransmit the last packet.
+    if ((err = do_handshake()) != srs_success) {
+        return srs_error_wrap(err, "do handshake");
     }
 
     while (BIO_ctrl_pending(bio_in) > 0) {
-        char dtls_read_buf[8092];
-        int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
+        char buf[8092];
+        int nb = SSL_read(dtls, buf, sizeof(buf));
+
         if (!callback || nb <= 0) {
             continue;
         }
+        srs_trace("DTLS: read nb=%d, data=[%s]", nb, srs_string_dumps_hex(buf, nb, 32).c_str());
 
-        if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+        if ((err = callback->on_dtls_application_data(buf, nb)) != srs_success) {
             return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
-                srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
+                srs_string_dumps_hex(buf, nb, 32).c_str());
         }
     }
 
@@ -450,13 +454,13 @@ srs_error_t SrsDtls::do_handshake()
 
     int ret = SSL_do_handshake(dtls);
 
-    unsigned char *out_bio_data;
-    int out_bio_len = BIO_get_mem_data(bio_out, &out_bio_data);
+    uint8_t* data = NULL;
+    int size = BIO_get_mem_data(bio_out, &data);
 
     int ssl_err = SSL_get_error(dtls, ret);
     switch(ssl_err) {
         case SSL_ERROR_NONE: {
-            handshake_done = true;
+            handshake_done_for_us = true;
             break;
         }
 
@@ -474,14 +478,14 @@ srs_error_t SrsDtls::do_handshake()
     }
 
     // Trace the detail of DTLS packet.
-    trace((uint8_t*)out_bio_data, out_bio_len, false);
+    trace((uint8_t*)data, size, false, ssl_err);
 
-    if (out_bio_len > 0 && (err = callback->write_dtls_data(out_bio_data, out_bio_len)) != srs_success) {
-        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", out_bio_len,
-            srs_string_dumps_hex((char*)out_bio_data, out_bio_len, 32).c_str());
+    if (size > 0 && (err = callback->write_dtls_data(data, size)) != srs_success) {
+        return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
+            srs_string_dumps_hex((char*)data, size, 32).c_str());
     }
 
-    if (handshake_done) {
+    if (handshake_done_for_us) {
         if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
             return srs_error_wrap(err, "dtls done");
         }
@@ -490,12 +494,8 @@ srs_error_t SrsDtls::do_handshake()
     return err;
 }
 
-void SrsDtls::trace(uint8_t* data, int length, bool incoming)
+void SrsDtls::trace(uint8_t* data, int length, bool incoming, int ssl_err)
 {
-    if (length <= 0) {
-        return;
-    }
-
     uint8_t content_type = 0;
     if (length >= 1) {
         content_type = (uint8_t)data[0];
@@ -511,8 +511,8 @@ void SrsDtls::trace(uint8_t* data, int length, bool incoming)
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s done=%u, length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
-        handshake_done, length, content_type, size, handshake_type);
+    srs_trace("DTLS: %s done=%u, ssl-err=%d, length=%u, content-type=%u, size=%u, handshake-type=%u", (incoming? "RECV":"SEND"),
+        handshake_done_for_us, ssl_err, length, content_type, size, handshake_type);
 }
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
