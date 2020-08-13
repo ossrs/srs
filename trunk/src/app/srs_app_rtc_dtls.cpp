@@ -463,18 +463,19 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     }
 
     if (!handshake_done) {
-        err = do_handshake();
-    } else {
-        while (BIO_ctrl_pending(bio_in) > 0) {
-            char dtls_read_buf[8092];
-            int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
-            
-            if (callback && nb > 0) {
-                if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
-                    return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
-                        srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
-                }
-            }
+        return do_handshake();
+    }
+    
+    while (BIO_ctrl_pending(bio_in) > 0) {
+        char dtls_read_buf[8092];
+        int nb = SSL_read(dtls, dtls_read_buf, sizeof(dtls_read_buf));
+        if (!callback || nb <= 0) {
+            continue;
+        }
+
+        if ((err = callback->on_dtls_application_data(dtls_read_buf, nb)) != srs_success) {
+            return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
+                srs_string_dumps_hex(dtls_read_buf, nb, 32).c_str());
         }
     }
 
