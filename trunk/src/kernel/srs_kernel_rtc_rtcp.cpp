@@ -69,9 +69,10 @@ int SrsRtcpCommon::size()
 
 srs_error_t SrsRtcpCommon::decode_header(SrsBuffer *buffer)
 {
-    if(! buffer->require(sizeof(SrsRtcpHeader) + 4)) {
+    if (!buffer->require(sizeof(SrsRtcpHeader) + 4)) {
         return srs_error_new(ERROR_RTC_RTCP, "require %d", sizeof(SrsRtcpHeader) + 4);
     }
+
     buffer->read_bytes((char*)(&header_), sizeof(SrsRtcpHeader));
     header_.length = ntohs(header_.length);
 
@@ -482,6 +483,7 @@ SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc)
     header_.version = kRtcpVersion;
     header_.length = 7;
     ssrc_ = sender_ssrc;
+    memset(&rb_, 0, sizeof(SrsRtcpRB));
 }
 
 SrsRtcpRR::~SrsRtcpRR()
@@ -608,9 +610,15 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_wrap(err, "decode header");
     }
 
-    if(header_.rc < 1) {
-        return err;
+    // @doc https://tools.ietf.org/html/rfc3550#section-6.4.2
+    // An empty RR packet (RC = 0) MUST be put at the head of a compound
+    // RTCP packet when there is no data transmission or reception to
+    // report. e.g. {80 c9 00 01 00 00 00 01}
+    if(header_.rc == 0) {
+        return srs_error_new(ERROR_RTC_RTCP_EMPTY_RR, "rc=0");
     }
+
+    // TODO: FIXME: Security check for read.
     rb_.ssrc = buffer->read_4bytes();
     rb_.fraction_lost = buffer->read_1bytes();
     rb_.lost_packets = buffer->read_3bytes();
@@ -618,7 +626,8 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     rb_.jitter = buffer->read_4bytes();
     rb_.lsr = buffer->read_4bytes();
     rb_.dlsr = buffer->read_4bytes();
-    
+
+    // TODO: FIXME: Security check for read.
     if(header_.rc > 1) {
         char buf[1500];
         buffer->read_bytes(buf, (header_.rc -1 ) * 24);
@@ -1725,10 +1734,22 @@ srs_error_t SrsRtcpCompound::decode(SrsBuffer *buffer)
         } else {
             rtcp = new SrsRtcpCommon();
         }
+
         if(srs_success != (err = rtcp->decode(buffer))) {
             srs_freep(rtcp);
+
+            // @doc https://tools.ietf.org/html/rfc3550#section-6.4.2
+            // An empty RR packet (RC = 0) MUST be put at the head of a compound
+            // RTCP packet when there is no data transmission or reception to
+            // report. e.g. {80 c9 00 01 00 00 00 01}
+            if (ERROR_RTC_RTCP_EMPTY_RR == srs_error_code(err)) {
+                srs_freep(err);
+                continue;
+            }
+
             return srs_error_wrap(err, "decode rtcp type=%u rc=%u", header->type, header->rc);
         }
+
         rtcps_.push_back(rtcp);
     }
 
