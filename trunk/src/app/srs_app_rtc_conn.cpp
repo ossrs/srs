@@ -1553,6 +1553,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
     }
 
     // When SDP is done, we set the stream to create state, to prevent multiple publisher.
+    // @note Here, we check the stream again.
     if (!source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
