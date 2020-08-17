@@ -497,6 +497,8 @@ public:
 public:
     // Initialize the hijacker.
     virtual srs_error_t initialize() = 0;
+    // When create publisher.
+    virtual srs_error_t on_before_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
     // When start publisher by RTC.
     virtual srs_error_t on_start_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
     // When stop publish by RTC.

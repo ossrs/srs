@@ -3126,6 +3126,12 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
         }
     }
 
+    if (_srs_rtc_hijacker) {
+        if ((err = _srs_rtc_hijacker->on_before_publish(this, publisher, req)) != srs_success) {
+            return srs_error_wrap(err, "on before publish");
+        }
+    }
+
     // If DLTS done, start the publisher. Because maybe create some publishers after DTLS done.
     if(ESTABLISHED == state()) {
         if(srs_success != (err = publisher->start())) {
