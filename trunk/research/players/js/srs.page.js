@@ -34,8 +34,6 @@ function update_nav() {
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);
-    $("#nav_jwplayer6").attr("href", "jwplayer6.html" + window.location.search);
-    $("#nav_osmf").attr("href", "osmf.html" + window.location.search);
     $("#nav_vlc").attr("href", "vlc.html" + window.location.search);
 }
 
