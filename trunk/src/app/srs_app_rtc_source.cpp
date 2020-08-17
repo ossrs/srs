@@ -290,7 +290,9 @@ ISrsRtcPublishStream::~ISrsRtcPublishStream()
 
 SrsRtcStream::SrsRtcStream()
 {
-    _can_publish = true;
+    is_created_ = false;
+    is_delivering_packets_ = false;
+
     publish_stream_ = NULL;
     stream_desc_ = NULL;
 
@@ -408,7 +410,13 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
 
 bool SrsRtcStream::can_publish()
 {
-    return _can_publish;
+    return !is_created_;
+}
+
+void SrsRtcStream::set_stream_created()
+{
+    srs_assert(!is_created_ && !is_delivering_packets_);
+    is_created_ = true;
 }
 
 srs_error_t SrsRtcStream::on_publish()
@@ -418,7 +426,10 @@ srs_error_t SrsRtcStream::on_publish()
     // update the request object.
     srs_assert(req);
 
-    _can_publish = false;
+    // For RTC, DTLS is done, and we are ready to deliver packets.
+    // @note For compatible with RTMP, we also set the is_created_, it MUST be created here.
+    is_created_ = true;
+    is_delivering_packets_ = true;
 
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
@@ -434,13 +445,15 @@ srs_error_t SrsRtcStream::on_publish()
 void SrsRtcStream::on_unpublish()
 {
     // ignore when already unpublished.
-    if (_can_publish) {
+    if (!is_created_) {
         return;
     }
 
-    srs_trace("cleanup when unpublish");
+    srs_trace("cleanup when unpublish, created=%u, deliver=%u", is_created_, is_delivering_packets_);
 
-    _can_publish = true;
+    is_created_ = false;
+    is_delivering_packets_ = false;
+
     _source_id = SrsContextId();
 
     // TODO: FIXME: Handle by statistic.

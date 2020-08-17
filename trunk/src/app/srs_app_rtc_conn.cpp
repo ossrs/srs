@@ -1538,6 +1538,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
 
     SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
     SrsAutoFree(SrsRtcStreamDescription, stream_desc);
+
     if ((err = negotiate_publish_capability(req, remote_sdp, stream_desc)) != srs_success) {
         return srs_error_wrap(err, "publish negotiate");
     }
@@ -1551,8 +1552,16 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
         return srs_error_wrap(err, "create source");
     }
 
+    // When SDP is done, we set the stream to create state, to prevent multiple publisher.
+    if (!source->can_publish()) {
+        return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
+    }
+    source->set_stream_created();
+
+    // Apply the SDP to source.
     source->set_stream_desc(stream_desc->copy());
 
+    // TODO: FIXME: What happends when error?
     if ((err = create_publisher(req, stream_desc)) != srs_success) {
         return srs_error_wrap(err, "create publish");
     }
@@ -3060,9 +3069,7 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
 {
     srs_error_t err = srs_success;
 
-    if (!stream_desc) {
-        return srs_error_new(ERROR_RTC_STREAM_DESC, "rtc publisher init");
-    }
+    srs_assert(stream_desc);
 
     // Ignore if exists.
     if(publishers_.end() != publishers_.find(req->get_stream_url())) {

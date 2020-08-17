@@ -417,7 +417,6 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_wrap(err, "create source");
     }
 
-    // TODO: FIXME: Refine the API for stream status manage.
     if (publish && !source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }

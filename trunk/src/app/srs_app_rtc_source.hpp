@@ -152,8 +152,10 @@ private:
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
-    // Whether source is avaiable for publishing.
-    bool _can_publish;
+    // Whether stream is created, that is, SDP is done.
+    bool is_created_;
+    // Whether stream is delivering data, that is, DTLS is done.
+    bool is_delivering_packets_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -179,7 +181,10 @@ public:
     virtual srs_error_t consumer_dumps(SrsRtcConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsRtcConsumer* consumer);
     // Whether we can publish stream to the source, return false if it exists.
+    // @remark Note that when SDP is done, we set the stream is not able to publish.
     virtual bool can_publish();
+    // For RTC, the stream is created when SDP is done, and then do DTLS
+    virtual void set_stream_created();
     // When start publish stream.
     virtual srs_error_t on_publish();
     // When stop publish stream.
