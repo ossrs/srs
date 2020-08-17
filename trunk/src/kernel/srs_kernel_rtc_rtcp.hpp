@@ -299,6 +299,7 @@ public:
     void add_recv_delta(uint16_t delta);
 
     srs_error_t recv_packet(uint16_t sn, srs_utime_t ts);
+    bool need_feedback();
 
 // interface ISrsCodec
 public:

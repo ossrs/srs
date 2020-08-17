@@ -801,6 +801,11 @@ srs_error_t SrsRtcpTWCC::recv_packet(uint16_t sn, srs_utime_t ts)
     return srs_success;
 }
 
+bool SrsRtcpTWCC::need_feedback()
+{
+    return recv_packets_.size() > 0;
+}
+
 srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
 {
     /*

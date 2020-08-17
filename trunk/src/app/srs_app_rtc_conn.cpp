@@ -1142,6 +1142,10 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 {
     srs_error_t err = srs_success;
 
+    if (!rtcp_twcc_.need_feedback()) {
+        return err;
+    }
+
     char pkt[kRtcpPacketSize];
     SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
     SrsAutoFree(SrsBuffer, buffer);
