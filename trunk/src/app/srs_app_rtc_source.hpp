@@ -178,8 +178,8 @@ public:
     // @param dg, whether dumps the gop cache.
     virtual srs_error_t consumer_dumps(SrsRtcConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsRtcConsumer* consumer);
-    // TODO: FIXME: Remove the param is_edge.
-    virtual bool can_publish(bool is_edge);
+    // Whether we can publish stream to the source, return false if it exists.
+    virtual bool can_publish();
     // When start publish stream.
     virtual srs_error_t on_publish();
     // When stop publish stream.

@@ -406,7 +406,7 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
     }
 }
 
-bool SrsRtcStream::can_publish(bool is_edge)
+bool SrsRtcStream::can_publish()
 {
     return _can_publish;
 }
