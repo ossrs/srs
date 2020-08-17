@@ -3045,7 +3045,8 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
     }
     srs_trace("RTC connection player gcc=%d", twcc_id);
 
-    // If DLTS done, start the player. Because maybe create some players after DTLS done.
+    // If DTLS done, start the player. Because maybe create some players after DTLS done.
+    // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
     if(ESTABLISHED == state_) {
         if(srs_success != (err = player->start())) {
             return srs_error_wrap(err, "start player");
@@ -3132,7 +3133,8 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
         }
     }
 
-    // If DLTS done, start the publisher. Because maybe create some publishers after DTLS done.
+    // If DTLS done, start the publisher. Because maybe create some publishers after DTLS done.
+    // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
     if(ESTABLISHED == state()) {
         if(srs_success != (err = publisher->start())) {
             return srs_error_wrap(err, "start publisher");
