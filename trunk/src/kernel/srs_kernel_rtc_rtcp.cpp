@@ -707,7 +707,7 @@ void SrsRtcpTWCC::clear()
 {
     encoded_chucks_.clear();
     pkt_deltas_.clear();
-    recv_packes_.clear();
+    recv_packets_.clear();
     recv_sns_.clear();
 }
 
@@ -781,12 +781,12 @@ void SrsRtcpTWCC::add_recv_delta(uint16_t delta)
 
 srs_error_t SrsRtcpTWCC::recv_packet(uint16_t sn, srs_utime_t ts)
 {
-    map<uint16_t, srs_utime_t>::iterator it = recv_packes_.find(sn);
-    if(it != recv_packes_.end()) {
+    map<uint16_t, srs_utime_t>::iterator it = recv_packets_.find(sn);
+    if(it != recv_packets_.end()) {
         return srs_error_new(ERROR_RTC_RTCP, "TWCC dup seq: %d", sn);
     }
 
-    recv_packes_[sn] = ts;
+    recv_packets_[sn] = ts;
     recv_sns_.insert(sn);
 
     return srs_success;
@@ -1074,19 +1074,19 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     pkt_len = kTwccFbPktHeaderSize;
     set<uint16_t, SrsSeqCompareLess>::iterator it_sn = recv_sns_.begin();
     base_sn_ = *it_sn;
-    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packes_.find(base_sn_);
+    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(base_sn_);
     srs_utime_t ts = it_ts->second;
     reference_time_ = (ts % kTwccFbReferenceTimeDivisor) / kTwccFbTimeMultiplier;
     srs_utime_t last_ts = (srs_utime_t)(reference_time_) * kTwccFbTimeMultiplier;
     uint16_t last_sn = base_sn_;
-    packet_count_ = recv_packes_.size();
+    packet_count_ = recv_packets_.size();
 
     // encode chunk
     SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
     for(; it_sn != recv_sns_.end(); ++it_sn) {
         uint16_t current_sn = *it_sn;
         // calculate delta
-        it_ts = recv_packes_.find(current_sn);
+        it_ts = recv_packets_.find(current_sn);
         srs_utime_t delta_us = calculate_delta_us(it_ts->second, last_ts);
         int16_t delta = delta_us;
         if(delta != delta_us) {
