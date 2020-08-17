@@ -406,6 +406,11 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
     if (it != consumers.end()) {
         consumers.erase(it);
     }
+
+    // When all consumers finished, notify publisher to handle it.
+    if (publish_stream_ && consumers.empty()) {
+        publish_stream_->on_consumers_finished();
+    }
 }
 
 bool SrsRtcStream::can_publish()

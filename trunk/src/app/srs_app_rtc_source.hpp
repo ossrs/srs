@@ -129,7 +129,10 @@ public:
     ISrsRtcPublishStream();
     virtual ~ISrsRtcPublishStream();
 public:
+    // Request keyframe(PLI) from publisher, for fresh consumer.
     virtual void request_keyframe(uint32_t ssrc) = 0;
+    // Notify publisher that all consumers is finished.
+    virtual void on_consumers_finished() = 0;
 };
 
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.

@@ -321,6 +321,7 @@ private:
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
 public:
     void request_keyframe(uint32_t ssrc);
+    void on_consumers_finished();
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
@@ -362,6 +363,8 @@ public:
     virtual ~ISrsRtcConnectionHijacker();
 public:
     virtual srs_error_t on_dtls_done() = 0;
+    // Notify when all consumers of publisher(specified by url) is finished.
+    virtual void on_consumers_finished(std::string url) = 0;
 };
 
 // A RTC Peer Connection, SDP level object.
@@ -450,6 +453,8 @@ private:
 public:
     srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
     srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
+public:
+    void on_consumers_finished(std::string url);
     void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();
