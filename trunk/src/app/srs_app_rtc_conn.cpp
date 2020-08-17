@@ -827,6 +827,8 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
         source->on_unpublish();
     }
 
+    // TODO: FIXME: Should remove and delete source.
+
     srs_freep(req);
     srs_freep(timer_);
 }
