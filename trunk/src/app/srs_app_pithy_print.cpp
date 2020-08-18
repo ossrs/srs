@@ -31,11 +31,13 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsStageInfo::SrsStageInfo(int _stage_id)
+SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
 {
     stage_id = _stage_id;
     nb_clients = 0;
     age = 0;
+    nn_count = 0;
+    interval_ratio = ratio;
     
     update_print_time();
     
@@ -59,7 +61,7 @@ void SrsStageInfo::elapse(srs_utime_t diff)
 
 bool SrsStageInfo::can_print()
 {
-    srs_utime_t can_print_age = nb_clients * interval;
+    srs_utime_t can_print_age = nb_clients * (srs_utime_t)(interval_ratio * interval);
     
     bool can_print = age >= can_print_age;
     if (can_print) {
@@ -114,31 +116,39 @@ SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
     return stage;
 }
 
-SrsErrorPithyPrint::SrsErrorPithyPrint()
+SrsErrorPithyPrint::SrsErrorPithyPrint(double ratio)
 {
     nn_count = 0;
+    ratio_ = ratio;
 }
 
 SrsErrorPithyPrint::~SrsErrorPithyPrint()
 {
 }
 
-bool SrsErrorPithyPrint::can_print(srs_error_t err)
+bool SrsErrorPithyPrint::can_print(srs_error_t err, uint32_t* pnn)
 {
     int error_code = srs_error_code(err);
-    return can_print(error_code);
+    return can_print(error_code, pnn);
 }
 
-bool SrsErrorPithyPrint::can_print(int error_code)
+bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
 {
-    nn_count++;
-
     bool new_stage = false;
     SrsStageInfo* stage = stages.fetch_or_create(error_code, &new_stage);
+
+    // Increase the count.
+    stage->nn_count++;
+    nn_count++;
+
+    if (pnn) {
+        *pnn = stage->nn_count;
+    }
 
     // Always and only one client.
     if (new_stage) {
         stage->nb_clients = 1;
+        stage->interval_ratio = ratio_;
     }
 
     srs_utime_t tick = ticks[error_code];

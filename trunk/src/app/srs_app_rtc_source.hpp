@@ -129,7 +129,10 @@ public:
     ISrsRtcPublishStream();
     virtual ~ISrsRtcPublishStream();
 public:
+    // Request keyframe(PLI) from publisher, for fresh consumer.
     virtual void request_keyframe(uint32_t ssrc) = 0;
+    // Notify publisher that all consumers is finished.
+    virtual void on_consumers_finished() = 0;
 };
 
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
@@ -152,8 +155,10 @@ private:
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
-    // Whether source is avaiable for publishing.
-    bool _can_publish;
+    // Whether stream is created, that is, SDP is done.
+    bool is_created_;
+    // Whether stream is delivering data, that is, DTLS is done.
+    bool is_delivering_packets_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -178,8 +183,11 @@ public:
     // @param dg, whether dumps the gop cache.
     virtual srs_error_t consumer_dumps(SrsRtcConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsRtcConsumer* consumer);
-    // TODO: FIXME: Remove the param is_edge.
-    virtual bool can_publish(bool is_edge);
+    // Whether we can publish stream to the source, return false if it exists.
+    // @remark Note that when SDP is done, we set the stream is not able to publish.
+    virtual bool can_publish();
+    // For RTC, the stream is created when SDP is done, and then do DTLS
+    virtual void set_stream_created();
     // When start publish stream.
     virtual srs_error_t on_publish();
     // When stop publish stream.
@@ -327,6 +335,20 @@ public:
     virtual ~SrsRedPayload();
 public:
     virtual SrsRedPayload* copy();
+    virtual SrsMediaPayloadType generate_media_payload_type();
+};
+
+class SrsRtxPayloadDes : public SrsCodecPayload
+{
+public:
+    uint8_t apt_;
+public:
+    SrsRtxPayloadDes();
+    SrsRtxPayloadDes(uint8_t pt, uint8_t apt);
+    virtual ~SrsRtxPayloadDes();
+
+public:
+    virtual SrsRtxPayloadDes* copy();
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 

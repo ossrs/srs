@@ -368,6 +368,13 @@ SrsSample::SrsSample()
     bframe = false;
 }
 
+SrsSample::SrsSample(char* b, int s)
+{
+    size = s;
+    bytes = b;
+    bframe = false;
+}
+
 SrsSample::~SrsSample()
 {
 }

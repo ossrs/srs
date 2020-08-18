@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 using namespace std;
@@ -55,6 +56,10 @@ srs_error_t prepare_main() {
 
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "init st");
+    }
+
+    if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc dtls certificate initialize");
     }
 
     srs_freep(_srs_context);

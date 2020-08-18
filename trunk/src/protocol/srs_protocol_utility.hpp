@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
 
 #include <srs_kernel_consts.hpp>
 
@@ -108,7 +109,20 @@ extern std::string srs_generate_rtmp_url(std::string server, int port, std::stri
 extern srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
 
 // join string in vector with indicated separator
-extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);
+template <typename T>
+std::string srs_join_vector_string(std::vector<T>& vs, std::string separator)
+{
+    std::stringstream ss;
+
+    for (int i = 0; i < (int)vs.size(); i++) {
+        ss << vs.at(i);
+        if (i != (int)vs.size() - 1) {
+            ss << separator;
+        }
+    }
+
+    return ss.str();
+}
 
 // Whether domain is an IPv4 address.
 extern bool srs_is_ipv4(std::string domain);

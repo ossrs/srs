@@ -27,11 +27,14 @@
 #include <srs_core.hpp>
 
 #include <string>
-
-class SrsRequest;
+#include <vector>
 
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
+
+#include <srs_app_st.hpp>
+
+class SrsRequest;
 
 class SrsDtlsCertificate
 {
@@ -92,17 +95,37 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size) = 0;
 };
 
-class SrsDtls
+// The state for DTLS client.
+enum SrsDtlsState {
+    SrsDtlsStateInit, // Start.
+    SrsDtlsStateClientHello, // Should start ARQ thread.
+    SrsDtlsStateServerHello, // We are in the first ARQ state.
+    SrsDtlsStateClientCertificate, // Should start ARQ thread again.
+    SrsDtlsStateServerDone, // We are in the second ARQ state.
+    SrsDtlsStateClientDone, // Done.
+};
+
+class SrsDtls : public ISrsCoroutineHandler
 {
 private:
     SSL_CTX* dtls_ctx;
     SSL* dtls;
     BIO* bio_in;
     BIO* bio_out;
-
-    ISrsDtlsCallback* callback;
-    bool handshake_done;
-
+    ISrsDtlsCallback* callback_;
+private:
+    // Whether the handhshake is done, for us only.
+    // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
+    bool handshake_done_for_us;
+    // DTLS packet cache, only last out-going packet.
+    uint8_t* last_outgoing_packet_cache;
+    int nn_last_outgoing_packet;
+    // ARQ thread, for role active(DTLS client).
+    // @note If passive(DTLS server), the ARQ is driven by DTLS client.
+    SrsCoroutine* trd;
+    // The DTLS-client state to drive the ARQ thread.
+    SrsDtlsState state_;
+private:
     // @remark: dtls_role_ default value is DTLS_SERVER.
     SrsDtlsRole role_;
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
@@ -112,15 +135,25 @@ public:
     virtual ~SrsDtls();
 public:
     srs_error_t initialize(std::string role, std::string version);
+public:
     // As DTLS client, start handshake actively, send the ClientHello packet.
     srs_error_t start_active_handshake();
     // When got DTLS packet, may handshake packets or application data.
     // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.
     srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 private:
-    SSL_CTX* build_dtls_ctx();
+    srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
+// interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+private:
+    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
+private:
+    srs_error_t start_arq();
+    void stop_arq();
+public:
+    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 };
 
 class SrsSRTP

@@ -72,12 +72,6 @@ const uint8_t kRtpFb = 205;
 const uint8_t kPsFb  = 206;
 const uint8_t kXR    = 207;
 
-// @see: https://tools.ietf.org/html/rfc4585#section-6.3
-const uint8_t kPLI  = 1;
-const uint8_t kSLI  = 2;
-const uint8_t kRPSI = 3;
-const uint8_t kAFB  = 15;
-
 enum SrsRtcConnectionStateType
 {
     // TODO: FIXME: Should prefixed by enum name.
@@ -89,8 +83,26 @@ enum SrsRtcConnectionStateType
     CLOSED = 5,
 };
 
+// The transport for RTC connection.
+class ISrsRtcTransport : public ISrsDtlsCallback
+{
+public:
+    ISrsRtcTransport();
+    virtual ~ISrsRtcTransport();
+public:
+    virtual srs_error_t initialize(SrsSessionConfig* cfg) = 0;
+    virtual srs_error_t start_active_handshake() = 0;
+    virtual srs_error_t on_dtls(char* data, int nb_data) = 0;
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr) = 0;
+    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+};
+
 // The security transport, use DTLS/SRTP to protect the data.
-class SrsSecurityTransport : public ISrsDtlsCallback
+class SrsSecurityTransport : public ISrsRtcTransport
 {
 private:
     SrsRtcConnection* session_;
@@ -126,6 +138,41 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
+};
+
+// Semi security transport, setup DTLS and SRTP, with SRTP decrypt, without SRTP encrypt.
+class SrsSemiSecurityTransport : public SrsSecurityTransport
+{
+public:
+    SrsSemiSecurityTransport(SrsRtcConnection* s);
+    virtual ~SrsSemiSecurityTransport();
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+};
+
+// Plaintext transport, without DTLS or SRTP.
+class SrsPlaintextTransport : public ISrsRtcTransport
+{
+private:
+    SrsRtcConnection* session_;
+public:
+    SrsPlaintextTransport(SrsRtcConnection* s);
+    virtual ~SrsPlaintextTransport();
+public:
+    virtual srs_error_t initialize(SrsSessionConfig* cfg);
+    virtual srs_error_t start_active_handshake();
+    virtual srs_error_t on_dtls(char* data, int nb_data);
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len);
+    virtual srs_error_t write_dtls_data(void* data, int size);
+public:
+    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
+    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
+    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
 };
 
 // A group of RTP packets for outgoing(send to players).
@@ -168,6 +215,8 @@ private:
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
 private:
+    SrsRequest* req_;
+    SrsRtcStream* source_;
     SrsHourGlass* timer_;
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
@@ -201,21 +250,20 @@ public:
     virtual srs_error_t cycle();
 private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
-public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
-    srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtcp(SrsRtcpCommon* rtcp);
 private:
-    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_rr(char* data, int nb_data);
+    srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
+    srs_error_t on_rtcp_nack(SrsRtcpNack* rtcp);
+    srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
+    srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
 };
 
@@ -267,15 +315,13 @@ public:
 private:
     srs_error_t send_periodic_twcc();
 public:
-    srs_error_t on_rtcp(char* data, int nb_data);
+    srs_error_t on_rtcp(SrsRtcpCommon* rtcp);
 private:
-    srs_error_t on_rtcp_sr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_xr(char* buf, int nb_buf);
-    srs_error_t on_rtcp_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_ps_feedback(char* data, int nb_data);
-    srs_error_t on_rtcp_rr(char* data, int nb_data);
+    srs_error_t on_rtcp_sr(SrsRtcpSR* rtcp);
+    srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
 public:
     void request_keyframe(uint32_t ssrc);
+    void on_consumers_finished();
 // interface ISrsHourGlass
 public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
@@ -309,6 +355,18 @@ public:
     std::string summary();
 };
 
+// Callback for RTC connection.
+class ISrsRtcConnectionHijacker
+{
+public:
+    ISrsRtcConnectionHijacker();
+    virtual ~ISrsRtcConnectionHijacker();
+public:
+    virtual srs_error_t on_dtls_done() = 0;
+    // Notify when all consumers of publisher(specified by url) is finished.
+    virtual void on_consumers_finished(std::string url) = 0;
+};
+
 // A RTC Peer Connection, SDP level object.
 class SrsRtcConnection : virtual public ISrsHourGlass
 {
@@ -318,14 +376,21 @@ class SrsRtcConnection : virtual public ISrsHourGlass
 public:
     bool disposing_;
     SrsRtcConnectionStatistic* stat_;
+    ISrsRtcConnectionHijacker* hijacker_;
 private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
-    SrsSecurityTransport* transport_;
-    SrsRtcPlayStream* player_;
-    SrsRtcPublishStream* publisher_;
-    bool is_publisher_;
+    ISrsRtcTransport* transport_;
     SrsHourGlass* timer_;
+private:
+    // key: stream id
+    std::map<std::string, SrsRtcPlayStream*> players_;
+    //key: player track's ssrc
+    std::map<uint32_t, SrsRtcPlayStream*> players_ssrc_map_;
+    // key: stream id
+    std::map<std::string, SrsRtcPublishStream*> publishers_;
+    // key: publisher track's ssrc
+    std::map<uint32_t, SrsRtcPublishStream*> publishers_ssrc_map_;
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
@@ -340,13 +405,8 @@ private:
 private:
     // For each RTC session, we use a specified cid for debugging logs.
     SrsContextId cid;
-    // For each RTC session, whether requires encrypt.
-    //      Read config value, rtc_server.encrypt, default to on.
-    //      Sepcifies by HTTP API, query encrypt, optional.
-    // TODO: FIXME: Support reload.
-    bool encrypt;
+    // TODO: FIXME: Rename to req_.
     SrsRequest* req;
-    SrsRtcStream* source_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:
@@ -373,7 +433,6 @@ public:
     // Get all addresses client used.
     std::vector<SrsUdpMuxSocket*> peer_addresses();
 public:
-    void set_encrypt(bool v);
     void switch_to_context();
     SrsContextId context_id();
 public:
@@ -383,17 +442,24 @@ public:
     srs_error_t add_player2(SrsRequest* request, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
-    srs_error_t initialize(SrsRtcStream* source, SrsRequest* r, bool is_publisher, std::string username);
+    srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
     // The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
     srs_error_t on_rtcp(char* data, int nb_data);
-    srs_error_t on_rtcp_feedback(char* buf, int nb_buf);
+private:
+    srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
+public:
+    srs_error_t on_rtcp_feedback_twcc(char* buf, int nb_buf);
+    srs_error_t on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp);
+public:
+    void on_consumers_finished(std::string url);
+    void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();
-    srs_error_t start_play();
-    srs_error_t start_publish();
+    srs_error_t start_play(std::string stream_uri);
+    srs_error_t start_publish(std::string stream_uri);
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 // interface ISrsHourGlass
@@ -401,6 +467,7 @@ public:
     virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     // send rtcp
+    srs_error_t send_rtcp(char *data, int nb_data);
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
@@ -411,14 +478,16 @@ public:
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     // Directly set the status of play track, generally for init to set the default value.
-    void set_all_tracks_status(bool status);
+    void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate
     srs_error_t negotiate_publish_capability(SrsRequest* req, const SrsSdp& remote_sdp, SrsRtcStreamDescription* stream_desc);
     srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
     // play media capabilitiy negotiate
+    //TODO: Use StreamDescription to negotiate and remove first negotiate_play_capability function
     srs_error_t negotiate_play_capability(SrsRequest* req, const SrsSdp& remote_sdp, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
+    srs_error_t negotiate_play_capability(SrsRequest* req, SrsRtcStreamDescription* req_stream_desc, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
     srs_error_t fetch_source_capability(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
     srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
@@ -431,10 +500,18 @@ public:
     ISrsRtcHijacker();
     virtual ~ISrsRtcHijacker();
 public:
-    // When start publisher by RTC.
+    // Initialize the hijacker.
+    virtual srs_error_t initialize() = 0;
+    // When create publisher, SDP is done, DTLS is not ready.
+    virtual srs_error_t on_create_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
+    // When start publisher by RTC, SDP and DTLS are done.
     virtual srs_error_t on_start_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
+    // When stop publish by RTC.
+    virtual void on_stop_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
     // When got RTP plaintext packet.
     virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    // When before play by RTC. (wait source to ready in cascade scenario)
+    virtual srs_error_t on_before_play(SrsRtcConnection* session, SrsRequest* req) = 0;
     // When start player by RTC.
     virtual srs_error_t on_start_play(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req) = 0;
     // When start consuming for player for RTC.
