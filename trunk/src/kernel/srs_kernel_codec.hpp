@@ -538,6 +538,7 @@ public:
     bool bframe;
 public:
     SrsSample();
+    SrsSample(char* b, int s);
     ~SrsSample();
 public:
     // If we need to know whether sample is bframe, we have to parse the NALU payload.

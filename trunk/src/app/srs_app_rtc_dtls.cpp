@@ -47,15 +47,83 @@ using namespace std;
 // can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
 // its own error storage managed by verify_callback.
 // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
     // Always OK, we don't check the certificate of client,
     // because we allow client self-sign certificate.
     return 1;
 }
 
+SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version)
+{
+    SSL_CTX* dtls_ctx;
+#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+    dtls_ctx = SSL_CTX_new(DTLSv1_method());
+#else
+    if (version == SrsDtlsVersion1_0) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_method());
+    } else if (version == SrsDtlsVersion1_2) {
+        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+    } else {
+        // SrsDtlsVersionAuto, use version-flexible DTLS methods
+        dtls_ctx = SSL_CTX_new(DTLS_method());
+    }
+#endif
+
+    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
+        // For ECDSA, we could set the curves list.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
+        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
+#endif
+
+        // For openssl <1.1, we must set the ECDH manually.
+        // @see https://stackoverrun.com/cn/q/10791887
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
+    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
+    #else
+        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
+    #endif
+#endif
+    }
+
+    // Setup DTLS context.
+    if (true) {
+        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
+        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
+
+        // Setup the certificate.
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
+
+        // Server will send Certificate Request.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        // TODO: FIXME: Config it, default to off to make the packet smaller.
+        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, srs_verify_callback);
+        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
+        // "level 2: higher level CA certificate", and so on.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+        SSL_CTX_set_verify_depth(dtls_ctx, 4);
+
+        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
+        SSL_CTX_set_read_ahead(dtls_ctx, 1);
+
+        // TODO: Maybe we can use SRTP-GCM in future.
+        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
+        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
+        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
+        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
+    }
+
+    return dtls_ctx;
+}
+
 SrsDtlsCertificate::SrsDtlsCertificate()
 {
+    ecdsa_mode = true;
     dtls_cert = NULL;
     dtls_pkey = NULL;
     eckey = NULL;
@@ -244,12 +312,12 @@ ISrsDtlsCallback::~ISrsDtlsCallback()
 {
 }
 
-SrsDtls::SrsDtls(ISrsDtlsCallback* cb)
+SrsDtls::SrsDtls(ISrsDtlsCallback* callback)
 {
     dtls_ctx = NULL;
     dtls = NULL;
 
-    callback = cb;
+    callback_ = callback;
     handshake_done_for_us = false;
 
     last_outgoing_packet_cache = new uint8_t[kRtpPacketSize];
@@ -297,13 +365,13 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx = build_dtls_ctx();
+    dtls_ctx = srs_build_dtls_ctx(version_);
 
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
     }
 
-    if (role == "active") {
+    if (role_ == SrsDtlsRoleClient) {
         // Dtls setup active, as client role.
         SSL_set_connect_state(dtls);
         SSL_set_max_send_fragment(dtls, kRtpPacketSize);
@@ -324,73 +392,6 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
     SSL_set_bio(dtls, bio_in, bio_out);
 
     return err;
-}
-
-SSL_CTX* SrsDtls::build_dtls_ctx()
-{
-    SSL_CTX* dtls_ctx;
-#if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-    dtls_ctx = SSL_CTX_new(DTLSv1_method());
-#else
-    if (version_ == SrsDtlsVersion1_0) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_method());
-    } else if (version_ == SrsDtlsVersion1_2) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
-    } else {
-        // SrsDtlsVersionAuto, use version-flexible DTLS methods
-        dtls_ctx = SSL_CTX_new(DTLS_method());
-    }
-#endif
-
-    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
-        // For ECDSA, we could set the curves list.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
-        SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
-#endif
-
-        // For openssl <1.1, we must set the ECDH manually.
-        // @see https://stackoverrun.com/cn/q/10791887
-#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
-    #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
-    #else
-        SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
-    #endif
-#endif
-    }
-
-    // Setup DTLS context.
-    if (true) {
-        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
-        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
-
-        // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
-
-        // Server will send Certificate Request.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        // TODO: FIXME: Config it, default to off to make the packet smaller.
-        SSL_CTX_set_verify(dtls_ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verify_callback);
-        // The depth count is "level 0:peer certificate", "level 1: CA certificate",
-        // "level 2: higher level CA certificate", and so on.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-        SSL_CTX_set_verify_depth(dtls_ctx, 4);
-
-        // Whether we should read as many input bytes as possible (for non-blocking reads) or not.
-        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_read_ahead.html
-        SSL_CTX_set_read_ahead(dtls_ctx, 1);
-
-        // TODO: Maybe we can use SRTP-GCM in future.
-        // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701
-        // @see https://groups.google.com/forum/#!topic/discuss-webrtc/PvCbWSetVAQ
-        // @remark Only support SRTP_AES128_CM_SHA1_80, please read ssl/d1_srtp.c
-        srs_assert(SSL_CTX_set_tlsext_use_srtp(dtls_ctx, "SRTP_AES128_CM_SHA1_80") == 0);
-    }
-
-    return dtls_ctx;
 }
 
 srs_error_t SrsDtls::start_active_handshake()
@@ -437,7 +438,7 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     }
 
     // Trace the detail of DTLS packet.
-    state_trace((uint8_t*)data, nb_data, true, SSL_ERROR_NONE, false, false);
+    state_trace((uint8_t*)data, nb_data, true, r0, SSL_ERROR_NONE, false, false);
 
     if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
@@ -453,13 +454,12 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     while (BIO_ctrl_pending(bio_in) > 0) {
         char buf[8092];
         int nb = SSL_read(dtls, buf, sizeof(buf));
-
-        if (!callback || nb <= 0) {
+        if (nb <= 0) {
             continue;
         }
         srs_trace("DTLS: read nb=%d, data=[%s]", nb, srs_string_dumps_hex(buf, nb, 32).c_str());
 
-        if ((err = callback->on_dtls_application_data(buf, nb)) != srs_success) {
+        if ((err = callback_->on_dtls_application_data(buf, nb)) != srs_success) {
             return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
                 srs_string_dumps_hex(buf, nb, 32).c_str());
         }
@@ -476,7 +476,12 @@ srs_error_t SrsDtls::do_handshake()
     int r0 = SSL_do_handshake(dtls);
     int r1 = SSL_get_error(dtls, r0);
 
-    // TODO: What about SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE?
+    // Fatal SSL error, for example, no available suite when peer is DTLS 1.0 while we are DTLS 1.2.
+    if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
+        return srs_error_new(ERROR_OpenSslBIOWrite, "handshake r0=%d, r1=%d", r0, r1);
+    }
+
+    // OK, Handshake is done, note that it maybe done many times.
     if (r1 == SSL_ERROR_NONE) {
         handshake_done_for_us = true;
     }
@@ -495,7 +500,7 @@ srs_error_t SrsDtls::do_handshake()
     }
 
     // Trace the detail of DTLS packet.
-    state_trace((uint8_t*)data, size, false, r1, cache, false);
+    state_trace((uint8_t*)data, size, false, r0, r1, cache, false);
 
     // Update the packet cache.
     if (size > 0 && data != last_outgoing_packet_cache && size < kRtpPacketSize) {
@@ -528,7 +533,7 @@ srs_error_t SrsDtls::do_handshake()
         }
     }
 
-    if (size > 0 && (err = callback->write_dtls_data(data, size)) != srs_success) {
+    if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
         return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
             srs_string_dumps_hex((char*)data, size, 32).c_str());
     }
@@ -541,7 +546,7 @@ srs_error_t SrsDtls::do_handshake()
         }
 
         // Notify connection the DTLS is done.
-        if (((err = callback->on_dtls_handshake_done()) != srs_success)) {
+        if (((err = callback_->on_dtls_handshake_done()) != srs_success)) {
             return srs_error_wrap(err, "dtls done");
         }
     }
@@ -581,9 +586,9 @@ srs_error_t SrsDtls::cycle()
 
         if (size) {
             // Trace the detail of DTLS packet.
-            state_trace((uint8_t*)data, size, false, SSL_ERROR_NONE, true, true);
+            state_trace((uint8_t*)data, size, false, 1, SSL_ERROR_NONE, true, true);
 
-            if ((err = callback->write_dtls_data(data, size)) != srs_success) {
+            if ((err = callback_->write_dtls_data(data, size)) != srs_success) {
                 return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
                     srs_string_dumps_hex((char*)data, size, 32).c_str());
             }
@@ -596,7 +601,7 @@ srs_error_t SrsDtls::cycle()
     return err;
 }
 
-void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int ssl_err, bool cache, bool arq)
+void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
 {
     uint8_t content_type = 0;
     if (length >= 1) {
@@ -613,9 +618,9 @@ void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int ssl_err,
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
+    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
         (role_ == SrsDtlsRoleClient? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
-        state_, ssl_err, length, content_type, size, handshake_type);
+        state_, r0, r1, length, content_type, size, handshake_type);
 }
 
 srs_error_t SrsDtls::start_arq()
