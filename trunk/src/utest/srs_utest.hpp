@@ -67,7 +67,7 @@ extern srs_utime_t _srs_tmp_timeout;
 
 // For errors, assert.
 // @remark we directly delete the err, because we allow user to append message if fail.
-#define HELPER_EXPECT_SUCCESS(x) \
+#define HELPER_ASSERT_SUCCESS(x) \
     if ((err = x) != srs_success) fprintf(stderr, "err %s", srs_error_desc(err).c_str()); \
     if (err != srs_success) delete err; \
     ASSERT_TRUE(srs_success == err)
