@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-08-18, RTC: DTLS support ARQ, covered with utest. 4.0.39
 * v4.0, 2020-08-06, RTC: Refine error check. 4.0.37
 * v4.0, 2020-07-25, RTC: Support multiple address for client. 4.0.36
 * v4.0, 2020-07-11, Refine log context with random string. 4.0.35
