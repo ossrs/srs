@@ -59,6 +59,7 @@ class SrsRtpRingBuffer;
 class SrsRtcConsumer;
 class SrsRtcAudioSendTrack;
 class SrsRtcVideoSendTrack;
+class SrsErrorPithyPrint;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -131,11 +132,6 @@ private:
 class SrsRtcPlayStreamStatistic
 {
 public:
-#if defined(SRS_DEBUG)
-    // Debug id.
-    uint32_t debug_id;
-#endif
-public:
     // The total bytes of AVFrame packets.
     int nn_bytes;
     // The total bytes of RTP packets.
@@ -165,13 +161,14 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler, virtual public ISrsHourGlass
 {
-protected:
+private:
     SrsContextId _parent_cid;
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
 private:
+    SrsHourGlass* timer_;
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
@@ -206,6 +203,11 @@ private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
 public:
     void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
+    // Directly set the status of track, generally for init to set the default value.
+    void set_all_tracks_status(bool status);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
@@ -221,7 +223,7 @@ private:
 class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
-    SrsHourGlass* report_timer;
+    SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
 private:
     SrsRtcConnection* session_;
@@ -240,7 +242,6 @@ private:
     std::vector<SrsRtcAudioRecvTrack*> audio_tracks_;
     std::vector<SrsRtcVideoRecvTrack*> video_tracks_;
 private:
-    srs_utime_t last_twcc_feedback_time_;
     int twcc_id_;
     uint8_t twcc_fb_count_;
     SrsRtcpTWCC rtcp_twcc_;
@@ -252,12 +253,16 @@ public:
 public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
     srs_error_t start();
+    // Directly set the status of track, generally for init to set the default value.
+    void set_all_tracks_status(bool status);
 private:
-    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
+private:
+    srs_error_t do_on_rtp(char* plaintext, int nb_plaintext);
+public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 private:
     srs_error_t send_periodic_twcc();
@@ -305,7 +310,7 @@ public:
 };
 
 // A RTC Peer Connection, SDP level object.
-class SrsRtcConnection
+class SrsRtcConnection : virtual public ISrsHourGlass
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -320,6 +325,7 @@ private:
     SrsRtcPlayStream* player_;
     SrsRtcPublishStream* publisher_;
     bool is_publisher_;
+    SrsHourGlass* timer_;
 private:
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
@@ -348,6 +354,8 @@ private:
     int twcc_id_;
     // Simulators.
     int nn_simulate_player_nack_drop;
+    // Pithy print for address change, use port as error code.
+    SrsErrorPithyPrint* pp_address_change;
 public:
     SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id);
     virtual ~SrsRtcConnection();
@@ -388,9 +396,12 @@ public:
     srs_error_t start_publish();
     bool is_stun_timeout();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
+// interface ISrsHourGlass
+public:
+    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
 public:
     // send rtcp
-    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc);
+    void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
     srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
@@ -399,6 +410,8 @@ public:
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
+    // Directly set the status of play track, generally for init to set the default value.
+    void set_all_tracks_status(bool status);
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate

@@ -1576,7 +1576,7 @@ string escape(string v)
 {
     stringstream ss;
 
-    for (int i = 0; i < v.length(); i++) {
+    for (int i = 0; i < (int)v.length(); i++) {
         if (v.at(i) == '"') {
             ss << '\\';
         }

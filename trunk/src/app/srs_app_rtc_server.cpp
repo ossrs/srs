@@ -97,6 +97,7 @@ void SrsRtcBlackhole::sendto(void* data, int len)
         return;
     }
 
+    // For blackhole, we ignore any error.
     srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
 
@@ -105,24 +106,32 @@ SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 
-static bool is_stun(const uint8_t* data, const int size)
+// TODO: Should support error response.
+// For STUN packet, 0x00 is binding request, 0x01 is binding success response.
+bool srs_is_stun(const uint8_t* data, size_t size)
 {
-    return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1);
+    return size > 0 && (data[0] == 0 || data[0] == 1);
 }
 
-static bool is_dtls(const uint8_t* data, size_t len)
+// change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+// @see https://tools.ietf.org/html/rfc2246#section-6.2.1
+bool srs_is_dtls(const uint8_t* data, size_t len)
 {
-      return (len >= 13 && (data[0] > 19 && data[0] < 64));
+    return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-static bool is_rtp_or_rtcp(const uint8_t* data, size_t len)
+// For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
+bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len)
 {
-      return (len >= 12 && (data[0] & 0xC0) == 0x80);
+    return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
-static bool is_rtcp(const uint8_t* data, size_t len)
+// For RTCP, PT is [128, 223] (or without marker [0, 95]).
+// Literally, RTCP starts from 64 not 0, so PT is [192, 223] (or without marker [64, 95]).
+// @note For RTP, the PT is [96, 127], or [224, 255] with marker.
+bool srs_is_rtcp(const uint8_t* data, size_t len)
 {
-    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 200 && data[1] <= 209);
+    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
 }
 
 static std::vector<std::string> get_candidate_ips()
@@ -301,7 +310,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     // For STUN, the peer address may change.
-    if (is_stun((uint8_t*)data, size)) {
+    if (srs_is_stun((uint8_t*)data, size)) {
         SrsStunPacket ping;
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
@@ -309,7 +318,6 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
             peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
             session = find_session_by_username(ping.get_username());
 
@@ -318,8 +326,10 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
                 session->switch_to_context();
             }
         }
+
+        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
-            return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
+            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s",
                 ping.get_username().c_str(), peer_id.c_str());
         }
 
@@ -328,19 +338,19 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
     if (!session) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", peer_id.c_str());
+        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s", peer_id.c_str());
     }
 
-    if (is_dtls((uint8_t*)data, size)) {
+    if (srs_is_dtls((uint8_t*)data, size)) {
         return session->on_dtls(data, size);
-    } else if (is_rtp_or_rtcp((uint8_t*)data, size)) {
-        if (is_rtcp((uint8_t*)data, size)) {
+    } else if (srs_is_rtp_or_rtcp((uint8_t*)data, size)) {
+        if (srs_is_rtcp((uint8_t*)data, size)) {
             return session->on_rtcp(data, size);
         }
         return session->on_rtp(data, size);
     }
 
-    return srs_error_new(ERROR_RTC_UDP, "unknown udp packet type");
+    return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
 srs_error_t SrsRtcServer::listen_api()
@@ -414,6 +424,9 @@ srs_error_t SrsRtcServer::do_create_session(
             return srs_error_wrap(err, "add player");
         }
     }
+
+    // All tracks default as inactive, so we must enable them.
+    session->set_all_tracks_status(true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";

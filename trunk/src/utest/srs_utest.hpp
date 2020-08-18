@@ -24,6 +24,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_UTEST_PUBLIC_SHARED_HPP
 #define SRS_UTEST_PUBLIC_SHARED_HPP
 
+// Before define the private/protected, we must include some system header files.
+// Or it may fail with:
+//      redeclared with different access struct __xfer_bufptrs
+// @see https://stackoverflow.com/questions/47839718/sstream-redeclared-with-public-access-compiler-error
+#include "gtest/gtest.h"
+
 // Public all private and protected members.
 #define private public
 #define protected public
@@ -33,7 +39,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#include "gtest/gtest.h"
 #include <string>
 using namespace std;
 

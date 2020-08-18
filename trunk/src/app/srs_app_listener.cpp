@@ -42,7 +42,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
@@ -506,8 +505,8 @@ srs_error_t SrsUdpMuxListener::cycle()
     uint64_t nn_loop = 0;
     srs_utime_t time_last = srs_get_system_time();
 
-    SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
-    SrsAutoFree(SrsErrorPithyPrint, epp);
+    SrsErrorPithyPrint* pp_pkt_handler_err = new SrsErrorPithyPrint();
+    SrsAutoFree(SrsErrorPithyPrint, pp_pkt_handler_err);
 
     set_socket_buffer();
     
@@ -541,9 +540,15 @@ srs_error_t SrsUdpMuxListener::cycle()
             SrsContextRestore(cid);
             err = handler->on_udp_packet(&skt);
         }
+        // Use pithy print to show more smart information.
         if (err != srs_success) {
-            if (epp->can_print(err)) {
-                srs_warn("handle udp pkt err: %s", srs_error_desc(err).c_str());
+            if (pp_pkt_handler_err->can_print(err)) {
+                // Append more information.
+                if (true) {
+                    char* data = skt.data(); int size = skt.size();
+                    err = srs_error_wrap(err, "size=%u, data=[%s]", size, srs_string_dumps_hex(data, size, 8).c_str());
+                }
+                srs_warn("handle udp pkt, count=%u, err: %s", pp_pkt_handler_err->nn_count, srs_error_desc(err).c_str());
             }
             srs_freep(err);
         }

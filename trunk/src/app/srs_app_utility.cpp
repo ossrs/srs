@@ -1281,37 +1281,51 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 
-string srs_string_dumps_hex(const std::string& str, const int& limit)
+string srs_string_dumps_hex(const std::string& str)
 {
-    return srs_string_dumps_hex(str.c_str(), str.size(), limit);
+    return srs_string_dumps_hex(str.c_str(), str.size());
 }
 
-string srs_string_dumps_hex(const char* buf, const int length, const int& limit)
+string srs_string_dumps_hex(const char* str, int length)
 {
-    string ret;
+    return srs_string_dumps_hex(str, length, INT_MAX);
+}
 
-    char tmp_buf[1024*16];
-    tmp_buf[0] = '\n';
-    int len = 1;
-    
-    for (int i = 0; i < length && i < limit; ++i) {
-        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
-        if (nb <= 0)
+string srs_string_dumps_hex(const char* str, int length, int limit)
+{
+    return srs_string_dumps_hex(str, length, limit, ' ', 128, '\n');
+}
+
+string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
+{
+    const int LIMIT = 1024*16;
+    static char buf[LIMIT];
+
+    int len = 0;
+    for (int i = 0; i < length && i < limit && i < LIMIT; ++i) {
+        int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
+        if (nb < 0 || nb > LIMIT - len) {
             break;
+        }
+        len += nb;
 
-        len += nb; 
+        // Only append seperator and newline when not last byte.
+        if (i < length - 1 && i < limit - 1 && i < LIMIT - 1) {
+            if (seperator && len < LIMIT) {
+                buf[len++] = seperator;
+            }
 
-        if (i % 48 == 47) {
-            tmp_buf[len++] = '\n';
-            ret.append(tmp_buf, len);
-            len = 0;
-        }   
-    }   
-    tmp_buf[len] = '\0';
-    ret.append(tmp_buf, len);
+            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0 && len < LIMIT) {
+                buf[len++] = newline;
+            }
+        }
+    }
 
-    return ret;
-
+    // Empty string.
+    if (len <= 0) {
+        return "";
+    }
+    return string(buf, len);
 }
 
 string srs_getenv(string key)

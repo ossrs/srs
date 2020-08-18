@@ -482,24 +482,24 @@ function apply_detail_options() {
     
     # if specified export single file, export project first.
     if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        echo "Not support --export-librtmp-single"
-        exit -1
+        echo "Warning: Ingore --export-librtmp-single"
+        SRS_EXPORT_LIBRTMP_SINGLE=NO
     fi
 
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        echo "Not support --export-librtmp-project"
-        exit -1
+        echo "Warning: Ingore --export-librtmp-project"
+        SRS_EXPORT_LIBRTMP_PROJECT=NO
     fi
 
     if [[ $SRS_LIBRTMP != NO ]]; then
-        echo "Not support --librtmp"
-        exit -1
+        echo "Warning: Ingore --librtmp"
+        SRS_LIBRTMP=NO
     fi
 
     if [[ $SRS_RESEARCH != NO ]]; then
-        echo "Not support --research"
-        exit -1
+        echo "Warning: Ingore --research"
+        SRS_RESEARCH=NO
     fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
@@ -583,11 +583,13 @@ function check_option_conflicts() {
     fi
 
     if [[ $SRS_CROSS_BUILD == YES && ($SRS_TOOL_CC == 'gcc' || $SRS_TOOL_CXX == 'g++' || $SRS_TOOL_AR == 'ar') ]]; then
-        echo "For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit -1
+        echo "Warning: For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"
+        SRS_CROSS_BUILD=NO
     fi
 
     if [[ $SRS_NGINX == YES ]]; then
-        echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
+        echo "Warning: Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
+        SRS_NGINX=NO
     fi
 
     # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869

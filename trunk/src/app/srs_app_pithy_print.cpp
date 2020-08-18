@@ -116,6 +116,7 @@ SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
 
 SrsErrorPithyPrint::SrsErrorPithyPrint()
 {
+    nn_count = 0;
 }
 
 SrsErrorPithyPrint::~SrsErrorPithyPrint()
@@ -125,6 +126,12 @@ SrsErrorPithyPrint::~SrsErrorPithyPrint()
 bool SrsErrorPithyPrint::can_print(srs_error_t err)
 {
     int error_code = srs_error_code(err);
+    return can_print(error_code);
+}
+
+bool SrsErrorPithyPrint::can_print(int error_code)
+{
+    nn_count++;
 
     bool new_stage = false;
     SrsStageInfo* stage = stages.fetch_or_create(error_code, &new_stage);

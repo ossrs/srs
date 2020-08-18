@@ -73,7 +73,7 @@ protected:
 public:
     SrsRtcpCommon();
     virtual ~SrsRtcpCommon();
-    virtual const uint8_t type() const;
+    virtual uint8_t type() const;
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
@@ -93,12 +93,12 @@ public:
     SrsRtcpApp();
     virtual ~SrsRtcpApp();
 
-    virtual const uint8_t type() const;
+    virtual uint8_t type() const;
     
-    const uint32_t get_ssrc() const;
-    const uint8_t get_subtype() const;
-    const std::string get_name() const;
-    const srs_error_t get_payload(uint8_t*& payload, int& len);
+    uint32_t get_ssrc() const;
+    uint8_t get_subtype() const;
+    std::string get_name() const;
+    srs_error_t get_payload(uint8_t*& payload, int& len);
 
     void set_ssrc(uint32_t ssrc);
     srs_error_t set_subtype(uint8_t type);
@@ -134,14 +134,14 @@ public:
     SrsRtcpSR();
     virtual ~SrsRtcpSR();
 
-    const uint8_t get_rc() const;
+    uint8_t get_rc() const;
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const;
-    const uint32_t get_sender_ssrc() const;
-    const uint64_t get_ntp() const;
-    const uint32_t get_rtp_ts() const;
-    const uint32_t get_rtp_send_packets() const;
-    const uint32_t get_rtp_send_bytes() const;
+    virtual uint8_t type() const;
+    uint32_t get_sender_ssrc() const;
+    uint64_t get_ntp() const;
+    uint32_t get_rtp_ts() const;
+    uint32_t get_rtp_send_packets() const;
+    uint32_t get_rtp_send_bytes() const;
 
     void set_sender_ssrc(uint32_t ssrc);
     void set_ntp(uint64_t ntp);
@@ -165,15 +165,15 @@ public:
     virtual ~SrsRtcpRR();
 
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const;
+    virtual uint8_t type() const;
 
-    const uint32_t get_rb_ssrc() const;
-    const float get_lost_rate() const;
-    const uint32_t get_lost_packets() const;
-    const uint32_t get_highest_sn() const;
-    const uint32_t get_jitter() const;
-    const uint32_t get_lsr() const;
-    const uint32_t get_dlsr() const;
+    uint32_t get_rb_ssrc() const;
+    float get_lost_rate() const;
+    uint32_t get_lost_packets() const;
+    uint32_t get_highest_sn() const;
+    uint32_t get_jitter() const;
+    uint32_t get_lsr() const;
+    uint32_t get_dlsr() const;
 
     void set_rb_ssrc(uint32_t ssrc);
     void set_lost_rate(float rate);
@@ -271,13 +271,13 @@ public:
     SrsRtcpTWCC(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpTWCC();
 
-    const uint32_t get_media_ssrc() const;
-    const uint16_t get_base_sn() const;
-    const uint16_t get_packet_status_count() const;
-    const uint32_t get_reference_time() const;
-    const uint8_t get_feedback_count() const;
-    const std::vector<uint16_t> get_packet_chucks() const;
-    const std::vector<uint16_t> get_recv_deltas() const;
+    uint32_t get_media_ssrc() const;
+    uint16_t get_base_sn() const;
+    uint16_t get_packet_status_count() const;
+    uint32_t get_reference_time() const;
+    uint8_t get_feedback_count() const;
+    std::vector<uint16_t> get_packet_chucks() const;
+    std::vector<uint16_t> get_recv_deltas() const;
 
     void set_media_ssrc(uint32_t ssrc);
     void set_base_sn(uint16_t sn);
@@ -313,8 +313,8 @@ public:
     SrsRtcpNack(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpNack();
 
-    const uint32_t get_media_ssrc() const;
-    const std::vector<uint16_t> get_lost_sns() const;
+    uint32_t get_media_ssrc() const;
+    std::vector<uint16_t> get_lost_sns() const;
 
     void set_media_ssrc(uint32_t ssrc);
     void add_lost_sn(uint16_t sn);

@@ -37,7 +37,7 @@ SrsRtcpCommon::~SrsRtcpCommon()
 { 
 }
 
-const uint8_t SrsRtcpCommon::type() const
+uint8_t SrsRtcpCommon::type() const
 {
     return header_.type;
 }
@@ -90,27 +90,27 @@ SrsRtcpApp::~SrsRtcpApp()
 {
 }
 
-const uint8_t SrsRtcpApp::type() const
+uint8_t SrsRtcpApp::type() const
 {
     return SrsRtcpType_app;
 }
 
-const uint32_t SrsRtcpApp::get_ssrc() const
+uint32_t SrsRtcpApp::get_ssrc() const
 {
     return ssrc_;
 }
 
-const uint8_t SrsRtcpApp::get_subtype() const
+uint8_t SrsRtcpApp::get_subtype() const
 {
     return header_.rc;
 }
 
-const string SrsRtcpApp::get_name() const
+string SrsRtcpApp::get_name() const
 {
     return string((char*)name_);
 }
 
-const srs_error_t SrsRtcpApp::get_payload(uint8_t*& payload, int& len)
+srs_error_t SrsRtcpApp::get_payload(uint8_t*& payload, int& len)
 {
     len = payload_len_;
     payload = payload_;
@@ -213,37 +213,37 @@ SrsRtcpSR::~SrsRtcpSR()
 {
 }
 
-const uint8_t SrsRtcpSR::get_rc() const
+uint8_t SrsRtcpSR::get_rc() const
 {
     return header_.rc;
 }
 
-const uint8_t SrsRtcpSR::type() const
+uint8_t SrsRtcpSR::type() const
 {
     return SrsRtcpType_sr;
 }
 
-const uint32_t SrsRtcpSR::get_sender_ssrc() const
+uint32_t SrsRtcpSR::get_sender_ssrc() const
 {
     return sender_ssrc_;
 }
 
-const uint64_t SrsRtcpSR::get_ntp() const
+uint64_t SrsRtcpSR::get_ntp() const
 {
     return ntp_;
 }
 
-const uint32_t SrsRtcpSR::get_rtp_ts() const
+uint32_t SrsRtcpSR::get_rtp_ts() const
 {
     return rtp_ts_;
 }
 
-const uint32_t SrsRtcpSR::get_rtp_send_packets() const
+uint32_t SrsRtcpSR::get_rtp_send_packets() const
 {
     return send_rtp_packets_;
 }
 
-const uint32_t SrsRtcpSR::get_rtp_send_bytes() const
+uint32_t SrsRtcpSR::get_rtp_send_bytes() const
 {
     return send_rtp_bytes_;
 }
@@ -334,42 +334,42 @@ SrsRtcpRR::~SrsRtcpRR()
 {
 }
 
-const uint8_t SrsRtcpRR::type() const
+uint8_t SrsRtcpRR::type() const
 {
     return SrsRtcpType_rr;
 }
 
-const uint32_t SrsRtcpRR::get_rb_ssrc() const
+uint32_t SrsRtcpRR::get_rb_ssrc() const
 {
     return rb_.ssrc;
 }
 
-const float SrsRtcpRR::get_lost_rate() const
+float SrsRtcpRR::get_lost_rate() const
 {
     return rb_.fraction_lost / 256;
 }
 
-const uint32_t SrsRtcpRR::get_lost_packets() const
+uint32_t SrsRtcpRR::get_lost_packets() const
 {
     return rb_.lost_packets;
 }
 
-const uint32_t SrsRtcpRR::get_highest_sn() const
+uint32_t SrsRtcpRR::get_highest_sn() const
 {
     return rb_.highest_sn;
 }
 
-const uint32_t SrsRtcpRR::get_jitter() const
+uint32_t SrsRtcpRR::get_jitter() const
 {
     return rb_.jitter;
 }
 
-const uint32_t SrsRtcpRR::get_lsr() const
+uint32_t SrsRtcpRR::get_lsr() const
 {
     return rb_.lsr;
 }
 
-const uint32_t SrsRtcpRR::get_dlsr() const
+uint32_t SrsRtcpRR::get_dlsr() const
 {
     return rb_.dlsr;
 }
@@ -493,36 +493,36 @@ void SrsRtcpTWCC::clear()
     recv_sns_.clear();
 }
 
-const uint32_t SrsRtcpTWCC::get_media_ssrc() const
+uint32_t SrsRtcpTWCC::get_media_ssrc() const
 {
     return media_ssrc_;
 }
-const uint16_t SrsRtcpTWCC::get_base_sn() const
+uint16_t SrsRtcpTWCC::get_base_sn() const
 {
     return base_sn_;
 }
 
-const uint32_t SrsRtcpTWCC::get_reference_time() const
+uint32_t SrsRtcpTWCC::get_reference_time() const
 {
     return reference_time_;
 }
 
-const uint8_t SrsRtcpTWCC::get_feedback_count() const
+uint8_t SrsRtcpTWCC::get_feedback_count() const
 {
     return fb_pkt_count_;
 }
 
-const uint16_t SrsRtcpTWCC::get_packet_status_count() const
+uint16_t SrsRtcpTWCC::get_packet_status_count() const
 {
     return packet_count_;
 }
     
-const vector<uint16_t> SrsRtcpTWCC::get_packet_chucks() const
+vector<uint16_t> SrsRtcpTWCC::get_packet_chucks() const
 {
     return encoded_chucks_;
 }
 
-const vector<uint16_t> SrsRtcpTWCC::get_recv_deltas() const
+vector<uint16_t> SrsRtcpTWCC::get_recv_deltas() const
 {
     return pkt_deltas_;
 }
@@ -887,12 +887,12 @@ SrsRtcpNack::~SrsRtcpNack()
 {
 }
 
-const uint32_t SrsRtcpNack::get_media_ssrc() const
+uint32_t SrsRtcpNack::get_media_ssrc() const
 {
     return media_ssrc_;
 }
 
-const vector<uint16_t> SrsRtcpNack::get_lost_sns() const
+vector<uint16_t> SrsRtcpNack::get_lost_sns() const
 {
     vector<uint16_t> sn;
     for(set<uint16_t, SrsSeqCompareLess>::iterator it = lost_sns_.begin(); it != lost_sns_.end(); ++it) {

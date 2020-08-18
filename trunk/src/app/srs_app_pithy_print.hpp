@@ -68,6 +68,9 @@ public:
 // For example, we use it for error pithy print for each UDP packet processing.
 class SrsErrorPithyPrint
 {
+public:
+    // The number of call of can_print().
+    uint32_t nn_count;
 private:
     SrsStageManager stages;
     std::map<int, srs_utime_t> ticks;
@@ -77,6 +80,8 @@ public:
 public:
     // Whether specified stage is ready for print.
     bool can_print(srs_error_t err);
+    // We also support int error code.
+    bool can_print(int err);
 };
 
 // The stage is used for a collection of object to do print,

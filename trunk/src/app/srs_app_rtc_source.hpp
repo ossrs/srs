@@ -404,10 +404,50 @@ public:
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
 };
 
+class SrsRtcTrackStatistic
+{
+public:
+	// packets received or sent.
+	uint32_t packets;
+	// packets received or sent at last statistic time.
+    uint32_t last_packets;
+    // bytes received or sent.
+    uint64_t bytes;
+    // bytes received or sent at last statistic time.
+    uint32_t last_bytes;
+
+    // nacks received or sent.
+	uint32_t nacks;
+    // nacks received or sent at last statistic time.
+    uint32_t last_nacks;
+
+    // padding packets received or sent.
+	uint32_t padding_packets;
+    // padding packets received or sent at last statistic time.
+    uint32_t last_padding_packets;
+    // padding bytes received or sent.
+	uint32_t padding_bytes;
+    // padding bytes received or sent at last statistic time.
+    uint32_t last_padding_bytes;
+
+    // replay packets received or sent.
+	uint32_t replay_packets;
+    // replay packets received or sent at last statistic time.
+    uint32_t last_replay_packets;
+    // replay bytes received or sent.
+	uint64_t replay_bytes;
+    // replay bytes received or sent at last statistic time.
+    uint64_t last_replay_bytes;
+
+public:
+    SrsRtcTrackStatistic();
+};
+
 class SrsRtcRecvTrack
 {
 protected:
     SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackStatistic* statistic_;
 
     SrsRtcConnection* session_;
     SrsRtpRingBuffer* rtp_queue_;
@@ -425,10 +465,13 @@ public:
     void update_send_report_time(const SrsNtp& ntp);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
+    bool set_track_status(bool active);
+    bool get_track_status();
+    std::string get_track_id();
 protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
 };
 
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
@@ -458,7 +501,9 @@ class SrsRtcSendTrack
 protected:
     // send track description
     SrsRtcTrackDescription* track_desc_;
+    SrsRtcTrackStatistic* statistic_;
 
+    // The owner connection for this track.
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
@@ -468,11 +513,13 @@ public:
 public:
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
-    void set_track_status(bool active);
+    bool set_track_status(bool active);
+    bool get_track_status();
     std::string get_track_id();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
-    virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
+    virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;
+    virtual void on_recv_nack();
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack

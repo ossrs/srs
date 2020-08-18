@@ -356,6 +356,7 @@
 #define ERROR_RTC_STREM_STARTED             5025
 #define ERROR_RTC_STREAM_DESC               5026
 #define ERROR_RTC_TRACK_CODEC               5027
+#define ERROR_RTC_NO_PLAYER                 5028
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.
