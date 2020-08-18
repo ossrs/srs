@@ -478,7 +478,7 @@ srs_error_t SrsDtls::do_handshake()
 
     // Fatal SSL error, for example, no available suite when peer is DTLS 1.0 while we are DTLS 1.2.
     if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
-        return srs_error_new(ERROR_OpenSslBIOWrite, "handshake r0=%d, r1=%d", r0, r1);
+        return srs_error_new(ERROR_RTC_DTLS, "handshake r0=%d, r1=%d", r0, r1);
     }
 
     // OK, Handshake is done, note that it maybe done many times.

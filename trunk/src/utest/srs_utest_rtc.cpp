@@ -159,7 +159,7 @@ srs_error_t MockDtls::do_handshake()
     int r0 = SSL_do_handshake(dtls);
     int r1 = SSL_get_error(dtls, r0);
     if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
-        return srs_error_new(ERROR_OpenSslBIOWrite, "handshake r0=%d, r1=%d", r0, r1);
+        return srs_error_new(ERROR_RTC_DTLS, "handshake r0=%d, r1=%d", r0, r1);
     }
     if (r1 == SSL_ERROR_NONE) {
         handshake_done_for_us = true;
