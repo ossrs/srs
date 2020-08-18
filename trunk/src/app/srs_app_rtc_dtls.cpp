@@ -299,7 +299,6 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
 
     dtls_ctx = build_dtls_ctx();
 
-    // TODO: FIXME: Leak for SSL_CTX* return by build_dtls_ctx.
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
     }
@@ -473,30 +472,18 @@ srs_error_t SrsDtls::do_handshake()
 {
     srs_error_t err = srs_success;
 
-    int ret = SSL_do_handshake(dtls);
+    // Do handshake and get the result.
+    int r0 = SSL_do_handshake(dtls);
+    int r1 = SSL_get_error(dtls, r0);
 
+    // TODO: What about SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE?
+    if (r1 == SSL_ERROR_NONE) {
+        handshake_done_for_us = true;
+    }
+
+    // The data to send out to peer.
     uint8_t* data = NULL;
     int size = BIO_get_mem_data(bio_out, &data);
-
-    int ssl_err = SSL_get_error(dtls, ret);
-    switch(ssl_err) {
-        case SSL_ERROR_NONE: {
-            handshake_done_for_us = true;
-            break;
-        }
-
-        case SSL_ERROR_WANT_READ: {
-            break;
-        }
-
-        case SSL_ERROR_WANT_WRITE: {
-            break;
-        }
-
-        default: {
-            break;
-        }
-    }
 
     // If outgoing packet is empty, we use the last cache.
     // @remark Only for DTLS server, because DTLS client use ARQ thread to send cached packet.
@@ -508,7 +495,7 @@ srs_error_t SrsDtls::do_handshake()
     }
 
     // Trace the detail of DTLS packet.
-    state_trace((uint8_t*)data, size, false, ssl_err, cache, false);
+    state_trace((uint8_t*)data, size, false, r1, cache, false);
 
     // Update the packet cache.
     if (size > 0 && data != last_outgoing_packet_cache && size < kRtpPacketSize) {
@@ -626,7 +613,7 @@ void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int ssl_err,
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, ssl-err=%d, length=%u, content=%u, size=%u, handshake=%u",
+    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
         (role_ == SrsDtlsRoleClient? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
         state_, ssl_err, length, content_type, size, handshake_type);
 }
