@@ -723,7 +723,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     vector<SrsRtpPacket2*> resend_pkts;
 
     vector<uint16_t> sns = rtcp->get_lost_sns();
-    for(int i = 0; i < sns.size(); ++i) {
+    for(int i = 0; i < (int)sns.size(); ++i) {
         uint16_t seq = sns.at(i);
         nack_fetch(resend_pkts, rtcp->get_media_ssrc(), seq);
     }
@@ -2788,9 +2788,9 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     //negotiate video media
     std::vector<SrsRtcTrackDescription*> req_video_tracks = req_stream_desc->video_track_descs_;
     src_track_descs = source->get_track_desc("video", "h264");
-    for(int i = 0; i < req_video_tracks.size(); ++i) {
+    for(int i = 0; i < (int)req_video_tracks.size(); ++i) {
         SrsRtcTrackDescription* req_video = req_video_tracks.at(i);
-        for(int j = 0; j < src_track_descs.size(); ++j) {
+        for(int j = 0; j < (int)src_track_descs.size(); ++j) {
             SrsRtcTrackDescription* src_video = src_track_descs.at(j);
             if(req_video->id_ == src_video->id_) {
                 // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
@@ -3121,7 +3121,7 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
         }
     }
 
-    for(int i = 0; i < stream_desc->video_track_descs_.size(); ++i) {
+    for(int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* track_desc = stream_desc->video_track_descs_.at(i);
         if(publishers_ssrc_map_.end() != publishers_ssrc_map_.find(track_desc->ssrc_)) {
             return srs_error_new(ERROR_RTC_DUPLICATED_SSRC, " duplicate ssrc %d, track id: %s",
