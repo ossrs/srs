@@ -677,8 +677,9 @@ srs_error_t SrsDtlsClientImpl::cycle()
     // The first ARQ delay.
     srs_usleep(arq_first);
 
-    while (true) {
-        srs_info("arq cycle, state=%u", state_);
+    // Limit the max retry for ARQ.
+    for (int arq_retry_left = 7; arq_retry_left > 0; arq_retry_left--) {
+        srs_info("arq cycle, state=%u, retry=%d", state_, arq_retry_left);
 
         // We ignore any error for ARQ thread.
         if ((err = trd->pull()) != srs_success) {
