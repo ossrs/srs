@@ -129,11 +129,12 @@ public:
     virtual srs_error_t initialize(std::string version);
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char* data, int nb_data);
-    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
     void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
+public:
+    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
 protected:
     virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached) = 0;
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;

@@ -386,39 +386,6 @@ srs_error_t ISrsDtlsImpl::on_dtls(char* data, int nb_data)
     return err;
 }
 
-const int SRTP_MASTER_KEY_KEY_LEN = 16;
-const int SRTP_MASTER_KEY_SALT_LEN = 14;
-srs_error_t ISrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_key)
-{
-    srs_error_t err = srs_success;
-
-    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
-    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
-    }
-
-    size_t offset = 0;
-
-    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-    offset += SRTP_MASTER_KEY_SALT_LEN;
-    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-
-    if (is_dtls_client()) {
-        recv_key = server_master_key + server_master_salt;
-        send_key = client_master_key + client_master_salt;
-    } else {
-        recv_key = client_master_key + client_master_salt;
-        send_key = server_master_key + server_master_salt;
-    }
-
-    return err;
-}
-
 srs_error_t ISrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
@@ -534,6 +501,39 @@ void ISrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0,
     srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
         (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
         r0, r1, length, content_type, size, handshake_type);
+}
+
+const int SRTP_MASTER_KEY_KEY_LEN = 16;
+const int SRTP_MASTER_KEY_SALT_LEN = 14;
+srs_error_t ISrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_key)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
+    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
+    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
+    }
+
+    size_t offset = 0;
+
+    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    offset += SRTP_MASTER_KEY_SALT_LEN;
+    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+
+    if (is_dtls_client()) {
+        recv_key = server_master_key + server_master_salt;
+        send_key = client_master_key + client_master_salt;
+    } else {
+        recv_key = client_master_key + client_master_salt;
+        send_key = server_master_key + server_master_salt;
+    }
+
+    return err;
 }
 
 SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : ISrsDtlsImpl(callback)
