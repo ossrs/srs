@@ -312,7 +312,7 @@ ISrsDtlsCallback::~ISrsDtlsCallback()
 {
 }
 
-ISrsDtlsImpl::ISrsDtlsImpl(ISrsDtlsCallback* callback)
+SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback* callback)
 {
     dtls_ctx = NULL;
     dtls = NULL;
@@ -326,7 +326,7 @@ ISrsDtlsImpl::ISrsDtlsImpl(ISrsDtlsCallback* callback)
     version_ = SrsDtlsVersionAuto;
 }
 
-ISrsDtlsImpl::~ISrsDtlsImpl()
+SrsDtlsImpl::~SrsDtlsImpl()
 {
     if (dtls_ctx) {
         SSL_CTX_free(dtls_ctx);
@@ -342,7 +342,7 @@ ISrsDtlsImpl::~ISrsDtlsImpl()
     srs_freepa(last_outgoing_packet_cache);
 }
 
-srs_error_t ISrsDtlsImpl::initialize(std::string version)
+srs_error_t SrsDtlsImpl::initialize(std::string version)
 {
     srs_error_t err = srs_success;
 
@@ -374,7 +374,7 @@ srs_error_t ISrsDtlsImpl::initialize(std::string version)
     return err;
 }
 
-srs_error_t ISrsDtlsImpl::on_dtls(char* data, int nb_data)
+srs_error_t SrsDtlsImpl::on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -386,7 +386,7 @@ srs_error_t ISrsDtlsImpl::on_dtls(char* data, int nb_data)
     return err;
 }
 
-srs_error_t ISrsDtlsImpl::do_on_dtls(char* data, int nb_data)
+srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -429,7 +429,7 @@ srs_error_t ISrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     return err;
 }
 
-srs_error_t ISrsDtlsImpl::do_handshake()
+srs_error_t SrsDtlsImpl::do_handshake()
 {
     srs_error_t err = srs_success;
 
@@ -481,7 +481,7 @@ srs_error_t ISrsDtlsImpl::do_handshake()
     return err;
 }
 
-void ISrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
+void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
 {
     uint8_t content_type = 0;
     if (length >= 1) {
@@ -505,7 +505,7 @@ void ISrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0,
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
-srs_error_t ISrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_key)
+srs_error_t SrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_key)
 {
     srs_error_t err = srs_success;
 
@@ -536,7 +536,7 @@ srs_error_t ISrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_
     return err;
 }
 
-SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : ISrsDtlsImpl(callback)
+SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(callback)
 {
     trd = NULL;
     state_ = SrsDtlsStateInit;
@@ -553,7 +553,7 @@ srs_error_t SrsDtlsClientImpl::initialize(std::string version)
 {
     srs_error_t err = srs_success;
 
-    if ((err = ISrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
         return err;
     }
 
@@ -581,7 +581,7 @@ srs_error_t SrsDtlsClientImpl::on_dtls(char* data, int nb_data)
         stop_arq();
     }
 
-    if ((err = ISrsDtlsImpl::on_dtls(data, nb_data)) != srs_success) {
+    if ((err = SrsDtlsImpl::on_dtls(data, nb_data)) != srs_success) {
         return err;
     }
 
@@ -717,7 +717,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
     return err;
 }
 
-SrsDtlsServerImpl::SrsDtlsServerImpl(ISrsDtlsCallback* callback) : ISrsDtlsImpl(callback)
+SrsDtlsServerImpl::SrsDtlsServerImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(callback)
 {
 }
 
@@ -729,7 +729,7 @@ srs_error_t SrsDtlsServerImpl::initialize(std::string version)
 {
     srs_error_t err = srs_success;
 
-    if ((err = ISrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
         return err;
     }
 

@@ -105,7 +105,7 @@ enum SrsDtlsState {
     SrsDtlsStateClientDone, // Done.
 };
 
-class ISrsDtlsImpl
+class SrsDtlsImpl
 {
 protected:
     SSL_CTX* dtls_ctx;
@@ -123,8 +123,8 @@ protected:
     uint8_t* last_outgoing_packet_cache;
     int nn_last_outgoing_packet;
 public:
-    ISrsDtlsImpl(ISrsDtlsCallback* callback);
-    virtual ~ISrsDtlsImpl();
+    SrsDtlsImpl(ISrsDtlsCallback* callback);
+    virtual ~SrsDtlsImpl();
 public:
     virtual srs_error_t initialize(std::string version);
     virtual srs_error_t start_active_handshake() = 0;
@@ -142,7 +142,7 @@ protected:
     virtual bool is_dtls_client() = 0;
 };
 
-class SrsDtlsClientImpl : virtual public ISrsDtlsImpl, virtual public ISrsCoroutineHandler
+class SrsDtlsClientImpl : virtual public SrsDtlsImpl, virtual public ISrsCoroutineHandler
 {
 private:
     // ARQ thread, for role active(DTLS client).
@@ -172,7 +172,7 @@ public:
     virtual srs_error_t cycle();
 };
 
-class SrsDtlsServerImpl : public ISrsDtlsImpl
+class SrsDtlsServerImpl : public SrsDtlsImpl
 {
 public:
     SrsDtlsServerImpl(ISrsDtlsCallback* callback);
@@ -190,7 +190,7 @@ protected:
 class SrsDtls
 {
 private:
-    ISrsDtlsImpl* impl;
+    SrsDtlsImpl* impl;
     ISrsDtlsCallback* callback_;
 public:
     SrsDtls(ISrsDtlsCallback* callback);
