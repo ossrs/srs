@@ -312,7 +312,7 @@ ISrsDtlsCallback::~ISrsDtlsCallback()
 {
 }
 
-SrsDtls::SrsDtls(ISrsDtlsCallback* callback)
+ISrsDtlsImpl::ISrsDtlsImpl(ISrsDtlsCallback* callback)
 {
     dtls_ctx = NULL;
     dtls = NULL;
@@ -323,19 +323,11 @@ SrsDtls::SrsDtls(ISrsDtlsCallback* callback)
     last_outgoing_packet_cache = new uint8_t[kRtpPacketSize];
     nn_last_outgoing_packet = 0;
 
-    role_ = SrsDtlsRoleServer;
     version_ = SrsDtlsVersionAuto;
-
-    trd = NULL;
-    state_ = SrsDtlsStateInit;
-    arq_first = 50 * SRS_UTIME_MILLISECONDS;
-    arq_interval = 100 * SRS_UTIME_MILLISECONDS;
 }
 
-SrsDtls::~SrsDtls()
+ISrsDtlsImpl::~ISrsDtlsImpl()
 {
-    srs_freep(trd);
-
     if (dtls_ctx) {
         SSL_CTX_free(dtls_ctx);
         dtls_ctx = NULL;
@@ -350,14 +342,9 @@ SrsDtls::~SrsDtls()
     srs_freepa(last_outgoing_packet_cache);
 }
 
-srs_error_t SrsDtls::initialize(std::string role, std::string version)
+srs_error_t ISrsDtlsImpl::initialize(std::string version)
 {
     srs_error_t err = srs_success;
-
-    role_ = SrsDtlsRoleServer;
-    if (role == "active") {
-        role_ = SrsDtlsRoleClient;
-    }
 
     if (version == "dtls1.0") {
         version_ = SrsDtlsVersion1_0;
@@ -371,15 +358,6 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
 
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
-    }
-
-    if (role_ == SrsDtlsRoleClient) {
-        // Dtls setup active, as client role.
-        SSL_set_connect_state(dtls);
-        SSL_set_max_send_fragment(dtls, kRtpPacketSize);
-    } else {
-        // Dtls setup passive, as server role.
-        SSL_set_accept_state(dtls);
     }
 
     if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
@@ -396,28 +374,9 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
     return err;
 }
 
-srs_error_t SrsDtls::start_active_handshake()
+srs_error_t ISrsDtlsImpl::on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
-
-    if (role_ == SrsDtlsRoleClient) {
-        return do_handshake();
-    }
-
-    return err;
-}
-
-srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
-{
-    srs_error_t err = srs_success;
-
-    // When got packet, stop the ARQ if server in the first ARQ state SrsDtlsStateServerHello.
-    // @note But for ARQ state, we should never stop the ARQ, for example, we are in the second ARQ sate
-    //      SrsDtlsStateServerDone, but we got previous late wrong packet ServeHello, which is not the expect
-    //      packet SessionNewTicket, we should never stop the ARQ thread.
-    if (role_ == SrsDtlsRoleClient && state_ == SrsDtlsStateServerHello) {
-        stop_arq();
-    }
 
     if ((err = do_on_dtls(data, nb_data)) != srs_success) {
         return srs_error_wrap(err, "on_dtls size=%u, data=[%s]", nb_data,
@@ -427,7 +386,40 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
     return err;
 }
 
-srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
+const int SRTP_MASTER_KEY_KEY_LEN = 16;
+const int SRTP_MASTER_KEY_SALT_LEN = 14;
+srs_error_t ISrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_key)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
+    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
+    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
+        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
+    }
+
+    size_t offset = 0;
+
+    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
+    offset += SRTP_MASTER_KEY_KEY_LEN;
+    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+    offset += SRTP_MASTER_KEY_SALT_LEN;
+    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
+
+    if (is_dtls_client()) {
+        recv_key = server_master_key + server_master_salt;
+        send_key = client_master_key + client_master_salt;
+    } else {
+        recv_key = client_master_key + client_master_salt;
+        send_key = server_master_key + server_master_salt;
+    }
+
+    return err;
+}
+
+srs_error_t ISrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
@@ -470,7 +462,7 @@ srs_error_t SrsDtls::do_on_dtls(char* data, int nb_data)
     return err;
 }
 
-srs_error_t SrsDtls::do_handshake()
+srs_error_t ISrsDtlsImpl::do_handshake()
 {
     srs_error_t err = srs_success;
 
@@ -492,16 +484,9 @@ srs_error_t SrsDtls::do_handshake()
     uint8_t* data = NULL;
     int size = BIO_get_mem_data(bio_out, &data);
 
-    // If outgoing packet is empty, we use the last cache.
-    // @remark Only for DTLS server, because DTLS client use ARQ thread to send cached packet.
+    // Callback when got SSL original data.
     bool cache = false;
-    if (role_ != SrsDtlsRoleClient && size <= 0 && nn_last_outgoing_packet) {
-        size = nn_last_outgoing_packet;
-        data = last_outgoing_packet_cache;
-        cache = true;
-    }
-
-    // Trace the detail of DTLS packet.
+    on_ssl_out_data(data, size, cache);
     state_trace((uint8_t*)data, size, false, r0, r1, cache, false);
 
     // Update the packet cache.
@@ -510,29 +495,9 @@ srs_error_t SrsDtls::do_handshake()
         nn_last_outgoing_packet = size;
     }
 
-    // Driven ARQ and state for DTLS client.
-    if (role_ == SrsDtlsRoleClient) {
-        // If we are sending client hello, change from init to new state.
-        if (state_ == SrsDtlsStateInit && size > 14 && data[13] == 1) {
-            state_ = SrsDtlsStateClientHello;
-        }
-        // If we are sending certificate, change from SrsDtlsStateServerHello to new state.
-        if (state_ == SrsDtlsStateServerHello && size > 14 && data[13] == 11) {
-            state_ = SrsDtlsStateClientCertificate;
-        }
-
-        // Try to start the ARQ for client.
-        if ((state_ == SrsDtlsStateClientHello || state_ == SrsDtlsStateClientCertificate)) {
-            if (state_ == SrsDtlsStateClientHello) {
-                state_ = SrsDtlsStateServerHello;
-            } else if (state_ == SrsDtlsStateClientCertificate) {
-                state_ = SrsDtlsStateServerDone;
-            }
-
-            if ((err = start_arq()) != srs_success) {
-                return srs_error_wrap(err, "start arq");
-            }
-        }
+    // Callback for the final output data, before send-out.
+    if ((err = on_final_out_data(data, size)) != srs_success) {
+        return srs_error_wrap(err, "handle");
     }
 
     if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
@@ -541,22 +506,171 @@ srs_error_t SrsDtls::do_handshake()
     }
 
     if (handshake_done_for_us) {
-        // When handshake done, stop the ARQ.
-        if (role_ == SrsDtlsRoleClient) {
-            state_ = SrsDtlsStateClientDone;
-            stop_arq();
-        }
-
-        // Notify connection the DTLS is done.
-        if (((err = callback_->on_dtls_handshake_done()) != srs_success)) {
-            return srs_error_wrap(err, "dtls done");
+        if (((err = on_handshake_done()) != srs_success)) {
+            return srs_error_wrap(err, "done");
         }
     }
 
     return err;
 }
 
-srs_error_t SrsDtls::cycle()
+void ISrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
+{
+    uint8_t content_type = 0;
+    if (length >= 1) {
+        content_type = (uint8_t)data[0];
+    }
+
+    uint16_t size = 0;
+    if (length >= 13) {
+        size = uint16_t(data[11])<<8 | uint16_t(data[12]);
+    }
+
+    uint8_t handshake_type = 0;
+    if (length >= 14) {
+        handshake_type = (uint8_t)data[13];
+    }
+
+    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
+        (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
+        r0, r1, length, content_type, size, handshake_type);
+}
+
+SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : ISrsDtlsImpl(callback)
+{
+    trd = NULL;
+    state_ = SrsDtlsStateInit;
+    arq_first = 50 * SRS_UTIME_MILLISECONDS;
+    arq_interval = 100 * SRS_UTIME_MILLISECONDS;
+}
+
+SrsDtlsClientImpl::~SrsDtlsClientImpl()
+{
+    srs_freep(trd);
+}
+
+srs_error_t SrsDtlsClientImpl::initialize(std::string version)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = ISrsDtlsImpl::initialize(version)) != srs_success) {
+        return err;
+    }
+
+    // Dtls setup active, as client role.
+    SSL_set_connect_state(dtls);
+    SSL_set_max_send_fragment(dtls, kRtpPacketSize);
+
+    return err;
+}
+
+srs_error_t SrsDtlsClientImpl::start_active_handshake()
+{
+    return do_handshake();
+}
+
+srs_error_t SrsDtlsClientImpl::on_dtls(char* data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    // When got packet, stop the ARQ if server in the first ARQ state SrsDtlsStateServerHello.
+    // @note But for ARQ state, we should never stop the ARQ, for example, we are in the second ARQ sate
+    //      SrsDtlsStateServerDone, but we got previous late wrong packet ServeHello, which is not the expect
+    //      packet SessionNewTicket, we should never stop the ARQ thread.
+    if (state_ == SrsDtlsStateServerHello) {
+        stop_arq();
+    }
+
+    if ((err = ISrsDtlsImpl::on_dtls(data, nb_data)) != srs_success) {
+        return err;
+    }
+
+    return err;
+}
+
+void SrsDtlsClientImpl::on_ssl_out_data(uint8_t*& data, int& size, bool& cached)
+{
+    // DTLS client use ARQ thread to send cached packet.
+    cached = false;
+}
+
+srs_error_t SrsDtlsClientImpl::on_final_out_data(uint8_t* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    // Driven ARQ and state for DTLS client.
+    // If we are sending client hello, change from init to new state.
+    if (state_ == SrsDtlsStateInit && size > 14 && data[13] == 1) {
+        state_ = SrsDtlsStateClientHello;
+    }
+    // If we are sending certificate, change from SrsDtlsStateServerHello to new state.
+    if (state_ == SrsDtlsStateServerHello && size > 14 && data[13] == 11) {
+        state_ = SrsDtlsStateClientCertificate;
+    }
+
+    // Try to start the ARQ for client.
+    if ((state_ == SrsDtlsStateClientHello || state_ == SrsDtlsStateClientCertificate)) {
+        if (state_ == SrsDtlsStateClientHello) {
+            state_ = SrsDtlsStateServerHello;
+        } else if (state_ == SrsDtlsStateClientCertificate) {
+            state_ = SrsDtlsStateServerDone;
+        }
+
+        if ((err = start_arq()) != srs_success) {
+            return srs_error_wrap(err, "start arq");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtlsClientImpl::on_handshake_done()
+{
+    srs_error_t err = srs_success;
+
+    // When handshake done, stop the ARQ.
+    state_ = SrsDtlsStateClientDone;
+    stop_arq();
+
+    // Notify connection the DTLS is done.
+    if (((err = callback_->on_dtls_handshake_done()) != srs_success)) {
+        return srs_error_wrap(err, "dtls done");
+    }
+
+    return err;
+}
+
+bool SrsDtlsClientImpl::is_dtls_client()
+{
+    return true;
+}
+
+srs_error_t SrsDtlsClientImpl::start_arq()
+{
+    srs_error_t err = srs_success;
+
+    srs_info("start arq, state=%u", state_);
+
+    // Dispose the previous ARQ thread.
+    srs_freep(trd);
+    trd = new SrsSTCoroutine("dtls", this, _srs_context->get_id());
+
+    // We should start the ARQ thread for DTLS client.
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "arq start");
+    }
+
+    return err;
+}
+
+void SrsDtlsClientImpl::stop_arq()
+{
+    srs_info("stop arq, state=%u", state_);
+    srs_freep(trd);
+    srs_info("stop arq, done");
+}
+
+srs_error_t SrsDtlsClientImpl::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -603,88 +717,102 @@ srs_error_t SrsDtls::cycle()
     return err;
 }
 
-void SrsDtls::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
+SrsDtlsServerImpl::SrsDtlsServerImpl(ISrsDtlsCallback* callback) : ISrsDtlsImpl(callback)
 {
-    uint8_t content_type = 0;
-    if (length >= 1) {
-        content_type = (uint8_t)data[0];
-    }
-
-    uint16_t size = 0;
-    if (length >= 13) {
-        size = uint16_t(data[11])<<8 | uint16_t(data[12]);
-    }
-
-    uint8_t handshake_type = 0;
-    if (length >= 14) {
-        handshake_type = (uint8_t)data[13];
-    }
-
-    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, state=%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
-        (role_ == SrsDtlsRoleClient? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
-        state_, r0, r1, length, content_type, size, handshake_type);
 }
 
-srs_error_t SrsDtls::start_arq()
+SrsDtlsServerImpl::~SrsDtlsServerImpl()
+{
+}
+
+srs_error_t SrsDtlsServerImpl::initialize(std::string version)
 {
     srs_error_t err = srs_success;
 
-    if (role_ != SrsDtlsRoleClient) {
+    if ((err = ISrsDtlsImpl::initialize(version)) != srs_success) {
         return err;
     }
 
-    srs_info("start arq, state=%u", state_);
-
-    // Dispose the previous ARQ thread.
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("dtls", this, _srs_context->get_id());
-
-    // We should start the ARQ thread for DTLS client.
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "arq start");
-    }
+    // Dtls setup passive, as server role.
+    SSL_set_accept_state(dtls);
 
     return err;
 }
 
-void SrsDtls::stop_arq()
+srs_error_t SrsDtlsServerImpl::start_active_handshake()
 {
-    srs_info("stop arq, state=%u", state_);
-    srs_freep(trd);
-    srs_info("stop arq, done");
+    return srs_success;
 }
 
-const int SRTP_MASTER_KEY_KEY_LEN = 16;
-const int SRTP_MASTER_KEY_SALT_LEN = 14;
-srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
+void SrsDtlsServerImpl::on_ssl_out_data(uint8_t*& data, int& size, bool& cached)
+{
+    // If outgoing packet is empty, we use the last cache.
+    // @remark Only for DTLS server, because DTLS client use ARQ thread to send cached packet.
+    if (size <= 0 && nn_last_outgoing_packet) {
+        size = nn_last_outgoing_packet;
+        data = last_outgoing_packet_cache;
+        cached = true;
+    }
+}
+
+srs_error_t SrsDtlsServerImpl::on_final_out_data(uint8_t* data, int size)
+{
+    return srs_success;
+}
+
+srs_error_t SrsDtlsServerImpl::on_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    unsigned char material[SRTP_MASTER_KEY_LEN * 2] = {0};  // client(SRTP_MASTER_KEY_KEY_LEN + SRTP_MASTER_KEY_SALT_LEN) + server
-    static const string dtls_srtp_lable = "EXTRACTOR-dtls_srtp";
-    if (!SSL_export_keying_material(dtls, material, sizeof(material), dtls_srtp_lable.c_str(), dtls_srtp_lable.size(), NULL, 0, 0)) {
-        return srs_error_new(ERROR_RTC_SRTP_INIT, "SSL export key r0=%u", ERR_get_error());
-    }
-
-    size_t offset = 0;
-
-    std::string client_master_key(reinterpret_cast<char*>(material), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string server_master_key(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_KEY_LEN);
-    offset += SRTP_MASTER_KEY_KEY_LEN;
-    std::string client_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-    offset += SRTP_MASTER_KEY_SALT_LEN;
-    std::string server_master_salt(reinterpret_cast<char*>(material + offset), SRTP_MASTER_KEY_SALT_LEN);
-
-    if (role_ == SrsDtlsRoleClient) {
-        recv_key = server_master_key + server_master_salt;
-        send_key = client_master_key + client_master_salt;
-    } else {
-        recv_key = client_master_key + client_master_salt;
-        send_key = server_master_key + server_master_salt;
+    // Notify connection the DTLS is done.
+    if (((err = callback_->on_dtls_handshake_done()) != srs_success)) {
+        return srs_error_wrap(err, "dtls done");
     }
 
     return err;
+}
+
+bool SrsDtlsServerImpl::is_dtls_client()
+{
+    return false;
+}
+
+SrsDtls::SrsDtls(ISrsDtlsCallback* callback)
+{
+    callback_ = callback;
+    impl = new SrsDtlsServerImpl(callback);
+}
+
+SrsDtls::~SrsDtls()
+{
+    srs_freep(impl);
+}
+
+srs_error_t SrsDtls::initialize(std::string role, std::string version)
+{
+    srs_freep(impl);
+    if (role == "active") {
+        impl = new SrsDtlsClientImpl(callback_);
+    } else {
+        impl = new SrsDtlsServerImpl(callback_);
+    }
+
+    return impl->initialize(version);
+}
+
+srs_error_t SrsDtls::start_active_handshake()
+{
+    return impl->start_active_handshake();
+}
+
+srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
+{
+    return impl->on_dtls(data, nb_data);
+}
+
+srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
+{
+    return impl->get_srtp_key(recv_key, send_key);
 }
 
 SrsSRTP::SrsSRTP()

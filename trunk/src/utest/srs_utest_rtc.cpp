@@ -36,7 +36,7 @@ using namespace std;
 
 extern SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version);
 
-class MockDtls : public ISrsCoroutineHandler
+class MockDtls
 {
 public:
     SSL_CTX* dtls_ctx;
@@ -54,7 +54,6 @@ public:
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
-    virtual srs_error_t cycle();
 };
 
 MockDtls::MockDtls(ISrsDtlsCallback* callback)
@@ -178,11 +177,6 @@ srs_error_t MockDtls::do_handshake()
     }
 
     return err;
-}
-
-srs_error_t MockDtls::cycle()
-{
-    return srs_success;
 }
 
 class MockDtlsCallback : virtual public ISrsDtlsCallback, virtual public ISrsCoroutineHandler
@@ -355,14 +349,10 @@ class MockBridgeDtlsIO
 private:
     MockDtlsCallback* io_;
 public:
-    MockBridgeDtlsIO(MockDtlsCallback* io, ISrsCoroutineHandler* dtls) {
+    MockBridgeDtlsIO(MockDtlsCallback* io, SrsDtls* peer, MockDtls* peer2) {
         io_ = io;
-        if (dynamic_cast<SrsDtls*>(dtls)) {
-            io->peer = dynamic_cast<SrsDtls*>(dtls);
-        }
-        if (dynamic_cast<MockDtls*>(dtls)) {
-            io->peer2 = dynamic_cast<MockDtls*>(dtls);
-        }
+        io->peer = peer;
+        io->peer2 = peer2;
     }
     virtual ~MockBridgeDtlsIO() {
         io_->peer = NULL;
@@ -424,13 +414,13 @@ VOID TEST(KernelRTCTest, DTLSClientARQTest)
     if (true) {
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        MockBridgeDtlsIO b0(&cio, &server); MockBridgeDtlsIO b1(&sio, &client);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
         HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        client.arq_first = 1 * SRS_UTIME_MILLISECONDS;
-        client.arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
 
         // Lost 2 packets, total packets should be 3.
         // Note that only one server hello.
@@ -456,13 +446,13 @@ VOID TEST(KernelRTCTest, DTLSClientARQTest)
     if (true) {
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        MockBridgeDtlsIO b0(&cio, &server); MockBridgeDtlsIO b1(&sio, &client);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
         HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        client.arq_first = 1 * SRS_UTIME_MILLISECONDS;
-        client.arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
 
         // Lost 2 packets, total packets should be 3.
         // Note that only one server NewSessionTicket.
@@ -517,13 +507,13 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
     if (true) {
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        MockBridgeDtlsIO b0(&cio, &server); MockBridgeDtlsIO b1(&sio, &client);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
         HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        client.arq_first = 1 * SRS_UTIME_MILLISECONDS;
-        client.arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
 
         // Lost 2 packets, total packets should be 3.
         sio.nn_server_hello_lost = 2;
@@ -548,13 +538,13 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
     if (true) {
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        MockBridgeDtlsIO b0(&cio, &server); MockBridgeDtlsIO b1(&sio, &client);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
         HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        client.arq_first = 1 * SRS_UTIME_MILLISECONDS;
-        client.arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
 
         // Lost 2 packets, total packets should be 3.
         sio.nn_new_session_lost = 2;
@@ -604,7 +594,7 @@ VOID TEST(KernelRTCTest, DTLSClientFlowTest)
 
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; MockDtls server(&sio);
-        cio.peer2 = &server; sio.peer = &client;
+        MockBridgeDtlsIO b0(&cio, NULL, &server); MockBridgeDtlsIO b1(&sio, &client, NULL);
         HELPER_EXPECT_SUCCESS(client.initialize("active", c.ClientVersion)) << c;
         HELPER_EXPECT_SUCCESS(server.initialize("passive", c.ServerVersion)) << c;
 
@@ -648,7 +638,7 @@ VOID TEST(KernelRTCTest, DTLSServerFlowTest)
 
         MockDtlsCallback cio; MockDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        cio.peer = &server; sio.peer2 = &client;
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, NULL, &client);
         HELPER_EXPECT_SUCCESS(client.initialize("active", c.ClientVersion)) << c;
         HELPER_EXPECT_SUCCESS(server.initialize("passive", c.ServerVersion)) << c;
 
