@@ -319,10 +319,9 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 {
     _srs_config->unsubscribe(this);
 
-    srs_freep(req_);
-
     srs_freep(trd);
     srs_freep(timer_);
+    srs_freep(req_);
 
     if (true) {
         std::map<uint32_t, SrsRtcAudioSendTrack*>::iterator it;
