@@ -1448,10 +1448,6 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
 SrsRtcConnection::~SrsRtcConnection()
 {
     srs_freep(timer_);
-    srs_freep(transport_);
-    srs_freep(req);
-    srs_freep(stat_);
-    srs_freep(pp_address_change);
 
     // Note that we should never delete the sendonly_skt,
     // it's just point to the object in peer_addresses_.
@@ -1476,6 +1472,11 @@ SrsRtcConnection::~SrsRtcConnection()
     }
     players_.clear();
     players_ssrc_map_.clear();
+
+    srs_freep(transport_);
+    srs_freep(req);
+    srs_freep(stat_);
+    srs_freep(pp_address_change);
 }
 
 SrsSdp* SrsRtcConnection::get_local_sdp()
