@@ -293,6 +293,50 @@ std::ostream& operator<< (std::ostream& stream, const DTLSServerFlowCase& c)
     return stream;
 }
 
+VOID TEST(KernelRTCTest, DTLSClientFlowTest)
+{
+    srs_error_t err = srs_success;
+
+    DTLSServerFlowCase cases[] = {
+        // OK, Client, Server: DTLS v1.0
+        {0, "dtls1.0", "dtls1.0", true, true, false, false},
+        // OK, Client, Server: DTLS v1.2
+        {1, "dtls1.2", "dtls1.2", true, true, false, false},
+        // OK, Client: DTLS v1.0, Server: DTLS auto(v1.0 or v1.2).
+        {2, "dtls1.0", "auto", true, true, false, false},
+        // OK, Client: DTLS v1.2, Server: DTLS auto(v1.0 or v1.2).
+        {3, "dtls1.2", "auto", true, true, false, false},
+        // OK, Client: DTLS auto(v1.0 or v1.2), Server: DTLS v1.0
+        {4, "auto", "dtls1.0", true, true, false, false},
+        // OK, Client: DTLS auto(v1.0 or v1.2), Server: DTLS v1.0
+        {5, "auto", "dtls1.2", true, true, false, false},
+        // Fail, Client: DTLS v1.0, Server: DTLS v1.2
+        {6, "dtls1.0", "dtls1.2", false, false, false, true},
+        // Fail, Client: DTLS v1.2, Server: DTLS v1.0
+        {7, "dtls1.2", "dtls1.0", false, false, true, false},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSServerFlowCase)); i++) {
+        DTLSServerFlowCase c = cases[i];
+
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; MockDtls server(&sio);
+        cio.peer2 = &server; sio.peer = &client;
+        HELPER_EXPECT_SUCCESS(client.initialize("active", c.ClientVersion)) << c;
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", c.ServerVersion)) << c;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake()) << c;
+        mock_wait_dtls_io_done(cio, sio);
+
+        // Note that the cio error is generated from server, vice versa.
+        EXPECT_EQ(c.ClientError, sio.r0 != srs_success) << c;
+        EXPECT_EQ(c.ServerError, cio.r0 != srs_success) << c;
+
+        EXPECT_EQ(c.ClientDone, cio.done) << c;
+        EXPECT_EQ(c.ServerDone, sio.done) << c;
+    }
+}
+
 VOID TEST(KernelRTCTest, DTLSServerFlowTest)
 {
     srs_error_t err = srs_success;
