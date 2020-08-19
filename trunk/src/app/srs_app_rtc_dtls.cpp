@@ -328,6 +328,8 @@ SrsDtls::SrsDtls(ISrsDtlsCallback* callback)
 
     trd = NULL;
     state_ = SrsDtlsStateInit;
+    arq_first = 50 * SRS_UTIME_MILLISECONDS;
+    arq_interval = 100 * SRS_UTIME_MILLISECONDS;
 }
 
 SrsDtls::~SrsDtls()
@@ -559,7 +561,7 @@ srs_error_t SrsDtls::cycle()
     srs_error_t err = srs_success;
 
     // The first ARQ delay.
-    srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+    srs_usleep(arq_first);
 
     while (true) {
         srs_info("arq cycle, state=%u", state_);
@@ -595,7 +597,7 @@ srs_error_t SrsDtls::cycle()
         }
 
         // TODO: Use ARQ step timeouts.
-        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+        srs_usleep(arq_interval);
     }
 
     return err;

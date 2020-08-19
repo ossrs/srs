@@ -125,6 +125,9 @@ private:
     SrsCoroutine* trd;
     // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
+    // The timeout for ARQ.
+    srs_utime_t arq_first;
+    srs_utime_t arq_interval;
 private:
     // @remark: dtls_role_ default value is DTLS_SERVER.
     SrsDtlsRole role_;
