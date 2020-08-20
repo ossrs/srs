@@ -48,6 +48,7 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     req = NULL;
     jitter = NULL;
     plan = NULL;
+    wait_keyframe = true;
     
     fragment = new SrsFragment();
     fs = new SrsFileWriter();

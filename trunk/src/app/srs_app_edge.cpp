@@ -440,6 +440,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     edge = NULL;
     req = NULL;
     send_error_code = ERROR_SUCCESS;
+    source = NULL;
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();

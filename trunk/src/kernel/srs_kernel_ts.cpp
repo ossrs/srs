@@ -1275,6 +1275,41 @@ SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
     nb_paddings = 0;
     const2bits = 0x02;
     const1_value0 = 0x07;
+
+    packet_start_code_prefix = 0;
+    stream_id = 0;
+    PES_packet_length = 0;
+    PES_scrambling_control = 0;
+    PES_priority = 0;
+    data_alignment_indicator = 0;
+    copyright = 0;
+    original_or_copy = 0;
+    PTS_DTS_flags = 0;
+    ESCR_flag = 0;
+    ES_rate_flag = 0;
+    DSM_trick_mode_flag = 0;
+    additional_copy_info_flag = 0;
+    PES_CRC_flag = 0;
+    PES_extension_flag = 0;
+    PES_header_data_length = 0;
+    pts = dts = 0;
+    ESCR_base = 0;
+    ESCR_extension = 0;
+    ES_rate = 0;
+    trick_mode_control = 0;
+    trick_mode_value = 0;
+    additional_copy_info = 0;
+    previous_PES_packet_CRC = 0;
+    PES_private_data_flag = 0;
+    pack_header_field_flag = 0;
+    program_packet_sequence_counter_flag = 0;
+    P_STD_buffer_flag = 0;
+    PES_extension_flag_2 = 0;
+    program_packet_sequence_counter = 0;
+    MPEG1_MPEG2_identifier = 0;
+    original_stuff_length = 0;
+    P_STD_buffer_scale = 0;
+    P_STD_buffer_size = 0;
 }
 
 SrsTsPayloadPES::~SrsTsPayloadPES()
