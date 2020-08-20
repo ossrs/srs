@@ -1298,13 +1298,14 @@ string srs_string_dumps_hex(const char* str, int length, int limit)
 
 string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
 {
-    const int LIMIT = 1024*16;
+    // 1 byte trailing '\0'.
+    const int LIMIT = 1024*16 + 1;
     static char buf[LIMIT];
 
     int len = 0;
-    for (int i = 0; i < length && i < limit && i < LIMIT; ++i) {
+    for (int i = 0; i < length && i < limit && i < LIMIT && len < LIMIT; ++i) {
         int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
-        if (nb < 0 || nb > LIMIT - len) {
+        if (nb < 0 || nb >= LIMIT - len) {
             break;
         }
         len += nb;
@@ -1325,6 +1326,17 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
     if (len <= 0) {
         return "";
     }
+
+    // If overflow, cut the trailing newline.
+    if (newline && len >= LIMIT - 2 && buf[len - 1] == newline) {
+        len--;
+    }
+
+    // If overflow, cut the trailing seperator.
+    if (seperator && len >= LIMIT - 3 && buf[len - 1] == seperator) {
+        len--;
+    }
+
     return string(buf, len);
 }
 

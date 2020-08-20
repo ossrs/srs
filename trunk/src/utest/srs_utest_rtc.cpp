@@ -34,6 +34,72 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 using namespace std;
 
+VOID TEST(KernelRTCTest, StringDumpHexTest)
+{
+    // Typical normal case.
+    if (false) {
+        char data[8];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 4)); EXPECT_EQ('7', r.at(r.length() - 3));
+    }
+
+    // Fill all buffer.
+    if (false) {
+        char data[8 * 1024];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16 * 1024, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 4)); EXPECT_EQ('7', r.at(r.length() - 3));
+    }
+
+    // Overflow 1 byte.
+    if (true) {
+        char data[8 * 1024 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16 * 1024, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+
+    // Fill all buffer, with seperator.
+    if (true) {
+        char data[5461];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 0, 0);
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 5)); EXPECT_EQ('7', r.at(r.length() - 4));
+    }
+
+    // Overflow 1 byte, with seperator.
+    if (true) {
+        char data[5461 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 0, 0);
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+
+    // Overflow 1 byte, with seperator and newline.
+    if (true) {
+        char data[5461 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 5461, '\n');
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+}
+
 extern SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version);
 
 class MockDtls
