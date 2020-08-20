@@ -1225,6 +1225,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_byt
     }
     // verify s2
     if ((err = s2.s2_validate(&c1, is_valid)) != srs_success || !is_valid) {
+        srs_freep(err);
         return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "verify s2 failed, try simple handshake");
     }
     
