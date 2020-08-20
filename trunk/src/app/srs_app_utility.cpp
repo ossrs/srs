@@ -1303,7 +1303,7 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
     static char buf[LIMIT];
 
     int len = 0;
-    for (int i = 0; i < length && i < limit && i < LIMIT && len < LIMIT; ++i) {
+    for (int i = 0; i < length && i < limit && len < LIMIT; ++i) {
         int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
         if (nb < 0 || nb >= LIMIT - len) {
             break;
@@ -1311,12 +1311,12 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
         len += nb;
 
         // Only append seperator and newline when not last byte.
-        if (i < length - 1 && i < limit - 1 && i < LIMIT - 1) {
-            if (seperator && len < LIMIT) {
+        if (i < length - 1 && i < limit - 1 && len < LIMIT) {
+            if (seperator) {
                 buf[len++] = seperator;
             }
 
-            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0 && len < LIMIT) {
+            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0) {
                 buf[len++] = newline;
             }
         }
