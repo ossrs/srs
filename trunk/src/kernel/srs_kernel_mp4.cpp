@@ -4581,6 +4581,8 @@ SrsMp4SegmentIndexBox::SrsMp4SegmentIndexBox()
 {
     type = SrsMp4BoxTypeSIDX;
     version = 0;
+    flags = reference_id = timescale = 0;
+    earliest_presentation_time = first_offset = 0;
 }
 
 SrsMp4SegmentIndexBox::~SrsMp4SegmentIndexBox()

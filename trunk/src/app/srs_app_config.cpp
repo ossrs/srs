@@ -130,7 +130,7 @@ namespace _srs_internal
         // read total content from file.
         ssize_t nread = 0;
         if ((err = reader.read(start, filesize, &nread)) != srs_success) {
-            return srs_error_wrap(err, "read %d only %d bytes", filesize, nread);
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
         }
         
         return err;
@@ -1140,6 +1140,7 @@ SrsConfig::SrsConfig()
     show_help = false;
     show_version = false;
     test_conf = false;
+    show_signature = false;
     
     root = new SrsConfDirective();
     root->conf_line = 0;

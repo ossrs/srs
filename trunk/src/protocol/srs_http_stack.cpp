@@ -557,7 +557,7 @@ srs_error_t SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs
         
         left -= nread;
         if ((err = w->write(buf, (int)nread)) != srs_success) {
-            return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%d", max_read, nread, left);
+            return srs_error_wrap(err, "write limit=%d, bytes=%d, left=%d", max_read, (int)nread, left);
         }
     }
     
