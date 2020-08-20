@@ -214,6 +214,7 @@ SrsHlsMuxer::SrsHlsMuxer()
 
 SrsHlsMuxer::~SrsHlsMuxer()
 {
+    srs_freep(segments);
     srs_freep(current);
     srs_freep(req);
     srs_freep(async);
