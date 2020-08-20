@@ -247,7 +247,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
         SrsRtpExtensionType xtype = types_.get_type(id);
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if (srs_success != (err = twcc_.decode(buf))) {
+            if ((err = twcc_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode twcc extension");
             }
             has_ext_ = true;
@@ -287,7 +287,7 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 
     // Write extensions.
     if (twcc_.has_twcc_ext()) {
-        if (srs_success != (err = twcc_.encode(buf))) {
+        if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }
