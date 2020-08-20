@@ -2093,7 +2093,7 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
         int nb_protected_buf = stream.pos();
 
         // FIXME: Merge nack rtcp into one packets.
-        if (transport_->protect_rtcp(protected_buf, stream.data(), nb_protected_buf) == srs_success) {
+        if (transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf) == srs_success) {
             // TODO: FIXME: Check error.
             sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
         }
