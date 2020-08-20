@@ -778,7 +778,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
     iovs[3].iov_len = 2;
     
-    ssize_t nwrite;
+    ssize_t nwrite = 0;
     if ((err = skt->writev(iovs, 4, &nwrite)) != srs_success) {
         return srs_error_wrap(err, "write chunk");
     }
@@ -854,7 +854,7 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     iovss[2+iovcnt].iov_len = 2;
 
     // sendout all ioves.
-    ssize_t nwrite;
+    ssize_t nwrite = 0;
     if ((err = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != srs_success) {
         return srs_error_wrap(err, "writev large iovs");
     }
