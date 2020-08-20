@@ -457,7 +457,7 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, ISrsHttpMes
     // write body.
     int64_t left = length;
     if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "copy file=%s size=%d", fullpath.c_str(), left);
+        return srs_error_wrap(err, "copy file=%s size=%d", fullpath.c_str(), (int)left);
     }
     
     if ((err = w->final_request()) != srs_success) {

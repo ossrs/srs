@@ -134,7 +134,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     // send data
     if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), left);
+        return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), (int)left);
     }
     
     return err;
@@ -184,7 +184,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     // send data
     if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), left);
+        return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), (int)left);
     }
     
     return err;
