@@ -539,7 +539,7 @@ srs_error_t SrsInotifyWorker::start()
     }
 
     if (((err = srs_fd_closeexec(fd))) != srs_success) {
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
+        return srs_error_wrap(err, "closeexec fd=%d", fd);
     }
 
     // /* the following are legal, implemented events that user-space can watch for */

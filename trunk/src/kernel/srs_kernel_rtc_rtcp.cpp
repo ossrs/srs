@@ -1032,7 +1032,7 @@ srs_error_t SrsRtcpTWCC::process_pkt_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk,
         return err;
     }
     if ((err = encode_chunk(chunk)) != srs_success) {
-        return srs_error_new(ERROR_RTC_RTCP, "encode chunk, delta_size %u", delta_size);
+        return srs_error_wrap(err, "encode chunk, delta_size %u", delta_size);
     }
     add_to_chunk(chunk, delta_size);
     return err;
@@ -1118,7 +1118,7 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
         // FIXME 24-bit base receive delta not supported
         int recv_delta_size = (delta >= 0 && delta <= 0xff) ? 1 : 2;
         if ((err = process_pkt_chunk(chunk, recv_delta_size)) != srs_success) {
-            return srs_error_new(ERROR_RTC_RTCP, "delta_size %d, failed to append_recv_delta", recv_delta_size);
+            return srs_error_wrap(err, "delta_size %d, failed to append_recv_delta", recv_delta_size);
         }
 
         pkt_deltas_.push_back(delta);
