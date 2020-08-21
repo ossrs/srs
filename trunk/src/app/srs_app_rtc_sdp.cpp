@@ -1062,3 +1062,10 @@ srs_error_t SrsSdp::parse_media_description(const std::string& content)
 
     return err;
 }
+
+bool SrsSdp::is_unified() const
+{
+    // TODO: FIXME: Maybe we should consider other situations.
+    return media_descs_.size() > 2;
+}
+

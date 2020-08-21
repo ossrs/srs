@@ -1550,7 +1550,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
         return srs_error_wrap(err, "publish negotiate");
     }
 
-    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc)) != srs_success) {
+    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, remote_sdp.is_unified())) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -1613,7 +1613,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
         ++it;
     }
 
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc)) != srs_success) {
+    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, remote_sdp.is_unified())) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -1624,7 +1624,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     return err;
 }
 
-srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, SrsSdp& local_sdp)
+srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, bool unified_plan, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
 
@@ -1660,7 +1660,7 @@ srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, SrsSdp& local_sdp)
         ++it;
     }
 
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc)) != srs_success) {
+    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, unified_plan)) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -2571,7 +2571,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
     return err;
 }
 
-srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc)
+srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan)
 {
     srs_error_t err = srs_success;
 
@@ -2667,8 +2667,10 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
         }
 
-        // only need media desc info, not ssrc info;
-        break;
+        if(!unified_plan) {
+            // For PlanB, only need media desc info, not ssrc info;
+            break;
+        }
     }
 
     return err;
@@ -2896,7 +2898,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, SrsSdp& loca
     }
 }
 
-srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc)
+srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan)
 {
     srs_error_t err = srs_success;
 
@@ -2985,8 +2987,13 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
     for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* track = stream_desc->video_track_descs_[i];
 
-        // for plan b, we only add one m=
-        if (i == 0) {
+        if (!unified_plan) {
+            // for plan b, we only add one m= for video track.
+            if (i == 0) {
+                video_track_generate_play_offer(track, local_sdp);
+            }
+        } else {
+            // unified plan SDP, generate a m= for each video track.
             video_track_generate_play_offer(track, local_sdp);
         }
 

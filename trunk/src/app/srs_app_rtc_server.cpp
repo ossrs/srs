@@ -513,7 +513,7 @@ srs_error_t SrsRtcServer::do_create_session(
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession)
 {
     srs_error_t err = srs_success;
 
@@ -525,7 +525,7 @@ srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, co
 
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
     // first add player for negotiate local sdp media info
-    if ((err = session->add_player2(req, local_sdp)) != srs_success) {
+    if ((err = session->add_player2(req, unified_plan, local_sdp)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "add player2");
     }
