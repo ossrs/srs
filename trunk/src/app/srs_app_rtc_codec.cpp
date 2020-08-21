@@ -348,7 +348,6 @@ SrsAudioRecode::SrsAudioRecode(int channels, int samplerate)
     dec_ = NULL;
     enc_ = NULL;
     resample_ = NULL;
-    data_ = NULL;
 }
 
 SrsAudioRecode::~SrsAudioRecode()
