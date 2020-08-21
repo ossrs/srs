@@ -38,6 +38,7 @@ using namespace std;
 SrsIngesterFFMPEG::SrsIngesterFFMPEG()
 {
     ffmpeg = NULL;
+    starttime = 0;
 }
 
 SrsIngesterFFMPEG::~SrsIngesterFFMPEG()

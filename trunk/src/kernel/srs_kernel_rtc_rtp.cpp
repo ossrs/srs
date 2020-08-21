@@ -63,7 +63,7 @@ SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
 {
-    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
+    for (int i = 0; i < (int)(sizeof(kExtensions)/sizeof(kExtensions[0])); ++i) {
         if (kExtensions[i].uri == uri) {
             return register_id(id, kExtensions[i].type, kExtensions[i].uri);
         }

@@ -865,6 +865,8 @@ namespace _srs_internal
     c1s1::c1s1()
     {
         payload = NULL;
+        version = 0;
+        time = 0;
     }
     c1s1::~c1s1()
     {

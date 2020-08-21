@@ -65,6 +65,7 @@ SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream(string r)
 {
     redirect = r;
     sdk = NULL;
+    selected_port = 0;
 }
 
 SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()

@@ -940,6 +940,9 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     nb_conn_sys = nb_conn_srs = 0;
     nb_conn_sys_et = nb_conn_sys_tw = 0;
     nb_conn_sys_udp = 0;
+    rkbps = skbps = 0;
+    rkbps_30s = skbps_30s = 0;
+    rkbps_5m = skbps_5m = 0;
 }
 
 static SrsNetworkRtmpServer _srs_network_rtmp_server;

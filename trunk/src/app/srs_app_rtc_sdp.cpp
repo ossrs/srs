@@ -254,6 +254,7 @@ srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
 SrsMediaPayloadType::SrsMediaPayloadType(int payload_type)
 {
     payload_type_ = payload_type;
+    clock_rate_ = 0;
 }
 
 SrsMediaPayloadType::~SrsMediaPayloadType()
@@ -288,7 +289,9 @@ SrsMediaDesc::SrsMediaDesc(const std::string& type)
 {
     type_ = type;
 
+    port_ = 0;
     rtcp_mux_ = false;
+    rtcp_rsize_ = false;
 
     sendrecv_ = false;
     recvonly_ = false;

@@ -170,6 +170,7 @@ srs_error_t SrsAudioEncoder::initialize()
 
     case 24000:
         opus_encoder_ctl(opus_, OPUS_SET_MAX_BANDWIDTH(OPUS_BANDWIDTH_SUPERWIDEBAND));
+        break;
 
     case 16000:
         opus_encoder_ctl(opus_, OPUS_SET_MAX_BANDWIDTH(OPUS_BANDWIDTH_WIDEBAND));
@@ -343,6 +344,11 @@ SrsAudioRecode::SrsAudioRecode(int channels, int samplerate)
 {
     size_ = 0;
     data_ = new char[kPcmBufMax];
+
+    dec_ = NULL;
+    enc_ = NULL;
+    resample_ = NULL;
+    data_ = NULL;
 }
 
 SrsAudioRecode::~SrsAudioRecode()

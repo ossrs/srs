@@ -539,6 +539,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     // audio track description
     if (true) {
         SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
+        SrsAutoFree(SrsRtcTrackDescription, audio_track_desc);
+
         audio_track_desc->type_ = "audio";
         audio_track_desc->id_ = "audio-"  + srs_random_str(8);
 
@@ -553,6 +555,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     // video track description
     if (true) {
         SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
+        SrsAutoFree(SrsRtcTrackDescription, video_track_desc);
+
         video_track_desc->type_ = "video";
         video_track_desc->id_ = "video-"  + srs_random_str(8);
 
@@ -1117,6 +1121,8 @@ void SrsRtcDummyBridger::on_unpublish()
 
 SrsCodecPayload::SrsCodecPayload()
 {
+    pt_ = 0;
+    sample_ = 0;
 }
 
 SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample)
@@ -1249,7 +1255,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 
 SrsAudioPayload::SrsAudioPayload()
 {
-    type_ = "audio";
+    channel_ = 0;
 }
 
 SrsAudioPayload::SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel)
@@ -1331,6 +1337,7 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
 
 SrsRedPayload::SrsRedPayload()
 {
+    channel_ = 0;
 }
 
 SrsRedPayload::SrsRedPayload(uint8_t pt, std::string encode_name, int sample, int channel)
@@ -1604,6 +1611,8 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
         rtp_queue_ = new SrsRtpRingBuffer(1000);
         nack_receiver_ = new SrsRtpNackForReceiver(rtp_queue_, 1000 * 2 / 3);
     }
+
+    last_sender_report_sys_time = 0;
 }
 
 SrsRtcRecvTrack::~SrsRtcRecvTrack()

@@ -3912,7 +3912,7 @@ srs_error_t SrsMp4DecodingTime2SampleBox::on_sample(uint32_t sample_index, SrsMp
         index++;
         
         if (index >= entries.size()) {
-            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, stts overflow, count=%d", entries.size());
+            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, stts overflow, count=%zd", entries.size());
         }
         
         count += entries[index].sample_count;
@@ -4038,7 +4038,7 @@ srs_error_t SrsMp4CompositionTime2SampleBox::on_sample(uint32_t sample_index, Sr
         index++;
         
         if (index >= entries.size()) {
-            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, ctts overflow, count=%d", entries.size());
+            return srs_error_new(ERROR_MP4_ILLEGAL_TIMESTAMP, "illegal ts, ctts overflow, count=%d", (int)entries.size());
         }
         
         count += entries[index].sample_count;
@@ -5217,7 +5217,7 @@ srs_error_t SrsMp4BoxReader::read(SrsSimpleStream* stream, SrsMp4Box** ppbox)
         while (stream->length() < (int)required) {
             ssize_t nread;
             if ((err = rsio->read(buf, SRS_MP4_BUF_SIZE, &nread)) != srs_success) {
-                return srs_error_wrap(err, "load failed, nread=%d, required=%d", (int)nread, required);
+                return srs_error_wrap(err, "load failed, nread=%d, required=%d", (int)nread, (int)required);
             }
             
             srs_assert(nread > 0);
@@ -6282,6 +6282,7 @@ SrsMp4M2tsSegmentEncoder::SrsMp4M2tsSegmentEncoder()
     decode_basetime = 0;
     styp_bytes = 0;
     mdat_bytes = 0;
+    track_id = 0;
 }
 
 SrsMp4M2tsSegmentEncoder::~SrsMp4M2tsSegmentEncoder()

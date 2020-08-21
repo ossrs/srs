@@ -316,6 +316,8 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback* callback)
 {
     dtls_ctx = NULL;
     dtls = NULL;
+    bio_in = NULL;
+    bio_out = NULL;
 
     callback_ = callback;
     handshake_done_for_us = false;

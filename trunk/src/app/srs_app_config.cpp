@@ -620,6 +620,7 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine
 
 SrsConfDirective::SrsConfDirective()
 {
+    conf_line = 0;
 }
 
 SrsConfDirective::~SrsConfDirective()

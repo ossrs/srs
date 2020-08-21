@@ -31,6 +31,7 @@ using namespace std;
 
 SrsRtcpCommon::SrsRtcpCommon(): ssrc_(0), data_(NULL), nb_data_(0)
 {
+    payload_len_ = 0;
 }
 
 SrsRtcpCommon::~SrsRtcpCommon()
@@ -190,7 +191,7 @@ srs_error_t SrsRtcpApp::set_subtype(uint8_t type)
 srs_error_t SrsRtcpApp::set_name(std::string name)
 {
     if(name.length() > 4) {
-        return srs_error_new(ERROR_RTC_RTCP, "invalid name length %d", name.length());
+        return srs_error_new(ERROR_RTC_RTCP, "invalid name length %zu", name.length());
     }
 
     memset(name_, 0, sizeof(name_));
@@ -298,6 +299,13 @@ SrsRtcpSR::SrsRtcpSR()
     header_.rc = 0;
     header_.version = kRtcpVersion;
     header_.length = 6;
+
+    ssrc_ = 0;
+    ntp_ = 0;
+    rtp_ts_ = 0;
+    send_rtp_packets_ = 0;
+    send_rtp_bytes_ = 0;
+    send_rtp_bytes_ = 0;
 }
 
 SrsRtcpSR::~SrsRtcpSR()
@@ -706,6 +714,11 @@ SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : pkt_len(0)
     header_.rc = 15;
     header_.version = kRtcpVersion;
     ssrc_ = sender_ssrc;
+    media_ssrc_ = 0;
+    base_sn_ = 0;
+    packet_count_ = 0;
+    reference_time_ = 0;
+    fb_pkt_count_ = 0;
 }
 
 SrsRtcpTWCC::~SrsRtcpTWCC()
@@ -1178,6 +1191,7 @@ SrsRtcpNack::SrsRtcpNack(uint32_t sender_ssrc)
     header_.rc = 1;
     header_.version = kRtcpVersion;
     ssrc_ = sender_ssrc;
+    media_ssrc_ = 0;
 }
 
 SrsRtcpNack::~SrsRtcpNack()

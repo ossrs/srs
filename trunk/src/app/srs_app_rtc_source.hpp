@@ -308,6 +308,12 @@ class SrsAudioPayload : public SrsCodecPayload
         int minptime;
         bool use_inband_fec;
         bool usedtx;
+
+        SrsOpusParameter() {
+            minptime = 0;
+            use_inband_fec = false;
+            usedtx = false;
+        }
     };
 
 public:

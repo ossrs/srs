@@ -125,6 +125,7 @@ void SrsUdpListener::set_socket_buffer()
     int r0_sndbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_sndbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&default_sndbuf, &opt_len);
 
         if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
@@ -132,6 +133,7 @@ void SrsUdpListener::set_socket_buffer()
         }
 
         opt_len = sizeof(actual_sndbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, &opt_len);
     }
 
@@ -142,6 +144,7 @@ void SrsUdpListener::set_socket_buffer()
     int r0_rcvbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_rcvbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&default_rcvbuf, &opt_len);
 
         if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
@@ -149,6 +152,7 @@ void SrsUdpListener::set_socket_buffer()
         }
 
         opt_len = sizeof(actual_rcvbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, &opt_len);
     }
 
@@ -288,6 +292,7 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     lfd = fd;
 
     fromlen = 0;
+    peer_port = 0;
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()

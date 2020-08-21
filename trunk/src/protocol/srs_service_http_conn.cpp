@@ -319,6 +319,7 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
     _content_length = -1;
     // From HTTP/1.1, default to keep alive.
     _keep_alive = true;
+    type_ = 0;
 }
 
 SrsHttpMessage::~SrsHttpMessage()

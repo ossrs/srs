@@ -2012,6 +2012,9 @@ SrsTsPayloadPSI::SrsTsPayloadPSI(SrsTsPacket* p) : SrsTsPayload(p)
     const0_value = 0;
     const1_value = 3;
     CRC_32 = 0;
+    section_length = 0;
+    section_syntax_indicator = 0;
+    table_id = SrsTsPsiIdPas;
 }
 
 SrsTsPayloadPSI::~SrsTsPayloadPSI()
@@ -2223,7 +2226,12 @@ srs_error_t SrsTsPayloadPATProgram::encode(SrsBuffer* stream)
 
 SrsTsPayloadPAT::SrsTsPayloadPAT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
 {
+    transport_stream_id = 0;
     const3_value = 3;
+    version_number = 0;
+    current_next_indicator = 0;
+    section_number = 0;
+    last_section_number = 0;
 }
 
 SrsTsPayloadPAT::~SrsTsPayloadPAT()
@@ -2422,6 +2430,12 @@ SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
     const1_value0 = 3;
     const1_value1 = 7;
     const1_value2 = 0x0f;
+    PCR_PID = 0;
+    last_section_number = 0;
+    program_number = 0;
+    version_number = 0;
+    current_next_indicator = 0;
+    section_number = 0;
 }
 
 SrsTsPayloadPMT::~SrsTsPayloadPMT()
