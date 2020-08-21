@@ -318,7 +318,7 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
 {
     std::vector<SrsMediaPayloadType> payloads;
 
-    std::string lower_name, upper_name;
+    std::string lower_name(encoding_name), upper_name(encoding_name);
     transform(encoding_name.begin(), encoding_name.end(), lower_name.begin(), ::tolower);
     transform(encoding_name.begin(), encoding_name.end(), upper_name.begin(), ::toupper);
 

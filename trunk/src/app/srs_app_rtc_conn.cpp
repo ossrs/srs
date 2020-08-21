@@ -1450,15 +1450,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
 SrsRtcConnection::~SrsRtcConnection()
 {
     srs_freep(timer_);
-
-    // Note that we should never delete the sendonly_skt,
-    // it's just point to the object in peer_addresses_.
-    map<string, SrsUdpMuxSocket*>::iterator it;
-    for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
-        SrsUdpMuxSocket* addr = it->second;
-        srs_freep(addr);
-    }
-
+    
     // Cleanup publishers.
     for(map<string, SrsRtcPublishStream*>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {
         SrsRtcPublishStream* publisher = it->second;
@@ -1474,6 +1466,14 @@ SrsRtcConnection::~SrsRtcConnection()
     }
     players_.clear();
     players_ssrc_map_.clear();
+
+    // Note that we should never delete the sendonly_skt,
+    // it's just point to the object in peer_addresses_.
+    map<string, SrsUdpMuxSocket*>::iterator it;
+    for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
+        SrsUdpMuxSocket* addr = it->second;
+        srs_freep(addr);
+    }
 
     srs_freep(transport_);
     srs_freep(req);

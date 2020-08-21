@@ -166,7 +166,7 @@ uint8_t SrsRtcpApp::get_subtype() const
 
 string SrsRtcpApp::get_name() const
 {
-    return string((char*)name_);
+    return string((char*)name_, strnlen((char*)name_, 4));
 }
 
 srs_error_t SrsRtcpApp::get_payload(uint8_t*& payload, int& len)
