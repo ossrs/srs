@@ -2861,6 +2861,41 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
     return err;
 }
 
+void video_track_generate_play_offer(SrsRtcTrackDescription* track, SrsSdp& local_sdp)
+{
+    local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+    SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+    local_media_desc.port_ = 9;
+    local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+    local_media_desc.rtcp_mux_ = true;
+    local_media_desc.rtcp_rsize_ = true;
+
+    local_media_desc.extmaps_ = track->extmaps_;
+
+    local_media_desc.mid_ = track->mid_;
+    local_sdp.groups_.push_back(local_media_desc.mid_);
+
+    if (track->direction_ == "recvonly") {
+        local_media_desc.recvonly_ = true;
+    } else if (track->direction_ == "sendonly") {
+        local_media_desc.sendonly_ = true;
+    } else if (track->direction_ == "sendrecv") {
+        local_media_desc.sendrecv_ = true;
+    } else if (track->direction_ == "inactive_") {
+        local_media_desc.inactive_ = true;
+    }
+
+    SrsVideoPayload* payload = (SrsVideoPayload*)track->media_;
+
+    local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
+
+    if (track->red_) {
+        SrsRedPayload* red_payload = (SrsRedPayload*)track->red_;
+        local_media_desc.payload_types_.push_back(red_payload->generate_media_payload_type());
+    }
+}
+
 srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -2952,37 +2987,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
 
         // for plan b, we only add one m=
         if (i == 0) {
-            local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
-            SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
-
-            local_media_desc.port_ = 9;
-            local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
-            local_media_desc.rtcp_mux_ = true;
-            local_media_desc.rtcp_rsize_ = true;
-
-            local_media_desc.extmaps_ = track->extmaps_;
-
-            local_media_desc.mid_ = track->mid_;
-            local_sdp.groups_.push_back(local_media_desc.mid_);
-
-            if (track->direction_ == "recvonly") {
-                local_media_desc.recvonly_ = true;
-            } else if (track->direction_ == "sendonly") {
-                local_media_desc.sendonly_ = true;
-            } else if (track->direction_ == "sendrecv") {
-                local_media_desc.sendrecv_ = true;
-            } else if (track->direction_ == "inactive_") {
-                local_media_desc.inactive_ = true;
-            }
-
-            SrsVideoPayload* payload = (SrsVideoPayload*)track->media_;
-
-            local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
-
-            if (track->red_) {
-                SrsRedPayload* red_payload = (SrsRedPayload*)track->red_;
-                local_media_desc.payload_types_.push_back(red_payload->generate_media_payload_type());
-            }
+            video_track_generate_play_offer(track, local_sdp);
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
