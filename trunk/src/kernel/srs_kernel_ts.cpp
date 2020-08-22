@@ -463,7 +463,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter* writer, SrsTsMessage* msg
         return err;
     }
 
-    bool invalid_codec = (sid != SrsTsStreamVideoH264 && && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC);
+    bool invalid_codec = (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC);
 #ifdef SRS_H265
     invalid_codec = invalid_codec && (sid != SrsTsStreamVideoHEVC);
 #endif
@@ -808,7 +808,7 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context,
     }
     
     // if h.264 specified, use video to carry pcr.
-    bool is_valid_codec = (vs == SrsTsStreamVideoH264);
+    /*bool*/ is_valid_codec = (vs == SrsTsStreamVideoH264);
 #ifdef SRS_H265
     is_valid_codec = is_valid_codec || (vs == SrsTsStreamVideoHEVC);
 #endif
