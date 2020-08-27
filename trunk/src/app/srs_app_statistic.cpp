@@ -45,9 +45,17 @@ int64_t srs_generate_id()
     return srs_gvid++;
 }
 
+template <typename T>
+std::string tostring(const T& t)
+{
+    std::ostringstream oss;
+    oss << t;
+    return oss.str();
+}
+
 SrsStatisticVhost::SrsStatisticVhost()
 {
-    id = srs_generate_id();
+    id = tostring(srs_generate_id());
     
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
@@ -98,7 +106,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
 
 SrsStatisticStream::SrsStatisticStream()
 {
-    id = srs_generate_id();
+    id = tostring(srs_generate_id());
     vhost = NULL;
     active = false;
 
