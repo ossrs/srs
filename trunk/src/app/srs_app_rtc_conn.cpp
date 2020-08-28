@@ -901,15 +901,9 @@ srs_error_t SrsRtcPublishStream::start()
         return srs_error_wrap(err, "start timer");
     }
 
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "create source");
-    }
-
     if ((err = source->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");
     }
-
-    source->set_publish_stream(this);
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req)) != srs_success) {
