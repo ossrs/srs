@@ -55,6 +55,7 @@ class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsRtcPlayStreamStatistic;
+class SrsErrorPithyPrint;
 
 class SrsNtp
 {
@@ -530,11 +531,14 @@ protected:
     // send track description
     SrsRtcTrackDescription* track_desc_;
     SrsRtcTrackStatistic* statistic_;
-
+protected:
     // The owner connection for this track.
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
+private:
+    // The pithy print for special stage.
+    SrsErrorPithyPrint* nack_epp;
 public:
     SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();

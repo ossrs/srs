@@ -41,6 +41,7 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_app_pithy_print.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -1813,6 +1814,8 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     } else {
         rtp_queue_ = new SrsRtpRingBuffer(1000);
     }
+
+    nack_epp = new SrsErrorPithyPrint();
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -1820,6 +1823,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(rtp_queue_);
     srs_freep(track_desc_);
     srs_freep(statistic_);
+    srs_freep(nack_epp);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -1836,12 +1840,18 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     }
 
     // For NACK, it sequence must match exactly, or it cause SRTP fail.
-    if (pkt->header.get_sequence() != seq) {
-        srs_trace("miss match seq=%u, pkt seq=%u", seq, pkt->header.get_sequence());
-        return NULL;
+    // Return packet only when sequence is equal.
+    if (pkt->header.get_sequence() == seq) {
+        return pkt;
     }
 
-    return pkt;
+    // Ignore if sequence not match.
+    uint32_t nn = 0;
+    if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
+        srs_trace("RTC NACK miss seq=%u, require_seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", seq, pkt->header.get_sequence(),
+            pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+    }
+    return NULL;
 }
 
 // TODO: FIXME: Should refine logs, set tracks in a time.

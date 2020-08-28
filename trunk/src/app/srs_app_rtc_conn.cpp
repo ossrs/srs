@@ -313,6 +313,8 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
 
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
+
+    nack_epp = new SrsErrorPithyPrint();
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -336,6 +338,8 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
             srs_freep(it->second);
         }
     }
+
+    srs_freep(nack_epp);
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
@@ -731,8 +735,12 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     for (int i = 0; i < (int)resend_pkts.size(); ++i) {
         SrsRtpPacket2* pkt = resend_pkts[i];
         info.nn_bytes += pkt->nb_bytes();
-        srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, %d bytes", pkt->header.get_sequence(),
-            pkt->header.get_ssrc(), pkt->header.get_timestamp(), pkt->nb_bytes());
+
+        uint32_t nn = 0;
+        if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
+            srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", pkt->header.get_sequence(),
+                pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+        }
     }
 
     // By default, we send packets by sendmmsg.

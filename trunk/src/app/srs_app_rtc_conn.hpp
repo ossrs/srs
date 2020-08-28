@@ -221,6 +221,8 @@ private:
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
+    // The pithy print for special stage.
+    SrsErrorPithyPrint* nack_epp;
 private:
     // For merged-write messages.
     int mw_msgs;
