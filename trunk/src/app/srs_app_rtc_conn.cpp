@@ -876,6 +876,12 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     session_->stat_->nn_publishers++;
 
+    // Setup the publish stream in source to enable PLI as such.
+    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
+        return srs_error_wrap(err, "create source");
+    }
+    source->set_publish_stream(this);
+
     return err;
 }
 
