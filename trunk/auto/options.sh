@@ -178,7 +178,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 
   --nasm=on|off             Whether build FFMPEG for RTC with nasm support.
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
-  --sendmmsg=on|off         Whether enable UDP sendmmsg support. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+  --sendmmsg=on|off         Whether enable UDP sendmmsg support. Default: off. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static                  Whether add '-static' to link options.
@@ -204,9 +204,7 @@ Experts:
   --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
   --build-tag=<TAG>                 Set the build object directory suffix.
   --clean=on|off                    Whether do 'make clean' when configure.
-  --detect-sendmmsg=on|off          Whether detect the sendmmsg API.
-  --has-sendmmsg=on|off             Whether OS supports sendmmsg API.
-  --simulator=on|off                Whether enable RTC network simulator.
+  --simulator=on|off                Whether enable RTC network simulator. Default: off
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
