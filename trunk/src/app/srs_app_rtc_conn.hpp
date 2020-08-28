@@ -273,6 +273,7 @@ private:
 class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
+    SrsContextId parent_cid_;
     SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
 private:
@@ -298,7 +299,7 @@ private:
     SrsRtpExtensionTypes extension_types_;
     bool is_started;
 public:
-    SrsRtcPublishStream(SrsRtcConnection* session);
+    SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId parent_cid);
     virtual ~SrsRtcPublishStream();
 public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);

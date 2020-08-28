@@ -804,10 +804,11 @@ uint32_t SrsRtcPlayStream::get_video_publish_ssrc(uint32_t play_ssrc)
     return 0;
 }
 
-SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
+SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId parent_cid)
 {
     timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
+    parent_cid_ = parent_cid;
     is_started = false;
     session_ = session;
     request_keyframe_ = false;
@@ -3111,7 +3112,7 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
         return err;
     }
 
-    SrsRtcPublishStream* publisher = new SrsRtcPublishStream(this);
+    SrsRtcPublishStream* publisher = new SrsRtcPublishStream(this, _srs_context->get_id());
     if ((err = publisher->initialize(req, stream_desc)) != srs_success) {
         srs_freep(publisher);
         return srs_error_wrap(err, "rtc publisher init");
