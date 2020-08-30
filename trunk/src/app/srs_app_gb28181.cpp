@@ -1810,7 +1810,7 @@ void SrsGb28181RtmpMuxer::close()
     h264_pps = "";
     aac_specific_config = "";
 
-    if (source_publish && !source){
+    if (source_publish && source){
         source->on_unpublish();
     }
 }
