@@ -130,7 +130,7 @@ namespace _srs_internal
         // read total content from file.
         ssize_t nread = 0;
         if ((err = reader.read(start, filesize, &nread)) != srs_success) {
-            return srs_error_wrap(err, "read %d only %d bytes", filesize, nread);
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
         }
         
         return err;
@@ -620,6 +620,7 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine
 
 SrsConfDirective::SrsConfDirective()
 {
+    conf_line = 0;
 }
 
 SrsConfDirective::~SrsConfDirective()
@@ -1140,6 +1141,7 @@ SrsConfig::SrsConfig()
     show_help = false;
     show_version = false;
     test_conf = false;
+    show_signature = false;
     
     root = new SrsConfDirective();
     root->conf_line = 0;
@@ -3661,7 +3663,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; i < (int)listens.size(); i++) {
             string port = listens[i];
             if (port.empty() || ::atoi(port.c_str()) <= 0) {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%d is invalid", port.c_str());
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%s is invalid", port.c_str());
             }
         }
     }

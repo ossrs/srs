@@ -41,6 +41,7 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_app_pithy_print.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -539,6 +540,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     // audio track description
     if (true) {
         SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
+        SrsAutoFree(SrsRtcTrackDescription, audio_track_desc);
+
         audio_track_desc->type_ = "audio";
         audio_track_desc->id_ = "audio-"  + srs_random_str(8);
 
@@ -553,6 +556,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     // video track description
     if (true) {
         SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
+        SrsAutoFree(SrsRtcTrackDescription, video_track_desc);
+
         video_track_desc->type_ = "video";
         video_track_desc->id_ = "video-"  + srs_random_str(8);
 
@@ -1117,6 +1122,8 @@ void SrsRtcDummyBridger::on_unpublish()
 
 SrsCodecPayload::SrsCodecPayload()
 {
+    pt_ = 0;
+    sample_ = 0;
 }
 
 SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample)
@@ -1249,7 +1256,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 
 SrsAudioPayload::SrsAudioPayload()
 {
-    type_ = "audio";
+    channel_ = 0;
 }
 
 SrsAudioPayload::SrsAudioPayload(uint8_t pt, std::string encode_name, int sample, int channel)
@@ -1331,6 +1338,7 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
 
 SrsRedPayload::SrsRedPayload()
 {
+    channel_ = 0;
 }
 
 SrsRedPayload::SrsRedPayload(uint8_t pt, std::string encode_name, int sample, int channel)
@@ -1604,6 +1612,8 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
         rtp_queue_ = new SrsRtpRingBuffer(1000);
         nack_receiver_ = new SrsRtpNackForReceiver(rtp_queue_, 1000 * 2 / 3);
     }
+
+    last_sender_report_sys_time = 0;
 }
 
 SrsRtcRecvTrack::~SrsRtcRecvTrack()
@@ -1804,6 +1814,8 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     } else {
         rtp_queue_ = new SrsRtpRingBuffer(1000);
     }
+
+    nack_epp = new SrsErrorPithyPrint();
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -1811,6 +1823,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(rtp_queue_);
     srs_freep(track_desc_);
     srs_freep(statistic_);
+    srs_freep(nack_epp);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -1827,12 +1840,18 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     }
 
     // For NACK, it sequence must match exactly, or it cause SRTP fail.
-    if (pkt->header.get_sequence() != seq) {
-        srs_trace("miss match seq=%u, pkt seq=%u", seq, pkt->header.get_sequence());
-        return NULL;
+    // Return packet only when sequence is equal.
+    if (pkt->header.get_sequence() == seq) {
+        return pkt;
     }
 
-    return pkt;
+    // Ignore if sequence not match.
+    uint32_t nn = 0;
+    if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
+        srs_trace("RTC NACK miss seq=%u, require_seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", seq, pkt->header.get_sequence(),
+            pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+    }
+    return NULL;
 }
 
 // TODO: FIXME: Should refine logs, set tracks in a time.

@@ -221,6 +221,8 @@ private:
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
+    // The pithy print for special stage.
+    SrsErrorPithyPrint* nack_epp;
 private:
     // For merged-write messages.
     int mw_msgs;
@@ -271,6 +273,7 @@ private:
 class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
+    SrsContextId parent_cid_;
     SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
 private:
@@ -296,7 +299,7 @@ private:
     SrsRtpExtensionTypes extension_types_;
     bool is_started;
 public:
-    SrsRtcPublishStream(SrsRtcConnection* session);
+    SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId parent_cid);
     virtual ~SrsRtcPublishStream();
 public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
@@ -439,7 +442,7 @@ public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     // server send offer sdp to client, local sdp derivate from source stream desc.
-    srs_error_t add_player2(SrsRequest* request, SrsSdp& local_sdp);
+    srs_error_t add_player2(SrsRequest* request, bool unified_plan, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
@@ -483,13 +486,13 @@ private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate
     srs_error_t negotiate_publish_capability(SrsRequest* req, const SrsSdp& remote_sdp, SrsRtcStreamDescription* stream_desc);
-    srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
+    srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan);
     // play media capabilitiy negotiate
     //TODO: Use StreamDescription to negotiate and remove first negotiate_play_capability function
     srs_error_t negotiate_play_capability(SrsRequest* req, const SrsSdp& remote_sdp, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
     srs_error_t negotiate_play_capability(SrsRequest* req, SrsRtcStreamDescription* req_stream_desc, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
     srs_error_t fetch_source_capability(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
-    srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc);
+    srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan);
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
     srs_error_t create_publisher(SrsRequest* request, SrsRtcStreamDescription* stream_desc);
 };

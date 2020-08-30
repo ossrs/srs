@@ -940,6 +940,9 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     nb_conn_sys = nb_conn_srs = 0;
     nb_conn_sys_et = nb_conn_sys_tw = 0;
     nb_conn_sys_udp = 0;
+    rkbps = skbps = 0;
+    rkbps_30s = skbps_30s = 0;
+    rkbps_5m = skbps_5m = 0;
 }
 
 static SrsNetworkRtmpServer _srs_network_rtmp_server;
@@ -1298,24 +1301,25 @@ string srs_string_dumps_hex(const char* str, int length, int limit)
 
 string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
 {
-    const int LIMIT = 1024*16;
+    // 1 byte trailing '\0'.
+    const int LIMIT = 1024*16 + 1;
     static char buf[LIMIT];
 
     int len = 0;
-    for (int i = 0; i < length && i < limit && i < LIMIT; ++i) {
+    for (int i = 0; i < length && i < limit && len < LIMIT; ++i) {
         int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
-        if (nb < 0 || nb > LIMIT - len) {
+        if (nb < 0 || nb >= LIMIT - len) {
             break;
         }
         len += nb;
 
         // Only append seperator and newline when not last byte.
-        if (i < length - 1 && i < limit - 1 && i < LIMIT - 1) {
-            if (seperator && len < LIMIT) {
+        if (i < length - 1 && i < limit - 1 && len < LIMIT) {
+            if (seperator) {
                 buf[len++] = seperator;
             }
 
-            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0 && len < LIMIT) {
+            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0) {
                 buf[len++] = newline;
             }
         }
@@ -1325,6 +1329,17 @@ string srs_string_dumps_hex(const char* str, int length, int limit, char seperat
     if (len <= 0) {
         return "";
     }
+
+    // If overflow, cut the trailing newline.
+    if (newline && len >= LIMIT - 2 && buf[len - 1] == newline) {
+        len--;
+    }
+
+    // If overflow, cut the trailing seperator.
+    if (seperator && len >= LIMIT - 3 && buf[len - 1] == seperator) {
+        len--;
+    }
+
     return string(buf, len);
 }
 

@@ -254,6 +254,7 @@ srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
 SrsMediaPayloadType::SrsMediaPayloadType(int payload_type)
 {
     payload_type_ = payload_type;
+    clock_rate_ = 0;
 }
 
 SrsMediaPayloadType::~SrsMediaPayloadType()
@@ -288,7 +289,9 @@ SrsMediaDesc::SrsMediaDesc(const std::string& type)
 {
     type_ = type;
 
+    port_ = 0;
     rtcp_mux_ = false;
+    rtcp_rsize_ = false;
 
     sendrecv_ = false;
     recvonly_ = false;
@@ -315,7 +318,7 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
 {
     std::vector<SrsMediaPayloadType> payloads;
 
-    std::string lower_name, upper_name;
+    std::string lower_name(encoding_name), upper_name(encoding_name);
     transform(encoding_name.begin(), encoding_name.end(), lower_name.begin(), ::tolower);
     transform(encoding_name.begin(), encoding_name.end(), upper_name.begin(), ::toupper);
 
@@ -1062,3 +1065,10 @@ srs_error_t SrsSdp::parse_media_description(const std::string& content)
 
     return err;
 }
+
+bool SrsSdp::is_unified() const
+{
+    // TODO: FIXME: Maybe we should consider other situations.
+    return media_descs_.size() > 2;
+}
+

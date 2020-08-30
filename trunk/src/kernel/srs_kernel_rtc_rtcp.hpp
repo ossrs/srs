@@ -66,6 +66,14 @@ struct SrsRtcpHeader
 	uint16_t type:8;
 
 	uint16_t length:16;
+
+    SrsRtcpHeader() {
+        rc = 0;
+        padding = 0;
+        version = 0;
+        type = 0;
+        length = 0;
+    }
 };
 
 class SrsRtcpCommon: public ISrsCodec
@@ -134,6 +142,16 @@ struct SrsRtcpRB
     uint32_t jitter;
     uint32_t lsr;
     uint32_t dlsr;
+
+    SrsRtcpRB() {
+        ssrc = 0;
+        fraction_lost = 0;
+        lost_packets = 0;
+        highest_sn = 0;
+        jitter = 0;
+        lsr = 0;
+        dlsr = 0;
+    }
 };
 
 class SrsRtcpSR : public SrsRtcpCommon

@@ -46,6 +46,8 @@ SrsAacTransmuxer::SrsAacTransmuxer()
     writer = NULL;
     got_sequence_header = false;
     aac_object = SrsAacObjectTypeReserved;
+    aac_sample_rate = 0;
+    aac_channels = 0;
 }
 
 SrsAacTransmuxer::~SrsAacTransmuxer()

@@ -92,6 +92,8 @@ SrsStunPacket::SrsStunPacket()
     use_candidate = false;
     ice_controlled = false;
     ice_controlling = false;
+    mapped_port = 0;
+    mapped_address = 0;
 }
 
 SrsStunPacket::~SrsStunPacket()

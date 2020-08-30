@@ -34,6 +34,72 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 using namespace std;
 
+VOID TEST(KernelRTCTest, StringDumpHexTest)
+{
+    // Typical normal case.
+    if (false) {
+        char data[8];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 4)); EXPECT_EQ('7', r.at(r.length() - 3));
+    }
+
+    // Fill all buffer.
+    if (false) {
+        char data[8 * 1024];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16 * 1024, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 4)); EXPECT_EQ('7', r.at(r.length() - 3));
+    }
+
+    // Overflow 1 byte.
+    if (true) {
+        char data[8 * 1024 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, 0, 0, 0);
+        EXPECT_EQ(16 * 1024, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+
+    // Fill all buffer, with seperator.
+    if (true) {
+        char data[5461];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 0, 0);
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('c', r.at(r.length() - 2)); EXPECT_EQ('3', r.at(r.length() - 1));
+        EXPECT_EQ('6', r.at(r.length() - 5)); EXPECT_EQ('7', r.at(r.length() - 4));
+    }
+
+    // Overflow 1 byte, with seperator.
+    if (true) {
+        char data[5461 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 0, 0);
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+
+    // Overflow 1 byte, with seperator and newline.
+    if (true) {
+        char data[5461 + 1];
+        data[0] = (char)0x3c; data[sizeof(data) - 2] = (char)0x67; data[sizeof(data) - 1] = (char)0xc3;
+        string r = srs_string_dumps_hex(data, sizeof(data), INT_MAX, ',', 5461, '\n');
+        EXPECT_EQ(16383 - 1, (int)r.length());
+        EXPECT_EQ('3', r.at(0)); EXPECT_EQ('c', r.at(1));
+        EXPECT_EQ('6', r.at(r.length() - 2)); EXPECT_EQ('7', r.at(r.length() - 1));
+    }
+}
+
 extern SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version);
 
 class MockDtls
@@ -188,6 +254,23 @@ public:
     srs_error_t r0;
     bool done;
     std::vector<SrsSample> samples;
+public:
+    int nn_client_hello_lost;
+    int nn_server_hello_lost;
+    int nn_certificate_lost;
+    int nn_new_session_lost;
+    int nn_change_cipher_lost;
+public:
+    // client -> server
+    int nn_client_hello;
+    // server -> client
+    int nn_server_hello;
+    // client -> server
+    int nn_certificate;
+    // server -> client
+    int nn_new_session;
+    int nn_change_cipher;
+public:
     MockDtlsCallback();
     virtual ~MockDtlsCallback();
     virtual srs_error_t on_dtls_handshake_done();
@@ -204,6 +287,18 @@ MockDtlsCallback::MockDtlsCallback()
     done = false;
     trd = new SrsSTCoroutine("mock", this);
     srs_assert(trd->start() == srs_success);
+
+    nn_client_hello_lost = 0;
+    nn_server_hello_lost = 0;
+    nn_certificate_lost = 0;
+    nn_new_session_lost = 0;
+    nn_change_cipher_lost = 0;
+
+    nn_client_hello = 0;
+    nn_server_hello = 0;
+    nn_certificate = 0;
+    nn_new_session = 0;
+    nn_change_cipher = 0;
 }
 
 MockDtlsCallback::~MockDtlsCallback()
@@ -228,10 +323,49 @@ srs_error_t MockDtlsCallback::on_dtls_application_data(const char* data, const i
 
 srs_error_t MockDtlsCallback::write_dtls_data(void* data, int size)
 {
+    int nn_lost = 0;
+    if (true) {
+        uint8_t content_type = 0;
+        if (size >= 1) {
+            content_type = (uint8_t)((uint8_t*)data)[0];
+        }
+
+        uint8_t handshake_type = 0;
+        if (size >= 14) {
+            handshake_type = (uint8_t)((uint8_t*)data)[13];
+        }
+
+        if (content_type == 22) {
+            if (handshake_type == 1) {
+                nn_lost = nn_client_hello_lost--;
+                nn_client_hello++;
+            } else if (handshake_type == 2) {
+                nn_lost = nn_server_hello_lost--;
+                nn_server_hello++;
+            } else if (handshake_type == 11) {
+                nn_lost = nn_certificate_lost--;
+                nn_certificate++;
+            } else if (handshake_type == 4) {
+                nn_lost = nn_new_session_lost--;
+                nn_new_session++;
+            }
+        } else if (content_type == 20) {
+            nn_lost = nn_change_cipher_lost--;
+            nn_change_cipher++;
+        }
+    }
+
+    // Simulate to drop packet.
+    if (nn_lost > 0) {
+        return srs_success;
+    }
+
+    // Send out it.
     char* cp = new char[size];
     memcpy(cp, data, size);
 
     samples.push_back(SrsSample((char*)cp, size));
+
     return srs_success;
 }
 
@@ -249,10 +383,12 @@ srs_error_t MockDtlsCallback::cycle()
             continue;
         }
 
-        SrsSample p = *samples.erase(samples.begin());
+        SrsSample p = samples.at(0);
+        samples.erase(samples.begin());
+
         if (peer) {
             err = peer->on_dtls((char*)p.bytes, p.size);
-        } else {
+        } else if (peer2) {
             err = peer2->on_dtls((char*)p.bytes, p.size);
         }
 
@@ -266,10 +402,29 @@ srs_error_t MockDtlsCallback::cycle()
 }
 
 // Wait for mock io to done, try to switch to coroutine many times.
-#define mock_wait_dtls_io_done(cio, sio) \
-    for (int i = 0; i < 100 && (!cio.samples.empty() || !sio.samples.empty()); i++) { \
-        srs_usleep(0 * SRS_UTIME_MILLISECONDS); \
+void mock_wait_dtls_io_done(int count = 100, int interval = 0)
+{
+    for (int i = 0; i < count; i++) {
+        srs_usleep(interval * SRS_UTIME_MILLISECONDS);
     }
+}
+
+// To avoid the crash when peer or peer2 is freed before io.
+class MockBridgeDtlsIO
+{
+private:
+    MockDtlsCallback* io_;
+public:
+    MockBridgeDtlsIO(MockDtlsCallback* io, SrsDtls* peer, MockDtls* peer2) {
+        io_ = io;
+        io->peer = peer;
+        io->peer2 = peer2;
+    }
+    virtual ~MockBridgeDtlsIO() {
+        io_->peer = NULL;
+        io_->peer2 = NULL;
+    }
+};
 
 struct DTLSServerFlowCase
 {
@@ -291,6 +446,366 @@ std::ostream& operator<< (std::ostream& stream, const DTLSServerFlowCase& c)
         << ", client(" << c.ClientVersion << ",done=" << c.ClientDone << ",err=" << c.ClientError << ")"
         << ", server(" << c.ServerVersion << ",done=" << c.ServerDone << ",err=" << c.ServerError << ")";
     return stream;
+}
+
+VOID TEST(KernelRTCTest, DTLSARQLimitTest)
+{
+    srs_error_t err = srs_success;
+
+    // ClientHello lost, client retransmit the ClientHello.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 10 packets, total packets should be 8(max to 8).
+        // Note that only one server hello.
+        cio.nn_client_hello_lost = 10;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_FALSE(cio.done);
+        EXPECT_FALSE(sio.done);
+
+        EXPECT_EQ(8, cio.nn_client_hello);
+        EXPECT_EQ(0, sio.nn_server_hello);
+        EXPECT_EQ(0, cio.nn_certificate);
+        EXPECT_EQ(0, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // Certificate lost, client retransmit the Certificate.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 10 packets, total packets should be 8(max to 8).
+        // Note that only one server NewSessionTicket.
+        cio.nn_certificate_lost = 10;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_FALSE(cio.done);
+        EXPECT_FALSE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(8, cio.nn_certificate);
+        EXPECT_EQ(0, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // ServerHello lost, client retransmit the ClientHello.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 10 packets, total packets should be 8(max to 8).
+        sio.nn_server_hello_lost = 10;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_FALSE(cio.done);
+        EXPECT_FALSE(sio.done);
+
+        EXPECT_EQ(8, cio.nn_client_hello);
+        EXPECT_EQ(8, sio.nn_server_hello);
+        EXPECT_EQ(0, cio.nn_certificate);
+        EXPECT_EQ(0, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // NewSessionTicket lost, client retransmit the Certificate.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 10 packets, total packets should be 8(max to 8).
+        sio.nn_new_session_lost = 10;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        // Although the packet is lost, but it's done for server, and not done for client.
+        EXPECT_FALSE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(8, cio.nn_certificate);
+        EXPECT_EQ(8, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+}
+
+VOID TEST(KernelRTCTest, DTLSClientARQTest)
+{
+    srs_error_t err = srs_success;
+
+    // No ARQ, check the number of packets.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        cio.peer = &server; sio.peer = &client;
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(30, 1);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(1, cio.nn_certificate);
+        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // ClientHello lost, client retransmit the ClientHello.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 2 packets, total packets should be 3.
+        // Note that only one server hello.
+        cio.nn_client_hello_lost = 2;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(3, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(1, cio.nn_certificate);
+        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // Certificate lost, client retransmit the Certificate.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 2 packets, total packets should be 3.
+        // Note that only one server NewSessionTicket.
+        cio.nn_certificate_lost = 2;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(3, cio.nn_certificate);
+        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+}
+
+VOID TEST(KernelRTCTest, DTLSServerARQTest)
+{
+    srs_error_t err = srs_success;
+
+    // No ARQ, check the number of packets.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        cio.peer = &server; sio.peer = &client;
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(30, 1);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(1, cio.nn_certificate);
+        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // ServerHello lost, client retransmit the ClientHello.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 2 packets, total packets should be 3.
+        sio.nn_server_hello_lost = 2;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(3, cio.nn_client_hello);
+        EXPECT_EQ(3, sio.nn_server_hello);
+        EXPECT_EQ(1, cio.nn_certificate);
+        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+
+    // NewSessionTicket lost, client retransmit the Certificate.
+    if (true) {
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; SrsDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", "dtls1.0"));
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
+
+        // Use very short interval for utest.
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
+        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+
+        // Lost 2 packets, total packets should be 3.
+        sio.nn_new_session_lost = 2;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake());
+        mock_wait_dtls_io_done(10, 3);
+
+        EXPECT_TRUE(sio.r0 == srs_success);
+        EXPECT_TRUE(cio.r0 == srs_success);
+
+        EXPECT_TRUE(cio.done);
+        EXPECT_TRUE(sio.done);
+
+        EXPECT_EQ(1, cio.nn_client_hello);
+        EXPECT_EQ(1, sio.nn_server_hello);
+        EXPECT_EQ(3, cio.nn_certificate);
+        EXPECT_EQ(3, sio.nn_new_session);
+        EXPECT_EQ(0, sio.nn_change_cipher);
+    }
+}
+
+VOID TEST(KernelRTCTest, DTLSClientFlowTest)
+{
+    srs_error_t err = srs_success;
+
+    DTLSServerFlowCase cases[] = {
+        // OK, Client, Server: DTLS v1.0
+        {0, "dtls1.0", "dtls1.0", true, true, false, false},
+        // OK, Client, Server: DTLS v1.2
+        {1, "dtls1.2", "dtls1.2", true, true, false, false},
+        // OK, Client: DTLS v1.0, Server: DTLS auto(v1.0 or v1.2).
+        {2, "dtls1.0", "auto", true, true, false, false},
+        // OK, Client: DTLS v1.2, Server: DTLS auto(v1.0 or v1.2).
+        {3, "dtls1.2", "auto", true, true, false, false},
+        // OK, Client: DTLS auto(v1.0 or v1.2), Server: DTLS v1.0
+        {4, "auto", "dtls1.0", true, true, false, false},
+        // OK, Client: DTLS auto(v1.0 or v1.2), Server: DTLS v1.0
+        {5, "auto", "dtls1.2", true, true, false, false},
+        // Fail, Client: DTLS v1.0, Server: DTLS v1.2
+        {6, "dtls1.0", "dtls1.2", false, false, false, true},
+        // Fail, Client: DTLS v1.2, Server: DTLS v1.0
+        {7, "dtls1.2", "dtls1.0", false, false, true, false},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSServerFlowCase)); i++) {
+        DTLSServerFlowCase c = cases[i];
+
+        MockDtlsCallback cio; SrsDtls client(&cio);
+        MockDtlsCallback sio; MockDtls server(&sio);
+        MockBridgeDtlsIO b0(&cio, NULL, &server); MockBridgeDtlsIO b1(&sio, &client, NULL);
+        HELPER_EXPECT_SUCCESS(client.initialize("active", c.ClientVersion)) << c;
+        HELPER_EXPECT_SUCCESS(server.initialize("passive", c.ServerVersion)) << c;
+
+        HELPER_EXPECT_SUCCESS(client.start_active_handshake()) << c;
+        mock_wait_dtls_io_done();
+
+        // Note that the cio error is generated from server, vice versa.
+        EXPECT_EQ(c.ClientError, sio.r0 != srs_success) << c;
+        EXPECT_EQ(c.ServerError, cio.r0 != srs_success) << c;
+
+        EXPECT_EQ(c.ClientDone, cio.done) << c;
+        EXPECT_EQ(c.ServerDone, sio.done) << c;
+    }
 }
 
 VOID TEST(KernelRTCTest, DTLSServerFlowTest)
@@ -321,12 +836,12 @@ VOID TEST(KernelRTCTest, DTLSServerFlowTest)
 
         MockDtlsCallback cio; MockDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
-        cio.peer = &server; sio.peer2 = &client;
+        MockBridgeDtlsIO b0(&cio, &server, NULL); MockBridgeDtlsIO b1(&sio, NULL, &client);
         HELPER_EXPECT_SUCCESS(client.initialize("active", c.ClientVersion)) << c;
         HELPER_EXPECT_SUCCESS(server.initialize("passive", c.ServerVersion)) << c;
 
         HELPER_EXPECT_SUCCESS(client.start_active_handshake()) << c;
-        mock_wait_dtls_io_done(cio, sio);
+        mock_wait_dtls_io_done();
 
         // Note that the cio error is generated from server, vice versa.
         EXPECT_EQ(c.ClientError, sio.r0 != srs_success) << c;
@@ -668,7 +1183,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
 
     // Enable it by publisher.
     if (true) {
-        SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPublishStream publish(&s);
+        SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPublishStream publish(&s, SrsContextId());
         SrsRtcAudioRecvTrack* audio; SrsRtcVideoRecvTrack *video;
 
         if (true) {

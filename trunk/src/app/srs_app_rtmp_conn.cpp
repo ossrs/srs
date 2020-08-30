@@ -121,6 +121,9 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port) : 
     send_min_interval = 0;
     tcp_nodelay = false;
     info = new SrsClientInfo();
+
+    publish_1stpkt_timeout = 0;
+    publish_normal_timeout = 0;
     
     _srs_config->subscribe(this);
 }
