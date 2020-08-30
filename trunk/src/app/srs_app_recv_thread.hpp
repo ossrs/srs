@@ -180,7 +180,7 @@ public:
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual srs_error_t error_code();
-    virtual void set_cid(std::string v);
+    virtual void set_cid(SrsContextId v);
     virtual SrsContextId get_cid();
 public:
     virtual srs_error_t start();

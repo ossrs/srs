@@ -27,11 +27,6 @@ _SrsContextId::_SrsContextId()
 {
 }
 
-_SrsContextId::_SrsContextId(std::string v)
-{
-    v_ = v;
-}
-
 _SrsContextId::_SrsContextId(const _SrsContextId& cp)
 {
     v_ = cp.v_;
@@ -55,6 +50,12 @@ const char* _SrsContextId::c_str() const
 bool _SrsContextId::empty() const
 {
     return v_.empty();
+}
+
+_SrsContextId& _SrsContextId::set_value(const std::string& v)
+{
+    v_ = v;
+    return *this;
 }
 
 int _SrsContextId::compare(const _SrsContextId& to) const
