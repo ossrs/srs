@@ -1382,19 +1382,34 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_TRUE(!ctx.set_id(SrsContextId("100")).compare(SrsContextId("100")));
-        EXPECT_TRUE(!ctx.set_id(SrsContextId("1000")).compare(SrsContextId("1000")));
-        EXPECT_TRUE(!ctx.get_id().compare(SrsContextId("1000")));
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("100")).compare(cid));
+        }
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("1000")).compare(cid));
+        }
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.get_id().compare(cid.set_value("1000")));
+        }
 
         ctx.clear_cid();
-        EXPECT_TRUE(!ctx.set_id(SrsContextId("100")).compare(SrsContextId("100")));
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("100")).compare(cid));
+        }
     }
+
+    SrsContextId cid;
+    cid.set_value("100");
 
     int base_size = 0;
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", SrsContextId("100"), "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", cid, "Trace", &size));
         base_size = size;
         EXPECT_TRUE(base_size > 0);
     }
@@ -1402,21 +1417,21 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", SrsContextId("100"), "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", cid, "Trace", &size));
         EXPECT_EQ(base_size, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, SrsContextId("100"), "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, cid, "Trace", &size));
         EXPECT_EQ(base_size - 5, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, SrsContextId("100"), "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, cid, "Trace", &size));
         EXPECT_EQ(base_size - 8, size);
     }
 

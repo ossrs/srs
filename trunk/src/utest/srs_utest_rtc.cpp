@@ -1183,7 +1183,7 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
 
     // Enable it by publisher.
     if (true) {
-        SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPublishStream publish(&s);
+        SrsRtcConnection s(NULL, SrsContextId()); SrsRtcPublishStream publish(&s, SrsContextId());
         SrsRtcAudioRecvTrack* audio; SrsRtcVideoRecvTrack *video;
 
         if (true) {
