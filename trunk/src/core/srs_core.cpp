@@ -52,14 +52,14 @@ bool _SrsContextId::empty() const
     return v_.empty();
 }
 
+int _SrsContextId::compare(const _SrsContextId& to) const
+{
+    return v_.compare(to.v_);
+}
+
 _SrsContextId& _SrsContextId::set_value(const std::string& v)
 {
     v_ = v;
     return *this;
-}
-
-int _SrsContextId::compare(const _SrsContextId& to) const
-{
-    return v_.compare(to.v_);
 }
 
