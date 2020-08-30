@@ -163,7 +163,8 @@ srs_error_t SrsGb28181SipSession::do_cycle()
         if (_register_status == SrsGb28181SipSessionRegisterOk &&
             _alive_status == SrsGb28181SipSessionAliveOk)
         {
-               
+            std::list<std::string> auto_play_list;
+           
             std::map<std::string, SrsGb28181Device*>::iterator it;
             for (it = _device_list.begin(); it != _device_list.end(); it++) {
                 SrsGb28181Device *device = it->second;
@@ -191,8 +192,15 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                 //offline or already invite device does not need to send invite
                 if (device->device_status != "ON" || 
                     device->invite_status != SrsGb28181SipSessionUnkonw) continue;
+                
+                auto_play_list.push_back(chid);
+            }//end for (it) 
 
-
+            //auto send sip invite and create stream chennal
+            while(auto_play_list.size() > 0){
+                std::string chid = auto_play_list.front();
+                auto_play_list.pop_front();
+        
                 SrsGb28181StreamChannel ch;
             
                 ch.set_channel_id(_session_id + "@" + chid);
@@ -226,7 +234,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
             
                 srs_trace("gb28181: %s clients device=%s send invite code=%d", 
                     _session_id.c_str(), chid.c_str(), code);
-            }//end for (it)
+            }//end while (auto_play_list.size())
         }//end if (config)
 
         if (_register_status == SrsGb28181SipSessionRegisterOk &&
@@ -911,7 +919,7 @@ srs_error_t SrsGb28181SipService::fetch_or_create_sip_session(SrsSipRequest *req
     if ((sess = fetch(req->sip_auth_id)) != NULL) {
         *sip_session = sess;
         return err;
-    }
+    }
     
     sess = new SrsGb28181SipSession(this, req);;
     if ((err = sess->serve()) != srs_success) {
