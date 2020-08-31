@@ -236,6 +236,8 @@ public:
     virtual srs_error_t on_cycle() = 0;
     // Callback the handler when got client.
     virtual srs_error_t on_accept_client(int max, int cur) = 0;
+    // Callback for logrotate.
+    virtual void on_logrotate() = 0;
 };
 
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.

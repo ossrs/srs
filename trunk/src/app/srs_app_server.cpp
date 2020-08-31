@@ -1104,6 +1104,11 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
+
+        if (handler) {
+            handler->on_logrotate();
+        }
+
         srs_warn("reopen log file, signo=%d", signo);
         return;
     }
