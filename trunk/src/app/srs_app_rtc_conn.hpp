@@ -283,6 +283,7 @@ private:
     bool nack_enabled_;
 private:
     bool request_keyframe_;
+    SrsErrorPithyPrint* pli_epp;
 private:
     SrsRequest* req;
     SrsRtcStream* source;
@@ -419,6 +420,8 @@ private:
     int nn_simulate_player_nack_drop;
     // Pithy print for address change, use port as error code.
     SrsErrorPithyPrint* pp_address_change;
+    // Pithy print for PLI request.
+    SrsErrorPithyPrint* pli_epp;
 public:
     SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id);
     virtual ~SrsRtcConnection();

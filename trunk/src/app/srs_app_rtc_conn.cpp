@@ -765,7 +765,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp)
                 uint32_t ssrc = get_video_publish_ssrc(rtcp->get_media_ssrc());
                 if (ssrc != 0) {
                     publisher->request_keyframe(ssrc);
-                    srs_trace("RTC request PLI");
+                    srs_info("RTC request PLI");
                 }
             }
 
@@ -812,6 +812,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId
     is_started = false;
     session_ = session;
     request_keyframe_ = false;
+    pli_epp = new SrsErrorPithyPrint();
 
     req = NULL;
     source = NULL;
@@ -837,6 +838,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
 
     // TODO: FIXME: Should remove and delete source.
 
+    srs_freep(pli_epp);
     srs_freep(req);
     srs_freep(timer_);
 }
@@ -1270,9 +1272,13 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
 // TODO: FIXME: Use async request PLI to prevent dup requests.
 void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
 {
-    SrsContextId scid = _srs_context->get_id();
-    SrsContextId pcid = session_->context_id();
-    srs_trace("RTC play=[%d][%s] SSRC=%u PLI from publish=[%d][%s]", ::getpid(), scid.c_str(), ssrc, ::getpid(), pcid.c_str());
+    uint32_t nn = 0;
+    if (pli_epp->can_print(ssrc, &nn)) {
+        SrsContextId scid = _srs_context->get_id();
+        SrsContextId pcid = session_->context_id();
+        srs_trace("RTC: Request PLI ssrc=%u, play=[%d][%s], publish=[%d][%s], count=%u/%u", ssrc, ::getpid(), scid.c_str(),
+            ::getpid(), pcid.c_str(), nn, pli_epp->nn_count);
+    }
 
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (video_track) {
@@ -1454,6 +1460,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
     twcc_id_ = 0;
     nn_simulate_player_nack_drop = 0;
     pp_address_change = new SrsErrorPithyPrint();
+    pli_epp = new SrsErrorPithyPrint();
 }
 
 SrsRtcConnection::~SrsRtcConnection()
@@ -1488,6 +1495,7 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(req);
     srs_freep(stat_);
     srs_freep(pp_address_change);
+    srs_freep(pli_epp);
 }
 
 SrsSdp* SrsRtcConnection::get_local_sdp()
@@ -2223,7 +2231,10 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
     stream.write_4bytes(ssrc);
     stream.write_4bytes(ssrc);
 
-    srs_trace("RTC PLI ssrc=%u", ssrc);
+    uint32_t nn = 0;
+    if (pli_epp->can_print(ssrc, &nn)) {
+        srs_trace("RTC: Request PLI ssrc=%u, count=%u/%u, bytes=%uB", ssrc, nn, pli_epp->nn_count, stream.pos());
+    }
 
     if (_srs_blackhole->blackhole) {
         _srs_blackhole->sendto(stream.data(), stream.pos());
