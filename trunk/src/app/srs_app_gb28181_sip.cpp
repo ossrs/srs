@@ -783,8 +783,6 @@ srs_error_t SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::st
 
 srs_error_t SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
 {
-    srs_error_t err = srs_success;
-
     srs_assert(req);
 
     SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);
@@ -919,7 +917,7 @@ srs_error_t SrsGb28181SipService::fetch_or_create_sip_session(SrsSipRequest *req
     if ((sess = fetch(req->sip_auth_id)) != NULL) {
         *sip_session = sess;
         return err;
-    }
+    }
     
     sess = new SrsGb28181SipSession(this, req);;
     if ((err = sess->serve()) != srs_success) {
