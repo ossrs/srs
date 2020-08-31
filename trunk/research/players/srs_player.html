@@ -38,8 +38,6 @@
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
                     <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
-                    <!--<li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>-->
-                    <!--<li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>-->
                     <!--li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
                     <li><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>
                     <li><a href="https://github.com/ossrs/srs">源码</a></li>
@@ -418,7 +416,7 @@
         var query = parse_query_string();
 
         // get the vhost and port to set the default url.
-        // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+        // for example: http://192.168.1.213/players/srs_player.html?port=1935&vhost=demo
         // url set to: rtmp://demo:1935/live/livestream
         srs_init_rtmp("#txt_url", "#main_modal");
 
@@ -626,17 +624,6 @@
                 url = $("#srs_publish_fw_sd").text();
                 $("#main_modal").modal({show: true, keyboard: false});
             });
-        }
-
-        var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=live&hls_autostart=true";
-        if (true) {
-            $("#srs_publish_hls").attr("href", jwplayer_url + "&stream=livestream");
-            $("#srs_publish_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
-            $("#srs_publish_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
-            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=forward/live&hls_autostart=true";
-            $("#srs_publish_fw_hls").attr("href", jwplayer_url + "&stream=livestream");
-            $("#srs_publish_fw_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
-            $("#srs_publish_fw_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
         }
 
         if (true) {

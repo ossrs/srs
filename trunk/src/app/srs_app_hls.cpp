@@ -200,6 +200,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     accept_floor_ts = 0;
     hls_ts_floor = false;
     max_td = 0;
+    writer = NULL;
     _sequence_no = 0;
     current = NULL;
     hls_keys = false;
@@ -214,6 +215,7 @@ SrsHlsMuxer::SrsHlsMuxer()
 
 SrsHlsMuxer::~SrsHlsMuxer()
 {
+    srs_freep(segments);
     srs_freep(current);
     srs_freep(req);
     srs_freep(async);
@@ -757,6 +759,10 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = dynamic_cast<SrsHlsSegment*>(segments->first());
+    if (first == NULL) {
+        return srs_error_new(ERROR_HLS_WRITE_FAILED, "segments cast");
+    }
+
     ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
     
     // #EXT-X-TARGETDURATION:4294967295\n

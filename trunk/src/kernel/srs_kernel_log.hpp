@@ -93,10 +93,10 @@ public:
     // @remark We do not set to current thread, user should do this.
     virtual SrsContextId generate_id() = 0;
     // Get the context id of current thread.
-    virtual SrsContextId get_id() = 0;
+    virtual const SrsContextId& get_id() = 0;
     // Set the context id of current thread.
-    // @return the previous context id.
-    virtual SrsContextId set_id(SrsContextId v) = 0;
+    // @return the current context id.
+    virtual const SrsContextId& set_id(const SrsContextId& v) = 0;
 };
 
 // @global User must provides a log object

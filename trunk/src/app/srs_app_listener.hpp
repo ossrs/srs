@@ -133,6 +133,7 @@ public:
     virtual srs_error_t cycle();
 };
 
+// TODO: FIXME: Rename it. Refine it for performance issue.
 class SrsUdpMuxSocket
 {
 private:
@@ -163,13 +164,14 @@ public:
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler
 {
-protected:
+private:
     srs_netfd_t lfd;
     SrsCoroutine* trd;
-protected:
+    SrsContextId cid;
+private:
     char* buf;
     int nb_buf;
-protected:
+private:
     ISrsUdpMuxHandler* handler;
     std::string ip;
     int port;

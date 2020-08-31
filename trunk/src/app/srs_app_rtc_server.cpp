@@ -23,6 +23,8 @@
 
 #include <srs_app_rtc_server.hpp>
 
+using namespace std;
+
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
@@ -40,30 +42,96 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
+#include <srs_protocol_utility.hpp>
+
+SrsRtcBlackhole::SrsRtcBlackhole()
+{
+    blackhole = false;
+    blackhole_addr = NULL;
+    blackhole_stfd = NULL;
+}
+
+SrsRtcBlackhole::~SrsRtcBlackhole()
+{
+    srs_close_stfd(blackhole_stfd);
+    srs_freep(blackhole_addr);
+}
+
+srs_error_t SrsRtcBlackhole::initialize()
+{
+    srs_error_t err = srs_success;
+
+    blackhole = _srs_config->get_rtc_server_black_hole();
+    if (!blackhole) {
+        return err;
+    }
+
+    string blackhole_ep = _srs_config->get_rtc_server_black_hole_addr();
+    if (blackhole_ep.empty()) {
+        blackhole = false;
+        srs_warn("disable black hole for no endpoint");
+        return err;
+    }
+
+    string host; int port;
+    srs_parse_hostport(blackhole_ep, host, port);
+
+    srs_freep(blackhole_addr);
+    blackhole_addr = new sockaddr_in();
+    blackhole_addr->sin_family = AF_INET;
+    blackhole_addr->sin_addr.s_addr = inet_addr(host.c_str());
+    blackhole_addr->sin_port = htons(port);
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    blackhole_stfd = srs_netfd_open_socket(fd);
+    srs_assert(blackhole_stfd);
+
+    srs_trace("RTC blackhole %s:%d, fd=%d", host.c_str(), port, fd);
+
+    return err;
+}
+
+void SrsRtcBlackhole::sendto(void* data, int len)
+{
+    if (!blackhole) {
+        return;
+    }
+
+    // For blackhole, we ignore any error.
+    srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
+}
+
+SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
 
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 
-using namespace std;
-
-static bool is_stun(const uint8_t* data, const int size)
+// TODO: Should support error response.
+// For STUN packet, 0x00 is binding request, 0x01 is binding success response.
+bool srs_is_stun(const uint8_t* data, size_t size)
 {
-    return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1);
+    return size > 0 && (data[0] == 0 || data[0] == 1);
 }
 
-static bool is_dtls(const uint8_t* data, size_t len)
+// change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+// @see https://tools.ietf.org/html/rfc2246#section-6.2.1
+bool srs_is_dtls(const uint8_t* data, size_t len)
 {
-      return (len >= 13 && (data[0] > 19 && data[0] < 64));
+    return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-static bool is_rtp_or_rtcp(const uint8_t* data, size_t len)
+// For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
+bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len)
 {
-      return (len >= 12 && (data[0] & 0xC0) == 0x80);
+    return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
-static bool is_rtcp(const uint8_t* data, size_t len)
+// For RTCP, PT is [128, 223] (or without marker [0, 95]).
+// Literally, RTCP starts from 64 not 0, so PT is [192, 223] (or without marker [64, 95]).
+// @note For RTP, the PT is [96, 127], or [224, 255] with marker.
+bool srs_is_rtcp(const uint8_t* data, size_t len)
 {
-    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 200 && data[1] <= 209);
+    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
 }
 
 static std::vector<std::string> get_candidate_ips()
@@ -136,9 +204,18 @@ ISrsRtcServerHandler::~ISrsRtcServerHandler()
 {
 }
 
+ISrsRtcServerHijacker::ISrsRtcServerHijacker()
+{
+}
+
+ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
+{
+}
+
 SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
+    hijacker = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -175,6 +252,10 @@ srs_error_t SrsRtcServer::initialize()
         return srs_error_wrap(err, "start timer");
     }
 
+    if ((err = _srs_blackhole->initialize()) != srs_success) {
+        return srs_error_wrap(err, "black hole");
+    }
+
     srs_trace("RTC server init ok");
 
     return err;
@@ -183,6 +264,11 @@ srs_error_t SrsRtcServer::initialize()
 void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 {
     handler = h;
+}
+
+void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
+{
+    hijacker = h;
 }
 
 srs_error_t SrsRtcServer::listen_udp()
@@ -221,54 +307,76 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 {
     srs_error_t err = srs_success;
 
+    string peer_id = skt->peer_id();
     char* data = skt->data(); int size = skt->size();
-    SrsRtcConnection* session = find_session_by_peer_id(skt->peer_id());
 
-    if (session) {
-        // Now, we got the RTC session to handle the packet, switch to its context
-        // to make all logs write to the "correct" pid+cid.
-        session->switch_to_context();
-    }
+    SrsRtcConnection* session = NULL;
+    if (true) {
+        map<string, SrsRtcConnection*>::iterator it = map_id_session.find(peer_id);
+        if (it != map_id_session.end()) {
+            session = it->second;
 
-    // For STUN, the peer address may change.
-    if (is_stun((uint8_t*)data, size)) {
-        SrsStunPacket ping;
-        if ((err = ping.decode(data, size)) != srs_success) {
-            return srs_error_wrap(err, "decode stun packet failed");
-        }
-        srs_verbose("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            skt->peer_id().c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
-
-        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
-        if (!session) {
-            session = find_session_by_username(ping.get_username());
+            // Switch to the session to write logs to the context.
             if (session) {
                 session->switch_to_context();
             }
         }
-        if (session == NULL) {
-            return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
-                ping.get_username().c_str(), skt->peer_id().c_str());
+    }
+
+    // Notify hijack to handle the UDP packet.
+    if (hijacker) {
+        bool consumed = false;
+        if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
+            return srs_error_wrap(err, "hijack consumed=%u", consumed);
+        }
+
+        if (consumed) {
+            return err;
+        }
+    }
+
+    // For STUN, the peer address may change.
+    if (srs_is_stun((uint8_t*)data, size)) {
+        SrsStunPacket ping;
+        if ((err = ping.decode(data, size)) != srs_success) {
+            return srs_error_wrap(err, "decode stun packet failed");
+        }
+        srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
+            peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
+
+        if (!session) {
+            session = find_session_by_username(ping.get_username());
+
+            // Switch to the session to write logs to the context.
+            if (session) {
+                session->switch_to_context();
+            }
+        }
+
+        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
+        if (!session) {
+            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s",
+                ping.get_username().c_str(), peer_id.c_str());
         }
 
         return session->on_stun(skt, &ping);
     }
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
-    if (session == NULL) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", skt->peer_id().c_str());
+    if (!session) {
+        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s", peer_id.c_str());
     }
 
-    if (is_dtls((uint8_t*)data, size)) {
+    if (srs_is_dtls((uint8_t*)data, size)) {
         return session->on_dtls(data, size);
-    } else if (is_rtp_or_rtcp((uint8_t*)data, size)) {
-        if (is_rtcp((uint8_t*)data, size)) {
+    } else if (srs_is_rtp_or_rtcp((uint8_t*)data, size)) {
+        if (srs_is_rtcp((uint8_t*)data, size)) {
             return session->on_rtcp(data, size);
         }
         return session->on_rtp(data, size);
     }
 
-    return srs_error_new(ERROR_RTC_UDP, "unknown udp packet type");
+    return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
 srs_error_t SrsRtcServer::listen_api()
@@ -296,20 +404,55 @@ srs_error_t SrsRtcServer::listen_api()
 }
 
 srs_error_t SrsRtcServer::create_session(
-    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp,
     SrsRtcConnection** psession
 ) {
     srs_error_t err = srs_success;
+
+    SrsContextId cid = _srs_context->get_id();
 
     SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
-    // TODO: FIXME: Refine the API for stream status manage.
-    if (publish && !source->can_publish(false)) {
+    if (publish && !source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
+
+    // TODO: FIXME: add do_create_session to error process.
+    SrsRtcConnection* session = new SrsRtcConnection(this, cid);
+    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, dtls, srtp)) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "create session");
+    }
+
+    *psession = session;
+
+    return err;
+}
+
+srs_error_t SrsRtcServer::do_create_session(
+    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp
+)
+{
+    srs_error_t err = srs_success;
+
+    // first add publisher/player for negotiate sdp media info
+    if (publish) {
+        if ((err = session->add_publisher(req, remote_sdp, local_sdp)) != srs_success) {
+            return srs_error_wrap(err, "add publisher");
+        }
+    } else {
+        if ((err = session->add_player(req, remote_sdp, local_sdp)) != srs_success) {
+            return srs_error_wrap(err, "add player");
+        }
+    }
+
+    // All tracks default as inactive, so we must enable them.
+    session->set_all_tracks_status(req->get_stream_url(), publish, true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
@@ -332,52 +475,78 @@ srs_error_t SrsRtcServer::create_session(
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
         local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
+        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
             local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
         }
+        srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
-    SrsRtcConnection* session = new SrsRtcConnection(this);
+    if (remote_sdp.get_dtls_role() == "active") {
+        local_sdp.set_dtls_role("passive");
+    } else if (remote_sdp.get_dtls_role() == "passive") {
+        local_sdp.set_dtls_role("active");
+    } else if (remote_sdp.get_dtls_role() == "actpass") {
+        local_sdp.set_dtls_role(local_sdp.session_config_.dtls_role);
+    } else {
+        // @see: https://tools.ietf.org/html/rfc4145#section-4.1
+        // The default value of the setup attribute in an offer/answer exchange
+        // is 'active' in the offer and 'passive' in the answer.
+        local_sdp.set_dtls_role("passive");
+    }
+
     session->set_remote_sdp(remote_sdp);
     // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);
     session->set_state(WAITING_STUN);
 
-    SrsContextId cid = _srs_context->get_id();
     // Before session initialize, we must setup the local SDP.
-    if ((err = session->initialize(source, req, publish, username, cid)) != srs_success) {
-        srs_freep(session);
+    if ((err = session->initialize(req, dtls, srtp, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
-    *psession = session;
 
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsSdp& local_sdp, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession)
 {
     srs_error_t err = srs_success;
+
+    SrsContextId cid = _srs_context->get_id();
 
     std::string local_pwd = srs_random_str(32);
     // TODO: FIXME: Collision detect.
     std::string local_ufrag = srs_random_str(8);
 
-    SrsRtcConnection* session = new SrsRtcConnection(this);
+    SrsRtcConnection* session = new SrsRtcConnection(this, cid);
+    // first add player for negotiate local sdp media info
+    if ((err = session->add_player2(req, unified_plan, local_sdp)) != srs_success) {
+        srs_freep(session);
+        return srs_error_wrap(err, "add player2");
+    }
     *psession = session;
 
+    local_sdp.set_dtls_role("actpass");
     local_sdp.set_ice_ufrag(local_ufrag);
     local_sdp.set_ice_pwd(local_pwd);
     local_sdp.set_fingerprint_algo("sha-256");
     local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
 
     // We allows to mock the eip of server.
-    std::vector<string> candidate_ips = get_candidate_ips();
-    for (int i = 0; i < (int)candidate_ips.size(); ++i) {
-        local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+    if (!mock_eip.empty()) {
+        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
+        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+    } else {
+        std::vector<string> candidate_ips = get_candidate_ips();
+        for (int i = 0; i < (int)candidate_ips.size(); ++i) {
+            local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+        }
+        srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
     session->set_local_sdp(local_sdp);
@@ -394,19 +563,14 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
         return err;
     }
 
-    SrsRtcStream* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "create source");
-    }
-
     // TODO: FIXME: Collision detect.
     string username = session->get_local_sdp()->get_ice_ufrag() + ":" + remote_sdp.get_ice_ufrag();
 
-    SrsContextId cid = _srs_context->get_id();
-    if ((err = session->initialize(source, req, false, username, cid)) != srs_success) {
+    if ((err = session->initialize(req, true, true, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
 
     session->set_remote_sdp(remote_sdp);
@@ -424,13 +588,21 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 
     std::map<std::string, SrsRtcConnection*>::iterator it;
 
-    if ((it = map_username_session.find(session->username())) != map_username_session.end()) {
+    // We allows username is optional.
+    string username = session->username();
+    if (!username.empty() && (it = map_username_session.find(username)) != map_username_session.end()) {
         map_username_session.erase(it);
     }
 
-    if ((it = map_id_session.find(session->peer_id())) != map_id_session.end()) {
-        map_id_session.erase(it);
+    vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
+    for (int i = 0; i < (int)addresses.size(); i++) {
+        SrsUdpMuxSocket* addr = addresses.at(i);
+        map_id_session.erase(addr->peer_id());
     }
+
+    SrsContextRestore(_srs_context->get_id());
+    session->switch_to_context();
+    srs_trace("RTC: session destroy, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
 
     zombies_.push_back(session);
 }
@@ -455,34 +627,24 @@ void SrsRtcServer::check_and_clean_timeout_session()
         // Now, we got the RTC session to cleanup, switch to its context
         // to make all logs write to the "correct" pid+cid.
         session->switch_to_context();
-        srs_trace("rtc session=%s, STUN timeout", session->id().c_str());
+        srs_trace("RTC: session STUN timeout, summary: %s", session->stat_->summary().c_str());
 
         session->disposing_ = true;
         zombies_.push_back(session);
 
         // Use C++98 style: https://stackoverflow.com/a/4636230
         map_username_session.erase(iter++);
-        map_id_session.erase(session->peer_id());
+
+        vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
+        for (int i = 0; i < (int)addresses.size(); i++) {
+            SrsUdpMuxSocket* addr = addresses.at(i);
+            map_id_session.erase(addr->peer_id());
+        }
 
         if (handler) {
             handler->on_timeout(session);
         }
     }
-}
-
-int SrsRtcServer::nn_sessions()
-{
-    return (int)map_username_session.size();
-}
-
-SrsRtcConnection* SrsRtcServer::find_session_by_peer_id(const string& peer_id)
-{
-    map<string, SrsRtcConnection*>::iterator iter = map_id_session.find(peer_id);
-    if (iter == map_id_session.end()) {
-        return NULL;
-    }
-
-    return iter->second;
 }
 
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)

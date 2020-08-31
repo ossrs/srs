@@ -380,7 +380,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* s)
     
     server = s;
     sig_pipe[0] = sig_pipe[1] = -1;
-    trd = new SrsSTCoroutine("signal", this);
+    trd = new SrsSTCoroutine("signal", this, _srs_context->get_id());
     signal_read_stfd = NULL;
 }
 
@@ -539,7 +539,7 @@ srs_error_t SrsInotifyWorker::start()
     }
 
     if (((err = srs_fd_closeexec(fd))) != srs_success) {
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
+        return srs_error_wrap(err, "closeexec fd=%d", fd);
     }
 
     // /* the following are legal, implemented events that user-space can watch for */
@@ -877,7 +877,7 @@ srs_error_t SrsServer::acquire_pid_file()
     // write the pid
     string pid = srs_int2str(getpid());
     if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
-        return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%d to file=%s", pid.c_str(), pid_file.c_str());
+        return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%s to file=%s", pid.c_str(), pid_file.c_str());
     }
     
     // auto close when fork child process.

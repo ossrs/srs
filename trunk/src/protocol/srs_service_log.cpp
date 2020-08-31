@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
-#define SRS_BASIC_LOG_SIZE 1024
+#define SRS_BASIC_LOG_SIZE 8192
 
 SrsThreadContext::SrsThreadContext()
 {
@@ -45,26 +45,26 @@ SrsThreadContext::~SrsThreadContext()
 
 SrsContextId SrsThreadContext::generate_id()
 {
-    SrsContextId cid = SrsContextId(srs_random_str(8));
-    return cid;
+    SrsContextId cid = SrsContextId();
+    return cid.set_value(srs_random_str(8));
 }
 
-SrsContextId SrsThreadContext::get_id()
+const SrsContextId& SrsThreadContext::get_id()
 {
     return cache[srs_thread_self()];
 }
 
-SrsContextId SrsThreadContext::set_id(SrsContextId v)
+const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
 {
     srs_thread_t self = srs_thread_self();
-    
-    SrsContextId ov;
-    if (cache.find(self) != cache.end()) {
-        ov = cache[self];
+
+    if (cache.find(self) == cache.end()) {
+        cache[self] = v;
+        return v;
     }
-    
+
+    const SrsContextId& ov = cache[self];
     cache[self] = v;
-    
     return ov;
 }
 
@@ -75,6 +75,16 @@ void SrsThreadContext::clear_cid()
     if (it != cache.end()) {
         cache.erase(it);
     }
+}
+
+impl_SrsContextRestore::impl_SrsContextRestore(SrsContextId cid)
+{
+    cid_ = cid;
+}
+
+impl_SrsContextRestore::~impl_SrsContextRestore()
+{
+    _srs_context->set_id(cid_);
 }
 
 // LCOV_EXCL_START

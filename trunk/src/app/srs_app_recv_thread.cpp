@@ -340,7 +340,7 @@ srs_error_t SrsPublishRecvThread::error_code()
     return srs_error_copy(recv_error);
 }
 
-void SrsPublishRecvThread::set_cid(std::string v)
+void SrsPublishRecvThread::set_cid(SrsContextId v)
 {
     ncid = v;
 }

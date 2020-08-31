@@ -1761,7 +1761,7 @@ namespace _srs_internal
         
         // data
         if (!stream->require((int)value.length())) {
-            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires %d only %d bytes", value.length(), stream->left());
+            return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires %" PRIu64 " only %d bytes", value.length(), stream->left());
         }
         stream->write_string(value);
         

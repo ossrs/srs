@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://gitee.com/winlinvip/codes/rpn0c2ewbomj81augzk4y59
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.20
+ * v 1.0.21
  */
 
 /**
@@ -339,7 +339,7 @@ function parse_rtmp_url(rtmp_url) {
         } else if (schema === 'rtmp') {
             port = 1935;
         } else if (schema === 'webrtc' || schema === 'rtc') {
-            port = 1985;
+            port = (window.location.href.indexOf('https://')==0)? 443:1985;
         }
     }
 

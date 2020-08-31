@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 using namespace std;
@@ -43,7 +44,7 @@ srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
 ISrsContext* _srs_context = new SrsThreadContext();
 // app module.
-SrsConfig* _srs_config = NULL;
+SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
 
@@ -55,6 +56,10 @@ srs_error_t prepare_main() {
 
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "init st");
+    }
+
+    if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc dtls certificate initialize");
     }
 
     srs_freep(_srs_context);

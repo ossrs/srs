@@ -382,3 +382,21 @@ string srs_get_original_ip(ISrsHttpMessage* r)
     return "";
 }
 
+
+std::string _srs_system_hostname;
+
+string srs_get_system_hostname()
+{
+    if (!_srs_system_hostname.empty()) {
+        return _srs_system_hostname;
+    }
+
+    char buf[256];
+    if (-1 == gethostname(buf, sizeof(buf))) {
+        srs_warn("gethostbyname fail");
+        return "";
+    }
+
+    _srs_system_hostname = std::string(buf);
+    return _srs_system_hostname;
+}

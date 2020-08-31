@@ -29,12 +29,13 @@ using namespace std;
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
 // TODO: FIXME: Maybe we should use json.encode to escape it?
-const std::string kCRLF = "\\r\\n";
+const std::string kCRLF = "\r\n";
 
 #define FETCH(is,word) \
 if (!(is >> word)) {\
@@ -46,7 +47,7 @@ if (!getline(is,word,delim)) {\
     return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed");\
 }\
 
-static std::vector<std::string> split_str(const std::string& str, const std::string& delim)
+std::vector<std::string> split_str(const std::string& str, const std::string& delim)
 {
     std::vector<std::string> ret;
     size_t pre_pos = 0;
@@ -176,6 +177,16 @@ SrsSSRCInfo::SrsSSRCInfo()
     ssrc_ = 0;
 }
 
+SrsSSRCInfo::SrsSSRCInfo(uint32_t ssrc, std::string cname, std::string stream_id, std::string track_id)
+{
+    ssrc_ = ssrc;
+    cname_ = cname;
+    msid_ = stream_id;
+    msid_tracker_ = track_id;
+    mslabel_ = msid_;
+    label_ = msid_tracker_;
+}
+
 SrsSSRCInfo::~SrsSSRCInfo()
 {
 }
@@ -243,6 +254,7 @@ srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
 SrsMediaPayloadType::SrsMediaPayloadType(int payload_type)
 {
     payload_type_ = payload_type;
+    clock_rate_ = 0;
 }
 
 SrsMediaPayloadType::~SrsMediaPayloadType()
@@ -277,7 +289,9 @@ SrsMediaDesc::SrsMediaDesc(const std::string& type)
 {
     type_ = type;
 
+    port_ = 0;
     rtcp_mux_ = false;
+    rtcp_rsize_ = false;
 
     sendrecv_ = false;
     recvonly_ = false;
@@ -304,8 +318,13 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
 {
     std::vector<SrsMediaPayloadType> payloads;
 
+    std::string lower_name(encoding_name), upper_name(encoding_name);
+    transform(encoding_name.begin(), encoding_name.end(), lower_name.begin(), ::tolower);
+    transform(encoding_name.begin(), encoding_name.end(), upper_name.begin(), ::toupper);
+
     for (size_t i = 0; i < payload_types_.size(); ++i) {
-        if (payload_types_[i].encoding_name_ == encoding_name) {
+        if (payload_types_[i].encoding_name_ == std::string(lower_name.c_str()) ||
+            payload_types_[i].encoding_name_ == std::string(upper_name.c_str())) {
             payloads.push_back(payload_types_[i]);
         }
     }
@@ -802,6 +821,13 @@ void SrsSdp::set_ice_pwd(const std::string& pwd)
     }
 }
 
+void SrsSdp::set_dtls_role(const std::string& dtls_role)
+{
+    for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        iter->session_info_.setup_ = dtls_role;
+    }
+}
+
 void SrsSdp::set_fingerprint_algo(const std::string& algo)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
@@ -844,6 +870,16 @@ std::string SrsSdp::get_ice_pwd() const
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         return iter->session_info_.ice_pwd_;
+    }
+
+    return "";
+}
+
+std::string SrsSdp::get_dtls_role() const
+{
+    // Becaues we use BUNDLE, so we can choose the first element.
+    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        return iter->session_info_.setup_;
     }
 
     return "";
@@ -1029,3 +1065,10 @@ srs_error_t SrsSdp::parse_media_description(const std::string& content)
 
     return err;
 }
+
+bool SrsSdp::is_unified() const
+{
+    // TODO: FIXME: Maybe we should consider other situations.
+    return media_descs_.size() > 2;
+}
+

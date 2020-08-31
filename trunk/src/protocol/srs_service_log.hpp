@@ -43,10 +43,23 @@ public:
     virtual ~SrsThreadContext();
 public:
     virtual SrsContextId generate_id();
-    virtual SrsContextId get_id();
-    virtual SrsContextId set_id(SrsContextId v);
+    virtual const SrsContextId& get_id();
+    virtual const SrsContextId& set_id(const SrsContextId& v);
 public:
     virtual void clear_cid();
+};
+
+// The context restore stores the context and restore it when done.
+// Usage:
+//      SrsContextRestore(_srs_context->get_id());
+#define SrsContextRestore(cid) impl_SrsContextRestore _context_restore_instance(cid)
+class impl_SrsContextRestore
+{
+private:
+    SrsContextId cid_;
+public:
+    impl_SrsContextRestore(SrsContextId cid);
+    virtual ~impl_SrsContextRestore();
 };
 
 // The basic console log, which write log to console.

@@ -1699,7 +1699,10 @@ void SrsHttpApi::remark(int64_t* in, int64_t* out)
 srs_error_t SrsHttpApi::do_cycle()
 {
     srs_error_t err = srs_success;
-    
+
+    // Create context for API.
+    _srs_context->set_id(_srs_context->generate_id());
+
     srs_trace("API server client, ip=%s:%d", ip.c_str(), port);
     
     // initialize parser

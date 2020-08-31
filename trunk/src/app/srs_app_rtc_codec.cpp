@@ -170,6 +170,7 @@ srs_error_t SrsAudioEncoder::initialize()
 
     case 24000:
         opus_encoder_ctl(opus_, OPUS_SET_MAX_BANDWIDTH(OPUS_BANDWIDTH_SUPERWIDEBAND));
+        break;
 
     case 16000:
         opus_encoder_ctl(opus_, OPUS_SET_MAX_BANDWIDTH(OPUS_BANDWIDTH_WIDEBAND));
@@ -343,6 +344,10 @@ SrsAudioRecode::SrsAudioRecode(int channels, int samplerate)
 {
     size_ = 0;
     data_ = new char[kPcmBufMax];
+
+    dec_ = NULL;
+    enc_ = NULL;
+    resample_ = NULL;
 }
 
 SrsAudioRecode::~SrsAudioRecode()
@@ -395,7 +400,7 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
     int decode_len = kPacketBufMax;
     static char decode_buffer[kPacketBufMax];
     if ((err = dec_->decode(pkt, decode_buffer, decode_len)) != srs_success) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "decode error");
+        return srs_error_wrap(err, "decode error");
     }
 
     if (!resample_) {
@@ -419,7 +424,7 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
     int resample_len = kFrameBufMax;
     static char resample_buffer[kFrameBufMax];
     if ((err = resample_->resample(&pcm, resample_buffer, resample_len)) != srs_success) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "resample error");
+        return srs_error_wrap(err, "resample error");
     }
 
     n = 0;
@@ -446,7 +451,7 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
             pcm.size = size_;
             static char encode_buffer[kPacketBufMax];
             if ((err = enc_->encode(&pcm, encode_buffer, encode_len)) != srs_success) {
-                return srs_error_new(ERROR_RTC_RTP_MUXER, "encode error");
+                return srs_error_wrap(err, "encode error");
             }
 
             memcpy(buf[n], encode_buffer, encode_len);

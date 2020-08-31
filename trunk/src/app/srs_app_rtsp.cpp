@@ -193,6 +193,11 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o)
     skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
     trd = new SrsSTCoroutine("rtsp", this);
+
+    audio_id = 0;
+    video_id = 0;
+    audio_sample_rate = 0;
+    audio_channel = 0;
     
     req = NULL;
     sdk = NULL;
@@ -223,6 +228,9 @@ SrsRtspConn::~SrsRtspConn()
     
     srs_freep(vjitter);
     srs_freep(ajitter);
+
+    srs_freep(avc);
+    srs_freep(aac);
     srs_freep(acodec);
     srs_freep(acache);
 }

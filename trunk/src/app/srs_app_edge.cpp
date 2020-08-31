@@ -65,6 +65,7 @@ SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream(string r)
 {
     redirect = r;
     sdk = NULL;
+    selected_port = 0;
 }
 
 SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
@@ -440,6 +441,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     edge = NULL;
     req = NULL;
     send_error_code = ERROR_SUCCESS;
+    source = NULL;
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();

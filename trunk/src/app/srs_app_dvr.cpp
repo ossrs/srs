@@ -48,6 +48,7 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     req = NULL;
     jitter = NULL;
     plan = NULL;
+    wait_keyframe = true;
     
     fragment = new SrsFragment();
     fs = new SrsFileWriter();
@@ -585,6 +586,7 @@ string SrsDvrAsyncCallOnDvr::to_string()
 SrsDvrPlan::SrsDvrPlan()
 {
     req = NULL;
+    hub = NULL;
     
     dvr_enabled = false;
     segment = NULL;

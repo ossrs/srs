@@ -46,6 +46,7 @@
 #define RTMP_SIG_SRS_AUTHORS "Winlin,Wenjie,Runner365,John,B.P.Y,Lixin"
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR) "." SRS_XSTR(VERSION_MINOR) "." SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY "/" RTMP_SIG_SRS_VERSION "(" RTMP_SIG_SRS_CODE ")"
+#define RTMP_SIG_SRS_DOMAIN "ossrs.net"
 
 // The current stable release.
 #define VERSION_STABLE 3
@@ -123,7 +124,6 @@ private:
     std::string v_;
 public:
     _SrsContextId();
-    _SrsContextId(std::string v);
     _SrsContextId(const _SrsContextId& cp);
     _SrsContextId& operator=(const _SrsContextId& cp);
     virtual ~_SrsContextId();
@@ -135,6 +135,8 @@ public:
     //      <0	Either the value of the first character that does not match is lower in the compared string, or all compared characters match but the compared string is shorter.
     //      >0	Either the value of the first character that does not match is greater in the compared string, or all compared characters match but the compared string is longer.
     int compare(const _SrsContextId& to) const;
+    // Set the value of context id.
+    _SrsContextId& set_value(const std::string& v);
 };
 typedef _SrsContextId SrsContextId;
 #else
