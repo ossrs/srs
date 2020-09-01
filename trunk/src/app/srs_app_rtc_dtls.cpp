@@ -54,6 +54,39 @@ int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
+// Print the information of SSL, DTLS alert as such.
+void ssl_on_info(const SSL* dtls, int where, int ret)
+{
+    const char* what;
+    int w = where& ~SSL_ST_MASK;
+    if (w & SSL_ST_CONNECT) {
+        what = "SSL_connect";
+    } else if (w & SSL_ST_ACCEPT) {
+        what = "SSL_accept";
+    } else {
+        what = "undefined";
+    }
+
+    int r1 = SSL_get_error(dtls, ret);
+    if (where & SSL_CB_LOOP) {
+        srs_info("DTLS: %s:%s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+    } else if (where & SSL_CB_ALERT) {
+        what = (where & SSL_CB_READ)?"read":"write";
+        srs_error("DTLS: SSL3 alert %s:%s:%s, where=%d, ret=%d, r1=%d", what, SSL_alert_type_string_long(ret),
+            SSL_alert_desc_string_long(ret), where, ret, r1);
+    } else if (where & SSL_CB_EXIT) {
+        if (ret == 0) {
+            srs_warn("DTLS: %s:failed as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+        } else if (ret < 0) {
+            if (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE) {
+                srs_error("DTLS: %s:error as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+            } else {
+                srs_info("DTLS: %s:error as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+            }
+        }
+    }
+}
+
 SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version)
 {
     SSL_CTX* dtls_ctx;
@@ -361,6 +394,9 @@ srs_error_t SrsDtlsImpl::initialize(std::string version)
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
     }
+
+    SSL_set_ex_data(dtls, 0, this);
+    SSL_set_info_callback(dtls, ssl_on_info);
 
     if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
         return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
