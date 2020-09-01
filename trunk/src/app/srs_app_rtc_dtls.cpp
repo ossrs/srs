@@ -57,31 +57,45 @@ int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 // Print the information of SSL, DTLS alert as such.
 void ssl_on_info(const SSL* dtls, int where, int ret)
 {
-    const char* what;
+    const char* method;
     int w = where& ~SSL_ST_MASK;
     if (w & SSL_ST_CONNECT) {
-        what = "SSL_connect";
+        method = "SSL_connect";
     } else if (w & SSL_ST_ACCEPT) {
-        what = "SSL_accept";
+        method = "SSL_accept";
     } else {
-        what = "undefined";
+        method = "undefined";
     }
 
     int r1 = SSL_get_error(dtls, ret);
     if (where & SSL_CB_LOOP) {
-        srs_info("DTLS: %s:%s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+        srs_info("DTLS: method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
+            SSL_state_string_long(dtls), where, ret, r1);
     } else if (where & SSL_CB_ALERT) {
-        what = (where & SSL_CB_READ)?"read":"write";
-        srs_error("DTLS: SSL3 alert %s:%s:%s, where=%d, ret=%d, r1=%d", what, SSL_alert_type_string_long(ret),
-            SSL_alert_desc_string_long(ret), where, ret, r1);
+        method = (where & SSL_CB_READ) ? "read":"write";
+
+        // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_alert_type_string_long.html
+        string alert_type = SSL_alert_type_string_long(ret);
+        string alert_desc = SSL_alert_desc_string(ret);
+
+        if (alert_type == "warning" && alert_desc == "CN") {
+            srs_warn("DTLS: SSL3 alert method=%s type=%s, desc=%s(%s), where=%d, ret=%d, r1=%d", method, alert_type.c_str(),
+                alert_desc.c_str(), SSL_alert_desc_string_long(ret), where, ret, r1);
+        } else {
+            srs_error("DTLS: SSL3 alert method=%s type=%s, desc=%s(%s), where=%d, ret=%d, r1=%d", method, alert_type.c_str(),
+                alert_desc.c_str(), SSL_alert_desc_string_long(ret), where, ret, r1);
+        }
     } else if (where & SSL_CB_EXIT) {
         if (ret == 0) {
-            srs_warn("DTLS: %s:failed as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+            srs_warn("DTLS: Fail method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
+                SSL_state_string_long(dtls), where, ret, r1);
         } else if (ret < 0) {
             if (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE) {
-                srs_error("DTLS: %s:error as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+                srs_error("DTLS: Error method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
+                    SSL_state_string_long(dtls), where, ret, r1);
             } else {
-                srs_info("DTLS: %s:error as %s, where=%d, ret=%d, r1=%d", what, SSL_state_string_long(dtls), where, ret, r1);
+                srs_info("DTLS: Error method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
+                    SSL_state_string_long(dtls), where, ret, r1);
             }
         }
     }
