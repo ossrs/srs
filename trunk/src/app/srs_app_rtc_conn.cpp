@@ -2078,46 +2078,29 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks)
 {
-    // @see: https://tools.ietf.org/html/rfc4585#section-6.1
-    vector<uint16_t> nack_seqs;
-    nack->get_nack_seqs(nack_seqs);
+    SrsRtcpNack rtcpNack(ssrc);
 
-    vector<uint16_t>::iterator iter = nack_seqs.begin();
-    while (iter != nack_seqs.end()) {
-        char buf[kRtpPacketSize];
-        SrsBuffer stream(buf, sizeof(buf));
-        // FIXME: Replace magic number.
-        stream.write_1bytes(0x81);
-        stream.write_1bytes(kRtpFb);
-        stream.write_2bytes(3);
-        stream.write_4bytes(ssrc); // TODO: FIXME: Should be 1?
-        stream.write_4bytes(ssrc); // TODO: FIXME: Should be 0?
-        uint16_t pid = *iter;
-        uint16_t blp = 0;
-        while (iter + 1 != nack_seqs.end() && (*(iter + 1) - pid <= 15)) {
-            blp |= (1 << (*(iter + 1) - pid - 1));
-            ++iter;
-        }
+    rtcpNack.set_media_ssrc(ssrc);
+    nack->get_nack_seqs(rtcpNack);
 
-        stream.write_2bytes(pid);
-        stream.write_2bytes(blp);
-
-        if (_srs_blackhole->blackhole) {
-            _srs_blackhole->sendto(stream.data(), stream.pos());
-        }
-
-        char protected_buf[kRtpPacketSize];
-        int nb_protected_buf = stream.pos();
-
-        // FIXME: Merge nack rtcp into one packets.
-        if (transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf) == srs_success) {
-            // TODO: FIXME: Check error.
-            sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
-        }
-
-        ++iter;
-        ++sent_nacks;
+    sent_nacks = rtcpNack.get_lost_sns().size();
+    if(!sent_nacks){
+        return;
     }
+
+    char buf[kRtcpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+
+    // TODO: FIXME: Check error.
+    rtcpNack.encode(&stream);
+
+    // TODO: FIXME: Check error.
+    char protected_buf[kRtpPacketSize];
+    int nb_protected_buf = stream.pos();
+    transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf);
+
+    // TODO: FIXME: Check error.
+    sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
