@@ -516,6 +516,8 @@ class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
 {
 private:
     bool request_key_frame_;
+    // The player(subscriber) cid, which requires PLI.
+    SrsContextId cid_of_subscriber_;
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();

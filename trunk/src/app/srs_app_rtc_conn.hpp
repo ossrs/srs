@@ -211,7 +211,7 @@ public:
 class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler, virtual public ISrsHourGlass
 {
 private:
-    SrsContextId _parent_cid;
+    SrsContextId cid_;
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
 private:
@@ -235,7 +235,7 @@ private:
     // The statistic for consumer to send packets to player.
     SrsRtcPlayStreamStatistic info;
 public:
-    SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid);
+    SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid);
     virtual ~SrsRtcPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
@@ -243,8 +243,7 @@ public:
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
     virtual srs_error_t on_reload_vhost_realtime(std::string vhost);
-public:
-    virtual SrsContextId cid();
+    virtual const SrsContextId& context_id();
 public:
     virtual srs_error_t start();
     virtual void stop();
@@ -273,7 +272,7 @@ private:
 class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
 {
 private:
-    SrsContextId parent_cid_;
+    SrsContextId cid_;
     SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
 private:
@@ -300,13 +299,14 @@ private:
     SrsRtpExtensionTypes extension_types_;
     bool is_started;
 public:
-    SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId parent_cid);
+    SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid);
     virtual ~SrsRtcPublishStream();
 public:
     srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
     srs_error_t start();
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
+    virtual const SrsContextId& context_id();
 private:
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
@@ -408,7 +408,7 @@ private:
     srs_utime_t last_stun_time;
 private:
     // For each RTC session, we use a specified cid for debugging logs.
-    SrsContextId cid;
+    SrsContextId cid_;
     // TODO: FIXME: Rename to req_.
     SrsRequest* req;
     SrsSdp remote_sdp;
@@ -423,7 +423,7 @@ private:
     // Pithy print for PLI request.
     SrsErrorPithyPrint* pli_epp;
 public:
-    SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id);
+    SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
 public:
     // TODO: FIXME: save only connection info.
@@ -440,7 +440,7 @@ public:
     std::vector<SrsUdpMuxSocket*> peer_addresses();
 public:
     void switch_to_context();
-    SrsContextId context_id();
+    const SrsContextId& context_id();
 public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
@@ -477,7 +477,7 @@ public:
     void check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks);
     srs_error_t send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp);
     srs_error_t send_rtcp_xr_rrtr(uint32_t ssrc);
-    srs_error_t send_rtcp_fb_pli(uint32_t ssrc);
+    srs_error_t send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber);
 public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);

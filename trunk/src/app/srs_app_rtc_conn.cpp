@@ -295,9 +295,9 @@ SrsRtcPlayStreamStatistic::~SrsRtcPlayStreamStatistic()
 {
 }
 
-SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
+SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 {
-    _parent_cid = parent_cid;
+    cid_ = cid;
     trd = new SrsDummyCoroutine();
 
     req_ = NULL;
@@ -394,9 +394,9 @@ srs_error_t SrsRtcPlayStream::on_reload_vhost_realtime(string vhost)
     return on_reload_vhost_play(vhost);
 }
 
-SrsContextId SrsRtcPlayStream::cid()
+const SrsContextId& SrsRtcPlayStream::context_id()
 {
-    return trd->cid();
+    return cid_;
 }
 
 srs_error_t SrsRtcPlayStream::start()
@@ -411,7 +411,7 @@ srs_error_t SrsRtcPlayStream::start()
     }
 
     srs_freep(trd);
-    trd = new SrsSTCoroutine("rtc_sender", this, _parent_cid);
+    trd = new SrsSTCoroutine("rtc_sender", this, cid_);
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "rtc_sender");
@@ -804,11 +804,11 @@ uint32_t SrsRtcPlayStream::get_video_publish_ssrc(uint32_t play_ssrc)
     return 0;
 }
 
-SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, SrsContextId parent_cid)
+SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
     timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
 
-    parent_cid_ = parent_cid;
+    cid_ = cid;
     is_started = false;
     session_ = session;
     request_keyframe_ = false;
@@ -946,6 +946,11 @@ void SrsRtcPublishStream::set_all_tracks_status(bool status)
     }
 
     srs_trace("RTC: Init tracks %s ok", merged_log.str().c_str());
+}
+
+const SrsContextId& SrsRtcPublishStream::context_id()
+{
+    return cid_;
 }
 
 srs_error_t SrsRtcPublishStream::send_rtcp_rr()
@@ -1274,10 +1279,10 @@ void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
 {
     uint32_t nn = 0;
     if (pli_epp->can_print(ssrc, &nn)) {
-        SrsContextId scid = _srs_context->get_id();
-        SrsContextId pcid = session_->context_id();
-        srs_trace("RTC: Request PLI ssrc=%u, play=[%d][%s], publish=[%d][%s], count=%u/%u", ssrc, ::getpid(), scid.c_str(),
-            ::getpid(), pcid.c_str(), nn, pli_epp->nn_count);
+        // The player(subscriber) cid, which requires PLI.
+        const SrsContextId& sub_cid = _srs_context->get_id();
+        srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, sub_cid.c_str(),
+            cid_.c_str(), nn, pli_epp->nn_count);
     }
 
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
@@ -1440,10 +1445,10 @@ ISrsRtcConnectionHijacker::~ISrsRtcConnectionHijacker()
 {
 }
 
-SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, SrsContextId context_id)
+SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
 {
     req = NULL;
-    cid = context_id;
+    cid_ = cid;
     stat_ = new SrsRtcConnectionStatistic();
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
     hijacker_ = NULL;
@@ -1548,12 +1553,12 @@ vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
 
 void SrsRtcConnection::switch_to_context()
 {
-    _srs_context->set_id(cid);
+    _srs_context->set_id(cid_);
 }
 
-SrsContextId SrsRtcConnection::context_id()
+const SrsContextId& SrsRtcConnection::context_id()
 {
-    return cid;
+    return cid_;
 }
 
 srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
@@ -2202,7 +2207,7 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
 }
 
-srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
+srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
     srs_error_t err = srs_success;
 
@@ -2216,7 +2221,8 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc)
 
     uint32_t nn = 0;
     if (pli_epp->can_print(ssrc, &nn)) {
-        srs_trace("RTC: Request PLI ssrc=%u, count=%u/%u, bytes=%uB", ssrc, nn, pli_epp->nn_count, stream.pos());
+        srs_trace("RTC: Request PLI ssrc=%u, play=[%s], count=%u/%u, bytes=%uB", ssrc, cid_of_subscriber.c_str(),
+            nn, pli_epp->nn_count, stream.pos());
     }
 
     if (_srs_blackhole->blackhole) {

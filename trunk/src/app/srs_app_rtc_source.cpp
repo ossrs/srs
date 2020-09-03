@@ -1700,10 +1700,10 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     // insert check nack list
     uint16_t nack_first = 0, nack_last = 0;
     if (!rtp_queue_->update(seq, nack_first, nack_last)) {
-        srs_warn("too old seq %u, range [%u, %u]", seq, rtp_queue_->begin, rtp_queue_->end);
+        srs_warn("NACK: too old seq %u, range [%u, %u]", seq, rtp_queue_->begin, rtp_queue_->end);
     }
     if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
-        srs_trace("update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
+        srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first, nack_last);
         nack_receiver_->insert(nack_first, nack_last);
         nack_receiver_->check_queue_size();
     }
@@ -1783,7 +1783,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
         // TODO: FIXME: add coroutine to request key frame.
         request_key_frame_ = false;
 
-        if ((err = session_->send_rtcp_fb_pli(track_desc_->ssrc_)) != srs_success) {
+        if ((err = session_->send_rtcp_fb_pli(track_desc_->ssrc_, cid_of_subscriber_)) != srs_success) {
             srs_warn("PLI err %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
@@ -1799,6 +1799,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
 void SrsRtcVideoRecvTrack::request_keyframe()
 {
+    cid_of_subscriber_ = _srs_context->get_id();
     request_key_frame_ = true;
 }
 
@@ -1848,7 +1849,7 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     // Ignore if sequence not match.
     uint32_t nn = 0;
     if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
-        srs_trace("RTC NACK miss seq=%u, require_seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", seq, pkt->header.get_sequence(),
+        srs_trace("RTC: NACK miss seq=%u, require_seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", seq, pkt->header.get_sequence(),
             pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
     }
     return NULL;
