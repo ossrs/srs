@@ -29,6 +29,7 @@ using namespace std;
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
@@ -314,8 +315,13 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
 {
     std::vector<SrsMediaPayloadType> payloads;
 
+    std::string lower_name, upper_name;
+    transform(encoding_name.begin(), encoding_name.end(), lower_name.begin(), ::tolower);
+    transform(encoding_name.begin(), encoding_name.end(), upper_name.begin(), ::toupper);
+
     for (size_t i = 0; i < payload_types_.size(); ++i) {
-        if (payload_types_[i].encoding_name_ == encoding_name) {
+        if (payload_types_[i].encoding_name_ == std::string(lower_name.c_str()) ||
+            payload_types_[i].encoding_name_ == std::string(upper_name.c_str())) {
             payloads.push_back(payload_types_[i]);
         }
     }

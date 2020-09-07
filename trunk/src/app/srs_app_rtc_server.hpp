@@ -72,6 +72,17 @@ public:
     virtual void on_timeout(SrsRtcConnection* session) = 0;
 };
 
+// The hijacker to hook server.
+class ISrsRtcServerHijacker
+{
+public:
+    ISrsRtcServerHijacker();
+    virtual ~ISrsRtcServerHijacker();
+public:
+    // If consumed set to true, server will ignore the packet.
+    virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt, SrsRtcConnection* session, bool* pconsumed) = 0;
+};
+
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
 class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
 {
@@ -79,6 +90,7 @@ private:
     SrsHourGlass* timer;
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
+    ISrsRtcServerHijacker* hijacker;
 private:
     // TODO: FIXME: Rename it.
     std::map<std::string, SrsRtcConnection*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
@@ -93,6 +105,7 @@ public:
     virtual srs_error_t initialize();
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);
+    void set_hijacker(ISrsRtcServerHijacker* h);
 public:
     // TODO: FIXME: Support gracefully quit.
     // TODO: FIXME: Support reload.
@@ -102,13 +115,14 @@ public:
 public:
     // Peer start offering, we answer it.
     srs_error_t create_session(
-        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+        bool publish, bool dtls, bool srtp,
         SrsRtcConnection** psession
     );
 private:
     srs_error_t do_create_session(
         SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
-        const std::string& mock_eip, bool publish, SrsRtcStream* source
+        const std::string& mock_eip, bool publish, bool dtls, bool srtp
     );
 public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.

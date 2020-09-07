@@ -204,9 +204,18 @@ ISrsRtcServerHandler::~ISrsRtcServerHandler()
 {
 }
 
+ISrsRtcServerHijacker::ISrsRtcServerHijacker()
+{
+}
+
+ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
+{
+}
+
 SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
+    hijacker = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -255,6 +264,11 @@ srs_error_t SrsRtcServer::initialize()
 void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 {
     handler = h;
+}
+
+void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
+{
+    hijacker = h;
 }
 
 srs_error_t SrsRtcServer::listen_udp()
@@ -306,6 +320,18 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
             if (session) {
                 session->switch_to_context();
             }
+        }
+    }
+
+    // Notify hijack to handle the UDP packet.
+    if (hijacker) {
+        bool consumed = false;
+        if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
+            return srs_error_wrap(err, "hijack consumed=%u", consumed);
+        }
+
+        if (consumed) {
+            return err;
         }
     }
 
@@ -378,7 +404,8 @@ srs_error_t SrsRtcServer::listen_api()
 }
 
 srs_error_t SrsRtcServer::create_session(
-    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp,
     SrsRtcConnection** psession
 ) {
     srs_error_t err = srs_success;
@@ -390,14 +417,13 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_wrap(err, "create source");
     }
 
-    // TODO: FIXME: Refine the API for stream status manage.
-    if (publish && !source->can_publish(false)) {
+    if (publish && !source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
     // TODO: FIXME: add do_create_session to error process.
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
-    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, source)) != srs_success) {
+    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, dtls, srtp)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "create session");
     }
@@ -408,8 +434,8 @@ srs_error_t SrsRtcServer::create_session(
 }
 
 srs_error_t SrsRtcServer::do_create_session(
-    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
-    SrsRtcStream* source
+    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp
 )
 {
     srs_error_t err = srs_success;
@@ -426,7 +452,7 @@ srs_error_t SrsRtcServer::do_create_session(
     }
 
     // All tracks default as inactive, so we must enable them.
-    session->set_all_tracks_status(true);
+    session->set_all_tracks_status(req->get_stream_url(), publish, true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
@@ -477,11 +503,13 @@ srs_error_t SrsRtcServer::do_create_session(
     session->set_state(WAITING_STUN);
 
     // Before session initialize, we must setup the local SDP.
-    if ((err = session->initialize(source, req, publish, username)) != srs_success) {
+    if ((err = session->initialize(req, dtls, srtp, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
+
     return err;
 }
 
@@ -535,18 +563,14 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
         return err;
     }
 
-    SrsRtcStream* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "create source");
-    }
-
     // TODO: FIXME: Collision detect.
     string username = session->get_local_sdp()->get_ice_ufrag() + ":" + remote_sdp.get_ice_ufrag();
 
-    if ((err = session->initialize(source, req, false, username)) != srs_success) {
+    if ((err = session->initialize(req, true, true, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
 
     session->set_remote_sdp(remote_sdp);
@@ -564,8 +588,9 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 
     std::map<std::string, SrsRtcConnection*>::iterator it;
 
+    // We allows username is optional.
     string username = session->username();
-    if ((it = map_username_session.find(username)) != map_username_session.end()) {
+    if (!username.empty() && (it = map_username_session.find(username)) != map_username_session.end()) {
         map_username_session.erase(it);
     }
 

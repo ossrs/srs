@@ -137,24 +137,20 @@ srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
 
 int SrsRtpExtensionTwcc::nb_bytes()
 {
-    return 4;
+    return 3;
 }
 
 srs_error_t SrsRtpExtensionTwcc::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Only requires 3 bytes.
-    if(!buf->require(4)) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 4);
+    if(!buf->require(3)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
     }
  
     uint8_t id_len = (id_ & 0x0F)<< 4| 0x01;
     buf->write_1bytes(id_len);
     buf->write_2bytes(sn_);
-
-    // TODO: FIXME: Should padding in the final of SrsRtpExtensions::encode.
-    buf->write_1bytes(0x00);
     
     return err;
 }
@@ -265,7 +261,10 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
 int SrsRtpExtensions::nb_bytes()
 {
-    return 4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    // add padding
+    size += (size % 4 == 0) ? 0 : (4 - size % 4);
+    return size;
 }
 
 srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
@@ -274,18 +273,31 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 
     buf->write_2bytes(0xBEDE);
 
+    // Write length.
     int len = 0;
-    //TODO: When add new rtp extension, it should add the extension length into len
+
     if (twcc_.has_twcc_ext()) {
         len += twcc_.nb_bytes();
     }
+
+    int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
+    len += padding_count;
+
     buf->write_2bytes(len / 4);
 
+    // Write extensions.
     if (twcc_.has_twcc_ext()) {
         if (srs_success != (err = twcc_.encode(buf))) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }
+
+    // add padding
+    while(padding_count > 0) {
+        buf->write_1bytes(0);
+        padding_count--;
+    }
+
     return err;
 }
 

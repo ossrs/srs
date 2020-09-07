@@ -379,20 +379,6 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
     return err;
 }
 
-string srs_join_vector_string(vector<string>& vs, string separator)
-{
-    string str = "";
-    
-    for (int i = 0; i < (int)vs.size(); i++) {
-        str += vs.at(i);
-        if (i != (int)vs.size() - 1) {
-            str += separator;
-        }
-    }
-    
-    return str;
-}
-
 bool srs_is_ipv4(string domain)
 {
     for (int i = 0; i < (int)domain.length(); i++) {

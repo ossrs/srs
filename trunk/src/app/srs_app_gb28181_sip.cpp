@@ -775,8 +775,6 @@ srs_error_t SrsGb28181SipService::send_sip_raw_data(SrsSipRequest *req,  std::st
 
 srs_error_t SrsGb28181SipService::send_query_catalog(SrsSipRequest *req)
 {
-    srs_error_t err = srs_success;
-
     srs_assert(req);
 
     SrsGb28181SipSession *sip_session = fetch(req->sip_auth_id);

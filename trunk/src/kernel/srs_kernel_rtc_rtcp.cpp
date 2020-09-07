@@ -29,7 +29,7 @@
 #include <arpa/inet.h>
 using namespace std;
 
-SrsRtcpCommon::SrsRtcpCommon()
+SrsRtcpCommon::SrsRtcpCommon(): ssrc_(0), data_(NULL), nb_data_(0)
 {
 }
 
@@ -42,18 +42,58 @@ uint8_t SrsRtcpCommon::type() const
     return header_.type;
 }
 
+uint8_t SrsRtcpCommon::get_rc() const
+{
+    return header_.rc;
+}
+
+uint32_t SrsRtcpCommon::get_ssrc()
+{
+    return ssrc_;
+}
+
+void SrsRtcpCommon::set_ssrc(uint32_t ssrc)
+{
+    ssrc_ = ssrc;
+}
+
+char* SrsRtcpCommon::data()
+{
+    return data_;
+}
+
+int SrsRtcpCommon::size()
+{
+    return nb_data_;
+}
+
 srs_error_t SrsRtcpCommon::decode_header(SrsBuffer *buffer)
 {
+    if (!buffer->require(sizeof(SrsRtcpHeader) + 4)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require %d", sizeof(SrsRtcpHeader) + 4);
+    }
+
     buffer->read_bytes((char*)(&header_), sizeof(SrsRtcpHeader));
     header_.length = ntohs(header_.length);
+
+    int payload_len = header_.length * 4;
+    if (payload_len > buffer->left()) {
+        return srs_error_new(ERROR_RTC_RTCP, 
+                "require payload len=%u, buffer left=%u", payload_len, buffer->left());
+    }
+    ssrc_ = buffer->read_4bytes();
 
     return srs_success;
 }
 
 srs_error_t SrsRtcpCommon::encode_header(SrsBuffer *buffer)
 {
+    if(! buffer->require(sizeof(SrsRtcpHeader) + 4)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require %d", sizeof(SrsRtcpHeader) + 4);
+    }
     header_.length = htons(header_.length);
     buffer->write_bytes((char*)(&header_), sizeof(SrsRtcpHeader));
+    buffer->write_4bytes(ssrc_);
 
     return srs_success;
 }
@@ -61,12 +101,14 @@ srs_error_t SrsRtcpCommon::encode_header(SrsBuffer *buffer)
 srs_error_t SrsRtcpCommon::decode(SrsBuffer *buffer)
 {
     srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
 
-    payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader);
+    payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader) - 4;
     buffer->read_bytes((char *)payload_, payload_len_);
 
     return err;
@@ -74,7 +116,7 @@ srs_error_t SrsRtcpCommon::decode(SrsBuffer *buffer)
 
 int SrsRtcpCommon::nb_bytes()
 {
-    return sizeof(SrsRtcpHeader) + payload_len_;
+    return sizeof(SrsRtcpHeader) + 4 + payload_len_;
 }
 
 srs_error_t SrsRtcpCommon::encode(SrsBuffer *buffer)
@@ -82,22 +124,38 @@ srs_error_t SrsRtcpCommon::encode(SrsBuffer *buffer)
     return srs_error_new(ERROR_RTC_RTCP, "not implement");
 }
 
-SrsRtcpApp::SrsRtcpApp():ssrc_(0)
+SrsRtcpApp::SrsRtcpApp()
 {
+    ssrc_ = 0;
+    header_.padding = 0;
+    header_.type = SrsRtcpType_app;
+    header_.rc = 0;
+    header_.version = kRtcpVersion;
 }
 
 SrsRtcpApp::~SrsRtcpApp()
 {
 }
 
+bool SrsRtcpApp::is_rtcp_app(uint8_t *data, int nb_data)
+{
+    if (!data || nb_data <12) {
+        return false;
+    }
+
+    SrsRtcpHeader *header = (SrsRtcpHeader*)data;
+    if (header->version == kRtcpVersion
+            && header->type == SrsRtcpType_app
+            && ntohs(header->length) >= 2) {
+        return true;
+    }
+
+    return false;
+}
+
 uint8_t SrsRtcpApp::type() const
 {
     return SrsRtcpType_app;
-}
-
-uint32_t SrsRtcpApp::get_ssrc() const
-{
-    return ssrc_;
 }
 
 uint8_t SrsRtcpApp::get_subtype() const
@@ -147,31 +205,51 @@ srs_error_t SrsRtcpApp::set_payload(uint8_t* payload, int len)
         return srs_error_new(ERROR_RTC_RTCP, "invalid payload length %d", len);
     }
 
-    payload_len_ = len;
+    payload_len_ = (len + 3)/ 4 * 4;;
     memcpy(payload_, payload, len);
+    if (payload_len_ > len) {
+        memset(&payload_[len], 0, payload_len_ - len); //padding
+    }
+    header_.length = payload_len_/4 + 3 - 1;
 
     return srs_success;
 }
 
-void SrsRtcpApp::set_ssrc(uint32_t ssrc)
-{
-    ssrc_ = ssrc;
-}
-
 srs_error_t SrsRtcpApp::decode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc3550#section-6.7
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P| subtype |   PT=APP=204  |             length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                           SSRC/CSRC                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          name (ASCII)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                   application-dependent data                ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
 
-    ssrc_ = buffer->read_4bytes();
+    if (header_.type != SrsRtcpType_app || !buffer->require(4)) {
+        return srs_error_new(ERROR_RTC_RTCP, "not rtcp app");
+    }
+
     buffer->read_bytes((char *)name_, sizeof(name_));
 
     // TODO: FIXME: Should check size?
-    payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader) - sizeof(name_) - sizeof(ssrc_);
-    buffer->read_bytes((char *)payload_, payload_len_);
+    payload_len_ = (header_.length + 1) * 4 - 8 - sizeof(name_);
+    if (payload_len_ > 0) {
+        buffer->read_bytes((char *)payload_, payload_len_);
+    }
 
     return srs_success;
 }
@@ -183,6 +261,20 @@ int SrsRtcpApp::nb_bytes()
 
 srs_error_t SrsRtcpApp::encode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc3550#section-6.7
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P| subtype |   PT=APP=204  |             length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                           SSRC/CSRC                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          name (ASCII)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                   application-dependent data                ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
 
     if(!buffer->require(nb_bytes())) {
@@ -193,7 +285,6 @@ srs_error_t SrsRtcpApp::encode(SrsBuffer *buffer)
         return srs_error_wrap(err, "encode header");
     }
 
-    buffer->write_4bytes(ssrc_);
     buffer->write_bytes((char*)name_, sizeof(name_));
     buffer->write_bytes((char*)payload_, payload_len_);
     
@@ -223,11 +314,6 @@ uint8_t SrsRtcpSR::type() const
     return SrsRtcpType_sr;
 }
 
-uint32_t SrsRtcpSR::get_sender_ssrc() const
-{
-    return sender_ssrc_;
-}
-
 uint64_t SrsRtcpSR::get_ntp() const
 {
     return ntp_;
@@ -246,11 +332,6 @@ uint32_t SrsRtcpSR::get_rtp_send_packets() const
 uint32_t SrsRtcpSR::get_rtp_send_bytes() const
 {
     return send_rtp_bytes_;
-}
-
-void SrsRtcpSR::set_sender_ssrc(uint32_t ssrc)
-{
-    sender_ssrc_ = ssrc;
 }
 
 void SrsRtcpSR::set_ntp(uint64_t ntp)
@@ -275,13 +356,51 @@ void SrsRtcpSR::set_rtp_send_bytes(uint32_t bytes)
 
 srs_error_t SrsRtcpSR::decode(SrsBuffer *buffer)
 {
+    /* @doc: https://tools.ietf.org/html/rfc3550#section-6.4.1
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+header |V=2|P|    RC   |   PT=SR=200   |             length            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         SSRC of sender                        |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+sender |              NTP timestamp, most significant word             |
+info   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |             NTP timestamp, least significant word             |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         RTP timestamp                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     sender's packet count                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      sender's octet count                     |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_1 (SSRC of first source)                 |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  1    | fraction lost |       cumulative number of packets lost       |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           extended highest sequence number received           |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      interarrival jitter                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         last SR (LSR)                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                   delay since last SR (DLSR)                  |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_2 (SSRC of second source)                |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  2    :                               ...                             :
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+       |                  profile-specific extensions                  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
 
-    sender_ssrc_ = buffer->read_4bytes();
     ntp_ = buffer->read_8bytes();
     rtp_ts_ = buffer->read_4bytes();
     send_rtp_packets_ = buffer->read_4bytes();
@@ -303,7 +422,43 @@ int SrsRtcpSR::nb_bytes()
 srs_error_t SrsRtcpSR::encode(SrsBuffer *buffer)
 {
     srs_error_t err = srs_success;
-
+ /* @doc: https://tools.ietf.org/html/rfc3550#section-6.4.1
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+header |V=2|P|    RC   |   PT=SR=200   |             length            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         SSRC of sender                        |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+sender |              NTP timestamp, most significant word             |
+info   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |             NTP timestamp, least significant word             |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         RTP timestamp                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     sender's packet count                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      sender's octet count                     |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_1 (SSRC of first source)                 |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  1    | fraction lost |       cumulative number of packets lost       |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           extended highest sequence number received           |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      interarrival jitter                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         last SR (LSR)                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                   delay since last SR (DLSR)                  |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_2 (SSRC of second source)                |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  2    :                               ...                             :
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+       |                  profile-specific extensions                  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     if(!buffer->require(nb_bytes())) {
         return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
     }
@@ -312,7 +467,6 @@ srs_error_t SrsRtcpSR::encode(SrsBuffer *buffer)
         return srs_error_wrap(err, "encode header");
     }
 
-    buffer->write_4bytes(sender_ssrc_);
     buffer->write_8bytes(ntp_);
     buffer->write_4bytes(rtp_ts_);
     buffer->write_4bytes(send_rtp_packets_);
@@ -321,13 +475,15 @@ srs_error_t SrsRtcpSR::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc): sender_ssrc_(sender_ssrc)
+SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rr;
     header_.rc = 0;
     header_.version = kRtcpVersion;
     header_.length = 7;
+    ssrc_ = sender_ssrc;
+    memset(&rb_, 0, sizeof(SrsRtcpRB));
 }
 
 SrsRtcpRR::~SrsRtcpRR()
@@ -417,16 +573,52 @@ void SrsRtcpRR::set_sender_ntp(uint64_t ntp)
 
 srs_error_t SrsRtcpRR::decode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc3550#section-6.4.2
+
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+header |V=2|P|    RC   |   PT=RR=201   |             length            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     SSRC of packet sender                     |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_1 (SSRC of first source)                 |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  1    | fraction lost |       cumulative number of packets lost       |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           extended highest sequence number received           |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      interarrival jitter                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         last SR (LSR)                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                   delay since last SR (DLSR)                  |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_2 (SSRC of second source)                |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  2    :                               ...                             :
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+       |                  profile-specific extensions                  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
 
-    sender_ssrc_ = buffer->read_4bytes();
-    if(header_.rc < 1) {
-        return err;
+    // @doc https://tools.ietf.org/html/rfc3550#section-6.4.2
+    // An empty RR packet (RC = 0) MUST be put at the head of a compound
+    // RTCP packet when there is no data transmission or reception to
+    // report. e.g. {80 c9 00 01 00 00 00 01}
+    if(header_.rc == 0) {
+        return srs_error_new(ERROR_RTC_RTCP_EMPTY_RR, "rc=0");
     }
+
+    // TODO: FIXME: Security check for read.
     rb_.ssrc = buffer->read_4bytes();
     rb_.fraction_lost = buffer->read_1bytes();
     rb_.lost_packets = buffer->read_3bytes();
@@ -434,7 +626,8 @@ srs_error_t SrsRtcpRR::decode(SrsBuffer *buffer)
     rb_.jitter = buffer->read_4bytes();
     rb_.lsr = buffer->read_4bytes();
     rb_.dlsr = buffer->read_4bytes();
-    
+
+    // TODO: FIXME: Security check for read.
     if(header_.rc > 1) {
         char buf[1500];
         buffer->read_bytes(buf, (header_.rc -1 ) * 24);
@@ -450,6 +643,35 @@ int SrsRtcpRR::nb_bytes()
 
 srs_error_t SrsRtcpRR::encode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc3550#section-6.4.2
+
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+header |V=2|P|    RC   |   PT=RR=201   |             length            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     SSRC of packet sender                     |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_1 (SSRC of first source)                 |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  1    | fraction lost |       cumulative number of packets lost       |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           extended highest sequence number received           |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      interarrival jitter                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         last SR (LSR)                         |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                   delay since last SR (DLSR)                  |
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+report |                 SSRC_2 (SSRC of second source)                |
+block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  2    :                               ...                             :
+       +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+       |                  profile-specific extensions                  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
 
     if(!buffer->require(nb_bytes())) {
@@ -460,7 +682,6 @@ srs_error_t SrsRtcpRR::encode(SrsBuffer *buffer)
     if(srs_success != (err = encode_header(buffer))) {
         return srs_error_wrap(err, "encode header");
     }
-    buffer->write_4bytes(sender_ssrc_);
     
     buffer->write_4bytes(rb_.ssrc);
     buffer->write_1bytes(rb_.fraction_lost);
@@ -473,14 +694,20 @@ srs_error_t SrsRtcpRR::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : sender_ssrc_(sender_ssrc), pkt_len(0)
+SrsRtcpTWCC::SrsRtcpTWCCChunk::SrsRtcpTWCCChunk()
+        : size(0), all_same(true), has_large_delta(false)
+{
+}
+
+SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : pkt_len(0)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rtpfb;
     header_.rc = 15;
     header_.version = kRtcpVersion;
+    ssrc_ = sender_ssrc;
 }
-    
+
 SrsRtcpTWCC::~SrsRtcpTWCC()
 {
 }
@@ -489,7 +716,7 @@ void SrsRtcpTWCC::clear()
 {
     encoded_chucks_.clear();
     pkt_deltas_.clear();
-    recv_packes_.clear();
+    recv_packets_.clear();
     recv_sns_.clear();
 }
 
@@ -563,21 +790,63 @@ void SrsRtcpTWCC::add_recv_delta(uint16_t delta)
 
 srs_error_t SrsRtcpTWCC::recv_packet(uint16_t sn, srs_utime_t ts)
 {
-    map<uint16_t, srs_utime_t>::iterator it = recv_packes_.find(sn);
-    if(it != recv_packes_.end()) {
+    map<uint16_t, srs_utime_t>::iterator it = recv_packets_.find(sn);
+    if(it != recv_packets_.end()) {
         return srs_error_new(ERROR_RTC_RTCP, "TWCC dup seq: %d", sn);
     }
 
-    recv_packes_[sn] = ts;
+    recv_packets_[sn] = ts;
     recv_sns_.insert(sn);
 
     return srs_success;
 }
 
+bool SrsRtcpTWCC::need_feedback()
+{
+    return recv_packets_.size() > 0;
+}
+
 srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/draft-holmer-rmcat-transport-wide-cc-extensions-01#section-3.1
+            0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |V=2|P|  FMT=15 |    PT=205     |           length              |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     SSRC of packet sender                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      SSRC of media source                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |      base sequence number     |      packet status count      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                 reference time                | fb pkt. count |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |          packet chunk         |         packet chunk          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       .                                                               .
+       .                                                               .
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |         packet chunk          |  recv delta   |  recv delta   |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       .                                                               .
+       .                                                               .
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           recv delta          |  recv delta   | zero padding  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
-    
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader) - 4;
+    buffer->read_bytes((char *)payload_, payload_len_);
+
     return err;
 }
 
@@ -782,6 +1051,34 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 
 srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/draft-holmer-rmcat-transport-wide-cc-extensions-01#section-3.1
+            0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |V=2|P|  FMT=15 |    PT=205     |           length              |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                     SSRC of packet sender                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                      SSRC of media source                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |      base sequence number     |      packet status count      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                 reference time                | fb pkt. count |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |          packet chunk         |         packet chunk          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       .                                                               .
+       .                                                               .
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |         packet chunk          |  recv delta   |  recv delta   |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       .                                                               .
+       .                                                               .
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |           recv delta          |  recv delta   | zero padding  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
 
     if(!buffer->require(nb_bytes())) {
@@ -791,19 +1088,19 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     pkt_len = kTwccFbPktHeaderSize;
     set<uint16_t, SrsSeqCompareLess>::iterator it_sn = recv_sns_.begin();
     base_sn_ = *it_sn;
-    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packes_.find(base_sn_);
+    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(base_sn_);
     srs_utime_t ts = it_ts->second;
     reference_time_ = (ts % kTwccFbReferenceTimeDivisor) / kTwccFbTimeMultiplier;
     srs_utime_t last_ts = (srs_utime_t)(reference_time_) * kTwccFbTimeMultiplier;
     uint16_t last_sn = base_sn_;
-    packet_count_ = recv_packes_.size();
+    packet_count_ = recv_packets_.size();
 
     // encode chunk
     SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
     for(; it_sn != recv_sns_.end(); ++it_sn) {
         uint16_t current_sn = *it_sn;
         // calculate delta
-        it_ts = recv_packes_.find(current_sn);
+        it_ts = recv_packets_.find(current_sn);
         srs_utime_t delta_us = calculate_delta_us(it_ts->second, last_ts);
         int16_t delta = delta_us;
         if(delta != delta_us) {
@@ -847,7 +1144,6 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     if(srs_success != (err = encode_header(buffer))) {
         return srs_error_wrap(err, "encode header");
     }
-    buffer->write_4bytes(sender_ssrc_);
     buffer->write_4bytes(media_ssrc_);
     buffer->write_2bytes(base_sn_);
     buffer->write_2bytes(packet_count_);
@@ -875,12 +1171,13 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpNack::SrsRtcpNack(uint32_t sender_ssrc): sender_ssrc_(sender_ssrc)
+SrsRtcpNack::SrsRtcpNack(uint32_t sender_ssrc)
 {
     header_.padding = 0;
     header_.type = SrsRtcpType_rtpfb;
     header_.rc = 1;
     header_.version = kRtcpVersion;
+    ssrc_ = sender_ssrc;
 }
 
 SrsRtcpNack::~SrsRtcpNack()
@@ -913,13 +1210,35 @@ void SrsRtcpNack::add_lost_sn(uint16_t sn)
 
 srs_error_t SrsRtcpNack::decode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+
+    Generic NACK
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |            PID                |             BLP               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
 
     if(srs_success != (err = decode_header(buffer))) {
         return srs_error_wrap(err, "decode header");
     }
 
-    sender_ssrc_ = buffer->read_4bytes();
     media_ssrc_ = buffer->read_4bytes();
     char bitmask[20];
     for(int i = 0; i < (header_.length - 2); i++) {
@@ -945,6 +1264,27 @@ int SrsRtcpNack::nb_bytes()
 
 srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
 {
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+
+    Generic NACK
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |            PID                |             BLP               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     srs_error_t err = srs_success;
     if(!buffer->require(nb_bytes())) {
         return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
@@ -983,7 +1323,7 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
             err = srs_error_wrap(err, "encode header");
             break;
         }
-        buffer->write_4bytes(sender_ssrc_);
+
         buffer->write_4bytes(media_ssrc_);
         for(vector<SrsPidBlp>::iterator it_chunk = chunks.begin(); it_chunk != chunks.end(); it_chunk++) {
             buffer->write_2bytes(it_chunk->pid);
@@ -994,7 +1334,341 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
     return err;
 }
 
-SrsRtcpCompound::SrsRtcpCompound(): nb_bytes_(0)
+SrsRtcpPsfbCommon::SrsRtcpPsfbCommon()
+{
+    header_.padding = 0;
+    header_.type = SrsRtcpType_psfb;
+    header_.rc = 1;
+    header_.version = kRtcpVersion;
+    //ssrc_ = sender_ssrc;
+}
+
+SrsRtcpPsfbCommon::~SrsRtcpPsfbCommon()
+{
+
+}
+
+uint32_t SrsRtcpPsfbCommon::get_media_ssrc() const
+{
+    return media_ssrc_;
+}
+
+void SrsRtcpPsfbCommon::set_media_ssrc(uint32_t ssrc)
+{
+    media_ssrc_ = ssrc;
+}
+
+srs_error_t SrsRtcpPsfbCommon::decode(SrsBuffer *buffer)
+{
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+   */
+
+    srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    media_ssrc_ = buffer->read_4bytes();
+    int len = (header_.length + 1) * 4 - 12;
+    buffer->skip(len);
+    return err;
+}
+
+int SrsRtcpPsfbCommon::nb_bytes()
+{
+    return kRtcpPacketSize;
+}
+
+srs_error_t SrsRtcpPsfbCommon::encode(SrsBuffer *buffer)
+{
+    return srs_error_new(ERROR_RTC_RTCP, "not support");
+}
+
+SrsRtcpPli::SrsRtcpPli(uint32_t sender_ssrc/*= 0*/)
+{
+    header_.padding = 0;
+    header_.type = SrsRtcpType_psfb;
+    header_.rc = kPLI;
+    header_.version = kRtcpVersion;
+    ssrc_ = sender_ssrc;
+}
+    
+SrsRtcpPli::~SrsRtcpPli()
+{
+}
+
+srs_error_t SrsRtcpPli::decode(SrsBuffer *buffer)
+{
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+   */
+
+    srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    media_ssrc_ = buffer->read_4bytes();
+    return err;
+}
+
+int SrsRtcpPli::nb_bytes()
+{
+    return 12;
+}
+
+srs_error_t SrsRtcpPli::encode(SrsBuffer *buffer)
+{
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+    */
+    srs_error_t err = srs_success;
+    if(!buffer->require(nb_bytes())) {
+        return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
+    }
+
+    header_.length = 2;
+    if(srs_success != (err = encode_header(buffer))) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    buffer->write_4bytes(media_ssrc_);
+    
+    return err;
+}
+
+SrsRtcpSli::SrsRtcpSli(uint32_t sender_ssrc/*= 0*/)
+{
+    first_ = 0;
+    number_ = 0;
+    picture_ = 0;
+
+    header_.padding = 0;
+    header_.type = SrsRtcpType_psfb;
+    header_.rc = kSLI;
+    header_.version = kRtcpVersion;
+    ssrc_ = sender_ssrc;
+}
+
+SrsRtcpSli::~SrsRtcpSli()
+{
+}
+
+
+srs_error_t SrsRtcpSli::decode(SrsBuffer *buffer)
+{
+    /*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+
+
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.3.2
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |            First        |        Number           | PictureID |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   */
+
+    srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    media_ssrc_ = buffer->read_4bytes();
+    int len = (header_.length + 1) * 4 - 12;
+    buffer->skip(len);
+    return err;
+}
+
+int SrsRtcpSli::nb_bytes()
+{
+    return kRtcpPacketSize;
+}
+
+srs_error_t SrsRtcpSli::encode(SrsBuffer *buffer)
+{
+    srs_error_t err = srs_success;
+
+    return err;
+}
+
+SrsRtcpRpsi::SrsRtcpRpsi(uint32_t sender_ssrc/* = 0*/)
+{
+    pb_ = 0;
+    payload_type_ = 0;
+    native_rpsi_ = NULL;
+    nb_native_rpsi_ = 0;
+
+    header_.padding = 0;
+    header_.type = SrsRtcpType_psfb;
+    header_.rc = kRPSI;
+    header_.version = kRtcpVersion;
+    ssrc_ = sender_ssrc;
+}
+
+SrsRtcpRpsi::~SrsRtcpRpsi()
+{
+}
+
+srs_error_t SrsRtcpRpsi::decode(SrsBuffer *buffer)
+{
+/*
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.1
+        0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|   FMT   |       PT      |          length               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of packet sender                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                  SSRC of media source                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :            Feedback Control Information (FCI)                 :
+   :                                                               :
+
+
+    @doc: https://tools.ietf.org/html/rfc4585#section-6.3.3
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      PB       |0| Payload Type|    Native RPSI bit string     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   defined per codec          ...                | Padding (0) |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   */
+
+    srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    media_ssrc_ = buffer->read_4bytes();
+    int len = (header_.length + 1) * 4 - 12;
+    buffer->skip(len);
+    return err;
+}
+
+int SrsRtcpRpsi::nb_bytes()
+{
+    return kRtcpPacketSize;
+}
+
+srs_error_t SrsRtcpRpsi::encode(SrsBuffer *buffer)
+{
+    srs_error_t err = srs_success;
+
+    return err;
+}
+
+SrsRtcpXr::SrsRtcpXr(uint32_t ssrc/*= 0*/)
+{
+    header_.padding = 0;
+    header_.type = SrsRtcpType_xr;
+    header_.rc = 0;
+    header_.version = kRtcpVersion;
+    ssrc_ = ssrc;
+}
+
+SrsRtcpXr::~SrsRtcpXr()
+{
+}
+
+srs_error_t SrsRtcpXr::decode(SrsBuffer *buffer)
+{
+/*
+    @doc: https://tools.ietf.org/html/rfc3611#section-2
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|reserved |   PT=XR=207   |             length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                              SSRC                             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   :                         report blocks                         :
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   */
+
+    srs_error_t err = srs_success;
+    data_ = buffer->head();
+    nb_data_ = buffer->left();
+
+    if(srs_success != (err = decode_header(buffer))) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    int len = (header_.length + 1) * 4 - 8;
+    buffer->skip(len);
+    return err;
+}
+
+int SrsRtcpXr::nb_bytes()
+{
+    return kRtcpPacketSize;
+}
+
+srs_error_t SrsRtcpXr::encode(SrsBuffer *buffer)
+{
+    return srs_error_new(ERROR_RTC_RTCP, "not support");
+}
+
+SrsRtcpCompound::SrsRtcpCompound(): nb_bytes_(0), data_(NULL), nb_data_(0)
 {
 }
 
@@ -1009,7 +1683,6 @@ SrsRtcpCommon* SrsRtcpCompound::get_next_rtcp()
         return NULL;
     }
     SrsRtcpCommon *rtcp = rtcps_.back();
-    nb_bytes_ -= rtcp->nb_bytes();
     rtcps_.pop_back();
     return rtcp;
 }
@@ -1029,31 +1702,60 @@ srs_error_t SrsRtcpCompound::add_rtcp(SrsRtcpCommon *rtcp)
 srs_error_t SrsRtcpCompound::decode(SrsBuffer *buffer)
 {
     srs_error_t err = srs_success;
+    data_ = buffer->data();
+    nb_data_ = buffer->size();
 
-    while (buffer->empty()) {
+    while (!buffer->empty()) {
+        SrsRtcpCommon* rtcp = NULL;
         SrsRtcpHeader* header = (SrsRtcpHeader*)(buffer->head());
         if (header->type == SrsRtcpType_sr) {
-            SrsRtcpSR *rtcp = new SrsRtcpSR;
-            if(srs_success != (err = rtcp->decode(buffer))) {
-                return srs_error_wrap(err, "decode sr");
-            }
-            nb_bytes_ += rtcp->nb_bytes();
-            rtcps_.push_back(rtcp);
+            rtcp = new SrsRtcpSR();
         } else if (header->type == SrsRtcpType_rr) {
-            SrsRtcpRR *rtcp = new SrsRtcpRR;
-            if(srs_success != (err = rtcp->decode(buffer))) {
-                return srs_error_wrap(err, "decode rr");
+            rtcp = new SrsRtcpRR();
+        } else if (header->type == SrsRtcpType_rtpfb) {
+            if(1 == header->rc) {
+                //nack
+                rtcp = new SrsRtcpNack();
+            } else if (15 == header->rc) {
+                //twcc
+                rtcp = new SrsRtcpTWCC();
             }
-            nb_bytes_ += rtcp->nb_bytes();
-            rtcps_.push_back(rtcp);
+        } else if(header->type == SrsRtcpType_psfb) {
+            if(1 == header->rc) {
+                // pli
+                rtcp = new SrsRtcpPli();
+            } else if(2 == header->rc) {
+                //sli
+                rtcp = new SrsRtcpSli();
+            } else if(3 == header->rc) {
+                //rpsi
+                rtcp = new SrsRtcpRpsi();
+            } else {
+                // common psfb
+                rtcp = new SrsRtcpPsfbCommon();
+            }
+        } else if(header->type == SrsRtcpType_xr) {
+            rtcp = new SrsRtcpXr();
         } else {
-            SrsRtcpCommon *rtcp = new SrsRtcpCommon;
-            if(srs_success != (err = rtcp->decode(buffer))) {
-                return srs_error_wrap(err, "decode type: %#x", header->type);
-            }
-            nb_bytes_ += rtcp->nb_bytes();
-            rtcps_.push_back(rtcp);
+            rtcp = new SrsRtcpCommon();
         }
+
+        if(srs_success != (err = rtcp->decode(buffer))) {
+            srs_freep(rtcp);
+
+            // @doc https://tools.ietf.org/html/rfc3550#section-6.4.2
+            // An empty RR packet (RC = 0) MUST be put at the head of a compound
+            // RTCP packet when there is no data transmission or reception to
+            // report. e.g. {80 c9 00 01 00 00 00 01}
+            if (ERROR_RTC_RTCP_EMPTY_RR == srs_error_code(err)) {
+                srs_freep(err);
+                continue;
+            }
+
+            return srs_error_wrap(err, "decode rtcp type=%u rc=%u", header->type, header->rc);
+        }
+
+        rtcps_.push_back(rtcp);
     }
 
     return err;
@@ -1061,7 +1763,7 @@ srs_error_t SrsRtcpCompound::decode(SrsBuffer *buffer)
 
 int SrsRtcpCompound::nb_bytes()
 {
-    return nb_bytes_;
+    return kRtcpPacketSize;
 }
 
 srs_error_t SrsRtcpCompound::encode(SrsBuffer *buffer)
@@ -1094,3 +1796,14 @@ void SrsRtcpCompound::clear()
     rtcps_.clear();
     nb_bytes_ = 0;
 }
+
+char* SrsRtcpCompound::data()
+{
+    return data_;
+}
+    
+int SrsRtcpCompound::size()
+{
+    return nb_data_;
+}
+
