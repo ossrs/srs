@@ -310,6 +310,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, SrsContextId parent_cid)
     realtime = true;
 
     nack_enabled_ = false;
+    is_started = false;
 
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
@@ -814,6 +815,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session)
     nn_audio_frames = 0;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
+    is_started = false;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
