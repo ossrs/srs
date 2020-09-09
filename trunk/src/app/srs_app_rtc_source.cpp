@@ -1685,7 +1685,6 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
-    uint32_t ssrc = pkt->header.get_ssrc();
     uint16_t seq = pkt->header.get_sequence();
 
     // TODO: check whether is necessary?
@@ -1719,7 +1718,6 @@ srs_error_t SrsRtcRecvTrack::check_send_nacks()
     srs_error_t err = srs_success;
 
     uint32_t sent_nacks = 0;
-    uint32_t timeout_nacks = 0;
     session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks);
     statistic_->nacks += sent_nacks;
 
