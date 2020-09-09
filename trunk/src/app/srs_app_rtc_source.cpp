@@ -1686,9 +1686,6 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     srs_error_t err = srs_success;
 
     uint16_t seq = pkt->header.get_sequence();
-
-    // TODO: check whether is necessary?
-    nack_receiver_->remove_timeout_packets();
     SrsRtpNackInfo* nack_info = nack_receiver_->find(seq);
     if (nack_info) {
         // seq had been received.
@@ -1718,7 +1715,8 @@ srs_error_t SrsRtcRecvTrack::check_send_nacks()
     srs_error_t err = srs_success;
 
     uint32_t sent_nacks = 0;
-    session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks);
+    uint32_t timeout_nacks = 0;
+    session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks, timeout_nacks);
     statistic_->nacks += sent_nacks;
 
     return err;

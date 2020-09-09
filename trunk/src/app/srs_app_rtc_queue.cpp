@@ -188,7 +188,6 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     max_queue_size_ = queue_size;
     rtp_ = rtp;
     pre_check_time_ = 0;
-    last_remove_packet_time_ = -1;
     rtt_ = 0;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
@@ -230,7 +229,7 @@ void SrsRtpNackForReceiver::check_queue_size()
     }
 }
 
-void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs)
+void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
 {
     // TODO: FIXME: Use packet as tick count, not clock.
     srs_utime_t now = srs_update_system_time();
@@ -248,6 +247,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs)
 
         int alive_time = now - nack_info.generate_time_;
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
+            ++timeout_nacks;
             rtp_->notify_drop_seq(seq);
             queue_.erase(iter++);
             continue;
@@ -273,24 +273,5 @@ void SrsRtpNackForReceiver::update_rtt(int rtt)
     rtt_ = rtt * SRS_UTIME_MILLISECONDS;
     // FIXME: limit min and max value.
     opts_.nack_interval = rtt_;
-}
-
-#define PACKET_CLEAR_TIMEOUT (3000 * SRS_UTIME_MILLISECONDS)
-
-void SrsRtpNackForReceiver::remove_timeout_packets(void) 
-{
-    srs_utime_t now = srs_get_system_time();
-    if (last_remove_packet_time_ == -1) {
-        last_remove_packet_time_ = now;
-        return;
-    }
-
-    srs_utime_t elapsed_time = now - last_remove_packet_time_;
-    last_remove_packet_time_ = now;
-    
-    if (elapsed_time > PACKET_CLEAR_TIMEOUT) {
-        rtp_->notify_nack_list_full();
-        queue_.clear();
-    }
 }
 

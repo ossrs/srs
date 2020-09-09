@@ -2109,12 +2109,12 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
     return err;
 }
 
-void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks)
+void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks, uint32_t& timeout_nacks)
 {
     SrsRtcpNack rtcpNack(ssrc);
 
     rtcpNack.set_media_ssrc(ssrc);
-    nack->get_nack_seqs(rtcpNack);
+    nack->get_nack_seqs(rtcpNack, timeout_nacks);
 
     sent_nacks = rtcpNack.get_lost_sns().size();
     if(!sent_nacks){

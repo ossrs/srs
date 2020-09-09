@@ -133,13 +133,9 @@ public:
     SrsRtpNackInfo* find(uint16_t seq);
     void check_queue_size();
 public:
-    void get_nack_seqs(SrsRtcpNack& seqs);
+    void get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks);
 public:
     void update_rtt(int rtt);
-private:
-    srs_utime_t last_remove_packet_time_;
-public:
-    void remove_timeout_packets(void);
 };
 
 #endif
