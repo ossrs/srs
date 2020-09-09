@@ -1719,6 +1719,18 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     return err;
 }
 
+srs_error_t SrsRtcRecvTrack::check_send_nacks()
+{
+    srs_error_t err = srs_success;
+
+    uint32_t sent_nacks = 0;
+    uint32_t timeout_nacks = 0;
+    session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks);
+    statistic_->nacks += sent_nacks;
+
+    return err;
+}
+
 SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtcRecvTrack(session, track_desc, true)
 {

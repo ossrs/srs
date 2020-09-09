@@ -1125,10 +1125,38 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
     }
 
+    // Check then send NACK every each RTP packet, to make it more efficient.
+    // For example, NACK of video track maybe triggered by audio RTP packets.
+    if ((err = check_send_nacks()) != srs_success) {
+        srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
     if (_srs_rtc_hijacker) {
         // TODO: FIXME: copy pkt by hijacker itself
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt->copy())) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcPublishStream::check_send_nacks()
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
+        SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
+        if ((err = track->check_send_nacks()) != srs_success) {
+            return srs_error_wrap(err, "video track=%s", track->get_track_id().c_str());
+        }
+    }
+
+    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
+        SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
+        if ((err = track->check_send_nacks()) != srs_success) {
+            return srs_error_wrap(err, "audio track=%s", track->get_track_id().c_str());
         }
     }
 

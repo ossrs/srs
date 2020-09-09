@@ -501,6 +501,7 @@ protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t check_send_nacks();
 };
 
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
