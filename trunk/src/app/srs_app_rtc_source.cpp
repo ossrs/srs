@@ -1711,11 +1711,6 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     // insert into video_queue and audio_queue
     rtp_queue_->set(seq, pkt->copy());
 
-    // send_nack
-    uint32_t sent_nacks = 0;
-    session_->check_send_nacks(nack_receiver_, ssrc, sent_nacks);
-    statistic_->nacks += sent_nacks;
-
     return err;
 }
 
