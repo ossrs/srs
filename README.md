@@ -159,6 +159,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-09-09, RTC: Refine NACK RTT and efficiency. 4.0.42
 * v4.0, 2020-09-08, Refine PLI/NACK/DTLS logs. 4.0.41
 * v4.0, 2020-08-30, Fix serval bugs for RTC. Refine context API. 4.0.40
 * v4.0, 2020-08-18, RTC: DTLS support ARQ, covered with utest. 4.0.39
