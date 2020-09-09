@@ -160,9 +160,13 @@ void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 SrsNackOption::SrsNackOption()
 {
     max_count = 15;
-    max_alive_time = 1 * SRS_UTIME_SECONDS;
+    max_alive_time = 1000 * SRS_UTIME_MILLISECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 50 * SRS_UTIME_MILLISECONDS;
+    max_nack_interval = 500 * SRS_UTIME_MILLISECONDS;
+    min_nack_interval = 20 * SRS_UTIME_MILLISECONDS;
+
+    nack_check_interval = 3 * SRS_UTIME_MILLISECONDS;
 
     //TODO: FIXME: audio and video using diff nack strategy
     // video:
@@ -235,7 +239,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
     srs_utime_t now = srs_update_system_time();
 
     srs_utime_t interval = now - pre_check_time_;
-    if (interval < opts_.nack_interval / 2) {
+    if (interval < opts_.nack_check_interval) {
         return;
     }
     pre_check_time_ = now;
@@ -258,7 +262,12 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
             break;
         }
 
-        if (now - nack_info.pre_req_nack_time_ >= opts_.nack_interval && nack_info.req_nack_count_ <= opts_.max_count) {
+        srs_utime_t nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval / 3);
+        if(opts_.nack_interval < 50 * SRS_UTIME_MILLISECONDS){
+            nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval);
+        }
+
+        if (now - nack_info.pre_req_nack_time_ >= nack_interval ) {
             ++nack_info.req_nack_count_;
             nack_info.pre_req_nack_time_ = now;
             seqs.add_lost_sn(seq);
@@ -271,7 +280,13 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
 void SrsRtpNackForReceiver::update_rtt(int rtt)
 {
     rtt_ = rtt * SRS_UTIME_MILLISECONDS;
-    // FIXME: limit min and max value.
-    opts_.nack_interval = rtt_;
+
+    if (rtt_ > opts_.nack_interval) {
+        opts_.nack_interval = opts_.nack_interval  * 0.8 + rtt_ * 0.2;
+    } else {
+        opts_.nack_interval = rtt_;
+    }
+
+    opts_.nack_interval = srs_min(opts_.nack_interval, opts_.max_nack_interval);
 }
 

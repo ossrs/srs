@@ -93,8 +93,12 @@ struct SrsNackOption
 {
     int max_count;
     srs_utime_t max_alive_time;
-    int64_t first_nack_interval;
-    int64_t nack_interval;
+    srs_utime_t first_nack_interval;
+    srs_utime_t nack_interval;
+
+    srs_utime_t max_nack_interval;
+    srs_utime_t min_nack_interval;
+    srs_utime_t nack_check_interval;
 
     SrsNackOption();
 };
