@@ -1825,7 +1825,7 @@ srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
         return err;
     }
 
-    srs_trace("[Maybe] RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", timeout_nacks,
+    srs_trace2("MAYBE", "RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", timeout_nacks,
         track_desc_->id_.c_str(), track_desc_->ssrc_);
 
     return err;
