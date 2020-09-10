@@ -390,6 +390,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 {
     _srs_config->unsubscribe(this);
 
+    srs_freep(nack_epp);
     srs_freep(pli_worker_);
     srs_freep(trd);
     srs_freep(timer_);
@@ -408,8 +409,6 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
             srs_freep(it->second);
         }
     }
-
-    srs_freep(nack_epp);
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
