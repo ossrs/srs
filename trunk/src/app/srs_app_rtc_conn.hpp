@@ -175,6 +175,37 @@ public:
     virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
 };
 
+// The handler for PLI worker coroutine.
+class ISrsRtcPLIWorkerHandler
+{
+public:
+    ISrsRtcPLIWorkerHandler();
+    virtual ~ISrsRtcPLIWorkerHandler();
+public:
+    virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid) = 0;
+};
+
+// A worker coroutine to request the PLI.
+class ISrsRtcPLIWorker : virtual public ISrsCoroutineHandler
+{
+private:
+    SrsCoroutine* trd_;
+    srs_cond_t wait_;
+    ISrsRtcPLIWorkerHandler* handler_;
+private:
+    // Key is SSRC, value is the CID of subscriber which requests PLI.
+    std::map<uint32_t, SrsContextId> plis_;
+public:
+    ISrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h);
+    virtual ~ISrsRtcPLIWorker();
+public:
+    virtual srs_error_t start();
+    virtual void request_keyframe(uint32_t ssrc, SrsContextId cid);
+// interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+};
+
 // A group of RTP packets for outgoing(send to players).
 class SrsRtcPlayStreamStatistic
 {
@@ -208,12 +239,14 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler, virtual public ISrsHourGlass
+class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
+    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler
 {
 private:
     SrsContextId cid_;
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
+    ISrsRtcPLIWorker* pli_worker_;
 private:
     SrsRequest* req_;
     SrsRtcStream* source_;
@@ -266,15 +299,20 @@ private:
     srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
+// inteface ISrsRtcPLIWorkerHandler
+public:
+    virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
-class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler, virtual public ISrsRtcPublishStream
+class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
+    , virtual public ISrsRtcPublishStream, virtual public ISrsRtcPLIWorkerHandler
 {
 private:
     SrsContextId cid_;
     SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
+    ISrsRtcPLIWorker* pli_worker_;
 private:
     SrsRtcConnection* session_;
     uint16_t pt_to_drop_;
@@ -326,6 +364,7 @@ private:
     srs_error_t on_rtcp_xr(SrsRtcpXr* rtcp);
 public:
     void request_keyframe(uint32_t ssrc);
+    virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
     void on_consumers_finished();
 // interface ISrsHourGlass
 public:

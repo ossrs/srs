@@ -518,18 +518,12 @@ public:
 
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
 {
-private:
-    bool request_key_frame_;
-    // The player(subscriber) cid, which requires PLI.
-    SrsContextId cid_of_subscriber_;
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
     virtual srs_error_t check_send_nacks();
-public:
-    void request_keyframe();
 };
 
 class SrsRtcSendTrack

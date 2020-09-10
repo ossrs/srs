@@ -282,6 +282,75 @@ srs_error_t SrsPlaintextTransport::unprotect_rtcp(const char* cipher, char* plai
     return srs_success;
 }
 
+ISrsRtcPLIWorkerHandler::ISrsRtcPLIWorkerHandler()
+{
+}
+
+ISrsRtcPLIWorkerHandler::~ISrsRtcPLIWorkerHandler()
+{
+}
+
+ISrsRtcPLIWorker::ISrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h)
+{
+    handler_ = h;
+    wait_ = srs_cond_new();
+    trd_ = new SrsSTCoroutine("pli", this, _srs_context->get_id());
+}
+
+ISrsRtcPLIWorker::~ISrsRtcPLIWorker()
+{
+    srs_cond_signal(wait_);
+    trd_->stop();
+
+    srs_freep(trd_);
+    srs_cond_destroy(wait_);
+}
+
+srs_error_t ISrsRtcPLIWorker::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "start pli worker");
+    }
+
+    return err;
+}
+
+void ISrsRtcPLIWorker::request_keyframe(uint32_t ssrc, SrsContextId cid)
+{
+    plis_.insert(make_pair(ssrc, cid));
+    srs_cond_signal(wait_);
+}
+
+srs_error_t ISrsRtcPLIWorker::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "quit");
+        }
+
+        std::map<uint32_t, SrsContextId> plis;
+        plis.swap(plis_);
+
+        for (map<uint32_t, SrsContextId>::iterator it = plis.begin(); it != plis.end(); ++it) {
+            uint32_t ssrc = it->first;
+            SrsContextId cid = it->second;
+
+            if ((err = handler_->do_request_keyframe(ssrc, cid)) != srs_success) {
+                srs_warn("PLI error, %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            }
+        }
+
+        srs_cond_wait(wait_);
+    }
+
+    return err;
+}
+
 SrsRtcPlayStreamStatistic::SrsRtcPlayStreamStatistic()
 {
     nn_rtp_pkts = 0;
@@ -314,13 +383,14 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
 
-    nack_epp = new SrsErrorPithyPrint();
+    pli_worker_ = new ISrsRtcPLIWorker(this);
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
     _srs_config->unsubscribe(this);
 
+    srs_freep(pli_worker_);
     srs_freep(trd);
     srs_freep(timer_);
     srs_freep(req_);
@@ -419,6 +489,10 @@ srs_error_t SrsRtcPlayStream::start()
 
     if ((err = timer_->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
+    }
+
+    if ((err = pli_worker_->start()) != srs_success) {
+        return srs_error_wrap(err, "start pli worker");
     }
 
     if (_srs_rtc_hijacker) {
@@ -760,13 +834,9 @@ srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp)
     uint8_t fmt = rtcp->get_rc();
     switch (fmt) {
         case kPLI: {
-            ISrsRtcPublishStream* publisher = source_->publish_stream();
-            if (publisher) {
-                uint32_t ssrc = get_video_publish_ssrc(rtcp->get_media_ssrc());
-                if (ssrc != 0) {
-                    publisher->request_keyframe(ssrc);
-                    srs_info("RTC request PLI");
-                }
+            uint32_t ssrc = get_video_publish_ssrc(rtcp->get_media_ssrc());
+            if (ssrc) {
+                pli_worker_->request_keyframe(ssrc, cid_);
             }
 
             session_->stat_->nn_pli++;
@@ -804,6 +874,23 @@ uint32_t SrsRtcPlayStream::get_video_publish_ssrc(uint32_t play_ssrc)
     return 0;
 }
 
+srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId cid)
+{
+    srs_error_t err = srs_success;
+
+    // The source MUST exists, when PLI thread is running.
+    srs_assert(source_);
+
+    ISrsRtcPublishStream* publisher = source_->publish_stream();
+    if (!publisher) {
+        return err;
+    }
+
+    publisher->request_keyframe(ssrc);
+
+    return err;
+}
+
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
     timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
@@ -823,6 +910,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     nn_audio_frames = 0;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
+
+    pli_worker_ = new ISrsRtcPLIWorker(this);
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -831,16 +920,16 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
         _srs_rtc_hijacker->on_stop_publish(session_, this, req);
     }
 
+    // TODO: FIXME: Should remove and delete source.
     if (source) {
         source->set_publish_stream(NULL);
         source->on_unpublish();
     }
 
-    // TODO: FIXME: Should remove and delete source.
-
+    srs_freep(timer_);
+    srs_freep(pli_worker_);
     srs_freep(pli_epp);
     srs_freep(req);
-    srs_freep(timer_);
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescription* stream_desc)
@@ -906,6 +995,10 @@ srs_error_t SrsRtcPublishStream::start()
 
     if ((err = source->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");
+    }
+
+    if ((err = pli_worker_->start()) != srs_success) {
+        return srs_error_wrap(err, "start pli worker");
     }
 
     if (_srs_rtc_hijacker) {
@@ -1302,23 +1395,30 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
     return err;
 }
 
-// TODO: FIXME: Use async request PLI to prevent dup requests.
 void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
 {
+    pli_worker_->request_keyframe(ssrc, _srs_context->get_id());
+}
+
+srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId sub_cid)
+{
+    srs_error_t err = srs_success;
+
     uint32_t nn = 0;
     if (pli_epp->can_print(ssrc, &nn)) {
         // The player(subscriber) cid, which requires PLI.
-        const SrsContextId& sub_cid = _srs_context->get_id();
         srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, sub_cid.c_str(),
             cid_.c_str(), nn, pli_epp->nn_count);
     }
 
-    SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
-    if (video_track) {
-        video_track->request_keyframe();
+    if ((err = session_->send_rtcp_fb_pli(ssrc, sub_cid)) != srs_success) {
+        srs_warn("PLI err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
     }
 
     session_->stat_->nn_pli++;
+
+    return err;
 }
 
 void SrsRtcPublishStream::on_consumers_finished()

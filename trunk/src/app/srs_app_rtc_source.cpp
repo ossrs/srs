@@ -1768,7 +1768,6 @@ srs_error_t SrsRtcAudioRecvTrack::check_send_nacks()
 SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)
     : SrsRtcRecvTrack(session, track_desc, false)
 {
-    request_key_frame_ = false;
 }
 
 SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
@@ -1792,17 +1791,6 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
         return srs_error_wrap(err, "source on rtp");
     }
 
-    // TODO: FIXME: add rtp process
-    if (request_key_frame_) {
-        // TODO: FIXME: add coroutine to request key frame.
-        request_key_frame_ = false;
-
-        if ((err = session_->send_rtcp_fb_pli(track_desc_->ssrc_, cid_of_subscriber_)) != srs_success) {
-            srs_warn("PLI err %s", srs_error_desc(err).c_str());
-            srs_freep(err);
-        }
-    }
-
     // For NACK to handle packet.
     if ((err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
@@ -1821,7 +1809,7 @@ srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
     }
 
     // If NACK timeout, start PLI if not requesting.
-    if (timeout_nacks == 0 || request_key_frame_) {
+    if (timeout_nacks == 0) {
         return err;
     }
 
@@ -1830,13 +1818,6 @@ srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
 
     return err;
 }
-
-void SrsRtcVideoRecvTrack::request_keyframe()
-{
-    cid_of_subscriber_ = _srs_context->get_id();
-    request_key_frame_ = true;
-}
-
 
 SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
