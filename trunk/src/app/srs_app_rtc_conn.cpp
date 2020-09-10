@@ -382,7 +382,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
-
+    nack_epp = new SrsErrorPithyPrint();
     pli_worker_ = new ISrsRtcPLIWorker(this);
 }
 
