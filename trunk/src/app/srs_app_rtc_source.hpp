@@ -501,7 +501,9 @@ protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
-    virtual srs_error_t check_send_nacks();
+    virtual srs_error_t check_send_nacks() = 0;
+protected:
+    virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
@@ -511,6 +513,7 @@ public:
     virtual ~SrsRtcAudioRecvTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t check_send_nacks();
 };
 
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
@@ -524,6 +527,7 @@ public:
     virtual ~SrsRtcVideoRecvTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t check_send_nacks();
 public:
     void request_keyframe();
 };

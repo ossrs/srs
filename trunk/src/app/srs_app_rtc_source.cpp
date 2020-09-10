@@ -1710,12 +1710,11 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcRecvTrack::check_send_nacks()
+srs_error_t SrsRtcRecvTrack::do_check_send_nacks(uint32_t& timeout_nacks)
 {
     srs_error_t err = srs_success;
 
     uint32_t sent_nacks = 0;
-    uint32_t timeout_nacks = 0;
     session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks, timeout_nacks);
     statistic_->nacks += sent_nacks;
 
@@ -1749,6 +1748,18 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     // For NACK to handle packet.
     if ((err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcAudioRecvTrack::check_send_nacks()
+{
+    srs_error_t err = srs_success;
+
+    uint32_t timeout_nacks = 0;
+    if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
+        return srs_error_wrap(err, "audio");
     }
 
     return err;
@@ -1796,6 +1807,26 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     if ((err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
+{
+    srs_error_t err = srs_success;
+
+    uint32_t timeout_nacks = 0;
+    if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
+        return srs_error_wrap(err, "video");
+    }
+
+    // If NACK timeout, start PLI if not requesting.
+    if (timeout_nacks == 0 || request_key_frame_) {
+        return err;
+    }
+
+    srs_trace("[Maybe] RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", timeout_nacks,
+        track_desc_->id_.c_str(), track_desc_->ssrc_);
 
     return err;
 }
