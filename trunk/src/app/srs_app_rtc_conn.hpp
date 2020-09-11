@@ -186,7 +186,7 @@ public:
 };
 
 // A worker coroutine to request the PLI.
-class ISrsRtcPLIWorker : virtual public ISrsCoroutineHandler
+class SrsRtcPLIWorker : virtual public ISrsCoroutineHandler
 {
 private:
     SrsCoroutine* trd_;
@@ -196,8 +196,8 @@ private:
     // Key is SSRC, value is the CID of subscriber which requests PLI.
     std::map<uint32_t, SrsContextId> plis_;
 public:
-    ISrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h);
-    virtual ~ISrsRtcPLIWorker();
+    SrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h);
+    virtual ~SrsRtcPLIWorker();
 public:
     virtual srs_error_t start();
     virtual void request_keyframe(uint32_t ssrc, SrsContextId cid);
@@ -246,7 +246,7 @@ private:
     SrsContextId cid_;
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
-    ISrsRtcPLIWorker* pli_worker_;
+    SrsRtcPLIWorker* pli_worker_;
 private:
     SrsRequest* req_;
     SrsRtcStream* source_;
@@ -312,7 +312,7 @@ private:
     SrsContextId cid_;
     SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
-    ISrsRtcPLIWorker* pli_worker_;
+    SrsRtcPLIWorker* pli_worker_;
 private:
     SrsRtcConnection* session_;
     uint16_t pt_to_drop_;

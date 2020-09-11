@@ -290,14 +290,14 @@ ISrsRtcPLIWorkerHandler::~ISrsRtcPLIWorkerHandler()
 {
 }
 
-ISrsRtcPLIWorker::ISrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h)
+SrsRtcPLIWorker::SrsRtcPLIWorker(ISrsRtcPLIWorkerHandler* h)
 {
     handler_ = h;
     wait_ = srs_cond_new();
     trd_ = new SrsSTCoroutine("pli", this, _srs_context->get_id());
 }
 
-ISrsRtcPLIWorker::~ISrsRtcPLIWorker()
+SrsRtcPLIWorker::~SrsRtcPLIWorker()
 {
     srs_cond_signal(wait_);
     trd_->stop();
@@ -306,7 +306,7 @@ ISrsRtcPLIWorker::~ISrsRtcPLIWorker()
     srs_cond_destroy(wait_);
 }
 
-srs_error_t ISrsRtcPLIWorker::start()
+srs_error_t SrsRtcPLIWorker::start()
 {
     srs_error_t err = srs_success;
 
@@ -317,13 +317,13 @@ srs_error_t ISrsRtcPLIWorker::start()
     return err;
 }
 
-void ISrsRtcPLIWorker::request_keyframe(uint32_t ssrc, SrsContextId cid)
+void SrsRtcPLIWorker::request_keyframe(uint32_t ssrc, SrsContextId cid)
 {
     plis_.insert(make_pair(ssrc, cid));
     srs_cond_signal(wait_);
 }
 
-srs_error_t ISrsRtcPLIWorker::cycle()
+srs_error_t SrsRtcPLIWorker::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -383,7 +383,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
     nack_epp = new SrsErrorPithyPrint();
-    pli_worker_ = new ISrsRtcPLIWorker(this);
+    pli_worker_ = new SrsRtcPLIWorker(this);
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -909,8 +909,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     nn_audio_frames = 0;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
-
-    pli_worker_ = new ISrsRtcPLIWorker(this);
+    
+    pli_worker_ = new SrsRtcPLIWorker(this);
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
