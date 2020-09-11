@@ -418,7 +418,7 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
+SrsConsumer::SrsConsumer(SrsSource* s, SrsTcpConnection* c)
 {
     source = s;
     conn = c;
@@ -2578,7 +2578,7 @@ void SrsSource::on_unpublish()
     }
 }
 
-srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer)
+srs_error_t SrsSource::create_consumer(SrsTcpConnection* conn, SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     

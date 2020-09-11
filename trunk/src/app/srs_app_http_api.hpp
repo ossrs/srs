@@ -254,7 +254,7 @@ public:
 };
 #endif
 
-class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
+class SrsHttpApi : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
 {
 private:
     SrsHttpParser* parser;

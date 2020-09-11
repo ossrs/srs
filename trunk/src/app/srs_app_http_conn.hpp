@@ -50,13 +50,12 @@ class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsFastStream;
 class SrsHttpUri;
-class SrsConnection;
 class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
 // The http connection which request the static or stream content.
-class SrsHttpConn : public SrsConnection
+class SrsHttpConn : public SrsTcpConnection
 {
 protected:
     SrsHttpParser* parser;

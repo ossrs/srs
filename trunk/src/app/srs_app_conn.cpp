@@ -94,7 +94,7 @@ void SrsCoroutineManager::clear()
     }
 }
 
-SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
+SrsTcpConnection::SrsTcpConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;
     stfd = c;
@@ -110,7 +110,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, 
     trd = new SrsSTCoroutine("conn", this);
 }
 
-SrsConnection::~SrsConnection()
+SrsTcpConnection::~SrsTcpConnection()
 {
     dispose();
     
@@ -122,17 +122,17 @@ SrsConnection::~SrsConnection()
     srs_close_stfd(stfd);
 }
 
-void SrsConnection::remark(int64_t* in, int64_t* out)
+void SrsTcpConnection::remark(int64_t* in, int64_t* out)
 {
     kbps->remark(in, out);
 }
 
-void SrsConnection::dispose()
+void SrsTcpConnection::dispose()
 {
     trd->interrupt();
 }
 
-srs_error_t SrsConnection::start()
+srs_error_t SrsTcpConnection::start()
 {
     srs_error_t err = srs_success;
     
@@ -147,7 +147,7 @@ srs_error_t SrsConnection::start()
     return err;
 }
 
-srs_error_t SrsConnection::set_tcp_nodelay(bool v)
+srs_error_t SrsTcpConnection::set_tcp_nodelay(bool v)
 {
     srs_error_t err = srs_success;
     
@@ -178,7 +178,7 @@ srs_error_t SrsConnection::set_tcp_nodelay(bool v)
     return err;
 }
 
-srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
+srs_error_t SrsTcpConnection::set_socket_buffer(srs_utime_t buffer_v)
 {
     srs_error_t err = srs_success;
     
@@ -230,7 +230,7 @@ srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
     return err;
 }
 
-srs_error_t SrsConnection::cycle()
+srs_error_t SrsTcpConnection::cycle()
 {
     srs_error_t err = do_cycle();
     
@@ -264,17 +264,17 @@ srs_error_t SrsConnection::cycle()
     return srs_success;
 }
 
-SrsContextId SrsConnection::srs_id()
+SrsContextId SrsTcpConnection::srs_id()
 {
     return trd->cid();
 }
 
-string SrsConnection::remote_ip()
+string SrsTcpConnection::remote_ip()
 {
     return ip;
 }
 
-void SrsConnection::expire()
+void SrsTcpConnection::expire()
 {
     trd->interrupt();
 }

@@ -422,7 +422,7 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
-srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsTcpConnection* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 
@@ -474,7 +474,7 @@ void SrsStatistic::on_disconnect(SrsContextId cid)
     vhost->nb_clients--;
 }
 
-void SrsStatistic::kbps_add_delta(SrsConnection* conn)
+void SrsStatistic::kbps_add_delta(SrsTcpConnection* conn)
 {
     // TODO: FIXME: Should not use context id as connection id.
     std::string id = conn->srs_id().c_str();

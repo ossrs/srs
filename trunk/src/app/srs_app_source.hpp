@@ -51,7 +51,7 @@ class SrsRtmpServer;
 class SrsEdgeProxyContext;
 class SrsMessageArray;
 class SrsNgExec;
-class SrsConnection;
+class SrsTcpConnection;
 class SrsMessageHeader;
 class SrsHls;
 class SrsRtc;
@@ -190,7 +190,7 @@ private:
     SrsSource* source;
     SrsMessageQueue* queue;
     // The owner connection for debug, maybe NULL.
-    SrsConnection* conn;
+    SrsTcpConnection* conn;
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -203,7 +203,7 @@ private:
     srs_utime_t mw_duration;
 #endif
 public:
-    SrsConsumer(SrsSource* s, SrsConnection* c);
+    SrsConsumer(SrsSource* s, SrsTcpConnection* c);
     virtual ~SrsConsumer();
 public:
     // Set the size of queue.
@@ -599,7 +599,7 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsConnection* conn, SrsConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsTcpConnection* conn, SrsConsumer*& consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.

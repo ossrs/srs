@@ -1674,7 +1674,8 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
-SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port) : SrsConnection(cm, fd, cip, port)
+SrsHttpApi::SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port)
+    : SrsTcpConnection(cm, fd, cip, port)
 {
     mux = m;
     cors = new SrsHttpCorsMux();

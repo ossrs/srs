@@ -1473,8 +1473,8 @@ void SrsServer::resample_kbps()
     SrsStatistic* stat = SrsStatistic::instance();
     
     // collect delta from all clients.
-    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-        SrsConnection* conn = *it;
+    for (std::vector<SrsTcpConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
+        SrsTcpConnection* conn = *it;
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
@@ -1493,7 +1493,7 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
     
-    SrsConnection* conn = NULL;
+    SrsTcpConnection* conn = NULL;
     
     if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
@@ -1521,7 +1521,7 @@ SrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)
+srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpConnection** pconn)
 {
     srs_error_t err = srs_success;
     
@@ -1577,8 +1577,8 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
 
 void SrsServer::remove(ISrsConnection* c)
 {
-    SrsConnection* conn = dynamic_cast<SrsConnection*>(c);
-    std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
+    SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
+    std::vector<SrsTcpConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
     
     // removed by destroy, ignore.
     if (it == conns.end()) {

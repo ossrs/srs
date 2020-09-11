@@ -104,7 +104,8 @@ SrsClientInfo::~SrsClientInfo()
     srs_freep(res);
 }
 
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port) : SrsConnection(svr, c, cip, port)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port)
+    : SrsTcpConnection(svr, c, cip, port)
 {
     server = svr;
     
@@ -141,7 +142,7 @@ SrsRtmpConn::~SrsRtmpConn()
 
 void SrsRtmpConn::dispose()
 {
-    SrsConnection::dispose();
+    SrsTcpConnection::dispose();
     
     // wakeup the handler which need to notice.
     if (wakable) {

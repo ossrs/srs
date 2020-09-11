@@ -40,7 +40,7 @@
 #include <srs_app_gb28181_sip.hpp>
 
 class SrsServer;
-class SrsConnection;
+class SrsTcpConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
@@ -257,7 +257,7 @@ private:
     //       maybe valid but the process is not SRS, the init.d script will never start server.
     int pid_fd;
     // All connections, connection manager
-    std::vector<SrsConnection*> conns;
+    std::vector<SrsTcpConnection*> conns;
     // All listners, listener manager.
     std::vector<SrsListener*> listeners;
     // Signal manager which convert gignal to io message.
@@ -343,12 +343,12 @@ public:
     // TODO: FIXME: Fetch from hybrid server manager.
     virtual SrsHttpServeMux* api_server();
 private:
-    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
+    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpConnection** pconn);
 // Interface IConnectionManager
 public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
-    // @see SrsConnection.on_thread_stop().
+    // @see SrsTcpConnection.on_thread_stop().
     virtual void remove(ISrsConnection* c);
 // Interface ISrsReloadHandler.
 public:

@@ -61,10 +61,10 @@ private:
     void clear();
 };
 
-// The basic connection of SRS,
+// The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
+class SrsTcpConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
     , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler
 {
 protected:
@@ -90,8 +90,8 @@ protected:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip, int cport);
-    virtual ~SrsConnection();
+    SrsTcpConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip, int cport);
+    virtual ~SrsTcpConnection();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);

@@ -59,7 +59,8 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsConnection(cm, fd, cip, port)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
+    : SrsTcpConnection(cm, fd, cip, port)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
