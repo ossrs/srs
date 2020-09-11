@@ -39,6 +39,9 @@ SrsConnectionManager::SrsConnectionManager()
 
 SrsConnectionManager::~SrsConnectionManager()
 {
+    srs_cond_signal(cond);
+    trd->stop();
+
     srs_freep(trd);
     srs_cond_destroy(cond);
 
@@ -50,7 +53,7 @@ srs_error_t SrsConnectionManager::start()
     srs_error_t err = srs_success;
 
     if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "coroutine manager");
+        return srs_error_wrap(err, "conn manager");
     }
 
     return err;
@@ -62,11 +65,12 @@ srs_error_t SrsConnectionManager::cycle()
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "coroutine mansger");
+            return srs_error_wrap(err, "conn manager");
         }
 
-        srs_cond_wait(cond);
         clear();
+
+        srs_cond_wait(cond);
     }
 
     return err;
