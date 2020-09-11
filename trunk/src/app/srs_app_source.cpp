@@ -418,10 +418,9 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* s, SrsTcpConnection* c)
+SrsConsumer::SrsConsumer(SrsSource* s)
 {
     source = s;
-    conn = c;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -2578,11 +2577,11 @@ void SrsSource::on_unpublish()
     }
 }
 
-srs_error_t SrsSource::create_consumer(SrsTcpConnection* conn, SrsConsumer*& consumer)
+srs_error_t SrsSource::create_consumer(SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     
-    consumer = new SrsConsumer(this, conn);
+    consumer = new SrsConsumer(this);
     consumers.push_back(consumer);
     
     // for edge, when play edge stream, check the state
