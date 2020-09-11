@@ -749,13 +749,13 @@ void SrsServer::gracefully_dispose()
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
     int wait_step = 1;
-    while (!conns.empty() && !signal_fast_quit) {
-        for (int i = 0; i < wait_step && !conns.empty() && !signal_fast_quit; i++) {
+    while (!conn_manager->empty() && !signal_fast_quit) {
+        for (int i = 0; i < wait_step && !conn_manager->empty() && !signal_fast_quit; i++) {
             srs_usleep(1000 * SRS_UTIME_MILLISECONDS);
         }
 
         wait_step = (wait_step * 2) % 33;
-        srs_trace("wait for %d conns to quit", conns.size());
+        srs_trace("wait for %d conns to quit", (int)conn_manager->size());
     }
 
     // dispose the source for hls and dvr.
@@ -1473,8 +1473,8 @@ void SrsServer::resample_kbps()
     SrsStatistic* stat = SrsStatistic::instance();
     
     // collect delta from all clients.
-    for (std::vector<SrsTcpConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-        SrsTcpConnection* conn = *it;
+    for (int i = 0; i < (int)conn_manager->size(); i++) {
+        SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(conn_manager->at(i));
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
@@ -1486,7 +1486,7 @@ void SrsServer::resample_kbps()
     // sample the kbps, get the stat.
     SrsKbps* kbps = stat->kbps_sample();
     
-    srs_update_rtmp_server((int)conns.size(), kbps);
+    srs_update_rtmp_server((int)conn_manager->size(), kbps);
 }
 
 srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
@@ -1505,7 +1505,7 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     srs_assert(conn);
     
     // directly enqueue, the cycle thread will remove the client.
-    conns.push_back(conn);
+    conn_manager->add(conn);
     
     // cycle will start process thread and when finished remove the client.
     // @remark never use the conn, for it maybe destroyed.
@@ -1538,13 +1538,13 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpCon
     
     // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
-    if (handler && (err = handler->on_accept_client(max_connections, (int)conns.size())) != srs_success) {
+    if (handler && (err = handler->on_accept_client(max_connections, (int)conn_manager->size())) != srs_success) {
         return srs_error_wrap(err, "drop client fd=%d, ip=%s:%d, max=%d, cur=%d for err: %s",
-            fd, ip.c_str(), port, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
+            fd, ip.c_str(), port, max_connections, (int)conn_manager->size(), srs_error_desc(err).c_str());
     }
-    if ((int)conns.size() >= max_connections) {
+    if ((int)conn_manager->size() >= max_connections) {
         return srs_error_new(ERROR_EXCEED_CONNECTIONS, "drop fd=%d, ip=%s:%d, max=%d, cur=%d for exceed connection limits",
-            fd, ip.c_str(), port, max_connections, (int)conns.size());
+            fd, ip.c_str(), port, max_connections, (int)conn_manager->size());
     }
     
     // avoid fd leak when fork.
@@ -1578,18 +1578,7 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpCon
 void SrsServer::remove(ISrsConnection* c)
 {
     SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
-    std::vector<SrsTcpConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
-    
-    // removed by destroy, ignore.
-    if (it == conns.end()) {
-        srs_warn("server moved connection, ignore.");
-        return;
-    }
-    
-    conns.erase(it);
-    
-    srs_info("conn removed. conns=%d", (int)conns.size());
-    
+
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(conn);
     stat->on_disconnect(conn->srs_id());

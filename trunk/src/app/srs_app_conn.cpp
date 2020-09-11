@@ -59,6 +59,16 @@ srs_error_t SrsConnectionManager::start()
     return err;
 }
 
+bool SrsConnectionManager::empty()
+{
+    return conns_.empty();
+}
+
+size_t SrsConnectionManager::size()
+{
+    return conns_.size();
+}
+
 srs_error_t SrsConnectionManager::cycle()
 {
     srs_error_t err = srs_success;
@@ -76,12 +86,48 @@ srs_error_t SrsConnectionManager::cycle()
     return err;
 }
 
+void SrsConnectionManager::add(ISrsConnection* conn)
+{
+    if (::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
+        conns_.push_back(conn);
+    }
+}
+
+void SrsConnectionManager::add_with_id(const std::string& id, ISrsConnection* conn)
+{
+    add(conn);
+    conns_id_.insert(make_pair(id, conn));
+}
+
+void SrsConnectionManager::add_with_name(const std::string& name, ISrsConnection* conn)
+{
+    add(conn);
+    conns_name_.insert(make_pair(name, conn));
+}
+
+ISrsConnection* SrsConnectionManager::at(int index)
+{
+    return conns_.at(index);
+}
+
+ISrsConnection* SrsConnectionManager::find_by_id(std::string id)
+{
+    map<string, ISrsConnection*>::iterator it = conns_id_.find(id);
+    return (it != conns_id_.end())? it->second : NULL;
+}
+
+ISrsConnection* SrsConnectionManager::find_by_name(std::string name)
+{
+    map<string, ISrsConnection*>::iterator it = conns_name_.find(name);
+    return (it != conns_name_.end())? it->second : NULL;
+}
+
 void SrsConnectionManager::remove(ISrsConnection* c)
 {
-    if (::find(conns.begin(), conns.end(), c) == conns.end()) {
-        conns.push_back(c);
+    if (::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
+        zombies_.push_back(c);
+        srs_cond_signal(cond);
     }
-    srs_cond_signal(cond);
 }
 
 void SrsConnectionManager::clear()
@@ -89,13 +135,41 @@ void SrsConnectionManager::clear()
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.
     vector<ISrsConnection*> copy;
-    copy.swap(conns);
+    copy.swap(zombies_);
 
     vector<ISrsConnection*>::iterator it;
     for (it = copy.begin(); it != copy.end(); ++it) {
         ISrsConnection* conn = *it;
-        srs_freep(conn);
+        dispose(conn);
     }
+}
+
+void SrsConnectionManager::dispose(ISrsConnection* c)
+{
+    for (map<string, ISrsConnection*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_name_.erase(it++);
+        }
+    }
+
+    for (map<string, ISrsConnection*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_id_.erase(it++);
+        }
+    }
+
+    vector<ISrsConnection*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
+    if (it != conns_.end()) {
+        conns_.erase(it);
+    }
+
+    srs_freep(c);
 }
 
 SrsTcpConnection::SrsTcpConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)

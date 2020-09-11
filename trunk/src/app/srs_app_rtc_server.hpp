@@ -40,6 +40,7 @@ class SrsRtcConnection;
 class SrsRequest;
 class SrsSdp;
 class SrsRtcStream;
+class SrsConnectionManager;
 
 // The UDP black hole, for developer to use wireshark to catch plaintext packets.
 // For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
@@ -91,13 +92,7 @@ private:
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
     ISrsRtcServerHijacker* hijacker;
-private:
-    // TODO: FIXME: Rename it.
-    std::map<std::string, SrsRtcConnection*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
-    // TODO: FIXME: Rename it.
-    std::map<std::string, SrsRtcConnection*> map_id_session; // key: peerip(ip + ":" + port)
-    // The zombie sessions, we will free them.
-    std::vector<SrsRtcConnection*> zombies_;
+    SrsConnectionManager* manager;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
@@ -131,7 +126,7 @@ public:
     // Destroy the session from server.
     void destroy(SrsRtcConnection* session);
 public:
-    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
+    void insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
 private:
     void check_and_clean_timeout_session();
 public:

@@ -28,6 +28,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include <srs_app_st.hpp>
 #include <srs_protocol_kbps.hpp>
@@ -41,21 +42,39 @@ class SrsConnectionManager : virtual public ISrsCoroutineHandler, virtual public
 {
 private:
     SrsCoroutine* trd;
-    std::vector<ISrsConnection*> conns;
     srs_cond_t cond;
+    // The zombie connections, we will delete it asynchronously.
+    std::vector<ISrsConnection*> zombies_;
+private:
+    // The connections without any id.
+    std::vector<ISrsConnection*> conns_;
+    // The connections with connection id.
+    std::map<std::string, ISrsConnection*> conns_id_;
+    // The connections with connection name.
+    std::map<std::string, ISrsConnection*> conns_name_;
 public:
     SrsConnectionManager();
     virtual ~SrsConnectionManager();
 public:
     srs_error_t start();
+    bool empty();
+    size_t size();
 // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
+public:
+    void add(ISrsConnection* conn);
+    void add_with_id(const std::string& id, ISrsConnection* conn);
+    void add_with_name(const std::string& name, ISrsConnection* conn);
+    ISrsConnection* at(int index);
+    ISrsConnection* find_by_id(std::string id);
+    ISrsConnection* find_by_name(std::string name);
 // Interface IConnectionManager
 public:
     virtual void remove(ISrsConnection* c);
 private:
     void clear();
+    void dispose(ISrsConnection* c);
 };
 
 // The basic connection of SRS, for TCP based protocols,

@@ -1678,6 +1678,14 @@ vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
     return addresses;
 }
 
+string SrsRtcConnection::remote_ip()
+{
+    if (sendonly_skt) {
+        return sendonly_skt->get_peer_ip();
+    }
+    return "";
+}
+
 void SrsRtcConnection::switch_to_context()
 {
     _srs_context->set_id(cid_);
