@@ -40,7 +40,7 @@ class SrsFlvDecoder;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_http_conn.hpp>

@@ -31,8 +31,8 @@
 #include <map>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_service_conn.hpp>
 
 class SrsStSocket;
 class SrsRtspConn;
@@ -51,6 +51,7 @@ class SrsAudioFrame;
 class SrsSimpleStream;
 class SrsPithyPrint;
 class SrsSimpleRtmpClient;
+class SrsCoroutineManager;
 
 // A rtp connection which transport a stream.
 class SrsRtpConn: public ISrsUdpHandler

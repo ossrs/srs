@@ -29,7 +29,7 @@
 #include <vector>
 #include <string>
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>

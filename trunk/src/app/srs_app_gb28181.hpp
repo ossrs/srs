@@ -33,7 +33,6 @@
 #include <map>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_rtsp_stack.hpp>
 #include <srs_kernel_stream.hpp>

@@ -33,7 +33,7 @@
 #include <srs_service_http_conn.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_source.hpp>
 

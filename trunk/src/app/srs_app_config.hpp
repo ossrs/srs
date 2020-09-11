@@ -34,7 +34,7 @@
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 
 class SrsRequest;
 class SrsFileWriter;

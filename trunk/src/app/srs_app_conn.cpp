@@ -31,6 +31,69 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
+SrsCoroutineManager::SrsCoroutineManager()
+{
+    cond = srs_cond_new();
+    trd = new SrsSTCoroutine("manager", this);
+}
+
+SrsCoroutineManager::~SrsCoroutineManager()
+{
+    srs_freep(trd);
+    srs_cond_destroy(cond);
+
+    clear();
+}
+
+srs_error_t SrsCoroutineManager::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine manager");
+    }
+
+    return err;
+}
+
+srs_error_t SrsCoroutineManager::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "coroutine mansger");
+        }
+
+        srs_cond_wait(cond);
+        clear();
+    }
+
+    return err;
+}
+
+void SrsCoroutineManager::remove(ISrsConnection* c)
+{
+    if (::find(conns.begin(), conns.end(), c) == conns.end()) {
+        conns.push_back(c);
+    }
+    srs_cond_signal(cond);
+}
+
+void SrsCoroutineManager::clear()
+{
+    // To prevent thread switch when delete connection,
+    // we copy all connections then free one by one.
+    vector<ISrsConnection*> copy;
+    copy.swap(conns);
+
+    vector<ISrsConnection*>::iterator it;
+    for (it = copy.begin(); it != copy.end(); ++it) {
+        ISrsConnection* conn = *it;
+        srs_freep(conn);
+    }
+}
+
 SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;

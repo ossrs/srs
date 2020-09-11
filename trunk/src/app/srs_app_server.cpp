@@ -52,7 +52,6 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
