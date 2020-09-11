@@ -49,7 +49,7 @@ SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
     output = _srs_config->get_stream_caster_output(c);
-    manager = new SrsCoroutineManager();
+    manager = new SrsConnectionManager();
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()

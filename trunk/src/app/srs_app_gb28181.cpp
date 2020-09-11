@@ -1890,7 +1890,7 @@ SrsGb28181Manger::SrsGb28181Manger(SrsServer *s, SrsConfDirective* c)
     // TODO: FIXME: support reload.
     server = s;
     config = new SrsGb28181Config(c);
-    manager = new SrsCoroutineManager();
+    manager = new SrsConnectionManager();
 }
 
 SrsGb28181Manger::~SrsGb28181Manger()

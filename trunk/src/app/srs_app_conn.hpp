@@ -36,19 +36,16 @@
 
 class SrsWallClock;
 
-// The coroutine manager use a thread to delete a connection, which will stop the service
-// thread, for example, when the RTMP connection thread cycle terminated, it will notify
-// the manager(the server) to remove the connection from list of server and push it to
-// the manager thread to delete it, finally the thread of connection will stop.
-class SrsCoroutineManager : virtual public ISrsCoroutineHandler, virtual public IConnectionManager
+// The connection manager remove connection and delete it asynchronously.
+class SrsConnectionManager : virtual public ISrsCoroutineHandler, virtual public IConnectionManager
 {
 private:
     SrsCoroutine* trd;
     std::vector<ISrsConnection*> conns;
     srs_cond_t cond;
 public:
-    SrsCoroutineManager();
-    virtual ~SrsCoroutineManager();
+    SrsConnectionManager();
+    virtual ~SrsConnectionManager();
 public:
     srs_error_t start();
 // Interface ISrsCoroutineHandler

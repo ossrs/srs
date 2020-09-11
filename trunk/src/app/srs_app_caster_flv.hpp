@@ -54,7 +54,7 @@ private:
     std::string output;
     SrsHttpServeMux* http_mux;
     std::vector<SrsHttpConn*> conns;
-    SrsCoroutineManager* manager;
+    SrsConnectionManager* manager;
 public:
     SrsAppCasterFlv(SrsConfDirective* c);
     virtual ~SrsAppCasterFlv();

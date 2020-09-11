@@ -656,7 +656,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = new SrsSignalManager(this);
-    conn_manager = new SrsCoroutineManager();
+    conn_manager = new SrsConnectionManager();
     
     handler = NULL;
     ppid = ::getppid();

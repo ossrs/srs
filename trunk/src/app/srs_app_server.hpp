@@ -53,7 +53,7 @@ class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsRtspCaster;
-class SrsCoroutineManager;
+class SrsConnectionManager;
 class SrsGb28181Caster;
 
 
@@ -249,7 +249,7 @@ private:
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
-    SrsCoroutineManager* conn_manager;
+    SrsConnectionManager* conn_manager;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,

@@ -31,13 +31,13 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsCoroutineManager::SrsCoroutineManager()
+SrsConnectionManager::SrsConnectionManager()
 {
     cond = srs_cond_new();
     trd = new SrsSTCoroutine("manager", this);
 }
 
-SrsCoroutineManager::~SrsCoroutineManager()
+SrsConnectionManager::~SrsConnectionManager()
 {
     srs_freep(trd);
     srs_cond_destroy(cond);
@@ -45,7 +45,7 @@ SrsCoroutineManager::~SrsCoroutineManager()
     clear();
 }
 
-srs_error_t SrsCoroutineManager::start()
+srs_error_t SrsConnectionManager::start()
 {
     srs_error_t err = srs_success;
 
@@ -56,7 +56,7 @@ srs_error_t SrsCoroutineManager::start()
     return err;
 }
 
-srs_error_t SrsCoroutineManager::cycle()
+srs_error_t SrsConnectionManager::cycle()
 {
     srs_error_t err = srs_success;
 
@@ -72,7 +72,7 @@ srs_error_t SrsCoroutineManager::cycle()
     return err;
 }
 
-void SrsCoroutineManager::remove(ISrsConnection* c)
+void SrsConnectionManager::remove(ISrsConnection* c)
 {
     if (::find(conns.begin(), conns.end(), c) == conns.end()) {
         conns.push_back(c);
@@ -80,7 +80,7 @@ void SrsCoroutineManager::remove(ISrsConnection* c)
     srs_cond_signal(cond);
 }
 
-void SrsCoroutineManager::clear()
+void SrsConnectionManager::clear()
 {
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.

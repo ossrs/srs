@@ -473,7 +473,7 @@ private:
     std::map<uint32_t, SrsPsRtpListener*> rtp_pool;
     std::map<uint32_t, SrsGb28181RtmpMuxer*> rtmpmuxers_ssrc;
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
-    SrsCoroutineManager* manager;
+    SrsConnectionManager* manager;
     SrsGb28181SipService* sip_service;
     SrsServer* server;
 public:
