@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_service_http_client.hpp>
 #include <srs_service_rtmp_conn.hpp>
+#include <srs_service_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 

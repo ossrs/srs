@@ -24,6 +24,7 @@
 #include <srs_app_conn.hpp>
 
 #include <netinet/tcp.h>
+#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
