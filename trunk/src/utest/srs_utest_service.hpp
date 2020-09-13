@@ -30,6 +30,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest.hpp>
 
 #include <srs_app_st.hpp>
+#include <srs_service_conn.hpp>
+
+class MockSrsConnection : public ISrsConnection
+{
+public:
+    MockSrsConnection();
+    virtual ~MockSrsConnection();
+    virtual std::string remote_ip();
+};
 
 #endif
 

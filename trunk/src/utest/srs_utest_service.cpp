@@ -42,17 +42,18 @@ using namespace std;
 #include <sys/socket.h>
 #include <netdb.h>
 
-class MockSrsConnection : public ISrsConnection
+MockSrsConnection::MockSrsConnection()
 {
-public:
-    MockSrsConnection() {
-    }
-    virtual ~MockSrsConnection() {
-    }
-    virtual std::string remote_ip() {
-        return "127.0.0.1";
-    }
-};
+}
+
+MockSrsConnection::~MockSrsConnection()
+{
+}
+
+std::string MockSrsConnection::remote_ip()
+{
+    return "127.0.0.1";
+}
 
 VOID TEST(ServiceTimeTest, TimeUnit)
 {

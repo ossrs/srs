@@ -30,9 +30,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_app_conn.hpp>
+
+#include <srs_utest_service.hpp>
 
 #include <vector>
 using namespace std;
+
+VOID TEST(KernelRTCTest, ConnectionManagerTest)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsConnectionManager manager;
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockSrsConnection* conn = new MockSrsConnection();
+        manager.add(conn);
+        EXPECT_EQ(1, manager.size()); EXPECT_FALSE(manager.empty());
+
+        manager.remove(conn);
+        srs_usleep(0); // Switch context for manager to dispose connections.
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+    }
+}
 
 VOID TEST(KernelRTCTest, StringDumpHexTest)
 {
