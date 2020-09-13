@@ -88,7 +88,7 @@ srs_error_t SrsConnectionManager::cycle()
 
 void SrsConnectionManager::add(ISrsConnection* conn)
 {
-    if (::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
+    if (std::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
         conns_.push_back(conn);
     }
 }
@@ -124,7 +124,7 @@ ISrsConnection* SrsConnectionManager::find_by_name(std::string name)
 
 void SrsConnectionManager::remove(ISrsConnection* c)
 {
-    if (::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
+    if (std::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
         zombies_.push_back(c);
         srs_cond_signal(cond);
     }

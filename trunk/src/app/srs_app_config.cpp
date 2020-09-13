@@ -298,7 +298,7 @@ bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
     }
     
     string id = req->app + "/" + req->stream;
-    if (::find(args.begin(), args.end(), id) != args.end()) {
+    if (std::find(args.begin(), args.end(), id) != args.end()) {
         return true;
     }
     
@@ -786,7 +786,7 @@ SrsConfDirective* SrsConfDirective::set_arg0(string a0)
 void SrsConfDirective::remove(SrsConfDirective* v)
 {
     std::vector<SrsConfDirective*>::iterator it;
-    if ((it = ::find(directives.begin(), directives.end(), v)) != directives.end()) {
+    if ((it = std::find(directives.begin(), directives.end(), v)) != directives.end()) {
         directives.erase(it);
     }
 }
@@ -3186,7 +3186,7 @@ srs_error_t SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied
         conf->args.clear();
     }
     
-    if (::find(conf->args.begin(), conf->args.end(), stream) == conf->args.end()) {
+    if (std::find(conf->args.begin(), conf->args.end(), stream) == conf->args.end()) {
         conf->args.push_back(stream);
     }
     
@@ -3210,7 +3210,7 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     
     std::vector<string>::iterator it;
     
-    if ((it = ::find(conf->args.begin(), conf->args.end(), stream)) != conf->args.end()) {
+    if ((it = std::find(conf->args.begin(), conf->args.end(), stream)) != conf->args.end()) {
         conf->args.erase(it);
     }
     

@@ -620,7 +620,7 @@ srs_error_t SrsHttpServeMux::initialize()
 
 void SrsHttpServeMux::hijack(ISrsHttpMatchHijacker* h)
 {
-    std::vector<ISrsHttpMatchHijacker*>::iterator it = ::find(hijackers.begin(), hijackers.end(), h);
+    std::vector<ISrsHttpMatchHijacker*>::iterator it = std::find(hijackers.begin(), hijackers.end(), h);
     if (it != hijackers.end()) {
         return;
     }
@@ -629,7 +629,7 @@ void SrsHttpServeMux::hijack(ISrsHttpMatchHijacker* h)
 
 void SrsHttpServeMux::unhijack(ISrsHttpMatchHijacker* h)
 {
-    std::vector<ISrsHttpMatchHijacker*>::iterator it = ::find(hijackers.begin(), hijackers.end(), h);
+    std::vector<ISrsHttpMatchHijacker*>::iterator it = std::find(hijackers.begin(), hijackers.end(), h);
     if (it == hijackers.end()) {
         return;
     }
