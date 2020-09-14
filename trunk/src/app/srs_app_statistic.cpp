@@ -422,6 +422,27 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
+void SrsStatistic::stream_close(SrsStatisticStream* stream)
+{
+    //close()本质上是将有流状态，转为无流状态，且将流数量减1，而无流状态时，流数量并未加上，在此无需要调用。
+    //stream->close();
+    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
+    if (true) {
+        std::map<string, SrsStatisticStream*>::iterator it;
+        if ((it=streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+    }
+
+    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it=rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+    }
+}
+
 srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
@@ -472,6 +493,9 @@ void SrsStatistic::on_disconnect(SrsContextId cid)
     
     stream->nb_clients--;
     vhost->nb_clients--;
+
+    //解决无流不删除的问题
+    if (!stream->active) stream_close(stream);
 }
 
 void SrsStatistic::kbps_add_delta(SrsConnection* conn)
