@@ -264,8 +264,9 @@ public:
     SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
 // Interface ISrsKbpsDelta
-public:
-    virtual void remark(int64_t* in, int64_t* out);
+// 2020.9.14 为解决播放flv，带宽数据异常，注释起来该函数，使其调用父类该函数
+//public:
+//    virtual void remark(int64_t* in, int64_t* out);
 protected:
     virtual srs_error_t do_cycle();
 private:

@@ -63,6 +63,7 @@ SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMu
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
+
     http_mux = m;
 }
 
@@ -72,10 +73,11 @@ SrsHttpConn::~SrsHttpConn()
     srs_freep(cors);
 }
 
-void SrsHttpConn::remark(int64_t* in, int64_t* out)
-{
-    // TODO: FIXME: implements it
-}
+// 2020.9.14 为解决播放flv，带宽数据异常，注释起来该函数，使其调用父类该函数
+//void SrsHttpConn::remark(int64_t* in, int64_t* out)
+//{
+//    // TODO: FIXME: implements it
+//}
 
 srs_error_t SrsHttpConn::do_cycle()
 {

@@ -1691,10 +1691,11 @@ SrsHttpApi::~SrsHttpApi()
     _srs_config->unsubscribe(this);
 }
 
-void SrsHttpApi::remark(int64_t* in, int64_t* out)
-{
-    // TODO: FIXME: implements it
-}
+// 2020.9.14 为解决播放flv，带宽数据异常，注释起来该函数，使其调用父类该函数
+// void SrsHttpApi::remark(int64_t* in, int64_t* out)
+// {
+//     // TODO: FIXME: implements it
+// }
 
 srs_error_t SrsHttpApi::do_cycle()
 {
