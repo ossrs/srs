@@ -691,11 +691,13 @@ void SrsPlayEdge::on_all_client_stop()
     // when all client disconnected,
     // and edge is ingesting origin stream, abort it.
     if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
-        ingester->stop();
-        
         SrsEdgeState pstate = state;
+        state = SrsEdgeStateIngestStopping;
+
+        ingester->stop();
+
         state = SrsEdgeStateInit;
-        srs_trace("edge change from %d to state %d (init).", pstate, state);
+        srs_trace("edge change from %d to %d then %d (init).", pstate, SrsEdgeStateIngestStopping, state);
         
         return;
     }

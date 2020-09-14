@@ -56,9 +56,12 @@ enum SrsEdgeState
     SrsEdgeStatePlay = 100,
     // play stream from origin, ingest stream
     SrsEdgeStateIngestConnected = 101,
-    
+
     // For publish edge
     SrsEdgeStatePublish = 200,
+
+    // We are stopping edge ingesting.
+    SrsEdgeStateIngestStopping = 300,
 };
 
 // The state of edge from user, manual machine
