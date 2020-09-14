@@ -2560,6 +2560,43 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
     return err;
 }
 
+// For example, 42001f 42e01f, see https://blog.csdn.net/epubcn/article/details/102802108
+bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
+{
+    srs_error_t err = srs_success;
+
+    for (size_t i = 0; i < sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& desc = sdp.media_descs_[i];
+        if (!desc.is_video()) {
+            continue;
+        }
+
+        std::vector<SrsMediaPayloadType> payloads = desc.find_media_with_encoding_name("H264");
+        if (payloads.empty()) {
+            continue;
+        }
+
+        for (std::vector<SrsMediaPayloadType>::iterator it = payloads.begin(); it != payloads.end(); ++it) {
+            const SrsMediaPayloadType& payload_type = *it;
+
+            if (payload_type.format_specific_param_.empty()) {
+                continue;
+            }
+
+            H264SpecificParam h264_param;
+            if ((err = srs_parse_h264_fmtp(payload_type.format_specific_param_, h264_param)) != srs_success) {
+                srs_error_reset(err); continue;
+            }
+
+            if (h264_param.profile_level_id == profile) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, const SrsSdp& remote_sdp, SrsRtcStreamDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -2570,6 +2607,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
@@ -2641,8 +2679,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
                     srs_error_reset(err); continue;
                 }
 
+                // If not exists 42e01f, we pick up any profile such as 42001f.
+                bool profile_matched = (!has_42e01f || h264_param.profile_level_id == "42e01f");
+
                 // Try to pick the "best match" H.264 payload type.
-                if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
+                if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1" && profile_matched) {
                     // if the playload is opus, and the encoding_param_ is channel
                     SrsVideoPayload* video_payload = new SrsVideoPayload(iter->payload_type_, iter->encoding_name_, iter->clock_rate_);
                     video_payload->set_h264_param_desc(iter->format_specific_param_);
