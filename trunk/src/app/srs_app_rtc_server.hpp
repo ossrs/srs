@@ -123,12 +123,12 @@ public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
     srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession);
     srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
-    // Destroy the session from server.
+    // Destroy the session and notify the callback.
+    void dispose(SrsRtcConnection* session);
+    // Destroy the session from server, without notify callback.
     void destroy(SrsRtcConnection* session);
 public:
     void insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
-private:
-    void check_and_clean_timeout_session();
 public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsHourGlass

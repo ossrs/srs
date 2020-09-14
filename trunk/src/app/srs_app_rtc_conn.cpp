@@ -118,6 +118,11 @@ srs_error_t SrsSecurityTransport::on_dtls(char* data, int nb_data)
     return dtls_->on_dtls(data, nb_data);
 }
 
+srs_error_t SrsSecurityTransport::on_dtls_alert(std::string type, std::string desc)
+{
+    return session_->on_dtls_alert(type, desc);
+}
+
 srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
@@ -233,6 +238,11 @@ srs_error_t SrsPlaintextTransport::start_active_handshake()
 }
 
 srs_error_t SrsPlaintextTransport::on_dtls(char* data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t SrsPlaintextTransport::on_dtls_alert(std::string type, std::string desc)
 {
     return srs_success;
 }
@@ -2107,6 +2117,26 @@ srs_error_t SrsRtcConnection::on_connection_established()
         if ((err = hijacker_->on_dtls_done()) != srs_success) {
             return srs_error_wrap(err, "hijack on dtls done");
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcConnection* session = this;
+
+    // CN(Close Notify) is sent when client close the PeerConnection.
+    if (type == "warning" && desc == "CN") {
+        SrsContextRestore(_srs_context->get_id());
+        session->switch_to_context();
+
+        string username = session->username();
+        srs_trace("RTC: session DTLS alert, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
+
+        server_->dispose(session);
     }
 
     return err;

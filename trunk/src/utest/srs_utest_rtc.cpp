@@ -298,6 +298,7 @@ public:
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char* data, const int len);
     virtual srs_error_t write_dtls_data(void* data, int size);
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
     virtual srs_error_t cycle();
 };
 
@@ -388,6 +389,11 @@ srs_error_t MockDtlsCallback::write_dtls_data(void* data, int size)
 
     samples.push_back(SrsSample((char*)cp, size));
 
+    return srs_success;
+}
+
+srs_error_t MockDtlsCallback::on_dtls_alert(std::string type, std::string desc)
+{
     return srs_success;
 }
 

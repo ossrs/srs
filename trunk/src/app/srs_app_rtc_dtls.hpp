@@ -93,6 +93,8 @@ public:
     virtual srs_error_t on_dtls_application_data(const char* data, const int len) = 0;
     // DTLS write dtls data.
     virtual srs_error_t write_dtls_data(void* data, int size) = 0;
+    // Callback when DTLS Alert message.
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 };
 
 // The state for DTLS client.
@@ -135,6 +137,7 @@ protected:
     void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+    void callback_by_ssl(std::string type, std::string desc);
 protected:
     virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached) = 0;
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;

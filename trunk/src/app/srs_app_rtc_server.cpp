@@ -575,6 +575,19 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     return err;
 }
 
+void SrsRtcServer::dispose(SrsRtcConnection* session)
+{
+    if (session->disposing_) {
+        return;
+    }
+
+    destroy(session);
+
+    if (handler) {
+        handler->on_timeout(session);
+    }
+}
+
 void SrsRtcServer::destroy(SrsRtcConnection* session)
 {
     if (session->disposing_) {
@@ -582,43 +595,12 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
     }
     session->disposing_ = true;
 
-    SrsContextRestore(_srs_context->get_id());
-    session->switch_to_context();
-
-    string username = session->username();
-    srs_trace("RTC: session destroy, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
-
     manager->remove(session);
 }
 
 void SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
 {
     manager->add_with_id(peer_id, session);
-}
-
-void SrsRtcServer::check_and_clean_timeout_session()
-{
-    for (int i = 0; i < (int)manager->size(); i++) {
-        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(manager->at(i));
-        srs_assert(session);
-
-        if (!session->is_stun_timeout()) {
-            continue;
-        }
-
-        // Now, we got the RTC session to cleanup, switch to its context
-        // to make all logs write to the "correct" pid+cid.
-        session->switch_to_context();
-        string username = session->username();
-        srs_trace("RTC: session STUN timeout, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
-
-        session->disposing_ = true;
-        manager->remove(session);
-
-        if (handler) {
-            handler->on_timeout(session);
-        }
-    }
 }
 
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)
@@ -631,9 +613,24 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Merge small functions.
-    // Check session timeout, put to zombies queue.
-    check_and_clean_timeout_session();
+    // Check all sessions and dispose the dead sessions.
+    for (int i = 0; i < (int)manager->size(); i++) {
+        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(manager->at(i));
+        srs_assert(session);
+
+        if (!session->is_stun_timeout()) {
+            continue;
+        }
+
+        SrsContextRestore(_srs_context->get_id());
+        session->switch_to_context();
+
+        string username = session->username();
+        srs_trace("RTC: session STUN timeout, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
+
+        // Destroy session and notify the handler.
+        dispose(session);
+    }
 
     return err;
 }

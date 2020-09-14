@@ -57,6 +57,9 @@ int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 // Print the information of SSL, DTLS alert as such.
 void ssl_on_info(const SSL* dtls, int where, int ret)
 {
+    SrsDtlsImpl* dtls_impl = (SrsDtlsImpl*)SSL_get_ex_data(dtls, 0);
+    srs_assert(dtls_impl);
+
     const char* method;
     int w = where& ~SSL_ST_MASK;
     if (w & SSL_ST_CONNECT) {
@@ -85,6 +88,9 @@ void ssl_on_info(const SSL* dtls, int where, int ret)
             srs_error("DTLS: SSL3 alert method=%s type=%s, desc=%s(%s), where=%d, ret=%d, r1=%d", method, alert_type.c_str(),
                 alert_desc.c_str(), SSL_alert_desc_string_long(ret), where, ret, r1);
         }
+
+        // Notify the DTLS to handle the ALERT message, which maybe means media connection disconnect.
+        dtls_impl->callback_by_ssl(alert_type, alert_desc);
     } else if (where & SSL_CB_EXIT) {
         if (ret == 0) {
             srs_warn("DTLS: Fail method=%s state=%s(%s), where=%d, ret=%d, r1=%d", method, SSL_state_string(dtls),
@@ -586,6 +592,15 @@ srs_error_t SrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_k
     }
 
     return err;
+}
+
+void SrsDtlsImpl::callback_by_ssl(std::string type, std::string desc)
+{
+    srs_error_t err = srs_success;
+    if ((err = callback_->on_dtls_alert(type, desc)) != srs_success) {
+        srs_warn2("DTLSAlert", "DTLS: handler alert err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
 }
 
 SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(callback)

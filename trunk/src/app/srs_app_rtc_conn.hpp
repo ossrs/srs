@@ -94,6 +94,7 @@ public:
     virtual srs_error_t initialize(SrsSessionConfig* cfg) = 0;
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char* data, int nb_data) = 0;
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 public:
     virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
     virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
@@ -118,6 +119,7 @@ public:
     // When play role of dtls client, it send handshake. 
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
+    srs_error_t on_dtls_alert(std::string type, std::string desc);
 public:
     // Encrypt the input plaintext to output cipher with nb_cipher bytes.
     // @remark Note that the nb_cipher is the size of input plaintext, and 
@@ -165,6 +167,7 @@ public:
     virtual srs_error_t initialize(SrsSessionConfig* cfg);
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char* data, const int len);
     virtual srs_error_t write_dtls_data(void* data, int size);
@@ -508,6 +511,7 @@ public:
     void set_hijacker(ISrsRtcConnectionHijacker* h);
 public:
     srs_error_t on_connection_established();
+    srs_error_t on_dtls_alert(std::string type, std::string desc);
     srs_error_t start_play(std::string stream_uri);
     srs_error_t start_publish(std::string stream_uri);
     bool is_stun_timeout();
