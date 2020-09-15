@@ -55,6 +55,7 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
