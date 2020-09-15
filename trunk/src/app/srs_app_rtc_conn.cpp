@@ -3078,7 +3078,7 @@ srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<
     return err;
 }
 
-void video_track_generate_play_offer(SrsRtcTrackDescription* track, SrsSdp& local_sdp)
+void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, SrsSdp& local_sdp)
 {
     local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
     SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -3090,7 +3090,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, SrsSdp& loca
 
     local_media_desc.extmaps_ = track->extmaps_;
 
-    local_media_desc.mid_ = track->mid_;
+    local_media_desc.mid_ = mid; // Use transformed mid, not the mid of track.
     local_sdp.groups_.push_back(local_media_desc.mid_);
 
     if (track->direction_ == "recvonly") {
@@ -3205,11 +3205,11 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         if (!unified_plan) {
             // for plan b, we only add one m= for video track.
             if (i == 0) {
-                video_track_generate_play_offer(track, local_sdp);
+                video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
             }
         } else {
             // unified plan SDP, generate a m= for each video track.
-            video_track_generate_play_offer(track, local_sdp);
+            video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
