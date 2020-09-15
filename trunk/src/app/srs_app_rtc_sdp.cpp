@@ -22,7 +22,6 @@
  */
 
 #include <srs_app_rtc_sdp.hpp>
-using namespace std;
 
 #include <stdlib.h>
 
@@ -30,6 +29,7 @@ using namespace std;
 #include <sstream>
 #include <vector>
 #include <algorithm>
+using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
