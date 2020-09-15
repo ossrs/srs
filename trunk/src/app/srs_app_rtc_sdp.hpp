@@ -140,6 +140,7 @@ public:
     SrsMediaPayloadType* find_media_with_payload_type(int payload_type);
     std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string& encoding_name) const;
     const std::map<int, std::string>& get_extmaps() const { return extmaps_; }
+    srs_error_t update_msid(std::string id);
 
     bool is_audio() const { return type_ == "audio"; }
     bool is_video() const { return type_ == "video"; }
@@ -248,6 +249,8 @@ public:
     std::vector<SrsMediaDesc> media_descs_;
 
      bool is_unified() const;
+    // TODO: FIXME: will be fixed when use single pc.
+    srs_error_t update_msid(std::string id);
 };
 
 #endif

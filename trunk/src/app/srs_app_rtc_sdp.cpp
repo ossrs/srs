@@ -332,6 +332,20 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
     return payloads;
 }
 
+srs_error_t SrsMediaDesc::update_msid(string id)
+{
+    srs_error_t err = srs_success;
+
+    for(vector<SrsSSRCInfo>::iterator it = ssrc_infos_.begin(); it != ssrc_infos_.end(); ++it) {
+        SrsSSRCInfo& info = *it;
+
+        info.msid_ = id;
+        info.mslabel_ = id;
+    }
+
+    return err;
+}
+
 srs_error_t SrsMediaDesc::parse_line(const std::string& line)
 {
     srs_error_t err = srs_success;
@@ -1070,5 +1084,23 @@ bool SrsSdp::is_unified() const
 {
     // TODO: FIXME: Maybe we should consider other situations.
     return media_descs_.size() > 2;
+}
+
+srs_error_t SrsSdp::update_msid(string id)
+{
+    srs_error_t err = srs_success;
+
+    msids_.clear();
+    msids_.push_back(id);
+
+    for (vector<SrsMediaDesc>::iterator it = media_descs_.begin(); it != media_descs_.end(); ++it) {
+        SrsMediaDesc& desc = *it;
+
+        if ((err = desc.update_msid(id)) != srs_success) {
+            return srs_error_wrap(err, "desc %s update msid %s", desc.mid_.c_str(), id.c_str());
+        }
+    }
+
+    return err;
 }
 
