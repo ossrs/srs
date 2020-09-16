@@ -381,7 +381,7 @@ public:
     bool is_active_;
     // direction
     std::string direction_;
-    // TODO: FIXME: whether mid is needed?
+    // mid is used in BOUNDLE
     std::string mid_;
     // msid_: track stream id
     std::string msid_;

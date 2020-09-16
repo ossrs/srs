@@ -3090,8 +3090,23 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
 
     local_media_desc.extmaps_ = track->extmaps_;
 
-    local_media_desc.mid_ = mid; // Use transformed mid, not the mid of track.
-    local_sdp.groups_.push_back(local_media_desc.mid_);
+    // If mid not duplicated, use mid_ of track. Otherwise, use transformed mid.
+    if (true) {
+        bool mid_duplicated = false;
+        for (int i = 0; i < (int)local_sdp.groups_.size(); ++i) {
+            string& existed_mid = local_sdp.groups_.at(i);
+            if(existed_mid == track->mid_) {
+                mid_duplicated = true;
+                break;
+            }
+        }
+        if (mid_duplicated) {
+            local_media_desc.mid_ = mid;
+        } else {
+            local_media_desc.mid_ = track->mid_;
+        }
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+    }
 
     if (track->direction_ == "recvonly") {
         local_media_desc.recvonly_ = true;
