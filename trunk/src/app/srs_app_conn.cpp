@@ -79,7 +79,11 @@ srs_error_t SrsConnectionManager::cycle()
             return srs_error_wrap(err, "conn manager");
         }
 
-        clear();
+        // Clear all zombies, because we may switch context and lost signal
+        // when we clear zombie connection.
+        while (!zombies_.empty()) {
+            clear();
+        }
 
         srs_cond_wait(cond);
     }
