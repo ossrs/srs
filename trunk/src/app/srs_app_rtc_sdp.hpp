@@ -192,8 +192,7 @@ public:
     srs_error_t parse(const std::string& sdp_str);
     srs_error_t encode(std::ostringstream& os);
 public:
-public:
-    const SrsMediaDesc* find_media_desc(const std::string& type) const;
+    std::vector<SrsMediaDesc*> find_media_descs(const std::string& type);
 public:
     void set_ice_ufrag(const std::string& ufrag);
     void set_ice_pwd(const std::string& pwd);
