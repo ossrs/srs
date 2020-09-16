@@ -1052,7 +1052,9 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
         
         // when got video stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((err = stat->on_video_info(req, SrsVideoCodecIdAVC, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
+        // if ((err = stat->on_video_info(req, SrsVideoCodecIdAVC, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
+        // fix 显示H265问题
+        if ((err = stat->on_video_info(req, c->id, c->avc_profile, c->avc_level, c->width, c->height)) != srs_success) {
             return srs_error_wrap(err, "stat video");
         }
         

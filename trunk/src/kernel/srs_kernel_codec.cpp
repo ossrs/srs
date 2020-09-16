@@ -582,7 +582,8 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     }
 
 #ifdef SRS_H265
-    if (vcodec()->id == SrsVideoCodecIdAVC) {
+    // 应该是SrsVideoCodecIdHEVC
+    if (vcodec()->id == SrsVideoCodecIdHEVC) {
         // for video, parse the nalu type, set the IDR flag.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
         
@@ -1451,10 +1452,12 @@ srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream) {
             return srs_error_wrap(err, "avc add video frame");
         }
         stream->skip(NALUnitLength);
-        
-        i += vcodec->NAL_unit_length + 1 + NALUnitLength;
+
+        //fix 0916 0:53修改 h265 播放问题
+        //i += vcodec->NAL_unit_length + 1 + NALUnitLength;
+        i += nal_len_size + 1 + NALUnitLength;
     }
-    
+
     return err;
 }
 #endif
