@@ -814,7 +814,7 @@ std::vector<SrsMediaDesc*> SrsSdp::find_media_descs(const std::string& type)
 {
     std::vector<SrsMediaDesc*> descs;
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
 
         if (desc->type_ == type) {
             descs.push_back(desc);
@@ -827,7 +827,7 @@ std::vector<SrsMediaDesc*> SrsSdp::find_media_descs(const std::string& type)
 void SrsSdp::set_ice_ufrag(const std::string& ufrag)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->session_info_.ice_ufrag_ = ufrag;
     }
 }
@@ -835,7 +835,7 @@ void SrsSdp::set_ice_ufrag(const std::string& ufrag)
 void SrsSdp::set_ice_pwd(const std::string& pwd)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->session_info_.ice_pwd_ = pwd;
     }
 }
@@ -843,7 +843,7 @@ void SrsSdp::set_ice_pwd(const std::string& pwd)
 void SrsSdp::set_dtls_role(const std::string& dtls_role)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->session_info_.setup_ = dtls_role;
     }
 }
@@ -851,7 +851,7 @@ void SrsSdp::set_dtls_role(const std::string& dtls_role)
 void SrsSdp::set_fingerprint_algo(const std::string& algo)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->session_info_.fingerprint_algo_ = algo;
     }
 }
@@ -859,7 +859,7 @@ void SrsSdp::set_fingerprint_algo(const std::string& algo)
 void SrsSdp::set_fingerprint(const std::string& fingerprint)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->session_info_.fingerprint_ = fingerprint;
     }
 }
@@ -873,7 +873,7 @@ void SrsSdp::add_candidate(const std::string& ip, const int& port, const std::st
     candidate.type_ = type;
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        SrsMediaDesc* desc = &(*iter);
         desc->candidates_.push_back(candidate);
     }
 }
@@ -882,7 +882,7 @@ std::string SrsSdp::get_ice_ufrag() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.ice_ufrag_;
     }
 
@@ -893,7 +893,7 @@ std::string SrsSdp::get_ice_pwd() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.ice_pwd_;
     }
 
@@ -904,7 +904,7 @@ std::string SrsSdp::get_dtls_role() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        SrsMediaDesc* desc = iter;
+        const SrsMediaDesc* desc = &(*iter);
         return desc->session_info_.setup_;
     }
 
