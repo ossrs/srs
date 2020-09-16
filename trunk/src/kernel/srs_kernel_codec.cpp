@@ -191,7 +191,8 @@ bool SrsFlvVideo::acceptable(char* data, int size)
 
     bool ignore_frame = codec_id < 2;
 #ifdef SRS_H265
-    ignore_frame = ignore_frame || codec_id > SrsVideoCodecIdHEVC;
+    // fix 0916 14:52
+    ignore_frame = ignore_frame || codec_id >= SrsVideoCodecIdHEVC;
 #endif
     if (ignore_frame) {
         return false;
@@ -581,25 +582,20 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
         return srs_error_wrap(err, "add frame");
     }
 
-#ifdef SRS_H265
-    // 应该是SrsVideoCodecIdHEVC
-    if (vcodec()->id == SrsVideoCodecIdHEVC) {
-        // for video, parse the nalu type, set the IDR flag.
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
-        
-        if (nal_unit_type == SrsAvcNaluTypeIDR) {
-            has_idr = true;
-        } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
-            has_sps_pps = true;
-        } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
-            has_aud = true;
-        }
-        
-        if (first_nalu_type == SrsAvcNaluTypeReserved) {
-            first_nalu_type = nal_unit_type;
-        }
+    // for video, parse the nalu type, set the IDR flag.
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+
+    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+        has_idr = true;
+    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
+        has_sps_pps = true;
+    } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+        has_aud = true;
     }
-#endif
+        
+    if (first_nalu_type == SrsAvcNaluTypeReserved) {
+        first_nalu_type = nal_unit_type;
+    }
     
     return err;
 }
