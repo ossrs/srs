@@ -598,7 +598,7 @@ void SrsDtlsImpl::callback_by_ssl(std::string type, std::string desc)
 {
     srs_error_t err = srs_success;
     if ((err = callback_->on_dtls_alert(type, desc)) != srs_success) {
-        srs_warn2("DTLSAlert", "DTLS: handler alert err %s", srs_error_desc(err).c_str());
+        srs_warn2(TAG_DTLS_ALERT, "DTLS: handler alert err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
 }

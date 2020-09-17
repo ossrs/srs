@@ -882,6 +882,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcStream* source, SrsShare
     pkt->header.set_payload_type(kVideoPayloadType);
     pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
+    pkt->nalu_type = (SrsAvcNaluType)kStapA;
     pkt->header.set_marker(false);
     pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
@@ -929,6 +930,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
     srs_error_t err = srs_success;
 
     SrsRtpRawNALUs* raw = new SrsRtpRawNALUs();
+    SrsAvcNaluType first_nalu_type = SrsAvcNaluTypeReserved;
 
     for (int i = 0; i < (int)samples.size(); i++) {
         SrsSample* sample = samples[i];
@@ -937,6 +939,14 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         // the bframe flag will not be set.
         if (sample->bframe) {
             continue;
+        }
+
+        if (!sample->size) {
+            continue;
+        }
+
+        if (first_nalu_type == SrsAvcNaluTypeReserved) {
+            first_nalu_type = SrsAvcNaluType((uint8_t)(sample->bytes[0] & kNalTypeMask));
         }
 
         raw->push_back(sample->copy());
@@ -955,6 +965,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         pkt->header.set_payload_type(kVideoPayloadType);
         pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
+        pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
         pkt->payload = raw;
@@ -987,6 +998,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
             pkt->header.set_payload_type(kVideoPayloadType);
             pkt->header.set_ssrc(video_ssrc);
             pkt->frame_type = SrsFrameTypeVideo;
+            pkt->nalu_type = (SrsAvcNaluType)kFuA;
             pkt->header.set_sequence(video_sequence++);
             pkt->header.set_timestamp(msg->timestamp * 90);
 
@@ -1813,7 +1825,7 @@ srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
         return err;
     }
 
-    srs_trace2("MAYBE", "RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", timeout_nacks,
+    srs_trace2(TAG_MAYBE, "RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", timeout_nacks,
         track_desc_->id_.c_str(), track_desc_->ssrc_);
 
     return err;
