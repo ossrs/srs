@@ -1642,6 +1642,11 @@ bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
     return track_desc_->has_ssrc(ssrc);
 }
 
+uint32_t SrsRtcRecvTrack::get_ssrc()
+{
+    return track_desc_->ssrc_;
+}
+
 void SrsRtcRecvTrack::update_rtt(int rtt)
 {
     nack_receiver_->update_rtt(rtt);

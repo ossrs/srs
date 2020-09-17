@@ -490,6 +490,7 @@ public:
     virtual ~SrsRtcRecvTrack();
 public:
     bool has_ssrc(uint32_t ssrc);
+    uint32_t get_ssrc();
     void update_rtt(int rtt);
     void update_send_report_time(const SrsNtp& ntp);
     srs_error_t send_rtcp_rr();
