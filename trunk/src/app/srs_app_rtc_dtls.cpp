@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_log.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>

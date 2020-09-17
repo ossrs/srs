@@ -42,6 +42,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_pithy_print.hpp>
+#include <srs_app_log.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
