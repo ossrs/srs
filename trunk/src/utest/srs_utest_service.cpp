@@ -44,10 +44,14 @@ using namespace std;
 
 MockSrsConnection::MockSrsConnection()
 {
+    do_switch = false;
 }
 
 MockSrsConnection::~MockSrsConnection()
 {
+    if (do_switch) {
+        srs_usleep(0);
+    }
 }
 
 std::string MockSrsConnection::remote_ip()

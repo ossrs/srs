@@ -41,6 +41,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 {
     srs_error_t err = srs_success;
 
+    // Normal scenario, free object by manager.
     if (true) {
         SrsConnectionManager manager;
         HELPER_EXPECT_SUCCESS(manager.start());
@@ -53,6 +54,38 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
         manager.remove(conn);
         srs_usleep(0); // Switch context for manager to dispose connections.
         EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+    }
+
+    // Coroutine switch context, signal is lost.
+    if (true) {
+        SrsConnectionManager manager;
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        if (true) { // First connection, which will switch context when deleting.
+            MockSrsConnection* conn = new MockSrsConnection();
+            conn->do_switch = true;
+            manager.add(conn);
+            EXPECT_EQ(1, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+
+            manager.remove(conn); // Remove conn to zombies.
+            EXPECT_EQ(1, manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+
+            srs_usleep(0); // Switch to manager coroutine to try to free zombies.
+            EXPECT_EQ(0, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+        }
+
+        if (true) { // Now the previous conn switch back to here, and lost the signal.
+            MockSrsConnection* conn = new MockSrsConnection();
+            manager.add(conn);
+            EXPECT_EQ(1, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+
+            manager.remove(conn); // Remove conn to zombies, signal is lost.
+            EXPECT_EQ(1, manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+
+            srs_usleep(0); // Switch to manager, but no signal is triggered before, so conn will be freed by loop.
+            EXPECT_EQ(0, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+        }
     }
 }
 

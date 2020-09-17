@@ -35,6 +35,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class MockSrsConnection : public ISrsConnection
 {
 public:
+    // Whether switch the coroutine context when free the object, for special case test.
+    bool do_switch;
+public:
     MockSrsConnection();
     virtual ~MockSrsConnection();
     virtual std::string remote_ip();
