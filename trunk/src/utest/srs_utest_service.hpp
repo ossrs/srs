@@ -40,6 +40,8 @@ public:
 public:
     MockSrsConnection();
     virtual ~MockSrsConnection();
+// Interface ISrsConnection.
+public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
     virtual std::string remote_ip();

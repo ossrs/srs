@@ -142,7 +142,9 @@ public:
     
 // Interface ISrsOneCycleThreadHandler
 public:
-    virtual srs_error_t cycle();   
+    virtual srs_error_t cycle();
+// Interface ISrsConnection.
+public:
     virtual std::string remote_ip();
     virtual const SrsContextId& get_id();
     virtual std::string desc();
