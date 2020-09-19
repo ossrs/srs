@@ -53,7 +53,7 @@ class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsRtspCaster;
-class SrsConnectionManager;
+class SrsResourceManager;
 class SrsGb28181Caster;
 
 
@@ -241,7 +241,7 @@ public:
 };
 
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public IConnectionManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
 {
 private:
     // TODO: FIXME: rename to http_api
@@ -249,7 +249,7 @@ private:
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
-    SrsConnectionManager* conn_manager;
+    SrsResourceManager* conn_manager;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -342,12 +342,12 @@ public:
     virtual SrsHttpServeMux* api_server();
 private:
     virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpConnection** pconn);
-// Interface IConnectionManager
+// Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
     // @see SrsTcpConnection.on_thread_stop().
-    virtual void remove(ISrsConnection* c);
+    virtual void remove(ISrsResource* c);
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();

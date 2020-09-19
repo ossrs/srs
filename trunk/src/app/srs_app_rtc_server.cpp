@@ -216,7 +216,6 @@ SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
     hijacker = NULL;
-    manager = new SrsConnectionManager();
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -231,8 +230,6 @@ SrsRtcServer::~SrsRtcServer()
             srs_freep(listener);
         }
     }
-
-    srs_freep(manager);
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -249,10 +246,6 @@ srs_error_t SrsRtcServer::initialize()
 
     if ((err = _srs_blackhole->initialize()) != srs_success) {
         return srs_error_wrap(err, "black hole");
-    }
-
-    if ((err = manager->start()) != srs_success) {
-        return srs_error_wrap(err, "start manager");
     }
 
     srs_trace("RTC server init ok");
@@ -311,7 +304,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     SrsRtcConnection* session = NULL;
     if (true) {
-        ISrsConnection* conn = manager->find_by_id(peer_id);
+        ISrsResource* conn = _srs_rtc_manager->find_by_id(peer_id);
         if (conn) {
             // Switch to the session to write logs to the context.
             session = dynamic_cast<SrsRtcConnection*>(conn);
@@ -458,7 +451,7 @@ srs_error_t SrsRtcServer::do_create_session(
         local_ufrag = srs_random_str(8);
 
         username = local_ufrag + ":" + remote_sdp.get_ice_ufrag();
-        if (!manager->find_by_name(username)) {
+        if (!_srs_rtc_manager->find_by_name(username)) {
             break;
         }
     }
@@ -504,7 +497,7 @@ srs_error_t SrsRtcServer::do_create_session(
     }
 
     // We allows username is optional, but it never empty here.
-    manager->add_with_name(username, session);
+    _srs_rtc_manager->add_with_name(username, session);
 
     return err;
 }
@@ -567,7 +560,7 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     }
 
     // We allows username is optional, but it never empty here.
-    manager->add_with_name(username, session);
+    _srs_rtc_manager->add_with_name(username, session);
 
     session->set_remote_sdp(remote_sdp);
     session->set_state(WAITING_STUN);
@@ -575,37 +568,14 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     return err;
 }
 
-void SrsRtcServer::dispose(SrsRtcConnection* session)
-{
-    if (session->disposing_) {
-        return;
-    }
-
-    destroy(session);
-
-    if (handler) {
-        handler->on_timeout(session);
-    }
-}
-
-void SrsRtcServer::destroy(SrsRtcConnection* session)
-{
-    if (session->disposing_) {
-        return;
-    }
-    session->disposing_ = true;
-
-    manager->remove(session);
-}
-
 void SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
 {
-    manager->add_with_id(peer_id, session);
+    _srs_rtc_manager->add_with_id(peer_id, session);
 }
 
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)
 {
-    ISrsConnection* conn = manager->find_by_name(username);
+    ISrsResource* conn = _srs_rtc_manager->find_by_name(username);
     return dynamic_cast<SrsRtcConnection*>(conn);
 }
 
@@ -614,11 +584,9 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     srs_error_t err = srs_success;
 
     // Check all sessions and dispose the dead sessions.
-    for (int i = 0; i < (int)manager->size(); i++) {
-        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(manager->at(i));
-        srs_assert(session);
-
-        if (!session->is_stun_timeout()) {
+    for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
+        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
+        if (!session || !session->is_stun_timeout() || session->disposing_) {
             continue;
         }
 
@@ -626,10 +594,11 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         session->switch_to_context();
 
         string username = session->username();
-        srs_trace("RTC: session STUN timeout, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
+        srs_trace("RTC: session destroy by timeout, username=%s, summary: %s", username.c_str(),
+            session->stat_->summary().c_str());
 
-        // Destroy session and notify the handler.
-        dispose(session);
+        // Use manager to free session and notify other objects.
+        _srs_rtc_manager->remove(session);
     }
 
     return err;
@@ -672,10 +641,16 @@ srs_error_t RtcServerAdapter::run()
         return srs_error_wrap(err, "listen api");
     }
 
+    if ((err = _srs_rtc_manager->start()) != srs_success) {
+        return srs_error_wrap(err, "start manager");
+    }
+
     return err;
 }
 
 void RtcServerAdapter::stop()
 {
 }
+
+SrsResourceManager* _srs_rtc_manager = new SrsResourceManager("RTC", true);
 

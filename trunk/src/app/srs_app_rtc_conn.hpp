@@ -39,6 +39,7 @@
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_conn.hpp>
+#include <srs_app_conn.hpp>
 
 #include <string>
 #include <map>
@@ -416,7 +417,8 @@ public:
 };
 
 // A RTC Peer Connection, SDP level object.
-class SrsRtcConnection : virtual public ISrsHourGlass, virtual public ISrsConnection
+class SrsRtcConnection : virtual public ISrsHourGlass, virtual public ISrsResource
+    , virtual public ISrsDisposingHandler
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -469,6 +471,10 @@ private:
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
+// interface ISrsDisposingHandler
+public:
+    virtual void on_before_dispose(ISrsResource* c);
+    virtual void on_disposing(ISrsResource* c);
 public:
     // TODO: FIXME: save only connection info.
     SrsSdp* get_local_sdp();
@@ -482,9 +488,10 @@ public:
     std::string username();
     // Get all addresses client used.
     std::vector<SrsUdpMuxSocket*> peer_addresses();
-// interface ISrsConnection
+// Interface ISrsResource.
 public:
-    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 public:
     void switch_to_context();
     const SrsContextId& context_id();

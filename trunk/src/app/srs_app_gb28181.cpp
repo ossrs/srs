@@ -1011,6 +1011,11 @@ std::string SrsGb28181RtmpMuxer::remote_ip()
     return "";
 }
 
+std::string SrsGb28181RtmpMuxer::desc()
+{
+    return "GBConn";
+}
+
 std::string SrsGb28181RtmpMuxer::get_channel_id()
 {
     return channel_id;
@@ -1890,7 +1895,7 @@ SrsGb28181Manger::SrsGb28181Manger(SrsServer *s, SrsConfDirective* c)
     // TODO: FIXME: support reload.
     server = s;
     config = new SrsGb28181Config(c);
-    manager = new SrsConnectionManager();
+    manager = new SrsResourceManager("GB28181");
 }
 
 SrsGb28181Manger::~SrsGb28181Manger()

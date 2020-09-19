@@ -140,6 +140,11 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(security);
 }
 
+std::string SrsRtmpConn::desc()
+{
+    return "RtmpConn";
+}
+
 void SrsRtmpConn::dispose()
 {
     SrsTcpConnection::dispose();

@@ -54,6 +54,16 @@ MockSrsConnection::~MockSrsConnection()
     }
 }
 
+const SrsContextId& MockSrsConnection::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string MockSrsConnection::desc()
+{
+    return "Mock";
+}
+
 std::string MockSrsConnection::remote_ip()
 {
     return "127.0.0.1";
@@ -1371,7 +1381,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
     }
 }
 
-class MockConnectionManager : public IConnectionManager
+class MockConnectionManager : public ISrsResourceManager
 {
 public:
     MockConnectionManager() {
@@ -1379,7 +1389,7 @@ public:
     virtual ~MockConnectionManager() {
     }
 public:
-    virtual void remove(ISrsConnection* /*c*/) {
+    virtual void remove(ISrsResource* /*c*/) {
     }
 };
 

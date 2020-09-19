@@ -31,27 +31,43 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_service_log.hpp>
 
-SrsConnectionManager::SrsConnectionManager()
+ISrsDisposingHandler::ISrsDisposingHandler()
 {
-    cond = srs_cond_new();
-    trd = new SrsSTCoroutine("manager", this);
 }
 
-SrsConnectionManager::~SrsConnectionManager()
+ISrsDisposingHandler::~ISrsDisposingHandler()
 {
-    srs_cond_signal(cond);
-    trd->stop();
+}
 
-    srs_freep(trd);
-    srs_cond_destroy(cond);
+SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
+{
+    verbose_ = verbose;
+    label_ = label;
+    cond = srs_cond_new();
+    trd = NULL;
+}
+
+SrsResourceManager::~SrsResourceManager()
+{
+    if (trd) {
+        srs_cond_signal(cond);
+        trd->stop();
+
+        srs_freep(trd);
+        srs_cond_destroy(cond);
+    }
 
     clear();
 }
 
-srs_error_t SrsConnectionManager::start()
+srs_error_t SrsResourceManager::start()
 {
     srs_error_t err = srs_success;
+
+    cid_ = _srs_context->generate_id();
+    trd = new SrsSTCoroutine("manager", this, cid_);
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "conn manager");
@@ -60,19 +76,21 @@ srs_error_t SrsConnectionManager::start()
     return err;
 }
 
-bool SrsConnectionManager::empty()
+bool SrsResourceManager::empty()
 {
     return conns_.empty();
 }
 
-size_t SrsConnectionManager::size()
+size_t SrsResourceManager::size()
 {
     return conns_.size();
 }
 
-srs_error_t SrsConnectionManager::cycle()
+srs_error_t SrsResourceManager::cycle()
 {
     srs_error_t err = srs_success;
+
+    srs_trace("%s connection manager run", label_.c_str());
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -91,67 +109,110 @@ srs_error_t SrsConnectionManager::cycle()
     return err;
 }
 
-void SrsConnectionManager::add(ISrsConnection* conn)
+void SrsResourceManager::add(ISrsResource* conn)
 {
     if (std::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
         conns_.push_back(conn);
     }
 }
 
-void SrsConnectionManager::add_with_id(const std::string& id, ISrsConnection* conn)
+void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
 {
     add(conn);
     conns_id_.insert(make_pair(id, conn));
 }
 
-void SrsConnectionManager::add_with_name(const std::string& name, ISrsConnection* conn)
+void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
 {
     add(conn);
     conns_name_.insert(make_pair(name, conn));
 }
 
-ISrsConnection* SrsConnectionManager::at(int index)
+ISrsResource* SrsResourceManager::at(int index)
 {
-    return conns_.at(index);
+    return (index < (int)conns_.size())? conns_.at(index) : NULL;
 }
 
-ISrsConnection* SrsConnectionManager::find_by_id(std::string id)
+ISrsResource* SrsResourceManager::find_by_id(std::string id)
 {
-    map<string, ISrsConnection*>::iterator it = conns_id_.find(id);
+    map<string, ISrsResource*>::iterator it = conns_id_.find(id);
     return (it != conns_id_.end())? it->second : NULL;
 }
 
-ISrsConnection* SrsConnectionManager::find_by_name(std::string name)
+ISrsResource* SrsResourceManager::find_by_name(std::string name)
 {
-    map<string, ISrsConnection*>::iterator it = conns_name_.find(name);
+    map<string, ISrsResource*>::iterator it = conns_name_.find(name);
     return (it != conns_name_.end())? it->second : NULL;
 }
 
-void SrsConnectionManager::remove(ISrsConnection* c)
+void SrsResourceManager::subscribe(ISrsDisposingHandler* h)
 {
-    if (std::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
-        zombies_.push_back(c);
-        srs_cond_signal(cond);
+    if (std::find(handlers_.begin(), handlers_.end(), h) == handlers_.end()) {
+        handlers_.push_back(h);
     }
 }
 
-void SrsConnectionManager::clear()
+void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
 {
+    vector<ISrsDisposingHandler*>::iterator it = find(handlers_.begin(), handlers_.end(), h);
+    if (it != handlers_.end()) {
+        handlers_.erase(it);
+    }
+}
+
+void SrsResourceManager::remove(ISrsResource* c)
+{
+    SrsContextRestore(cid_);
+    if (verbose_) {
+        _srs_context->set_id(c->get_id());
+        srs_trace("before dispose resource(%s), zombies=%d", c->desc().c_str(), (int)zombies_.size());
+    }
+
+    if (std::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
+        zombies_.push_back(c);
+    }
+
+    for (int i = 0; i < (int)handlers_.size(); i++) {
+        ISrsDisposingHandler* h = handlers_.at(i);
+        h->on_before_dispose(c);
+    }
+
+    srs_cond_signal(cond);
+}
+
+void SrsResourceManager::clear()
+{
+    if (zombies_.empty()) {
+        return;
+    }
+
+    SrsContextRestore(cid_);
+    if (verbose_) {
+        srs_trace("clear zombies=%d connections", (int)zombies_.size());
+    }
+
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.
-    vector<ISrsConnection*> copy;
+    vector<ISrsResource*> copy;
     copy.swap(zombies_);
 
-    vector<ISrsConnection*>::iterator it;
+    vector<ISrsResource*>::iterator it;
     for (it = copy.begin(); it != copy.end(); ++it) {
-        ISrsConnection* conn = *it;
+        ISrsResource* conn = *it;
+
+        if (verbose_) {
+            _srs_context->set_id(conn->get_id());
+            srs_trace("disposing resource(%s), zombies=%d/%d", conn->desc().c_str(),
+                (int)copy.size(), (int)zombies_.size());
+        }
+
         dispose(conn);
     }
 }
 
-void SrsConnectionManager::dispose(ISrsConnection* c)
+void SrsResourceManager::dispose(ISrsResource* c)
 {
-    for (map<string, ISrsConnection*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
+    for (map<string, ISrsResource*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
         if (c != it->second) {
             ++it;
         } else {
@@ -160,7 +221,7 @@ void SrsConnectionManager::dispose(ISrsConnection* c)
         }
     }
 
-    for (map<string, ISrsConnection*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
+    for (map<string, ISrsResource*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
         if (c != it->second) {
             ++it;
         } else {
@@ -169,15 +230,20 @@ void SrsConnectionManager::dispose(ISrsConnection* c)
         }
     }
 
-    vector<ISrsConnection*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
+    vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
     if (it != conns_.end()) {
         conns_.erase(it);
+    }
+
+    for (int i = 0; i < (int)handlers_.size(); i++) {
+        ISrsDisposingHandler* h = handlers_.at(i);
+        h->on_disposing(c);
     }
 
     srs_freep(c);
 }
 
-SrsTcpConnection::SrsTcpConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
+SrsTcpConnection::SrsTcpConnection(ISrsResourceManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;
     stfd = c;
@@ -355,6 +421,11 @@ SrsContextId SrsTcpConnection::srs_id()
 string SrsTcpConnection::remote_ip()
 {
     return ip;
+}
+
+const SrsContextId& SrsTcpConnection::get_id()
+{
+    return trd->cid();
 }
 
 void SrsTcpConnection::expire()

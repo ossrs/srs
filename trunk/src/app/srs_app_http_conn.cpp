@@ -59,7 +59,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
+SrsHttpConn::SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
     : SrsTcpConnection(cm, fd, cip, port)
 {
     parser = new SrsHttpParser();
@@ -71,6 +71,11 @@ SrsHttpConn::~SrsHttpConn()
 {
     srs_freep(parser);
     srs_freep(cors);
+}
+
+std::string SrsHttpConn::desc()
+{
+    return "HttpConn";
 }
 
 void SrsHttpConn::remark(int64_t* in, int64_t* out)
@@ -185,7 +190,7 @@ srs_error_t SrsHttpConn::on_reload_http_stream_crossdomain()
     return err;
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
 {
 }
 

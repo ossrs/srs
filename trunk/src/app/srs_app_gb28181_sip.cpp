@@ -301,6 +301,11 @@ std::string SrsGb28181SipSession::remote_ip()
     return _peer_ip;
 }
 
+std::string SrsGb28181SipSession::desc()
+{
+    return "SipConn";
+}
+
 srs_error_t SrsGb28181SipSession::cycle()
 {
     srs_error_t err = do_cycle();

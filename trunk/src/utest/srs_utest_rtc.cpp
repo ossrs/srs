@@ -43,7 +43,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
     // Normal scenario, free object by manager.
     if (true) {
-        SrsConnectionManager manager;
+        SrsResourceManager manager;
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
 
@@ -58,7 +58,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
     // Coroutine switch context, signal is lost.
     if (true) {
-        SrsConnectionManager manager;
+        SrsResourceManager manager;
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
 

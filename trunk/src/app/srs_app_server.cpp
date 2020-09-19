@@ -656,7 +656,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = new SrsSignalManager(this);
-    conn_manager = new SrsConnectionManager();
+    conn_manager = new SrsResourceManager("RTMP/API");
     
     handler = NULL;
     ppid = ::getppid();
@@ -1575,7 +1575,7 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpCon
     return err;
 }
 
-void SrsServer::remove(ISrsConnection* c)
+void SrsServer::remove(ISrsResource* c)
 {
     SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
 

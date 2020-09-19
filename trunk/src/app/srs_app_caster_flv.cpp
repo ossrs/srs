@@ -49,7 +49,7 @@ SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
     output = _srs_config->get_stream_caster_output(c);
-    manager = new SrsConnectionManager();
+    manager = new SrsResourceManager("CasterFLV");
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()
@@ -95,7 +95,7 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
     return err;
 }
 
-void SrsAppCasterFlv::remove(ISrsConnection* c)
+void SrsAppCasterFlv::remove(ISrsResource* c)
 {
     SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
     
@@ -141,7 +141,7 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
     return err;
 }
 
-SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
+SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
 {
     sdk = NULL;
     pprint = SrsPithyPrint::create_caster();

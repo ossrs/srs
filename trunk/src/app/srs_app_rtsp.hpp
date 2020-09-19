@@ -51,7 +51,7 @@ class SrsAudioFrame;
 class SrsSimpleStream;
 class SrsPithyPrint;
 class SrsSimpleRtmpClient;
-class SrsConnectionManager;
+class SrsResourceManager;
 
 // A rtp connection which transport a stream.
 class SrsRtpConn: public ISrsUdpHandler
@@ -144,7 +144,11 @@ public:
     virtual ~SrsRtspConn();
 public:
     virtual srs_error_t serve();
+// Interface ISrsConnection.
+public:
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 private:
     virtual srs_error_t do_cycle();
 // internal methods
@@ -182,7 +186,7 @@ private:
     std::map<int, bool> used_ports;
 private:
     std::vector<SrsRtspConn*> clients;
-    SrsConnectionManager* manager;
+    SrsResourceManager* manager;
 public:
     SrsRtspCaster(SrsConfDirective* c);
     virtual ~SrsRtspCaster();

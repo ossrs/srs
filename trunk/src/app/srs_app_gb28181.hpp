@@ -348,6 +348,7 @@ private:
 public:
     virtual srs_error_t cycle();
     virtual std::string remote_ip();
+    virtual std::string desc();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
     virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type);
@@ -473,7 +474,7 @@ private:
     std::map<uint32_t, SrsPsRtpListener*> rtp_pool;
     std::map<uint32_t, SrsGb28181RtmpMuxer*> rtmpmuxers_ssrc;
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
-    SrsConnectionManager* manager;
+    SrsResourceManager* manager;
     SrsGb28181SipService* sip_service;
     SrsServer* server;
 public:

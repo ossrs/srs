@@ -256,6 +256,16 @@ std::string SrsRtspConn::remote_ip()
     return "";
 }
 
+std::string SrsRtspConn::desc()
+{
+    return "RtspConn";
+}
+
+const SrsContextId& SrsRtspConn::get_id()
+{
+    return _srs_context->get_id();
+}
+
 srs_error_t SrsRtspConn::do_cycle()
 {
     srs_error_t err = srs_success;
@@ -712,7 +722,7 @@ SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
-    manager = new SrsConnectionManager();
+    manager = new SrsResourceManager("CasterRTSP");
 }
 
 SrsRtspCaster::~SrsRtspCaster()

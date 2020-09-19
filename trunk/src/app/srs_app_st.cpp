@@ -74,9 +74,9 @@ srs_error_t SrsDummyCoroutine::pull()
     return srs_error_new(ERROR_THREAD_DUMMY, "dummy pull");
 }
 
-SrsContextId SrsDummyCoroutine::cid()
+const SrsContextId& SrsDummyCoroutine::cid()
 {
-    return SrsContextId();
+    return _srs_context->get_id();
 }
 
 _ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_create;
@@ -189,7 +189,7 @@ srs_error_t SrsSTCoroutine::pull()
     return srs_error_copy(trd_err);
 }
 
-SrsContextId SrsSTCoroutine::cid()
+const SrsContextId& SrsSTCoroutine::cid()
 {
     return cid_;
 }

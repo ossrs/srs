@@ -1603,10 +1603,14 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     nn_simulate_player_nack_drop = 0;
     pp_address_change = new SrsErrorPithyPrint();
     pli_epp = new SrsErrorPithyPrint();
+
+    _srs_rtc_manager->subscribe(this);
 }
 
 SrsRtcConnection::~SrsRtcConnection()
 {
+    _srs_rtc_manager->unsubscribe(this);
+
     srs_freep(timer_);
     
     // Cleanup publishers.
@@ -1638,6 +1642,31 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(stat_);
     srs_freep(pp_address_change);
     srs_freep(pli_epp);
+}
+
+void SrsRtcConnection::on_before_dispose(ISrsResource* c)
+{
+    if (disposing_) {
+        return;
+    }
+
+    SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(c);
+    if (session == this) {
+        disposing_ = true;
+    }
+
+    if (session && session == this) {
+        _srs_context->set_id(cid_);
+        srs_trace("RTC: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
+            c->desc().c_str(), disposing_);
+    }
+}
+
+void SrsRtcConnection::on_disposing(ISrsResource* c)
+{
+    if (disposing_) {
+        return;
+    }
 }
 
 SrsSdp* SrsRtcConnection::get_local_sdp()
@@ -1688,12 +1717,14 @@ vector<SrsUdpMuxSocket*> SrsRtcConnection::peer_addresses()
     return addresses;
 }
 
-string SrsRtcConnection::remote_ip()
+const SrsContextId& SrsRtcConnection::get_id()
 {
-    if (sendonly_skt) {
-        return sendonly_skt->get_peer_ip();
-    }
-    return "";
+    return cid_;
+}
+
+std::string SrsRtcConnection::desc()
+{
+    return "RtcConn";
 }
 
 void SrsRtcConnection::switch_to_context()
@@ -2126,17 +2157,14 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
 {
     srs_error_t err = srs_success;
 
-    SrsRtcConnection* session = this;
-
     // CN(Close Notify) is sent when client close the PeerConnection.
     if (type == "warning" && desc == "CN") {
         SrsContextRestore(_srs_context->get_id());
-        session->switch_to_context();
+        switch_to_context();
 
-        string username = session->username();
-        srs_trace("RTC: session DTLS alert, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
-
-        server_->dispose(session);
+        srs_trace("RTC: session destroy by DTLS alert, username=%s, summary: %s",
+            username_.c_str(), stat_->summary().c_str());
+        _srs_rtc_manager->remove(this);
     }
 
     return err;

@@ -119,6 +119,9 @@ private:
 public:
     SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port);
     virtual ~SrsRtmpConn();
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
 public:
     virtual void dispose();
 protected:
