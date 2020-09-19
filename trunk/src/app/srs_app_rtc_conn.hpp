@@ -449,8 +449,10 @@ private:
     // The address list, client may use multiple addresses.
     std::map<std::string, SrsUdpMuxSocket*> peer_addresses_;
 private:
+    // TODO: FIXME: Rename it.
     // The timeout of session, keep alive by STUN ping pong.
     srs_utime_t session_timeout;
+    // TODO: FIXME: Rename it.
     srs_utime_t last_stun_time;
 private:
     // For each RTC session, we use a specified cid for debugging logs.
@@ -521,7 +523,8 @@ public:
     srs_error_t on_dtls_alert(std::string type, std::string desc);
     srs_error_t start_play(std::string stream_uri);
     srs_error_t start_publish(std::string stream_uri);
-    bool is_stun_timeout();
+    bool is_alive();
+    void alive();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
 // interface ISrsHourGlass
 public:

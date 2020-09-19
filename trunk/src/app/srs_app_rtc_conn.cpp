@@ -1912,8 +1912,6 @@ srs_error_t SrsRtcConnection::on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r)
         return err;
     }
 
-    last_stun_time = srs_get_system_time();
-
     // We are running in the ice-lite(server) mode. If client have multi network interface,
     // we only choose one candidate pair which is determined by client.
     update_sendonly_socket(skt);
@@ -2203,9 +2201,14 @@ srs_error_t SrsRtcConnection::start_publish(std::string stream_uri)
     return err;
 }
 
-bool SrsRtcConnection::is_stun_timeout()
+bool SrsRtcConnection::is_alive()
 {
     return last_stun_time + session_timeout < srs_get_system_time();
+}
+
+void SrsRtcConnection::alive()
+{
+    last_stun_time = srs_get_system_time();
 }
 
 void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)

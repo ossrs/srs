@@ -312,6 +312,11 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         }
     }
 
+    // When got any packet, the session is alive now.
+    if (session) {
+        session->alive();
+    }
+
     // Notify hijack to handle the UDP packet.
     if (hijacker) {
         bool consumed = false;
@@ -586,7 +591,7 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
         SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
-        if (!session || !session->is_stun_timeout() || session->disposing_) {
+        if (!session || !session->is_alive() || session->disposing_) {
             continue;
         }
 
