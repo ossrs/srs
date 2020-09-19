@@ -144,6 +144,7 @@ public:
 public:
     virtual srs_error_t cycle();   
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
     virtual std::string desc();
 private:
     virtual srs_error_t do_cycle();

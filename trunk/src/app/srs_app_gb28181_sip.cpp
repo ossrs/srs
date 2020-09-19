@@ -301,6 +301,11 @@ std::string SrsGb28181SipSession::remote_ip()
     return _peer_ip;
 }
 
+const SrsContextId& SrsGb28181RtmpMuxer::get_id()
+{
+    return _srs_context->get_id();
+}
+
 std::string SrsGb28181SipSession::desc()
 {
     return "SipConn";

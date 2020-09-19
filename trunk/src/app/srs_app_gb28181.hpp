@@ -348,6 +348,7 @@ private:
 public:
     virtual srs_error_t cycle();
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
     virtual std::string desc();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);

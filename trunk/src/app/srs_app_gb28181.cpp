@@ -1011,6 +1011,11 @@ std::string SrsGb28181RtmpMuxer::remote_ip()
     return "";
 }
 
+const SrsContextId& SrsGb28181RtmpMuxer::get_id()
+{
+    return _srs_context->get_id();
+}
+
 std::string SrsGb28181RtmpMuxer::desc()
 {
     return "GBConn";
