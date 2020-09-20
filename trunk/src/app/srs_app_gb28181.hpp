@@ -43,6 +43,7 @@
 #include <srs_app_gb28181_jitbuffer.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
+#include <srs_service_conn.hpp>
 
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
@@ -76,9 +77,6 @@
 #define STREAM_TYPE_AUDIO_SVAC      0x9b
 #define STREAM_TYPE_AUDIO_PCM       0x9c
 
-
-
-
 class SrsConfDirective;
 class SrsRtpPacket;
 class SrsRtmpClient;
@@ -104,6 +102,7 @@ class SrsPsJitterBuffer;
 class SrsServer;
 class SrsSource;
 class SrsRequest;
+class SrsResourceManager;
 
 //ps rtp header packet parse
 class SrsPsRtpPacket: public SrsRtpPacket

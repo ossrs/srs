@@ -34,7 +34,7 @@
 #include <srs_sip_stack.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_pithy_print.hpp>
-
+#include <srs_service_conn.hpp>
 
 class SrsConfDirective;
 class SrsSipRequest;
