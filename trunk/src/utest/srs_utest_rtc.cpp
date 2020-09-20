@@ -37,9 +37,80 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 using namespace std;
 
+class MockResourceHookOwner : public ISrsResource, public ISrsDisposingHandler
+{
+public:
+    ISrsResource* owner_;
+    SrsResourceManager* manager_;
+    MockResourceHookOwner(SrsResourceManager* manager) {
+        manager_ = manager;
+        owner_ = NULL;
+        manager_->subscribe(this);
+    }
+    virtual ~MockResourceHookOwner() {
+        manager_->unsubscribe(this);
+    }
+    virtual void on_before_dispose(ISrsResource* c) {
+        if (c == owner_) { // Remove self if its owner is disposing.
+            manager_->remove(this);
+        }
+    }
+    virtual void on_disposing(ISrsResource* c) {
+    }
+    virtual const SrsContextId& get_id() {
+        return _srs_context->get_id();
+    }
+    virtual std::string desc() {
+        return "";
+    }
+};
+
 VOID TEST(KernelRTCTest, ConnectionManagerTest)
 {
     srs_error_t err = srs_success;
+
+    // Cover all normal scenarios.
+    if (true) {
+        SrsResourceManager manager("mgr", true);
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        // Resource without id or name.
+        manager.add_with_id("100", new MockSrsConnection());
+        manager.add_with_id("101", new MockSrsConnection());
+        manager.add_with_name("srs", new MockSrsConnection());
+        manager.add_with_name("av", new MockSrsConnection());
+        ASSERT_EQ(4, manager.size());
+
+        manager.remove(manager.at(3));
+        manager.remove(manager.at(2));
+        manager.remove(manager.at(1));
+        manager.remove(manager.at(0));
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+    }
+
+    // Callback: Remove worker when its master is disposing.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceHookOwner* master = new MockResourceHookOwner(&manager);
+        manager.add(master);
+        EXPECT_EQ(1, manager.size());
+
+        MockResourceHookOwner* worker = new MockResourceHookOwner(&manager);
+        worker->owner_ = master; // When disposing master, worker will hook the event and remove itself.
+        manager.add(worker);
+        EXPECT_EQ(2, manager.size());
+
+        manager.remove(master);
+        srs_usleep(0); // Trigger the disposing.
+
+        // Both master and worker should be disposed.
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+    }
 
     // Normal scenario, free object by manager.
     if (true) {
@@ -54,6 +125,93 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
         manager.remove(conn);
         srs_usleep(0); // Switch context for manager to dispose connections.
         EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+    }
+
+    // Resource with id or name.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        // Resource without id or name.
+        MockSrsConnection* conn = new MockSrsConnection();
+        manager.add(conn);
+        ASSERT_EQ(1, manager.size());
+        EXPECT_TRUE(manager.at(0));
+        EXPECT_TRUE(!manager.at(1));
+        EXPECT_TRUE(!manager.find_by_id("100"));
+        EXPECT_TRUE(!manager.find_by_name("srs"));
+
+        manager.remove(conn);
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+
+        // Resource with id.
+        if (true) {
+            MockSrsConnection* id = new MockSrsConnection();
+            manager.add_with_id("100", id);
+            EXPECT_EQ(1, manager.size());
+            EXPECT_TRUE(manager.find_by_id("100"));
+            EXPECT_TRUE(!manager.find_by_id("101"));
+            EXPECT_TRUE(!manager.find_by_name("100"));
+
+            manager.remove(id);
+            srs_usleep(0);
+            ASSERT_EQ(0, manager.size());
+        }
+
+        // Resource with name.
+        if (true) {
+            MockSrsConnection* name = new MockSrsConnection();
+            manager.add_with_name("srs", name);
+            EXPECT_EQ(1, manager.size());
+            EXPECT_TRUE(manager.find_by_name("srs"));
+            EXPECT_TRUE(!manager.find_by_name("srs0"));
+            EXPECT_TRUE(!manager.find_by_id("srs"));
+
+            manager.remove(name);
+            srs_usleep(0);
+            ASSERT_EQ(0, manager.size());
+        }
+
+        // Resource with id and name.
+        if (true) {
+            MockSrsConnection* id_name = new MockSrsConnection();
+            manager.add_with_id("100", id_name);
+            manager.add_with_id("200", id_name);
+            manager.add_with_name("srs", id_name);
+            manager.add_with_name("av", id_name);
+            EXPECT_EQ(1, manager.size());
+            EXPECT_TRUE(manager.find_by_name("srs"));
+            EXPECT_TRUE(manager.find_by_name("av"));
+            EXPECT_TRUE(manager.find_by_id("100"));
+            EXPECT_TRUE(manager.find_by_id("200"));
+            EXPECT_TRUE(!manager.find_by_name("srs0"));
+            EXPECT_TRUE(!manager.find_by_id("101"));
+
+            manager.remove(id_name);
+            srs_usleep(0);
+            ASSERT_EQ(0, manager.size());
+        }
+
+        // Resource with same id or name.
+        if (true) {
+            MockSrsConnection* conn0 = new MockSrsConnection();
+            MockSrsConnection* conn1 = new MockSrsConnection();
+            manager.add_with_id("100", conn0);
+            manager.add_with_id("100", conn1);
+
+            EXPECT_TRUE(conn0 != manager.find_by_id("100"));
+            EXPECT_TRUE(conn1 == manager.find_by_id("100"));
+
+            manager.remove(conn0);
+            srs_usleep(0);
+            ASSERT_EQ(1, manager.size());
+
+            manager.remove(conn1);
+            srs_usleep(0);
+            ASSERT_EQ(0, manager.size());
+        }
     }
 
     // Coroutine switch context, signal is lost.

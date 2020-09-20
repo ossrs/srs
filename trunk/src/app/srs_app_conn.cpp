@@ -119,13 +119,13 @@ void SrsResourceManager::add(ISrsResource* conn)
 void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
 {
     add(conn);
-    conns_id_.insert(make_pair(id, conn));
+    conns_id_[id] = conn;
 }
 
 void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
 {
     add(conn);
-    conns_name_.insert(make_pair(name, conn));
+    conns_name_[name] = conn;
 }
 
 ISrsResource* SrsResourceManager::at(int index)
