@@ -65,9 +65,73 @@ public:
     }
 };
 
+class MockResourceSelf : public ISrsResource, public ISrsDisposingHandler
+{
+public:
+    bool remove_in_before_dispose;
+    bool remove_in_disposing;
+    SrsResourceManager* manager_;
+    MockResourceSelf(SrsResourceManager* manager) {
+        remove_in_before_dispose = remove_in_disposing = false;
+        manager_ = manager;
+        manager_->subscribe(this);
+    }
+    virtual ~MockResourceSelf() {
+        manager_->unsubscribe(this);
+    }
+    virtual void on_before_dispose(ISrsResource* c) {
+        if (remove_in_before_dispose) {
+            manager_->remove(this);
+        }
+    }
+    virtual void on_disposing(ISrsResource* c) {
+        if (remove_in_disposing) {
+            manager_->remove(this);
+        }
+    }
+    virtual const SrsContextId& get_id() {
+        return _srs_context->get_id();
+    }
+    virtual std::string desc() {
+        return "";
+    }
+};
+
 VOID TEST(KernelRTCTest, ConnectionManagerTest)
 {
     srs_error_t err = srs_success;
+
+    // When hooks disposing, remove itself again.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceSelf* resource = new MockResourceSelf(&manager);
+        resource->remove_in_disposing = true;
+        manager.add(resource);
+        EXPECT_EQ(1, manager.size());
+
+        manager.remove(resource);
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+    }
+
+    // When hooks before-dispose, remove itself again.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceSelf* resource = new MockResourceSelf(&manager);
+        resource->remove_in_before_dispose = true;
+        manager.add(resource);
+        EXPECT_EQ(1, manager.size());
+
+        manager.remove(resource);
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+    }
 
     // Cover all normal scenarios.
     if (true) {

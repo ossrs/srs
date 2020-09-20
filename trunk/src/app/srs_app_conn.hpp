@@ -64,6 +64,7 @@ private:
     std::vector<ISrsDisposingHandler*> handlers_;
     // The zombie connections, we will delete it asynchronously.
     std::vector<ISrsResource*> zombies_;
+    std::vector<ISrsResource*>* p_disposing_;
 private:
     // The connections without any id.
     std::vector<ISrsResource*> conns_;
@@ -96,6 +97,7 @@ public:
     virtual void remove(ISrsResource* c);
 private:
     void clear();
+    void do_clear();
     void dispose(ISrsResource* c);
 };
 

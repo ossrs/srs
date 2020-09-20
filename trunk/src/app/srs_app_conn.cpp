@@ -47,6 +47,7 @@ SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
     label_ = label;
     cond = srs_cond_new();
     trd = NULL;
+    p_disposing_ = NULL;
 }
 
 SrsResourceManager::~SrsResourceManager()
@@ -168,15 +169,30 @@ void SrsResourceManager::remove(ISrsResource* c)
         srs_trace("before dispose resource(%s), zombies=%d", c->desc().c_str(), (int)zombies_.size());
     }
 
-    if (std::find(zombies_.begin(), zombies_.end(), c) == zombies_.end()) {
-        zombies_.push_back(c);
+    // Only notify when not removed(in zombies_).
+    vector<ISrsResource*>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
+    if (it != zombies_.end()) {
+        return;
     }
 
+    // Also ignore when we are disposing it.
+    if (p_disposing_) {
+        it = std::find(p_disposing_->begin(), p_disposing_->end(), c);
+        if (it != p_disposing_->end()) {
+            return;
+        }
+    }
+
+    // Push to zombies, we will free it in another coroutine.
+    zombies_.push_back(c);
+
+    // Notify other handlers to handle the before-dispose event.
     for (int i = 0; i < (int)handlers_.size(); i++) {
         ISrsDisposingHandler* h = handlers_.at(i);
         h->on_before_dispose(c);
     }
 
+    // Notify the coroutine to free it.
     srs_cond_signal(cond);
 }
 
@@ -191,10 +207,19 @@ void SrsResourceManager::clear()
         srs_trace("clear zombies=%d connections", (int)zombies_.size());
     }
 
+    do_clear();
+
+    // Reset it for it points to a local object.
+    p_disposing_ = NULL;
+}
+
+void SrsResourceManager::do_clear()
+{
     // To prevent thread switch when delete connection,
     // we copy all connections then free one by one.
     vector<ISrsResource*> copy;
     copy.swap(zombies_);
+    p_disposing_ = &copy;
 
     vector<ISrsResource*>::iterator it;
     for (it = copy.begin(); it != copy.end(); ++it) {
