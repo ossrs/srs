@@ -342,19 +342,20 @@ srs_error_t SrsRtcPLIWorker::cycle()
             return srs_error_wrap(err, "quit");
         }
 
-        std::map<uint32_t, SrsContextId> plis;
-        plis.swap(plis_);
+        while (!plis_.empty()) {
+            std::map<uint32_t, SrsContextId> plis;
+            plis.swap(plis_);
 
-        for (map<uint32_t, SrsContextId>::iterator it = plis.begin(); it != plis.end(); ++it) {
-            uint32_t ssrc = it->first;
-            SrsContextId cid = it->second;
+            for (map<uint32_t, SrsContextId>::iterator it = plis.begin(); it != plis.end(); ++it) {
+                uint32_t ssrc = it->first;
+                SrsContextId cid = it->second;
 
-            if ((err = handler_->do_request_keyframe(ssrc, cid)) != srs_success) {
-                srs_warn("PLI error, %s", srs_error_desc(err).c_str());
-                srs_error_reset(err);
+                if ((err = handler_->do_request_keyframe(ssrc, cid)) != srs_success) {
+                    srs_warn("PLI error, %s", srs_error_desc(err).c_str());
+                    srs_error_reset(err);
+                }
             }
         }
-
         srs_cond_wait(wait_);
     }
 
@@ -1406,20 +1407,20 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
 
 void SrsRtcPublishStream::request_keyframe(uint32_t ssrc)
 {
-    pli_worker_->request_keyframe(ssrc, _srs_context->get_id());
-}
-
-srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId sub_cid)
-{
-    srs_error_t err = srs_success;
-
+    SrsContextId sub_cid = _srs_context->get_id();
+    pli_worker_->request_keyframe(ssrc, sub_cid);
+	
     uint32_t nn = 0;
     if (pli_epp->can_print(ssrc, &nn)) {
         // The player(subscriber) cid, which requires PLI.
         srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, sub_cid.c_str(),
             cid_.c_str(), nn, pli_epp->nn_count);
     }
+}
 
+srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId sub_cid)
+{
+    srs_error_t err = srs_success;
     if ((err = session_->send_rtcp_fb_pli(ssrc, sub_cid)) != srs_success) {
         srs_warn("PLI err %s", srs_error_desc(err).c_str());
         srs_freep(err);
