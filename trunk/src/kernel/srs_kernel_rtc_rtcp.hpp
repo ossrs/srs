@@ -50,7 +50,14 @@ enum SrsRtcpType
     SrsRtcpType_xr = 207,
 };
 
+// @see: https://tools.ietf.org/html/rfc4585#section-6.3
+const uint8_t kPLI  = 1;
+const uint8_t kSLI  = 2;
+const uint8_t kRPSI = 3;
+const uint8_t kAFB  = 15;
+
 // RTCP Header, @see http://tools.ietf.org/html/rfc3550#section-6.1
+// @remark The header must be 4 bytes, which align with the max field size 2B.
 struct SrsRtcpHeader
 {
 	uint16_t rc:5;
@@ -59,21 +66,40 @@ struct SrsRtcpHeader
 	uint16_t type:8;
 
 	uint16_t length:16;
+
+    SrsRtcpHeader() {
+        rc = 0;
+        padding = 0;
+        version = 0;
+        type = 0;
+        length = 0;
+    }
 };
 
 class SrsRtcpCommon: public ISrsCodec
 {
 protected:
     SrsRtcpHeader header_;
+    uint32_t ssrc_;
     uint8_t payload_[kRtcpPacketSize];
     int payload_len_;
+
+    char* data_;
+    int nb_data_;
 protected:
     srs_error_t decode_header(SrsBuffer *buffer);
     srs_error_t encode_header(SrsBuffer *buffer);
 public:
     SrsRtcpCommon();
     virtual ~SrsRtcpCommon();
-    virtual const uint8_t type() const;
+    virtual uint8_t type() const;
+    virtual uint8_t get_rc() const;
+
+    uint32_t get_ssrc();
+    void set_ssrc(uint32_t ssrc);
+
+    char* data();
+    int size();
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
@@ -84,23 +110,19 @@ public:
 class SrsRtcpApp : public SrsRtcpCommon 
 {
 private:
-    SrsRtcpHeader header_;
-    uint32_t ssrc_;
     uint8_t name_[4];
-    uint8_t payload_[kRtcpPacketSize];
-    int payload_len_;
 public:
     SrsRtcpApp();
     virtual ~SrsRtcpApp();
 
-    virtual const uint8_t type() const;
-    
-    const uint32_t get_ssrc() const;
-    const uint8_t get_subtype() const;
-    const std::string get_name() const;
-    const srs_error_t get_payload(uint8_t*& payload, int& len);
+    static bool is_rtcp_app(uint8_t *data, int nb_data);
 
-    void set_ssrc(uint32_t ssrc);
+    virtual uint8_t type() const;
+    
+    uint8_t get_subtype() const;
+    std::string get_name() const;
+    srs_error_t get_payload(uint8_t*& payload, int& len);
+
     srs_error_t set_subtype(uint8_t type);
     srs_error_t set_name(std::string name);
     srs_error_t set_payload(uint8_t* payload, int len);
@@ -120,30 +142,38 @@ struct SrsRtcpRB
     uint32_t jitter;
     uint32_t lsr;
     uint32_t dlsr;
+
+    SrsRtcpRB() {
+        ssrc = 0;
+        fraction_lost = 0;
+        lost_packets = 0;
+        highest_sn = 0;
+        jitter = 0;
+        lsr = 0;
+        dlsr = 0;
+    }
 };
 
 class SrsRtcpSR : public SrsRtcpCommon
 {
 private:
-    uint32_t sender_ssrc_;
     uint64_t ntp_;
     uint32_t rtp_ts_;
     uint32_t send_rtp_packets_;
     uint32_t send_rtp_bytes_;
+
 public:
     SrsRtcpSR();
     virtual ~SrsRtcpSR();
 
-    const uint8_t get_rc() const;
+    uint8_t get_rc() const;
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const;
-    const uint32_t get_sender_ssrc() const;
-    const uint64_t get_ntp() const;
-    const uint32_t get_rtp_ts() const;
-    const uint32_t get_rtp_send_packets() const;
-    const uint32_t get_rtp_send_bytes() const;
+    virtual uint8_t type() const;
+    uint64_t get_ntp() const;
+    uint32_t get_rtp_ts() const;
+    uint32_t get_rtp_send_packets() const;
+    uint32_t get_rtp_send_bytes() const;
 
-    void set_sender_ssrc(uint32_t ssrc);
     void set_ntp(uint64_t ntp);
     void set_rtp_ts(uint32_t ts);
     void set_rtp_send_packets(uint32_t packets);
@@ -158,22 +188,21 @@ public:
 class SrsRtcpRR : public SrsRtcpCommon
 {
 private:
-    uint32_t sender_ssrc_;
     SrsRtcpRB rb_;
 public:
     SrsRtcpRR(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpRR();
 
     // overload SrsRtcpCommon
-    virtual const uint8_t type() const;
+    virtual uint8_t type() const;
 
-    const uint32_t get_rb_ssrc() const;
-    const float get_lost_rate() const;
-    const uint32_t get_lost_packets() const;
-    const uint32_t get_highest_sn() const;
-    const uint32_t get_jitter() const;
-    const uint32_t get_lsr() const;
-    const uint32_t get_dlsr() const;
+    uint32_t get_rb_ssrc() const;
+    float get_lost_rate() const;
+    uint32_t get_lost_packets() const;
+    uint32_t get_highest_sn() const;
+    uint32_t get_jitter() const;
+    uint32_t get_lsr() const;
+    uint32_t get_dlsr() const;
 
     void set_rb_ssrc(uint32_t ssrc);
     void set_lost_rate(float rate);
@@ -235,7 +264,6 @@ public:
 class SrsRtcpTWCC : public SrsRtcpCommon
 {
 private:
-    uint32_t sender_ssrc_;
     uint32_t media_ssrc_;
     uint16_t base_sn_;
     uint16_t packet_count_;
@@ -244,7 +272,7 @@ private:
     std::vector<uint16_t> encoded_chucks_;
     std::vector<uint16_t> pkt_deltas_;
 
-    std::map<uint16_t, srs_utime_t> recv_packes_;
+    std::map<uint16_t, srs_utime_t> recv_packets_;
     std::set<uint16_t, SrsSeqCompareLess> recv_sns_;
 
     struct SrsRtcpTWCCChunk {
@@ -252,6 +280,7 @@ private:
         uint16_t size;
         bool all_same;
         bool has_large_delta;
+        SrsRtcpTWCCChunk();
     };
 
     int pkt_len;
@@ -271,13 +300,13 @@ public:
     SrsRtcpTWCC(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpTWCC();
 
-    const uint32_t get_media_ssrc() const;
-    const uint16_t get_base_sn() const;
-    const uint16_t get_packet_status_count() const;
-    const uint32_t get_reference_time() const;
-    const uint8_t get_feedback_count() const;
-    const std::vector<uint16_t> get_packet_chucks() const;
-    const std::vector<uint16_t> get_recv_deltas() const;
+    uint32_t get_media_ssrc() const;
+    uint16_t get_base_sn() const;
+    uint16_t get_packet_status_count() const;
+    uint32_t get_reference_time() const;
+    uint8_t get_feedback_count() const;
+    std::vector<uint16_t> get_packet_chucks() const;
+    std::vector<uint16_t> get_recv_deltas() const;
 
     void set_media_ssrc(uint32_t ssrc);
     void set_base_sn(uint16_t sn);
@@ -288,6 +317,8 @@ public:
     void add_recv_delta(uint16_t delta);
 
     srs_error_t recv_packet(uint16_t sn, srs_utime_t ts);
+    bool need_feedback();
+
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
@@ -306,15 +337,14 @@ private:
         bool in_use;
     };
 
-    uint32_t sender_ssrc_;
     uint32_t media_ssrc_;
     std::set<uint16_t, SrsSeqCompareLess> lost_sns_;
 public:
     SrsRtcpNack(uint32_t sender_ssrc = 0);
     virtual ~SrsRtcpNack();
 
-    const uint32_t get_media_ssrc() const;
-    const std::vector<uint16_t> get_lost_sns() const;
+    uint32_t get_media_ssrc() const;
+    std::vector<uint16_t> get_lost_sns() const;
 
     void set_media_ssrc(uint32_t ssrc);
     void add_lost_sn(uint16_t sn);
@@ -325,18 +355,105 @@ public:
     virtual srs_error_t encode(SrsBuffer *buffer);      
 };
 
+class SrsRtcpPsfbCommon : public SrsRtcpCommon
+{
+protected:
+    uint32_t media_ssrc_;
+public:
+    SrsRtcpPsfbCommon();
+    virtual ~SrsRtcpPsfbCommon();
+
+    uint32_t get_media_ssrc() const;
+    void set_media_ssrc(uint32_t ssrc);
+
+// interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);   
+};
+
+class SrsRtcpPli : public SrsRtcpPsfbCommon
+{
+public:
+    SrsRtcpPli(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpPli();
+
+// interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);  
+};
+
+class SrsRtcpSli : public SrsRtcpPsfbCommon
+{
+private:
+    uint16_t first_;
+    uint16_t number_;
+    uint8_t picture_;
+public:
+    SrsRtcpSli(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpSli();
+
+ // interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);   
+}; 
+
+class SrsRtcpRpsi : public SrsRtcpPsfbCommon
+{
+private:
+    uint8_t pb_;
+    uint8_t payload_type_;
+    char* native_rpsi_;
+    int nb_native_rpsi_;
+
+public:
+    SrsRtcpRpsi(uint32_t sender_ssrc = 0);
+    virtual ~SrsRtcpRpsi();
+
+ // interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);   
+};
+
+class SrsRtcpXr : public SrsRtcpCommon
+{
+public:
+    SrsRtcpXr (uint32_t ssrc = 0);
+    virtual ~SrsRtcpXr();
+
+   // interface ISrsCodec
+public:
+    virtual srs_error_t decode(SrsBuffer *buffer);
+    virtual int nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buffer);   
+};
+
 class SrsRtcpCompound : public ISrsCodec
 {
 private:
     std::vector<SrsRtcpCommon*> rtcps_;
     int nb_bytes_;
+    char* data_;
+    int nb_data_;
 public:
     SrsRtcpCompound();
     virtual ~SrsRtcpCompound();
 
+    // TODO: FIXME: Should rename it to pop(), because it's not a GET method.
     SrsRtcpCommon* get_next_rtcp();
     srs_error_t add_rtcp(SrsRtcpCommon *rtcp);
     void clear();
+
+    char* data();
+    int size();
+
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);

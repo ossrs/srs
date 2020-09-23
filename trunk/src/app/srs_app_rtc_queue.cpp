@@ -189,6 +189,7 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     rtp_ = rtp;
     pre_check_time_ = 0;
     last_remove_packet_time_ = -1;
+    rtt_ = 0;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
         max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
@@ -229,7 +230,7 @@ void SrsRtpNackForReceiver::check_queue_size()
     }
 }
 
-void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
+void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs)
 {
     // TODO: FIXME: Use packet as tick count, not clock.
     srs_utime_t now = srs_update_system_time();
@@ -260,7 +261,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
         if (now - nack_info.pre_req_nack_time_ >= opts_.nack_interval && nack_info.req_nack_count_ <= opts_.max_count) {
             ++nack_info.req_nack_count_;
             nack_info.pre_req_nack_time_ = now;
-            seqs.push_back(seq);
+            seqs.add_lost_sn(seq);
         }
 
         ++iter;

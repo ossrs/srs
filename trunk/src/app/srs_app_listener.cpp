@@ -42,7 +42,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
-
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
@@ -126,6 +125,7 @@ void SrsUdpListener::set_socket_buffer()
     int r0_sndbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_sndbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&default_sndbuf, &opt_len);
 
         if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
@@ -133,6 +133,7 @@ void SrsUdpListener::set_socket_buffer()
         }
 
         opt_len = sizeof(actual_sndbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void*)&actual_sndbuf, &opt_len);
     }
 
@@ -143,6 +144,7 @@ void SrsUdpListener::set_socket_buffer()
     int r0_rcvbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_rcvbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&default_rcvbuf, &opt_len);
 
         if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
@@ -150,6 +152,7 @@ void SrsUdpListener::set_socket_buffer()
         }
 
         opt_len = sizeof(actual_rcvbuf);
+        // TODO: FIXME: check err
         getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void*)&actual_rcvbuf, &opt_len);
     }
 
@@ -289,6 +292,7 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     lfd = fd;
 
     fromlen = 0;
+    peer_port = 0;
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()
@@ -506,8 +510,8 @@ srs_error_t SrsUdpMuxListener::cycle()
     uint64_t nn_loop = 0;
     srs_utime_t time_last = srs_get_system_time();
 
-    SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
-    SrsAutoFree(SrsErrorPithyPrint, epp);
+    SrsErrorPithyPrint* pp_pkt_handler_err = new SrsErrorPithyPrint();
+    SrsAutoFree(SrsErrorPithyPrint, pp_pkt_handler_err);
 
     set_socket_buffer();
     
@@ -541,9 +545,13 @@ srs_error_t SrsUdpMuxListener::cycle()
             SrsContextRestore(cid);
             err = handler->on_udp_packet(&skt);
         }
+        // Use pithy print to show more smart information.
         if (err != srs_success) {
-            if (epp->can_print(err)) {
-                srs_warn("handle udp pkt err: %s", srs_error_desc(err).c_str());
+            uint32_t nn = 0;
+            if (pp_pkt_handler_err->can_print(err, &nn)) {
+                // Append more information.
+                err = srs_error_wrap(err, "size=%u, data=[%s]", skt.size(), srs_string_dumps_hex(skt.data(), skt.size(), 8).c_str());
+                srs_warn("handle udp pkt, count=%u/%u, err: %s", pp_pkt_handler_err->nn_count, nn, srs_error_desc(err).c_str());
             }
             srs_freep(err);
         }

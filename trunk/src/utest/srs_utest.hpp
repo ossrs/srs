@@ -24,6 +24,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_UTEST_PUBLIC_SHARED_HPP
 #define SRS_UTEST_PUBLIC_SHARED_HPP
 
+// Before define the private/protected, we must include some system header files.
+// Or it may fail with:
+//      redeclared with different access struct __xfer_bufptrs
+// @see https://stackoverflow.com/questions/47839718/sstream-redeclared-with-public-access-compiler-error
+#include "gtest/gtest.h"
+
 // Public all private and protected members.
 #define private public
 #define protected public
@@ -33,7 +39,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#include "gtest/gtest.h"
 #include <string>
 using namespace std;
 
@@ -51,19 +56,24 @@ extern int _srs_tmp_port;
 extern srs_utime_t _srs_tmp_timeout;
 
 // For errors.
+// @remark we directly delete the err, because we allow user to append message if fail.
 #define HELPER_EXPECT_SUCCESS(x) \
     if ((err = x) != srs_success) fprintf(stderr, "err %s", srs_error_desc(err).c_str()); \
-    EXPECT_TRUE(srs_success == err); \
-    srs_freep(err)
-#define HELPER_EXPECT_FAILED(x) EXPECT_TRUE(srs_success != (err = x)); srs_freep(err)
+    if (err != srs_success) delete err; \
+    EXPECT_TRUE(srs_success == err)
+#define HELPER_EXPECT_FAILED(x) \
+    if ((err = x) != srs_success) delete err; \
+    EXPECT_TRUE(srs_success != err)
 
 // For errors, assert.
-// @remark The err is leak when error, but it's ok in utest.
+// @remark we directly delete the err, because we allow user to append message if fail.
 #define HELPER_ASSERT_SUCCESS(x) \
     if ((err = x) != srs_success) fprintf(stderr, "err %s", srs_error_desc(err).c_str()); \
-    ASSERT_TRUE(srs_success == err); \
-    srs_freep(err)
-#define HELPER_ASSERT_FAILED(x) ASSERT_TRUE(srs_success != (err = x)); srs_freep(err)
+    if (err != srs_success) delete err; \
+    ASSERT_TRUE(srs_success == err)
+#define HELPER_ASSERT_FAILED(x) \
+    if ((err = x) != srs_success) delete err; \
+    ASSERT_TRUE(srs_success != err)
 
 // For init array data.
 #define HELPER_ARRAY_INIT(buf, sz, val) \

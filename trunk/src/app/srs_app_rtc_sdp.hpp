@@ -246,6 +246,8 @@ public:
 
     // m-line, media sessions
     std::vector<SrsMediaDesc> media_descs_;
+
+     bool is_unified() const;
 };
 
 #endif

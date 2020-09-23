@@ -147,6 +147,7 @@ private:
             skip = false;
             sent = false;
             dirty = false;
+            duration = 0.0;
         }
         
         int fetch(std::string m3u8);

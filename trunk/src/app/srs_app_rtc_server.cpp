@@ -97,6 +97,7 @@ void SrsRtcBlackhole::sendto(void* data, int len)
         return;
     }
 
+    // For blackhole, we ignore any error.
     srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
 
@@ -105,24 +106,32 @@ SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 
-static bool is_stun(const uint8_t* data, const int size)
+// TODO: Should support error response.
+// For STUN packet, 0x00 is binding request, 0x01 is binding success response.
+bool srs_is_stun(const uint8_t* data, size_t size)
 {
-    return data != NULL && size > 0 && (data[0] == 0 || data[0] == 1);
+    return size > 0 && (data[0] == 0 || data[0] == 1);
 }
 
-static bool is_dtls(const uint8_t* data, size_t len)
+// change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+// @see https://tools.ietf.org/html/rfc2246#section-6.2.1
+bool srs_is_dtls(const uint8_t* data, size_t len)
 {
-      return (len >= 13 && (data[0] > 19 && data[0] < 64));
+    return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-static bool is_rtp_or_rtcp(const uint8_t* data, size_t len)
+// For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
+bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len)
 {
-      return (len >= 12 && (data[0] & 0xC0) == 0x80);
+    return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
-static bool is_rtcp(const uint8_t* data, size_t len)
+// For RTCP, PT is [128, 223] (or without marker [0, 95]).
+// Literally, RTCP starts from 64 not 0, so PT is [192, 223] (or without marker [64, 95]).
+// @note For RTP, the PT is [96, 127], or [224, 255] with marker.
+bool srs_is_rtcp(const uint8_t* data, size_t len)
 {
-    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 200 && data[1] <= 209);
+    return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
 }
 
 static std::vector<std::string> get_candidate_ips()
@@ -195,9 +204,18 @@ ISrsRtcServerHandler::~ISrsRtcServerHandler()
 {
 }
 
+ISrsRtcServerHijacker::ISrsRtcServerHijacker()
+{
+}
+
+ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
+{
+}
+
 SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
+    hijacker = NULL;
     timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
 }
 
@@ -246,6 +264,11 @@ srs_error_t SrsRtcServer::initialize()
 void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 {
     handler = h;
+}
+
+void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
+{
+    hijacker = h;
 }
 
 srs_error_t SrsRtcServer::listen_udp()
@@ -300,8 +323,20 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         }
     }
 
+    // Notify hijack to handle the UDP packet.
+    if (hijacker) {
+        bool consumed = false;
+        if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
+            return srs_error_wrap(err, "hijack consumed=%u", consumed);
+        }
+
+        if (consumed) {
+            return err;
+        }
+    }
+
     // For STUN, the peer address may change.
-    if (is_stun((uint8_t*)data, size)) {
+    if (srs_is_stun((uint8_t*)data, size)) {
         SrsStunPacket ping;
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
@@ -309,7 +344,6 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
             peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
             session = find_session_by_username(ping.get_username());
 
@@ -318,8 +352,10 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
                 session->switch_to_context();
             }
         }
+
+        // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
-            return srs_error_new(ERROR_RTC_STUN, "can not find session, stun username=%s, peer_id=%s",
+            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s",
                 ping.get_username().c_str(), peer_id.c_str());
         }
 
@@ -328,19 +364,19 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
     if (!session) {
-        return srs_error_new(ERROR_RTC_STUN, "can not find session, peer_id=%s", peer_id.c_str());
+        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s", peer_id.c_str());
     }
 
-    if (is_dtls((uint8_t*)data, size)) {
+    if (srs_is_dtls((uint8_t*)data, size)) {
         return session->on_dtls(data, size);
-    } else if (is_rtp_or_rtcp((uint8_t*)data, size)) {
-        if (is_rtcp((uint8_t*)data, size)) {
+    } else if (srs_is_rtp_or_rtcp((uint8_t*)data, size)) {
+        if (srs_is_rtcp((uint8_t*)data, size)) {
             return session->on_rtcp(data, size);
         }
         return session->on_rtp(data, size);
     }
 
-    return srs_error_new(ERROR_RTC_UDP, "unknown udp packet type");
+    return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
 srs_error_t SrsRtcServer::listen_api()
@@ -368,7 +404,8 @@ srs_error_t SrsRtcServer::listen_api()
 }
 
 srs_error_t SrsRtcServer::create_session(
-    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
+    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp,
     SrsRtcConnection** psession
 ) {
     srs_error_t err = srs_success;
@@ -380,14 +417,13 @@ srs_error_t SrsRtcServer::create_session(
         return srs_error_wrap(err, "create source");
     }
 
-    // TODO: FIXME: Refine the API for stream status manage.
-    if (publish && !source->can_publish(false)) {
+    if (publish && !source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
     // TODO: FIXME: add do_create_session to error process.
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
-    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, source)) != srs_success) {
+    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, dtls, srtp)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "create session");
     }
@@ -398,8 +434,8 @@ srs_error_t SrsRtcServer::create_session(
 }
 
 srs_error_t SrsRtcServer::do_create_session(
-    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip, bool publish,
-    SrsRtcStream* source
+    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
+    bool publish, bool dtls, bool srtp
 )
 {
     srs_error_t err = srs_success;
@@ -414,6 +450,9 @@ srs_error_t SrsRtcServer::do_create_session(
             return srs_error_wrap(err, "add player");
         }
     }
+
+    // All tracks default as inactive, so we must enable them.
+    session->set_all_tracks_status(req->get_stream_url(), publish, true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
@@ -464,15 +503,17 @@ srs_error_t SrsRtcServer::do_create_session(
     session->set_state(WAITING_STUN);
 
     // Before session initialize, we must setup the local SDP.
-    if ((err = session->initialize(source, req, publish, username)) != srs_success) {
+    if ((err = session->initialize(req, dtls, srtp, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
+
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession)
 {
     srs_error_t err = srs_success;
 
@@ -484,7 +525,7 @@ srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, co
 
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
     // first add player for negotiate local sdp media info
-    if ((err = session->add_player2(req, local_sdp)) != srs_success) {
+    if ((err = session->add_player2(req, unified_plan, local_sdp)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "add player2");
     }
@@ -522,18 +563,14 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
         return err;
     }
 
-    SrsRtcStream* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "create source");
-    }
-
     // TODO: FIXME: Collision detect.
     string username = session->get_local_sdp()->get_ice_ufrag() + ":" + remote_sdp.get_ice_ufrag();
 
-    if ((err = session->initialize(source, req, false, username)) != srs_success) {
+    if ((err = session->initialize(req, true, true, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
+    // We allows username is optional, but it never empty here.
     map_username_session.insert(make_pair(username, session));
 
     session->set_remote_sdp(remote_sdp);
@@ -551,8 +588,9 @@ void SrsRtcServer::destroy(SrsRtcConnection* session)
 
     std::map<std::string, SrsRtcConnection*>::iterator it;
 
+    // We allows username is optional.
     string username = session->username();
-    if ((it = map_username_session.find(username)) != map_username_session.end()) {
+    if (!username.empty() && (it = map_username_session.find(username)) != map_username_session.end()) {
         map_username_session.erase(it);
     }
 

@@ -49,7 +49,7 @@ USER_DIR = .
 CPPFLAGS += -I\$(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += ${CXXFLAGS} -Wextra ${UTEST_EXTRA_DEFINES}
+CXXFLAGS += ${CXXFLAGS} ${UTEST_EXTRA_DEFINES} -Wno-unused-private-field -Wno-unused-command-line-argument
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
