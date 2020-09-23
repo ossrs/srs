@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-27, Merge [#1963](https://github.com/ossrs/srs/pull/1963): Cluster: Origin server shouldn't be it's own coworker. v4.0.186
 * v4.0, 2021-10-25, Merge [#2692](https://github.com/ossrs/srs/pull/2692): API: Add server_id into http_hooks. v4.0.185
 * v4.0, 2021-10-22, Merge [#2687](https://github.com/ossrs/srs/pull/2687): API: Always stat client event if auth fail. v4.0.183
 * v4.0, 2021-10-20, Merge [#1758](https://github.com/ossrs/srs/pull/1758): JSON: Support escape special chars. v4.0.182
