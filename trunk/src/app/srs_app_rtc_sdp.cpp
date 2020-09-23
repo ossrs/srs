@@ -769,6 +769,31 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
         }
     }
 
+    // The msid/tracker/mslabel is optional for SSRC, so we copy it when it's empty.
+    for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        SrsMediaDesc& media_desc = *iter;
+
+        for (size_t i = 0; i < media_desc.ssrc_infos_.size(); ++i) {
+            SrsSSRCInfo& ssrc_info = media_desc.ssrc_infos_.at(i);
+
+            if (ssrc_info.msid_.empty()) {
+                ssrc_info.msid_  = media_desc.msid_;
+            }
+
+            if (ssrc_info.msid_tracker_.empty()) {
+                ssrc_info.msid_tracker_ = media_desc.msid_tracker_;
+            }
+
+            if (ssrc_info.mslabel_.empty()) {
+                ssrc_info.mslabel_ = media_desc.msid_;
+            }
+
+            if (ssrc_info.label_.empty()) {
+                ssrc_info.label_ = media_desc.msid_tracker_;
+            }
+        }
+    }
+
     return err;
 }
 
