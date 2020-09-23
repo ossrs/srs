@@ -290,6 +290,14 @@ ISrsRtcPublishStream::~ISrsRtcPublishStream()
 {
 }
 
+ISrsRtcStreamEventHandler::ISrsRtcStreamEventHandler()
+{
+}
+
+ISrsRtcStreamEventHandler::~ISrsRtcStreamEventHandler()
+{
+}
+
 SrsRtcStream::SrsRtcStream()
 {
     is_created_ = false;
@@ -411,7 +419,10 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
 
     // When all consumers finished, notify publisher to handle it.
     if (publish_stream_ && consumers.empty()) {
-        publish_stream_->on_consumers_finished();
+        for (size_t i = 0; i < event_handlers_.size(); i++) {
+            ISrsRtcStreamEventHandler* h = event_handlers_.at(i);
+            h->on_consumers_finished();
+        }
     }
 }
 
@@ -463,7 +474,28 @@ void SrsRtcStream::on_unpublish()
 
     _source_id = SrsContextId();
 
+    for (size_t i = 0; i < event_handlers_.size(); i++) {
+        ISrsRtcStreamEventHandler* h = event_handlers_.at(i);
+        h->on_unpublish();
+    }
+
     // TODO: FIXME: Handle by statistic.
+}
+
+void SrsRtcStream::subscribe(ISrsRtcStreamEventHandler* h)
+{
+    if (std::find(event_handlers_.begin(), event_handlers_.end(), h) == event_handlers_.end()) {
+        event_handlers_.push_back(h);
+    }
+}
+
+void SrsRtcStream::unsubscribe(ISrsRtcStreamEventHandler* h)
+{
+    std::vector<ISrsRtcStreamEventHandler*>::iterator it;
+    it = std::find(event_handlers_.begin(), event_handlers_.end(), h);
+    if (it != event_handlers_.end()) {
+        event_handlers_.erase(it);
+    }
 }
 
 ISrsRtcPublishStream* SrsRtcStream::publish_stream()

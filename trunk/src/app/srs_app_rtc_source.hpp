@@ -132,7 +132,17 @@ public:
 public:
     // Request keyframe(PLI) from publisher, for fresh consumer.
     virtual void request_keyframe(uint32_t ssrc) = 0;
-    // Notify publisher that all consumers is finished.
+};
+
+class ISrsRtcStreamEventHandler
+{
+public:
+    ISrsRtcStreamEventHandler();
+    virtual ~ISrsRtcStreamEventHandler();
+public:
+    // stream unpublish, sync API.
+    virtual void on_unpublish() = 0;
+    // no player subscribe this stream, sync API
     virtual void on_consumers_finished() = 0;
 };
 
@@ -160,6 +170,8 @@ private:
     bool is_created_;
     // Whether stream is delivering data, that is, DTLS is done.
     bool is_delivering_packets_;
+    // Notify stream event to event handler
+    std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -193,6 +205,10 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+public:
+    // For event handler
+    void subscribe(ISrsRtcStreamEventHandler* h);
+    void unsubscribe(ISrsRtcStreamEventHandler* h);
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     ISrsRtcPublishStream* publish_stream();

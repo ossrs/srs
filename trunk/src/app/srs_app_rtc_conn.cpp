@@ -1431,11 +1431,6 @@ srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId
     return err;
 }
 
-void SrsRtcPublishStream::on_consumers_finished()
-{
-    session_->on_consumers_finished(req->get_stream_url());
-}
-
 srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
@@ -2065,13 +2060,6 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpPsfbCommon *rtcp)
 {
     //ignore REMB
     return srs_success;
-}
-
-void SrsRtcConnection::on_consumers_finished(std::string url)
-{
-    if (hijacker_) {
-        hijacker_->on_consumers_finished(url);
-    }
 }
 
 void SrsRtcConnection::set_hijacker(ISrsRtcConnectionHijacker* h)
