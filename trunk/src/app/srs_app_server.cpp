@@ -57,6 +57,8 @@ using namespace std;
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
 
+#include <srs_kernel_file.hpp>
+
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
 // for example, system-interval is x=1s(1000ms),
@@ -1162,25 +1164,30 @@ srs_error_t SrsServer::sync_configmap(string path){
     srs_error_t err = srs_success;
 
     string config_file = _srs_config->config();
+    path = path.empty() ? "/app/srs.conf" : path;
 
-    if (path.empty()) {
-        path = "/app/srs.conf";
+    SrsFileReader fr;
+    if ((err = fr.open(path)) != srs_success) {
+        return err;
     }
 
-    FILE * src  = fopen(path.c_str(), "rb");
-    FILE * dest = fopen(config_file.c_str(), "wb");
+    int filesize = (int)fr.filesize();
+    ssize_t nread = 0;
 
-    const int size = 16384;
-    char buffer[size];
-
-    while (!feof(src)) {
-        int n = fread(buffer, 1, size, src);
-        fwrite(buffer, 1, n, dest);
+    char buf[filesize];
+    if ((err = fr.read(buf, filesize, &nread)) != srs_success) {
+        return err;
     }
-    fflush(dest);
 
-    fclose(src);
-    fclose(dest);
+    SrsFileWriter fw;
+    if ((err = fw.open(config_file)) != srs_success) {
+        return err;
+    }
+
+    ssize_t nwrite = 0;
+    if ((err = fw.write(buf, sizeof(buf), &nwrite)) != srs_success) {
+        return err;
+    }
 
     srs_trace("%s -> %s", path.c_str(), config_file.c_str());
     return err;

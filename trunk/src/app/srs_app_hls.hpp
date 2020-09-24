@@ -97,6 +97,22 @@ public:
     virtual std::string to_string();
 };
 
+// The hls async call: on_hls_content
+class SrsDvrAsyncCallOnHlsContent : public ISrsAsyncCallTask
+{
+private:
+    SrsContextId cid;
+    std::string m3u8_body;
+    SrsRequest* req;
+public:
+    // TODO: FIXME: Use TBN 1000.
+    SrsDvrAsyncCallOnHlsContent(SrsContextId c, SrsRequest* r, std::string content);
+    virtual ~SrsDvrAsyncCallOnHlsContent();
+public:
+    virtual srs_error_t call();
+    virtual std::string to_string();
+};
+
 // The hls async call: on_hls_notify
 class SrsDvrAsyncCallOnHlsNotify : public ISrsAsyncCallTask
 {
@@ -217,7 +233,7 @@ private:
     virtual srs_error_t do_segment_close();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
-    virtual srs_error_t _refresh_m3u8(std::string m3u8_file);
+    virtual srs_error_t _refresh_m3u8(std::string m3u8_file, std::string& m3u8_body);
 };
 
 // The hls stream cache,

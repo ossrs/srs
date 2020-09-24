@@ -469,6 +469,30 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     return err;
 }
 
+srs_error_t SrsHttpHooks::on_hls_content(SrsContextId c, string url, SrsRequest* req, string content) {
+    srs_error_t err = srs_success;
+
+    SrsContextId cid = c;
+
+    url = srs_string_replace(url, "[vhost]", req->vhost);
+    url = srs_string_replace(url, "[app]", req->app);
+    url = srs_string_replace(url, "[stream]", req->stream);
+
+    std::string res;
+    int status_code;
+
+    //srs_trace("\n%s\n", content.c_str());
+    SrsHttpClient http;
+    if ((err = do_post(&http, url, content, status_code, res)) != srs_success) {
+        return srs_error_wrap(err, "http: post %s with %s, status=%d, res=%s", url.c_str(), content.c_str(), status_code, res.c_str());
+    }
+
+    srs_trace("http: on_hls_content ok, client_id=%s, url=%s, request=***, response=%s",
+              cid.c_str(), url.c_str(), res.c_str());
+
+    return err;
+}
+
 srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
     srs_error_t err = srs_success;

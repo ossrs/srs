@@ -2610,6 +2610,8 @@ srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj
                 http_hooks->set("on_hls", sdir->dumps_args());
             } else if (sdir->name == "on_hls_notify") {
                 http_hooks->set("on_hls_notify", sdir->dumps_arg0_to_str());
+            } else if (sdir->name == "on_hls_content") {
+                http_hooks->set("on_hls_content", sdir->dumps_args());
             }
         }
     }
@@ -3917,7 +3919,7 @@ srs_error_t SrsConfig::check_normal_config()
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
                         && m != "on_unpublish" && m != "on_play" && m != "on_stop"
-                        && m != "on_dvr" && m != "on_hls" && m != "on_hls_notify") {
+                        && m != "on_dvr" && m != "on_hls" && m != "on_hls_notify" && m != "on_hls_content") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.http_hooks.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5920,6 +5922,16 @@ SrsConfDirective* SrsConfig::get_vhost_on_hls_notify(string vhost)
     }
     
     return conf->get("on_hls_notify");
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_hls_content(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("on_hls_content");
 }
 
 bool SrsConfig::get_bw_check_enabled(string vhost)

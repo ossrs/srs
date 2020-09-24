@@ -730,6 +730,7 @@ public:
     // Get the on_hls_notify callbacks of vhost.
     // @return the on_hls_notify callback directive, the args is the url to callback.
     virtual SrsConfDirective* get_vhost_on_hls_notify(std::string vhost);
+    virtual SrsConfDirective* get_vhost_on_hls_content(std::string vhost);
 // bwct(bandwidth check tool) section
 public:
     // Whether bw check enabled for vhost.

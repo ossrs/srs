@@ -137,6 +137,55 @@ string SrsDvrAsyncCallOnHls::to_string()
     return "on_hls: " + path;
 }
 
+
+SrsDvrAsyncCallOnHlsContent::SrsDvrAsyncCallOnHlsContent(SrsContextId c, SrsRequest *r, std::string content) {
+    req = r->copy();
+    cid = c;
+    m3u8_body = content;
+}
+
+SrsDvrAsyncCallOnHlsContent::~SrsDvrAsyncCallOnHlsContent() {
+    srs_freep(req);
+}
+
+
+srs_error_t SrsDvrAsyncCallOnHlsContent::call() {
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_hls_content(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_hls_content(cid, url, req, m3u8_body)) != srs_success) {
+            return srs_error_wrap(err, "callback on_hls_content %s", url.c_str());
+        }
+    }
+
+    return err;
+}
+
+std::string SrsDvrAsyncCallOnHlsContent::to_string() {
+    return "on_hls_content: " + m3u8_body;
+}
+
+
 SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(SrsContextId c, SrsRequest* r, string u)
 {
     cid = c;
@@ -721,9 +770,9 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
     }
     
     std::string temp_m3u8 = m3u8 + ".temp";
-    std::string *body;
+    std::string m3u8_body;
 
-    if ((err = _refresh_m3u8(temp_m3u8, &body)) == srs_success) {
+    if ((err = _refresh_m3u8(temp_m3u8, m3u8_body)) == srs_success) {
         if (rename(temp_m3u8.c_str(), m3u8.c_str()) < 0) {
             err = srs_error_new(ERROR_HLS_WRITE_FAILED, "hls: rename m3u8 file failed. %s => %s", temp_m3u8.c_str(), m3u8.c_str());
         }
@@ -736,12 +785,14 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
         }
     }
 
-    //async->execute()
-    
+    if ((err = async->execute(new SrsDvrAsyncCallOnHlsContent(_srs_context->get_id(), req, m3u8_body))) != srs_success) {
+        return srs_error_wrap(err, "on_hls_content");
+    }
+
     return err;
 }
 
-srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file, string *body)
+srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file, string& m3u8)
 {
     srs_error_t err = srs_success;
     
@@ -827,7 +878,7 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file, string *body)
     }
     
     // write m3u8 to writer.
-    std::string m3u8 = ss.str();
+    /* std::string */m3u8 = ss.str();
     if ((err = writer.write((char*)m3u8.c_str(), (int)m3u8.length(), NULL)) != srs_success) {
         return srs_error_wrap(err, "hls: write m3u8");
     }

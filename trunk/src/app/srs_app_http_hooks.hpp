@@ -96,6 +96,7 @@ public:
     static srs_error_t on_hls_notify(SrsContextId cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
     // Discover co-workers for origin cluster.
     static srs_error_t discover_co_workers(std::string url, std::string& host, int& port);
+    static srs_error_t on_hls_content(SrsContextId cid, std::string url, SrsRequest* req, std::string content);
 private:
     static srs_error_t do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };
