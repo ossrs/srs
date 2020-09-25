@@ -137,6 +137,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("action", SrsJsonAny::str("on_publish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("port", SrsJsonAny::integer(req->port));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
@@ -484,7 +485,7 @@ srs_error_t SrsHttpHooks::on_hls_content(SrsContextId c, string url, SrsRequest*
     //srs_trace("\n%s\n", content.c_str());
     SrsHttpClient http;
     if ((err = do_post(&http, url, content, status_code, res)) != srs_success) {
-        return srs_error_wrap(err, "http: post %s with %s, status=%d, res=%s", url.c_str(), content.c_str(), status_code, res.c_str());
+        return srs_error_wrap(err, "http: post %s with %s, status=%d, res=...", url.c_str(), content.c_str(), status_code);
     }
 
     srs_trace("http: on_hls_content ok, client_id=%s, url=%s, request=***, response=%s",
