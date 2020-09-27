@@ -130,7 +130,7 @@ namespace _srs_internal
         // read total content from file.
         ssize_t nread = 0;
         if ((err = reader.read(start, filesize, &nread)) != srs_success) {
-            return srs_error_wrap(err, "read %d only %d bytes", filesize, nread);
+            return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
         }
         
         return err;
@@ -298,7 +298,7 @@ bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
     }
     
     string id = req->app + "/" + req->stream;
-    if (::find(args.begin(), args.end(), id) != args.end()) {
+    if (std::find(args.begin(), args.end(), id) != args.end()) {
         return true;
     }
     
@@ -620,6 +620,7 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective* dir, SrsJsonObject* engine
 
 SrsConfDirective::SrsConfDirective()
 {
+    conf_line = 0;
 }
 
 SrsConfDirective::~SrsConfDirective()
@@ -785,7 +786,7 @@ SrsConfDirective* SrsConfDirective::set_arg0(string a0)
 void SrsConfDirective::remove(SrsConfDirective* v)
 {
     std::vector<SrsConfDirective*>::iterator it;
-    if ((it = ::find(directives.begin(), directives.end(), v)) != directives.end()) {
+    if ((it = std::find(directives.begin(), directives.end(), v)) != directives.end()) {
         directives.erase(it);
     }
 }
@@ -1140,6 +1141,7 @@ SrsConfig::SrsConfig()
     show_help = false;
     show_version = false;
     test_conf = false;
+    show_signature = false;
     
     root = new SrsConfDirective();
     root->conf_line = 0;
@@ -3184,7 +3186,7 @@ srs_error_t SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied
         conf->args.clear();
     }
     
-    if (::find(conf->args.begin(), conf->args.end(), stream) == conf->args.end()) {
+    if (std::find(conf->args.begin(), conf->args.end(), stream) == conf->args.end()) {
         conf->args.push_back(stream);
     }
     
@@ -3208,7 +3210,7 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     
     std::vector<string>::iterator it;
     
-    if ((it = ::find(conf->args.begin(), conf->args.end(), stream)) != conf->args.end()) {
+    if ((it = std::find(conf->args.begin(), conf->args.end(), stream)) != conf->args.end()) {
         conf->args.erase(it);
     }
     
@@ -3661,7 +3663,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; i < (int)listens.size(); i++) {
             string port = listens[i];
             if (port.empty() || ::atoi(port.c_str()) <= 0) {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%d is invalid", port.c_str());
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%s is invalid", port.c_str());
             }
         }
     }

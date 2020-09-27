@@ -33,7 +33,7 @@
 #include <srs_service_http_conn.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_source.hpp>
 
@@ -50,21 +50,23 @@ class SrsSharedPtrMessage;
 class SrsRequest;
 class SrsFastStream;
 class SrsHttpUri;
-class SrsConnection;
 class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
 // The http connection which request the static or stream content.
-class SrsHttpConn : public SrsConnection
+class SrsHttpConn : public SrsTcpConnection
 {
 protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
 public:
-    SrsHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
@@ -90,7 +92,7 @@ public:
 class SrsResponseOnlyHttpConn : public SrsHttpConn
 {
 public:
-    SrsResponseOnlyHttpConn(IConnectionManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsResponseOnlyHttpConn();
 public:
     // Directly read a HTTP request message.

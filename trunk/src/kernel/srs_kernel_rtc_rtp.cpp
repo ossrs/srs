@@ -55,6 +55,7 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
@@ -63,7 +64,7 @@ SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
 {
-    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
+    for (int i = 0; i < (int)(sizeof(kExtensions)/sizeof(kExtensions[0])); ++i) {
         if (kExtensions[i].uri == uri) {
             return register_id(id, kExtensions[i].type, kExtensions[i].uri);
         }
@@ -137,24 +138,20 @@ srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
 
 int SrsRtpExtensionTwcc::nb_bytes()
 {
-    return 4;
+    return 3;
 }
 
 srs_error_t SrsRtpExtensionTwcc::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Only requires 3 bytes.
-    if(!buf->require(4)) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 4);
+    if(!buf->require(3)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
     }
  
     uint8_t id_len = (id_ & 0x0F)<< 4| 0x01;
     buf->write_1bytes(id_len);
     buf->write_2bytes(sn_);
-
-    // TODO: FIXME: Should padding in the final of SrsRtpExtensions::encode.
-    buf->write_1bytes(0x00);
     
     return err;
 }
@@ -251,7 +248,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
         SrsRtpExtensionType xtype = types_.get_type(id);
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if (srs_success != (err = twcc_.decode(buf))) {
+            if ((err = twcc_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode twcc extension");
             }
             has_ext_ = true;
@@ -265,7 +262,10 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
 int SrsRtpExtensions::nb_bytes()
 {
-    return 4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    // add padding
+    size += (size % 4 == 0) ? 0 : (4 - size % 4);
+    return size;
 }
 
 srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
@@ -274,18 +274,31 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 
     buf->write_2bytes(0xBEDE);
 
+    // Write length.
     int len = 0;
-    //TODO: When add new rtp extension, it should add the extension length into len
+
     if (twcc_.has_twcc_ext()) {
         len += twcc_.nb_bytes();
     }
+
+    int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
+    len += padding_count;
+
     buf->write_2bytes(len / 4);
 
+    // Write extensions.
     if (twcc_.has_twcc_ext()) {
-        if (srs_success != (err = twcc_.encode(buf))) {
+        if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }
+
+    // add padding
+    while(padding_count > 0) {
+        buf->write_1bytes(0);
+        padding_count--;
+    }
+
     return err;
 }
 

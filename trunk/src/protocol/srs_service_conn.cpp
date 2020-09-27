@@ -23,19 +23,27 @@
 
 #include <srs_service_conn.hpp>
 
+ISrsResource::ISrsResource()
+{
+}
+
+ISrsResource::~ISrsResource()
+{
+}
+
+ISrsResourceManager::ISrsResourceManager()
+{
+}
+
+ISrsResourceManager::~ISrsResourceManager()
+{
+}
+
 ISrsConnection::ISrsConnection()
 {
 }
 
 ISrsConnection::~ISrsConnection()
-{
-}
-
-IConnectionManager::IConnectionManager()
-{
-}
-
-IConnectionManager::~IConnectionManager()
 {
 }
 

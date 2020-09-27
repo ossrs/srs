@@ -40,7 +40,7 @@
 #include <srs_app_gb28181_sip.hpp>
 
 class SrsServer;
-class SrsConnection;
+class SrsTcpConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
@@ -53,7 +53,7 @@ class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsRtspCaster;
-class SrsCoroutineManager;
+class SrsResourceManager;
 class SrsGb28181Caster;
 
 
@@ -236,10 +236,12 @@ public:
     virtual srs_error_t on_cycle() = 0;
     // Callback the handler when got client.
     virtual srs_error_t on_accept_client(int max, int cur) = 0;
+    // Callback for logrotate.
+    virtual void on_logrotate() = 0;
 };
 
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public IConnectionManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
 {
 private:
     // TODO: FIXME: rename to http_api
@@ -247,15 +249,13 @@ private:
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
-    SrsCoroutineManager* conn_manager;
+    SrsResourceManager* conn_manager;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
     //       for the server never delete the file; when system startup, the pid in pid file
     //       maybe valid but the process is not SRS, the init.d script will never start server.
     int pid_fd;
-    // All connections, connection manager
-    std::vector<SrsConnection*> conns;
     // All listners, listener manager.
     std::vector<SrsListener*> listeners;
     // Signal manager which convert gignal to io message.
@@ -341,13 +341,13 @@ public:
     // TODO: FIXME: Fetch from hybrid server manager.
     virtual SrsHttpServeMux* api_server();
 private:
-    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
-// Interface IConnectionManager
+    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpConnection** pconn);
+// Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
-    // @see SrsConnection.on_thread_stop().
-    virtual void remove(ISrsConnection* c);
+    // @see SrsTcpConnection.on_thread_stop().
+    virtual void remove(ISrsResource* c);
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();

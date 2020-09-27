@@ -45,8 +45,8 @@ SrsThreadContext::~SrsThreadContext()
 
 SrsContextId SrsThreadContext::generate_id()
 {
-    SrsContextId cid = SrsContextId(srs_random_str(8));
-    return cid;
+    SrsContextId cid = SrsContextId();
+    return cid.set_value(srs_random_str(8));
 }
 
 const SrsContextId& SrsThreadContext::get_id()
@@ -240,9 +240,9 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
     if (dangerous) {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%s][%d] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d][%s] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
-                level, tag, getpid(), cid.c_str(), errno);
+                level, getpid(), cid.c_str(), errno, tag);
         } else {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d] ",
@@ -252,9 +252,9 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
     } else {
         if (tag) {
             written = snprintf(buffer, size,
-                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%s] ",
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%s] ",
                 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
-                level, tag, getpid(), cid.c_str());
+                level, getpid(), cid.c_str(), tag);
         } else {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s] ",

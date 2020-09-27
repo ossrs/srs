@@ -92,7 +92,8 @@ public:
     // Quit without error.
     bool quit;
 public:
-    MockCoroutineHandler() : trd(NULL), err(srs_success), cid("0"), quit(false) {
+    MockCoroutineHandler() : trd(NULL), err(srs_success), quit(false) {
+        cid.set_value("0");
         running = srs_cond_new();
         exited = srs_cond_new();
     }
@@ -220,16 +221,17 @@ VOID TEST(AppCoroutineTest, Cycle)
 
     if (true) {
         MockCoroutineHandler ch;
-        SrsSTCoroutine sc("test", &ch, SrsContextId("250"));
+        SrsContextId cid;
+        SrsSTCoroutine sc("test", &ch, cid.set_value("250"));
         ch.trd = &sc;
-        EXPECT_TRUE(!sc.cid().compare(SrsContextId("250")));
+        EXPECT_TRUE(!sc.cid().compare(cid));
 
         EXPECT_TRUE(srs_success == sc.start());
         EXPECT_TRUE(srs_success == sc.pull());
 
         // After running, the cid in cycle should equal to the thread.
         srs_cond_timedwait(ch.running, 100 * SRS_UTIME_MILLISECONDS);
-        EXPECT_TRUE(!ch.cid.compare(SrsContextId("250")));
+        EXPECT_TRUE(!ch.cid.compare(cid));
     }
 
     if (true) {

@@ -158,12 +158,14 @@ srs_error_t srs_redirect_output(string from_file, int to_fd)
     if ((fd = ::open(from_file.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_FORK_OPEN_LOG, "open process %d %s failed", to_fd, from_file.c_str());
     }
-    
-    if (dup2(fd, to_fd) < 0) {
-        return srs_error_new(ERROR_FORK_DUP2_LOG, "dup2 process %d failed", to_fd);
-    }
-    
+
+    int r0 = dup2(fd, to_fd);
     ::close(fd);
+
+    if (r0 < 0) {
+        return srs_error_new(ERROR_FORK_DUP2_LOG, "dup2 fd=%d, to=%d, file=%s failed, r0=%d",
+            fd, to_fd, from_file.c_str(), r0);
+    }
     
     return err;
 }

@@ -151,7 +151,7 @@ srs_error_t SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStati
     // reject the connection in the interval window.
     if (last_check_time > 0 && time_now - last_check_time < interval) {
         _rtmp->response_connect_reject(_req, "bandcheck rejected");
-        return srs_error_new(ERROR_SYSTEM_BANDWIDTH_DENIED, "reject, last_check=%" PRId64 ", now=%" PRId64 ", interval=%d", last_check_time, time_now, interval);
+        return srs_error_new(ERROR_SYSTEM_BANDWIDTH_DENIED, "reject, last_check=%" PRId64 ", now=%" PRId64 ", interval=%" PRId64 "", last_check_time, time_now, interval);
     }
     
     // accept and do bandwidth check.

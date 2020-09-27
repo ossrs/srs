@@ -104,7 +104,8 @@ SrsClientInfo::~SrsClientInfo()
     srs_freep(res);
 }
 
-SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port) : SrsConnection(svr, c, cip, port)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port)
+    : SrsTcpConnection(svr, c, cip, port)
 {
     server = svr;
     
@@ -121,6 +122,9 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int port) : 
     send_min_interval = 0;
     tcp_nodelay = false;
     info = new SrsClientInfo();
+
+    publish_1stpkt_timeout = 0;
+    publish_normal_timeout = 0;
     
     _srs_config->subscribe(this);
 }
@@ -136,9 +140,14 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(security);
 }
 
+std::string SrsRtmpConn::desc()
+{
+    return "RtmpConn";
+}
+
 void SrsRtmpConn::dispose()
 {
-    SrsConnection::dispose();
+    SrsTcpConnection::dispose();
     
     // wakeup the handler which need to notice.
     if (wakable) {
@@ -655,7 +664,7 @@ srs_error_t SrsRtmpConn::playing(SrsSource* source)
     // Create a consumer of source.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    if ((err = source->create_consumer(this, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "rtmp: create consumer");
     }
     if ((err = source->consumer_dumps(consumer)) != srs_success) {

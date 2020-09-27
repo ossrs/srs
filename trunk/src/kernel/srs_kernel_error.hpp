@@ -354,9 +354,12 @@
 #define ERROR_RTC_INVALID_PARAMS            5023
 #define ERROR_RTC_DUMMY_BRIDGER             5024
 #define ERROR_RTC_STREM_STARTED             5025
-#define ERROR_RTC_STREAM_DESC               5026
-#define ERROR_RTC_TRACK_CODEC               5027
-#define ERROR_RTC_NO_PLAYER                 5028
+#define ERROR_RTC_TRACK_CODEC               5026
+#define ERROR_RTC_NO_PLAYER                 5027
+#define ERROR_RTC_NO_PUBLISHER              5028
+#define ERROR_RTC_DUPLICATED_SSRC           5029
+#define ERROR_RTC_NO_TRACK                  5030
+#define ERROR_RTC_RTCP_EMPTY_RR             5031
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.

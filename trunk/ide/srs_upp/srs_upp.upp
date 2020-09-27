@@ -142,8 +142,6 @@ file
     ../../src/app/srs_app_statistic.cpp,
     ../../src/app/srs_app_source.hpp,
     ../../src/app/srs_app_source.cpp,
-    ../../src/app/srs_app_thread.hpp,
-    ../../src/app/srs_app_thread.cpp,
     ../../src/app/srs_app_utility.hpp,
     ../../src/app/srs_app_utility.cpp,
     utest readonly separator,

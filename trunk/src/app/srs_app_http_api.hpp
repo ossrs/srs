@@ -254,15 +254,18 @@ public:
 };
 #endif
 
-class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
+class SrsHttpApi : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
 {
 private:
     SrsHttpParser* parser;
     SrsHttpCorsMux* cors;
     SrsHttpServeMux* mux;
 public:
-    SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);

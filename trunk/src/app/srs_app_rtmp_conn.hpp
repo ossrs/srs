@@ -83,7 +83,7 @@ public:
 };
 
 // The client provides the main logic control for RTMP clients.
-class SrsRtmpConn : virtual public SrsConnection, virtual public ISrsReloadHandler
+class SrsRtmpConn : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
 {
     // For the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;
@@ -119,6 +119,9 @@ private:
 public:
     SrsRtmpConn(SrsServer* svr, srs_netfd_t c, std::string cip, int port);
     virtual ~SrsRtmpConn();
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
 public:
     virtual void dispose();
 protected:

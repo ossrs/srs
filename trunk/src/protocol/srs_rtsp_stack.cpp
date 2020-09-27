@@ -792,6 +792,9 @@ SrsRtspSetupResponse::SrsRtspSetupResponse(int seq) : SrsRtspResponse(seq)
 {
     local_port_min = 0;
     local_port_max = 0;
+
+    client_port_min = 0;
+    client_port_max = 0;
 }
 
 SrsRtspSetupResponse::~SrsRtspSetupResponse()

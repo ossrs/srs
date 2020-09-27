@@ -65,6 +65,7 @@ SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream(string r)
 {
     redirect = r;
     sdk = NULL;
+    selected_port = 0;
 }
 
 SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
@@ -440,6 +441,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     edge = NULL;
     req = NULL;
     send_error_code = ERROR_SUCCESS;
+    source = NULL;
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
@@ -689,11 +691,13 @@ void SrsPlayEdge::on_all_client_stop()
     // when all client disconnected,
     // and edge is ingesting origin stream, abort it.
     if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
-        ingester->stop();
-        
         SrsEdgeState pstate = state;
+        state = SrsEdgeStateIngestStopping;
+
+        ingester->stop();
+
         state = SrsEdgeStateInit;
-        srs_trace("edge change from %d to state %d (init).", pstate, state);
+        srs_trace("edge change from %d to %d then %d (init).", pstate, SrsEdgeStateIngestStopping, state);
         
         return;
     }

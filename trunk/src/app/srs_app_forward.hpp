@@ -29,7 +29,6 @@
 #include <string>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 
 class ISrsProtocolReadWriter;
 class SrsSharedPtrMessage;
