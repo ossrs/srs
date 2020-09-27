@@ -81,7 +81,7 @@ public:
     // @return a copy of error, which should be freed by user.
     //      NULL if not terminated and user should pull again.
     virtual srs_error_t pull() = 0;
-    virtual SrsContextId cid() = 0;
+    virtual const SrsContextId& cid() = 0;
 };
 
 // An empty coroutine, user can default to this object before create any real coroutine.
@@ -96,7 +96,7 @@ public:
     virtual void stop();
     virtual void interrupt();
     virtual srs_error_t pull();
-    virtual SrsContextId cid();
+    virtual const SrsContextId& cid();
 };
 
 // For utest to mock the thread create.
@@ -156,7 +156,7 @@ public:
     // @remark Return ERROR_THREAD_INTERRUPED when thread is interrupted.
     virtual srs_error_t pull();
     // Get the context id of thread.
-    virtual SrsContextId cid();
+    virtual const SrsContextId& cid();
 private:
     virtual srs_error_t cycle();
     static void* pfn(void* arg);

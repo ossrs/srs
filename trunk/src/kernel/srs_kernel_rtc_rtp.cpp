@@ -55,6 +55,7 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
@@ -63,7 +64,7 @@ SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
 {
-    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
+    for (int i = 0; i < (int)(sizeof(kExtensions)/sizeof(kExtensions[0])); ++i) {
         if (kExtensions[i].uri == uri) {
             return register_id(id, kExtensions[i].type, kExtensions[i].uri);
         }
@@ -247,7 +248,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
         SrsRtpExtensionType xtype = types_.get_type(id);
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if (srs_success != (err = twcc_.decode(buf))) {
+            if ((err = twcc_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode twcc extension");
             }
             has_ext_ = true;
@@ -287,7 +288,7 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 
     // Write extensions.
     if (twcc_.has_twcc_ext()) {
-        if (srs_success != (err = twcc_.encode(buf))) {
+        if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }

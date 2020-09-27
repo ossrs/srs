@@ -24,14 +24,251 @@
 #include <srs_app_conn.hpp>
 
 #include <netinet/tcp.h>
+#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_service_log.hpp>
 
-SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, int cport)
+ISrsDisposingHandler::ISrsDisposingHandler()
+{
+}
+
+ISrsDisposingHandler::~ISrsDisposingHandler()
+{
+}
+
+SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
+{
+    verbose_ = verbose;
+    label_ = label;
+    cond = srs_cond_new();
+    trd = NULL;
+    p_disposing_ = NULL;
+}
+
+SrsResourceManager::~SrsResourceManager()
+{
+    if (trd) {
+        srs_cond_signal(cond);
+        trd->stop();
+
+        srs_freep(trd);
+        srs_cond_destroy(cond);
+    }
+
+    clear();
+}
+
+srs_error_t SrsResourceManager::start()
+{
+    srs_error_t err = srs_success;
+
+    cid_ = _srs_context->generate_id();
+    trd = new SrsSTCoroutine("manager", this, cid_);
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "conn manager");
+    }
+
+    return err;
+}
+
+bool SrsResourceManager::empty()
+{
+    return conns_.empty();
+}
+
+size_t SrsResourceManager::size()
+{
+    return conns_.size();
+}
+
+srs_error_t SrsResourceManager::cycle()
+{
+    srs_error_t err = srs_success;
+
+    srs_trace("%s connection manager run", label_.c_str());
+
+    while (true) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "conn manager");
+        }
+
+        // Clear all zombies, because we may switch context and lost signal
+        // when we clear zombie connection.
+        while (!zombies_.empty()) {
+            clear();
+        }
+
+        srs_cond_wait(cond);
+    }
+
+    return err;
+}
+
+void SrsResourceManager::add(ISrsResource* conn)
+{
+    if (std::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
+        conns_.push_back(conn);
+    }
+}
+
+void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
+{
+    add(conn);
+    conns_id_[id] = conn;
+}
+
+void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
+{
+    add(conn);
+    conns_name_[name] = conn;
+}
+
+ISrsResource* SrsResourceManager::at(int index)
+{
+    return (index < (int)conns_.size())? conns_.at(index) : NULL;
+}
+
+ISrsResource* SrsResourceManager::find_by_id(std::string id)
+{
+    map<string, ISrsResource*>::iterator it = conns_id_.find(id);
+    return (it != conns_id_.end())? it->second : NULL;
+}
+
+ISrsResource* SrsResourceManager::find_by_name(std::string name)
+{
+    map<string, ISrsResource*>::iterator it = conns_name_.find(name);
+    return (it != conns_name_.end())? it->second : NULL;
+}
+
+void SrsResourceManager::subscribe(ISrsDisposingHandler* h)
+{
+    if (std::find(handlers_.begin(), handlers_.end(), h) == handlers_.end()) {
+        handlers_.push_back(h);
+    }
+}
+
+void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
+{
+    vector<ISrsDisposingHandler*>::iterator it = find(handlers_.begin(), handlers_.end(), h);
+    if (it != handlers_.end()) {
+        handlers_.erase(it);
+    }
+}
+
+void SrsResourceManager::remove(ISrsResource* c)
+{
+    SrsContextRestore(cid_);
+    if (verbose_) {
+        _srs_context->set_id(c->get_id());
+        srs_trace("before dispose resource(%s), zombies=%d", c->desc().c_str(), (int)zombies_.size());
+    }
+
+    // Only notify when not removed(in zombies_).
+    vector<ISrsResource*>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
+    if (it != zombies_.end()) {
+        return;
+    }
+
+    // Also ignore when we are disposing it.
+    if (p_disposing_) {
+        it = std::find(p_disposing_->begin(), p_disposing_->end(), c);
+        if (it != p_disposing_->end()) {
+            return;
+        }
+    }
+
+    // Push to zombies, we will free it in another coroutine.
+    zombies_.push_back(c);
+
+    // Notify other handlers to handle the before-dispose event.
+    for (int i = 0; i < (int)handlers_.size(); i++) {
+        ISrsDisposingHandler* h = handlers_.at(i);
+        h->on_before_dispose(c);
+    }
+
+    // Notify the coroutine to free it.
+    srs_cond_signal(cond);
+}
+
+void SrsResourceManager::clear()
+{
+    if (zombies_.empty()) {
+        return;
+    }
+
+    SrsContextRestore(cid_);
+    if (verbose_) {
+        srs_trace("clear zombies=%d connections", (int)zombies_.size());
+    }
+
+    do_clear();
+
+    // Reset it for it points to a local object.
+    p_disposing_ = NULL;
+}
+
+void SrsResourceManager::do_clear()
+{
+    // To prevent thread switch when delete connection,
+    // we copy all connections then free one by one.
+    vector<ISrsResource*> copy;
+    copy.swap(zombies_);
+    p_disposing_ = &copy;
+
+    vector<ISrsResource*>::iterator it;
+    for (it = copy.begin(); it != copy.end(); ++it) {
+        ISrsResource* conn = *it;
+
+        if (verbose_) {
+            _srs_context->set_id(conn->get_id());
+            srs_trace("disposing resource(%s), zombies=%d/%d", conn->desc().c_str(),
+                (int)copy.size(), (int)zombies_.size());
+        }
+
+        dispose(conn);
+    }
+}
+
+void SrsResourceManager::dispose(ISrsResource* c)
+{
+    for (map<string, ISrsResource*>::iterator it = conns_name_.begin(); it != conns_name_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_name_.erase(it++);
+        }
+    }
+
+    for (map<string, ISrsResource*>::iterator it = conns_id_.begin(); it != conns_id_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_id_.erase(it++);
+        }
+    }
+
+    vector<ISrsResource*>::iterator it = std::find(conns_.begin(), conns_.end(), c);
+    if (it != conns_.end()) {
+        conns_.erase(it);
+    }
+
+    for (int i = 0; i < (int)handlers_.size(); i++) {
+        ISrsDisposingHandler* h = handlers_.at(i);
+        h->on_disposing(c);
+    }
+
+    srs_freep(c);
+}
+
+SrsTcpConnection::SrsTcpConnection(ISrsResourceManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;
     stfd = c;
@@ -47,7 +284,7 @@ SrsConnection::SrsConnection(IConnectionManager* cm, srs_netfd_t c, string cip, 
     trd = new SrsSTCoroutine("conn", this);
 }
 
-SrsConnection::~SrsConnection()
+SrsTcpConnection::~SrsTcpConnection()
 {
     dispose();
     
@@ -59,17 +296,17 @@ SrsConnection::~SrsConnection()
     srs_close_stfd(stfd);
 }
 
-void SrsConnection::remark(int64_t* in, int64_t* out)
+void SrsTcpConnection::remark(int64_t* in, int64_t* out)
 {
     kbps->remark(in, out);
 }
 
-void SrsConnection::dispose()
+void SrsTcpConnection::dispose()
 {
     trd->interrupt();
 }
 
-srs_error_t SrsConnection::start()
+srs_error_t SrsTcpConnection::start()
 {
     srs_error_t err = srs_success;
     
@@ -84,7 +321,7 @@ srs_error_t SrsConnection::start()
     return err;
 }
 
-srs_error_t SrsConnection::set_tcp_nodelay(bool v)
+srs_error_t SrsTcpConnection::set_tcp_nodelay(bool v)
 {
     srs_error_t err = srs_success;
     
@@ -115,7 +352,7 @@ srs_error_t SrsConnection::set_tcp_nodelay(bool v)
     return err;
 }
 
-srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
+srs_error_t SrsTcpConnection::set_socket_buffer(srs_utime_t buffer_v)
 {
     srs_error_t err = srs_success;
     
@@ -167,7 +404,7 @@ srs_error_t SrsConnection::set_socket_buffer(srs_utime_t buffer_v)
     return err;
 }
 
-srs_error_t SrsConnection::cycle()
+srs_error_t SrsTcpConnection::cycle()
 {
     srs_error_t err = do_cycle();
     
@@ -201,17 +438,22 @@ srs_error_t SrsConnection::cycle()
     return srs_success;
 }
 
-SrsContextId SrsConnection::srs_id()
+SrsContextId SrsTcpConnection::srs_id()
 {
     return trd->cid();
 }
 
-string SrsConnection::remote_ip()
+string SrsTcpConnection::remote_ip()
 {
     return ip;
 }
 
-void SrsConnection::expire()
+const SrsContextId& SrsTcpConnection::get_id()
+{
+    return trd->cid();
+}
+
+void SrsTcpConnection::expire()
 {
     trd->interrupt();
 }

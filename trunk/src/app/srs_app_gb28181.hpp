@@ -33,7 +33,6 @@
 #include <map>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_rtsp_stack.hpp>
 #include <srs_kernel_stream.hpp>
@@ -44,6 +43,7 @@
 #include <srs_app_gb28181_jitbuffer.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
+#include <srs_service_conn.hpp>
 
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
@@ -77,9 +77,6 @@
 #define STREAM_TYPE_AUDIO_SVAC      0x9b
 #define STREAM_TYPE_AUDIO_PCM       0x9c
 
-
-
-
 class SrsConfDirective;
 class SrsRtpPacket;
 class SrsRtmpClient;
@@ -105,6 +102,7 @@ class SrsPsJitterBuffer;
 class SrsServer;
 class SrsSource;
 class SrsRequest;
+class SrsResourceManager;
 
 //ps rtp header packet parse
 class SrsPsRtpPacket: public SrsRtpPacket
@@ -260,7 +258,6 @@ private:
 public:
     int64_t parse_ps_timestamp(const uint8_t* p);
     std::string get_ps_map_type_str(uint8_t);
-    bool is_aac();
     virtual srs_error_t on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc);
 };
 
@@ -303,8 +300,16 @@ private:
     SrsServer* server;
 
     SrsPsJitterBuffer *jitter_buffer;
+    SrsPsJitterBuffer *jitter_buffer_audio;
+
     char *ps_buffer;
+    char *ps_buffer_audio;
+
     int ps_buflen;
+    int ps_buflen_auido;
+
+    uint32_t ps_rtp_video_ts;
+    uint32_t ps_rtp_audio_ts;
 
     bool source_publish; 
 
@@ -341,7 +346,11 @@ private:
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
+// Interface ISrsConnection.
+public:
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
     virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type);
@@ -467,7 +476,7 @@ private:
     std::map<uint32_t, SrsPsRtpListener*> rtp_pool;
     std::map<uint32_t, SrsGb28181RtmpMuxer*> rtmpmuxers_ssrc;
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
-    SrsCoroutineManager* manager;
+    SrsResourceManager* manager;
     SrsGb28181SipService* sip_service;
     SrsServer* server;
 public:

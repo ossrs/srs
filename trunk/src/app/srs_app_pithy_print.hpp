@@ -37,10 +37,14 @@ public:
     int stage_id;
     srs_utime_t interval;
     int nb_clients;
+    // The number of call of can_print().
+    uint32_t nn_count;
+    // The ratio for interval, 1.0 means no change.
+    double interval_ratio;
 public:
     srs_utime_t age;
 public:
-    SrsStageInfo(int _stage_id);
+    SrsStageInfo(int _stage_id, double ratio = 1.0);
     virtual ~SrsStageInfo();
     virtual void update_print_time();
 public:
@@ -72,16 +76,17 @@ public:
     // The number of call of can_print().
     uint32_t nn_count;
 private:
+    double ratio_;
     SrsStageManager stages;
     std::map<int, srs_utime_t> ticks;
 public:
-    SrsErrorPithyPrint();
+    SrsErrorPithyPrint(double ratio = 1.0);
     virtual ~SrsErrorPithyPrint();
 public:
     // Whether specified stage is ready for print.
-    bool can_print(srs_error_t err);
+    bool can_print(srs_error_t err, uint32_t* pnn = NULL);
     // We also support int error code.
-    bool can_print(int err);
+    bool can_print(int err, uint32_t* pnn = NULL);
 };
 
 // The stage is used for a collection of object to do print,

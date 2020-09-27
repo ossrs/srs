@@ -27,19 +27,84 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
+#include <map>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_service_conn.hpp>
 
 class SrsWallClock;
 
-// The basic connection of SRS,
+// Hooks for connection manager, to handle the event when disposing connections.
+class ISrsDisposingHandler
+{
+public:
+    ISrsDisposingHandler();
+    virtual ~ISrsDisposingHandler();
+public:
+    // When before disposing resource, trigger when manager.remove(c), sync API.
+    virtual void on_before_dispose(ISrsResource* c) = 0;
+    // When disposing resource, async API, c is freed after it.
+    virtual void on_disposing(ISrsResource* c) = 0;
+};
+
+// The resource manager remove resource and delete it asynchronously.
+class SrsResourceManager : virtual public ISrsCoroutineHandler, virtual public ISrsResourceManager
+{
+private:
+    std::string label_;
+    SrsContextId cid_;
+    bool verbose_;
+private:
+    SrsCoroutine* trd;
+    srs_cond_t cond;
+    // Callback handlers.
+    std::vector<ISrsDisposingHandler*> handlers_;
+    // The zombie connections, we will delete it asynchronously.
+    std::vector<ISrsResource*> zombies_;
+    std::vector<ISrsResource*>* p_disposing_;
+private:
+    // The connections without any id.
+    std::vector<ISrsResource*> conns_;
+    // The connections with resource id.
+    std::map<std::string, ISrsResource*> conns_id_;
+    // The connections with resource name.
+    std::map<std::string, ISrsResource*> conns_name_;
+public:
+    SrsResourceManager(const std::string& label, bool verbose = false);
+    virtual ~SrsResourceManager();
+public:
+    srs_error_t start();
+    bool empty();
+    size_t size();
+// Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+public:
+    void add(ISrsResource* conn);
+    void add_with_id(const std::string& id, ISrsResource* conn);
+    void add_with_name(const std::string& name, ISrsResource* conn);
+    ISrsResource* at(int index);
+    ISrsResource* find_by_id(std::string id);
+    ISrsResource* find_by_name(std::string name);
+public:
+    void subscribe(ISrsDisposingHandler* h);
+    void unsubscribe(ISrsDisposingHandler* h);
+// Interface ISrsResourceManager
+public:
+    virtual void remove(ISrsResource* c);
+private:
+    void clear();
+    void do_clear();
+    void dispose(ISrsResource* c);
+};
+
+// The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
+class SrsTcpConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
     , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler
 {
 protected:
@@ -47,7 +112,7 @@ protected:
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd;
     // The manager object to manage the connection.
-    IConnectionManager* manager;
+    ISrsResourceManager* manager;
     // The underlayer st fd handler.
     srs_netfd_t stfd;
     // The ip and port of client.
@@ -65,8 +130,8 @@ protected:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip, int cport);
-    virtual ~SrsConnection();
+    SrsTcpConnection(ISrsResourceManager* cm, srs_netfd_t c, std::string cip, int cport);
+    virtual ~SrsTcpConnection();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
@@ -95,8 +160,11 @@ public:
     // Get the srs id which identify the client.
     // TODO: FIXME: Rename to cid.
     virtual SrsContextId srs_id();
-    // Get the remote ip of peer.
+// Interface ISrsConnection.
+public:
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+public:
     // Set connection to expired.
     virtual void expire();
 protected:

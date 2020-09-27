@@ -135,10 +135,12 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
     // For client to specifies whether encrypt by SRTP.
-    string encrypt = r->query_get("encrypt");
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, encrypt=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(), encrypt.c_str());
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, srtp=%s, dtls=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
+        srtp.c_str(), dtls.c_str());
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
     SrsSdp remote_sdp;
@@ -179,16 +181,18 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
 
     bool srtp_enabled = true;
-    if (encrypt.empty()) {
+    if (srtp.empty()) {
         srtp_enabled = _srs_config->get_rtc_server_encrypt();
     } else {
-        srtp_enabled = (encrypt != "false");
+        srtp_enabled = (srtp != "false");
     }
+
+    bool dtls_enabled = (dtls != "false");
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
-    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, true, srtp_enabled, &session)) != srs_success) {
-        return srs_error_wrap(err, "create session");
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, dtls_enabled, srtp_enabled, &session)) != srs_success) {
+        return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", dtls_enabled, srtp_enabled, eip.c_str());
     }
 
     ostringstream os;
@@ -208,8 +212,8 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
-    srs_trace("RTC username=%s, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
-        srtp_enabled, remote_sdp_str.length(), local_sdp_str.length());
+    srs_trace("RTC username=%s, dtls=%u, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
+        dtls_enabled, srtp_enabled, remote_sdp_str.length(), local_sdp_str.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_str.c_str());
 

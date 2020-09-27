@@ -129,7 +129,7 @@ srs_error_t SrsBufferCache::cycle()
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
     if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
@@ -587,7 +587,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
     if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {

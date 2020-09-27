@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 
 // The async call for http hooks, for the http hooks will switch st-thread,
 // so we must use isolate thread to avoid the thread corrupt,

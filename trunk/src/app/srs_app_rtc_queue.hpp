@@ -31,6 +31,7 @@
 #include <map>
 
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
 
 class SrsRtpPacket2;
 class SrsRtpQueue;
@@ -92,8 +93,12 @@ struct SrsNackOption
 {
     int max_count;
     srs_utime_t max_alive_time;
-    int64_t first_nack_interval;
-    int64_t nack_interval;
+    srs_utime_t first_nack_interval;
+    srs_utime_t nack_interval;
+
+    srs_utime_t max_nack_interval;
+    srs_utime_t min_nack_interval;
+    srs_utime_t nack_check_interval;
 
     SrsNackOption();
 };
@@ -132,13 +137,9 @@ public:
     SrsRtpNackInfo* find(uint16_t seq);
     void check_queue_size();
 public:
-    void get_nack_seqs(std::vector<uint16_t>& seqs);
+    void get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks);
 public:
     void update_rtt(int rtt);
-private:
-    srs_utime_t last_remove_packet_time_;
-public:
-    void remove_timeout_packets(void);
 };
 
 #endif
