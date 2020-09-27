@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -236,7 +237,7 @@ srs_error_t SrsRtcServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer->tick(3 * SRS_UTIME_SECONDS)) != srs_success) {
+    if ((err = timer->tick(5 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
     }
 
@@ -588,10 +589,14 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 {
     srs_error_t err = srs_success;
 
+    // Alive RTC sessions, for stat.
+    int nn_rtc_conns = 0;
+
     // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
         SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
         if (!session || !session->is_alive() || session->disposing_) {
+            nn_rtc_conns++;
             continue;
         }
 
@@ -605,6 +610,18 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         // Use manager to free session and notify other objects.
         _srs_rtc_manager->remove(session);
     }
+
+    // Ignore stats if no RTC connections.
+    if (!nn_rtc_conns) {
+        return err;
+    }
+
+    // Show statistics for RTC server.
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    // Resident Set Size: number of pages the process has in real memory.
+    int memory = (int)(u->rss * 4 / 1024);
+    // TODO: FIXME: Show more data for RTC server.
+    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB", nn_rtc_conns, u->percent * 100, memory);
 
     return err;
 }
