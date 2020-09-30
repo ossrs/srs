@@ -47,6 +47,10 @@ SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
 
 SrsRtpRingBuffer::~SrsRtpRingBuffer()
 {
+    for (int i = 0; i < capacity_; ++i) {
+        SrsRtpPacket2* pkt = queue_[i];
+        srs_freep(pkt);
+    }
     srs_freepa(queue_);
 }
 
