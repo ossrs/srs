@@ -409,16 +409,16 @@ srs_error_t run_directly_or_daemon()
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
-    bool in_daemon = _srs_config->get_daemon();
-    if (in_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
+    bool run_as_daemon = _srs_config->get_daemon();
+    if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
         srs_warn("disable daemon for docker");
-        in_daemon = false;
+        run_as_daemon = false;
     }
     
-    // If not daemon, directly run master.
-    if (!in_daemon) {
+    // If not daemon, directly run hybrid server.
+    if (!run_as_daemon) {
         if ((err = run_hybrid_server()) != srs_success) {
-            return srs_error_wrap(err, "run master");
+            return srs_error_wrap(err, "run hybrid");
         }
         return srs_success;
     }
@@ -455,7 +455,7 @@ srs_error_t run_directly_or_daemon()
     srs_trace("son(daemon) process running.");
     
     if ((err = run_hybrid_server()) != srs_success) {
-        return srs_error_wrap(err, "daemon run master");
+        return srs_error_wrap(err, "daemon run hybrid");
     }
     
     return err;

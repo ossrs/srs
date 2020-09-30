@@ -151,6 +151,7 @@ srs_error_t SrsHybridServer::run()
 {
     srs_error_t err = srs_success;
 
+    // TODO: FIXME: Identify master server directly.
     // Run master server in this main thread.
     SrsServerAdapter* master_server = NULL;
 
