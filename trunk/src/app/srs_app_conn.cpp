@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_service_log.hpp>
+#include <srs_app_log.hpp>
 
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
@@ -48,6 +49,7 @@ SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
     cond = srs_cond_new();
     trd = NULL;
     p_disposing_ = NULL;
+    removing_ = false;
 }
 
 SrsResourceManager::~SrsResourceManager()
@@ -151,6 +153,12 @@ void SrsResourceManager::subscribe(ISrsDisposingHandler* h)
     if (std::find(handlers_.begin(), handlers_.end(), h) == handlers_.end()) {
         handlers_.push_back(h);
     }
+
+    // Restore the handler from unsubscribing handlers.
+    vector<ISrsDisposingHandler*>::iterator it;
+    if ((it = std::find(unsubs_.begin(), unsubs_.end(), h)) != unsubs_.end()) {
+        unsubs_.erase(it);
+    }
 }
 
 void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
@@ -159,9 +167,21 @@ void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
     if (it != handlers_.end()) {
         handlers_.erase(it);
     }
+
+    // Put it to the unsubscribing handlers.
+    if (std::find(unsubs_.begin(), unsubs_.end(), h) == unsubs_.end()) {
+        unsubs_.push_back(h);
+    }
 }
 
 void SrsResourceManager::remove(ISrsResource* c)
+{
+    removing_ = true;
+    do_remove(c);
+    removing_ = false;
+}
+
+void SrsResourceManager::do_remove(ISrsResource* c)
 {
     SrsContextRestore(cid_);
     if (verbose_) {
@@ -186,9 +206,19 @@ void SrsResourceManager::remove(ISrsResource* c)
     // Push to zombies, we will free it in another coroutine.
     zombies_.push_back(c);
 
+    // We should copy all handlers, because it may change during callback.
+    vector<ISrsDisposingHandler*> handlers = handlers_;
+
     // Notify other handlers to handle the before-dispose event.
-    for (int i = 0; i < (int)handlers_.size(); i++) {
-        ISrsDisposingHandler* h = handlers_.at(i);
+    for (int i = 0; i < (int)handlers.size(); i++) {
+        ISrsDisposingHandler* h = handlers.at(i);
+
+        // Ignore if handler is unsubscribing.
+        if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
+            srs_warn2(TAG_RESOURCE_UNSUB, "ignore before-dispose for %p", h);
+            continue;
+        }
+
         h->on_before_dispose(c);
     }
 
@@ -205,6 +235,11 @@ void SrsResourceManager::clear()
     SrsContextRestore(cid_);
     if (verbose_) {
         srs_trace("clear zombies=%d connections", (int)zombies_.size());
+    }
+
+    // Clear all unsubscribing handlers, if not removing any resource.
+    if (!removing_ && !unsubs_.empty()) {
+        vector<ISrsDisposingHandler*>().swap(unsubs_);
     }
 
     do_clear();
@@ -260,8 +295,19 @@ void SrsResourceManager::dispose(ISrsResource* c)
         conns_.erase(it);
     }
 
-    for (int i = 0; i < (int)handlers_.size(); i++) {
-        ISrsDisposingHandler* h = handlers_.at(i);
+    // We should copy all handlers, because it may change during callback.
+    vector<ISrsDisposingHandler*> handlers = handlers_;
+
+    // Notify other handlers to handle the disposing event.
+    for (int i = 0; i < (int)handlers.size(); i++) {
+        ISrsDisposingHandler* h = handlers.at(i);
+
+        // Ignore if handler is unsubscribing.
+        if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
+            srs_warn2(TAG_RESOURCE_UNSUB, "ignore disposing for %p", h);
+            continue;
+        }
+
         h->on_disposing(c);
     }
 

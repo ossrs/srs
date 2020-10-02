@@ -62,6 +62,10 @@ private:
     srs_cond_t cond;
     // Callback handlers.
     std::vector<ISrsDisposingHandler*> handlers_;
+    // Unsubscribing handlers, skip it for notifying.
+    std::vector<ISrsDisposingHandler*> unsubs_;
+    // Whether we are removing resources.
+    bool removing_;
     // The zombie connections, we will delete it asynchronously.
     std::vector<ISrsResource*> zombies_;
     std::vector<ISrsResource*>* p_disposing_;
@@ -96,6 +100,7 @@ public:
 public:
     virtual void remove(ISrsResource* c);
 private:
+    void do_remove(ISrsResource* c);
     void clear();
     void do_clear();
     void dispose(ISrsResource* c);

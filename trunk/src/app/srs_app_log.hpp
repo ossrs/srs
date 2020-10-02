@@ -35,7 +35,8 @@
 // For log TAGs.
 #define TAG_MAIN "MAIN"
 #define TAG_MAYBE "MAYBE"
-#define TAG_DTLS_ALERT "DTLSALERT"
+#define TAG_DTLS_ALERT "DTLS_ALERT"
+#define TAG_RESOURCE_UNSUB "RESOURCE_UNSUB"
 
 // Use memory/disk cache and donot flush when write log.
 // it's ok to use it without config, which will log to console, and default trace level.

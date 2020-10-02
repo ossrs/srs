@@ -37,25 +37,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 using namespace std;
 
-class MockResourceHookOwner : public ISrsResource, public ISrsDisposingHandler
+class MockResource : public ISrsDisposingHandler, public ISrsResource
 {
 public:
-    ISrsResource* owner_;
     SrsResourceManager* manager_;
-    MockResourceHookOwner(SrsResourceManager* manager) {
+    MockResource(SrsResourceManager* manager) {
         manager_ = manager;
-        owner_ = NULL;
-        manager_->subscribe(this);
-    }
-    virtual ~MockResourceHookOwner() {
-        manager_->unsubscribe(this);
-    }
-    virtual void on_before_dispose(ISrsResource* c) {
-        if (c == owner_) { // Remove self if its owner is disposing.
-            manager_->remove(this);
+        if (manager_) {
+            manager_->subscribe(this);
         }
     }
-    virtual void on_disposing(ISrsResource* c) {
+    virtual ~MockResource() {
+        if (manager_) {
+            manager_->unsubscribe(this);
+        }
     }
     virtual const SrsContextId& get_id() {
         return _srs_context->get_id();
@@ -65,19 +60,33 @@ public:
     }
 };
 
-class MockResourceSelf : public ISrsResource, public ISrsDisposingHandler
+class MockResourceHookOwner : public MockResource
+{
+public:
+    ISrsResource* owner_;
+    MockResourceHookOwner(SrsResourceManager* manager) : MockResource(manager) {
+        owner_ = NULL;
+    }
+    virtual ~MockResourceHookOwner() {
+    }
+    virtual void on_before_dispose(ISrsResource* c) {
+        if (c == owner_) { // Remove self if its owner is disposing.
+            manager_->remove(this);
+        }
+    }
+    virtual void on_disposing(ISrsResource* c) {
+    }
+};
+
+class MockResourceSelf : public MockResource
 {
 public:
     bool remove_in_before_dispose;
     bool remove_in_disposing;
-    SrsResourceManager* manager_;
-    MockResourceSelf(SrsResourceManager* manager) {
+    MockResourceSelf(SrsResourceManager* manager) : MockResource(manager) {
         remove_in_before_dispose = remove_in_disposing = false;
-        manager_ = manager;
-        manager_->subscribe(this);
     }
     virtual ~MockResourceSelf() {
-        manager_->unsubscribe(this);
     }
     virtual void on_before_dispose(ISrsResource* c) {
         if (remove_in_before_dispose) {
@@ -89,17 +98,142 @@ public:
             manager_->remove(this);
         }
     }
-    virtual const SrsContextId& get_id() {
-        return _srs_context->get_id();
+};
+
+class MockResourceUnsubscribe : public MockResource
+{
+public:
+    int nn_before_dispose;
+    int nn_disposing;
+    bool unsubscribe_in_before_dispose;
+    bool unsubscribe_in_disposing;
+    MockResourceUnsubscribe* result;
+    MockResourceUnsubscribe(SrsResourceManager* manager) : MockResource(manager) {
+        unsubscribe_in_before_dispose = unsubscribe_in_disposing = false;
+        nn_before_dispose = nn_disposing = 0;
+        result = NULL;
     }
-    virtual std::string desc() {
-        return "";
+    virtual ~MockResourceUnsubscribe() {
+        if (result) { // Copy result before disposing it.
+            *result = *this;
+        }
+    }
+    virtual void on_before_dispose(ISrsResource* c) {
+        nn_before_dispose++;
+        if (unsubscribe_in_before_dispose) {
+            manager_->unsubscribe(this);
+        }
+    }
+    virtual void on_disposing(ISrsResource* c) {
+        nn_disposing++;
+        if (unsubscribe_in_disposing) {
+            manager_->unsubscribe(this);
+        }
     }
 };
 
 VOID TEST(KernelRTCTest, ConnectionManagerTest)
 {
     srs_error_t err = srs_success;
+
+    // When notifying, the handlers changed, disposing event may lost.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceUnsubscribe* conn0 = new MockResourceUnsubscribe(&manager);
+        conn0->unsubscribe_in_disposing = true;
+        manager.add(conn0);
+
+        MockResourceUnsubscribe* conn1 = new MockResourceUnsubscribe(&manager);
+        manager.add(conn1);
+
+        MockResourceUnsubscribe* conn2 = new MockResourceUnsubscribe(&manager);
+        manager.add(conn2);
+
+        // When removing conn0, it will unsubscribe and change the handlers,
+        // which should not cause the conn1 lost event.
+        manager.remove(conn0);
+        srs_usleep(0);
+        ASSERT_EQ(2, manager.size());
+
+        EXPECT_EQ(1, conn1->nn_before_dispose);
+        EXPECT_EQ(1, conn1->nn_disposing); // Should get event.
+
+        EXPECT_EQ(1, conn2->nn_before_dispose);
+        EXPECT_EQ(1, conn2->nn_disposing);
+    }
+
+    // When notifying, the handlers changed, before-dispose event may lost.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceUnsubscribe* conn0 = new MockResourceUnsubscribe(&manager);
+        conn0->unsubscribe_in_before_dispose = true;
+        manager.add(conn0);
+
+        MockResourceUnsubscribe* conn1 = new MockResourceUnsubscribe(&manager);
+        manager.add(conn1);
+
+        MockResourceUnsubscribe* conn2 = new MockResourceUnsubscribe(&manager);
+        manager.add(conn2);
+
+        // When removing conn0, it will unsubscribe and change the handlers,
+        // which should not cause the conn1 lost event.
+        manager.remove(conn0);
+        srs_usleep(0);
+        ASSERT_EQ(2, manager.size());
+
+        EXPECT_EQ(1, conn1->nn_before_dispose); // Should get event.
+        EXPECT_EQ(1, conn1->nn_disposing);
+
+        EXPECT_EQ(1, conn2->nn_before_dispose);
+        EXPECT_EQ(1, conn2->nn_disposing);
+    }
+
+    // Subscribe or unsubscribe for multiple times.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceUnsubscribe* resource = new MockResourceUnsubscribe(&manager);
+        resource->unsubscribe_in_before_dispose = true;
+        manager.add(resource);
+
+        MockResourceUnsubscribe result(NULL); // No manager for result.
+        resource->result = &result;
+
+        manager.remove(resource);
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+
+        EXPECT_EQ(1, result.nn_before_dispose);
+        EXPECT_EQ(0, result.nn_disposing); // No disposing event, because we unsubscribe in before-dispose.
+    }
+
+    // Count the event for disposing.
+    if (true) {
+        SrsResourceManager manager("mgr");
+        HELPER_EXPECT_SUCCESS(manager.start());
+        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+
+        MockResourceUnsubscribe* resource = new MockResourceUnsubscribe(&manager);
+        manager.add(resource);
+
+        MockResourceUnsubscribe result(NULL); // No manager for result.
+        resource->result = &result;
+
+        manager.remove(resource);
+        srs_usleep(0);
+        ASSERT_EQ(0, manager.size());
+
+        EXPECT_EQ(1, result.nn_before_dispose);
+        EXPECT_EQ(1, result.nn_disposing);
+    }
 
     // When hooks disposing, remove itself again.
     if (true) {
