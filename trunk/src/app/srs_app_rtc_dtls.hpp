@@ -124,6 +124,8 @@ protected:
     // DTLS packet cache, only last out-going packet.
     uint8_t* last_outgoing_packet_cache;
     int nn_last_outgoing_packet;
+    // The stat for ARQ packets.
+    int nn_arq_packets;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
@@ -154,8 +156,8 @@ private:
     // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
     // The timeout for ARQ.
-    srs_utime_t arq_first;
     srs_utime_t arq_interval;
+    int arq_to_ratios[8];
 public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();

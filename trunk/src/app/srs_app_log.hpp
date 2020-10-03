@@ -36,6 +36,7 @@
 #define TAG_MAIN "MAIN"
 #define TAG_MAYBE "MAYBE"
 #define TAG_DTLS_ALERT "DTLS_ALERT"
+#define TAG_DTLS_HANG "DTLS_HANG"
 #define TAG_RESOURCE_UNSUB "RESOURCE_UNSUB"
 
 // Use memory/disk cache and donot flush when write log.

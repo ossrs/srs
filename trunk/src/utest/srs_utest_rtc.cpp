@@ -856,10 +856,10 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
-        // Lost 10 packets, total packets should be 8(max to 8).
+        // Lost 10 packets, total packets should be 9(max to 9).
         // Note that only one server hello.
         cio.nn_client_hello_lost = 10;
 
@@ -872,7 +872,7 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         EXPECT_FALSE(cio.done);
         EXPECT_FALSE(sio.done);
 
-        EXPECT_EQ(8, cio.nn_client_hello);
+        EXPECT_EQ(9, cio.nn_client_hello);
         EXPECT_EQ(0, sio.nn_server_hello);
         EXPECT_EQ(0, cio.nn_certificate);
         EXPECT_EQ(0, sio.nn_new_session);
@@ -888,10 +888,10 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
-        // Lost 10 packets, total packets should be 8(max to 8).
+        // Lost 10 packets, total packets should be 9(max to 9).
         // Note that only one server NewSessionTicket.
         cio.nn_certificate_lost = 10;
 
@@ -906,7 +906,7 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
 
         EXPECT_EQ(1, cio.nn_client_hello);
         EXPECT_EQ(1, sio.nn_server_hello);
-        EXPECT_EQ(8, cio.nn_certificate);
+        EXPECT_EQ(9, cio.nn_certificate);
         EXPECT_EQ(0, sio.nn_new_session);
         EXPECT_EQ(0, sio.nn_change_cipher);
     }
@@ -920,10 +920,10 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
-        // Lost 10 packets, total packets should be 8(max to 8).
+        // Lost 10 packets, total packets should be 9(max to 9).
         sio.nn_server_hello_lost = 10;
 
         HELPER_EXPECT_SUCCESS(client.start_active_handshake());
@@ -935,8 +935,8 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         EXPECT_FALSE(cio.done);
         EXPECT_FALSE(sio.done);
 
-        EXPECT_EQ(8, cio.nn_client_hello);
-        EXPECT_EQ(8, sio.nn_server_hello);
+        EXPECT_EQ(9, cio.nn_client_hello);
+        EXPECT_EQ(9, sio.nn_server_hello);
         EXPECT_EQ(0, cio.nn_certificate);
         EXPECT_EQ(0, sio.nn_new_session);
         EXPECT_EQ(0, sio.nn_change_cipher);
@@ -951,10 +951,10 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
-        // Lost 10 packets, total packets should be 8(max to 8).
+        // Lost 10 packets, total packets should be 9(max to 9).
         sio.nn_new_session_lost = 10;
 
         HELPER_EXPECT_SUCCESS(client.start_active_handshake());
@@ -969,8 +969,8 @@ VOID TEST(KernelRTCTest, DTLSARQLimitTest)
 
         EXPECT_EQ(1, cio.nn_client_hello);
         EXPECT_EQ(1, sio.nn_server_hello);
-        EXPECT_EQ(8, cio.nn_certificate);
-        EXPECT_EQ(8, sio.nn_new_session);
+        EXPECT_EQ(9, cio.nn_certificate);
+        EXPECT_EQ(9, sio.nn_new_session);
         EXPECT_EQ(0, sio.nn_change_cipher);
     }
 }
@@ -1012,8 +1012,8 @@ VOID TEST(KernelRTCTest, DTLSClientARQTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
         // Lost 2 packets, total packets should be 3.
         // Note that only one server hello.
@@ -1044,8 +1044,8 @@ VOID TEST(KernelRTCTest, DTLSClientARQTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
         // Lost 2 packets, total packets should be 3.
         // Note that only one server NewSessionTicket.
@@ -1105,8 +1105,8 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
         // Lost 2 packets, total packets should be 3.
         sio.nn_server_hello_lost = 2;
@@ -1136,8 +1136,8 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
         HELPER_EXPECT_SUCCESS(server.initialize("passive", "dtls1.0"));
 
         // Use very short interval for utest.
-        dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_first = 1 * SRS_UTIME_MILLISECONDS;
         dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_interval = 1 * SRS_UTIME_MILLISECONDS;
+        HELPER_ARRAY_INIT(dynamic_cast<SrsDtlsClientImpl*>(client.impl)->arq_to_ratios, 8, 1);
 
         // Lost 2 packets, total packets should be 3.
         sio.nn_new_session_lost = 2;
