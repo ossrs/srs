@@ -843,28 +843,6 @@ public:
     }
 };
 
-struct DTLSServerFlowCase
-{
-    int id;
-
-    string ClientVersion;
-    string ServerVersion;
-
-    bool ClientDone;
-    bool ServerDone;
-
-    bool ClientError;
-    bool ServerError;
-};
-
-std::ostream& operator<< (std::ostream& stream, const DTLSServerFlowCase& c)
-{
-    stream << "Case #" << c.id
-        << ", client(" << c.ClientVersion << ",done=" << c.ClientDone << ",err=" << c.ClientError << ")"
-        << ", server(" << c.ServerVersion << ",done=" << c.ServerDone << ",err=" << c.ServerError << ")";
-    return stream;
-}
-
 VOID TEST(KernelRTCTest, DTLSARQLimitTest)
 {
     srs_error_t err = srs_success;
@@ -1181,11 +1159,33 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
     }
 }
 
+struct DTLSFlowCase
+{
+    int id;
+
+    string ClientVersion;
+    string ServerVersion;
+
+    bool ClientDone;
+    bool ServerDone;
+
+    bool ClientError;
+    bool ServerError;
+};
+
+std::ostream& operator<< (std::ostream& stream, const DTLSFlowCase& c)
+{
+    stream << "Case #" << c.id
+        << ", client(" << c.ClientVersion << ",done=" << c.ClientDone << ",err=" << c.ClientError << ")"
+        << ", server(" << c.ServerVersion << ",done=" << c.ServerDone << ",err=" << c.ServerError << ")";
+    return stream;
+}
+
 VOID TEST(KernelRTCTest, DTLSClientFlowTest)
 {
     srs_error_t err = srs_success;
 
-    DTLSServerFlowCase cases[] = {
+    DTLSFlowCase cases[] = {
         // OK, Client, Server: DTLS v1.0
         {0, "dtls1.0", "dtls1.0", true, true, false, false},
         // OK, Client, Server: DTLS v1.2
@@ -1204,8 +1204,8 @@ VOID TEST(KernelRTCTest, DTLSClientFlowTest)
         {7, "dtls1.2", "dtls1.0", false, false, true, false},
     };
 
-    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSServerFlowCase)); i++) {
-        DTLSServerFlowCase c = cases[i];
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSFlowCase)); i++) {
+        DTLSFlowCase c = cases[i];
 
         MockDtlsCallback cio; SrsDtls client(&cio);
         MockDtlsCallback sio; MockDtls server(&sio);
@@ -1229,7 +1229,7 @@ VOID TEST(KernelRTCTest, DTLSServerFlowTest)
 {
     srs_error_t err = srs_success;
 
-    DTLSServerFlowCase cases[] = {
+    DTLSFlowCase cases[] = {
         // OK, Client, Server: DTLS v1.0
         {0, "dtls1.0", "dtls1.0", true, true, false, false},
         // OK, Client, Server: DTLS v1.2
@@ -1248,8 +1248,8 @@ VOID TEST(KernelRTCTest, DTLSServerFlowTest)
         {7, "dtls1.2", "dtls1.0", false, false, true, false},
     };
 
-    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSServerFlowCase)); i++) {
-        DTLSServerFlowCase c = cases[i];
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(DTLSFlowCase)); i++) {
+        DTLSFlowCase c = cases[i];
 
         MockDtlsCallback cio; MockDtls client(&cio);
         MockDtlsCallback sio; SrsDtls server(&sio);
