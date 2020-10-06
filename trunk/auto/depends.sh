@@ -466,7 +466,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     echo "Warning: Use system libssl, without compiling openssl."
 fi
 # @see http://www.openssl.org/news/secadv/20140407.txt
-# Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
+# Affected users should upgrade to OpenSSL 1.1.1h. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     OPENSSL_OPTIONS="-no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
@@ -502,19 +502,19 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         export KERNEL_BITS=64;
     fi
     # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
-    OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
+    OPENSSL_CANDIDATE="openssl-1.1.1h" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
     if [[ $SRS_SRTP_ASM == YES ]]; then
         OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
-        echo "Openssl-1.1.0e is ok.";
+        echo "Openssl-1.1.1h is ok.";
     else
         echo "Building $OPENSSL_CANDIDATE.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
-            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
+            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR}" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl
         )
     fi

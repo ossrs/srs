@@ -4,7 +4,7 @@ http-parser-2.1.zip
 nginx-1.5.7.zip
     for srs to support hls streaming.
     
-openssl-1.1.0e.zip
+openssl-1.1.1h.zip
 openssl-OpenSSL_1_0_2u.tar.gz
     openssl for SRS(with-ssl) RTMP complex handshake to delivery h264+aac stream.
     SRTP depends on openssl 1.0.*, so we use both ssl versions.
@@ -62,7 +62,7 @@ links:
         https://pypi.python.org/pypi/CherryPy/3.2.4
     openssl:
         http://www.openssl.org/
-        http://www.openssl.org/source/openssl-1.1.0e.tar.gz
+        http://www.openssl.org/source/openssl-1.1.1h.tar.gz
     gtest:
         https://code.google.com/p/googletest
         https://code.google.com/p/googletest/downloads/list

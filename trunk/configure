@@ -148,7 +148,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
   LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
 fi
 
-# openssl-1.1.0e, for the RTMP complex handshake.
+# openssl-1.1.1h, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == NO ]]; then
     LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a";
