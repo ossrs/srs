@@ -358,8 +358,8 @@ void show_macro_features()
 #endif
     
 #if VERSION_MAJOR > VERSION_STABLE
-    #warning "Current branch is develop."
-    srs_warn("%s/%s is develop", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
+    #warning "Current branch is not stable."
+    srs_warn("%s/%s is not stable", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
 #endif
     
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
