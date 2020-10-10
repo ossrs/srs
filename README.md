@@ -149,6 +149,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-10, Fix [#1780][bug #1780], build fail on Ubuntu20(focal). 3.0.144
 * v3.0, 2020-09-14, Prevent stop ingest for multiple times. 3.0.143
 * v3.0, 2020-09-10, RTC: Change SO_REUSEPORT fail to warning. 3.0.142
 * <strong>v3.0, 2020-06-27, [3.0 release0(3.0.141)][r3.0r0] released. 122674 lines.</strong>
@@ -1695,6 +1696,7 @@ Winlin
 [bug #1651]: https://github.com/ossrs/srs/issues/1651
 [bug #1619]: https://github.com/ossrs/srs/issues/1619
 [bug #1629]: https://github.com/ossrs/srs/issues/1629
+[bug #1780]: https://github.com/ossrs/srs/issues/1780
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
