@@ -48,7 +48,7 @@
 
 // The current stable release.
 #define VERSION_STABLE 2
-#define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE)".0release"
+#define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE) ".0release"
 
 // For 32bit os, 2G big file limit for unistd io,
 // ie. read/write/lseek to use 64bits size for huge file.
