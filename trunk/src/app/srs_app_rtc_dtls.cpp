@@ -378,12 +378,18 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback* callback)
 
     last_outgoing_packet_cache = new uint8_t[kRtpPacketSize];
     nn_last_outgoing_packet = 0;
+    nn_arq_packets = 0;
 
     version_ = SrsDtlsVersionAuto;
 }
 
 SrsDtlsImpl::~SrsDtlsImpl()
 {
+    if (!handshake_done_for_us) {
+        srs_warn2(TAG_DTLS_HANG, "DTLS: Hang, done=%u, version=%d, arq=%u", handshake_done_for_us,
+            version_, nn_arq_packets);
+    }
+
     if (dtls_ctx) {
         SSL_CTX_free(dtls_ctx);
         dtls_ctx = NULL;
@@ -557,9 +563,9 @@ void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, 
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
+    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u/%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
         (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
-        r0, r1, length, content_type, size, handshake_type);
+        nn_arq_packets, r0, r1, length, content_type, size, handshake_type);
 }
 
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
@@ -608,8 +614,16 @@ SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(c
 {
     trd = NULL;
     state_ = SrsDtlsStateInit;
-    arq_first = 50 * SRS_UTIME_MILLISECONDS;
-    arq_interval = 100 * SRS_UTIME_MILLISECONDS;
+
+    // The first wait and base interval for ARQ.
+    arq_interval = 10 * SRS_UTIME_MILLISECONDS;
+
+    // Use step timeout for ARQ, the total timeout is sum(arq_to_ratios)*arq_interval.
+    // for example, if arq_interval is 10ms, arq_to_ratios is [3, 6, 9, 15, 20, 40, 80, 160],
+    // then total timeout is sum([3, 6, 9, 15, 20, 40, 80, 160]) * 10ms = 3330ms.
+    int ratios[] = {3, 6, 9, 15, 20, 40, 80, 160};
+    srs_assert(sizeof(arq_to_ratios) == sizeof(ratios));
+    memcpy(arq_to_ratios, ratios, sizeof(ratios));
 }
 
 SrsDtlsClientImpl::~SrsDtlsClientImpl()
@@ -742,12 +756,10 @@ srs_error_t SrsDtlsClientImpl::cycle()
 {
     srs_error_t err = srs_success;
 
-    // The first ARQ delay.
-    srs_usleep(arq_first);
-
     // Limit the max retry for ARQ.
-    for (int arq_retry_left = 7; arq_retry_left > 0; arq_retry_left--) {
-        srs_info("arq cycle, state=%u, retry=%d", state_, arq_retry_left);
+    for (int i = 0; i < sizeof(arq_to_ratios) / sizeof(int); i++) {
+        srs_utime_t arq_to = arq_interval * arq_to_ratios[i];
+        srs_usleep(arq_to);
 
         // We ignore any error for ARQ thread.
         if ((err = trd->pull()) != srs_success) {
@@ -772,6 +784,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
         if (size) {
             // Trace the detail of DTLS packet.
             state_trace((uint8_t*)data, size, false, 1, SSL_ERROR_NONE, true, true);
+            nn_arq_packets++;
 
             if ((err = callback_->write_dtls_data(data, size)) != srs_success) {
                 return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
@@ -779,8 +792,8 @@ srs_error_t SrsDtlsClientImpl::cycle()
             }
         }
 
-        // TODO: Use ARQ step timeouts.
-        srs_usleep(arq_interval);
+        srs_info("arq cycle, done=%u, state=%u, retry=%d, interval=%dms, to=%dms, size=%d, nn=%d", handshake_done_for_us,
+            state_, i, srsu2msi(arq_interval), srsu2msi(arq_to), size, nn_arq_packets);
     }
 
     return err;
@@ -820,6 +833,7 @@ void SrsDtlsServerImpl::on_ssl_out_data(uint8_t*& data, int& size, bool& cached)
     if (size <= 0 && nn_last_outgoing_packet) {
         size = nn_last_outgoing_packet;
         data = last_outgoing_packet_cache;
+        nn_arq_packets++;
         cached = true;
     }
 }

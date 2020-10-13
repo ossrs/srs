@@ -1070,7 +1070,7 @@ srs_error_t SrsServer::cycle()
 
     // fast quit, do some essential cleanup.
     if (signal_fast_quit) {
-        dispose();
+        dispose(); // TODO: FIXME: Rename to essential_dispose.
         srs_trace("srs disposed");
     }
 
