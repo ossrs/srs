@@ -170,13 +170,16 @@
                     self.pc.addTransceiver("audio", {direction: "recvonly"});
                     self.pc.addTransceiver("video", {direction: "recvonly"});
 
-                    var onAnswer = function(session) {
-                        var answer = session.sdp;
-                        self.pc.setRemoteDescription(
-                            new RTCSessionDescription({type: 'answer', sdp: answer})
-                        ).then(function(){
-                            success(session);
-                        }).catch(function(reason) {
+                    self.pc.createOffer(function(offer){
+                        onOffer(offer);
+                    }, function(reason){
+                        fail(reason);
+                    });
+
+                    var onOffer = function(offer) {
+                        self.pc.setLocalDescription(offer, function(){
+                            onOfferDone(offer);
+                        }, function(reason) {
                             fail(reason);
                         });
                     };
@@ -203,19 +206,16 @@
                         });
                     };
 
-                    var onOffer = function(offer) {
-                        self.pc.setLocalDescription(offer, function(){
-                            onOfferDone(offer);
-                        }, function(reason) {
+                    var onAnswer = function(session) {
+                        var answer = session.sdp;
+                        self.pc.setRemoteDescription(
+                            new RTCSessionDescription({type: 'answer', sdp: answer})
+                        ).then(function(){
+                            success(session);
+                        }).catch(function(reason) {
                             fail(reason);
                         });
                     };
-
-                    self.pc.createOffer(function(offer){
-                        onOffer(offer);
-                    }, function(reason){
-                        fail(reason);
-                    });
                 },
                 close: function() {
                     self.pc.close();
