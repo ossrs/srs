@@ -166,22 +166,24 @@ void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
 
 int SrsKbps::get_send_kbps()
 {
-    srs_utime_t duration = clk->now() - is.starttime;
+    int duration = srsu2ms(clk->now() - is.starttime);
     if (duration <= 0) {
         return 0;
     }
+
     int64_t bytes = get_send_bytes();
-    return (int)(bytes * 8 / srsu2ms(duration));
+    return (int)(bytes * 8 / duration);
 }
 
 int SrsKbps::get_recv_kbps()
 {
-    srs_utime_t duration = clk->now() - os.starttime;
+    int duration = srsu2ms(clk->now() - os.starttime);
     if (duration <= 0) {
         return 0;
     }
+
     int64_t bytes = get_recv_bytes();
-    return (int)(bytes * 8 / srsu2ms(duration));
+    return (int)(bytes * 8 / duration);
 }
 
 int SrsKbps::get_send_kbps_30s()
