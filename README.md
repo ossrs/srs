@@ -149,6 +149,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-14, Fix [#1987][bug #1987], Fix Kbps resample bug. 3.0.145
 * <strong>v3.0, 2020-10-10, [3.0 release1(3.0.144)][r3.0r1] released. 122674 lines.</strong>
 * v3.0, 2020-10-10, Fix [#1780][bug #1780], build fail on Ubuntu20(focal). 3.0.144
 * v3.0, 2020-09-14, Prevent stop ingest for multiple times. 3.0.143
@@ -1699,6 +1700,7 @@ Winlin
 [bug #1619]: https://github.com/ossrs/srs/issues/1619
 [bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #1780]: https://github.com/ossrs/srs/issues/1780
+[bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
