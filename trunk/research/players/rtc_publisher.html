@@ -73,10 +73,24 @@
             pc = new RTCPeerConnection(null);
             pc.addTransceiver("audio", {direction: "sendonly"});
             pc.addTransceiver("video", {direction: "sendonly"});
-
+            
             var constraints = {
-                audio: true, video: {
-                    height: { max: 320 }
+                audio: true,
+                // video: {
+                //     // height: { max: 320 },
+                //     mandatory: {
+                //         maxHeight: 1280, // 1920
+                //         maxWidth: 720 // 1080
+                //     },
+                //
+                //     optional: []
+                // },
+                video : {
+                    width: 720,   // 宽带
+                    height: 1280,  // 高度
+                    frameRate: 30, // 帧率
+                    // facingMode: 'enviroment', //  设置为后置摄像头
+                    // deviceId : deviceId ? {exact:deviceId} : undefined //
                 }
             };
             navigator.mediaDevices.getUserMedia(
@@ -135,6 +149,8 @@
                         $('#simulator-drop').attr('href', simulator + '?drop=1&username=' + data.sessionid);
                         resolve(data.sdp);
                     }).fail(function(reason){
+
+
                         reject(reason);
                     });
                 });

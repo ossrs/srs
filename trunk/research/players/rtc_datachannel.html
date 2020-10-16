@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+<meta charset="utf-8">
+</head>
+
+<body>
+data_channel_msg:
+<input type="text" id="id_dc_msg" name="data_channel_msg" value="" disabled="false">
+</body>
+
+<script>
+
+var PeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+var SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription;
+
+var url = document.location.protocol + "//" + document.domain + ":1985/rtc/v1/play/";
+
+var method = "POST";
+var shouldBeAsync = true;
+
+var request = new XMLHttpRequest();
+
+request.open(method, url, shouldBeAsync);
+request.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+var pc = new PeerConnection();
+
+var sendViewerOfferFn = function(desc) {
+    console.log('sendViewerOfferFn:', desc);
+
+    pc.setLocalDescription(desc);
+
+    var sdp_json = {"sdp":desc.sdp, "app":"live", "stream":"livestream", "streamurl":"webrtc://localhost:8000/live/livestream"};
+    request.send(JSON.stringify(sdp_json));
+};
+
+var dc1 = pc.createDataChannel("dc1", { ordered: true, maxRetransmits:5});
+
+pc.ondatachannel = function(evt) {
+    console.log("peer connection on data channel");
+    console.log(evt);
+};
+
+dc1.onopen = function() 
+{ 
+    console.log("datachannle dc1 ready"); 
+};
+
+dc1.onclose = function() 
+{ 
+    this.open = false; console.log("dc1 closed"); 
+}; 
+
+dc1.onerror = function(evt) 
+{ 
+    console.log("dc1 error " + evt.message);
+};
+
+dc1.onmessage = function(evt) 
+{
+    console.log("dc1 on message:" + evt.data); 
+    var msg_print_obj = document.getElementById("id_dc_msg");
+    msg_print_obj.value = evt.data;
+};
+
+pc.createOffer(sendViewerOfferFn,
+    function(error) {
+        console.log('sendViewerOfferFn error:' + error);
+    },
+    // Plan-B
+    // constraints
+);
+
+pc.onicecandidate = function(event) {
+    console.log('onicecandidate');
+};
+
+pc.onconnectionstatechange = function(event) {
+    console.log('onconnectionstatechange');
+};
+
+
+pc.onicegatheringstatechange = function(event) {
+    console.log('onicegatheringstatechange');
+};
+
+
+pc.onsignalingstatechange = function(event) {
+    console.log('onsignalingstatechange');
+};
+
+
+request.onerror = function(event) {
+    console.log('http error');
+};
+
+
+request.onload = function () {
+    console.log('onload,' , request.responseText);
+    var json = JSON.parse(request.responseText);
+    console.log('onmessage viewerResponse:', json.sdp);
+
+
+    pc.setRemoteDescription(new SessionDescription({type:'answer', sdp:json.sdp}));
+}
+
+var c = 0;
+
+window.setInterval(function() {
+    dc1.send("dc1___" + c);
+    c = c + 1;
+}, 1000);
+
+</script>
+
+</html>

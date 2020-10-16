@@ -48,11 +48,11 @@
 #include <srs_app_rtc_codec.hpp>
 #endif
 
-const int kAudioPayloadType     = 111;
+const int kAudioPayloadType     = 111; // 109 这两个值不应该写死，需要根据sdp解析获取。Firefox和Chrome的定义不一样
 const int kAudioChannel         = 2;
 const int kAudioSamplerate      = 48000;
 
-const int kVideoPayloadType = 102;
+const int kVideoPayloadType = 102; // 102
 const int kVideoSamplerate  = 90000;
 
 // An AAC packet may be transcoded to many OPUS packets.
