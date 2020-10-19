@@ -240,11 +240,12 @@ public:
     virtual void on_logrotate() = 0;
 };
 
+// TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
 class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
 {
 private:
-    // TODO: FIXME: rename to http_api
+    // TODO: FIXME: Extract an HttpApiServer.
     SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;

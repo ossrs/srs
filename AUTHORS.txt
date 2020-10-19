@@ -67,3 +67,8 @@ CONTRIBUTORS ordered by first contribution.
 * xiaozhihong<hondaxiao@tencent.com>
 * yajun18<yajun18@staff.sina.com.cn>
 * liulichuan<liulichuan@kuaishou.com>
+* yapingcat<caoyapingneu@163.com>
+* chenchengbin<chenchengbin@yy.com>
+* chenhaibo<chenhaibo@RD-CHB-0476-01>
+* jasongwq<jasongwq@gmail.com>
+* xialixin@kanzhun.com<xialixin@kanzhun.com>
