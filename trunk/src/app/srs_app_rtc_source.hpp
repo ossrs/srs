@@ -322,11 +322,15 @@ class SrsAudioPayload : public SrsCodecPayload
 {
     struct SrsOpusParameter
     {
+        int stereo;
+        int maxplaybackrate;
         int minptime;
         bool use_inband_fec;
         bool usedtx;
 
         SrsOpusParameter() {
+            stereo = 0; // 0:mono; 1:stereo
+            maxplaybackrate = 0;
             minptime = 0;
             use_inband_fec = false;
             usedtx = false;
@@ -566,6 +570,7 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+    int get_track_media_pt();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;

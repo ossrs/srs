@@ -1248,7 +1248,7 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
 
     std::ostringstream format_specific_param;
     if (!h264_param_.level_asymmerty_allow.empty()) {
-        format_specific_param << "level-asymmetry-allowed=" << h264_param_.level_asymmerty_allow;
+        format_specific_param << ";level-asymmetry-allowed=" << h264_param_.level_asymmerty_allow;
     }
     if (!h264_param_.packetization_mode.empty()) {
         format_specific_param << ";packetization-mode=" << h264_param_.packetization_mode;
@@ -1258,6 +1258,7 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     }
 
     media_payload_type.format_specific_param_ = format_specific_param.str();
+    media_payload_type.format_specific_param_ = media_payload_type.format_specific_param_.substr(1);
 
     return media_payload_type;
 }
@@ -1345,8 +1346,14 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
 
     std::ostringstream format_specific_param;
+    if (opus_param_.stereo) {
+        format_specific_param << ";stereo=" << opus_param_.stereo;
+    }
+    if (opus_param_.maxplaybackrate) {
+        format_specific_param << ";maxplaybackrate=" << opus_param_.maxplaybackrate;
+    }
     if (opus_param_.minptime) {
-        format_specific_param << "minptime=" << opus_param_.minptime;
+        format_specific_param << ";minptime=" << opus_param_.minptime;
     }
     if (opus_param_.use_inband_fec) {
         format_specific_param << ";useinbandfec=1";
@@ -1355,6 +1362,7 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
         format_specific_param << ";usedtx=1";
     }
     media_payload_type.format_specific_param_ = format_specific_param.str();
+    media_payload_type.format_specific_param_ = media_payload_type.format_specific_param_.substr(1);
 
     return media_payload_type;
 }
@@ -1372,6 +1380,10 @@ srs_error_t SrsAudioPayload::set_opus_param_desc(std::string fmtp)
                 opus_param_.use_inband_fec = (kv[1] == "1") ? true : false;
             } else if (kv[0] == "usedtx") {
                 opus_param_.usedtx = (kv[1] == "1") ? true : false;
+            } else if (kv[0] == "stereo") {
+                opus_param_.stereo = (int)::atol(kv[1].c_str());
+            } else if (kv[0] == "maxplaybackrate") {
+                opus_param_.maxplaybackrate = (int)::atol(kv[1].c_str());
             }
         } else {
             return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid opus param=%s", vec[i].c_str());
@@ -1729,6 +1741,11 @@ bool SrsRtcRecvTrack::get_track_status()
 std::string SrsRtcRecvTrack::get_track_id()
 {
     return track_desc_->id_;
+}
+
+int SrsRtcSendTrack::get_track_media_pt()
+{
+    return track_desc_->media_->pt_;
 }
 
 srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
