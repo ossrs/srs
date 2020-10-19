@@ -548,6 +548,8 @@ srs_error_t SrsDtlsImpl::do_handshake()
 
 void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
 {
+    // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
+    // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
     uint8_t content_type = 0;
     if (length >= 1) {
         content_type = (uint8_t)data[0];
