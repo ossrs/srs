@@ -447,6 +447,7 @@ srs_error_t run_directly_or_daemon()
     }
     
     if(pid > 0) {
+        sleep(3);
         srs_trace("father process exit");
         exit(0);
     }
