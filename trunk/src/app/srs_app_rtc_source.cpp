@@ -558,7 +558,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     req = NULL;
     source_ = source;
     format = new SrsRtmpFormat();
-    codec = new SrsAudioRecode(kAudioChannel, kAudioSamplerate);
+    codec = new SrsAudioRecode(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate);
     discard_aac = false;
     discard_bframe = false;
     merge_nalus = false;
