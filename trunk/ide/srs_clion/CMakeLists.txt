@@ -5,14 +5,14 @@ INCLUDE_DIRECTORIES(../../objs
         ../../objs/st
         ../../objs/hp
         ../../objs/openssl/include
-        ../../objs/opus/include
-        ../../objs/srtp2/include
         ../../src/core
         ../../src/kernel
         ../../src/protocol
         ../../src/app
-        ../../objs/Platform-Darwin-19.4.0-SRS4/ffmpeg-4.2-fit
-        ../../src/service)
+        ../../src/service
+        ../../objs/srtp2/include
+        ../../objs/opus/include
+        ../../objs/ffmpeg/include)
 
 set(SOURCE_FILES ../../src/main/srs_main_server.cpp)
 AUX_SOURCE_DIRECTORY(../../src/core SOURCE_FILES)
@@ -20,7 +20,6 @@ AUX_SOURCE_DIRECTORY(../../src/kernel SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/protocol SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/app SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/service SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(../../objs/Platform-Darwin-19.4.0-SRS4/ffmpeg-4.2-fit SOURCE_FILES)
 
 ADD_DEFINITIONS("-g -O0")
 
@@ -29,6 +28,11 @@ TARGET_LINK_LIBRARIES(srs dl)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/st/libst.a)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/openssl/lib/libssl.a)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/openssl/lib/libcrypto.a)
+TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/srtp2/lib/libsrtp2.a)
+TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/opus/lib/libopus.a)
+TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/ffmpeg/lib/libavutil.a)
+TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/ffmpeg/lib/libavcodec.a)
+TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/../../objs/ffmpeg/lib/libswresample.a)
 TARGET_LINK_LIBRARIES(srs -ldl)
 
 IF (NOT EXISTS ${PROJECT_SOURCE_DIR}/../../objs/st/libst.a)
