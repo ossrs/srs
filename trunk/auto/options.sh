@@ -590,12 +590,6 @@ function check_option_conflicts() {
         SRS_NGINX=NO
     fi
 
-    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
-    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
-        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
-        exit -1
-    fi
-
     # TODO: FIXME: check more os.
 
     __check_ok=YES
