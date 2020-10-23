@@ -493,10 +493,10 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "Warning: No FFmpeg found at /usr/local/bin/ffmpeg";
-        echo "    please copy it from srs-docker";
-        echo "    or download from http://ffmpeg.org/download.html";
-        echo "    or disable it by --without-ffmpeg";
+        echo -e "${RED}Error: No FFmpeg found at /usr/local/bin/ffmpeg${BLACK}"
+        echo -e "${RED}    Please copy it from srs-docker${BLACK}"
+        echo -e "${RED}    or download from http://ffmpeg.org/download.html${BLACK}"
+        echo -e "${RED}    or disable it by --without-ffmpeg${BLACK}"
         exit -1;
     fi
     # Always update the links.
