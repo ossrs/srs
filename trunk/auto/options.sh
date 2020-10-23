@@ -569,10 +569,6 @@ function check_option_conflicts() {
         echo "Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"; exit -1;
     fi
 
-    if [[ $SRS_FFMPEG_TOOL == YES ]]; then
-        echo "Don't support building FFMPEG, please use docker https://github.com/ossrs/srs-docker"; exit -1;
-    fi
-
     # TODO: FIXME: check more os.
 
     __check_ok=YES
