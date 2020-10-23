@@ -119,6 +119,7 @@ class SrsSTCoroutine : public SrsCoroutine
 {
 private:
     std::string name;
+    int stack_size;
     ISrsCoroutineHandler* handler;
 private:
     srs_thread_t trd;
@@ -136,6 +137,9 @@ public:
     SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h);
     SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
     virtual ~SrsSTCoroutine();
+public:
+    // Set the stack size of coroutine, default to 0(64KB).
+    void set_stack_size(int v);
 public:
     // Start the thread.
     // @remark Should never start it when stopped or terminated.

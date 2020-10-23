@@ -40,8 +40,6 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
 
-#include <opus/opus.h>
-
 #ifdef __cplusplus
 }
 #endif
@@ -54,9 +52,10 @@ private:
     AVFrame* frame_;
     AVPacket* packet_;
     AVCodecContext* codec_ctx_;
-    std::string codec_name_;
+    SrsAudioCodecId codec_id_;
 public:
-    SrsAudioDecoder(std::string codec);
+    //Only support "aac","opus"
+    SrsAudioDecoder(SrsAudioCodecId codec);
     virtual ~SrsAudioDecoder();
     srs_error_t initialize();
     virtual srs_error_t decode(SrsSample *pkt, char *buf, int &size);
@@ -66,16 +65,22 @@ public:
 class SrsAudioEncoder
 {
 private:
-    int inband_fec_;
 	int channels_;
 	int sampling_rate_;
-	int complexity_;
-	OpusEncoder *opus_;
+    AVCodecContext* codec_ctx_;
+    SrsAudioCodecId codec_id_;
+    int want_bytes_;
+    AVFrame* frame_;
 public:
-    SrsAudioEncoder(int samplerate, int channels, int fec, int complexity);
+    //Only support "aac","opus"
+    SrsAudioEncoder(SrsAudioCodecId codec, int samplerate, int channelsy);
     virtual ~SrsAudioEncoder();
     srs_error_t initialize();
+    //The encoder wanted bytes to call encode, if > 0, caller must feed the same bytes
+    //Call after initialize successed
+    int want_bytes();
     virtual srs_error_t encode(SrsSample *frame, char *buf, int &size);
+    AVCodecContext* codec_ctx();
 };
 
 class SrsAudioResample
@@ -107,6 +112,7 @@ public:
     virtual srs_error_t resample(SrsSample *pcm, char *buf, int &size);
 };
 
+// TODO: FIXME: Rename to Transcoder.
 class SrsAudioRecode
 {
 private:
@@ -117,8 +123,11 @@ private:
     int dst_samplerate_;
     int size_;
     char *data_;
+    SrsAudioCodecId src_codec_;
+    SrsAudioCodecId dst_codec_;
+    int enc_want_bytes_;
 public:
-    SrsAudioRecode(int channels, int samplerate);
+    SrsAudioRecode(SrsAudioCodecId src_codec, SrsAudioCodecId dst_codec,int channels, int samplerate);
     virtual ~SrsAudioRecode();
     srs_error_t initialize();
     virtual srs_error_t transcode(SrsSample *pkt, char **buf, int *buf_len, int &n);

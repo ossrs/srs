@@ -83,11 +83,15 @@ _ST_THREAD_CREATE_PFN _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)st_thread_c
 
 SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h)
 {
+    // TODO: FIXME: Reduce duplicated code.
     name = n;
     handler = h;
     trd = NULL;
     trd_err = srs_success;
     started = interrupted = disposed = cycle_done = false;
+
+    //  0 use default, default is 64K.
+    stack_size = 0;
 }
 
 SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, SrsContextId cid)
@@ -98,6 +102,9 @@ SrsSTCoroutine::SrsSTCoroutine(string n, ISrsCoroutineHandler* h, SrsContextId c
     trd = NULL;
     trd_err = srs_success;
     started = interrupted = disposed = cycle_done = false;
+
+    //  0 use default, default is 64K.
+    stack_size = 0;
 }
 
 SrsSTCoroutine::~SrsSTCoroutine()
@@ -105,6 +112,11 @@ SrsSTCoroutine::~SrsSTCoroutine()
     stop();
     
     srs_freep(trd_err);
+}
+
+void SrsSTCoroutine::set_stack_size(int v)
+{
+    stack_size = v;
 }
 
 srs_error_t SrsSTCoroutine::start()
@@ -124,8 +136,8 @@ srs_error_t SrsSTCoroutine::start()
         
         return err;
     }
-    
-    if ((trd = (srs_thread_t)_pfn_st_thread_create(pfn, this, 1, 0)) == NULL) {
+
+    if ((trd = (srs_thread_t)_pfn_st_thread_create(pfn, this, 1, stack_size)) == NULL) {
         err = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create failed");
         
         srs_freep(trd_err);
