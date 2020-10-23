@@ -446,12 +446,13 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     else
-        # If not crossbuild, try to use exists libraries.
-        if [[ -f /usr/local/ssl/lib/libssl.a && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+        # Try to use exists libraries.
+        if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
-                ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a)
+                ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a &&
+                mkdir -p /usr/local/ssl/lib/pkgconfig && ln -sf /usr/local/ssl/lib/pkgconfig)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
-                ln -sf /usr/local/include/openssl)
+                ln -sf /usr/local/ssl/include/openssl)
         fi
     fi
     # Which lib we use.
