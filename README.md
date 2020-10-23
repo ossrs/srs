@@ -56,7 +56,7 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 * Usage: How to delivery HTTP-FLV Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307#issuecomment-602193458)
+* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
 * Usage: How to publish SRT(Experimental) to SRS?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
 * Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
