@@ -276,9 +276,9 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream& os)
     }
 
     if (!format_specific_param_.empty()) {
+        string sdp_fmtp_extra_param = _srs_config->get_rtc_server_sdp_fmtp_extra_param();
         os << "a=fmtp:" << payload_type_ << " " << format_specific_param_
-           // TODO: FIXME: Remove the test code bellow.
-           // << ";x-google-max-bitrate=6000;x-google-min-bitrate=5100;x-google-start-bitrate=5000"
+           << sdp_fmtp_extra_param
            << kCRLF;
     }
 

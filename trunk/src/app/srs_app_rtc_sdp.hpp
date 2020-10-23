@@ -26,6 +26,7 @@
 
 #include <srs_core.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_config.hpp>
 
 #include <stdint.h>
 

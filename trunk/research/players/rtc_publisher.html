@@ -44,7 +44,7 @@
     </div>
 
     <label></label>
-    <video id="rtc_media_player" width="320" autoplay muted></video>
+    <video id="rtc_media_player" autoplay muted></video>
 
     <label></label>
     SessionID: <span id='sessionid'></span>
@@ -76,21 +76,18 @@
             
             var constraints = {
                 audio: true,
-                // video: {
-                //     // height: { max: 320 },
-                //     mandatory: {
-                //         maxHeight: 1280, // 1920
-                //         maxWidth: 720 // 1080
-                //     },
-                //
-                //     optional: []
-                // },
                 video : {
-                    width: 720,   // 宽带
-                    height: 1280,  // 高度
-                    frameRate: 30, // 帧率
+                    width: 1920,
+                    height: 1080
                     // facingMode: 'enviroment', //  设置为后置摄像头
                     // deviceId : deviceId ? {exact:deviceId} : undefined //
+                    // "mandatory": {
+                    //     "maxWidth": 1920,
+                    //     "minWidth": 1920,
+                    //     "maxHeight": 1080,
+                    //     "minHeight": 1080,
+                    //     "minFrameRate": 30
+                    // }
                 }
             };
             navigator.mediaDevices.getUserMedia(

@@ -3646,7 +3646,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
-                && n != "ip_family") {
+                && n != "ip_family" && n != "sdp_fmtp_extra_param") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4919,6 +4919,23 @@ std::string SrsConfig::get_rtc_server_black_hole_addr()
     }
 
     conf = conf->get("addr");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+std::string SrsConfig::get_rtc_server_sdp_fmtp_extra_param()
+{
+    static string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sdp_fmtp_extra_param");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

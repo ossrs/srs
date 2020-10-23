@@ -534,6 +534,7 @@ public:
     virtual bool get_rtc_server_perf_stat();
     virtual bool get_rtc_server_black_hole();
     virtual std::string get_rtc_server_black_hole_addr();
+    virtual std::string get_rtc_server_sdp_fmtp_extra_param();
 private:
     virtual int get_rtc_server_reuseport2();
 
