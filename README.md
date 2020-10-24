@@ -201,6 +201,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-24, Refine script and startup logs. 3.0.148
 * v3.0, 2020-10-23, Allow FFmpeg if exists at /usr/local/bin/ffmpeg. 3.0.147
 * v3.0, 2020-10-23, Refine build script, use libssl in docker. 3.0.146
 * v3.0, 2020-10-14, Fix [#1987][bug #1987], Fix Kbps resample bug. 3.0.145
