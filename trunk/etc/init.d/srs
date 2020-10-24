@@ -51,10 +51,10 @@ load_process_info() {
     pid_file=`(cd ${ROOT}; cd $pid_dir; pwd)`/`basename $pid_file`
     
     srs_pid=`cat $pid_file 2>/dev/null`
-    ret=$?; if [[ 0 -ne $ret ]]; then error_msg="file $pid_file does not exists"; return 1; fi
+    ret=$?; if [[ 0 -ne $ret ]]; then error_msg="No pid file $pid_file"; return 1; fi
     
     ps -p ${srs_pid} >/dev/null 2>/dev/null
-    ret=$?; if [[ 0 -ne $ret ]]; then error_msg="process $srs_pid does not exists"; return 2; fi
+    ret=$?; if [[ 0 -ne $ret ]]; then error_msg="Process $srs_pid does not exists"; return 2; fi
     
     return 0;
 }
@@ -142,9 +142,9 @@ stop() {
 # @return 0 if srs is running; otherwise, 1 for stopped.
 status() {
     load_process_info
-    ret=$?; if [[ 0 -eq $ret ]]; then echo "SRS(pid ${srs_pid}) is running."; return 0; fi
+    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "SRS(pid ${srs_pid}) is running."; return 0; fi
     
-    echo "SRS is stopped, $error_msg"
+    failed_msg "Error: $error_msg"
     return 1
 }
 
