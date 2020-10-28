@@ -68,7 +68,7 @@ start() {
     ok_msg "Starting SRS..."
     
     # get log file
-    log_file=`cd ${ROOT} && cat ${CONFIG} |grep '^log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
+    log_file=`cd ${ROOT} && cat ${CONFIG} |grep '^srs_log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
     if [[ -z $log_file ]]; then log_file=${DEFAULT_LOG_FILE}; fi
     # get abs path
     log_dir=`dirname $log_file`
