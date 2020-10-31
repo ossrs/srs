@@ -1,5 +1,5 @@
 /*
-g++ huge-threads.cpp ../../objs/st/libst.a -g -O0 -DLINUX -o huge-threads && ./huge-threads 32756
+g++ huge-threads.cpp ../../objs/st/libst.a -g -O0 -o huge-threads && ./huge-threads 60000
 */
 #include <stdio.h>
 #include <stdlib.h>
