@@ -347,6 +347,8 @@ else
     echo "Build ST without UDP sendmmsg support."
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
 fi
+# Always alloc on heap, @see https://github.com/ossrs/srs/issues/509#issuecomment-719931676
+_ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMALLOC_STACK"
 # Pass the global extra flags.
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"

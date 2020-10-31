@@ -202,6 +202,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
 * v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
 * v3.0, 2020-10-31, Use global _srs_server for debugging. 3.0.151
 * v3.0, 2020-10-31, Refine source cid, track previous one. 3.0.150
