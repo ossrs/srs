@@ -34,7 +34,7 @@ class SrsBuffer;
 // For openssl.
 #include <openssl/hmac.h>
 
-namespace _srs_internal
+namespace srs_internal
 {
     // The digest key generate size.
     #define SRS_OpensslHashSize 512

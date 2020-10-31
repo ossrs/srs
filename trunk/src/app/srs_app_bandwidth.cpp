@@ -91,7 +91,7 @@ bool _bandwidth_is_stopped_publish(SrsBandwidthPacket* pkt)
 {
     return pkt->is_stopped_publish();
 }
-srs_error_t _srs_expect_bandwidth_packet(SrsRtmpServer* rtmp, _CheckPacketType pfn)
+srs_error_t srs_expect_bandwidth_packet(SrsRtmpServer* rtmp, _CheckPacketType pfn)
 {
     srs_error_t err = srs_success;
     
@@ -241,7 +241,7 @@ srs_error_t SrsBandwidth::play_start(SrsBandwidthSample* sample, SrsKbpsLimit* l
         }
     }
     
-    if ((err = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_play)) != srs_success) {
+    if ((err = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_play)) != srs_success) {
         return srs_error_wrap(err, "expect bandwidth");
     }
     
@@ -304,7 +304,7 @@ srs_error_t SrsBandwidth::play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* /*
         }
     }
     
-    if ((err = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_play)) != srs_success) {
+    if ((err = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_play)) != srs_success) {
         return srs_error_wrap(err, "expect bandwidth");
     }
     
@@ -328,7 +328,7 @@ srs_error_t SrsBandwidth::publish_start(SrsBandwidthSample* sample, SrsKbpsLimit
         }
     }
     
-    if ((err = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_publish)) != srs_success) {
+    if ((err = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_publish)) != srs_success) {
         return srs_error_wrap(err, "expect packet");
     }
     
@@ -388,7 +388,7 @@ srs_error_t SrsBandwidth::publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit*
     // we just ignore the packet and send the bandwidth test data.
     bool is_flash = (_req->swfUrl != "");
     if (!is_flash) {
-        if ((err = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_publish)) != srs_success) {
+        if ((err = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_publish)) != srs_success) {
             return srs_error_wrap(err, "expect bandwidth");
         }
     }
@@ -422,7 +422,7 @@ srs_error_t SrsBandwidth::do_final(SrsBandwidthSample& play_sample, SrsBandwidth
     bool is_flash = (_req->swfUrl != "");
     if (!is_flash) {
         // ignore any error.
-        err = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_final);
+        err = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_final);
         srs_error_reset(err);
     }
     

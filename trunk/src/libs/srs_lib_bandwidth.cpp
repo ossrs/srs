@@ -62,7 +62,7 @@ bool _bandwidth_is_finish(SrsBandwidthPacket* pkt)
 {
     return pkt->is_finish();
 }
-int _srs_expect_bandwidth_packet(SrsRtmpClient* rtmp, _CheckPacketType pfn)
+int srs_expect_bandwidth_packet(SrsRtmpClient* rtmp, _CheckPacketType pfn)
 {
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
@@ -86,7 +86,7 @@ int _srs_expect_bandwidth_packet(SrsRtmpClient* rtmp, _CheckPacketType pfn)
     
     return ret;
 }
-int _srs_expect_bandwidth_packet2(SrsRtmpClient* rtmp, _CheckPacketType pfn, SrsBandwidthPacket** ppkt)
+int srs_expect_bandwidth_packet2(SrsRtmpClient* rtmp, _CheckPacketType pfn, SrsBandwidthPacket** ppkt)
 {
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
@@ -202,7 +202,7 @@ int SrsBandwidthClient::play_start()
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_start_play)) != ERROR_SUCCESS) {
+    if ((ret = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_start_play)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_info("BW check recv play begin request.");
@@ -234,7 +234,7 @@ int SrsBandwidthClient::play_stop()
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stop_play)) != ERROR_SUCCESS) {
+    if ((ret = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stop_play)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_info("BW check recv play stop request.");
@@ -262,7 +262,7 @@ int SrsBandwidthClient::publish_start(int& duration_ms, int& play_kbps)
     
     if (true) {
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_start_publish, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_start_publish, &pkt)) != ERROR_SUCCESS) {
             return ret;
         }
         SrsAutoFree(SrsBandwidthPacket, pkt);
@@ -367,7 +367,7 @@ int SrsBandwidthClient::publish_stop()
     }
     srs_info("BW client stop publish request.");
     
-    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stop_publish)) != ERROR_SUCCESS) {
+    if ((ret = srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stop_publish)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_info("BW check recv publish stop request.");
@@ -393,7 +393,7 @@ int SrsBandwidthClient::do_final(SrsBandwidthPacket** ppkt)
     int ret = ERROR_SUCCESS;
     srs_error_t err = srs_success;
     
-    if ((ret = _srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_finish, ppkt)) != ERROR_SUCCESS) {
+    if ((ret = srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_finish, ppkt)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_info("BW check recv finish/report request.");

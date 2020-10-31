@@ -352,7 +352,7 @@ VOID TEST(ProtocolHandshakeTest, OpensslSha256)
 // verify the dh key
 VOID TEST(ProtocolHandshakeTest, DHKey)
 {
-    _srs_internal::SrsDH dh;
+    srs_internal::SrsDH dh;
     
     ASSERT_TRUE(ERROR_SUCCESS == dh.initialize(true));
     
@@ -368,7 +368,7 @@ VOID TEST(ProtocolHandshakeTest, DHKey)
     EXPECT_TRUE(srs_bytes_equals(pub_key1, pub_key2, 128));
     
     // another dh
-    _srs_internal::SrsDH dh0;
+    srs_internal::SrsDH dh0;
     
     ASSERT_TRUE(ERROR_SUCCESS == dh0.initialize(true));
     
