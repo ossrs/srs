@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-10-31, Support gdb/srs.py to stat coroutines. 4.0.44
 * v4.0, 2020-09-19, RTC: Extract resource manager. Use any UDP packet to keep alive. 4.0.43
 * v4.0, 2020-09-09, RTC: Refine NACK RTT and efficiency. 4.0.42
 * v4.0, 2020-09-08, Refine PLI/NACK/DTLS logs. 4.0.41
