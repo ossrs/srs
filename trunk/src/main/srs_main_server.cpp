@@ -65,6 +65,9 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
 
+// @global main SRS server, for debugging
+SrsServer* _srs_server = NULL;
+
 /**
  * main entrance.
  */
@@ -177,11 +180,9 @@ srs_error_t do_main(int argc, char** argv)
     
     // features
     show_macro_features();
-    
-    SrsServer* svr = new SrsServer();
-    SrsAutoFree(SrsServer, svr);
-    
-    if ((err = run(svr)) != srs_success) {
+
+    _srs_server = new SrsServer();
+    if ((err = run(_srs_server)) != srs_success) {
         return srs_error_wrap(err, "run");
     }
     
