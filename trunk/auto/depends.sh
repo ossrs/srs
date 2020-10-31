@@ -316,6 +316,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [[ $SRS_OSX == YES ]]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_*"
     fi
+    # Always alloc on heap, @see https://github.com/ossrs/srs/issues/509#issuecomment-719931676
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMALLOC_STACK"
     # Pass the global extra flags.
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then
       _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
