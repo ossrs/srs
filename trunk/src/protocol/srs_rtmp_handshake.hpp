@@ -40,7 +40,7 @@ extern HMAC_CTX *HMAC_CTX_new(void);
 extern void HMAC_CTX_free(HMAC_CTX *ctx);
 #endif
 
-namespace _srs_internal
+namespace srs_internal
 {
     // The digest key generate size.
     #define SRS_OpensslHashSize 512

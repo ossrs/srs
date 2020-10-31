@@ -66,7 +66,7 @@ using namespace std;
 // the time to cleanup source.
 #define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
 
-int _srs_time_jitter_string2int(std::string time_jitter)
+int srs_time_jitter_string2int(std::string time_jitter)
 {
     if (time_jitter == "full") {
         return SrsRtmpJitterAlgorithmFULL;
@@ -519,7 +519,7 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     count = 0;
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
+        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
         should_update_source_id = false;
     }
     
@@ -2070,13 +2070,10 @@ srs_error_t SrsSource::on_source_id_changed(SrsContextId id)
     if (!_source_id.compare(id)) {
         return err;
     }
-    
+
     if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (_pre_source_id.compare(_source_id)) {
-        _pre_source_id = _source_id;
     }
-    
     _source_id = id;
     
     // notice all consumer
@@ -2559,7 +2556,10 @@ void SrsSource::on_unpublish()
     
     _can_publish = true;
     _source_id = SrsContextId();
-    
+    if (!_source_id.empty()) {
+        _pre_source_id = _source_id;
+    }
+
     // notify the handler.
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();

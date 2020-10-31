@@ -77,6 +77,9 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
 
+// @global main SRS server, for debugging
+SrsServer* _srs_server = NULL;
+
 /**
  * main entrance.
  */

@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_protocol_json.hpp>
 
-using namespace _srs_internal;
+using namespace srs_internal;
 
 // AMF0 marker
 #define RTMP_AMF0_Number                     0x00
@@ -1703,7 +1703,7 @@ srs_error_t srs_amf0_write_undefined(SrsBuffer* stream)
     return err;
 }
 
-namespace _srs_internal
+namespace srs_internal
 {
     srs_error_t srs_amf0_read_utf8(SrsBuffer* stream, string& value)
     {

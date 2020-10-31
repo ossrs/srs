@@ -1141,9 +1141,9 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
-    srs_trace("flv: source url=%s, is_edge=%d, source_id=[%d][%s]",
-        r->get_stream_url().c_str(), vhost_is_edge, ::getpid(), s->source_id().c_str());
-    
+    srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
+        r->get_stream_url().c_str(), vhost_is_edge, s->source_id().c_str(), s->pre_source_id().c_str());
+
     return err;
 }
 

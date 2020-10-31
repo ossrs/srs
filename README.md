@@ -201,6 +201,9 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
+* v3.0, 2020-10-31, Use global _srs_server for debugging. 3.0.151
+* v3.0, 2020-10-31, Refine source cid, track previous one. 3.0.150
 * v3.0, 2020-10-25, Add hls.realtime.conf for low-latency HLS. 3.0.149
 * v3.0, 2020-10-24, Refine script and startup logs. 3.0.148
 * v3.0, 2020-10-23, Allow FFmpeg if exists at /usr/local/bin/ffmpeg. 3.0.147

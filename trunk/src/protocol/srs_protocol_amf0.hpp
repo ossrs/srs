@@ -36,7 +36,7 @@ class SrsAmf0StrictArray;
 class SrsJsonAny;
 
 // internal objects, user should never use it.
-namespace _srs_internal
+namespace srs_internal
 {
     class SrsUnSortedHashtable;
     class SrsAmf0ObjectEOF;
@@ -335,8 +335,8 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-    _srs_internal::SrsUnSortedHashtable* properties;
-    _srs_internal::SrsAmf0ObjectEOF* eof;
+    srs_internal::SrsUnSortedHashtable* properties;
+    srs_internal::SrsAmf0ObjectEOF* eof;
 private:
     friend class SrsAmf0Any;
     /**
@@ -425,8 +425,8 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-    _srs_internal::SrsUnSortedHashtable* properties;
-    _srs_internal::SrsAmf0ObjectEOF* eof;
+    srs_internal::SrsUnSortedHashtable* properties;
+    srs_internal::SrsAmf0ObjectEOF* eof;
     int32_t _count;
 private:
     friend class SrsAmf0Any;
@@ -626,7 +626,7 @@ extern srs_error_t srs_amf0_read_undefined(SrsBuffer* stream);
 extern srs_error_t srs_amf0_write_undefined(SrsBuffer* stream);
 
 // internal objects, user should never use it.
-namespace _srs_internal
+namespace srs_internal
 {
     /**
      * read amf0 string from stream.
