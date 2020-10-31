@@ -2555,10 +2555,10 @@ void SrsSource::on_unpublish()
     srs_trace("cleanup when unpublish");
     
     _can_publish = true;
-    _source_id = SrsContextId();
     if (!_source_id.empty()) {
         _pre_source_id = _source_id;
     }
+    _source_id = SrsContextId();
 
     // notify the handler.
     srs_assert(handler);

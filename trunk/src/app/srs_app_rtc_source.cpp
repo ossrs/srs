@@ -187,7 +187,7 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
     srs_error_t err = srs_success;
 
     if (should_update_source_id) {
-        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
+        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
         should_update_source_id = false;
     }
 
@@ -356,10 +356,7 @@ srs_error_t SrsRtcStream::on_source_id_changed(SrsContextId id)
 
     if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (_pre_source_id.compare(_source_id)) {
-        _pre_source_id = _source_id;
     }
-
     _source_id = id;
 
     // notice all consumer
@@ -472,6 +469,9 @@ void SrsRtcStream::on_unpublish()
     is_created_ = false;
     is_delivering_packets_ = false;
 
+    if (!_source_id.empty()) {
+        _pre_source_id = _source_id;
+    }
     _source_id = SrsContextId();
 
     for (size_t i = 0; i < event_handlers_.size(); i++) {

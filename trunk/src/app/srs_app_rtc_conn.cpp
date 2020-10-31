@@ -543,8 +543,8 @@ srs_error_t SrsRtcPlayStream::cycle()
 
     // TODO: FIXME: Add cost in ms.
     SrsContextId cid = source->source_id();
-    srs_trace("RTC: start play url=%s, source_id=[%d][%s], realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
-        ::getpid(), cid.c_str(), realtime, mw_msgs);
+    srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
+        cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs);
 
     SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
     SrsAutoFree(SrsErrorPithyPrint, epp);
