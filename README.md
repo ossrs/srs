@@ -56,18 +56,14 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 * Usage: How to delivery HTTP-FLV Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307#issuecomment-602193458)
+* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
 * Usage: How to publish SRT(Experimental) to SRS?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
-* Usage: How to transcode to h.264+aac for HLS?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
 * Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
 * Usage: How to enable low lantency live streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 * Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to delivery HLS by SRS HTTP server?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
 * Usage: How to delivery DASH(Experimental)?([CN][v3_CN_SampleDASH], [EN][v3_EN_SampleDASH])
-* Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
 * Usage: How to enable multiple processes? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
-* Usage: Why SRS? What's the milestones? ([CN][v1_CN_Product], [EN][v1_EN_Product])
 * Usage: Want to contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact]) Or file an issue [here](https://github.com/ossrs/srs/issues/new)?
 
 <a name="srs-30-wiki"></a>
@@ -159,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-10-31, Support gdb/srs.py to stat coroutines. 4.0.44
 * v4.0, 2020-09-19, RTC: Extract resource manager. Use any UDP packet to keep alive. 4.0.43
 * v4.0, 2020-09-09, RTC: Refine NACK RTT and efficiency. 4.0.42
 * v4.0, 2020-09-08, Refine PLI/NACK/DTLS logs. 4.0.41
@@ -205,6 +202,14 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
+* v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
+* v3.0, 2020-10-31, Use global _srs_server for debugging. 3.0.151
+* v3.0, 2020-10-31, Refine source cid, track previous one. 3.0.150
+* v3.0, 2020-10-25, Add hls.realtime.conf for low-latency HLS. 3.0.149
+* v3.0, 2020-10-24, Refine script and startup logs. 3.0.148
+* v3.0, 2020-10-23, Allow FFmpeg if exists at /usr/local/bin/ffmpeg. 3.0.147
+* v3.0, 2020-10-23, Refine build script, use libssl in docker. 3.0.146
 * v3.0, 2020-10-14, Fix [#1987][bug #1987], Fix Kbps resample bug. 3.0.145
 * <strong>v3.0, 2020-10-10, [3.0 release1(3.0.144)][r3.0r1] released. 122674 lines.</strong>
 * v3.0, 2020-10-10, Fix [#1780][bug #1780], build fail on Ubuntu20(focal). 3.0.144

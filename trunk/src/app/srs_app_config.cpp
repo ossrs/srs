@@ -57,7 +57,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
 
-using namespace _srs_internal;
+using namespace srs_internal;
 
 // @global the version to identify the core.
 const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
@@ -92,7 +92,7 @@ bool is_common_space(char ch)
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
 }
 
-namespace _srs_internal
+namespace srs_internal
 {
     SrsConfigBuffer::SrsConfigBuffer()
     {
@@ -1987,9 +1987,8 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no log file");
         }
         if (get_log_tank_file()) {
-            srs_trace("write log to file %s", log_filename.c_str());
-            srs_trace("you can: tailf %s", log_filename.c_str());
-            srs_trace("@see: %s", SRS_WIKI_URL_LOG);
+            srs_trace("you can check log by: tail -f %s (@see %s)", log_filename.c_str(), SRS_WIKI_URL_LOG);
+            srs_trace("please check SRS by: ./etc/init.d/srs status");
         } else {
             srs_trace("write log to console");
         }
@@ -3730,9 +3729,8 @@ srs_error_t SrsConfig::check_normal_config()
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "log file is empty");
         }
         if (get_log_tank_file()) {
-            srs_trace("write log to file %s", log_filename.c_str());
-            srs_trace("you can: tailf %s", log_filename.c_str());
-            srs_trace("@see: %s", SRS_WIKI_URL_LOG);
+            srs_trace("you can check log by: tail -f %s (@see %s)", log_filename.c_str(), SRS_WIKI_URL_LOG);
+            srs_trace("please check SRS by: ./etc/init.d/srs status");
         } else {
             srs_trace("write log to console");
         }
@@ -5291,20 +5289,20 @@ int SrsConfig::get_time_jitter(string vhost)
     
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
-        return _srs_time_jitter_string2int(DEFAULT);
+        return srs_time_jitter_string2int(DEFAULT);
     }
     
     conf = conf->get("play");
     if (!conf) {
-        return _srs_time_jitter_string2int(DEFAULT);
+        return srs_time_jitter_string2int(DEFAULT);
     }
     
     conf = conf->get("time_jitter");
     if (!conf || conf->arg0().empty()) {
-        return _srs_time_jitter_string2int(DEFAULT);
+        return srs_time_jitter_string2int(DEFAULT);
     }
     
-    return _srs_time_jitter_string2int(conf->arg0());
+    return srs_time_jitter_string2int(conf->arg0());
 }
 
 bool SrsConfig::get_mix_correct(string vhost)
@@ -7524,15 +7522,15 @@ int SrsConfig::get_dvr_time_jitter(string vhost)
     SrsConfDirective* conf = get_dvr(vhost);
     
     if (!conf) {
-        return _srs_time_jitter_string2int(DEFAULT);
+        return srs_time_jitter_string2int(DEFAULT);
     }
     
     conf = conf->get("time_jitter");
     if (!conf || conf->arg0().empty()) {
-        return _srs_time_jitter_string2int(DEFAULT);
+        return srs_time_jitter_string2int(DEFAULT);
     }
     
-    return _srs_time_jitter_string2int(conf->arg0());
+    return srs_time_jitter_string2int(conf->arg0());
 }
 
 bool SrsConfig::get_http_api_enabled()

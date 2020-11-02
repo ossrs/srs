@@ -347,6 +347,8 @@ else
     echo "Build ST without UDP sendmmsg support."
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
 fi
+# Always alloc on heap, @see https://github.com/ossrs/srs/issues/509#issuecomment-719931676
+_ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMALLOC_STACK"
 # Pass the global extra flags.
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
@@ -475,15 +477,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
-        # For older docker, which does not support SRTP asm optimization.
-        if [[ -f /usr/local/lib64/libssl.a ]]; then
-            (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
-                ln -sf /usr/local/lib64/libssl.a && ln -sf /usr/local/lib64/libcrypto.a &&
-                mkdir -p /usr/local/lib64/pkgconfig && ln -sf /usr/local/lib64/pkgconfig)
-            (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
-                ln -sf /usr/local/include/openssl)
-        fi
-        # Try to use files for openssl 1.0.*
+        # Try to use exists libraries.
         if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a &&
@@ -657,7 +651,7 @@ fi
 # live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
 # Always link the ffmpeg tools if exists.
-if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then
     mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin &&
     ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg &&
     (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
@@ -666,10 +660,11 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
-        echo "Warning: No FFmpeg found at /usr/local/bin/ffmpeg";
-        echo "    please copy it from srs-docker";
-        echo "    or download from http://ffmpeg.org/download.html";
-        echo "    or disable it by --without-ffmpeg";
+        echo -e "${RED}Error: No FFmpeg found at /usr/local/bin/ffmpeg${BLACK}"
+        echo -e "${RED}    Please copy it from srs-docker${BLACK}"
+        echo -e "${RED}    or download from http://ffmpeg.org/download.html${BLACK}"
+        echo -e "${RED}    or disable it by --without-ffmpeg${BLACK}"
+        exit -1;
     fi
     # Always update the links.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then

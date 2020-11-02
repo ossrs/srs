@@ -72,7 +72,7 @@ enum SrsRtmpJitterAlgorithm
     SrsRtmpJitterAlgorithmZERO,
     SrsRtmpJitterAlgorithmOFF
 };
-int _srs_time_jitter_string2int(std::string time_jitter);
+int srs_time_jitter_string2int(std::string time_jitter);
 
 // Time jitter detect and correct, to ensure the rtmp stream is monotonically.
 class SrsRtmpJitter
