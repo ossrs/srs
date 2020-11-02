@@ -130,10 +130,10 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Failed to calculate data size");
         }
 
-        for (int i = 0; i < frame_->nb_samples; i++) {
-            if (size + pcm_size * codec_ctx_->channels <= max) {
-                memcpy(buf + size,frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
-                size += pcm_size * codec_ctx_->channels;
+        for (int i = 0; i < codec_ctx_->channels; i++) {
+            if (size + pcm_size * frame_->nb_samples <= max) {
+                memcpy(buf + size,frame_->data[i],pcm_size * frame_->nb_samples);
+                size += pcm_size * frame_->nb_samples;
             }
         }
     }
