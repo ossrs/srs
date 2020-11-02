@@ -68,6 +68,7 @@ std::string srs_get_sip_session_status_str(SrsGb28181SipSessionStatusType status
 SrsGb28181Device::SrsGb28181Device()
 {
     device_id = ""; 
+    device_name = "";
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
@@ -101,6 +102,8 @@ SrsGb28181SipSession::SrsGb28181SipSession(SrsGb28181SipService *c, SrsSipReques
 
     _fromlen = 0;
     _sip_cseq = 100;
+
+    item_list_sumnum = 0;
 
 }
 
@@ -338,17 +341,40 @@ void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string>
         if  (_device_list.find(id) == _device_list.end()){
             SrsGb28181Device *device = new SrsGb28181Device();
             device->device_id = id;
-            device->device_status = status;
+            if (status.find(",") != std::string::npos) {
+                device->device_status = status.substr(0,status.find(","));
+                device->device_name = status.substr(status.find(",")+1);
+            } else {
+                device->device_status = status;
+                device->device_name = "NONAME";
+            }
             device->invite_status = SrsGb28181SipSessionUnkonw;
             device->invite_time = 0;
             _device_list[id] = device;
 
         }else {
             SrsGb28181Device *device = _device_list[id];
-            device->device_status = status;
+            if (status.find(",") != std::string::npos) {
+                device->device_status = status.substr(0,status.find(","));
+                device->device_name = status.substr(status.find(",")+1);
+            } else {
+                device->device_status = status;
+                device->device_name = "NONAME";
+            }
         }
 
     }
+}
+
+void SrsGb28181SipSession::clear_device_list()
+{
+    //destory all device
+    std::map<std::string, SrsGb28181Device*>::iterator it;
+    for (it = _device_list.begin(); it != _device_list.end(); ++it) {
+        srs_freep(it->second);
+    }
+
+    _device_list.clear();
 }
 
 SrsGb28181Device* SrsGb28181SipSession::get_device_info(std::string chid)
@@ -372,9 +398,30 @@ void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
         obj->set("device_id", SrsJsonAny::str(device->device_id.c_str()));
+        obj->set("device_name", SrsJsonAny::str(device->device_name.c_str()));
         obj->set("device_status", SrsJsonAny::str(device->device_status.c_str()));
         obj->set("invite_status", SrsJsonAny::str(srs_get_sip_session_status_str(device->invite_status).c_str()));
         obj->set("invite_time", SrsJsonAny::integer(device->invite_time/SRS_UTIME_SECONDS));
+    }
+}
+
+void SrsGb28181SipSession::dumpItemList(SrsJsonObject* obj)
+{
+    obj->set("TopDeviceID", SrsJsonAny::str(_session_id.c_str()));
+    obj->set("SumNum", SrsJsonAny::integer(item_list_sumnum));
+    obj->set("RealSumNum", SrsJsonAny::integer(item_list.size()));
+
+    SrsJsonArray* arr = SrsJsonAny::array();
+    obj->set("ItemList", arr);
+    std::map<std::string, std::map<std::string, std::string> >::iterator it;
+    for (it = item_list.begin(); it != item_list.end(); ++it) {
+        std::map<std::string, std::string> device = it->second;
+        SrsJsonObject* obj2 = SrsJsonAny::object();
+        arr->append(obj2);
+        std::map<std::string, std::string>::iterator it2;
+        for (it2 = device.begin(); it2 != device.end(); ++it2) {
+            obj2->set(it2->first, SrsJsonAny::str(it2->second.c_str()));
+        }
     }
 }
 
@@ -419,7 +466,9 @@ srs_error_t SrsGb28181SipService::on_udp_packet(const sockaddr* from, const int 
                    (char*)&address_string, sizeof(address_string),
                    (char*)&port_string, sizeof(port_string),
                    NI_NUMERICHOST|NI_NUMERICSERV)) {
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        srs_warn("gb28181: bad address");
+        return srs_success;
     }
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
@@ -427,7 +476,10 @@ srs_error_t SrsGb28181SipService::on_udp_packet(const sockaddr* from, const int 
     std::string recv_msg(buf, nb_buf);
     srs_error_t err = on_udp_sip(peer_ip, peer_port, recv_msg, (sockaddr*)from, fromlen);
     if (err != srs_success) {
-        return srs_error_wrap(err, "process udp");
+        // return srs_error_wrap(err, "process udp");
+        srs_warn("gb28181: process udp");
+        srs_freep(err);
+        return srs_success;
     }
     return err;
 }
@@ -465,11 +517,11 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "register string split");
         }
 
-        if (serial.at(0) != config->sip_serial){
-            srs_warn("gb28181: client:%s request serial and server serial inconformity(%s:%s)",
-             req->sip_auth_id.c_str(), serial.at(0).c_str(), config->sip_serial.c_str());
-            return  err;
-        }
+        //if (serial.at(0) != config->sip_serial){
+        //    srs_warn("gb28181: client:%s request serial and server serial inconformity(%s:%s)",
+        //     req->sip_auth_id.c_str(), serial.at(0).c_str(), config->sip_serial.c_str());
+        //    return  err;
+        //}
 
         srs_trace("gb28181: request client id=%s peer(%s, %d)", req->sip_auth_id.c_str(), peer_ip.c_str(), peer_port);
         srs_trace("gb28181: %s method=%s, uri=%s, version=%s expires=%d", 
@@ -519,6 +571,24 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             if (req->device_list_map.size() > 0){
                 sip_session->update_device_list(req->device_list_map);
             }
+            if (!strcasecmp(req->content_type.c_str(),"application/manscdp+xml")
+                && req->xml_body_map.find("Response@CmdType") != req->xml_body_map.end()
+                && req->xml_body_map["Response@CmdType"] == "Catalog") {
+                if (req->xml_body_map.find("Response@SumNum") != req->xml_body_map.end()) {
+                    sip_session->item_list_sumnum = atoi(req->xml_body_map["Response@SumNum"].c_str());
+                }
+                std::vector<std::map<std::string, std::string> >::iterator it;
+                for (it = req->item_list.begin(); it != req->item_list.end(); ++it) {
+                    std::map<std::string, std::string> device = *it;
+                    std::map<std::string, std::map<std::string, std::string> >::iterator it2 = sip_session->item_list.find(device["DeviceID"]);
+                    if (it2 != sip_session->item_list.end()) {
+                        sip_session->item_list.erase(it2);
+                        sip_session->item_list[device["DeviceID"]] = device;
+                    } else {
+                        sip_session->item_list[device["DeviceID"]] = device;
+                    }
+                }
+            }
         }
        
     }else if (req->is_invite()) {
@@ -547,6 +617,14 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
             srs_trace("gb28181: INVITE response %s client status=%s", req->sip_auth_id.c_str(), req->status.c_str());
 
             if (req->status == "200") {
+                srs_trace("gb28181: device unique id is %s@%s", sip_session->session_id().c_str(), req->sip_auth_id.c_str());
+                // if srs is external realm, ssrc is generated by source realm rather than srs
+                // so update ssrc to the y line in source realm '200 OK' response
+                // actually, we should do this all the time
+                if (req->y_ssrc != 0) {
+                    _srs_gb28181->update_rtmpmuxer_to_newssrc_by_id(sip_session->session_id()+"@"+req->sip_auth_id, req->y_ssrc);
+                    req->y_ssrc = 0;
+                }
                 send_ack(req, from, fromlen);
                 SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);
                 if (device){
@@ -913,6 +991,31 @@ srs_error_t SrsGb28181SipService::query_sip_session(std::string sid,  SrsJsonArr
             SrsJsonObject* obj = SrsJsonAny::object();
             arr->append(obj);
             sess->dumps(obj);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsGb28181SipService::query_device_list(std::string sid,  SrsJsonArray* arr)
+{
+    srs_error_t err = srs_success;
+
+    if (!sid.empty()){
+        SrsGb28181SipSession* sess = fetch(sid);
+        if (!sess){
+            return srs_error_new(ERROR_GB28181_SESSION_IS_NOTEXIST, "sip session not exist");
+        }
+        SrsJsonObject* obj = SrsJsonAny::object();
+        arr->append(obj);
+        sess->dumpItemList(obj);
+    }else {
+        std::map<std::string, SrsGb28181SipSession*>::iterator it;
+        for (it = sessions.begin(); it != sessions.end(); ++it) {
+            SrsGb28181SipSession* sess = it->second;
+            SrsJsonObject* obj = SrsJsonAny::object();
+            arr->append(obj);
+            sess->dumpItemList(obj);
         }
     }
 

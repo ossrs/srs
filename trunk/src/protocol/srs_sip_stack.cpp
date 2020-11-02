@@ -43,6 +43,66 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_rtsp_stack.hpp>
 
+#include <iconv.h>
+
+/* Code (GB2312 <--> UTF-8) Convert Class */
+class CodeConverter
+{
+private:
+    iconv_t cd;
+public:
+    CodeConverter(const char *pFromCharset, const char *pToCharset)
+    {
+        cd = iconv_open(pToCharset, pFromCharset);
+        if ((iconv_t)(-1) == cd)
+            srs_warn("CodeConverter: iconv_open failed <%s --> %s>", pFromCharset, pToCharset);
+    }
+    ~CodeConverter()
+    {
+        if ((iconv_t)(-1) != cd)
+            iconv_close(cd);
+    }
+    int Convert(char *pInBuf, size_t InLen, char *pOutBuf, size_t OutLen)
+    {
+        return iconv(cd, &pInBuf, (size_t *)&InLen, &pOutBuf, (size_t *)&OutLen);
+    }
+    static bool IsUTF8(const char *pInBuf, int InLen)
+    {
+        if (InLen < 0)
+            return false;
+        int i = 0;
+        int nBytes = 0; //UTF8可用1-6个字节编码
+        unsigned char chr = 0;
+
+        while (i < InLen)
+        {
+            chr = *(pInBuf + i);
+            if (nBytes == 0) //计算字节数
+            {
+                if ((chr & 0x80) != 0)
+                {
+                    while ((chr & 0x80) != 0)
+                    {
+                        chr <<= 1;
+                        nBytes++;
+                    }
+                    if (nBytes < 2 || nBytes > 6)
+                        return false; //第一个字节最少为110x xxxx
+                    nBytes--;         //减去自身占的一个字节
+                }
+            }
+            else //多字节除了第一个字节外剩下的字节
+            {
+                if ((chr & 0xc0) != 0x80)
+                    return false; //剩下的字节都是10xx xxxx的形式
+                nBytes--;
+            }
+            ++i;
+        }
+        return nBytes == 0;
+    }
+};
+
 unsigned int srs_sip_random(int min,int max)  
 {  
     //it is possible to duplicate data with time(0)
@@ -202,6 +262,7 @@ SrsSipRequest::SrsSipRequest()
 
     from_realm = "";
     to_realm = "";
+    y_ssrc = 0;
 }
 
 SrsSipRequest::~SrsSipRequest()
@@ -321,7 +382,7 @@ srs_error_t SrsSipStack::parse_request(SrsSipRequest** preq, const char* recv_ms
     return err;
 }
 
-srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map)
+srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map, std::vector<std::map<std::string, std::string> > &item_list)
 {
     /*
     <?xml version="1.0" encoding="gb2312"?>
@@ -340,7 +401,16 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
     </Info>
     </Notify>
     */
-   
+
+    if (CodeConverter::IsUTF8(xml_msg.c_str(), xml_msg.size()) == false) {
+        char *outBuf = (char *)calloc(1, xml_msg.size() * 2);
+        CodeConverter cc("gb2312", "utf-8");
+        if (cc.Convert((char *)xml_msg.c_str(), xml_msg.size(), (char *)outBuf, xml_msg.size() * 2 - 1) != -1)
+            xml_msg = string(outBuf);
+        if (outBuf)
+            free(outBuf);
+    }
+
     const char* start = xml_msg.c_str();
     const char* end = start + xml_msg.size();
     char* p = (char*)start;
@@ -349,9 +419,11 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
 
     std::string xml_header;
     int xml_layer = 0;
+    int in_item_tag = 0;
 
     //std::map<string, string> json_map;
     std::map<int, string> json_key;
+    std::map<std::string, std::string> one_item;
     while (p < end) {
         if (p[0] == '\n'){
             p +=1;
@@ -409,10 +481,26 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
                     json_map[mkey] = json_map[mkey] + ","+ value;
                 }    
             }
+
+            if (in_item_tag && value != "" && (xml_layer - in_item_tag) == 2) {
+                // (xml_layer - in_item_tag) == 2, this condition filters all deeper tags under tag "Item"
+                one_item[key] = value;
+            }
           
             value_start = NULL;
             xml_layer--;
 
+            if (json_key[xml_layer] == "Item") {
+                // std::map<string, string>::iterator it2;
+                // for (it2 = one_item.begin(); it2 != one_item.end(); ++it2) {
+                //     srs_trace("========one_item========%s:%s", it2->first.c_str(), it2->second.c_str());
+                // }
+                // srs_trace("========one_item end========");
+                in_item_tag = 0;
+                // all items (DeviceList, Alarmstatus, RecordList) have "DeviceID"
+                if (one_item.find("DeviceID") != one_item.end())
+                    item_list.push_back(one_item);
+            }
         } else if (p[0] == '<') { //<Notify>  xml item begin flag
             //skip <
             p +=1;
@@ -443,6 +531,11 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
                 //json_key[0] = "Notify"
                 //json_key[1] = "info"
                 json_key[xml_layer] = key; 
+                if (json_key[xml_layer] == "Item") {
+                    // "Item" won't be the first layer (xml_layer is 0)
+                    in_item_tag = xml_layer;
+                    one_item.clear();
+                }
                 xml_layer++;  
             }
 
@@ -476,7 +569,10 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     std::string body = "";
 
     if (header_body.size() > 1){
-       body =  header_body.at(1);
+       // SRS_RTSP_CRLFCRLF may exist in content body (h3c)
+       string recv_str(recv_msg);
+       body = recv_str.substr(recv_str.find(SRS_RTSP_CRLFCRLF) + strlen(SRS_RTSP_CRLFCRLF));
+       //body =  header_body.at(1);
     }
 
     srs_info("sip: header=%s\n", header.c_str());
@@ -588,15 +684,15 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
    
     std::vector<std::string>  method_uri_ver = srs_string_split(firstline, " ");
 
-    if (method_uri_ver.empty()) {
-        return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse request firstline is empty"); 
+    if (method_uri_ver.empty() || method_uri_ver.size() < 3) {
+        return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse request firstline is empty or less than 3 fields");
     }
 
     //respone first line text:SIP/2.0 200 OK
     if (!strcasecmp(method_uri_ver.at(0).c_str(), "sip/2.0")) {
         req->cmdtype = SrsSipCmdRespone;
         //req->method= vec_seq.at(1);
-        req->status = method_uri_ver.size() > 0 ? method_uri_ver.at(1) : "";
+        req->status = method_uri_ver.size() > 1 ? method_uri_ver.at(1) : "";
         req->version = method_uri_ver.at(0);
         req->uri = req->from;
 
@@ -607,8 +703,8 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     }else {//request first line text :MESSAGE sip:34020000002000000001@3402000000 SIP/2.0
         req->cmdtype = SrsSipCmdRequest;
         req->method= method_uri_ver.at(0);
-        req->uri = method_uri_ver.size() > 0 ? method_uri_ver.at(1) : "";
-        req->version = method_uri_ver.size() > 1 ? method_uri_ver.at(2) : "";
+        req->uri = method_uri_ver.size() > 1 ? method_uri_ver.at(1) : "";
+        req->version = method_uri_ver.size() > 2 ? method_uri_ver.at(2) : "";
 
         vector<string> str = srs_string_split(req->from, "@");
         std::string ss = str.empty() ? "" : str.at(0);
@@ -619,20 +715,20 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
 
     //Content-Type: Application/MANSCDP+xml
     if (!strcasecmp(req->content_type.c_str(),"application/manscdp+xml")){
-        std::map<std::string, std::string> body_map;
         //xml to map
-        if ((err = parse_xml(body, body_map)) != srs_success) {
+        if ((err = parse_xml(body, req->xml_body_map, req->item_list)) != srs_success) {
             return srs_error_wrap(err, "sip parse xml");
         };
         
         //Response Cmd
-        if (body_map.find("Response") != body_map.end()){
-            std::string cmdtype = body_map["Response@CmdType"];
+        if (req->xml_body_map.find("Response") != req->xml_body_map.end()){
+            std::string cmdtype = req->xml_body_map["Response@CmdType"];
             if (cmdtype == "Catalog"){
+                #if 0
                 //Response@DeviceList@Item@DeviceID:3000001,3000002
-                std::vector<std::string> vec_device_id = srs_string_split(body_map["Response@DeviceList@Item@DeviceID"], ",");
+                std::vector<std::string> vec_device_id = srs_string_split(req->xml_body_map["Response@DeviceList@Item@DeviceID"], ",");
                 //Response@DeviceList@Item@Status:ON,OFF
-                std::vector<std::string> vec_device_status = srs_string_split(body_map["Response@DeviceList@Item@Status"], ",");
+                std::vector<std::string> vec_device_status = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Status"], ",");
                  
                 //map key:devicd_id value:status 
                 for(int i=0 ; i< (int)vec_device_id.size(); i++){
@@ -643,16 +739,28 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
               
                     req->device_list_map[vec_device_id.at(i)] = status;
                 }
+                #endif
+                for(int i=0 ; i< (int)req->item_list.size(); i++){
+                    std::map<std::string, std::string> one_item = req->item_list.at(i);
+                    std::string status;
+                    if (one_item.find("Status") != one_item.end() && one_item.find("Name") != one_item.end()) {
+                        status = one_item["Status"] + "," + one_item["Name"];
+                    } else {
+                        // if no Status, it's not a camera but a group
+                        continue;
+                    }
+                    req->device_list_map[one_item["DeviceID"]] = status;
+                }
             }else{
                 //TODO: fixme
                 srs_trace("sip: Response cmdtype=%s not processed", cmdtype.c_str());
             }
         } //Notify Cmd
-        else if (body_map.find("Notify") !=  body_map.end()){
-            std::string cmdtype = body_map["Notify@CmdType"];
+        else if (req->xml_body_map.find("Notify") !=  req->xml_body_map.end()){
+            std::string cmdtype = req->xml_body_map["Notify@CmdType"];
             if (cmdtype == "Keepalive"){
                 //TODO: ????
-                std::vector<std::string> vec_device_id = srs_string_split(body_map["Notify@Info@DeviceID"], ",");
+                std::vector<std::string> vec_device_id = srs_string_split(req->xml_body_map["Notify@Info@DeviceID"], ",");
                 for(int i=0; i< (int)vec_device_id.size(); i++){
                     //req->device_list_map[vec_device_id.at(i)] = "OFF";
                 }
@@ -660,8 +768,20 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                //TODO: fixme
                srs_trace("sip: Notify cmdtype=%s not processed", cmdtype.c_str());
             }
-        }// end if(body_map)
+        }// end if(req->xml_body_map)
     }//end if (!strcasecmp)
+    else if (!strcasecmp(req->content_type.c_str(),"application/sdp")) {
+        std::vector<std::string> sdp_lines = srs_string_split(body.c_str(), SRS_RTSP_CRLF);
+        for(int i=0 ; i< (int)sdp_lines.size(); i++){
+            if (!strncasecmp(sdp_lines.at(i).c_str(), "y=", 2)) {
+                string yline = sdp_lines.at(i);
+                string ssrc = yline.substr(2);
+                req->y_ssrc = strtoul(ssrc.c_str(), NULL, 10);
+                srs_trace("gb28181: ssrc in y line is %u:%x", req->y_ssrc, req->y_ssrc);
+                break;
+            }
+        }
+    }
    
     srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
            req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
