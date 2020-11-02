@@ -1,0 +1,23 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    Vhost-{{vhost.id}}
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    <p>ID: {{vhost.id}}</p>
+                    <p>Name: {{vhost.name}}</p>
+                    <p>Enabled: {{vhost.enabled| sc_filter_enabled}}</p>
+                    <p>Streams: {{vhost.streams}} Clients</p>
+                    <p>Clients: {{vhost.clients}} Clients</p>
+                    <p>Recv: {{vhost.kbps.recv_30s| sc_filter_bitrate_k}}</p>
+                    <p>Send: {{vhost.kbps.send_30s| sc_filter_bitrate_k}}</p>
+                    <p>HLS: {{vhost.hls.enabled| sc_filter_enabled}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
