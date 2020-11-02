@@ -450,6 +450,8 @@ srs_error_t run_directly_or_daemon()
     }
     
     if(pid > 0) {
+        // https://github.com/ossrs/srs/pull/2012/commits/6430bd0a4a38b97e9effeba3ecbe92c9f98d8ebe
+        sleep(3);
         srs_trace("father process exit");
         exit(0);
     }
