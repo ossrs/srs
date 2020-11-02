@@ -1476,11 +1476,12 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_api_response(w, r, obj->dumps());
 
     } else if(action == "delete_channel"){
-       if (id.empty()){
-            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
+        string chid = r->query_get("chid");
+        if (id.empty() || chid.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id or chid");
         }
 
-        if ((err = _srs_gb28181->delete_stream_channel(id)) != srs_success) {
+        if ((err = _srs_gb28181->delete_stream_channel(id, chid)) != srs_success) {
             return srs_error_wrap(err, "delete stream channel");
         }
 
@@ -1573,6 +1574,16 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         }
 
         return srs_api_response_code(w, r, 0);
+    } else if(action == "sip_query_devicelist"){
+        SrsJsonArray* arr = SrsJsonAny::array();
+        data->set("PlatformID", SrsJsonAny::str(_srs_gb28181->get_gb28181_config_ptr()->sip_serial.c_str()));
+        data->set("DeviceList", arr);
+
+        if ((err = _srs_gb28181->query_device_list("", arr)) != srs_success) {
+            return srs_error_wrap(err, "query device list");
+        }
+
+        return srs_api_response(w, r, obj->dumps());
     } else if(action == "sip_query_session"){
         SrsJsonArray* arr = SrsJsonAny::array();
         data->set("sessions", arr);

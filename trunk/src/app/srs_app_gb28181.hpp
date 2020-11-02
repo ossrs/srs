@@ -518,6 +518,7 @@ public:
     srs_error_t fetch_or_create_rtmpmuxer(std::string id, SrsRequest *req, SrsGb28181RtmpMuxer** gb28181);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string id);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer_by_ssrc(uint32_t ssrc);
+    void update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_t ssrc);
     void rtmpmuxer_map_by_ssrc(SrsGb28181RtmpMuxer*muxer, uint32_t ssrc);
     void rtmpmuxer_unmap_by_ssrc(uint32_t ssrc);
     uint32_t generate_ssrc(std::string id);
@@ -525,11 +526,12 @@ public:
 
     void set_sip_service(SrsGb28181SipService *s) { sip_service = s; }
     SrsGb28181SipService* get_sip_service() { return sip_service; }
+    SrsGb28181Config* get_gb28181_config_ptr() { return config;}
 
 public:
     //stream channel api
     srs_error_t create_stream_channel(SrsGb28181StreamChannel *channel);
-    srs_error_t delete_stream_channel(std::string id);
+    srs_error_t delete_stream_channel(std::string id, std::string chid);
     srs_error_t query_stream_channel(std::string id, SrsJsonArray* arr);
     //sip api
     srs_error_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
@@ -539,6 +541,7 @@ public:
     srs_error_t notify_sip_query_catalog(std::string id);
     srs_error_t notify_sip_ptz(std::string id, std::string chid, std::string cmd, uint8_t speed, int priority);
     srs_error_t query_sip_session(std::string id, SrsJsonArray* arr);
+    srs_error_t query_device_list(std::string id, SrsJsonArray* arr);
 
 private:
     void destroy();

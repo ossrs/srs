@@ -215,7 +215,9 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
                 (char*)&address_string, sizeof(address_string),
                 (char*)&port_string, sizeof(port_string),
                 NI_NUMERICHOST|NI_NUMERICSERV)){
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        srs_warn("gb28181 ps rtp: bad address");
+        return srs_success;
     }
     
     int peer_port = atoi(port_string);
@@ -225,7 +227,10 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
         SrsPsRtpPacket pkt;
         
         if ((err = pkt.decode(&stream)) != srs_success) {
-            return srs_error_wrap(err, "ps rtp decode error");
+            // return srs_error_wrap(err, "ps rtp decode error");
+            srs_warn("gb28181 ps rtp: decode error");
+            srs_freep(err);
+            return srs_success;
         }
 
         //TODO: fixme: the same device uses the same SSRC to send with different local ports
@@ -432,7 +437,9 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet_jitter(const sockaddr* from,
                 (char*)&address_string, sizeof(address_string),
                 (char*)&port_string, sizeof(port_string),
                 NI_NUMERICHOST|NI_NUMERICSERV)){
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        srs_warn("gb28181 ps rtp: bad address");
+        return srs_success;
     }
     
     int peer_port = atoi(port_string);
@@ -443,7 +450,10 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet_jitter(const sockaddr* from,
         
         if ((err = pkt->decode(&stream)) != srs_success) {
             srs_freep(pkt);
-            return srs_error_wrap(err, "ps rtp decode error");
+            // return srs_error_wrap(err, "ps rtp decode error");
+            srs_warn("gb28181 ps rtp: decode error");
+            srs_freep(err);
+            return srs_success;
         }
         
         std::stringstream ss3;
@@ -1588,6 +1598,9 @@ void SrsGb28181RtmpMuxer::insert_jitterbuffer(SrsPsRtpPacket *pkt)
     recv_rtp_stream_time = srs_get_system_time();
 
     char *payload = pkt->payload->bytes();
+    if (!payload) {
+        return;
+    }
 
     uint8_t p1 = (uint8_t)(payload[0]);
     uint8_t p2 = (uint8_t)(payload[1]);
@@ -1765,13 +1778,12 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
     std::list<int> list_index;
 
     for(; index < size; index++){
+        if (index > (size-4))
+            break;
         if (video_data[index] == 0x00 && video_data[index+1] == 0x00 &&
              video_data[index+2] == 0x00 && video_data[index+3] == 0x01){
                  list_index.push_back(index);
              }
-
-        if (index > (size-4))
-            break;
     }
 
     if (list_index.size() == 1){
@@ -2153,6 +2165,8 @@ void SrsGb28181RtmpMuxer::close()
     h264_pps = "";
     aac_specific_config = "";
 
+    // BUGFIX: if don't unpublish, it will always be in the /api/v1/streams list
+    //if (source_publish && !source){
     if (source_publish && source){
         source->on_unpublish();
     }
@@ -2345,6 +2359,28 @@ SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer(std::string id)
     
     muxer = rtmpmuxers[id];
     return muxer;
+}
+
+void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_t ssrc)
+{
+    SrsGb28181RtmpMuxer* muxer = NULL;
+
+    if (rtmpmuxers.find(id) == rtmpmuxers.end()) {
+        return;
+    }
+
+    muxer = rtmpmuxers[id];
+    SrsGb28181StreamChannel mc = muxer->get_channel();
+    uint32_t old_ssrc = mc.get_ssrc();
+    if (old_ssrc == ssrc) {
+        return;
+    } else {
+        srs_trace("gb28181: update ssrc of muxer %s from %x to %x", id.c_str(), old_ssrc, ssrc);
+    }
+    rtmpmuxer_unmap_by_ssrc(old_ssrc);
+    mc.set_ssrc(ssrc);
+    muxer->copy_channel(&mc);
+    rtmpmuxer_map_by_ssrc(muxer, ssrc);
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer_by_ssrc(uint32_t ssrc)
@@ -2602,17 +2638,19 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
     return err;
 }
 
-srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id)
+srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id, std::string chid)
 {
     srs_error_t err = srs_success;
 
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
-    notify_sip_bye(id, id);
+    notify_sip_bye(id, chid);
 
-    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(id);
+    string channel_id = id + "@" + chid;
+
+    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(channel_id);
     if (muxer){
-        stop_rtp_listen(id);
+        stop_rtp_listen(channel_id);
         muxer->stop();
        return err;
     }else {
@@ -2727,7 +2765,11 @@ srs_error_t SrsGb28181Manger::notify_sip_unregister(std::string id)
         return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
     sip_service->remove_session(id);
-    return delete_stream_channel(id);
+    return srs_success;
+    // useless, because
+    //   sip session has been removed
+    //   id is not channel id like id@chid
+    //return delete_stream_channel(id);
 }
 
 srs_error_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
@@ -2738,6 +2780,12 @@ srs_error_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
 
     SrsSipRequest req;
     req.sip_auth_id = id;
+    SrsGb28181SipSession *sip_session = sip_service->fetch(req.sip_auth_id);
+    if (sip_session) {
+        sip_session->item_list.clear();
+        sip_session->clear_device_list();
+        srs_trace("notify_sip_query_catalog, clear sip session item and device list");
+    }
     return sip_service->send_query_catalog(&req);
 }
 
@@ -2750,8 +2798,14 @@ srs_error_t SrsGb28181Manger::query_sip_session(std::string id, SrsJsonArray* ar
     return sip_service->query_sip_session(id, arr);
 }
 
+srs_error_t SrsGb28181Manger::query_device_list(std::string id, SrsJsonArray* arr)
+{
+    if (!sip_service){
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
+    }
 
-
+    return sip_service->query_device_list(id, arr);
+}
 
 #define SRS_RTSP_BUFFER 262144
 SrsGb28181Conn::SrsGb28181Conn(SrsGb28181Caster* c, srs_netfd_t fd, SrsGb28181TcpPsRtpProcessor *rtp_processor)
@@ -2970,3 +3024,4 @@ void SrsGb28181Caster::remove(SrsGb28181Conn* conn)
 
 	manager->remove(conn);
 }
+

@@ -59,6 +59,7 @@ public:
     virtual ~SrsGb28181Device();
 public:
     std::string device_id;
+    std::string device_name;
     std::string device_status;
     SrsGb28181SipSessionStatusType  invite_status; 
     srs_utime_t  invite_time;
@@ -132,10 +133,14 @@ public:
     int sip_cseq(){ return _sip_cseq++;}
 
     std::string session_id() { return _session_id;}
+    std::map<std::string, std::map<std::string, std::string> > item_list;
+    int item_list_sumnum;
 public:
     void update_device_list(std::map<std::string, std::string> devlist);
+    void clear_device_list();
     SrsGb28181Device *get_device_info(std::string chid);
     void dumps(SrsJsonObject* obj);
+    void dumpItemList(SrsJsonObject* obj);
 
 public:
     virtual srs_error_t serve();
@@ -201,6 +206,7 @@ public:
     //
     srs_error_t send_sip_raw_data(SrsSipRequest *req, std::string data);
     srs_error_t query_sip_session(std::string sid,  SrsJsonArray* arr);
+    srs_error_t query_device_list(std::string sid,  SrsJsonArray* arr);
 
 public:
     srs_error_t fetch_or_create_sip_session(SrsSipRequest *req,  SrsGb28181SipSession** sess);
