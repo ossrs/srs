@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://gitee.com/winlinvip/codes/rpn0c2ewbomj81augzk4y59
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.21
+ * v 1.0.22
  */
 
 /**
@@ -236,9 +236,9 @@ function parse_query_string(){
 
     // parse the query string.
     var query_string = String(window.location.search).replace(" ", "").split("?")[1];
-    if(query_string == undefined){
+    if(query_string === undefined){
         query_string = String(window.location.hash).replace(" ", "").split("#")[1];
-        if(query_string == undefined){
+        if(query_string === undefined){
             return obj;
         }
     }
@@ -252,7 +252,7 @@ function __fill_query(query_string, obj) {
     // pure user query object.
     obj.user_query = {};
 
-    if (query_string.length == 0) {
+    if (query_string.length === 0) {
         return;
     }
 
@@ -317,7 +317,7 @@ function parse_rtmp_url(rtmp_url) {
 
     // when vhost equals to server, and server is ip,
     // the vhost is __defaultVhost__
-    if (a.hostname == vhost) {
+    if (a.hostname === vhost) {
         var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
         if (re.test(a.hostname)) {
             vhost = "__defaultVhost__";
@@ -338,8 +338,6 @@ function parse_rtmp_url(rtmp_url) {
             port = 443;
         } else if (schema === 'rtmp') {
             port = 1935;
-        } else if (schema === 'webrtc' || schema === 'rtc') {
-            port = (window.location.href.indexOf('https://')==0)? 443:1985;
         }
     }
 
@@ -350,6 +348,19 @@ function parse_rtmp_url(rtmp_url) {
         vhost: vhost, app: app, stream: stream
     };
     __fill_query(a.search, ret);
+
+    // For webrtc API, we use 443 if page is https, or schema specified it.
+    if (!ret.port) {
+        if (schema === 'webrtc' || schema === 'rtc') {
+            if (ret.user_query.schema === 'https') {
+                ret.port = 443;
+            } else if (window.location.href.indexOf('https://') === 0) {
+                ret.port = 443;
+            } else {
+                ret.port = 80;
+            }
+        }
+    }
 
     return ret;
 }

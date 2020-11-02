@@ -539,20 +539,21 @@
 
         var apply_url_change = function() {
             var rtmp = parse_rtmp_url($("#txt_url").val());
-            var url = "http://" + query.host + query.pathname + "?"
+            var schema = window.location.protocol;
+            var url = schema + "//" + query.host + query.pathname + "?"
                 + "app=" + rtmp.app + "&stream=" + rtmp.stream
                 + "&server=" + rtmp.server + "&port=" + rtmp.port
                 + "&autostart=true";
             if (query.shp_identify) {
                 url += "&shp_identify=" + query.shp_identify;
             }
-            if (rtmp.vhost == "__defaultVhost__") {
+            if (rtmp.vhost === "__defaultVhost__") {
                 url += "&vhost=" + rtmp.server;
             } else {
                 url += "&vhost=" + rtmp.vhost;
             }
-            if (rtmp.schema == "http") {
-                url += "&schema=http";
+            if (rtmp.schema !== "rtmp") {
+                url += "&schema=" + rtmp.schema;
             }
             if (query.buffer) {
                 url += "&buffer=" + query.buffer;

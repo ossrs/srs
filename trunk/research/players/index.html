@@ -20,16 +20,19 @@
             update_nav();
 
             var query = parse_query_string();
-            var url = "srs_player.html?vhost=" + srs_get_player_vhost();
-
+            var params = [];
             for (var key in query.user_query) {
-                if (key == "vhost") {
-                    continue;
-                }
-                url += "&" + key + "=" + query[key];
+                params.push(key + "=" + query[key]);
             }
 
-            window.location.href = url;
+            var url = "srs_player.html";
+            if (params.length) {
+                url += '?' + params.join('&');
+            }
+
+            setTimeout(function () {
+                window.location.href = url;
+            }, 0);
         });
     </script>
 </head>

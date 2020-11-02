@@ -244,8 +244,15 @@
 
             if (true) {
                 var urlObject = parse_rtmp_url($("#txt_url").val());
-                var schema = window.location.protocol;
+
+                // If user specifies the schema, use it as API schema.
+                var schema = urlObject.user_query.schema;
+                schema = schema? schema + ':' : window.location.protocol;
+
                 var port = urlObject.port || 1985;
+                if (schema === 'https:') {
+                    port = urlObject.port || 443;
+                }
 
                 // @see https://github.com/rtcdn/rtcdn-draft
                 var api = urlObject.user_query.play || '/rtc/v1/play/';
