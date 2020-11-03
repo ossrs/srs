@@ -1316,7 +1316,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1338,7 +1338,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1360,7 +1360,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
         client.set_recv_timeout(1 * SRS_UTIME_SECONDS);
         client.set_header("agent", "srs");
 
