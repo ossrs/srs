@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-11-03, For [#1657][bug #1657-1], support HTTPS client, for http-callback. 4.0.45
 * v4.0, 2020-10-31, Support gdb/srs.py to stat coroutines. 4.0.44
 * v4.0, 2020-09-19, RTC: Extract resource manager. Use any UDP packet to keep alive. 4.0.43
 * v4.0, 2020-09-09, RTC: Refine NACK RTT and efficiency. 4.0.42
@@ -1781,6 +1782,7 @@ Winlin
 [bug #1636]: https://github.com/ossrs/srs/issues/1636
 [bug #1657]: https://github.com/ossrs/srs/issues/1657
 [bug #1830]: https://github.com/ossrs/srs/issues/1830
+[bug #1657-1]: https://github.com/ossrs/srs/issues/1657#issuecomment-720889906
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

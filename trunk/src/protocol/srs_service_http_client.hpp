@@ -29,6 +29,14 @@
 #include <string>
 #include <map>
 
+#include <openssl/ssl.h>
+
+#ifdef SRS_HTTPS
+#if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
+    #error "For https, we requires openssl 1.0.2+"
+#endif
+#endif
+
 #include <srs_service_st.hpp>
 #include <srs_http_stack.hpp>
 
@@ -42,6 +50,26 @@ class SrsTcpClient;
 
 // The default timeout for http client.
 #define SRS_HTTP_CLIENT_TIMEOUT (30 * SRS_UTIME_SECONDS)
+
+// The SSL client over TCP transport.
+class SrsSslClient : virtual public ISrsReader, virtual public ISrsStreamWriter
+{
+private:
+    SrsTcpClient* transport;
+private:
+    SSL_CTX* ssl_ctx;
+    SSL* ssl;
+    BIO* bio_in;
+    BIO* bio_out;
+public:
+    SrsSslClient(SrsTcpClient* tcp);
+    virtual ~SrsSslClient();
+public:
+    virtual srs_error_t handshake();
+public:
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+};
 
 // The client to GET/POST/PUT/DELETE over HTTP.
 // @remark We will reuse the TCP transport until initialize or channel error,
@@ -64,17 +92,21 @@ private:
     // The timeout in srs_utime_t.
     srs_utime_t timeout;
     srs_utime_t recv_timeout;
-    // The host name or ip.
+    // The schema, host name or ip.
+    std::string schema_;
     std::string host;
     int port;
+private:
+    SrsSslClient* ssl_transport;
 public:
     SrsHttpClient();
     virtual ~SrsHttpClient();
 public:
     // Initliaze the client, disconnect the transport, renew the HTTP parser.
+    // @param schema Should be http or https.
     // @param tm The underlayer TCP transport timeout in srs_utime_t.
     // @remark we will set default values in headers, which can be override by set_header.
-    virtual srs_error_t initialize(std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT);
+    virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT);
     // Set HTTP request header in header[k]=v.
     // @return the HTTP client itself.
     virtual SrsHttpClient* set_header(std::string k, std::string v);
@@ -98,6 +130,8 @@ public:
 private:
     virtual void disconnect();
     virtual srs_error_t connect();
+    ISrsStreamWriter* writer();
+    ISrsReader* reader();
 };
 
 #endif

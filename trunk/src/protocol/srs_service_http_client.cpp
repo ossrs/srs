@@ -35,9 +35,225 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_service_http_conn.hpp>
 
+// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
+// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
+// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
+// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
+// not be terminated with respect to verification failures and the connection will be established. The calling process
+// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
+// its own error storage managed by verify_callback.
+// @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
+int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+    // Always OK, we don't check the certificate of client,
+    // because we allow client self-sign certificate.
+    return 1;
+}
+
+SrsSslClient::SrsSslClient(SrsTcpClient* tcp)
+{
+    transport = tcp;
+    ssl_ctx = NULL;
+    ssl = NULL;
+}
+
+SrsSslClient::~SrsSslClient()
+{
+    if (ssl_ctx) {
+        SSL_CTX_free(ssl_ctx);
+        ssl_ctx = NULL;
+    }
+
+    if (ssl) {
+        // this function will free bio_in and bio_out
+        SSL_free(ssl);
+        ssl = NULL;
+    }
+}
+
+srs_error_t SrsSslClient::handshake()
+{
+    srs_error_t err = srs_success;
+
+    // For HTTPS, try to connect over security transport.
+    SSL_CTX* ssl_ctx = SSL_CTX_new(TLS_method());
+    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, srs_verify_callback);
+    srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);
+
+    // TODO: Setup callback, see SSL_set_ex_data and SSL_set_info_callback
+    if ((ssl = SSL_new(ssl_ctx)) == NULL) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "SSL_new ssl");
+    }
+
+    if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_new in");
+    }
+
+    if ((bio_out = BIO_new(BIO_s_mem())) == NULL) {
+        BIO_free(bio_in);
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_new out");
+    }
+
+    SSL_set_bio(ssl, bio_in, bio_out);
+
+    // SSL setup active, as client role.
+    SSL_set_connect_state(ssl);
+    SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+
+    // Send ClientHello.
+    int r0 = SSL_do_handshake(ssl); int r1 = SSL_get_error(ssl, r0);
+    if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
+    }
+
+    uint8_t* data = NULL;
+    int size = BIO_get_mem_data(bio_out, &data);
+    if (!data || size <= 0) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake data=%p, size=%d", data, size);
+    }
+    if ((err = transport->write(data, size, NULL)) != srs_success) {
+        return srs_error_wrap(err, "handshake: write data=%p, size=%d", data, size);
+    }
+    if ((r0 = BIO_reset(bio_out)) != 1) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_reset r0=%d", r0);
+    }
+
+    srs_trace("https: ClientHello done");
+
+    // Receive ServerHello, Certificate, Server Key Exchange, Server Hello Done
+    while (true) {
+        char buf[512]; ssize_t nn = 0;
+        if ((err = transport->read(buf, sizeof(buf), &nn)) != srs_success) {
+            return srs_error_wrap(err, "handshake: read");
+        }
+
+        if ((r0 = BIO_write(bio_in, buf, nn)) <= 0) {
+            // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+            return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
+        }
+
+        if ((r0 = SSL_do_handshake(ssl)) != -1 || (r1 = SSL_get_error(ssl, r0)) != SSL_ERROR_WANT_READ) {
+            return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
+        }
+
+        if ((size = BIO_get_mem_data(bio_out, &data)) > 0) {
+            // OK, reset it for the next write.
+            if ((r0 = BIO_reset(bio_in)) != 1) {
+                return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_reset r0=%d", r0);
+            }
+            break;
+        }
+    }
+
+    srs_trace("https: ServerHello done");
+
+    // Send Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message
+    if ((err = transport->write(data, size, NULL)) != srs_success) {
+        return srs_error_wrap(err, "handshake: write data=%p, size=%d", data, size);
+    }
+    if ((r0 = BIO_reset(bio_out)) != 1) {
+        return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_reset r0=%d", r0);
+    }
+
+    srs_trace("https: Client done");
+
+    // Receive New Session Ticket, Change Cipher Spec, Encrypted Handshake Message
+    while (true) {
+        char buf[128];
+        ssize_t nn = 0;
+        if ((err = transport->read(buf, sizeof(buf), &nn)) != srs_success) {
+            return srs_error_wrap(err, "handshake: read");
+        }
+
+        if ((r0 = BIO_write(bio_in, buf, nn)) <= 0) {
+            // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+            return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_write r0=%d, data=%p, size=%d", r0, buf, nn);
+        }
+
+        r0 = SSL_do_handshake(ssl); r1 = SSL_get_error(ssl, r0);
+        if (r0 == 1 && r1 == SSL_ERROR_NONE) {
+            break;
+        }
+
+        if (r0 != -1 || r1 != SSL_ERROR_WANT_READ) {
+            return srs_error_new(ERROR_HTTPS_HANDSHAKE, "handshake r0=%d, r1=%d", r0, r1);
+        }
+    }
+
+    srs_trace("https: Server done");
+
+    return err;
+}
+
+srs_error_t SrsSslClient::read(void* plaintext, size_t nn_plaintext, ssize_t* nread)
+{
+    srs_error_t err = srs_success;
+
+    // TODO: Can we avoid copy?
+    int nn_cipher = nn_plaintext;
+    char* cipher = new char[nn_cipher];
+    SrsAutoFreeA(char, cipher);
+
+    ssize_t nn = 0;
+    // Read the cipher from SSL.
+    if ((err = transport->read(cipher, nn_cipher, &nn)) != srs_success) {
+        return srs_error_wrap(err, "https: read");
+    }
+
+    int r0 = BIO_write(bio_in, cipher, nn);
+    if (r0 <= 0) {
+        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+        return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher, nn);
+    }
+
+    r0 = SSL_read(ssl, plaintext, nn);
+    if (r0 <= 0) {
+        return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, cipher=%p, size=%d", r0, cipher, nn);
+    }
+
+    srs_assert(r0 <= nn_plaintext);
+    if (nread) {
+        *nread = r0;
+    }
+
+    return err;
+}
+
+srs_error_t SrsSslClient::write(void* plaintext, size_t nn_plaintext, ssize_t* nwrite)
+{
+    srs_error_t err = srs_success;
+
+    for (char* p = (char*)plaintext; p < (char*)plaintext + nn_plaintext;) {
+        int left = (int)nn_plaintext - (p - (char*)plaintext);
+        int r0 = SSL_write(ssl, (const void*)p, left);
+        int r1 = SSL_get_error(ssl, r0);
+        if (r0 <= 0) {
+            return srs_error_new(ERROR_HTTPS_WRITE, "https: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
+        }
+
+        // Move p to the next writing position.
+        p += r0;
+        if (nwrite) {
+            *nwrite += (ssize_t)r0;
+        }
+
+        uint8_t* data = NULL;
+        int size = BIO_get_mem_data(bio_out, &data);
+        if ((err = transport->write(data, size, NULL)) != srs_success) {
+            return srs_error_wrap(err, "https: write data=%p, size=%d", data, size);
+        }
+        if ((r0 = BIO_reset(bio_out)) != 1) {
+            return srs_error_new(ERROR_HTTPS_WRITE, "BIO_reset r0=%d", r0);
+        }
+    }
+
+    return err;
+}
+
 SrsHttpClient::SrsHttpClient()
 {
     transport = NULL;
+    ssl_transport = NULL;
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     parser = NULL;
@@ -54,7 +270,7 @@ SrsHttpClient::~SrsHttpClient()
     srs_freep(parser);
 }
 
-srs_error_t SrsHttpClient::initialize(string h, int p, srs_utime_t tm)
+srs_error_t SrsHttpClient::initialize(string schema, string h, int p, srs_utime_t tm)
 {
     srs_error_t err = srs_success;
     
@@ -66,6 +282,7 @@ srs_error_t SrsHttpClient::initialize(string h, int p, srs_utime_t tm)
     }
     
     // Always disconnect the transport.
+    schema_ = schema;
     host = h;
     port = p;
     recv_timeout = timeout = tm;
@@ -116,16 +333,16 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
         ss << key << ": " << value << SRS_HTTP_CRLF;
     }
     ss << SRS_HTTP_CRLF << req;
-    
+
     std::string data = ss.str();
-    if ((err = transport->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
+    if ((err = writer()->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
         return srs_error_wrap(err, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((err = parser->parse_message(transport, &msg)) != srs_success) {
+    if ((err = parser->parse_message(reader(), &msg)) != srs_success) {
         return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);
@@ -164,14 +381,14 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage** ppmsg)
     ss << SRS_HTTP_CRLF << req;
     
     std::string data = ss.str();
-    if ((err = transport->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
+    if ((err = writer()->write((void*)data.c_str(), data.length(), NULL)) != srs_success) {
         // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
         return srs_error_wrap(err, "http: write");
     }
     
     ISrsHttpMessage* msg = NULL;
-    if ((err = parser->parse_message(transport, &msg)) != srs_success) {
+    if ((err = parser->parse_message(reader(), &msg)) != srs_success) {
         return srs_error_wrap(err, "http: parse response");
     }
     srs_assert(msg);
@@ -207,6 +424,7 @@ void SrsHttpClient::kbps_sample(const char* label, int64_t age)
 void SrsHttpClient::disconnect()
 {
     kbps->set_io(NULL, NULL);
+    srs_freep(ssl_transport);
     srs_freep(transport);
 }
 
@@ -222,8 +440,8 @@ srs_error_t SrsHttpClient::connect()
     transport = new SrsTcpClient(host, port, timeout);
     if ((err = transport->connect()) != srs_success) {
         disconnect();
-        return srs_error_wrap(err, "http: tcp connect %s:%d to=%dms, rto=%dms",
-            host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
+        return srs_error_wrap(err, "http: tcp connect %s %s:%d to=%dms, rto=%dms",
+            schema_.c_str(), host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
     }
     
     // Set the recv/send timeout in srs_utime_t.
@@ -231,7 +449,40 @@ srs_error_t SrsHttpClient::connect()
     transport->set_send_timeout(timeout);
     
     kbps->set_io(transport, transport);
-    
+
+    if (schema_ != "https") {
+        return err;
+    }
+
+#if !defined(SRS_HTTPS)
+    return srs_error_new(ERROR_HTTPS_NOT_SUPPORTED, "should configure with --https=on");
+#else
+    srs_assert(!ssl_transport);
+    ssl_transport = new SrsSslClient(transport);
+
+    if ((err = ssl_transport->handshake()) != srs_success) {
+        disconnect();
+        return srs_error_wrap(err, "http: ssl connect %s %s:%d to=%dms, rto=%dms",
+            schema_.c_str(), host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
+    }
+
     return err;
+#endif
+}
+
+ISrsStreamWriter* SrsHttpClient::writer()
+{
+    if (ssl_transport) {
+        return ssl_transport;
+    }
+    return transport;
+}
+
+ISrsReader* SrsHttpClient::reader()
+{
+    if (ssl_transport) {
+        return ssl_transport;
+    }
+    return transport;
 }
 

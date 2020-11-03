@@ -324,6 +324,10 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
+#define ERROR_HTTPS_NOT_SUPPORTED           4041
+#define ERROR_HTTPS_HANDSHAKE               4042
+#define ERROR_HTTPS_READ                    4043
+#define ERROR_HTTPS_WRITE                   4044
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.

@@ -40,20 +40,8 @@ using namespace std;
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
-// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
-// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
-// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
-// not be terminated with respect to verification failures and the connection will be established. The calling process
-// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
-// its own error storage managed by verify_callback.
-// @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
-int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-    // Always OK, we don't check the certificate of client,
-    // because we allow client self-sign certificate.
-    return 1;
-}
+// Defined in HTTP/HTTPS client.
+extern int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
 // Print the information of SSL, DTLS alert as such.
 void ssl_on_info(const SSL* dtls, int where, int ret)
@@ -213,6 +201,11 @@ srs_error_t SrsDtlsCertificate::initialize()
     // @see https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_add_ssl_algorithms.html
     // @see https://web.archive.org/web/20150806185102/http://sctp.fh-muenster.de:80/dtls/dtls_udp_echo.c
     OpenSSL_add_ssl_algorithms();
+#else
+    // As of version 1.1.0 OpenSSL will automatically allocate all resources that it needs so no explicit
+    // initialisation is required. Similarly it will also automatically deinitialise as required.
+    // @see https://www.openssl.org/docs/man1.1.0/man3/OPENSSL_init_ssl.html
+    // OPENSSL_init_ssl();
 #endif
 
     // Initialize SRTP first.
@@ -456,6 +449,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     srs_error_t err = srs_success;
 
     int r0 = 0;
+    // TODO: FIXME: Why reset it before writing?
     if ((r0 = BIO_reset(bio_in)) != 1) {
         return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d", r0);
     }
