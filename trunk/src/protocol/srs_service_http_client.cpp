@@ -76,7 +76,11 @@ srs_error_t SrsSslClient::handshake()
     srs_error_t err = srs_success;
 
     // For HTTPS, try to connect over security transport.
+#if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
     SSL_CTX* ssl_ctx = SSL_CTX_new(TLS_method());
+#else
+    SSL_CTX* ssl_ctx = SSL_CTX_new(TLSv1_2_method());
+#endif
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, srs_verify_callback);
     srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);
 
@@ -461,7 +465,7 @@ srs_error_t SrsHttpClient::connect()
     ssl_transport = new SrsSslClient(transport);
 
     srs_utime_t starttime = srs_update_system_time();
-    
+
     if ((err = ssl_transport->handshake()) != srs_success) {
         disconnect();
         return srs_error_wrap(err, "http: ssl connect %s %s:%d to=%dms, rto=%dms",

@@ -495,9 +495,9 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_OSX == YES ]]; then
         export KERNEL_BITS=64;
     fi
-    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    # Default to openssl 1.1, use 1.0 if required.
     OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
-    if [[ $SRS_SRTP_ASM == YES ]]; then
+    if [[ $SRS_SSL_1_0 == YES ]]; then
         OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.

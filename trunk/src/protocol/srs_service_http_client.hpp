@@ -31,12 +31,6 @@
 
 #include <openssl/ssl.h>
 
-#ifdef SRS_HTTPS
-#if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
-    #error "For https, we requires openssl 1.0.2+"
-#endif
-#endif
-
 #include <srs_service_st.hpp>
 #include <srs_http_stack.hpp>
 

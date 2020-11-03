@@ -35,7 +35,8 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
-SRS_HTTPS=NO
+SRS_SSL_1_0=NO
+SRS_HTTPS=YES
 SRS_STAT=YES
 SRS_TRANSCODE=YES
 SRS_HTTP_CALLBACK=YES
@@ -275,6 +276,7 @@ function parse_user_option() {
         --with-ssl)                     SRS_SSL=YES                 ;;
         --ssl)                          if [[ $value == off ]]; then SRS_SSL=NO; else SRS_SSL=YES; fi    ;;
         --https)                        if [[ $value == off ]]; then SRS_HTTPS=NO; else SRS_HTTPS=YES; fi ;;
+        --ssl-1-0)                      if [[ $value == off ]]; then SRS_SSL_1_0=NO; else SRS_SSL_1_0=YES; fi ;;
 
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
@@ -513,6 +515,12 @@ function apply_detail_options() {
         SRS_SRTP_ASM=NO
     fi
 
+    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    if [[ $SRS_SRTP_ASM == YES && $SRS_SSL_1_0 == NO ]]; then
+        echo "Use openssl-1.0 for SRTP ASM."
+        SRS_SSL_1_0=YES
+    fi
+
     if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
         echo "Disable sendmmsg for OSX"
         SRS_SENDMMSG=NO
@@ -530,6 +538,7 @@ function regenerate_options() {
     if [ $SRS_DVR = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=off"; fi
     if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
     if [ $SRS_HTTPS = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=off"; fi
+    if [ $SRS_SSL_1_0 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=off"; fi
     if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
     if [ $SRS_TRANSCODE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=off"; fi
     if [ $SRS_INGEST = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=on"; else          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=off"; fi
