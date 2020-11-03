@@ -118,7 +118,7 @@ srs_error_t SrsSslClient::handshake()
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_reset r0=%d", r0);
     }
 
-    srs_trace("https: ClientHello done");
+    srs_info("https: ClientHello done");
 
     // Receive ServerHello, Certificate, Server Key Exchange, Server Hello Done
     while (true) {
@@ -145,7 +145,7 @@ srs_error_t SrsSslClient::handshake()
         }
     }
 
-    srs_trace("https: ServerHello done");
+    srs_info("https: ServerHello done");
 
     // Send Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message
     if ((err = transport->write(data, size, NULL)) != srs_success) {
@@ -155,7 +155,7 @@ srs_error_t SrsSslClient::handshake()
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "BIO_reset r0=%d", r0);
     }
 
-    srs_trace("https: Client done");
+    srs_info("https: Client done");
 
     // Receive New Session Ticket, Change Cipher Spec, Encrypted Handshake Message
     while (true) {
@@ -180,7 +180,7 @@ srs_error_t SrsSslClient::handshake()
         }
     }
 
-    srs_trace("https: Server done");
+    srs_info("https: Server done");
 
     return err;
 }
@@ -460,11 +460,16 @@ srs_error_t SrsHttpClient::connect()
     srs_assert(!ssl_transport);
     ssl_transport = new SrsSslClient(transport);
 
+    srs_utime_t starttime = srs_update_system_time();
+    
     if ((err = ssl_transport->handshake()) != srs_success) {
         disconnect();
         return srs_error_wrap(err, "http: ssl connect %s %s:%d to=%dms, rto=%dms",
             schema_.c_str(), host.c_str(), port, srsu2msi(timeout), srsu2msi(recv_timeout));
     }
+
+    int cost = srsu2msi(srs_update_system_time() - starttime);
+    srs_trace("https: connected to %s://%s:%d, cost=%dms", schema_.c_str(), host.c_str(), port, cost);
 
     return err;
 #endif
