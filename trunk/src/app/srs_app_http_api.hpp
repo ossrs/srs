@@ -254,6 +254,7 @@ public:
 };
 #endif
 
+// TODO: FIXME: Refine arch, change to use SrsTcpConnection
 class SrsHttpApi : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
 {
 private:

@@ -110,7 +110,7 @@ private:
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
 class SrsTcpConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
-    , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler
+    , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler, virtual public ISrsStartable
 {
 protected:
     // Each connection start a green thread,
@@ -143,6 +143,8 @@ public:
 public:
     // To dipose the connection.
     virtual void dispose();
+// Interface ISrsStartable
+public:
     // Start the client green thread.
     // when server get a client from listener,
     // 1. server will create an concrete connection(for instance, RTMP connection),
@@ -151,6 +153,7 @@ public:
     // when client cycle thread stop, invoke the on_thread_stop(), which will use server
     // To remove the client by server->remove(this).
     virtual srs_error_t start();
+public:
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
@@ -161,10 +164,6 @@ public:
     // when serve connection completed, terminate the loop which will terminate the thread,
     // thread will invoke the on_thread_stop() when it terminated.
     virtual srs_error_t cycle();
-public:
-    // Get the srs id which identify the client.
-    // TODO: FIXME: Rename to cid.
-    virtual SrsContextId srs_id();
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();

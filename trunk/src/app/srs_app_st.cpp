@@ -40,6 +40,14 @@ ISrsCoroutineHandler::~ISrsCoroutineHandler()
 {
 }
 
+ISrsStartable::ISrsStartable()
+{
+}
+
+ISrsStartable::~ISrsStartable()
+{
+}
+
 SrsCoroutine::SrsCoroutine()
 {
 }

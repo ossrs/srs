@@ -39,6 +39,7 @@ class SrsRequest;
 class SrsTcpConnection;
 class SrsJsonObject;
 class SrsJsonArray;
+class ISrsKbpsDelta;
 
 struct SrsStatisticVhost
 {
@@ -211,11 +212,10 @@ public:
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
     // TODO: FIXME: We should not use context id as client id.
-    virtual void on_disconnect(SrsContextId id);
+    virtual void on_disconnect(const SrsContextId& id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
-    // TODO: FIXME: the add delta must use ISrsKbpsDelta interface instead.
-    virtual void kbps_add_delta(SrsTcpConnection* conn);
+    virtual void kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
     // @return the server kbps.
     virtual SrsKbps* kbps_sample();

@@ -1462,11 +1462,12 @@ void SrsServer::resample_kbps()
     
     // collect delta from all clients.
     for (int i = 0; i < (int)conn_manager->size(); i++) {
-        SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(conn_manager->at(i));
+        ISrsResource* c = conn_manager->at(i);
+        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(conn_manager->at(i));
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        stat->kbps_add_delta(conn);
+        stat->kbps_add_delta(c->get_id(), conn);
     }
     
     // TODO: FXME: support all other connections.
@@ -1481,22 +1482,21 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
     
-    SrsTcpConnection* conn = NULL;
+    ISrsResource* r = NULL;
     
-    if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
+    if ((err = fd_to_resource(type, stfd, &r)) != srs_success) {
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
             srs_close_stfd(stfd); srs_error_reset(err);
             return srs_success;
         }
-        return srs_error_wrap(err, "fd2conn");
+        return srs_error_wrap(err, "fd to resource");
     }
-    srs_assert(conn);
+    srs_assert(r);
     
     // directly enqueue, the cycle thread will remove the client.
-    conn_manager->add(conn);
-    
-    // cycle will start process thread and when finished remove the client.
-    // @remark never use the conn, for it maybe destroyed.
+    conn_manager->add(r);
+
+    ISrsStartable* conn = dynamic_cast<ISrsStartable*>(r);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
@@ -1509,7 +1509,7 @@ SrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpConnection** pconn)
+srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr)
 {
     srs_error_t err = srs_success;
     
@@ -1549,11 +1549,11 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpCon
     }
     
     if (type == SrsListenerRtmpStream) {
-        *pconn = new SrsRtmpConn(this, stfd, ip, port);
+        *pr = new SrsRtmpConn(this, stfd, ip, port);
     } else if (type == SrsListenerHttpApi) {
-        *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip, port);
+        *pr = new SrsHttpApi(this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpStream) {
-        *pconn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip, port);
+        *pr = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip, port);
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
         srs_close_stfd(stfd);
@@ -1565,11 +1565,11 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsTcpCon
 
 void SrsServer::remove(ISrsResource* c)
 {
-    SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
+    ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(c);
 
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(conn);
-    stat->on_disconnect(conn->srs_id());
+    stat->kbps_add_delta(c->get_id(), conn);
+    stat->on_disconnect(c->get_id());
     
     // use manager to free it async.
     conn_manager->remove(c);

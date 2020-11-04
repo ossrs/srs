@@ -55,6 +55,7 @@ class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
 // The http connection which request the static or stream content.
+// TODO: FIXME: Refine arch, change to use SrsTcpConnection
 class SrsHttpConn : public SrsTcpConnection
 {
 protected:

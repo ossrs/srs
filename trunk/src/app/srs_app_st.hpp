@@ -68,14 +68,23 @@ public:
     virtual srs_error_t cycle() = 0;
 };
 
+// Start the object, generally a croutine.
+class ISrsStartable
+{
+public:
+    ISrsStartable();
+    virtual ~ISrsStartable();
+public:
+    virtual srs_error_t start() = 0;
+};
+
 // The corotine object.
-class SrsCoroutine
+class SrsCoroutine : public ISrsStartable
 {
 public:
     SrsCoroutine();
     virtual ~SrsCoroutine();
 public:
-    virtual srs_error_t start() = 0;
     virtual void stop() = 0;
     virtual void interrupt() = 0;
     // @return a copy of error, which should be freed by user.

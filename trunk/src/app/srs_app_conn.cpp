@@ -484,11 +484,6 @@ srs_error_t SrsTcpConnection::cycle()
     return srs_success;
 }
 
-SrsContextId SrsTcpConnection::srs_id()
-{
-    return trd->cid();
-}
-
 string SrsTcpConnection::remote_ip()
 {
     return ip;

@@ -83,6 +83,7 @@ public:
 };
 
 // The client provides the main logic control for RTMP clients.
+// TODO: FIXME: Refine arch, change to use SrsTcpConnection
 class SrsRtmpConn : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
 {
     // For the thread to directly access any field of connection.
