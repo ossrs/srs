@@ -314,6 +314,14 @@ void SrsResourceManager::dispose(ISrsResource* c)
     srs_freep(c);
 }
 
+ISrsStartableConneciton::ISrsStartableConneciton()
+{
+}
+
+ISrsStartableConneciton::~ISrsStartableConneciton()
+{
+}
+
 SrsTcpConnection::SrsTcpConnection(ISrsResourceManager* cm, srs_netfd_t c, string cip, int cport)
 {
     manager = cm;

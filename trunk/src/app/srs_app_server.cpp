@@ -1482,21 +1482,20 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
     
-    ISrsResource* r = NULL;
+    ISrsStartableConneciton* conn = NULL;
     
-    if ((err = fd_to_resource(type, stfd, &r)) != srs_success) {
+    if ((err = fd_to_resource(type, stfd, &conn)) != srs_success) {
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
             srs_close_stfd(stfd); srs_error_reset(err);
             return srs_success;
         }
         return srs_error_wrap(err, "fd to resource");
     }
-    srs_assert(r);
+    srs_assert(conn);
     
     // directly enqueue, the cycle thread will remove the client.
-    conn_manager->add(r);
+    conn_manager->add(conn);
 
-    ISrsStartable* conn = dynamic_cast<ISrsStartable*>(r);
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
@@ -1509,7 +1508,7 @@ SrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsResource** pr)
+srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr)
 {
     srs_error_t err = srs_success;
     
@@ -1565,7 +1564,7 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
 
 void SrsServer::remove(ISrsResource* c)
 {
-    ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(c);
+    ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
 
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(c->get_id(), conn);

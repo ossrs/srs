@@ -106,11 +106,20 @@ private:
     void dispose(ISrsResource* c);
 };
 
+// Interface for connection that is startable.
+class ISrsStartableConneciton : virtual public ISrsConnection
+    , virtual public ISrsStartable, virtual public ISrsKbpsDelta
+{
+public:
+    ISrsStartableConneciton();
+    virtual ~ISrsStartableConneciton();
+};
+
 // The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsTcpConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
-    , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler, virtual public ISrsStartable
+class SrsTcpConnection : virtual public ISrsStartableConneciton
+    , virtual public ISrsReloadHandler, virtual public ISrsCoroutineHandler
 {
 protected:
     // Each connection start a green thread,
