@@ -118,6 +118,7 @@ public:
     virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
+    virtual srs_error_t process_requests(SrsRequest** preq);
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     // When the connection disconnect, call this method.

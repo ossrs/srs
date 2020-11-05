@@ -164,9 +164,6 @@ srs_error_t SrsHttpConn::do_cycle()
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
     skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT);
-    
-    SrsRequest* last_req = NULL;
-    SrsAutoFree(SrsRequest, last_req);
 
     // initialize parser
     if ((err = parser->initialize(HTTP_REQUEST)) != srs_success) {
@@ -177,50 +174,12 @@ srs_error_t SrsHttpConn::do_cycle()
     if ((err = handler_->on_start()) != srs_success) {
         return srs_error_wrap(err, "start");
     }
-    
-    // process http messages.
-    for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
-        // get a http message
-        ISrsHttpMessage* req = NULL;
-        if ((err = parser->parse_message(skt, &req)) != srs_success) {
-            break;
-        }
-        
-        // if SUCCESS, always NOT-NULL.
-        // always free it in this scope.
-        srs_assert(req);
-        SrsAutoFree(ISrsHttpMessage, req);
-        
-        // Attach owner connection to message.
-        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
-        hreq->set_connection(this);
-        
-        // copy request to last request object.
-        srs_freep(last_req);
-        last_req = hreq->to_request(hreq->host());
 
-        // may should discard the body.
-        SrsHttpResponseWriter writer(skt);
-        if ((err = handler_->on_http_message(req, &writer)) != srs_success) {
-            break;
-        }
-        
-        // ok, handle http request.
-        if ((err = process_request(&writer, req)) != srs_success) {
-            break;
-        }
+    SrsRequest* last_req = NULL;
+    SrsAutoFree(SrsRequest, last_req);
 
-        // After the request is processed.
-        if ((err = handler_->on_message_done(req, &writer)) != srs_success) {
-            break;
-        }
-        
-        // donot keep alive, disconnect it.
-        // @see https://github.com/ossrs/srs/issues/399
-        if (!req->is_keep_alive()) {
-            break;
-        }
-    }
+    // process all http messages.
+    err = process_requests(&last_req);
     
     srs_error_t r0 = srs_success;
     if ((r0 = on_disconnect(last_req)) != srs_success) {
@@ -228,6 +187,60 @@ srs_error_t SrsHttpConn::do_cycle()
         srs_freep(r0);
     }
     
+    return err;
+}
+
+srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
+{
+    srs_error_t err = srs_success;
+
+    for (int req_id = 0; ; req_id++) {
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "pull");
+        }
+
+        // get a http message
+        ISrsHttpMessage* req = NULL;
+        if ((err = parser->parse_message(skt, &req)) != srs_success) {
+            return srs_error_wrap(err, "parse message");
+        }
+
+        // if SUCCESS, always NOT-NULL.
+        // always free it in this scope.
+        srs_assert(req);
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        // Attach owner connection to message.
+        SrsHttpMessage* hreq = (SrsHttpMessage*)req;
+        hreq->set_connection(this);
+
+        // copy request to last request object.
+        srs_freep(*preq);
+        *preq = hreq->to_request(hreq->host());
+
+        // may should discard the body.
+        SrsHttpResponseWriter writer(skt);
+        if ((err = handler_->on_http_message(req, &writer)) != srs_success) {
+            return srs_error_wrap(err, "on http message");
+        }
+
+        // ok, handle http request.
+        if ((err = process_request(&writer, req)) != srs_success) {
+            return srs_error_wrap(err, "process request");
+        }
+
+        // After the request is processed.
+        if ((err = handler_->on_message_done(req, &writer)) != srs_success) {
+            return srs_error_wrap(err, "on message done");
+        }
+
+        // donot keep alive, disconnect it.
+        // @see https://github.com/ossrs/srs/issues/399
+        if (!req->is_keep_alive()) {
+            break;
+        }
+    }
+
     return err;
 }
 
