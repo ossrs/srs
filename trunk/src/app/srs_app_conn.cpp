@@ -93,7 +93,7 @@ srs_error_t SrsResourceManager::cycle()
 {
     srs_error_t err = srs_success;
 
-    srs_trace("%s connection manager run", label_.c_str());
+    srs_trace("%s: connection manager run", label_.c_str());
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -183,10 +183,11 @@ void SrsResourceManager::remove(ISrsResource* c)
 
 void SrsResourceManager::do_remove(ISrsResource* c)
 {
-    SrsContextRestore(cid_);
+    SrsContextRestore(_srs_context->get_id());
     if (verbose_) {
         _srs_context->set_id(c->get_id());
-        srs_trace("before dispose resource(%s), zombies=%d", c->desc().c_str(), (int)zombies_.size());
+        srs_trace("%s: before dispose resource(%s), zombies=%d",
+            label_.c_str(), c->desc().c_str(), (int)zombies_.size());
     }
 
     // Only notify when not removed(in zombies_).
@@ -215,7 +216,7 @@ void SrsResourceManager::do_remove(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "ignore before-dispose for %p", h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose for %p", label_.c_str(), h);
             continue;
         }
 
@@ -234,7 +235,7 @@ void SrsResourceManager::clear()
 
     SrsContextRestore(cid_);
     if (verbose_) {
-        srs_trace("clear zombies=%d connections", (int)zombies_.size());
+        srs_trace("%s: clear zombies=%d connections", label_.c_str(), (int)zombies_.size());
     }
 
     // Clear all unsubscribing handlers, if not removing any resource.
@@ -262,8 +263,8 @@ void SrsResourceManager::do_clear()
 
         if (verbose_) {
             _srs_context->set_id(conn->get_id());
-            srs_trace("disposing resource(%s), zombies=%d/%d", conn->desc().c_str(),
-                (int)copy.size(), (int)zombies_.size());
+            srs_trace("%s: disposing resource(%s), zombies=%d/%d", label_.c_str(),
+                conn->desc().c_str(), (int)copy.size(), (int)zombies_.size());
         }
 
         dispose(conn);
@@ -304,7 +305,7 @@ void SrsResourceManager::dispose(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "ignore disposing for %p", h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing for %p", label_.c_str(), h);
             continue;
         }
 

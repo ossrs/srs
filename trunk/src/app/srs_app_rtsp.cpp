@@ -722,7 +722,7 @@ SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
-    manager = new SrsResourceManager("CasterRTSP");
+    manager = new SrsResourceManager("CRTSP");
 }
 
 SrsRtspCaster::~SrsRtspCaster()

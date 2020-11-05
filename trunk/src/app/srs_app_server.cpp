@@ -656,7 +656,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = new SrsSignalManager(this);
-    conn_manager = new SrsResourceManager("RTMP/API");
+    conn_manager = new SrsResourceManager("TCP", true);
     
     handler = NULL;
     ppid = ::getppid();

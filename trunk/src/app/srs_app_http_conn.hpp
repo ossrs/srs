@@ -61,6 +61,8 @@ public:
     ISrsHttpConnOwner();
     virtual ~ISrsHttpConnOwner();
 public:
+    // When start the coroutine to process connection.
+    virtual srs_error_t on_start() = 0;
     // Handle the HTTP message msg, which may be parsed partially.
     // For the static service or api, discard any body.
     // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
@@ -166,6 +168,7 @@ public:
     virtual srs_error_t on_reload_http_stream_crossdomain();
 // Interface ISrsHttpConnOwner.
 public:
+    virtual srs_error_t on_start();
     virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
     virtual void on_conn_done();
 // Extract APIs from SrsTcpConnection.

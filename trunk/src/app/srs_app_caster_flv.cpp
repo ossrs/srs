@@ -49,7 +49,7 @@ SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
     output = _srs_config->get_stream_caster_output(c);
-    manager = new SrsResourceManager("CasterFLV");
+    manager = new SrsResourceManager("CFLV");
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()
@@ -257,6 +257,11 @@ srs_error_t SrsDynamicHttpConn::on_reload_http_stream_crossdomain()
 {
     bool v = _srs_config->get_http_stream_crossdomain();
     return conn->set_crossdomain_enabled(v);
+}
+
+srs_error_t SrsDynamicHttpConn::on_start()
+{
+    return srs_success;
 }
 
 srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* msg)

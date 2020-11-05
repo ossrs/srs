@@ -1689,6 +1689,11 @@ SrsHttpApi::~SrsHttpApi()
     srs_freep(conn);
 }
 
+srs_error_t SrsHttpApi::on_start()
+{
+    return srs_success;
+}
+
 srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* req)
 {
     srs_error_t err = srs_success;

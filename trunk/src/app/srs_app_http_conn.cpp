@@ -81,7 +81,7 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpSer
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     kbps->set_io(skt, skt);
-    trd = new SrsSTCoroutine("http", this);
+    trd = new SrsSTCoroutine("http", this, _srs_context->get_id());
 }
 
 SrsHttpConn::~SrsHttpConn()
@@ -159,6 +159,11 @@ srs_error_t SrsHttpConn::cycle()
 srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
+
+    // Notify the handler that we are starting to process the connection.
+    if ((err = handler_->on_start()) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
     
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
@@ -354,6 +359,11 @@ srs_error_t SrsResponseOnlyHttpConn::on_reload_http_stream_crossdomain()
 {
     bool v = _srs_config->get_http_stream_crossdomain();
     return conn->set_crossdomain_enabled(v);
+}
+
+srs_error_t SrsResponseOnlyHttpConn::on_start()
+{
+    return srs_success;
 }
 
 srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* msg)

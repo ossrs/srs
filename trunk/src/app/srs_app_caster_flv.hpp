@@ -99,6 +99,7 @@ public:
     virtual srs_error_t on_reload_http_stream_crossdomain();
 // Interface ISrsHttpConnOwner.
 public:
+    virtual srs_error_t on_start();
     virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
     virtual void on_conn_done();
 // Interface ISrsResource.
