@@ -67,6 +67,8 @@ public:
     // For the static service or api, discard any body.
     // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
+    // When message is processed, we may need to do more things.
+    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
     // When connection is destroy, should use manager to dispose it.
     // The r0 is the original error, we will use the returned new error.
     virtual srs_error_t on_conn_done(srs_error_t r0) = 0;
@@ -171,6 +173,7 @@ public:
 public:
     virtual srs_error_t on_start();
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
     virtual srs_error_t on_conn_done(srs_error_t r0);
 // Extract APIs from SrsTcpConnection.
 public:

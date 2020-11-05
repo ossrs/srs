@@ -269,6 +269,11 @@ srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttpRespo
     return srs_success;
 }
 
+srs_error_t SrsDynamicHttpConn::on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
+{
+    return srs_success;
+}
+
 srs_error_t SrsDynamicHttpConn::on_conn_done(srs_error_t r0)
 {
     // Because we use manager to manage this object,

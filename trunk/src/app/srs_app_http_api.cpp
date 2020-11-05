@@ -1708,6 +1708,13 @@ srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWrite
     //SrsHttpHeader* hdr = w->header();
     //hdr->set("Connection", "Close");
 
+    return err;
+}
+
+srs_error_t SrsHttpApi::on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
+{
+    srs_error_t err = srs_success;
+
     // read all rest bytes in request body.
     char buf[SRS_HTTP_READ_CACHE_BYTES];
     ISrsHttpResponseReader* br = r->body_reader();

@@ -209,6 +209,11 @@ srs_error_t SrsHttpConn::do_cycle()
         if ((err = process_request(&writer, req)) != srs_success) {
             break;
         }
+
+        // After the request is processed.
+        if ((err = handler_->on_message_done(req, &writer)) != srs_success) {
+            break;
+        }
         
         // donot keep alive, disconnect it.
         // @see https://github.com/ossrs/srs/issues/399
@@ -384,6 +389,11 @@ srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttp
     }
     
     return err;
+}
+
+srs_error_t SrsResponseOnlyHttpConn::on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
+{
+    return srs_success;
 }
 
 srs_error_t SrsResponseOnlyHttpConn::on_conn_done(srs_error_t r0)
