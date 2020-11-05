@@ -225,8 +225,8 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
         }
 
         // ok, handle http request.
-        if ((err = process_request(&writer, req)) != srs_success) {
-            return srs_error_wrap(err, "process request");
+        if ((err = process_request(&writer, req, req_id)) != srs_success) {
+            return srs_error_wrap(err, "process request=%d", req_id);
         }
 
         // After the request is processed.
@@ -244,12 +244,12 @@ srs_error_t SrsHttpConn::process_requests(SrsRequest** preq)
     return err;
 }
 
-srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int rid)
 {
     srs_error_t err = srs_success;
     
-    srs_trace("HTTP %s:%d %s %s, content-length=%" PRId64 "",
-        ip.c_str(), port, r->method_str().c_str(), r->url().c_str(), r->content_length());
+    srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip.c_str(), port,
+        r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use cors server mux to serve http request, which will proxy to http_remux.
     if ((err = cors->serve_http(w, r)) != srs_success) {

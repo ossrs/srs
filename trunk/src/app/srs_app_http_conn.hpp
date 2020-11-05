@@ -119,8 +119,7 @@ public:
 private:
     virtual srs_error_t do_cycle();
     virtual srs_error_t process_requests(SrsRequest** preq);
-private:
-    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int rid);
     // When the connection disconnect, call this method.
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
