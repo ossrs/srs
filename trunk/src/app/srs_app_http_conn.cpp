@@ -59,15 +59,15 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-ISrsHttpMessageHandler::ISrsHttpMessageHandler()
+ISrsHttpConnOwner::ISrsHttpConnOwner()
 {
 }
 
-ISrsHttpMessageHandler::~ISrsHttpMessageHandler()
+ISrsHttpConnOwner::~ISrsHttpConnOwner()
 {
 }
 
-SrsHttpConn::SrsHttpConn(ISrsHttpMessageHandler* handler, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
+SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
@@ -184,7 +184,7 @@ srs_error_t SrsHttpConn::do_cycle()
     return err;
 }
 
-ISrsHttpMessageHandler* SrsHttpConn::handler()
+ISrsHttpConnOwner* SrsHttpConn::handler()
 {
     return handler_;
 }

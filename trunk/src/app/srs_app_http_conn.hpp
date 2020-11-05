@@ -54,12 +54,12 @@ class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
-// The handler for HTTP message.
-class ISrsHttpMessageHandler
+// The owner of HTTP connection.
+class ISrsHttpConnOwner
 {
 public:
-    ISrsHttpMessageHandler();
-    virtual ~ISrsHttpMessageHandler();
+    ISrsHttpConnOwner();
+    virtual ~ISrsHttpConnOwner();
 public:
     // Handle the HTTP message msg, which may be parsed partially.
     // For the static service or api, discard any body.
@@ -77,7 +77,7 @@ protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
-    ISrsHttpMessageHandler* handler_;
+    ISrsHttpConnOwner* handler_;
 protected:
     SrsTcpConnection* skt;
     // Each connection start a green thread,
@@ -97,7 +97,7 @@ private:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsHttpConn(ISrsHttpMessageHandler* handler, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
 // Interface ISrsResource.
 public:
@@ -109,7 +109,7 @@ private:
     virtual srs_error_t do_cycle();
 public:
     // Get the HTTP message handler.
-    virtual ISrsHttpMessageHandler* handler();
+    virtual ISrsHttpConnOwner* handler();
     // Whether the connection coroutine is error or terminated.
     virtual srs_error_t pull();
 private:
@@ -143,7 +143,7 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpMessageHandler
+class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
 {
 private:
     // The manager object to manage the connection.
@@ -160,7 +160,7 @@ public:
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
-// Interface ISrsHttpMessageHandler.
+// Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
     virtual void on_conn_done();

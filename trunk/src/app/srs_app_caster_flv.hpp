@@ -72,7 +72,7 @@ public:
 };
 
 // The dynamic http connection, never drop the body.
-class SrsDynamicHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpMessageHandler
+class SrsDynamicHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
 {
 private:
     // The manager object to manage the connection.
@@ -93,7 +93,7 @@ public:
 private:
     virtual srs_error_t do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
 // Extract APIs from SrsTcpConnection.
-// Interface ISrsHttpMessageHandler.
+// Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
     virtual void on_conn_done();
