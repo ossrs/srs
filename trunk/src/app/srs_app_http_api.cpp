@@ -1700,13 +1700,17 @@ srs_error_t SrsHttpApi::on_start()
     return err;
 }
 
-srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* req)
+srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
 {
     srs_error_t err = srs_success;
 
+    // TODO: For each API session, we use short-term HTTP connection.
+    //SrsHttpHeader* hdr = w->header();
+    //hdr->set("Connection", "Close");
+
     // read all rest bytes in request body.
     char buf[SRS_HTTP_READ_CACHE_BYTES];
-    ISrsHttpResponseReader* br = req->body_reader();
+    ISrsHttpResponseReader* br = r->body_reader();
     while (!br->eof()) {
         if ((err = br->read(buf, SRS_HTTP_READ_CACHE_BYTES, NULL)) != srs_success) {
             return srs_error_wrap(err, "read response");

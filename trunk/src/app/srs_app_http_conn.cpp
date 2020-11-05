@@ -200,14 +200,14 @@ srs_error_t SrsHttpConn::do_cycle()
         // copy request to last request object.
         srs_freep(last_req);
         last_req = hreq->to_request(hreq->host());
-        
+
         // may should discard the body.
-        if ((err = handler_->on_http_message(req)) != srs_success) {
+        SrsHttpResponseWriter writer(skt);
+        if ((err = handler_->on_http_message(req, &writer)) != srs_success) {
             break;
         }
         
         // ok, handle http request.
-        SrsHttpResponseWriter writer(skt);
         if ((err = process_request(&writer, req)) != srs_success) {
             break;
         }
@@ -365,14 +365,14 @@ srs_error_t SrsResponseOnlyHttpConn::on_start()
     return srs_success;
 }
 
-srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* msg)
+srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
 {
     srs_error_t err = srs_success;
     
-    ISrsHttpResponseReader* br = msg->body_reader();
+    ISrsHttpResponseReader* br = r->body_reader();
 
     // when not specified the content length, ignore.
-    if (msg->content_length() == -1) {
+    if (r->content_length() == -1) {
         return err;
     }
 

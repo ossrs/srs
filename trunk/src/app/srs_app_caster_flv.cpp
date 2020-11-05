@@ -264,7 +264,7 @@ srs_error_t SrsDynamicHttpConn::on_start()
     return srs_success;
 }
 
-srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* msg)
+srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
 {
     return srs_success;
 }

@@ -63,10 +63,10 @@ public:
 public:
     // When start the coroutine to process connection.
     virtual srs_error_t on_start() = 0;
-    // Handle the HTTP message msg, which may be parsed partially.
+    // Handle the HTTP message r, which may be parsed partially.
     // For the static service or api, discard any body.
     // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
-    virtual srs_error_t on_http_message(ISrsHttpMessage* msg) = 0;
+    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
     // When connection is destroy, should use manager to dispose it.
     virtual void on_conn_done() = 0;
 };
@@ -169,7 +169,7 @@ public:
 // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_start();
-    virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
+    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
     virtual void on_conn_done();
 // Extract APIs from SrsTcpConnection.
 public:
