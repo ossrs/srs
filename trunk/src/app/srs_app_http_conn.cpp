@@ -59,18 +59,38 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
-    : SrsTcpConnection(cm, fd, cip, port)
+SrsHttpConn::SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
     http_mux = m;
+
+    skt = new SrsTcpConnection2(fd);
+    manager = cm;
+    ip = cip;
+    port = cport;
+    create_time = srsu2ms(srs_get_system_time());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
+    kbps->set_io(skt, skt);
+    trd = new SrsSTCoroutine("http", this);
+
+    _srs_config->subscribe(this);
 }
 
 SrsHttpConn::~SrsHttpConn()
 {
+    _srs_config->unsubscribe(this);
+
+    trd->interrupt();
+    srs_freep(trd);
+
     srs_freep(parser);
     srs_freep(cors);
+
+    srs_freep(kbps);
+    srs_freep(clk);
+    srs_freep(skt);
 }
 
 std::string SrsHttpConn::desc()
@@ -80,7 +100,7 @@ std::string SrsHttpConn::desc()
 
 void SrsHttpConn::remark(int64_t* in, int64_t* out)
 {
-    // TODO: FIXME: implements it
+    kbps->remark(in, out);
 }
 
 srs_error_t SrsHttpConn::do_cycle()
@@ -190,6 +210,80 @@ srs_error_t SrsHttpConn::on_reload_http_stream_crossdomain()
     return err;
 }
 
+srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)
+{
+    return skt->set_tcp_nodelay(v);
+}
+
+srs_error_t SrsHttpConn::set_socket_buffer(srs_utime_t buffer_v)
+{
+    return skt->set_socket_buffer(buffer_v);
+}
+
+srs_error_t SrsHttpConn::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
+    }
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpConn::cycle()
+{
+    srs_error_t err = do_cycle();
+
+    // Notify manager to remove it.
+    manager->remove(this);
+
+    // success.
+    if (err == srs_success) {
+        srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
+
+    // client close peer.
+    // TODO: FIXME: Only reset the error when client closed it.
+    if (srs_is_client_gracefully_close(err)) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+    } else {
+        srs_error("serve error %s", srs_error_desc(err).c_str());
+    }
+
+    srs_freep(err);
+    return srs_success;
+}
+
+string SrsHttpConn::remote_ip()
+{
+    return ip;
+}
+
+const SrsContextId& SrsHttpConn::get_id()
+{
+    return trd->cid();
+}
+
+void SrsHttpConn::expire()
+{
+    trd->interrupt();
+}
+
 SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
 {
 }
@@ -201,15 +295,9 @@ SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
     srs_error_t err = srs_success;
-    
-    SrsStSocket skt;
-
-    if ((err = skt.initialize(stfd)) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
 
     // Check user interrupt by interval.
-    skt.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    skt->set_recv_timeout(3 * SRS_UTIME_SECONDS);
 
     // drop all request body.
     char body[4096];
@@ -218,7 +306,7 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
             return srs_error_wrap(err, "timeout");
         }
 
-        if ((err = skt.read(body, 4096, NULL)) != srs_success) {
+        if ((err = skt->read(body, 4096, NULL)) != srs_success) {
             // Because we use timeout to check trd state, so we should ignore any timeout.
             if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
                 srs_freep(err);
@@ -243,7 +331,8 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
         return err;
     }
 
-    // drop all request body.
+    // Drop all request body.
+    // TODO: Should we set timeout for max reading?
     char body[4096];
     while (!br->eof()) {
         if ((err = br->read(body, 4096, NULL)) != srs_success) {

@@ -254,13 +254,33 @@ public:
 };
 #endif
 
-// TODO: FIXME: Refine arch, change to use SrsTcpConnection
-class SrsHttpApi : virtual public SrsTcpConnection, virtual public ISrsReloadHandler
+// Handle the HTTP API request.
+class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
+    , virtual public ISrsCoroutineHandler
 {
 private:
     SrsHttpParser* parser;
     SrsHttpCorsMux* cors;
     SrsHttpServeMux* mux;
+private:
+    SrsTcpConnection2* skt;
+    // Each connection start a green thread,
+    // when thread stop, the connection will be delete by server.
+    SrsCoroutine* trd;
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager;
+    // The ip and port of client.
+    std::string ip;
+    int port;
+    // The connection total kbps.
+    // not only the rtmp or http connection, all type of connection are
+    // need to statistic the kbps of io.
+    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
+    SrsKbps* kbps;
+    SrsWallClock* clk;
+    // The create time in milliseconds.
+    // for current connection to log self create time and calculate the living time.
+    int64_t create_time;
 public:
     SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
@@ -270,13 +290,34 @@ public:
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
-protected:
+private:
     virtual srs_error_t do_cycle();
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_api_crossdomain();
+// Extract APIs from SrsTcpConnection.
+// Interface ISrsStartable
+public:
+    // Start the client green thread.
+    // when server get a client from listener,
+    // 1. server will create an concrete connection(for instance, RTMP connection),
+    // 2. then add connection to its connection manager,
+    // 3. start the client thread by invoke this start()
+    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
+    // To remove the client by server->remove(this).
+    virtual srs_error_t start();
+// Interface ISrsOneCycleThreadHandler
+public:
+    // The thread cycle function,
+    // when serve connection completed, terminate the loop which will terminate the thread,
+    // thread will invoke the on_thread_stop() when it terminated.
+    virtual srs_error_t cycle();
+// Interface ISrsConnection.
+public:
+    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
 };
 
 #endif

@@ -97,7 +97,7 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(srs_netfd_t stfd)
 
 void SrsAppCasterFlv::remove(ISrsResource* c)
 {
-    SrsTcpConnection* conn = dynamic_cast<SrsTcpConnection*>(c);
+    SrsHttpConn* conn = dynamic_cast<SrsHttpConn*>(c);
     
     std::vector<SrsHttpConn*>::iterator it;
     if ((it = std::find(conns.begin(), conns.end(), conn)) != conns.end()) {

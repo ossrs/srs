@@ -852,7 +852,7 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         if (!client) {
             return srs_api_response_code(w, r, ERROR_RTMP_CLIENT_NOT_FOUND);
         }
-        
+
         client->conn->expire();
         srs_warn("kickoff client id=%s ok", client_id.c_str());
     } else {
@@ -1674,22 +1674,38 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
-SrsHttpApi::SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port)
-    : SrsTcpConnection(cm, fd, cip, port)
+SrsHttpApi::SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int cport)
 {
     mux = m;
     cors = new SrsHttpCorsMux();
     parser = new SrsHttpParser();
+
+    skt = new SrsTcpConnection2(fd);
+    manager = cm;
+    ip = cip;
+    port = cport;
+    create_time = srsu2ms(srs_get_system_time());
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
+    kbps->set_io(skt, skt);
+    trd = new SrsSTCoroutine("api", this);
     
     _srs_config->subscribe(this);
 }
 
 SrsHttpApi::~SrsHttpApi()
 {
+    _srs_config->unsubscribe(this);
+
+    trd->interrupt();
+    srs_freep(trd);
+
     srs_freep(parser);
     srs_freep(cors);
-    
-    _srs_config->unsubscribe(this);
+
+    srs_freep(kbps);
+    srs_freep(clk);
+    srs_freep(skt);
 }
 
 std::string SrsHttpApi::desc()
@@ -1699,7 +1715,7 @@ std::string SrsHttpApi::desc()
 
 void SrsHttpApi::remark(int64_t* in, int64_t* out)
 {
-    // TODO: FIXME: implements it
+    kbps->remark(in, out);
 }
 
 srs_error_t SrsHttpApi::do_cycle()
@@ -1802,5 +1818,64 @@ srs_error_t SrsHttpApi::on_reload_http_api_crossdomain()
     }
     
     return err;
+}
+
+srs_error_t SrsHttpApi::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
+    }
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpApi::cycle()
+{
+    srs_error_t err = do_cycle();
+
+    // Notify manager to remove it.
+    manager->remove(this);
+
+    // success.
+    if (err == srs_success) {
+        srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
+
+    // client close peer.
+    // TODO: FIXME: Only reset the error when client closed it.
+    if (srs_is_client_gracefully_close(err)) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+    } else {
+        srs_error("serve error %s", srs_error_desc(err).c_str());
+    }
+
+    srs_freep(err);
+    return srs_success;
+}
+
+string SrsHttpApi::remote_ip()
+{
+    return ip;
+}
+
+const SrsContextId& SrsHttpApi::get_id()
+{
+    return trd->cid();
 }
 

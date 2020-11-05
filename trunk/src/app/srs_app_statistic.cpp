@@ -422,7 +422,7 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
-srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsTcpConnection* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 

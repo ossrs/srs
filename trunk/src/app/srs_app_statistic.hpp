@@ -36,7 +36,7 @@
 class SrsKbps;
 class SrsWallClock;
 class SrsRequest;
-class SrsTcpConnection;
+class ISrsExpire;
 class SrsJsonObject;
 class SrsJsonArray;
 class ISrsKbpsDelta;
@@ -110,8 +110,8 @@ public:
 struct SrsStatisticClient
 {
 public:
+    ISrsExpire* conn;
     SrsStatisticStream* stream;
-    SrsTcpConnection* conn;
     SrsRequest* req;
     SrsRtmpConnType type;
     std::string id;
@@ -206,7 +206,7 @@ public:
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
     // TODO: FIXME: We should not use context id as client id.
-    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, SrsTcpConnection* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not

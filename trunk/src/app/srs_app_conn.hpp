@@ -106,6 +106,18 @@ private:
     void dispose(ISrsResource* c);
 };
 
+// If a connection is able to be expired,
+// user can use HTTP-API to kick-off it.
+class ISrsExpire
+{
+public:
+    ISrsExpire();
+    virtual ~ISrsExpire();
+public:
+    // Set connection to expired to kick-off it.
+    virtual void expire() = 0;
+};
+
 // Interface for connection that is startable.
 class ISrsStartableConneciton : virtual public ISrsConnection
     , virtual public ISrsStartable, virtual public ISrsKbpsDelta
@@ -119,7 +131,7 @@ public:
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
 class SrsTcpConnection : virtual public ISrsStartableConneciton
-    , virtual public ISrsReloadHandler, virtual public ISrsCoroutineHandler
+    , virtual public ISrsReloadHandler, virtual public ISrsCoroutineHandler, virtual public ISrsExpire
 {
 protected:
     // Each connection start a green thread,
@@ -183,6 +195,40 @@ public:
 protected:
     // For concrete connection to do the cycle.
     virtual srs_error_t do_cycle() = 0;
+};
+
+// The basic connection of SRS, for TCP based protocols,
+// all connections accept from listener must extends from this base class,
+// server will add the connection to manager, and delete it when remove.
+class SrsTcpConnection2 : virtual public ISrsProtocolReadWriter
+{
+private:
+    // The underlayer st fd handler.
+    srs_netfd_t stfd;
+    // The underlayer socket.
+    SrsStSocket* skt;
+public:
+    SrsTcpConnection2(srs_netfd_t c);
+    virtual ~SrsTcpConnection2();
+public:
+    virtual srs_error_t initialize();
+public:
+    // Set socket option TCP_NODELAY.
+    virtual srs_error_t set_tcp_nodelay(bool v);
+    // Set socket option SO_SNDBUF in srs_utime_t.
+    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
+// Interface ISrsProtocolReadWriter
+public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 #endif

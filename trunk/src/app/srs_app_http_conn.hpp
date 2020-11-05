@@ -55,13 +55,33 @@ class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
 // The http connection which request the static or stream content.
-// TODO: FIXME: Refine arch, change to use SrsTcpConnection
-class SrsHttpConn : public SrsTcpConnection
+class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
+    , virtual public ISrsCoroutineHandler, virtual public ISrsExpire
 {
 protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
+protected:
+    SrsTcpConnection2* skt;
+    // Each connection start a green thread,
+    // when thread stop, the connection will be delete by server.
+    SrsCoroutine* trd;
+    // The ip and port of client.
+    std::string ip;
+    int port;
+private:
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager;
+    // The connection total kbps.
+    // not only the rtmp or http connection, all type of connection are
+    // need to statistic the kbps of io.
+    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
+    SrsKbps* kbps;
+    SrsWallClock* clk;
+    // The create time in milliseconds.
+    // for current connection to log self create time and calculate the living time.
+    int64_t create_time;
 public:
     SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
@@ -87,6 +107,35 @@ private:
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_stream_crossdomain();
+// Extract APIs from SrsTcpConnection.
+public:
+    // Set socket option TCP_NODELAY.
+    virtual srs_error_t set_tcp_nodelay(bool v);
+    // Set socket option SO_SNDBUF in srs_utime_t.
+    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
+// Interface ISrsStartable
+public:
+    // Start the client green thread.
+    // when server get a client from listener,
+    // 1. server will create an concrete connection(for instance, RTMP connection),
+    // 2. then add connection to its connection manager,
+    // 3. start the client thread by invoke this start()
+    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
+    // To remove the client by server->remove(this).
+    virtual srs_error_t start();
+// Interface ISrsOneCycleThreadHandler
+public:
+    // The thread cycle function,
+    // when serve connection completed, terminate the loop which will terminate the thread,
+    // thread will invoke the on_thread_stop() when it terminated.
+    virtual srs_error_t cycle();
+// Interface ISrsConnection.
+public:
+    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+// Interface ISrsExpire.
+public:
+    virtual void expire();
 };
 
 // Drop body of request, only process the response.
