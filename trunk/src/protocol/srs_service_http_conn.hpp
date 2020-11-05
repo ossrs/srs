@@ -67,8 +67,9 @@ public:
 public:
     // initialize the http parser with specified type,
     // one parser can only parse request or response messages.
-    // @param allow_jsonp whether allow jsonp parser, which indicates the method in query string.
-    virtual srs_error_t initialize(enum http_parser_type type, bool allow_jsonp = false);
+    virtual srs_error_t initialize(enum http_parser_type type);
+    // Whether allow jsonp parser, which indicates the method in query string.
+    virtual void set_jsonp(bool allow_jsonp);
     // always parse a http message,
     // that is, the *ppmsg always NOT-NULL when return success.
     // or error and *ppmsg must be NULL.

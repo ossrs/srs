@@ -281,7 +281,7 @@ srs_error_t SrsHttpClient::initialize(string schema, string h, int p, srs_utime_
     srs_freep(parser);
     parser = new SrsHttpParser();
     
-    if ((err = parser->initialize(HTTP_RESPONSE, false)) != srs_success) {
+    if ((err = parser->initialize(HTTP_RESPONSE)) != srs_success) {
         return srs_error_wrap(err, "http: init parser");
     }
     

@@ -633,7 +633,7 @@ VOID TEST(HTTPServerTest, ContentLength)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -661,7 +661,7 @@ VOID TEST(HTTPServerTest, HTTPChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -690,7 +690,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
         SrsAutoFree(ISrsHttpMessage, msg);
 
@@ -717,7 +717,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -745,7 +745,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -758,7 +758,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -771,7 +771,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -793,7 +793,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 

@@ -159,11 +159,6 @@ srs_error_t SrsHttpConn::cycle()
 srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
-
-    // Notify the handler that we are starting to process the connection.
-    if ((err = handler_->on_start()) != srs_success) {
-        return srs_error_wrap(err, "start");
-    }
     
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
@@ -171,6 +166,16 @@ srs_error_t SrsHttpConn::do_cycle()
     
     SrsRequest* last_req = NULL;
     SrsAutoFree(SrsRequest, last_req);
+
+    // initialize parser
+    if ((err = parser->initialize(HTTP_REQUEST)) != srs_success) {
+        return srs_error_wrap(err, "init parser for %s", ip.c_str());
+    }
+
+    // Notify the handler that we are starting to process the connection.
+    if ((err = handler_->on_start()) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
     
     // process http messages.
     for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
@@ -268,14 +273,8 @@ srs_error_t SrsHttpConn::set_crossdomain_enabled(bool v)
 
 srs_error_t SrsHttpConn::set_jsonp(bool v)
 {
-    srs_error_t err = srs_success;
-
-    // initialize parser
-    if ((err = parser->initialize(HTTP_REQUEST, v)) != srs_success) {
-        return srs_error_wrap(err, "init parser for %s", ip.c_str());
-    }
-
-    return err;
+    parser->set_jsonp(v);
+    return srs_success;
 }
 
 srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)

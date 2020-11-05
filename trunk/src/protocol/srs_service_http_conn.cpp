@@ -52,11 +52,11 @@ SrsHttpParser::~SrsHttpParser()
     srs_freep(header);
 }
 
-srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
+srs_error_t SrsHttpParser::initialize(enum http_parser_type type)
 {
     srs_error_t err = srs_success;
 
-    jsonp = allow_jsonp;
+    jsonp = false;
     type_ = type;
 
     // Initialize the parser, however it's not necessary.
@@ -73,6 +73,11 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
     settings.on_message_complete = on_message_complete;
     
     return err;
+}
+
+void SrsHttpParser::set_jsonp(bool allow_jsonp)
+{
+    jsonp = allow_jsonp;
 }
 
 srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg)

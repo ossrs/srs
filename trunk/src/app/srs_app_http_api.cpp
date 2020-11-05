@@ -1691,7 +1691,13 @@ SrsHttpApi::~SrsHttpApi()
 
 srs_error_t SrsHttpApi::on_start()
 {
-    return srs_success;
+    srs_error_t err = srs_success;
+
+    if ((err = conn->set_jsonp(true)) != srs_success) {
+        return srs_error_wrap(err, "set jsonp");
+    }
+
+    return err;
 }
 
 srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* req)
@@ -1740,10 +1746,6 @@ srs_error_t SrsHttpApi::start()
     bool v = _srs_config->get_http_api_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
-    }
-
-    if ((err = conn->set_jsonp(true)) != srs_success) {
-        return srs_error_wrap(err, "set jsonp");
     }
 
     return conn->start();
