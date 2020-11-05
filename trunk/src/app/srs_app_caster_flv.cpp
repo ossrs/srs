@@ -149,10 +149,14 @@ SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, 
     conn = new SrsHttpConn(this, fd, m, cip, cport);
     ip = cip;
     port = cport;
+
+    _srs_config->subscribe(this);
 }
 
 SrsDynamicHttpConn::~SrsDynamicHttpConn()
 {
+    _srs_config->unsubscribe(this);
+
     srs_freep(conn);
     srs_freep(sdk);
     srs_freep(pprint);
@@ -249,6 +253,12 @@ srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecod
     return err;
 }
 
+srs_error_t SrsDynamicHttpConn::on_reload_http_stream_crossdomain()
+{
+    bool v = _srs_config->get_http_stream_crossdomain();
+    return conn->set_crossdomain_enabled(v);
+}
+
 srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* msg)
 {
     return srs_success;
@@ -278,6 +288,13 @@ const SrsContextId& SrsDynamicHttpConn::get_id()
 
 srs_error_t SrsDynamicHttpConn::start()
 {
+    srs_error_t err = srs_success;
+
+    bool v = _srs_config->get_http_stream_crossdomain();
+    if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
+        return srs_error_wrap(err, "set cors=%d", v);
+    }
+
     return conn->start();
 }
 

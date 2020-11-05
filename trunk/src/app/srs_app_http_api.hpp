@@ -26,7 +26,6 @@
 
 #include <srs_core.hpp>
 
-class SrsStSocket;
 class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
@@ -36,6 +35,7 @@ class SrsJsonObject;
 class SrsSdp;
 class SrsRequest;
 class ISrsHttpResponseWriter;
+class SrsHttpConn;
 
 #include <string>
 
@@ -43,6 +43,7 @@ class ISrsHttpResponseWriter;
 #include <srs_app_conn.hpp>
 #include <srs_http_stack.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_app_http_conn.hpp>
 
 extern srs_error_t srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json);
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int code);
@@ -255,45 +256,26 @@ public:
 #endif
 
 // Handle the HTTP API request.
-class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
-    , virtual public ISrsCoroutineHandler
+class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
+    , virtual public ISrsReloadHandler
 {
 private:
-    SrsHttpParser* parser;
-    SrsHttpCorsMux* cors;
-    SrsHttpServeMux* mux;
-private:
-    SrsTcpConnection* skt;
-    // Each connection start a green thread,
-    // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd;
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
-    // The ip and port of client.
-    std::string ip;
-    int port;
-    // The connection total kbps.
-    // not only the rtmp or http connection, all type of connection are
-    // need to statistic the kbps of io.
-    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
-    SrsKbps* kbps;
-    SrsWallClock* clk;
-    // The create time in milliseconds.
-    // for current connection to log self create time and calculate the living time.
-    int64_t create_time;
+    SrsHttpConn* conn;
 public:
     SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
+// Interface ISrsHttpConnOwner.
+public:
+    virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
+    virtual void on_conn_done();
 // Interface ISrsResource.
 public:
     virtual std::string desc();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
-private:
-    virtual srs_error_t do_cycle();
-private:
-    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_api_crossdomain();
@@ -308,12 +290,6 @@ public:
     // when client cycle thread stop, invoke the on_thread_stop(), which will use server
     // To remove the client by server->remove(this).
     virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
-public:
-    // The thread cycle function,
-    // when serve connection completed, terminate the loop which will terminate the thread,
-    // thread will invoke the on_thread_stop() when it terminated.
-    virtual srs_error_t cycle();
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();

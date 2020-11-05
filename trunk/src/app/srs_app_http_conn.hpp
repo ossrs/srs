@@ -70,8 +70,8 @@ public:
 };
 
 // The http connection which request the static or stream content.
-class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
-    , virtual public ISrsCoroutineHandler, virtual public ISrsExpire
+class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsCoroutineHandler
+    , virtual public ISrsExpire
 {
 protected:
     SrsHttpParser* parser;
@@ -112,15 +112,16 @@ public:
     virtual ISrsHttpConnOwner* handler();
     // Whether the connection coroutine is error or terminated.
     virtual srs_error_t pull();
+    // Whether enable the CORS(cross-domain).
+    virtual srs_error_t set_crossdomain_enabled(bool v);
+    // Whether enable the JSONP.
+    virtual srs_error_t set_jsonp(bool v);
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     // When the connection disconnect, call this method.
     // e.g. log msg of connection and report to other system.
     // @param request: request which is converted by the last http message.
     virtual srs_error_t on_disconnect(SrsRequest* req);
-// Interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_http_stream_crossdomain();
 // Extract APIs from SrsTcpConnection.
 public:
     // Set socket option TCP_NODELAY.
@@ -144,6 +145,7 @@ public:
 
 // Drop body of request, only process the response.
 class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
+    , virtual public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.
@@ -160,6 +162,9 @@ public:
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
+// Interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_http_stream_crossdomain();
 // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_http_message(ISrsHttpMessage* msg);

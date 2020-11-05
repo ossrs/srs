@@ -82,14 +82,10 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpSer
     kbps = new SrsKbps(clk);
     kbps->set_io(skt, skt);
     trd = new SrsSTCoroutine("http", this);
-
-    _srs_config->subscribe(this);
 }
 
 SrsHttpConn::~SrsHttpConn()
 {
-    _srs_config->unsubscribe(this);
-
     trd->interrupt();
     srs_freep(trd);
 
@@ -115,23 +111,12 @@ srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    // initialize parser
-    if ((err = parser->initialize(HTTP_REQUEST, false)) != srs_success) {
-        return srs_error_wrap(err, "init parser for %s", ip.c_str());
-    }
-    
     // set the recv timeout, for some clients never disconnect the connection.
     // @see https://github.com/ossrs/srs/issues/398
     skt->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT);
     
     SrsRequest* last_req = NULL;
     SrsAutoFree(SrsRequest, last_req);
-    
-    // initialize the cors, which will proxy to mux.
-    bool crossdomain_enabled = _srs_config->get_http_stream_crossdomain();
-    if ((err = cors->initialize(http_mux, crossdomain_enabled)) != srs_success) {
-        return srs_error_wrap(err, "init cors");
-    }
     
     // process http messages.
     for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
@@ -194,6 +179,30 @@ srs_error_t SrsHttpConn::pull()
     return trd->pull();
 }
 
+srs_error_t SrsHttpConn::set_crossdomain_enabled(bool v)
+{
+    srs_error_t err = srs_success;
+
+    // initialize the cors, which will proxy to mux.
+    if ((err = cors->initialize(http_mux, v)) != srs_success) {
+        return srs_error_wrap(err, "init cors");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpConn::set_jsonp(bool v)
+{
+    srs_error_t err = srs_success;
+
+    // initialize parser
+    if ((err = parser->initialize(HTTP_REQUEST, v)) != srs_success) {
+        return srs_error_wrap(err, "init parser for %s", ip.c_str());
+    }
+
+    return err;
+}
+
 srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
@@ -213,19 +222,6 @@ srs_error_t SrsHttpConn::on_disconnect(SrsRequest* req)
 {
     // TODO: FIXME: Implements it.
     return srs_success;
-}
-
-srs_error_t SrsHttpConn::on_reload_http_stream_crossdomain()
-{
-    srs_error_t err = srs_success;
-    
-    // initialize the cors, which will proxy to mux.
-    bool crossdomain_enabled = _srs_config->get_http_stream_crossdomain();
-    if ((err = cors->initialize(http_mux, crossdomain_enabled)) != srs_success) {
-        return srs_error_wrap(err, "init mux");
-    }
-    
-    return err;
 }
 
 srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)
@@ -307,10 +303,14 @@ SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_ne
     manager = cm;
     conn = new SrsHttpConn(this, fd, m, cip, port);
     stfd = fd;
+
+    _srs_config->subscribe(this);
 }
 
 SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 {
+    _srs_config->unsubscribe(this);
+
     srs_freep(conn);
 }
 
@@ -348,6 +348,12 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
     }
     
     return err;
+}
+
+srs_error_t SrsResponseOnlyHttpConn::on_reload_http_stream_crossdomain()
+{
+    bool v = _srs_config->get_http_stream_crossdomain();
+    return conn->set_crossdomain_enabled(v);
 }
 
 srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* msg)
@@ -407,6 +413,13 @@ const SrsContextId& SrsResponseOnlyHttpConn::get_id()
 
 srs_error_t SrsResponseOnlyHttpConn::start()
 {
+    srs_error_t err = srs_success;
+
+    bool v = _srs_config->get_http_stream_crossdomain();
+    if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
+        return srs_error_wrap(err, "set cors=%d", v);
+    }
+
     return conn->start();
 }
 
