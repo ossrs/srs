@@ -1442,6 +1442,7 @@ srs_error_t SrsRtmpConn::cycle()
     srs_error_t err = do_cycle();
 
     // Notify manager to remove it.
+    // Note that we create this object, so we use manager to remove it.
     manager->remove(this);
 
     // success.

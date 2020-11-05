@@ -54,6 +54,21 @@ class SrsHttpMessage;
 class SrsHttpStreamServer;
 class SrsHttpStaticServer;
 
+// The handler for HTTP message.
+class ISrsHttpMessageHandler
+{
+public:
+    ISrsHttpMessageHandler();
+    virtual ~ISrsHttpMessageHandler();
+public:
+    // Handle the HTTP message msg, which may be parsed partially.
+    // For the static service or api, discard any body.
+    // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
+    virtual srs_error_t on_http_message(ISrsHttpMessage* msg) = 0;
+    // When connection is destroy, should use manager to dispose it.
+    virtual void on_conn_done() = 0;
+};
+
 // The http connection which request the static or stream content.
 class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
     , virtual public ISrsCoroutineHandler, virtual public ISrsExpire
@@ -62,6 +77,7 @@ protected:
     SrsHttpParser* parser;
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
+    ISrsHttpMessageHandler* handler_;
 protected:
     SrsTcpConnection* skt;
     // Each connection start a green thread,
@@ -71,8 +87,6 @@ protected:
     std::string ip;
     int port;
 private:
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager;
     // The connection total kbps.
     // not only the rtmp or http connection, all type of connection are
     // need to statistic the kbps of io.
@@ -83,7 +97,7 @@ private:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpConn(ISrsHttpMessageHandler* handler, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
 // Interface ISrsResource.
 public:
@@ -91,13 +105,13 @@ public:
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
-protected:
+private:
     virtual srs_error_t do_cycle();
-protected:
-    // When got http message,
-    // for the static service or api, discard any body.
-    // for the stream caster, for instance, http flv streaming, may discard the flv header or not.
-    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg) = 0;
+public:
+    // Get the HTTP message handler.
+    virtual ISrsHttpMessageHandler* handler();
+    // Whether the connection coroutine is error or terminated.
+    virtual srs_error_t pull();
 private:
     virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
     // When the connection disconnect, call this method.
@@ -115,19 +129,9 @@ public:
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
 // Interface ISrsStartable
 public:
-    // Start the client green thread.
-    // when server get a client from listener,
-    // 1. server will create an concrete connection(for instance, RTMP connection),
-    // 2. then add connection to its connection manager,
-    // 3. start the client thread by invoke this start()
-    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
-    // To remove the client by server->remove(this).
     virtual srs_error_t start();
 // Interface ISrsOneCycleThreadHandler
 public:
-    // The thread cycle function,
-    // when serve connection completed, terminate the loop which will terminate the thread,
-    // thread will invoke the on_thread_stop() when it terminated.
     virtual srs_error_t cycle();
 // Interface ISrsConnection.
 public:
@@ -139,8 +143,13 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsResponseOnlyHttpConn : public SrsHttpConn
+class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpMessageHandler
 {
+private:
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager;
+    SrsHttpConn* conn;
+    srs_netfd_t stfd;
 public:
     SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsResponseOnlyHttpConn();
@@ -151,11 +160,29 @@ public:
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
+// Interface ISrsHttpMessageHandler.
 public:
-    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
+    virtual srs_error_t on_http_message(ISrsHttpMessage* msg);
+    virtual void on_conn_done();
+// Extract APIs from SrsTcpConnection.
 public:
-    // Set connection to expired.
-    virtual void expire();
+    // Set socket option TCP_NODELAY.
+    virtual srs_error_t set_tcp_nodelay(bool v);
+    // Set socket option SO_SNDBUF in srs_utime_t.
+    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
+// Interface ISrsConnection.
+public:
+    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+// Interface ISrsStartable
+public:
+    virtual srs_error_t start();
+// Interface ISrsKbpsDelta
+public:
+    virtual void remark(int64_t* in, int64_t* out);
 };
 
 // The http server, use http stream or static server to serve requests.

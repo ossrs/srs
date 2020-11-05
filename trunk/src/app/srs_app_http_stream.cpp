@@ -602,7 +602,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Use receive thread to accept the close event to avoid FD leak.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
-    SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
+    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
@@ -622,7 +622,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             return srs_error_wrap(err, "encoder dump cache");
         }
     }
-    
+
+    // Try to use fast flv encoder, remember that it maybe NULL.
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
     
     // Set the socket options for transport.
@@ -638,7 +639,11 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
 
-    SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
+    // Note that the handler of hc now is rohc.
+    SrsResponseOnlyHttpConn* rohc = dynamic_cast<SrsResponseOnlyHttpConn*>(hc->handler());
+    srs_assert(rohc);
+
+    SrsHttpRecvThread* trd = new SrsHttpRecvThread(rohc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
     if ((err = trd->start()) != srs_success) {

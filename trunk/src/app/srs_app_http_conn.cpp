@@ -59,14 +59,22 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_st.hpp>
 
-SrsHttpConn::SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
+ISrsHttpMessageHandler::ISrsHttpMessageHandler()
+{
+}
+
+ISrsHttpMessageHandler::~ISrsHttpMessageHandler()
+{
+}
+
+SrsHttpConn::SrsHttpConn(ISrsHttpMessageHandler* handler, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
     http_mux = m;
+    handler_ = handler;
 
     skt = new SrsTcpConnection(fd);
-    manager = cm;
     ip = cip;
     port = cport;
     create_time = srsu2ms(srs_get_system_time());
@@ -150,7 +158,7 @@ srs_error_t SrsHttpConn::do_cycle()
         last_req = hreq->to_request(hreq->host());
         
         // may should discard the body.
-        if ((err = on_got_http_message(req)) != srs_success) {
+        if ((err = handler_->on_http_message(req)) != srs_success) {
             break;
         }
         
@@ -174,6 +182,16 @@ srs_error_t SrsHttpConn::do_cycle()
     }
     
     return err;
+}
+
+ISrsHttpMessageHandler* SrsHttpConn::handler()
+{
+    return handler_;
+}
+
+srs_error_t SrsHttpConn::pull()
+{
+    return trd->pull();
 }
 
 srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
@@ -239,8 +257,8 @@ srs_error_t SrsHttpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Notify manager to remove it.
-    manager->remove(this);
+    // Notify handler to handle it.
+    handler_->on_conn_done();
 
     // success.
     if (err == srs_success) {
@@ -284,29 +302,41 @@ void SrsHttpConn::expire()
     trd->interrupt();
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port) : SrsHttpConn(cm, fd, m, cip, port)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
 {
+    manager = cm;
+    conn = new SrsHttpConn(this, fd, m, cip, port);
+    stfd = fd;
 }
 
 SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
 {
+    srs_freep(conn);
 }
 
 srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
     srs_error_t err = srs_success;
 
+    SrsStSocket skt;
+
+    // We start a socket to read the stfd, which is writing by conn.
+    // It's ok, because conn never read it after processing the HTTP request.
+    if ((err = skt.initialize(stfd)) != srs_success) {
+        return srs_error_wrap(err, "init socket");
+    }
+
     // Check user interrupt by interval.
-    skt->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    skt.set_recv_timeout(3 * SRS_UTIME_SECONDS);
 
     // drop all request body.
     char body[4096];
     while (true) {
-        if ((err = trd->pull()) != srs_success) {
+        if ((err = conn->pull()) != srs_success) {
             return srs_error_wrap(err, "timeout");
         }
 
-        if ((err = skt->read(body, 4096, NULL)) != srs_success) {
+        if ((err = skt.read(body, 4096, NULL)) != srs_success) {
             // Because we use timeout to check trd state, so we should ignore any timeout.
             if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
                 srs_freep(err);
@@ -320,7 +350,7 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
     return err;
 }
 
-srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
+srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* msg)
 {
     srs_error_t err = srs_success;
     
@@ -343,9 +373,46 @@ srs_error_t SrsResponseOnlyHttpConn::on_got_http_message(ISrsHttpMessage* msg)
     return err;
 }
 
-void SrsResponseOnlyHttpConn::expire()
+void SrsResponseOnlyHttpConn::on_conn_done()
 {
-    SrsHttpConn::expire();
+    // Because we use manager to manage this object,
+    // not the http connection object, so we must remove it here.
+    manager->remove(this);
+}
+
+srs_error_t SrsResponseOnlyHttpConn::set_tcp_nodelay(bool v)
+{
+    return conn->set_tcp_nodelay(v);
+}
+
+srs_error_t SrsResponseOnlyHttpConn::set_socket_buffer(srs_utime_t buffer_v)
+{
+    return conn->set_socket_buffer(buffer_v);
+}
+
+std::string SrsResponseOnlyHttpConn::desc()
+{
+    return "ROHttpConn";
+}
+
+std::string SrsResponseOnlyHttpConn::remote_ip()
+{
+    return conn->remote_ip();
+}
+
+const SrsContextId& SrsResponseOnlyHttpConn::get_id()
+{
+    return conn->get_id();
+}
+
+srs_error_t SrsResponseOnlyHttpConn::start()
+{
+    return conn->start();
+}
+
+void SrsResponseOnlyHttpConn::remark(int64_t* in, int64_t* out)
+{
+    conn->remark(in, out);
 }
 
 SrsHttpServer::SrsHttpServer(SrsServer* svr)
