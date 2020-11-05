@@ -107,6 +107,55 @@ void SrsHttpConn::remark(int64_t* in, int64_t* out)
     kbps->remark(in, out);
 }
 
+srs_error_t SrsHttpConn::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
+    }
+
+    if ((err = trd->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpConn::cycle()
+{
+    srs_error_t err = do_cycle();
+
+    // Notify handler to handle it.
+    handler_->on_conn_done();
+
+    // success.
+    if (err == srs_success) {
+        srs_trace("client finished.");
+        return err;
+    }
+
+    // It maybe success with message.
+    if (srs_error_code(err) == ERROR_SUCCESS) {
+        srs_trace("client finished%s.", srs_error_summary(err).c_str());
+        srs_freep(err);
+        return err;
+    }
+
+    // client close peer.
+    // TODO: FIXME: Only reset the error when client closed it.
+    if (srs_is_client_gracefully_close(err)) {
+        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+    } else if (srs_is_server_gracefully_close(err)) {
+        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+    } else {
+        srs_error("serve error %s", srs_error_desc(err).c_str());
+    }
+
+    srs_freep(err);
+    return srs_success;
+}
+
 srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
@@ -169,6 +218,27 @@ srs_error_t SrsHttpConn::do_cycle()
     return err;
 }
 
+srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+    
+    srs_trace("HTTP %s:%d %s %s, content-length=%" PRId64 "",
+        ip.c_str(), port, r->method_str().c_str(), r->url().c_str(), r->content_length());
+    
+    // use cors server mux to serve http request, which will proxy to http_remux.
+    if ((err = cors->serve_http(w, r)) != srs_success) {
+        return srs_error_wrap(err, "mux serve");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsHttpConn::on_disconnect(SrsRequest* req)
+{
+    // TODO: FIXME: Implements it.
+    return srs_success;
+}
+
 ISrsHttpConnOwner* SrsHttpConn::handler()
 {
     return handler_;
@@ -203,27 +273,6 @@ srs_error_t SrsHttpConn::set_jsonp(bool v)
     return err;
 }
 
-srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
-{
-    srs_error_t err = srs_success;
-    
-    srs_trace("HTTP %s:%d %s %s, content-length=%" PRId64 "",
-        ip.c_str(), port, r->method_str().c_str(), r->url().c_str(), r->content_length());
-    
-    // use cors server mux to serve http request, which will proxy to http_remux.
-    if ((err = cors->serve_http(w, r)) != srs_success) {
-        return srs_error_wrap(err, "mux serve");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsHttpConn::on_disconnect(SrsRequest* req)
-{
-    // TODO: FIXME: Implements it.
-    return srs_success;
-}
-
 srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)
 {
     return skt->set_tcp_nodelay(v);
@@ -232,55 +281,6 @@ srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)
 srs_error_t SrsHttpConn::set_socket_buffer(srs_utime_t buffer_v)
 {
     return skt->set_socket_buffer(buffer_v);
-}
-
-srs_error_t SrsHttpConn::start()
-{
-    srs_error_t err = srs_success;
-
-    if ((err = skt->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
-
-    if ((err = trd->start()) != srs_success) {
-        return srs_error_wrap(err, "coroutine");
-    }
-
-    return err;
-}
-
-srs_error_t SrsHttpConn::cycle()
-{
-    srs_error_t err = do_cycle();
-
-    // Notify handler to handle it.
-    handler_->on_conn_done();
-
-    // success.
-    if (err == srs_success) {
-        srs_trace("client finished.");
-        return err;
-    }
-
-    // It maybe success with message.
-    if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished%s.", srs_error_summary(err).c_str());
-        srs_freep(err);
-        return err;
-    }
-
-    // client close peer.
-    // TODO: FIXME: Only reset the error when client closed it.
-    if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
-    } else if (srs_is_server_gracefully_close(err)) {
-        srs_warn("server disconnect. ret=%d", srs_error_code(err));
-    } else {
-        srs_error("serve error %s", srs_error_desc(err).c_str());
-    }
-
-    srs_freep(err);
-    return srs_success;
 }
 
 string SrsHttpConn::remote_ip()

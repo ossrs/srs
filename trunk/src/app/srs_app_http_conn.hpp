@@ -105,8 +105,20 @@ public:
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
+// Interface ISrsStartable
+public:
+    virtual srs_error_t start();
+// Interface ISrsOneCycleThreadHandler
+public:
+    virtual srs_error_t cycle();
 private:
     virtual srs_error_t do_cycle();
+private:
+    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+    // When the connection disconnect, call this method.
+    // e.g. log msg of connection and report to other system.
+    // @param request: request which is converted by the last http message.
+    virtual srs_error_t on_disconnect(SrsRequest* req);
 public:
     // Get the HTTP message handler.
     virtual ISrsHttpConnOwner* handler();
@@ -116,24 +128,11 @@ public:
     virtual srs_error_t set_crossdomain_enabled(bool v);
     // Whether enable the JSONP.
     virtual srs_error_t set_jsonp(bool v);
-private:
-    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-    // When the connection disconnect, call this method.
-    // e.g. log msg of connection and report to other system.
-    // @param request: request which is converted by the last http message.
-    virtual srs_error_t on_disconnect(SrsRequest* req);
-// Extract APIs from SrsTcpConnection.
 public:
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-// Interface ISrsStartable
-public:
-    virtual srs_error_t start();
-// Interface ISrsOneCycleThreadHandler
-public:
-    virtual srs_error_t cycle();
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
