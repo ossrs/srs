@@ -101,7 +101,7 @@ public:
 public:
     virtual srs_error_t on_start();
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
-    virtual void on_conn_done();
+    virtual srs_error_t on_conn_done(srs_error_t r0);
 // Interface ISrsResource.
 public:
     virtual std::string desc();

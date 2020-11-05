@@ -269,11 +269,13 @@ srs_error_t SrsDynamicHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttpRespo
     return srs_success;
 }
 
-void SrsDynamicHttpConn::on_conn_done()
+srs_error_t SrsDynamicHttpConn::on_conn_done(srs_error_t r0)
 {
     // Because we use manager to manage this object,
     // not the http connection object, so we must remove it here.
     manager->remove(this);
+
+    return r0;
 }
 
 std::string SrsDynamicHttpConn::desc()

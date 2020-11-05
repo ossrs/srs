@@ -127,7 +127,8 @@ srs_error_t SrsHttpConn::cycle()
     srs_error_t err = do_cycle();
 
     // Notify handler to handle it.
-    handler_->on_conn_done();
+    // @remark The error may be transformed by handler.
+    err = handler_->on_conn_done(err);
 
     // success.
     if (err == srs_success) {
@@ -179,9 +180,6 @@ srs_error_t SrsHttpConn::do_cycle()
     
     // process http messages.
     for (int req_id = 0; (err = trd->pull()) == srs_success; req_id++) {
-        // Try to receive a message from http.
-        srs_trace("HTTP client ip=%s:%d, request=%d, to=%dms", ip.c_str(), port, req_id, srsu2ms(SRS_HTTP_RECV_TIMEOUT));
-
         // get a http message
         ISrsHttpMessage* req = NULL;
         if ((err = parser->parse_message(skt, &req)) != srs_success) {
@@ -388,11 +386,13 @@ srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttp
     return err;
 }
 
-void SrsResponseOnlyHttpConn::on_conn_done()
+srs_error_t SrsResponseOnlyHttpConn::on_conn_done(srs_error_t r0)
 {
     // Because we use manager to manage this object,
     // not the http connection object, so we must remove it here.
     manager->remove(this);
+
+    return r0;
 }
 
 srs_error_t SrsResponseOnlyHttpConn::set_tcp_nodelay(bool v)

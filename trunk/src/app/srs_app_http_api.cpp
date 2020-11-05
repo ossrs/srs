@@ -1720,11 +1720,20 @@ srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWrite
     return err;
 }
 
-void SrsHttpApi::on_conn_done()
+srs_error_t SrsHttpApi::on_conn_done(srs_error_t r0)
 {
     // Because we use manager to manage this object,
     // not the http connection object, so we must remove it here.
     manager->remove(this);
+
+    // For HTTP-API timeout, we think it's done successfully,
+    // because there may be no request or response for HTTP-API.
+    if (srs_error_code(r0) == ERROR_SOCKET_TIMEOUT) {
+        srs_freep(r0);
+        return srs_success;
+    }
+
+    return r0;
 }
 
 std::string SrsHttpApi::desc()

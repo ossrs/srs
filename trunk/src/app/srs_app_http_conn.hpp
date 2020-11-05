@@ -68,7 +68,8 @@ public:
     // For the stream caster, for instance, http flv streaming, may discard the flv header or not.
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w) = 0;
     // When connection is destroy, should use manager to dispose it.
-    virtual void on_conn_done() = 0;
+    // The r0 is the original error, we will use the returned new error.
+    virtual srs_error_t on_conn_done(srs_error_t r0) = 0;
 };
 
 // The http connection which request the static or stream content.
@@ -170,7 +171,7 @@ public:
 public:
     virtual srs_error_t on_start();
     virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
-    virtual void on_conn_done();
+    virtual srs_error_t on_conn_done(srs_error_t r0);
 // Extract APIs from SrsTcpConnection.
 public:
     // Set socket option TCP_NODELAY.
