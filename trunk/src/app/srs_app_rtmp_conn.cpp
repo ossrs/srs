@@ -109,7 +109,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     server = svr;
 
     stfd = c;
-    skt = new SrsTcpConnection2(c);
+    skt = new SrsTcpConnection(c);
     manager = svr;
     ip = cip;
     port = cport;

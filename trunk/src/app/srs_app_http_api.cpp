@@ -1680,7 +1680,7 @@ SrsHttpApi::SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux*
     cors = new SrsHttpCorsMux();
     parser = new SrsHttpParser();
 
-    skt = new SrsTcpConnection2(fd);
+    skt = new SrsTcpConnection(fd);
     manager = cm;
     ip = cip;
     port = cport;

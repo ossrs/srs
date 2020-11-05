@@ -65,7 +65,7 @@ SrsHttpConn::SrsHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeM
     cors = new SrsHttpCorsMux();
     http_mux = m;
 
-    skt = new SrsTcpConnection2(fd);
+    skt = new SrsTcpConnection(fd);
     manager = cm;
     ip = cip;
     port = cport;

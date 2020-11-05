@@ -40,7 +40,6 @@
 #include <srs_app_gb28181_sip.hpp>
 
 class SrsServer;
-class SrsTcpConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;

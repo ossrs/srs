@@ -38,7 +38,6 @@
 #include <srs_app_source.hpp>
 
 class SrsRequest;
-class SrsTcpConnection;
 class SrsMetaCache;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;

@@ -119,7 +119,7 @@ private:
     SrsClientInfo* info;
 private:
     srs_netfd_t stfd;
-    SrsTcpConnection2* skt;
+    SrsTcpConnection* skt;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd;

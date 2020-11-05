@@ -63,7 +63,7 @@ protected:
     ISrsHttpServeMux* http_mux;
     SrsHttpCorsMux* cors;
 protected:
-    SrsTcpConnection2* skt;
+    SrsTcpConnection* skt;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd;

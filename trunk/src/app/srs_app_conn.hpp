@@ -130,77 +130,7 @@ public:
 // The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsTcpConnection : virtual public ISrsStartableConneciton
-    , virtual public ISrsReloadHandler, virtual public ISrsCoroutineHandler, virtual public ISrsExpire
-{
-protected:
-    // Each connection start a green thread,
-    // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd;
-    // The manager object to manage the connection.
-    ISrsResourceManager* manager;
-    // The underlayer st fd handler.
-    srs_netfd_t stfd;
-    // The ip and port of client.
-    std::string ip;
-    int port;
-    // The underlayer socket.
-    SrsStSocket* skt;
-    // The connection total kbps.
-    // not only the rtmp or http connection, all type of connection are
-    // need to statistic the kbps of io.
-    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
-    SrsKbps* kbps;
-    SrsWallClock* clk;
-    // The create time in milliseconds.
-    // for current connection to log self create time and calculate the living time.
-    int64_t create_time;
-public:
-    SrsTcpConnection(ISrsResourceManager* cm, srs_netfd_t c, std::string cip, int cport);
-    virtual ~SrsTcpConnection();
-// Interface ISrsKbpsDelta
-public:
-    virtual void remark(int64_t* in, int64_t* out);
-public:
-    // To dipose the connection.
-    virtual void dispose();
-// Interface ISrsStartable
-public:
-    // Start the client green thread.
-    // when server get a client from listener,
-    // 1. server will create an concrete connection(for instance, RTMP connection),
-    // 2. then add connection to its connection manager,
-    // 3. start the client thread by invoke this start()
-    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
-    // To remove the client by server->remove(this).
-    virtual srs_error_t start();
-public:
-    // Set socket option TCP_NODELAY.
-    virtual srs_error_t set_tcp_nodelay(bool v);
-    // Set socket option SO_SNDBUF in srs_utime_t.
-    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-// Interface ISrsOneCycleThreadHandler
-public:
-    // The thread cycle function,
-    // when serve connection completed, terminate the loop which will terminate the thread,
-    // thread will invoke the on_thread_stop() when it terminated.
-    virtual srs_error_t cycle();
-// Interface ISrsConnection.
-public:
-    virtual std::string remote_ip();
-    virtual const SrsContextId& get_id();
-public:
-    // Set connection to expired.
-    virtual void expire();
-protected:
-    // For concrete connection to do the cycle.
-    virtual srs_error_t do_cycle() = 0;
-};
-
-// The basic connection of SRS, for TCP based protocols,
-// all connections accept from listener must extends from this base class,
-// server will add the connection to manager, and delete it when remove.
-class SrsTcpConnection2 : virtual public ISrsProtocolReadWriter
+class SrsTcpConnection : virtual public ISrsProtocolReadWriter
 {
 private:
     // The underlayer st fd handler.
@@ -208,8 +138,8 @@ private:
     // The underlayer socket.
     SrsStSocket* skt;
 public:
-    SrsTcpConnection2(srs_netfd_t c);
-    virtual ~SrsTcpConnection2();
+    SrsTcpConnection(srs_netfd_t c);
+    virtual ~SrsTcpConnection();
 public:
     virtual srs_error_t initialize();
 public:
