@@ -523,13 +523,6 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
     srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);
 
-    // No renegotiation, or there maybe extra data during security transport.
-    // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
-    // @remark SSL_OP_NO_RENEGOTIATION was added in OpenSSL 1.1.0h.
-#if (OPENSSL_VERSION_NUMBER >= 0x10100068L) // v1.1.0h
-    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_RENEGOTIATION);
-#endif
-
     // TODO: Setup callback, see SSL_set_ex_data and SSL_set_info_callback
     if ((ssl = SSL_new(ssl_ctx)) == NULL) {
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "SSL_new ssl");
@@ -689,18 +682,27 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
     srs_error_t err = srs_success;
 
     while (true) {
-        ssize_t nn = 0;
-        int nn_padding = BIO_ctrl_pending(bio_in);
-        if (nn_padding > 0) {
-            // Already exists in SSL cache, read it out.
-            nn = (ssize_t)srs_min(nn_plaintext, nn_padding);
-        } else {
+        int r0 = SSL_read(ssl, plaintext, nn_plaintext); int r1 = SSL_get_error(ssl, r0);
+        int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
+
+        // OK, got data.
+        if (r0 > 0) {
+            srs_assert(r0 <= nn_plaintext);
+            if (nread) {
+                *nread = r0;
+            }
+            return err;
+        }
+
+        // Need to read more data to feed SSL.
+        if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
             // TODO: Can we avoid copy?
             int nn_cipher = nn_plaintext;
             char* cipher = new char[nn_cipher];
             SrsAutoFreeA(char, cipher);
 
             // Read the cipher from SSL.
+            ssize_t nn = 0;
             if ((err = transport->read(cipher, nn_cipher, &nn)) != srs_success) {
                 return srs_error_wrap(err, "https: read");
             }
@@ -710,32 +712,14 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
                 // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
                 return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher, nn);
             }
+            continue;
         }
 
-        int r0 = SSL_read(ssl, plaintext, nn); int r1 = SSL_get_error(ssl, r0);
-        int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
-
-        // Maybe renegotiation, need to write some data .
-        // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
-        if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
-            if ((err = renegotiation(r0, r1, r2, r3)) != srs_success) {
-                return srs_error_wrap(err, "renegotiation");
-            }
-            continue; // Try to read again.
-        }
-
+        // Fail for error.
         if (r0 <= 0) {
-            return srs_error_new(ERROR_HTTPS_READ,
-                "SSL_read r0=%d, r1=%d, r2=%d, r3=%d, padding=%d, size=%d",
-                r0, r1, r2, r3, nn_padding, nn);
+            return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
+                r0, r1, r2, r3);
         }
-
-        srs_assert(r0 <= nn_plaintext);
-        if (nread) {
-            *nread = r0;
-        }
-
-        return err;
     }
 }
 
@@ -788,30 +772,6 @@ srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
         const iovec* p = iov + i;
         if ((err = write((void*)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
             return srs_error_wrap(err, "write iov #%d base=%p, size=%d", i, p->iov_base, p->iov_len);
-        }
-    }
-
-    return err;
-}
-
-srs_error_t SrsSslConnection::renegotiation(int r0, int r1, int r2, int r3)
-{
-    srs_error_t err = srs_success;
-
-    while (true) {
-        uint8_t data[1024];
-        int size = BIO_read(bio_out, data, sizeof(data));
-
-        // Actually no data to send, but its state changed.
-        if (size <= 0) {
-            return err;
-        }
-
-        srs_warn("https: renegotiation, r0=%d, r1=%d, r2=%d, r3=%d, size=%d", r0, r1, r2, r3, size);
-
-        // TODO: FIXME: Maybe we should put the data in queue?
-        if ((err = transport->write(data, size, NULL)) != srs_success) {
-            return srs_error_wrap(err, "renegotiation: write data=%p, size=%d", data, size);
         }
     }
 

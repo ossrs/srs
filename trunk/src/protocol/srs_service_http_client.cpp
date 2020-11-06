@@ -84,13 +84,6 @@ srs_error_t SrsSslClient::handshake()
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, srs_verify_callback);
     srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);
 
-    // No renegotiation, or there maybe extra data during security transport.
-    // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
-    // @remark SSL_OP_NO_RENEGOTIATION was added in OpenSSL 1.1.0h.
-#if (OPENSSL_VERSION_NUMBER >= 0x10100068L) // v1.1.0h
-    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_RENEGOTIATION);
-#endif
-
     // TODO: Setup callback, see SSL_set_ex_data and SSL_set_info_callback
     if ((ssl = SSL_new(ssl_ctx)) == NULL) {
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "SSL_new ssl");
