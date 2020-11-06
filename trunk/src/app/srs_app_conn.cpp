@@ -523,6 +523,13 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
     srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);
 
+    // No renegotiation, or there maybe extra data during security transport.
+    // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
+    // @remark SSL_OP_NO_RENEGOTIATION was added in OpenSSL 1.1.0h.
+#if (OPENSSL_VERSION_NUMBER >= 0x10100068L) // v1.1.0h
+    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_RENEGOTIATION);
+#endif
+
     // TODO: Setup callback, see SSL_set_ex_data and SSL_set_info_callback
     if ((ssl = SSL_new(ssl_ctx)) == NULL) {
         return srs_error_new(ERROR_HTTPS_HANDSHAKE, "SSL_new ssl");
@@ -705,25 +712,40 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
             }
         }
 
-        int r0 = SSL_read(ssl, plaintext, nn);
-        int r1 = SSL_get_error(ssl, r0); int r2 = BIO_ctrl_pending(bio_in);
-        if (r0 <= 0) {
-            // We try to read the cached data, but actually there is nothing, so try again.
-            if (nn_padding > 0 && r2 <= 0) {
-                continue;
+        int r0 = SSL_read(ssl, plaintext, nn); int r1 = SSL_get_error(ssl, r0);
+        int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
+        uint8_t* data = NULL; int size = BIO_get_mem_data(bio_out, &data);
+
+        // Maybe renegotiation, need to write some data .
+        // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
+        if (r0 == -1 && r1 == SSL_ERROR_WANT_READ && size > 0) {
+            srs_warn("https: renegotiation, r0=%d, r1=%d, size=%d", r0, r2, size);
+
+            // TODO: FIXME: Maybe we should put the data in queue?
+            if ((err = transport->write(data, size, NULL)) != srs_success) {
+                return srs_error_wrap(err, "renegotiation: write data=%p, size=%d", data, size);
             }
-            return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, padding=%d, size=%d",
-                r0, r1, r2, nn_padding, nn);
+            if ((r0 = BIO_reset(bio_out)) != 1) {
+                return srs_error_new(ERROR_HTTPS_READ, "BIO_reset r0=%d", r0);
+            }
+
+            // Try to read again.
+            continue;
+        }
+
+        if (r0 <= 0) {
+            return srs_error_new(ERROR_HTTPS_READ,
+                "SSL_read r0=%d, r1=%d, r2=%d, r3=%d, padding=%d, osize=%d, size=%d",
+                r0, r1, r2, r3, nn_padding, size, nn);
         }
 
         srs_assert(r0 <= nn_plaintext);
         if (nread) {
             *nread = r0;
         }
-        break;
-    }
 
-    return err;
+        return err;
+    }
 }
 
 void SrsSslConnection::set_send_timeout(srs_utime_t tm)
