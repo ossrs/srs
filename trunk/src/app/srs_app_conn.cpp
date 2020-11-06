@@ -714,29 +714,20 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
 
         int r0 = SSL_read(ssl, plaintext, nn); int r1 = SSL_get_error(ssl, r0);
         int r2 = BIO_ctrl_pending(bio_in); int r3 = SSL_is_init_finished(ssl);
-        uint8_t* data = NULL; int size = BIO_get_mem_data(bio_out, &data);
 
         // Maybe renegotiation, need to write some data .
         // @see https://gist.github.com/darrenjs/4645f115d10aa4b5cebf57483ec82eca#file-ssl_server_nonblock-c-L281
-        if (r0 == -1 && r1 == SSL_ERROR_WANT_READ && size > 0) {
-            srs_warn("https: renegotiation, r0=%d, r1=%d, size=%d", r0, r2, size);
-
-            // TODO: FIXME: Maybe we should put the data in queue?
-            if ((err = transport->write(data, size, NULL)) != srs_success) {
-                return srs_error_wrap(err, "renegotiation: write data=%p, size=%d", data, size);
+        if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
+            if ((err = renegotiation(r0, r1, r2, r3)) != srs_success) {
+                return srs_error_wrap(err, "renegotiation");
             }
-            if ((r0 = BIO_reset(bio_out)) != 1) {
-                return srs_error_new(ERROR_HTTPS_READ, "BIO_reset r0=%d", r0);
-            }
-
-            // Try to read again.
-            continue;
+            continue; // Try to read again.
         }
 
         if (r0 <= 0) {
             return srs_error_new(ERROR_HTTPS_READ,
-                "SSL_read r0=%d, r1=%d, r2=%d, r3=%d, padding=%d, osize=%d, size=%d",
-                r0, r1, r2, r3, nn_padding, size, nn);
+                "SSL_read r0=%d, r1=%d, r2=%d, r3=%d, padding=%d, size=%d",
+                r0, r1, r2, r3, nn_padding, nn);
         }
 
         srs_assert(r0 <= nn_plaintext);
@@ -797,6 +788,30 @@ srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
         const iovec* p = iov + i;
         if ((err = write((void*)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
             return srs_error_wrap(err, "write iov #%d base=%p, size=%d", i, p->iov_base, p->iov_len);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSslConnection::renegotiation(int r0, int r1, int r2, int r3)
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        uint8_t data[1024];
+        int size = BIO_read(bio_out, data, sizeof(data));
+
+        // Actually no data to send, but its state changed.
+        if (size <= 0) {
+            return err;
+        }
+
+        srs_warn("https: renegotiation, r0=%d, r1=%d, r2=%d, r3=%d, size=%d", r0, r1, r2, r3, size);
+
+        // TODO: FIXME: Maybe we should put the data in queue?
+        if ((err = transport->write(data, size, NULL)) != srs_success) {
+            return srs_error_wrap(err, "renegotiation: write data=%p, size=%d", data, size);
         }
     }
 

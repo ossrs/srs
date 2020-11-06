@@ -191,6 +191,8 @@ public:
     virtual srs_utime_t get_send_timeout();
     virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+private:
+    srs_error_t renegotiation(int r0, int r1, int r2, int r3);
 };
 
 #endif
