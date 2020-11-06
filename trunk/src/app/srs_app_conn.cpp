@@ -705,8 +705,11 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
     }
 
     int r0 = SSL_read(ssl, plaintext, nn);
+    int r1 = SSL_get_error(ssl, r0);
+    int r2 = BIO_ctrl_pending(bio_in);
     if (r0 <= 0) {
-        return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, cache=%d, size=%d", r0, nn_padding, nn);
+        return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, r1=%d, r2=%d, padding=%d, size=%d",
+            r0, r1, r2, nn_padding, nn);
     }
 
     srs_assert(r0 <= nn_plaintext);
