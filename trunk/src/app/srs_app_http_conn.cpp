@@ -303,11 +303,18 @@ void SrsHttpConn::expire()
     trd->interrupt();
 }
 
-SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
+SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
 {
     manager = cm;
     skt = new SrsTcpConnection(fd);
-    conn = new SrsHttpConn(this, skt, m, cip, port);
+
+    if (https) {
+        ssl = new SrsSslConnection(skt);
+        conn = new SrsHttpConn(this, ssl, m, cip, port);
+    } else {
+        ssl = NULL;
+        conn = new SrsHttpConn(this, skt, m, cip, port);
+    }
 
     _srs_config->subscribe(this);
 }
@@ -317,6 +324,7 @@ SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
     _srs_config->unsubscribe(this);
 
     srs_freep(conn);
+    srs_freep(ssl);
     srs_freep(skt);
 }
 
@@ -324,8 +332,13 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
     srs_error_t err = srs_success;
 
+    ISrsProtocolReadWriter* io = skt;
+    if (ssl) {
+        io = ssl;
+    }
+
     // Check user interrupt by interval.
-    skt->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    io->set_recv_timeout(3 * SRS_UTIME_SECONDS);
 
     // We start a socket to read the stfd, which is writing by conn.
     // It's ok, because conn never read it after processing the HTTP request.
@@ -336,7 +349,7 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
             return srs_error_wrap(err, "timeout");
         }
 
-        if ((err = skt->read(body, 4096, NULL)) != srs_success) {
+        if ((err = io->read(body, 4096, NULL)) != srs_success) {
             // Because we use timeout to check trd state, so we should ignore any timeout.
             if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
                 srs_freep(err);
@@ -358,12 +371,31 @@ srs_error_t SrsResponseOnlyHttpConn::on_reload_http_stream_crossdomain()
 
 srs_error_t SrsResponseOnlyHttpConn::on_start()
 {
-    return srs_success;
+    srs_error_t err = srs_success;
+
+    srs_utime_t starttime = srs_update_system_time();
+    string crt_file = _srs_config->get_https_stream_ssl_cert();
+    string key_file = _srs_config->get_https_stream_ssl_key();
+    if (ssl && (err = ssl->handshake(key_file, crt_file)) != srs_success) {
+        return srs_error_wrap(err, "handshake");
+    }
+
+    int cost = srsu2msi(srs_update_system_time() - starttime);
+    srs_trace("https: stream server done, use key %s and cert %s, cost=%dms",
+        key_file.c_str(), crt_file.c_str(), cost);
+
+    return err;
 }
 
 srs_error_t SrsResponseOnlyHttpConn::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
 {
     srs_error_t err = srs_success;
+
+    // After parsed the message, set the schema to https.
+    if (ssl) {
+        SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(r);
+        hm->set_https(true);
+    }
     
     ISrsHttpResponseReader* br = r->body_reader();
 
@@ -410,7 +442,10 @@ srs_error_t SrsResponseOnlyHttpConn::set_socket_buffer(srs_utime_t buffer_v)
 
 std::string SrsResponseOnlyHttpConn::desc()
 {
-    return "ROHttpConn";
+    if (ssl) {
+        return "HttpsStream";
+    }
+    return "HttpStream";
 }
 
 std::string SrsResponseOnlyHttpConn::remote_ip()

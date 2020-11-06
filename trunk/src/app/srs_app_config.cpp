@@ -1538,11 +1538,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     if ((err = reload_http_api(old_root)) != srs_success) {
         return srs_error_wrap(err, "http api");;
     }
-
-    // merge config: http_api.https
-    if ((err = reload_https_api(old_root)) != srs_success) {
-        return srs_error_wrap(err, "https api");;
-    }
     
     // merge config: http_stream
     if ((err = reload_http_stream(old_root)) != srs_success) {
@@ -1639,67 +1634,6 @@ srs_error_t SrsConfig::reload_http_api(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http_api success, nothing changed.");
-    return err;
-}
-
-srs_error_t SrsConfig::reload_https_api(SrsConfDirective* old_root)
-{
-    srs_error_t err = srs_success;
-
-    // merge config.
-    std::vector<ISrsReloadHandler*>::iterator it;
-
-    // state graph
-    //      old_https_api   new_https_api
-    //      DISABLED    =>  ENABLED
-    //      ENABLED     =>  DISABLED
-    //      ENABLED     =>  ENABLED (modified)
-
-    SrsConfDirective* new_http_api = root->get("http_api");
-    SrsConfDirective* old_http_api = old_root->get("http_api");
-
-    SrsConfDirective* new_https_api = (new_http_api? new_http_api->get("https") : NULL);
-    SrsConfDirective* old_https_api = (old_http_api? old_http_api->get("https") : NULL);
-
-    // DISABLED    =>      ENABLED
-    if (!get_https_api_enabled(old_https_api) && get_https_api_enabled(new_https_api)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_https_api_enabled()) != srs_success) {
-                return srs_error_wrap(err, "https api off=>on");
-            }
-        }
-        srs_trace("reload off=>on https_api success.");
-        return err;
-    }
-
-    // ENABLED     =>      DISABLED
-    if (get_https_api_enabled(old_https_api) && !get_https_api_enabled(new_https_api)) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_https_api_disabled()) != srs_success) {
-                return srs_error_wrap(err, "https api on=>off");
-            }
-        }
-        srs_trace("reload https_api on=>off success.");
-        return err;
-    }
-
-    //      ENABLED     =>  ENABLED (modified)
-    if (get_https_api_enabled(old_https_api) && get_https_api_enabled(new_https_api)
-        && !srs_directive_equals(old_https_api, new_https_api)
-        ) {
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((err = subscribe->on_reload_https_api_enabled()) != srs_success) {
-                return srs_error_wrap(err, "https api enabled");
-            }
-        }
-        srs_trace("reload https api enabled success.");
-        return err;
-    }
-
-    srs_trace("reload https_api success, nothing changed.");
     return err;
 }
 
@@ -3668,7 +3602,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = root->get("http_server");
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen" && n != "dir" && n != "crossdomain") {
+            if (n != "enabled" && n != "listen" && n != "dir" && n != "crossdomain" && n != "https") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_stream.%s", n.c_str());
             }
         }
@@ -7737,10 +7671,11 @@ SrsConfDirective* SrsConfig::get_https_api()
     return conf->get("https");
 }
 
-bool SrsConfig::get_https_api_enabled(SrsConfDirective* conf)
+bool SrsConfig::get_https_api_enabled()
 {
     static bool DEFAULT = false;
 
+    SrsConfDirective* conf = get_https_api();
     if (!conf) {
         return DEFAULT;
     }
@@ -7753,15 +7688,9 @@ bool SrsConfig::get_https_api_enabled(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_https_api_enabled()
-{
-    SrsConfDirective* conf = get_https_api();
-    return get_https_api_enabled(conf);
-}
-
 string SrsConfig::get_https_api_listen()
 {
-    static string DEFAULT = "1986";
+    static string DEFAULT = "1990";
 
     SrsConfDirective* conf = get_https_api();
     if (!conf) {
@@ -8095,6 +8024,84 @@ bool SrsConfig::get_http_stream_crossdomain()
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+SrsConfDirective* SrsConfig::get_https_stream()
+{
+    SrsConfDirective* conf = root->get("http_server");
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("https");
+}
+
+bool SrsConfig::get_https_stream_enabled()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_https_stream();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_https_stream_listen()
+{
+    static string DEFAULT = "8088";
+
+    SrsConfDirective* conf = get_https_stream();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("listen");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_https_stream_ssl_key()
+{
+    static string DEFAULT = "./conf/server.key";
+
+    SrsConfDirective* conf = get_https_stream();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("key");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_https_stream_ssl_cert()
+{
+    static string DEFAULT = "./conf/server.crt";
+
+    SrsConfDirective* conf = get_https_stream();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("cert");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)

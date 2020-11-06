@@ -178,7 +178,7 @@ public:
     SrsSslConnection(ISrsProtocolReadWriter* c);
     virtual ~SrsSslConnection();
 public:
-    virtual srs_error_t handshake();
+    virtual srs_error_t handshake(std::string key_file, std::string crt_file);
 // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);

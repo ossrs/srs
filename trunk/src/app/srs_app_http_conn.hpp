@@ -150,9 +150,10 @@ private:
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
     SrsTcpConnection* skt;
+    SrsSslConnection* ssl;
     SrsHttpConn* conn;
 public:
-    SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsResponseOnlyHttpConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsResponseOnlyHttpConn();
 public:
     // Directly read a HTTP request message.

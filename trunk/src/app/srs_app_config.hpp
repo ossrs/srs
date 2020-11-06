@@ -330,7 +330,6 @@ protected:
 private:
     // Reload  the http_api section of config.
     virtual srs_error_t reload_http_api(SrsConfDirective* old_root);
-    virtual srs_error_t reload_https_api(SrsConfDirective* old_root);
     // Reload  the http_stream section of config.
     // TODO: FIXME: rename to http_server.
     virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
@@ -1018,7 +1017,6 @@ public:
 // https api section
 private:
     SrsConfDirective* get_https_api();
-    virtual bool get_https_api_enabled(SrsConfDirective* conf);
 public:
     virtual bool get_https_api_enabled();
     virtual std::string get_https_api_listen();
@@ -1038,6 +1036,14 @@ public:
     virtual std::string get_http_stream_dir();
     // Whether enable crossdomain for http static and stream server.
     virtual bool get_http_stream_crossdomain();
+// https api section
+private:
+    SrsConfDirective* get_https_stream();
+public:
+    virtual bool get_https_stream_enabled();
+    virtual std::string get_https_stream_listen();
+    virtual std::string get_https_stream_ssl_key();
+    virtual std::string get_https_stream_ssl_cert();
 public:
     // Get whether vhost enabled http stream
     virtual bool get_vhost_http_enabled(std::string vhost);

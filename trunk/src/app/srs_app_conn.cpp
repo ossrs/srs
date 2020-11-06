@@ -510,7 +510,7 @@ SrsSslConnection::~SrsSslConnection()
     }
 }
 
-srs_error_t SrsSslConnection::handshake()
+srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 {
     srs_error_t err = srs_success;
 
@@ -547,12 +547,10 @@ srs_error_t SrsSslConnection::handshake()
     int r0, r1, size;
 
     // Setup the key and cert file for server.
-    string crt_file = _srs_config->get_https_api_ssl_cert();
     if ((r0 = SSL_use_certificate_file(ssl, crt_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
         return srs_error_new(ERROR_HTTPS_KEY_CRT, "use cert %s", crt_file.c_str());
     }
 
-    string key_file = _srs_config->get_https_api_ssl_key();
     if ((r0 = SSL_use_RSAPrivateKey_file(ssl, key_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
         return srs_error_new(ERROR_HTTPS_KEY_CRT, "use key %s", key_file.c_str());
     }
@@ -759,8 +757,9 @@ srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
     srs_error_t err = srs_success;
 
     for (int i = 0; i < iov_size; i++) {
-        if ((err = write((void*)iov->iov_base, (size_t)iov->iov_len, nwrite)) != srs_success) {
-            return srs_error_wrap(err, "write iov base=%p, size=%d", iov->iov_base, iov->iov_len);
+        const iovec* p = iov + i;
+        if ((err = write((void*)p->iov_base, (size_t)p->iov_len, nwrite)) != srs_success) {
+            return srs_error_wrap(err, "write iov #%d base=%p, size=%d", i, p->iov_base, p->iov_len);
         }
     }
 
