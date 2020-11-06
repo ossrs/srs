@@ -143,6 +143,9 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
 SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int cport)
 {
+    // Create a identify for this client.
+    _srs_context->set_id(_srs_context->generate_id());
+
     manager = cm;
     sdk = NULL;
     pprint = SrsPithyPrint::create_caster();

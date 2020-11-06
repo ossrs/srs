@@ -106,6 +106,9 @@ SrsClientInfo::~SrsClientInfo()
 
 SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
 {
+    // Create a identify for this client.
+    _srs_context->set_id(_srs_context->generate_id());
+
     server = svr;
 
     stfd = c;
@@ -117,7 +120,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     kbps->set_io(skt, skt);
-    trd = new SrsSTCoroutine("rtmp", this);
+    trd = new SrsSTCoroutine("rtmp", this, _srs_context->get_id());
     
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();

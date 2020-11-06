@@ -305,6 +305,9 @@ void SrsHttpConn::expire()
 
 SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(bool https, ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
 {
+    // Create a identify for this client.
+    _srs_context->set_id(_srs_context->generate_id());
+
     manager = cm;
     skt = new SrsTcpConnection(fd);
 
@@ -373,16 +376,18 @@ srs_error_t SrsResponseOnlyHttpConn::on_start()
 {
     srs_error_t err = srs_success;
 
-    srs_utime_t starttime = srs_update_system_time();
-    string crt_file = _srs_config->get_https_stream_ssl_cert();
-    string key_file = _srs_config->get_https_stream_ssl_key();
-    if (ssl && (err = ssl->handshake(key_file, crt_file)) != srs_success) {
-        return srs_error_wrap(err, "handshake");
-    }
+    if (ssl)  {
+        srs_utime_t starttime = srs_update_system_time();
+        string crt_file = _srs_config->get_https_stream_ssl_cert();
+        string key_file = _srs_config->get_https_stream_ssl_key();
+        if ((err = ssl->handshake(key_file, crt_file)) != srs_success) {
+            return srs_error_wrap(err, "handshake");
+        }
 
-    int cost = srsu2msi(srs_update_system_time() - starttime);
-    srs_trace("https: stream server done, use key %s and cert %s, cost=%dms",
-        key_file.c_str(), crt_file.c_str(), cost);
+        int cost = srsu2msi(srs_update_system_time() - starttime);
+        srs_trace("https: stream server done, use key %s and cert %s, cost=%dms",
+            key_file.c_str(), crt_file.c_str(), cost);
+    }
 
     return err;
 }

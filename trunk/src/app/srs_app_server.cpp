@@ -1608,6 +1608,9 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
             return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "fcntl F_SETFD error! fd=%d", fd);
         }
     }
+
+    // The context id may change during creating the bellow objects.
+    SrsContextRestore(_srs_context->get_id());
     
     if (type == SrsListenerRtmpStream) {
         *pr = new SrsRtmpConn(this, stfd, ip, port);
