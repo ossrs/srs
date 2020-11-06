@@ -7741,6 +7741,10 @@ bool SrsConfig::get_https_api_enabled(SrsConfDirective* conf)
 {
     static bool DEFAULT = false;
 
+    if (!conf) {
+        return DEFAULT;
+    }
+
     conf = conf->get("enabled");
     if (!conf) {
         return DEFAULT;
