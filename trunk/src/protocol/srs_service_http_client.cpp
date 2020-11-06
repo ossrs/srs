@@ -59,15 +59,15 @@ SrsSslClient::SrsSslClient(SrsTcpClient* tcp)
 
 SrsSslClient::~SrsSslClient()
 {
-    if (ssl_ctx) {
-        SSL_CTX_free(ssl_ctx);
-        ssl_ctx = NULL;
-    }
-
     if (ssl) {
         // this function will free bio_in and bio_out
         SSL_free(ssl);
         ssl = NULL;
+    }
+
+    if (ssl_ctx) {
+        SSL_CTX_free(ssl_ctx);
+        ssl_ctx = NULL;
     }
 }
 
@@ -77,9 +77,9 @@ srs_error_t SrsSslClient::handshake()
 
     // For HTTPS, try to connect over security transport.
 #if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
-    SSL_CTX* ssl_ctx = SSL_CTX_new(TLS_method());
+    ssl_ctx = SSL_CTX_new(TLS_method());
 #else
-    SSL_CTX* ssl_ctx = SSL_CTX_new(TLSv1_2_method());
+    ssl_ctx = SSL_CTX_new(TLSv1_2_method());
 #endif
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, srs_verify_callback);
     srs_assert(SSL_CTX_set_cipher_list(ssl_ctx, "ALL") == 1);

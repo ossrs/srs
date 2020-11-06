@@ -94,7 +94,6 @@ SrsHttpConn::~SrsHttpConn()
 
     srs_freep(kbps);
     srs_freep(clk);
-    srs_freep(skt);
 }
 
 std::string SrsHttpConn::desc()

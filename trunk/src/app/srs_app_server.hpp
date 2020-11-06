@@ -76,6 +76,8 @@ enum SrsListenerType
     SrsListenerGb28181RtpMux = 6,
     // UDP gb28181 sip server
     SrsListenerGb28181Sip = 7,
+    // HTTPS api,
+    SrsListenerHttpsApi = 8,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -321,6 +323,7 @@ private:
     // listen at specified protocol.
     virtual srs_error_t listen_rtmp();
     virtual srs_error_t listen_http_api();
+    virtual srs_error_t listen_https_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_stream_caster();
 #ifdef SRS_GB28181
@@ -356,6 +359,8 @@ public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_http_api_enabled();
     virtual srs_error_t on_reload_http_api_disabled();
+    virtual srs_error_t on_reload_https_api_enabled();
+    virtual srs_error_t on_reload_https_api_disabled();
     virtual srs_error_t on_reload_http_stream_enabled();
     virtual srs_error_t on_reload_http_stream_disabled();
     virtual srs_error_t on_reload_http_stream_updated();

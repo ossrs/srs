@@ -145,6 +145,8 @@ public:
     virtual void set_header(SrsHttpHeader* header, bool keep_alive);
     // set the original messages, then update the message.
     virtual srs_error_t set_url(std::string url, bool allow_jsonp);
+    // After parsed the message, set the schema to https.
+    virtual void set_https(bool v);
 public:
     // Get the owner connection, maybe NULL.
     virtual ISrsConnection* connection();

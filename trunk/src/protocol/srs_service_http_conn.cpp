@@ -414,6 +414,11 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     return err;
 }
 
+void SrsHttpMessage::set_https(bool v)
+{
+    _uri->set_schema(v? "https" : "http");
+}
+
 ISrsConnection* SrsHttpMessage::connection()
 {
     return owner_conn;

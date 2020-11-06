@@ -328,6 +328,7 @@
 #define ERROR_HTTPS_HANDSHAKE               4042
 #define ERROR_HTTPS_READ                    4043
 #define ERROR_HTTPS_WRITE                   4044
+#define ERROR_HTTPS_KEY_CRT                 4045
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.

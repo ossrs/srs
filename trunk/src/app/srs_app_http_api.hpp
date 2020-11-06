@@ -263,6 +263,7 @@ private:
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
     SrsTcpConnection* skt;
+    SrsSslConnection* ssl;
     SrsHttpConn* conn;
 public:
     SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);

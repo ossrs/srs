@@ -30,6 +30,8 @@
 #include <vector>
 #include <map>
 
+#include <openssl/ssl.h>
+
 #include <srs_app_st.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
@@ -147,6 +149,36 @@ public:
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
+// Interface ISrsProtocolReadWriter
+public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+};
+
+// The SSL connection over TCP transport, in server mode.
+class SrsSslConnection : virtual public ISrsProtocolReadWriter
+{
+private:
+    // The under-layer plaintext transport.
+    ISrsProtocolReadWriter* transport;
+private:
+    SSL_CTX* ssl_ctx;
+    SSL* ssl;
+    BIO* bio_in;
+    BIO* bio_out;
+public:
+    SrsSslConnection(ISrsProtocolReadWriter* c);
+    virtual ~SrsSslConnection();
+public:
+    virtual srs_error_t handshake();
 // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);

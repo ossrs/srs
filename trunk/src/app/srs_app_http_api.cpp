@@ -1678,7 +1678,14 @@ SrsHttpApi::SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsH
 {
     manager = cm;
     skt = new SrsTcpConnection(fd);
-    conn = new SrsHttpConn(this, skt, m, cip, port);
+
+    if (https) {
+        ssl = new SrsSslConnection(skt);
+        conn = new SrsHttpConn(this, ssl, m, cip, port);
+    } else {
+        ssl = NULL;
+        conn = new SrsHttpConn(this, skt, m, cip, port);
+    }
 
     _srs_config->subscribe(this);
 }
@@ -1688,12 +1695,17 @@ SrsHttpApi::~SrsHttpApi()
     _srs_config->unsubscribe(this);
 
     srs_freep(conn);
+    srs_freep(ssl);
     srs_freep(skt);
 }
 
 srs_error_t SrsHttpApi::on_start()
 {
     srs_error_t err = srs_success;
+
+    if (ssl && (err = ssl->handshake()) != srs_success) {
+        return srs_error_wrap(err, "handshake");
+    }
 
     if ((err = conn->set_jsonp(true)) != srs_success) {
         return srs_error_wrap(err, "set jsonp");
@@ -1705,6 +1717,12 @@ srs_error_t SrsHttpApi::on_start()
 srs_error_t SrsHttpApi::on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w)
 {
     srs_error_t err = srs_success;
+
+    // After parsed the message, set the schema to https.
+    if (ssl) {
+        SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(r);
+        hm->set_https(true);
+    }
 
     // TODO: For each API session, we use short-term HTTP connection.
     //SrsHttpHeader* hdr = w->header();

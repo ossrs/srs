@@ -916,6 +916,17 @@ srs_error_t SrsHttpUri::initialize(string _url)
     return err;
 }
 
+void SrsHttpUri::set_schema(std::string v)
+{
+    schema = v;
+
+    // Update url with new schema.
+    size_t pos = url.find("://");
+    if (pos != string::npos) {
+        url = schema + "://" + url.substr(pos + 3);
+    }
+}
+
 string SrsHttpUri::get_url()
 {
     return url;

@@ -104,6 +104,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTMP";
         case SrsListenerHttpApi:
             return "HTTP-API";
+        case SrsListenerHttpsApi:
+            return "HTTPS-API";
         case SrsListenerHttpStream:
             return "HTTP-Server";
         case SrsListenerMpegTsOverUdp:
@@ -707,6 +709,7 @@ void SrsServer::dispose()
     // prevent fresh clients.
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpsApi);
     close_listeners(SrsListenerHttpStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
@@ -736,6 +739,7 @@ void SrsServer::gracefully_dispose()
     // prevent fresh clients.
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpsApi);
     close_listeners(SrsListenerHttpStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
@@ -893,6 +897,10 @@ srs_error_t SrsServer::listen()
     
     if ((err = listen_http_api()) != srs_success) {
         return srs_error_wrap(err, "http api listen");
+    }
+
+    if ((err = listen_https_api()) != srs_success) {
+        return srs_error_wrap(err, "https api listen");
     }
     
     if ((err = listen_http_stream()) != srs_success) {
@@ -1325,6 +1333,29 @@ srs_error_t SrsServer::listen_http_api()
     return err;
 }
 
+srs_error_t SrsServer::listen_https_api()
+{
+    srs_error_t err = srs_success;
+
+    close_listeners(SrsListenerHttpsApi);
+    if (_srs_config->get_https_api_enabled()) {
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpsApi);
+        listeners.push_back(listener);
+
+        std::string ep = _srs_config->get_https_api_listen();
+
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+
+        if ((err = listener->listen(ip, port)) != srs_success) {
+            return srs_error_wrap(err, "https api listen %s:%d", ip.c_str(), port);
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsServer::listen_http_stream()
 {
     srs_error_t err = srs_success;
@@ -1550,7 +1581,9 @@ srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, IS
     if (type == SrsListenerRtmpStream) {
         *pr = new SrsRtmpConn(this, stfd, ip, port);
     } else if (type == SrsListenerHttpApi) {
-        *pr = new SrsHttpApi(this, stfd, http_api_mux, ip, port);
+        *pr = new SrsHttpApi(false, this, stfd, http_api_mux, ip, port);
+    } else if (type == SrsListenerHttpsApi) {
+        *pr = new SrsHttpApi(true, this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpStream) {
         *pr = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip, port);
     } else {
@@ -1643,6 +1676,23 @@ srs_error_t SrsServer::on_reload_http_api_enabled()
 srs_error_t SrsServer::on_reload_http_api_disabled()
 {
     close_listeners(SrsListenerHttpApi);
+    return srs_success;
+}
+
+srs_error_t SrsServer::on_reload_https_api_enabled()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = listen_https_api()) != srs_success) {
+        return srs_error_wrap(err, "reload https_api");
+    }
+
+    return err;
+}
+
+srs_error_t SrsServer::on_reload_https_api_disabled()
+{
+    close_listeners(SrsListenerHttpsApi);
     return srs_success;
 }
 

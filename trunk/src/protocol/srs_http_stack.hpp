@@ -525,6 +525,8 @@ public:
 public:
     // Initialize the http uri.
     virtual srs_error_t initialize(std::string _url);
+    // After parsed the message, set the schema to https.
+    virtual void set_schema(std::string v);
 public:
     virtual std::string get_url();
     virtual std::string get_schema();
