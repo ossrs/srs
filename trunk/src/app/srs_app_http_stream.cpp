@@ -625,24 +625,25 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
     // Try to use fast flv encoder, remember that it maybe NULL.
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
+
+    // Note that the handler of hc now is rohc.
+    SrsResponseOnlyHttpConn* rohc = dynamic_cast<SrsResponseOnlyHttpConn*>(hc->handler());
+    srs_assert(rohc);
     
     // Set the socket options for transport.
     bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);
     if (tcp_nodelay) {
-        if ((err = hc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
+        if ((err = rohc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
             return srs_error_wrap(err, "set tcp nodelay");
         }
     }
     
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
+    if ((err = rohc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
 
-    // Note that the handler of hc now is rohc.
-    SrsResponseOnlyHttpConn* rohc = dynamic_cast<SrsResponseOnlyHttpConn*>(hc->handler());
-    srs_assert(rohc);
-
+    // Start a thread to receive all messages from client, then drop them.
     SrsHttpRecvThread* trd = new SrsHttpRecvThread(rohc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     

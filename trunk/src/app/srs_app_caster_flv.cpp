@@ -146,7 +146,8 @@ SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, 
     manager = cm;
     sdk = NULL;
     pprint = SrsPithyPrint::create_caster();
-    conn = new SrsHttpConn(this, fd, m, cip, cport);
+    skt = new SrsTcpConnection(fd);
+    conn = new SrsHttpConn(this, skt, m, cip, cport);
     ip = cip;
     port = cport;
 
@@ -158,6 +159,7 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
     _srs_config->unsubscribe(this);
 
     srs_freep(conn);
+    srs_freep(skt);
     srs_freep(sdk);
     srs_freep(pprint);
 }
@@ -305,6 +307,10 @@ srs_error_t SrsDynamicHttpConn::start()
     bool v = _srs_config->get_http_stream_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
+    }
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
     }
 
     return conn->start();

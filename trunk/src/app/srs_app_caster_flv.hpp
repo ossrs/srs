@@ -81,6 +81,7 @@ private:
     std::string output;
     SrsPithyPrint* pprint;
     SrsSimpleRtmpClient* sdk;
+    SrsTcpConnection* skt;
     SrsHttpConn* conn;
 private:
     // The ip and port of client.

@@ -67,14 +67,14 @@ ISrsHttpConnOwner::~ISrsHttpConnOwner()
 {
 }
 
-SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int cport)
+SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, string cip, int cport)
 {
     parser = new SrsHttpParser();
     cors = new SrsHttpCorsMux();
     http_mux = m;
     handler_ = handler;
 
-    skt = new SrsTcpConnection(fd);
+    skt = fd;
     ip = cip;
     port = cport;
     create_time = srsu2ms(srs_get_system_time());
@@ -110,10 +110,6 @@ void SrsHttpConn::remark(int64_t* in, int64_t* out)
 srs_error_t SrsHttpConn::start()
 {
     srs_error_t err = srs_success;
-
-    if ((err = skt->initialize()) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
@@ -293,16 +289,6 @@ srs_error_t SrsHttpConn::set_jsonp(bool v)
     return srs_success;
 }
 
-srs_error_t SrsHttpConn::set_tcp_nodelay(bool v)
-{
-    return skt->set_tcp_nodelay(v);
-}
-
-srs_error_t SrsHttpConn::set_socket_buffer(srs_utime_t buffer_v)
-{
-    return skt->set_socket_buffer(buffer_v);
-}
-
 string SrsHttpConn::remote_ip()
 {
     return ip;
@@ -321,8 +307,8 @@ void SrsHttpConn::expire()
 SrsResponseOnlyHttpConn::SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, string cip, int port)
 {
     manager = cm;
-    conn = new SrsHttpConn(this, fd, m, cip, port);
-    stfd = fd;
+    skt = new SrsTcpConnection(fd);
+    conn = new SrsHttpConn(this, skt, m, cip, port);
 
     _srs_config->subscribe(this);
 }
@@ -332,23 +318,18 @@ SrsResponseOnlyHttpConn::~SrsResponseOnlyHttpConn()
     _srs_config->unsubscribe(this);
 
     srs_freep(conn);
+    srs_freep(skt);
 }
 
 srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
 {
     srs_error_t err = srs_success;
 
-    SrsStSocket skt;
+    // Check user interrupt by interval.
+    skt->set_recv_timeout(3 * SRS_UTIME_SECONDS);
 
     // We start a socket to read the stfd, which is writing by conn.
     // It's ok, because conn never read it after processing the HTTP request.
-    if ((err = skt.initialize(stfd)) != srs_success) {
-        return srs_error_wrap(err, "init socket");
-    }
-
-    // Check user interrupt by interval.
-    skt.set_recv_timeout(3 * SRS_UTIME_SECONDS);
-
     // drop all request body.
     char body[4096];
     while (true) {
@@ -356,7 +337,7 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
             return srs_error_wrap(err, "timeout");
         }
 
-        if ((err = skt.read(body, 4096, NULL)) != srs_success) {
+        if ((err = skt->read(body, 4096, NULL)) != srs_success) {
             // Because we use timeout to check trd state, so we should ignore any timeout.
             if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
                 srs_freep(err);
@@ -420,12 +401,12 @@ srs_error_t SrsResponseOnlyHttpConn::on_conn_done(srs_error_t r0)
 
 srs_error_t SrsResponseOnlyHttpConn::set_tcp_nodelay(bool v)
 {
-    return conn->set_tcp_nodelay(v);
+    return skt->set_tcp_nodelay(v);
 }
 
 srs_error_t SrsResponseOnlyHttpConn::set_socket_buffer(srs_utime_t buffer_v)
 {
-    return conn->set_socket_buffer(buffer_v);
+    return skt->set_socket_buffer(buffer_v);
 }
 
 std::string SrsResponseOnlyHttpConn::desc()
@@ -450,6 +431,10 @@ srs_error_t SrsResponseOnlyHttpConn::start()
     bool v = _srs_config->get_http_stream_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
+    }
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
     }
 
     return conn->start();

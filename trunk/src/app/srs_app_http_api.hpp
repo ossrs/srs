@@ -262,9 +262,10 @@ class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsHt
 private:
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
+    SrsTcpConnection* skt;
     SrsHttpConn* conn;
 public:
-    SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
 // Interface ISrsHttpConnOwner.
 public:

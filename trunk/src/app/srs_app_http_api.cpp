@@ -1674,10 +1674,11 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 }
 #endif
 
-SrsHttpApi::SrsHttpApi(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port)
+SrsHttpApi::SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, string cip, int port)
 {
     manager = cm;
-    conn = new SrsHttpConn(this, fd, m, cip, port);
+    skt = new SrsTcpConnection(fd);
+    conn = new SrsHttpConn(this, skt, m, cip, port);
 
     _srs_config->subscribe(this);
 }
@@ -1687,6 +1688,7 @@ SrsHttpApi::~SrsHttpApi()
     _srs_config->unsubscribe(this);
 
     srs_freep(conn);
+    srs_freep(skt);
 }
 
 srs_error_t SrsHttpApi::on_start()
@@ -1745,6 +1747,9 @@ srs_error_t SrsHttpApi::on_conn_done(srs_error_t r0)
 
 std::string SrsHttpApi::desc()
 {
+    if (ssl) {
+        return "HttpsConn";
+    }
     return "HttpConn";
 }
 
@@ -1766,6 +1771,10 @@ srs_error_t SrsHttpApi::start()
     bool v = _srs_config->get_http_api_crossdomain();
     if ((err = conn->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
+    }
+
+    if ((err = skt->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init socket");
     }
 
     return conn->start();

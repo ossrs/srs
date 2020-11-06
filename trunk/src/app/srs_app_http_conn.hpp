@@ -84,7 +84,7 @@ protected:
     SrsHttpCorsMux* cors;
     ISrsHttpConnOwner* handler_;
 protected:
-    SrsTcpConnection* skt;
+    ISrsProtocolReadWriter* skt;
     // Each connection start a green thread,
     // when thread stop, the connection will be delete by server.
     SrsCoroutine* trd;
@@ -102,7 +102,7 @@ private:
     // for current connection to log self create time and calculate the living time.
     int64_t create_time;
 public:
-    SrsHttpConn(ISrsHttpConnOwner* handler, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
+    SrsHttpConn(ISrsHttpConnOwner* handler, ISrsProtocolReadWriter* fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpConn();
 // Interface ISrsResource.
 public:
@@ -133,11 +133,6 @@ public:
     virtual srs_error_t set_crossdomain_enabled(bool v);
     // Whether enable the JSONP.
     virtual srs_error_t set_jsonp(bool v);
-public:
-    // Set socket option TCP_NODELAY.
-    virtual srs_error_t set_tcp_nodelay(bool v);
-    // Set socket option SO_SNDBUF in srs_utime_t.
-    virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
 // Interface ISrsConnection.
 public:
     virtual std::string remote_ip();
@@ -154,8 +149,8 @@ class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual 
 private:
     // The manager object to manage the connection.
     ISrsResourceManager* manager;
+    SrsTcpConnection* skt;
     SrsHttpConn* conn;
-    srs_netfd_t stfd;
 public:
     SrsResponseOnlyHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, ISrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsResponseOnlyHttpConn();
