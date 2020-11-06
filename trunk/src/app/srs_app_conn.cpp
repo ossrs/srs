@@ -681,26 +681,32 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
 {
     srs_error_t err = srs_success;
 
-    // TODO: Can we avoid copy?
-    int nn_cipher = nn_plaintext;
-    char* cipher = new char[nn_cipher];
-    SrsAutoFreeA(char, cipher);
-
     ssize_t nn = 0;
-    // Read the cipher from SSL.
-    if ((err = transport->read(cipher, nn_cipher, &nn)) != srs_success) {
-        return srs_error_wrap(err, "https: read");
+    int nn_padding = BIO_ctrl_pending(bio_in);
+    if (nn_padding > 0) {
+        // Already exists in SSL cache, read it out.
+        nn = (ssize_t)srs_min(nn_plaintext, nn_padding);
+    } else {
+        // TODO: Can we avoid copy?
+        int nn_cipher = nn_plaintext;
+        char* cipher = new char[nn_cipher];
+        SrsAutoFreeA(char, cipher);
+
+        // Read the cipher from SSL.
+        if ((err = transport->read(cipher, nn_cipher, &nn)) != srs_success) {
+            return srs_error_wrap(err, "https: read");
+        }
+
+        int r0 = BIO_write(bio_in, cipher, nn);
+        if (r0 <= 0) {
+            // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
+            return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher, nn);
+        }
     }
 
-    int r0 = BIO_write(bio_in, cipher, nn);
+    int r0 = SSL_read(ssl, plaintext, nn);
     if (r0 <= 0) {
-        // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
-        return srs_error_new(ERROR_HTTPS_READ, "BIO_write r0=%d, cipher=%p, size=%d", r0, cipher, nn);
-    }
-
-    r0 = SSL_read(ssl, plaintext, nn);
-    if (r0 <= 0) {
-        return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, cipher=%p, size=%d", r0, cipher, nn);
+        return srs_error_new(ERROR_HTTPS_READ, "SSL_read r0=%d, cache=%d, size=%d", r0, nn_padding, nn);
     }
 
     srs_assert(r0 <= nn_plaintext);

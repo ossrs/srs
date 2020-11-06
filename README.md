@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-11-06, For [#1657][bug #1657], Read cached data first in SSL. 4.0.48
 * v4.0, 2020-11-06, For [#1657][bug #1657-3], support HTTPS Streaming(HTTPS-FLV, etc). 4.0.47
 * v4.0, 2020-11-06, For [#1657][bug #1657-2], support HTTPS API. 4.0.46
 * v4.0, 2020-11-03, For [#1657][bug #1657-1], support HTTPS client, for http-callback. 4.0.45
