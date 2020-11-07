@@ -683,10 +683,3 @@ AsyncRefresh2.prototype.request = function(timeout) {
     }, timeout);
 }
 
-// other components.
-/**
- * jquery/bootstrap pager.
- * depends: jquery1.10, boostrap2
- * https://code.csdn.net/snippets/146160
- * @see: http://blog.csdn.net/win_lin/article/details/17628631
- */
