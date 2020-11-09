@@ -28,11 +28,7 @@
 # SUCH DAMAGE.
 #
 
-if COND_PROGRAMS
-MAYBEPROGRAMS = programs
-endif
-
-SUBDIRS = usrsctplib $(MAYBEPROGRAMS)
+SUBDIRS = usrsctplib
 EXTRA_DIST = bootstrap Makefile.nmake
 ACLOCAL_AMFLAGS = -I m4
 # pkgconfig_DATA = usrsctp.pc

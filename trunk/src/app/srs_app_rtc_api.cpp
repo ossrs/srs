@@ -233,12 +233,12 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
-        if (iter->type_ != "audio" && iter->type_ != "video") {
+        if (iter->type_ != "audio" && iter->type_ != "video" && iter->type_ != "application") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }
 
-        if (! iter->rtcp_mux_) {
-            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
+        if (! iter->rtcp_mux_ && iter->type_ != "application") {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now media only support rtcp-mux");
         }
 
         for (std::vector<SrsMediaPayloadType>::const_iterator iter_media = iter->payload_types_.begin(); iter_media != iter->payload_types_.end(); ++iter_media) {
@@ -279,6 +279,8 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
             local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
         } else if (remote_media_desc.is_video()) {
             local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+        } else if (remote_media_desc.is_application()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -359,7 +361,11 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
         local_media_desc.port_ = 9;
-        local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        if (local_media_desc.is_audio() || local_media_desc.is_video()) {
+            local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        } else {
+            local_media_desc.protos_ = "UDP/DTLS/SCTP";
+        }
 
         if (remote_media_desc.session_info_.setup_ == "active") {
             local_media_desc.session_info_.setup_ = "passive";
@@ -401,6 +407,269 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
 
     return err;
 }
+
+#ifdef SRS_SCTP
+
+SrsGoApiRtcDataChannel::SrsGoApiRtcDataChannel(SrsRtcServer* server)
+{
+    server_ = server;
+}
+
+SrsGoApiRtcDataChannel::~SrsGoApiRtcDataChannel()
+{
+}
+
+
+// Request:
+//      POST /rtc/v1/data/
+//      {
+//          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
+//          "api":'http...", "clientip":"..."
+//      }
+// Response:
+//      {"sdp":"answer...", "sid":"..."}
+// @see https://github.com/rtcdn/rtcdn-draft
+srs_error_t SrsGoApiRtcDataChannel::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
+{
+    srs_error_t err = srs_success;
+
+    SrsJsonObject* res = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, res);
+
+    if ((err = do_serve_http(w, r, res)) != srs_success) {
+        srs_warn("RTC error %s", srs_error_desc(err).c_str()); srs_freep(err);
+        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    return srs_api_response(w, r, res->dumps());
+}
+
+srs_error_t SrsGoApiRtcDataChannel::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res)
+{
+    srs_error_t err = srs_success;
+
+    // For each RTC session, we use short-term HTTP connection.
+    SrsHttpHeader* hdr = w->header();
+    hdr->set("Connection", "Close");
+
+    // Parse req, the request json object, from body.
+    SrsJsonObject* req = NULL;
+    SrsAutoFree(SrsJsonObject, req);
+    if (true) {
+        string req_json;
+        if ((err = r->body_read_all(req_json)) != srs_success) {
+            return srs_error_wrap(err, "read body");
+        }
+
+        SrsJsonAny* json = SrsJsonAny::loads(req_json);
+        if (!json || !json->is_object()) {
+            return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
+        }
+
+        req = json->to_object();
+    }
+
+    // Fetch params from req object.
+    SrsJsonAny* prop = NULL;
+    if ((prop = req->ensure_property_string("sdp")) == NULL) {
+        return srs_error_wrap(err, "not sdp");
+    }
+    string remote_sdp_str = prop->to_str();
+
+    if ((prop = req->ensure_property_string("streamurl")) == NULL) {
+        return srs_error_wrap(err, "not streamurl");
+    }
+    string streamurl = prop->to_str();
+
+    string clientip;
+    if ((prop = req->ensure_property_string("clientip")) != NULL) {
+        clientip = prop->to_str();
+    }
+
+    string api;
+    if ((prop = req->ensure_property_string("api")) != NULL) {
+        api = prop->to_str();
+    }
+
+    // TODO: FIXME: Parse vhost.
+    // Parse app and stream from streamurl.
+    string app;
+    string stream_name;
+    if (true) {
+        string tcUrl;
+        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+
+        int port;
+        string schema, host, vhost, param;
+        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    }
+
+    // For client to specifies the EIP of server.
+    string eip = r->query_get("eip");
+    // For client to specifies whether encrypt by SRTP.
+    string srtp = r->query_get("encrypt");
+    string dtls = r->query_get("dtls");
+
+    srs_trace("RTC data %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, srtp=%s, dtls=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
+        srtp.c_str(), dtls.c_str());
+
+    // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
+    SrsSdp remote_sdp;
+    if ((err = remote_sdp.parse(remote_sdp_str)) != srs_success) {
+        return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
+    }
+
+    if ((err = check_remote_sdp(remote_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp check failed");
+    }
+
+    SrsRequest request;
+    request.app = app;
+    request.stream = stream_name;
+
+    // TODO: FIXME: Parse vhost.
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
+    if (parsed_vhost) {
+        request.vhost = parsed_vhost->arg0();
+    }
+
+    SrsSdp local_sdp;
+
+    // Config for SDP and session.
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+
+    if ((err = exchange_sdp(&request, remote_sdp, local_sdp)) != srs_success) {
+        return srs_error_wrap(err, "remote sdp have error or unsupport attributes");
+    }
+
+    // Whether enabled.
+    bool server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    if (server_enabled && !rtc_enabled) {
+        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+    }
+    if (!server_enabled || !rtc_enabled) {
+        return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
+            server_enabled, rtc_enabled, request.vhost.c_str());
+    }
+
+    bool srtp_enabled = true;
+    if (srtp.empty()) {
+        srtp_enabled = _srs_config->get_rtc_server_encrypt();
+    } else {
+        srtp_enabled = (srtp != "false");
+    }
+
+    bool dtls_enabled = (dtls != "false");
+
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    SrsRtcConnection* session = NULL;
+    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, dtls_enabled, srtp_enabled, &session)) != srs_success) {
+        return srs_error_wrap(err, "create session");
+    }
+
+    ostringstream os;
+    if ((err = local_sdp.encode(os)) != srs_success) {
+        return srs_error_wrap(err, "encode sdp");
+    }
+
+    string local_sdp_str = os.str();
+
+    srs_verbose("local_sdp=%s", local_sdp_str.c_str());
+
+    res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
+
+    // TODO: add candidates in response json?
+
+    res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
+    res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
+
+    srs_trace("RTC data username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+        remote_sdp_str.length(), local_sdp_str.length());
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcDataChannel::check_remote_sdp(const SrsSdp& remote_sdp)
+{
+    srs_error_t err = srs_success;
+
+    if (remote_sdp.group_policy_ != "BUNDLE") {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only support BUNDLE, group policy=%s", remote_sdp.group_policy_.c_str());
+    }
+
+    if (remote_sdp.media_descs_.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no media descriptions");
+    }
+
+    for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+        if (iter->type_ != "application") {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcDataChannel::exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+{
+    srs_error_t err = srs_success;
+    local_sdp.version_ = "0";
+
+    local_sdp.username_        = RTMP_SIG_SRS_SERVER;
+    local_sdp.session_id_      = srs_int2str((int64_t)this);
+    local_sdp.session_version_ = "2";
+    local_sdp.nettype_         = "IN";
+    local_sdp.addrtype_        = "IP4";
+    local_sdp.unicast_address_ = "0.0.0.0";
+
+    local_sdp.session_name_ = "SRSDataSession";
+
+    local_sdp.msid_semantic_ = "WMS";
+    local_sdp.msids_.push_back(req->app + "/" + req->stream);
+
+    local_sdp.group_policy_ = "BUNDLE";
+
+    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+        if (!remote_media_desc.is_application()) {
+            continue;
+        }
+
+        local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
+
+        SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
+
+        local_media_desc.mid_ = remote_media_desc.mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/DTLS/SCTP";
+
+        if (remote_media_desc.session_info_.setup_ == "active") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else if (remote_media_desc.session_info_.setup_ == "passive") {
+            local_media_desc.session_info_.setup_ = "active";
+        } else if (remote_media_desc.session_info_.setup_ == "actpass") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else {
+            // @see: https://tools.ietf.org/html/rfc4145#section-4.1
+            // The default value of the setup attribute in an offer/answer exchange
+            // is 'active' in the offer and 'passive' in the answer.
+            local_media_desc.session_info_.setup_ = "passive";
+        }
+
+        local_media_desc.rtcp_mux_ = true;
+        local_media_desc.rtcp_rsize_ = true;
+    }
+
+    return err;
+}
+#endif
 
 uint32_t SrsGoApiRtcPublish::ssrc_num = 0;
 
@@ -564,7 +833,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     res->set("sdp", SrsJsonAny::str(local_sdp_str.c_str()));
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
-    srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+    srs_trace("RTC publish username=%s, offer=%dB, answer=%dB", session->username().c_str(),
         remote_sdp_str.length(), local_sdp_str.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_str.c_str());
@@ -632,6 +901,8 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
             local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
         } else if (remote_media_desc.is_video()) {
             local_sdp.media_descs_.push_back(SrsMediaDesc("video"));
+        } else if (remote_media_desc.is_application()) {
+            local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -735,13 +1006,19 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
 
             // TODO: FIXME: Support RRTR?
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
+        } else if (remote_media_desc.is_application()) {
         }
 
         local_media_desc.mid_ = remote_media_desc.mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
         local_media_desc.port_ = 9;
-        local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+
+        if (local_media_desc.is_audio() || local_media_desc.is_video()) {
+            local_media_desc.protos_ = "UDP/TLS/RTP/SAVPF";
+        } else {
+            local_media_desc.protos_ = "UDP/DTLS/SCTP";
+        }
 
         if (remote_media_desc.session_info_.setup_ == "active") {
             local_media_desc.session_info_.setup_ = "passive";

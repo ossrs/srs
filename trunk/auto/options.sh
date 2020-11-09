@@ -18,6 +18,7 @@ help=no
 SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=YES
+SRS_SCTP=NO
 SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
@@ -151,6 +152,7 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --sctp=on|off             Whether build the SCTP for DataChannel. Default: $(value2switch $SRS_SCTP)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
@@ -279,6 +281,7 @@ function parse_user_option() {
         --with-rtc)                     SRS_RTC=YES                 ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          if [[ $value == off ]]; then SRS_RTC=NO; else SRS_RTC=YES; fi    ;;
+        --sctp)                         if [[ $value == off ]]; then SRS_SCTP=NO; else SRS_SCTP=YES; fi    ;;
         --simulator)                    if [[ $value == off ]]; then SRS_SIMULATOR=NO; else SRS_SIMULATOR=YES; fi    ;;
         --ffmpeg-fit)                   if [[ $value == off ]]; then SRS_FFMPEG_FIT=NO; else SRS_FFMPEG_FIT=YES; fi    ;;
 
@@ -546,6 +549,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sctp=$(value2switch $SRS_SCTP)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"

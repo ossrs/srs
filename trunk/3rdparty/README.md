@@ -78,3 +78,5 @@ links:
         http://downloads.xiph.org/releases/speex/speex-1.2rc1.tar.gz
 * srtp:
         https://github.com/cisco/libsrtp/releases/tag/v2.3.0
+* usrsctp: 
+        https://github.com/sctplab/usrsctp
