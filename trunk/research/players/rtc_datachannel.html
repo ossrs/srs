@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+</head>
+<body>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcdatachannel'/>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a id="srs_index" class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li class="active"><a id="nav_rtc_datachannel" href="rtc_datachannel.html">RTC数据</a></li>
+                    <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
+                    <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
+                    <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
+                    <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
+                    <!--<li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>-->
+                    <!--<li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>-->
+                    <!--<li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
+                    <li><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>
+                    <li><a href="https://github.com/ossrs/srs">源码</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_url" class="input-xxlarge" value="">
+        <button class="btn btn-primary" id="btn_connect">连接</button>
+    </div>
+
+    <div id="rtc_data">
+        <label></label>
+        <div class="form-inline">
+            SND:
+            <input type="text" id="txt_send" class="input-xxlarge" value="">
+            <button class="btn btn-primary" id="btn_send">发送</button>
+        </div>
+
+        <label></label>
+        <div class="form-inline">
+            RCV:
+            <input type="text" id="txt_receive" class="input-xxlarge" value="">
+        </div>
+    </div>
+
+    <footer>
+        <p></p>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2020</a></p>
+    </footer>
+</div>
+<script type="text/javascript">
+    var pc = null; // Global handler to do cleanup when replaying.
+    var dc = null;
+    $(function(){
+        var connectServer = function() {
+            $('#rtc_data').show();
+            var urlObject = parse_rtmp_url($("#txt_url").val());
+            var schema = window.location.protocol;
+
+            // Close PC when user replay.
+            if (pc) {
+                pc.close();
+            }
+            if (dc) {
+                dc.close();
+            }
+
+            pc = new RTCPeerConnection(null);
+            // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel
+            dc = pc.createDataChannel("sdc", {
+                ordered: false, maxRetransmits: 5
+            });
+            dc.onmessage = function (e) {
+                console.log("receive message: ", e);
+                $('#txt_receive').val(e.data);
+            };
+            new Promise(function(resolve, reject) {
+                pc.createOffer(function(offer){
+                    resolve(offer);
+                },function(reason){
+                    reject(reason);
+                });
+            }).then(function(offer) {
+                return pc.setLocalDescription(offer).then(function(){ return offer; });
+            }).then(function(offer) {
+                return new Promise(function(resolve, reject) {
+                    var port = urlObject.port || 1985;
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var api = urlObject.user_query.data || '/rtc/v1/data/';
+                    if (api.lastIndexOf('/') != api.length - 1) {
+                        api += '/';
+                    }
+
+                    var url = schema + '//' + urlObject.server + ':' + port + api;
+                    for (var key in urlObject.user_query) {
+                        if (key != 'api' && key != 'data') {
+                            url += '&' + key + '=' + urlObject.user_query[key];
+                        }
+                    }
+                    // Replace /rtc/v1/data/&k=v to /rtc/v1/data/?k=v
+                    url = url.replace(api + '&', api + '?');
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var data = {
+                        api: url, streamurl: urlObject.url, clientip: null, sdp: offer.sdp
+                    };
+                    console.log("Generated offer: ", data);
+
+                    $.ajax({
+                        type: "POST", url: url, data: JSON.stringify(data),
+                        contentType:'application/json', dataType: 'json'
+                    }).done(function(data) {
+                        console.log("Got answer: ", data);
+                        if (data.code) {
+                            reject(data); return;
+                        }
+                        resolve(data.sdp);
+                    }).fail(function(reason){
+                        reject(reason);
+                    });
+                });
+            }).then(function(answer) {
+                return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
+            }).catch(function(reason) {
+                pc.close(); $('#rtc_data').hide();
+                throw reason;
+            });
+        };
+
+        $('#rtc_data').hide();
+        var query = parse_query_string();
+        srs_init_rtc("#txt_url", query);
+
+        $("#btn_send").click(function(e) {
+            if (!dc) return;
+            console.log("send message: ", $('#txt_send').val());
+            dc.send($('#txt_send').val());
+        });
+
+        $("#btn_connect").click(connectServer);
+        if (query.autostart === 'true') {
+            connectServer();
+        }
+    });
+</script>
+</body>
+</html>
+

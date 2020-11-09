@@ -138,6 +138,11 @@ if [[ $SRS_RTC == YES ]]; then
   LibSrtpRoot="${SRS_OBJS_DIR}/srtp2/include"; LibSrtpFile="${SRS_OBJS_DIR}/srtp2/lib/libsrtp2.a"
 fi
 
+# sctp
+if [[ $SRS_SCTP == YES ]]; then
+  LibSctpRoot="${SRS_OBJS_DIR}/sctp/include"; LibSctpFile="${SRS_OBJS_DIR}/sctp/lib/libusrsctp.a"
+fi
+
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
   LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
@@ -232,6 +237,9 @@ if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_rtc_stun_stack")
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
+fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
@@ -259,6 +267,9 @@ fi
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
+fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
@@ -279,6 +290,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_codec")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    MODULE_FILES+=("srs_app_sctp")
 fi
 
 DEFINES=""
@@ -304,6 +318,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
+fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
     ModuleLibIncs+=("${SrsSRTRoot[*]}")
@@ -325,6 +342,9 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
     ModuleLibIncs+=("${SrsSRTRoot[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
 fi
 MODULE_FILES=()
 DEFINES=""
@@ -356,6 +376,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibFiles+=(${LibSctpFile})
+fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibFiles+=("${LibSRTfile[*]}")
 fi
@@ -367,6 +390,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=(${LibSctpRoot})
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
@@ -386,6 +412,9 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibFiles+=(${LibSctpFile})
 fi
 #
 for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -412,6 +441,9 @@ if [ $SRS_UTEST = YES ]; then
     if [[ $SRS_FFMPEG_FIT == YES ]]; then
         ModuleLibIncs+=("${LibFfmpegRoot[*]}")
     fi
+    if [[ $SRS_SCTP == YES ]]; then
+        ModuleLibIncs+=(${LibSctpRoot})
+    fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibIncs+=("${SrsSRTRoot[*]}")
     fi
@@ -421,6 +453,9 @@ if [ $SRS_UTEST = YES ]; then
     fi
     if [[ $SRS_FFMPEG_FIT == YES ]]; then
         ModuleLibFiles+=("${LibFfmpegFile[*]}")
+    fi
+    if [[ $SRS_SCTP == YES ]]; then
+        ModuleLibFiles+=(${LibSctpFile})
     fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")

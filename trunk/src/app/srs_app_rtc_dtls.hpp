@@ -125,6 +125,8 @@ protected:
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;
     virtual srs_error_t on_handshake_done() = 0;
     virtual bool is_dtls_client() = 0;
+public:
+    srs_error_t send(const char* data, const int len);
 };
 
 class SrsDtlsClientImpl : public SrsDtlsImpl, public ISrsCoroutineHandler
@@ -210,6 +212,9 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+public:
+    // Encrypt by DTLS and sendout, for example, DataChannel to send data.
+    srs_error_t send(const char* data, const int len);
 };
 
 class SrsSRTP

@@ -453,6 +453,12 @@ srs_error_t SrsRtcServer::listen_api()
     }
 #endif
 
+#ifdef SRS_SCTP
+    if ((err = http_api_mux->handle("/rtc/v1/data/", new SrsGoApiRtcDataChannel(this))) != srs_success) {
+        return srs_error_wrap(err, "handle data-channel");
+    }
+#endif
+
     return err;
 }
 

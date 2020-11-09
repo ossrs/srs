@@ -31,6 +31,23 @@ private:
     virtual srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 
+#ifdef SRS_SCTP
+class SrsGoApiRtcDataChannel : public ISrsHttpHandler
+{
+private:
+    SrsRtcServer* server_;
+public:
+    SrsGoApiRtcDataChannel(SrsRtcServer* server);
+    virtual ~SrsGoApiRtcDataChannel();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+private:
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
+    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
+    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+};
+#endif
+
 class SrsGoApiRtcPublish : public ISrsHttpHandler
 {
 private:

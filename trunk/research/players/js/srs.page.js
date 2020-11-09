@@ -17,6 +17,7 @@ function update_nav() {
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
     $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
     $("#nav_rtc_publisher").attr("href", "rtc_publisher.html" + window.location.search);
+    $("#nav_rtc_datachannel").attr("href", "rtc_datachannel.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);

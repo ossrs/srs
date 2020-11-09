@@ -66,6 +66,10 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_pub;
 extern SrsPps* _srs_pps_conn;
 
+#ifdef SRS_SCTP
+#include <srs_app_sctp.hpp>
+#endif
+
 ISrsRtcTransport::ISrsRtcTransport()
 {
 }
@@ -77,9 +81,12 @@ ISrsRtcTransport::~ISrsRtcTransport()
 SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s)
 {
     session_ = s;
-
     dtls_ = new SrsDtls((ISrsDtlsCallback*)this);
     srtp_ = new SrsSRTP();
+    
+#ifdef SRS_SCTP
+    sctp_ = new SrsSctp(dtls_);
+#endif
 
     handshake_done = false;
 }
@@ -88,6 +95,10 @@ SrsSecurityTransport::~SrsSecurityTransport()
 {
     srs_freep(dtls_);
     srs_freep(srtp_);
+
+#ifdef SRS_SCTP
+    srs_freep(sctp_);
+#endif
 }
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig* cfg)
@@ -154,7 +165,15 @@ srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, cons
 {
     srs_error_t err = srs_success;
 
-    // TODO: process SCTP protocol(WebRTC datachannel support)
+#ifdef SRS_SCTP
+    if (sctp_ == NULL) {
+        sctp_ = new SrsSctp(dtls_);
+        // TODO: FIXME: Handle error.
+        sctp_->connect_to_class();
+    }
+
+    sctp_->feed(buf, nb_buf);
+#endif
 
     return err;
 }

@@ -350,6 +350,9 @@
 #define ERROR_RTC_DUPLICATED_SSRC           5029
 #define ERROR_RTC_NO_TRACK                  5030
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
+#define ERROR_RTC_STREAM_DESC               5032
+#define ERROR_RTC_SCTP                      5033
+#define ERROR_RTC_DATACHANNEL               5034
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

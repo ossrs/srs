@@ -132,6 +132,7 @@ public:
 
     bool is_audio() const { return type_ == "audio"; }
     bool is_video() const { return type_ == "video"; }
+    bool is_application() const { return type_ == "application"; }
 private:
     srs_error_t parse_attribute(const std::string& content);
     srs_error_t parse_attr_rtpmap(const std::string& value);
