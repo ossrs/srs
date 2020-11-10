@@ -5,7 +5,7 @@
  * depends: jquery1.10
  * https://gitee.com/winlinvip/codes/rpn0c2ewbomj81augzk4y59
  * @see: http://blog.csdn.net/win_lin/article/details/17994347
- * v 1.0.22
+ * v 1.0.23
  */
 
 /**
@@ -357,7 +357,8 @@ function parse_rtmp_url(rtmp_url) {
             } else if (window.location.href.indexOf('https://') === 0) {
                 ret.port = 443;
             } else {
-                ret.port = 80;
+                // For WebRTC, SRS use 1985 as default API port.
+                ret.port = 1985;
             }
         }
     }
