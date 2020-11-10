@@ -28,9 +28,6 @@
 
 #include <srs_kernel_io.hpp>
 
-// Default http listen port.
-#define SRS_DEFAULT_HTTP_PORT 80
-
 #if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <map>
@@ -519,6 +516,8 @@ private:
     int port;
     std::string path;
     std::string query;
+    std::string username_;
+    std::string password_;
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
@@ -534,6 +533,8 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    virtual std::string username();
+    virtual std::string password();
 private:
     // Get the parsed url field.
     // @return return empty string if not set.

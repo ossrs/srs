@@ -873,7 +873,7 @@ ISrsHttpMessage::~ISrsHttpMessage()
 
 SrsHttpUri::SrsHttpUri()
 {
-    port = SRS_DEFAULT_HTTP_PORT;
+    port = 0;
 }
 
 SrsHttpUri::~SrsHttpUri()
@@ -891,27 +891,42 @@ srs_error_t SrsHttpUri::initialize(string _url)
 
     http_parser_url hp_u;
     int r0;
-    if((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
+    if ((r0 = http_parser_parse_url(purl, url.length(), 0, &hp_u)) != 0){
         return srs_error_new(ERROR_HTTP_PARSE_URI, "parse url %s failed, code=%d", purl, r0);
     }
 
     std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
-    if(!field.empty()){
+    if (!field.empty()){
         schema = field;
     }
 
     host = get_uri_field(url, &hp_u, UF_HOST);
 
     field = get_uri_field(url, &hp_u, UF_PORT);
-    if(!field.empty()){
+    if (!field.empty()) {
         port = atoi(field.c_str());
     }
-    if(port<=0){
-        port = SRS_DEFAULT_HTTP_PORT;
+    if (port <= 0) {
+        if (schema == "https") {
+            port = SRS_DEFAULT_HTTPS_PORT;
+        } else if (schema == "rtmp") {
+            port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        } else if (schema == "redis") {
+            port = SRS_DEFAULT_REDIS_PORT;
+        } else {
+            port = SRS_DEFAULT_HTTP_PORT;
+        }
     }
 
     path = get_uri_field(url, &hp_u, UF_PATH);
     query = get_uri_field(url, &hp_u, UF_QUERY);
+
+    username_ = get_uri_field(url, &hp_u, UF_USERINFO);
+    size_t pos = username_.find(":");
+    if (pos != string::npos) {
+        password_ = username_.substr(pos+1);
+        username_ = username_.substr(0, pos);
+    }
 
     return err;
 }
@@ -955,6 +970,16 @@ string SrsHttpUri::get_path()
 string SrsHttpUri::get_query()
 {
     return query;
+}
+
+std::string SrsHttpUri::username()
+{
+    return username_;
+}
+
+std::string SrsHttpUri::password()
+{
+    return password_;
 }
 
 string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)

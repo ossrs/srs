@@ -1847,3 +1847,59 @@ VOID TEST(ProtocolHTTPTest, ParsingLargeMessages)
         EXPECT_EQ(354, (int)body.length());
     }
 }
+
+VOID TEST(ProtocolHTTPTest, ParseUri)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize("http://ossrs.net/index.html"));
+        EXPECT_STREQ("http", uri.get_schema().c_str());
+        EXPECT_STREQ("ossrs.net", uri.get_host().c_str());
+        EXPECT_EQ(80, uri.get_port());
+        EXPECT_STREQ("/index.html", uri.get_path().c_str());
+    }
+
+    if (true) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize("rtmp://ossrs.net/live/livestream"));
+        EXPECT_STREQ("rtmp", uri.get_schema().c_str());
+        EXPECT_STREQ("ossrs.net", uri.get_host().c_str());
+        EXPECT_EQ(1935, uri.get_port());
+        EXPECT_STREQ("/live/livestream", uri.get_path().c_str());
+    }
+
+    if (true) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize("http://user:passwd@ossrs.net/index.html"));
+        EXPECT_STREQ("http", uri.get_schema().c_str());
+        EXPECT_STREQ("ossrs.net", uri.get_host().c_str());
+        EXPECT_STREQ("user", uri.username().c_str());
+        EXPECT_STREQ("passwd", uri.password().c_str());
+        EXPECT_EQ(80, uri.get_port());
+        EXPECT_STREQ("/index.html", uri.get_path().c_str());
+    }
+
+    if (true) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize("https://user:passwd@ossrs.net/index.html"));
+        EXPECT_STREQ("https", uri.get_schema().c_str());
+        EXPECT_STREQ("ossrs.net", uri.get_host().c_str());
+        EXPECT_STREQ("user", uri.username().c_str());
+        EXPECT_STREQ("passwd", uri.password().c_str());
+        EXPECT_EQ(443, uri.get_port());
+        EXPECT_STREQ("/index.html", uri.get_path().c_str());
+    }
+
+    if (true) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize("redis://user:passwd@ossrs.net/0"));
+        EXPECT_STREQ("redis", uri.get_schema().c_str());
+        EXPECT_STREQ("ossrs.net", uri.get_host().c_str());
+        EXPECT_STREQ("user", uri.username().c_str());
+        EXPECT_STREQ("passwd", uri.password().c_str());
+        EXPECT_EQ(6379, uri.get_port());
+        EXPECT_STREQ("/0", uri.get_path().c_str());
+    }
+}
