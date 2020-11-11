@@ -154,6 +154,22 @@ SrsHttpHeader::~SrsHttpHeader()
 
 void SrsHttpHeader::set(string key, string value)
 {
+    // Convert to UpperCamelCase, for example:
+    //      transfer-encoding
+    // transform to:
+    //      Transfer-Encoding
+    char pchar = 0;
+    for (int i = 0; i < (int)key.length(); i++) {
+        char ch = key.at(i);
+
+        if (i == 0 || pchar == '-') {
+            if (ch >= 'a' && ch <= 'z') {
+                ((char*)key.data())[i] = ch - 32;
+            }
+        }
+        pchar = ch;
+    }
+
     headers[key] = value;
 }
 
