@@ -48,10 +48,12 @@
 #include <srs_app_rtc_codec.hpp>
 #endif
 
+// Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 const int kAudioChannel         = 2;
 const int kAudioSamplerate      = 48000;
 
+// Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
 const int kVideoSamplerate  = 90000;
 
@@ -573,7 +575,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     // audio track description
     if (true) {
         SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
-        SrsAutoFree(SrsRtcTrackDescription, audio_track_desc);
+        stream_desc->audio_track_desc_ = audio_track_desc;
 
         audio_track_desc->type_ = "audio";
         audio_track_desc->id_ = "audio-"  + srs_random_str(8);
@@ -583,13 +585,12 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
         audio_track_desc->direction_ = "recvonly";
 
         audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
-        stream_desc->audio_track_desc_ = audio_track_desc->copy();
     }
 
     // video track description
     if (true) {
         SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
-        SrsAutoFree(SrsRtcTrackDescription, video_track_desc);
+        stream_desc->video_track_descs_.push_back(video_track_desc);
 
         video_track_desc->type_ = "video";
         video_track_desc->id_ = "video-"  + srs_random_str(8);
@@ -598,8 +599,10 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
         video_track_desc->ssrc_ = video_ssrc;
         video_track_desc->direction_ = "recvonly";
 
-        video_track_desc->media_ = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        stream_desc->video_track_descs_.push_back(video_track_desc->copy());
+        SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
+        video_track_desc->media_ = video_payload;
+
+        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
     source_->set_stream_desc(stream_desc);
