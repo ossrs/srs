@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
 * v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
 * v4.0, 2020-11-06, For [#1657][bug #1657], Read cached data first in SSL. 4.0.48
 * v4.0, 2020-11-06, For [#1657][bug #1657-3], support HTTPS Streaming(HTTPS-FLV, etc). 4.0.47
@@ -1791,6 +1792,7 @@ Winlin
 [bug #1657-1]: https://github.com/ossrs/srs/issues/1657#issuecomment-720889906
 [bug #1657-2]: https://github.com/ossrs/srs/issues/1657#issuecomment-722904004
 [bug #1657-3]: https://github.com/ossrs/srs/issues/1657#issuecomment-722971676
+[bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

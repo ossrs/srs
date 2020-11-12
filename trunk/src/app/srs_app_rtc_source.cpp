@@ -1941,6 +1941,11 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
+int SrsRtcSendTrack::get_track_media_pt()
+{
+    return track_desc_->media_->pt_;
+}
+
 void SrsRtcSendTrack::on_recv_nack()
 {
     SrsRtcTrackStatistic* statistic = statistic_;

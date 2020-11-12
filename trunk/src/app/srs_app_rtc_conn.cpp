@@ -646,6 +646,10 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         if (pkt->is_audio()) {
             // TODO: FIXME: Any simple solution?
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
+
+            // The player may change the PT, so it's not equal to publisher's.
+            pkt->header.set_payload_type(audio_track->get_track_media_pt());
+
             if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
@@ -654,6 +658,10 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         } else {
             // TODO: FIXME: Any simple solution?
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
+
+            // The player may change the PT, so it's not equal to publisher's.
+            pkt->header.set_payload_type(video_track->get_track_media_pt());
+
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
@@ -2580,11 +2588,30 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
     return err;
 }
 
-// For example, 42001f 42e01f, see https://blog.csdn.net/epubcn/article/details/102802108
-bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
+bool srs_sdp_has_h264_profile(const SrsMediaPayloadType& payload_type, const string& profile)
 {
     srs_error_t err = srs_success;
 
+    if (payload_type.format_specific_param_.empty()) {
+        return false;
+    }
+
+    H264SpecificParam h264_param;
+    if ((err = srs_parse_h264_fmtp(payload_type.format_specific_param_, h264_param)) != srs_success) {
+        srs_error_reset(err);
+        return false;
+    }
+
+    if (h264_param.profile_level_id == profile) {
+        return true;
+    }
+
+    return false;
+}
+
+// For example, 42001f 42e01f, see https://blog.csdn.net/epubcn/article/details/102802108
+bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
+{
     for (size_t i = 0; i < sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& desc = sdp.media_descs_[i];
         if (!desc.is_video()) {
@@ -2598,17 +2625,7 @@ bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
 
         for (std::vector<SrsMediaPayloadType>::iterator it = payloads.begin(); it != payloads.end(); ++it) {
             const SrsMediaPayloadType& payload_type = *it;
-
-            if (payload_type.format_specific_param_.empty()) {
-                continue;
-            }
-
-            H264SpecificParam h264_param;
-            if ((err = srs_parse_h264_fmtp(payload_type.format_specific_param_, h264_param)) != srs_success) {
-                srs_error_reset(err); continue;
-            }
-
-            if (h264_param.profile_level_id == profile) {
+            if (srs_sdp_has_h264_profile(payload_type, profile)) {
                 return true;
             }
         }
@@ -2917,6 +2934,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
     SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
@@ -2925,6 +2943,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
         const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
         if (true) {
@@ -2938,33 +2957,41 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
         }
 
         std::vector<SrsRtcTrackDescription*> track_descs;
-        std::vector<std::string> remote_rtcp_fb;
+        SrsMediaPayloadType* remote_payload = NULL;
         if (remote_media_desc.is_audio()) {
             // TODO: check opus format specific param
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
+            vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
             }
 
-            SrsMediaPayloadType payload = payloads.at(0);
-            remote_rtcp_fb = payload.rtcp_fb_;
-
+            remote_payload = &payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
+            vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
             }
 
-            SrsMediaPayloadType payload = payloads.at(0);
-            remote_rtcp_fb = payload.rtcp_fb_;
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                SrsMediaPayloadType& payload = payloads.at(j);
 
+                // If exists 42e01f profile, choose it; otherwise, use the first payload.
+                if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
+                    remote_payload = &payloads.at(j);
+                    break;
+                }
+            }
             track_descs = source->get_track_desc("video", "H264");
         }
 
         for (int i = 0; i < (int)track_descs.size(); ++i) {
             SrsRtcTrackDescription* track = track_descs[i]->copy();
+
+            // Use remote/source/offer PayloadType.
+            track->media_->pt_ = remote_payload->payload_type_;
+
             track->mid_ = remote_media_desc.mid_;
             uint32_t publish_ssrc = track->ssrc_;
 

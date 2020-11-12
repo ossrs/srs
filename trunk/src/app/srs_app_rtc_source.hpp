@@ -426,9 +426,6 @@ public:
     int get_rtp_extension_id(std::string uri);
 public:
     SrsRtcTrackDescription* copy();
-public:
-    // find media with payload type.
-    SrsMediaPayloadType generate_media_payload_type(int payload_type);
 };
 
 class SrsRtcStreamDescription
@@ -565,6 +562,7 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+    int get_track_media_pt();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;
