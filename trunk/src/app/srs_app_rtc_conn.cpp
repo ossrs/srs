@@ -2644,6 +2644,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
     for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
@@ -2934,6 +2935,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
     SrsRtcStream* source = NULL;
@@ -2979,6 +2981,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
                 SrsMediaPayloadType& payload = payloads.at(j);
 
                 // If exists 42e01f profile, choose it; otherwise, use the first payload.
+                // TODO: FIME: Should check packetization-mode=1 also.
                 if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
                     remote_payload = payload;
                     break;
