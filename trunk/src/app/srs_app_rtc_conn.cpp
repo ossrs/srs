@@ -2957,7 +2957,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
         }
 
         std::vector<SrsRtcTrackDescription*> track_descs;
-        SrsMediaPayloadType* remote_payload = NULL;
+        SrsMediaPayloadType remote_payload(0);
         if (remote_media_desc.is_audio()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
@@ -2965,7 +2965,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
             }
 
-            remote_payload = &payloads.at(0);
+            remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
@@ -2974,15 +2974,17 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
             }
 
+            remote_payload = payloads.at(0);
             for (int j = 0; j < (int)payloads.size(); j++) {
                 SrsMediaPayloadType& payload = payloads.at(j);
 
                 // If exists 42e01f profile, choose it; otherwise, use the first payload.
                 if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
-                    remote_payload = &payloads.at(j);
+                    remote_payload = payload;
                     break;
                 }
             }
+
             track_descs = source->get_track_desc("video", "H264");
         }
 
@@ -2990,7 +2992,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             SrsRtcTrackDescription* track = track_descs[i]->copy();
 
             // Use remote/source/offer PayloadType.
-            track->media_->pt_ = remote_payload->payload_type_;
+            track->media_->pt_ = remote_payload.payload_type_;
 
             track->mid_ = remote_media_desc.mid_;
             uint32_t publish_ssrc = track->ssrc_;
