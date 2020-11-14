@@ -67,8 +67,9 @@ public:
 public:
     // initialize the http parser with specified type,
     // one parser can only parse request or response messages.
-    // @param allow_jsonp whether allow jsonp parser, which indicates the method in query string.
-    virtual srs_error_t initialize(enum http_parser_type type, bool allow_jsonp = false);
+    virtual srs_error_t initialize(enum http_parser_type type);
+    // Whether allow jsonp parser, which indicates the method in query string.
+    virtual void set_jsonp(bool allow_jsonp);
     // always parse a http message,
     // that is, the *ppmsg always NOT-NULL when return success.
     // or error and *ppmsg must be NULL.
@@ -144,6 +145,8 @@ public:
     virtual void set_header(SrsHttpHeader* header, bool keep_alive);
     // set the original messages, then update the message.
     virtual srs_error_t set_url(std::string url, bool allow_jsonp);
+    // After parsed the message, set the schema to https.
+    virtual void set_https(bool v);
 public:
     // Get the owner connection, maybe NULL.
     virtual ISrsConnection* connection();

@@ -25,12 +25,17 @@
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li class="active"><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
                     <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
                     <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
                     <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
                     <!--<li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
                     <li><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>
-                    <li><a href="https://github.com/ossrs/srs">源码</a></li>
+                    <li>
+                        <a href="https://github.com/ossrs/srs">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/srs?style=social">
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -58,82 +63,270 @@
     </footer>
 </div>
 <script type="text/javascript">
-    var pc = null; // Global handler to do cleanup when replaying.
     $(function(){
-        var startPlay = function() {
-            $('#rtc_media_player').show();
-            var urlObject = parse_rtmp_url($("#txt_url").val());
-            var schema = window.location.protocol;
+        // Async-await-promise based SRS RTC Player.
+        function SrsRtcPlayerAsync() {
+            var self = {
+                play: async function(apiUrl, streamUrl) {
+                    self.pc.addTransceiver("audio", {direction: "recvonly"});
+                    self.pc.addTransceiver("video", {direction: "recvonly"});
 
-            // Close PC when user replay.
-            if (pc) {
-                pc.close();
+                    var offer = await self.pc.createOffer();
+                    await self.pc.setLocalDescription(offer);
+                    var session = await new Promise(function(resolve, reject) {
+                        // @see https://github.com/rtcdn/rtcdn-draft
+                        var data = {
+                            api: apiUrl, streamurl: streamUrl, clientip: null, sdp: offer.sdp
+                        };
+                        console.log("Generated offer: ", data);
+
+                        $.ajax({
+                            type: "POST", url: apiUrl, data: JSON.stringify(data),
+                            contentType:'application/json', dataType: 'json'
+                        }).done(function(data) {
+                            console.log("Got answer: ", data);
+                            if (data.code) {
+                                reject(data); return;
+                            }
+
+                            resolve(data);
+                        }).fail(function(reason){
+                            reject(reason);
+                        });
+                    });
+                    await self.pc.setRemoteDescription(
+                        new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+                    );
+                    return session;
+                },
+                close: function() {
+                    self.pc.close();
+                },
+                // callbacks.
+                onaddstream: function (event) {}
+            };
+
+            self.pc = new RTCPeerConnection(null);
+            self.pc.onaddstream = function (event) {
+                if (self.onaddstream) {
+                    self.onaddstream(event);
+                }
+            };
+            return self;
+        }
+
+        // Promise based SRS RTC Player.
+        function SrsRtcPlayerPromise() {
+            var self = {
+                play: function(apiUrl, streamUrl) {
+                    self.pc.addTransceiver("audio", {direction: "recvonly"});
+                    self.pc.addTransceiver("video", {direction: "recvonly"});
+
+                    return self.pc.createOffer().then(function(offer) {
+                        return self.pc.setLocalDescription(offer).then(function(){ return offer; });
+                    }).then(function(offer) {
+                        return new Promise(function(resolve, reject) {
+                            // @see https://github.com/rtcdn/rtcdn-draft
+                            var data = {
+                                api: apiUrl, streamurl: streamUrl, clientip: null, sdp: offer.sdp
+                            };
+                            console.log("Generated offer: ", data);
+
+                            $.ajax({
+                                type: "POST", url: apiUrl, data: JSON.stringify(data),
+                                contentType:'application/json', dataType: 'json'
+                            }).done(function(data) {
+                                console.log("Got answer: ", data);
+                                if (data.code) {
+                                    reject(data); return;
+                                }
+
+                                resolve(data);
+                            }).fail(function(reason){
+                                reject(reason);
+                            });
+                        });
+                    }).then(function(session) {
+                        return self.pc.setRemoteDescription(
+                            new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+                        ).then(function(){ return session; });
+                    });
+                },
+                close: function() {
+                    self.pc.close();
+                },
+                // callbacks.
+                onaddstream: function (event) {}
+            };
+
+            self.pc = new RTCPeerConnection(null);
+            self.pc.onaddstream = function (event) {
+                if (self.onaddstream) {
+                    self.onaddstream(event);
+                }
+            };
+            return self;
+        }
+
+        // Callback based SRS RTC Player.
+        function SrsRtcPlayerCallbacks() {
+            var self = {
+                play: function(apiUrl, streamUrl, success, fail) {
+                    self.pc.addTransceiver("audio", {direction: "recvonly"});
+                    self.pc.addTransceiver("video", {direction: "recvonly"});
+
+                    self.pc.createOffer(function(offer){
+                        onOffer(offer);
+                    }, function(reason){
+                        fail(reason);
+                    });
+
+                    var onOffer = function(offer) {
+                        self.pc.setLocalDescription(offer, function(){
+                            onOfferDone(offer);
+                        }, function(reason) {
+                            fail(reason);
+                        });
+                    };
+
+                    var onOfferDone = function (offer) {
+                        // @see https://github.com/rtcdn/rtcdn-draft
+                        var data = {
+                            api: apiUrl, streamurl: streamUrl, clientip: null, sdp: offer.sdp
+                        };
+                        console.log("Generated offer: ", data);
+
+                        $.ajax({
+                            type: "POST", url: apiUrl, data: JSON.stringify(data),
+                            contentType:'application/json', dataType: 'json'
+                        }).done(function(data) {
+                            console.log("Got answer: ", data);
+                            if (data.code) {
+                                fail(data); return;
+                            }
+
+                            onAnswer(data);
+                        }).fail(function(reason){
+                            fail(reason);
+                        });
+                    };
+
+                    var onAnswer = function(session) {
+                        var answer = session.sdp;
+                        self.pc.setRemoteDescription(
+                            new RTCSessionDescription({type: 'answer', sdp: answer})
+                        ).then(function(){
+                            success(session);
+                        }).catch(function(reason) {
+                            fail(reason);
+                        });
+                    };
+                },
+                close: function() {
+                    self.pc.close();
+                },
+                // callbacks.
+                onaddstream: function (event) {}
+            };
+
+            self.pc = new RTCPeerConnection(null);
+            self.pc.onaddstream = function (event) {
+                if (self.onaddstream) {
+                    self.onaddstream(event);
+                }
+            };
+            return self;
+        }
+
+        // Build RTC api url.
+        var prepareUrl = function () {
+            var apiUrl, streamUrl;
+
+            if (true) {
+                var urlObject = parse_rtmp_url($("#txt_url").val());
+
+                // If user specifies the schema, use it as API schema.
+                var schema = urlObject.user_query.schema;
+                schema = schema? schema + ':' : window.location.protocol;
+
+                var port = urlObject.port || 1985;
+                if (schema === 'https:') {
+                    port = urlObject.port || 443;
+                }
+
+                // @see https://github.com/rtcdn/rtcdn-draft
+                var api = urlObject.user_query.play || '/rtc/v1/play/';
+                if (api.lastIndexOf('/') !== api.length - 1) {
+                    api += '/';
+                }
+
+                apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                for (var key in urlObject.user_query) {
+                    if (key !== 'api' && key !== 'play') {
+                        apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                    }
+                }
+                // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                streamUrl = urlObject.url;
             }
 
-            pc = new RTCPeerConnection(null);
-            pc.onaddstream = function (event) {
-                console.log('Start play, event: ', event);
-                $('#rtc_media_player').prop('srcObject', event.stream);
-            };
-            new Promise(function(resolve, reject) {
-                pc.addTransceiver("audio", {direction: "recvonly"});
-                pc.addTransceiver("video", {direction: "recvonly"});
+            return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+        };
 
-                pc.createOffer(function(offer){
-                    resolve(offer);
-                },function(reason){
-                    reject(reason);
+        // Start play with conf.
+        var playStream = function (conf) {
+            // Close PC when user replay.
+            if (sdk) {
+                sdk.close();
+            }
+
+            // Use Callback style.
+            if (true) {
+                if (true) {
+                    sdk = new SrsRtcPlayerAsync();
+                } else {
+                    sdk = new SrsRtcPlayerPromise();
+                }
+                sdk.onaddstream = function (event) {
+                    console.log('Start play, event: ', event);
+                    $('#rtc_media_player').prop('srcObject', event.stream);
+                };
+
+                sdk.play(conf.apiUrl, conf.streamUrl).then(function(session){
+                    var simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
+                    $('#sessionid').html(session.sessionid);
+                    $('#simulator-drop').attr('href', simulator + '?drop=1&username=' + session.sessionid);
+                }).catch(function (reason) {
+                    sdk.close();
+                    $('#rtc_media_player').hide();
+                    console.error(reason);
                 });
-            }).then(function(offer) {
-                return pc.setLocalDescription(offer).then(function(){ return offer; });
-            }).then(function(offer) {
-                return new Promise(function(resolve, reject) {
-                    var port = urlObject.port || 1985;
+            } else if (false) {
+                sdk = new SrsRtcPlayerCallbacks();
+                sdk.onaddstream = function (event) {
+                    console.log('Start play, event: ', event);
+                    $('#rtc_media_player').prop('srcObject', event.stream);
+                };
 
-                    // @see https://github.com/rtcdn/rtcdn-draft
-                    var api = urlObject.user_query.play || '/rtc/v1/play/';
-                    if (api.lastIndexOf('/') != api.length - 1) {
-                        api += '/';
-                    }
-
-                    var url = schema + '//' + urlObject.server + ':' + port + api;
-                    for (var key in urlObject.user_query) {
-                        if (key != 'api' && key != 'play') {
-                            url += '&' + key + '=' + urlObject.user_query[key];
-                        }
-                    }
-                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
-                    url = url.replace(api + '&', api + '?');
-
-                    // @see https://github.com/rtcdn/rtcdn-draft
-                    var data = {
-                        api: url, streamurl: urlObject.url, clientip: null, sdp: offer.sdp
-                    };
-                    console.log("Generated offer: ", data);
-
-                    $.ajax({
-                        type: "POST", url: url, data: JSON.stringify(data),
-                        contentType:'application/json', dataType: 'json'
-                    }).done(function(data) {
-                        console.log("Got answer: ", data);
-                        if (data.code) {
-                            reject(data); return;
-                        }
-
-                        var simulator = schema + '//' + urlObject.server + ':' + port + '/rtc/v1/nack/';
-                        $('#sessionid').html(data.sessionid);
-                        $('#simulator-drop').attr('href', simulator + '?drop=1&username=' + data.sessionid);
-                        resolve(data.sdp);
-                    }).fail(function(reason){
-                        reject(reason);
-                    });
+                sdk.play(conf.apiUrl, conf.streamUrl, function (session) {
+                    var simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
+                    $('#sessionid').html(session.sessionid);
+                    $('#simulator-drop').attr('href', simulator + '?drop=1&username=' + session.sessionid);
+                }, function (reason) {
+                    sdk.close();
+                    $('#rtc_media_player').hide();
+                    throw reason;
                 });
-            }).then(function(answer) {
-                return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
-            }).catch(function(reason) {
-                pc.close(); $('#rtc_media_player').hide();
-                throw reason;
-            });
+            }
+        };
+
+        var sdk = null; // Global handler to do cleanup when replaying.
+        var startPlay = function() {
+            $('#rtc_media_player').show();
+            var conf = prepareUrl();
+            playStream(conf);
         };
 
         $('#rtc_media_player').hide();

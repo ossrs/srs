@@ -40,7 +40,6 @@
 #include <srs_app_gb28181_sip.hpp>
 
 class SrsServer;
-class SrsConnection;
 class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
@@ -53,7 +52,7 @@ class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsRtspCaster;
-class SrsCoroutineManager;
+class SrsResourceManager;
 class SrsGb28181Caster;
 
 
@@ -77,6 +76,10 @@ enum SrsListenerType
     SrsListenerGb28181RtpMux = 6,
     // UDP gb28181 sip server
     SrsListenerGb28181Sip = 7,
+    // HTTPS api,
+    SrsListenerHttpsApi = 8,
+    // HTTPS stream,
+    SrsListenerHttpsStream = 9,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -236,26 +239,27 @@ public:
     virtual srs_error_t on_cycle() = 0;
     // Callback the handler when got client.
     virtual srs_error_t on_accept_client(int max, int cur) = 0;
+    // Callback for logrotate.
+    virtual void on_logrotate() = 0;
 };
 
+// TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public IConnectionManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
 {
 private:
-    // TODO: FIXME: rename to http_api
+    // TODO: FIXME: Extract an HttpApiServer.
     SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
-    SrsCoroutineManager* conn_manager;
+    SrsResourceManager* conn_manager;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
     //       for the server never delete the file; when system startup, the pid in pid file
     //       maybe valid but the process is not SRS, the init.d script will never start server.
     int pid_fd;
-    // All connections, connection manager
-    std::vector<SrsConnection*> conns;
     // All listners, listener manager.
     std::vector<SrsListener*> listeners;
     // Signal manager which convert gignal to io message.
@@ -321,7 +325,9 @@ private:
     // listen at specified protocol.
     virtual srs_error_t listen_rtmp();
     virtual srs_error_t listen_http_api();
+    virtual srs_error_t listen_https_api();
     virtual srs_error_t listen_http_stream();
+    virtual srs_error_t listen_https_stream();
     virtual srs_error_t listen_stream_caster();
 #ifdef SRS_GB28181
     virtual srs_error_t listen_gb28181_sip(SrsConfDirective* c);
@@ -341,13 +347,13 @@ public:
     // TODO: FIXME: Fetch from hybrid server manager.
     virtual SrsHttpServeMux* api_server();
 private:
-    virtual srs_error_t fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn);
-// Interface IConnectionManager
+    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr);
+// Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
-    // @see SrsConnection.on_thread_stop().
-    virtual void remove(ISrsConnection* c);
+    // @see SrsTcpConnection.on_thread_stop().
+    virtual void remove(ISrsResource* c);
 // Interface ISrsReloadHandler.
 public:
     virtual srs_error_t on_reload_listen();

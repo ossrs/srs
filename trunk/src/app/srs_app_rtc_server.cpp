@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -230,21 +231,13 @@ SrsRtcServer::~SrsRtcServer()
             srs_freep(listener);
         }
     }
-
-    if (true) {
-        std::vector<SrsRtcConnection*>::iterator it;
-        for (it = zombies_.begin(); it != zombies_.end(); ++it) {
-            SrsRtcConnection* session = *it;
-            srs_freep(session);
-        }
-    }
 }
 
 srs_error_t SrsRtcServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer->tick(1 * SRS_UTIME_SECONDS)) != srs_success) {
+    if ((err = timer->tick(5 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "hourglass tick");
     }
 
@@ -312,15 +305,17 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     SrsRtcConnection* session = NULL;
     if (true) {
-        map<string, SrsRtcConnection*>::iterator it = map_id_session.find(peer_id);
-        if (it != map_id_session.end()) {
-            session = it->second;
-
+        ISrsResource* conn = _srs_rtc_manager->find_by_id(peer_id);
+        if (conn) {
             // Switch to the session to write logs to the context.
-            if (session) {
-                session->switch_to_context();
-            }
+            session = dynamic_cast<SrsRtcConnection*>(conn);
+            session->switch_to_context();
         }
+    }
+
+    // When got any packet, the session is alive now.
+    if (session) {
+        session->alive();
     }
 
     // Notify hijack to handle the UDP packet.
@@ -462,7 +457,7 @@ srs_error_t SrsRtcServer::do_create_session(
         local_ufrag = srs_random_str(8);
 
         username = local_ufrag + ":" + remote_sdp.get_ice_ufrag();
-        if (!map_username_session.count(username)) {
+        if (!_srs_rtc_manager->find_by_name(username)) {
             break;
         }
     }
@@ -508,12 +503,12 @@ srs_error_t SrsRtcServer::do_create_session(
     }
 
     // We allows username is optional, but it never empty here.
-    map_username_session.insert(make_pair(username, session));
+    _srs_rtc_manager->add_with_name(username, session);
 
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcConnection** psession)
+srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession)
 {
     srs_error_t err = srs_success;
 
@@ -525,7 +520,7 @@ srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, co
 
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
     // first add player for negotiate local sdp media info
-    if ((err = session->add_player2(req, local_sdp)) != srs_success) {
+    if ((err = session->add_player2(req, unified_plan, local_sdp)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "add player2");
     }
@@ -571,7 +566,7 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     }
 
     // We allows username is optional, but it never empty here.
-    map_username_session.insert(make_pair(username, session));
+    _srs_rtc_manager->add_with_name(username, session);
 
     session->set_remote_sdp(remote_sdp);
     session->set_state(WAITING_STUN);
@@ -579,104 +574,54 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     return err;
 }
 
-void SrsRtcServer::destroy(SrsRtcConnection* session)
+void SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
 {
-    if (session->disposing_) {
-        return;
-    }
-    session->disposing_ = true;
-
-    std::map<std::string, SrsRtcConnection*>::iterator it;
-
-    // We allows username is optional.
-    string username = session->username();
-    if (!username.empty() && (it = map_username_session.find(username)) != map_username_session.end()) {
-        map_username_session.erase(it);
-    }
-
-    vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
-    for (int i = 0; i < (int)addresses.size(); i++) {
-        SrsUdpMuxSocket* addr = addresses.at(i);
-        map_id_session.erase(addr->peer_id());
-    }
-
-    SrsContextRestore(_srs_context->get_id());
-    session->switch_to_context();
-    srs_trace("RTC: session destroy, username=%s, summary: %s", username.c_str(), session->stat_->summary().c_str());
-
-    zombies_.push_back(session);
-}
-
-bool SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
-{
-    return map_id_session.insert(make_pair(peer_id, session)).second;
-}
-
-void SrsRtcServer::check_and_clean_timeout_session()
-{
-    map<string, SrsRtcConnection*>::iterator iter = map_username_session.begin();
-    while (iter != map_username_session.end()) {
-        SrsRtcConnection* session = iter->second;
-        srs_assert(session);
-
-        if (!session->is_stun_timeout()) {
-            ++iter;
-            continue;
-        }
-
-        // Now, we got the RTC session to cleanup, switch to its context
-        // to make all logs write to the "correct" pid+cid.
-        session->switch_to_context();
-        srs_trace("RTC: session STUN timeout, summary: %s", session->stat_->summary().c_str());
-
-        session->disposing_ = true;
-        zombies_.push_back(session);
-
-        // Use C++98 style: https://stackoverflow.com/a/4636230
-        map_username_session.erase(iter++);
-
-        vector<SrsUdpMuxSocket*> addresses = session->peer_addresses();
-        for (int i = 0; i < (int)addresses.size(); i++) {
-            SrsUdpMuxSocket* addr = addresses.at(i);
-            map_id_session.erase(addr->peer_id());
-        }
-
-        if (handler) {
-            handler->on_timeout(session);
-        }
-    }
+    _srs_rtc_manager->add_with_id(peer_id, session);
 }
 
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)
 {
-    map<string, SrsRtcConnection*>::iterator iter = map_username_session.find(username);
-    if (iter == map_username_session.end()) {
-        return NULL;
-    }
-
-    return iter->second;
+    ISrsResource* conn = _srs_rtc_manager->find_by_name(username);
+    return dynamic_cast<SrsRtcConnection*>(conn);
 }
 
 srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
 
-    // Check session timeout, put to zombies queue.
-    check_and_clean_timeout_session();
+    // Alive RTC sessions, for stat.
+    int nn_rtc_conns = 0;
 
-    // Cleanup zombie sessions.
-    if (zombies_.empty()) {
+    // Check all sessions and dispose the dead sessions.
+    for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
+        SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
+        if (!session || !session->is_alive() || session->disposing_) {
+            nn_rtc_conns++;
+            continue;
+        }
+
+        SrsContextRestore(_srs_context->get_id());
+        session->switch_to_context();
+
+        string username = session->username();
+        srs_trace("RTC: session destroy by timeout, username=%s, summary: %s", username.c_str(),
+            session->stat_->summary().c_str());
+
+        // Use manager to free session and notify other objects.
+        _srs_rtc_manager->remove(session);
+    }
+
+    // Ignore stats if no RTC connections.
+    if (!nn_rtc_conns) {
         return err;
     }
 
-    std::vector<SrsRtcConnection*> zombies;
-    zombies.swap(zombies_);
-
-    std::vector<SrsRtcConnection*>::iterator it;
-    for (it = zombies.begin(); it != zombies.end(); ++it) {
-        SrsRtcConnection* session = *it;
-        srs_freep(session);
-    }
+    // Show statistics for RTC server.
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    // Resident Set Size: number of pages the process has in real memory.
+    int memory = (int)(u->rss * 4 / 1024);
+    // TODO: FIXME: Show more data for RTC server.
+    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB", nn_rtc_conns, u->percent * 100, memory);
 
     return err;
 }
@@ -718,10 +663,16 @@ srs_error_t RtcServerAdapter::run()
         return srs_error_wrap(err, "listen api");
     }
 
+    if ((err = _srs_rtc_manager->start()) != srs_success) {
+        return srs_error_wrap(err, "start manager");
+    }
+
     return err;
 }
 
 void RtcServerAdapter::stop()
 {
 }
+
+SrsResourceManager* _srs_rtc_manager = new SrsResourceManager("RTC", true);
 

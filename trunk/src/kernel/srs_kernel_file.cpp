@@ -37,11 +37,11 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 
 // For utest to mock it.
-_srs_open_t _srs_open_fn = ::open;
-_srs_write_t _srs_write_fn = ::write;
-_srs_read_t _srs_read_fn = ::read;
-_srs_lseek_t _srs_lseek_fn = ::lseek;
-_srs_close_t _srs_close_fn = ::close;
+srs_open_t _srs_open_fn = ::open;
+srs_write_t _srs_write_fn = ::write;
+srs_read_t _srs_read_fn = ::read;
+srs_lseek_t _srs_lseek_fn = ::lseek;
+srs_close_t _srs_close_fn = ::close;
 
 SrsFileWriter::SrsFileWriter()
 {

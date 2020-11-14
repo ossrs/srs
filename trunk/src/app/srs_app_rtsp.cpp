@@ -193,6 +193,11 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, srs_netfd_t fd, std::string o)
     skt = new SrsStSocket();
     rtsp = new SrsRtspStack(skt);
     trd = new SrsSTCoroutine("rtsp", this);
+
+    audio_id = 0;
+    video_id = 0;
+    audio_sample_rate = 0;
+    audio_channel = 0;
     
     req = NULL;
     sdk = NULL;
@@ -223,6 +228,9 @@ SrsRtspConn::~SrsRtspConn()
     
     srs_freep(vjitter);
     srs_freep(ajitter);
+
+    srs_freep(avc);
+    srs_freep(aac);
     srs_freep(acodec);
     srs_freep(acache);
 }
@@ -246,6 +254,16 @@ std::string SrsRtspConn::remote_ip()
 {
     // TODO: FIXME: Implement it.
     return "";
+}
+
+std::string SrsRtspConn::desc()
+{
+    return "RtspConn";
+}
+
+const SrsContextId& SrsRtspConn::get_id()
+{
+    return _srs_context->get_id();
 }
 
 srs_error_t SrsRtspConn::do_cycle()
@@ -704,7 +722,7 @@ SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
     output = _srs_config->get_stream_caster_output(c);
     local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
-    manager = new SrsCoroutineManager();
+    manager = new SrsResourceManager("CRTSP");
 }
 
 SrsRtspCaster::~SrsRtspCaster()

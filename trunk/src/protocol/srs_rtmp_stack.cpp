@@ -3977,7 +3977,7 @@ srs_error_t SrsPlayPacket::decode(SrsBuffer* stream)
     
     SrsAmf0Any* reset_value = NULL;
     if ((err = srs_amf0_read_any(stream, &reset_value)) != srs_success) {
-        return srs_error_new(ERROR_RTMP_AMF0_DECODE, "reset");
+        return srs_error_wrap(err, "reset");
     }
     SrsAutoFree(SrsAmf0Any, reset_value);
     

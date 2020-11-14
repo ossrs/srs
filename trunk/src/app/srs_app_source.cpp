@@ -66,7 +66,7 @@ using namespace std;
 // the time to cleanup source.
 #define SRS_SOURCE_CLEANUP (30 * SRS_UTIME_SECONDS)
 
-int _srs_time_jitter_string2int(std::string time_jitter)
+int srs_time_jitter_string2int(std::string time_jitter)
 {
     if (time_jitter == "full") {
         return SrsRtmpJitterAlgorithmFULL;
@@ -418,10 +418,9 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsSource* s, SrsConnection* c)
+SrsConsumer::SrsConsumer(SrsSource* s)
 {
     source = s;
-    conn = c;
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
@@ -520,7 +519,7 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     count = 0;
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%s[%s]", source->source_id().c_str(), source->source_id().c_str());
+        srs_trace("update source_id=%s/%s", source->source_id().c_str(), source->pre_source_id().c_str());
         should_update_source_id = false;
     }
     
@@ -2071,13 +2070,10 @@ srs_error_t SrsSource::on_source_id_changed(SrsContextId id)
     if (!_source_id.compare(id)) {
         return err;
     }
-    
+
     if (_pre_source_id.empty()) {
         _pre_source_id = id;
-    } else if (_pre_source_id.compare(_source_id)) {
-        _pre_source_id = _source_id;
     }
-    
     _source_id = id;
     
     // notice all consumer
@@ -2559,8 +2555,11 @@ void SrsSource::on_unpublish()
     srs_trace("cleanup when unpublish");
     
     _can_publish = true;
+    if (!_source_id.empty()) {
+        _pre_source_id = _source_id;
+    }
     _source_id = SrsContextId();
-    
+
     // notify the handler.
     srs_assert(handler);
     SrsStatistic* stat = SrsStatistic::instance();
@@ -2578,11 +2577,11 @@ void SrsSource::on_unpublish()
     }
 }
 
-srs_error_t SrsSource::create_consumer(SrsConnection* conn, SrsConsumer*& consumer)
+srs_error_t SrsSource::create_consumer(SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     
-    consumer = new SrsConsumer(this, conn);
+    consumer = new SrsConsumer(this);
     consumers.push_back(consumer);
     
     // for edge, when play edge stream, check the state

@@ -174,7 +174,7 @@ extern int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, 
 #ifdef SRS_OSX
     #define _srs_gettimeofday gettimeofday
 #else
-    typedef int (*_srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
+    typedef int (*srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
 #endif
 
 #endif

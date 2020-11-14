@@ -412,7 +412,7 @@ srs_error_t SrsGb28181PsRtpProcessor::rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer
                 muxer->get_channel_id().c_str(), ssrc, muxer->channel_peer_port(), peer_port);
         }else {
             //muxer->ps_packet_enqueue(pkt);
-             muxer->insert_jitterbuffer(pkt);
+            muxer->insert_jitterbuffer(pkt);
         }//end if (muxer->channel_peer_port() != peer_port)
     }//end  if (muxer)
 
@@ -591,19 +591,6 @@ int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
     //<32--val--30> <29----val2----15> <14----val3----0>
 	val = (val << 29) | (val2 << 15) | val3;
 	return val;
-}
-
-bool SrsPsStreamDemixer::is_aac(){
-    // SrsBuffer  *avs = new SrsBuffer(stream->bytes(), stream->length());
-    // SrsAutoFree(SrsBuffer, avs);
-    // if (!avs->empty()) {
-    //     char* frame = NULL;
-    //     int frame_size = 0;
-    //     SrsRawAacStreamCodec codec;
-    //     if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
-    //         return srs_error_wrap(err, "demux adts");
-    //     }
-    return true;
 }
 
 srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc)
@@ -976,8 +963,13 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     source_publish = true;
 
     jitter_buffer = new SrsPsJitterBuffer(id);
+    jitter_buffer_audio = new SrsPsJitterBuffer(id);
+
     ps_buflen = 0;
     ps_buffer = NULL;
+
+    ps_buflen_auido = 0;
+    ps_buffer_audio = NULL;
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
@@ -988,7 +980,10 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     srs_cond_destroy(wait_ps_queue);
  
     srs_freep(jitter_buffer);
+    srs_freep(jitter_buffer_audio);
     srs_freepa(ps_buffer);
+    srs_freepa(ps_buffer_audio);
+
     srs_freep(channel);
     srs_freep(ps_demixer);
     srs_freep(trd);
@@ -1014,6 +1009,16 @@ srs_error_t SrsGb28181RtmpMuxer::serve()
 std::string SrsGb28181RtmpMuxer::remote_ip()
 {
     return "";
+}
+
+const SrsContextId& SrsGb28181RtmpMuxer::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string SrsGb28181RtmpMuxer::desc()
+{
+    return "GBConn";
 }
 
 std::string SrsGb28181RtmpMuxer::get_channel_id()
@@ -1094,6 +1099,14 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
     jitter_buffer->SetNackMode(kNack, -1, -1);
     jitter_buffer->SetNackSettings(250, 450, 0);
 
+    if (!jitter_buffer_audio) {
+        jitter_buffer_audio = new SrsPsJitterBuffer(channel_id);
+    }
+
+    jitter_buffer_audio->SetDecodeErrorMode(kSelectiveErrors);
+    jitter_buffer_audio->SetNackMode(kNack, -1, -1);
+    jitter_buffer_audio->SetNackSettings(250, 450, 0);
+
     if (!source_publish) return err;
 
     req = r;
@@ -1141,6 +1154,17 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
             
                 if (buffer_size > 0){
                     if ((err = ps_demixer->on_ps_stream(ps_buffer, buffer_size, cur_timestamp, 0)) != srs_success){
+                        srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
+                        srs_freep(err);
+                    };
+                }
+            }
+
+            if(jitter_buffer_audio->FoundFrame(cur_timestamp)){
+                jitter_buffer_audio->GetPsFrame(&ps_buffer_audio, ps_buflen_auido, buffer_size, cur_timestamp);
+            
+                if (buffer_size > 0){
+                    if ((err = ps_demixer->on_ps_stream(ps_buffer_audio, buffer_size, cur_timestamp, 0)) != srs_success){
                         srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
                         srs_freep(err);
                     };
@@ -1224,8 +1248,39 @@ void SrsGb28181RtmpMuxer::stop()
 
 void SrsGb28181RtmpMuxer::insert_jitterbuffer(SrsPsRtpPacket *pkt)
 {
+    if (!pkt){
+        return;
+    }
+        
     recv_rtp_stream_time = srs_get_system_time();
-    jitter_buffer->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
+
+    char *payload = pkt->payload->bytes();
+
+    uint8_t p1 = (uint8_t)(payload[0]);
+    uint8_t p2 = (uint8_t)(payload[1]);
+    uint8_t p3 = (uint8_t)(payload[2]);
+    uint8_t p4 = (uint8_t)(payload[3]);
+
+   
+    //check for rtp ps audio streaming
+    bool av_same_ts = true;
+
+    if (p1 == 0x00 && p2 == 0x00 && p3 == 0x01 && p4 == 0xC0 &&
+        ps_rtp_video_ts != pkt->timestamp) {
+        av_same_ts = false;
+    }
+
+    //if audio and video are the same clock, 
+    //if both audio and video use jitter_buffer, 
+    //otherwise audio uses jitter_buffer_audio, and video uses jitter_buffer
+    if (av_same_ts){
+        pkt->marker = false;
+        jitter_buffer->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
+        ps_rtp_video_ts = pkt->timestamp;
+    }else {
+        jitter_buffer_audio->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
+    }
+ 
     //srs_cond_signal(wait_ps_queue);
 }
 
@@ -1765,7 +1820,7 @@ void SrsGb28181RtmpMuxer::close()
     h264_pps = "";
     aac_specific_config = "";
 
-    if (source_publish && !source){
+    if (source_publish && source){
         source->on_unpublish();
     }
 }
@@ -1845,7 +1900,7 @@ SrsGb28181Manger::SrsGb28181Manger(SrsServer *s, SrsConfDirective* c)
     // TODO: FIXME: support reload.
     server = s;
     config = new SrsGb28181Config(c);
-    manager = new SrsCoroutineManager();
+    manager = new SrsResourceManager("GB28181");
 }
 
 SrsGb28181Manger::~SrsGb28181Manger()

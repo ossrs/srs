@@ -29,7 +29,7 @@
 #include <vector>
 #include <string>
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_reload.hpp>
@@ -180,7 +180,7 @@ public:
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual srs_error_t error_code();
-    virtual void set_cid(std::string v);
+    virtual void set_cid(SrsContextId v);
     virtual SrsContextId get_cid();
 public:
     virtual srs_error_t start();

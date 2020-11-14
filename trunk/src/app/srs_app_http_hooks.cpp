@@ -371,7 +371,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, SrsRequ
     }
     
     SrsHttpClient http;
-    if ((err = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
+    if ((err = http.initialize(uri.get_schema(), uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT)) != srs_success) {
         return srs_error_wrap(err, "http: init client for %s", url.c_str());
     }
     
@@ -478,7 +478,7 @@ srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::strin
         return srs_error_wrap(err, "http: post failed. url=%s", url.c_str());
     }
     
-    if ((err = hc->initialize(uri.get_host(), uri.get_port())) != srs_success) {
+    if ((err = hc->initialize(uri.get_schema(), uri.get_host(), uri.get_port())) != srs_success) {
         return srs_error_wrap(err, "http: init client");
     }
     
@@ -532,7 +532,7 @@ srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::strin
     }
     
     if ((res_code->to_integer()) != ERROR_SUCCESS) {
-        return srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d %s", res_code->to_integer(), res.c_str());
+        return srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %" PRId64 " %s", res_code->to_integer(), res.c_str());
     }
     
     return err;

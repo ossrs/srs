@@ -267,7 +267,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
-        "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config"
+        "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config"
         "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks"
         "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_edge"
         "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
@@ -698,6 +698,11 @@ if [ $SRS_RTC = YES ]; then
     echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
 else
     echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
+fi
+if [ $SRS_HTTPS = YES ]; then
+    echo -e "${YELLOW}Experiment: HTTPS is enabled. https://github.com/ossrs/srs/issues/1657${BLACK}"
+else
+    echo -e "${GREEN}Warning: HTTPS is disabled.${BLACK}"
 fi
 if [ $SRS_DVR = YES ]; then
     echo -e "${GREEN}DVR is enabled.${BLACK}"

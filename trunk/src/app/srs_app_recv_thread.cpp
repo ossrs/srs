@@ -82,6 +82,9 @@ srs_error_t SrsRecvThread::start()
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("recv", this, _parent_cid);
+
+    //change stack size to 256K, fix crash when call some 3rd-part api.
+    ((SrsSTCoroutine*)trd)->set_stack_size(1 << 18);
     
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "recv thread");
@@ -340,7 +343,7 @@ srs_error_t SrsPublishRecvThread::error_code()
     return srs_error_copy(recv_error);
 }
 
-void SrsPublishRecvThread::set_cid(std::string v)
+void SrsPublishRecvThread::set_cid(SrsContextId v)
 {
     ncid = v;
 }

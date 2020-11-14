@@ -34,7 +34,7 @@
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 
 class SrsRequest;
 class SrsFileWriter;
@@ -77,7 +77,7 @@ bool srs_vector_actual_equals(const std::vector<T>& a, const std::vector<T>& b)
     return true;
 }
 
-namespace _srs_internal
+namespace srs_internal
 {
     // The buffer of config content.
     class SrsConfigBuffer
@@ -229,7 +229,7 @@ public:
 // Parse utilities
 public:
     // Parse config directive from file buffer.
-    virtual srs_error_t parse(_srs_internal::SrsConfigBuffer* buffer);
+    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer);
     // Marshal the directive to writer.
     // @param level, the root is level0, all its directives are level1, and so on.
     virtual srs_error_t persistence(SrsFileWriter* writer, int level);
@@ -253,13 +253,13 @@ private:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
     // 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
-    virtual srs_error_t parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
+    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
     // Read a token from buffer.
     // A token, is the directive args and a flag indicates whether has child-directives.
     // @param args, the output directive args, the first is the directive name, left is the args.
     // @param line_start, the actual start line of directive.
     // @return, an error code indicates error or has child-directives.
-    virtual srs_error_t read_token(_srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
+    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
 };
 
 // The config service provider.
@@ -425,7 +425,7 @@ protected:
     // Parse config from the buffer.
     // @param buffer, the config buffer, user must delete it.
     // @remark, use protected for the utest to override with mock.
-    virtual srs_error_t parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
+    virtual srs_error_t parse_buffer(srs_internal::SrsConfigBuffer* buffer);
     // global env
 public:
     // Get the current work directory.
@@ -1014,6 +1014,14 @@ public:
     virtual bool get_raw_api_allow_query();
     // Whether allow rpc update.
     virtual bool get_raw_api_allow_update();
+// https api section
+private:
+    SrsConfDirective* get_https_api();
+public:
+    virtual bool get_https_api_enabled();
+    virtual std::string get_https_api_listen();
+    virtual std::string get_https_api_ssl_key();
+    virtual std::string get_https_api_ssl_cert();
 // http stream section
 private:
     // Whether http stream enabled.
@@ -1028,6 +1036,14 @@ public:
     virtual std::string get_http_stream_dir();
     // Whether enable crossdomain for http static and stream server.
     virtual bool get_http_stream_crossdomain();
+// https api section
+private:
+    SrsConfDirective* get_https_stream();
+public:
+    virtual bool get_https_stream_enabled();
+    virtual std::string get_https_stream_listen();
+    virtual std::string get_https_stream_ssl_key();
+    virtual std::string get_https_stream_ssl_cert();
 public:
     // Get whether vhost enabled http stream
     virtual bool get_vhost_http_enabled(std::string vhost);

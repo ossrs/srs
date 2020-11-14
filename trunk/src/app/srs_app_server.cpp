@@ -52,7 +52,6 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
@@ -105,7 +104,11 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "RTMP";
         case SrsListenerHttpApi:
             return "HTTP-API";
+        case SrsListenerHttpsApi:
+            return "HTTPS-API";
         case SrsListenerHttpStream:
+            return "HTTP-Server";
+        case SrsListenerHttpsStream:
             return "HTTP-Server";
         case SrsListenerMpegTsOverUdp:
             return "MPEG-TS over UDP";
@@ -380,7 +383,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* s)
     
     server = s;
     sig_pipe[0] = sig_pipe[1] = -1;
-    trd = new SrsSTCoroutine("signal", this);
+    trd = new SrsSTCoroutine("signal", this, _srs_context->get_id());
     signal_read_stfd = NULL;
 }
 
@@ -539,7 +542,7 @@ srs_error_t SrsInotifyWorker::start()
     }
 
     if (((err = srs_fd_closeexec(fd))) != srs_success) {
-        return srs_error_new(ERROR_INOTIFY_OPENFD, "closeexec fd=%d", fd);
+        return srs_error_wrap(err, "closeexec fd=%d", fd);
     }
 
     // /* the following are legal, implemented events that user-space can watch for */
@@ -657,7 +660,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = new SrsSignalManager(this);
-    conn_manager = new SrsCoroutineManager();
+    conn_manager = new SrsResourceManager("TCP", true);
     
     handler = NULL;
     ppid = ::getppid();
@@ -708,7 +711,9 @@ void SrsServer::dispose()
     // prevent fresh clients.
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpsApi);
     close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
@@ -737,7 +742,9 @@ void SrsServer::gracefully_dispose()
     // prevent fresh clients.
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpsApi);
     close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
     close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
@@ -750,13 +757,13 @@ void SrsServer::gracefully_dispose()
     // Wait for connections to quit.
     // While gracefully quiting, user can requires SRS to fast quit.
     int wait_step = 1;
-    while (!conns.empty() && !signal_fast_quit) {
-        for (int i = 0; i < wait_step && !conns.empty() && !signal_fast_quit; i++) {
+    while (!conn_manager->empty() && !signal_fast_quit) {
+        for (int i = 0; i < wait_step && !conn_manager->empty() && !signal_fast_quit; i++) {
             srs_usleep(1000 * SRS_UTIME_MILLISECONDS);
         }
 
         wait_step = (wait_step * 2) % 33;
-        srs_trace("wait for %d conns to quit", conns.size());
+        srs_trace("wait for %d conns to quit", (int)conn_manager->size());
     }
 
     // dispose the source for hls and dvr.
@@ -804,18 +811,6 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
 
-    // @remark, st alloc segment use mmap, which only support 32757 threads,
-    // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
-    // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
-#define __MMAP_MAX_CONNECTIONS 32756
-    if (_srs_config->get_max_connections() > __MMAP_MAX_CONNECTIONS) {
-        srs_error("st mmap for stack allocation must <= %d threads, "
-                  "@see Makefile of st for MALLOC_STACK, please build st manually by "
-                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\"", __MMAP_MAX_CONNECTIONS);
-        return srs_error_new(ERROR_ST_EXCEED_THREADS, "%d exceed max %d threads",
-            _srs_config->get_max_connections(), __MMAP_MAX_CONNECTIONS);
-    }
-    
     // check asprocess.
     bool asprocess = _srs_config->get_asprocess();
     if (asprocess && ppid == 1) {
@@ -877,7 +872,7 @@ srs_error_t SrsServer::acquire_pid_file()
     // write the pid
     string pid = srs_int2str(getpid());
     if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
-        return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%d to file=%s", pid.c_str(), pid_file.c_str());
+        return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%s to file=%s", pid.c_str(), pid_file.c_str());
     }
     
     // auto close when fork child process.
@@ -907,9 +902,17 @@ srs_error_t SrsServer::listen()
     if ((err = listen_http_api()) != srs_success) {
         return srs_error_wrap(err, "http api listen");
     }
+
+    if ((err = listen_https_api()) != srs_success) {
+        return srs_error_wrap(err, "https api listen");
+    }
     
     if ((err = listen_http_stream()) != srs_success) {
         return srs_error_wrap(err, "http stream listen");
+    }
+
+    if ((err = listen_https_stream()) != srs_success) {
+        return srs_error_wrap(err, "https stream listen");
     }
     
     if ((err = listen_stream_caster()) != srs_success) {
@@ -1071,7 +1074,7 @@ srs_error_t SrsServer::cycle()
 
     // fast quit, do some essential cleanup.
     if (signal_fast_quit) {
-        dispose();
+        dispose(); // TODO: FIXME: Rename to essential_dispose.
         srs_trace("srs disposed");
     }
 
@@ -1104,6 +1107,11 @@ void SrsServer::on_signal(int signo)
 #ifndef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
         _srs_log->reopen();
+
+        if (handler) {
+            handler->on_logrotate();
+        }
+
         srs_warn("reopen log file, signo=%d", signo);
         return;
     }
@@ -1333,6 +1341,29 @@ srs_error_t SrsServer::listen_http_api()
     return err;
 }
 
+srs_error_t SrsServer::listen_https_api()
+{
+    srs_error_t err = srs_success;
+
+    close_listeners(SrsListenerHttpsApi);
+    if (_srs_config->get_https_api_enabled()) {
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpsApi);
+        listeners.push_back(listener);
+
+        std::string ep = _srs_config->get_https_api_listen();
+
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+
+        if ((err = listener->listen(ip, port)) != srs_success) {
+            return srs_error_wrap(err, "https api listen %s:%d", ip.c_str(), port);
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsServer::listen_http_stream()
 {
     srs_error_t err = srs_success;
@@ -1353,6 +1384,29 @@ srs_error_t SrsServer::listen_http_stream()
         }
     }
     
+    return err;
+}
+
+srs_error_t SrsServer::listen_https_stream()
+{
+    srs_error_t err = srs_success;
+
+    close_listeners(SrsListenerHttpsStream);
+    if (_srs_config->get_https_stream_enabled()) {
+        SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpsStream);
+        listeners.push_back(listener);
+
+        std::string ep = _srs_config->get_https_stream_listen();
+
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+
+        if ((err = listener->listen(ip, port)) != srs_success) {
+            return srs_error_wrap(err, "https stream listen %s:%d", ip.c_str(), port);
+        }
+    }
+
     return err;
 }
 
@@ -1469,12 +1523,13 @@ void SrsServer::resample_kbps()
     SrsStatistic* stat = SrsStatistic::instance();
     
     // collect delta from all clients.
-    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-        SrsConnection* conn = *it;
+    for (int i = 0; i < (int)conn_manager->size(); i++) {
+        ISrsResource* c = conn_manager->at(i);
+        ISrsKbpsDelta* conn = dynamic_cast<ISrsKbpsDelta*>(conn_manager->at(i));
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        stat->kbps_add_delta(conn);
+        stat->kbps_add_delta(c->get_id(), conn);
     }
     
     // TODO: FXME: support all other connections.
@@ -1482,29 +1537,27 @@ void SrsServer::resample_kbps()
     // sample the kbps, get the stat.
     SrsKbps* kbps = stat->kbps_sample();
     
-    srs_update_rtmp_server((int)conns.size(), kbps);
+    srs_update_rtmp_server((int)conn_manager->size(), kbps);
 }
 
 srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
     
-    SrsConnection* conn = NULL;
+    ISrsStartableConneciton* conn = NULL;
     
-    if ((err = fd2conn(type, stfd, &conn)) != srs_success) {
+    if ((err = fd_to_resource(type, stfd, &conn)) != srs_success) {
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
             srs_close_stfd(stfd); srs_error_reset(err);
             return srs_success;
         }
-        return srs_error_wrap(err, "fd2conn");
+        return srs_error_wrap(err, "fd to resource");
     }
     srs_assert(conn);
     
     // directly enqueue, the cycle thread will remove the client.
-    conns.push_back(conn);
-    
-    // cycle will start process thread and when finished remove the client.
-    // @remark never use the conn, for it maybe destroyed.
+    conn_manager->add(conn);
+
     if ((err = conn->start()) != srs_success) {
         return srs_error_wrap(err, "start conn coroutine");
     }
@@ -1517,7 +1570,7 @@ SrsHttpServeMux* SrsServer::api_server()
     return http_api_mux;
 }
 
-srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnection** pconn)
+srs_error_t SrsServer::fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr)
 {
     srs_error_t err = srs_success;
     
@@ -1534,13 +1587,13 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     
     // check connection limitation.
     int max_connections = _srs_config->get_max_connections();
-    if (handler && (err = handler->on_accept_client(max_connections, (int)conns.size())) != srs_success) {
+    if (handler && (err = handler->on_accept_client(max_connections, (int)conn_manager->size())) != srs_success) {
         return srs_error_wrap(err, "drop client fd=%d, ip=%s:%d, max=%d, cur=%d for err: %s",
-            fd, ip.c_str(), port, max_connections, (int)conns.size(), srs_error_desc(err).c_str());
+            fd, ip.c_str(), port, max_connections, (int)conn_manager->size(), srs_error_desc(err).c_str());
     }
-    if ((int)conns.size() >= max_connections) {
+    if ((int)conn_manager->size() >= max_connections) {
         return srs_error_new(ERROR_EXCEED_CONNECTIONS, "drop fd=%d, ip=%s:%d, max=%d, cur=%d for exceed connection limits",
-            fd, ip.c_str(), port, max_connections, (int)conns.size());
+            fd, ip.c_str(), port, max_connections, (int)conn_manager->size());
     }
     
     // avoid fd leak when fork.
@@ -1555,13 +1608,20 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
             return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "fcntl F_SETFD error! fd=%d", fd);
         }
     }
+
+    // The context id may change during creating the bellow objects.
+    SrsContextRestore(_srs_context->get_id());
     
     if (type == SrsListenerRtmpStream) {
-        *pconn = new SrsRtmpConn(this, stfd, ip, port);
+        *pr = new SrsRtmpConn(this, stfd, ip, port);
     } else if (type == SrsListenerHttpApi) {
-        *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip, port);
+        *pr = new SrsHttpApi(false, this, stfd, http_api_mux, ip, port);
+    } else if (type == SrsListenerHttpsApi) {
+        *pr = new SrsHttpApi(true, this, stfd, http_api_mux, ip, port);
     } else if (type == SrsListenerHttpStream) {
-        *pconn = new SrsResponseOnlyHttpConn(this, stfd, http_server, ip, port);
+        *pr = new SrsResponseOnlyHttpConn(false, this, stfd, http_server, ip, port);
+    } else if (type == SrsListenerHttpsStream) {
+        *pr = new SrsResponseOnlyHttpConn(true, this, stfd, http_server, ip, port);
     } else {
         srs_warn("close for no service handler. fd=%d, ip=%s:%d", fd, ip.c_str(), port);
         srs_close_stfd(stfd);
@@ -1571,24 +1631,13 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     return err;
 }
 
-void SrsServer::remove(ISrsConnection* c)
+void SrsServer::remove(ISrsResource* c)
 {
-    SrsConnection* conn = dynamic_cast<SrsConnection*>(c);
-    std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
-    
-    // removed by destroy, ignore.
-    if (it == conns.end()) {
-        srs_warn("server moved connection, ignore.");
-        return;
-    }
-    
-    conns.erase(it);
-    
-    srs_info("conn removed. conns=%d", (int)conns.size());
-    
+    ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
+
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(conn);
-    stat->on_disconnect(conn->srs_id());
+    stat->kbps_add_delta(c->get_id(), conn);
+    stat->on_disconnect(c->get_id());
     
     // use manager to free it async.
     conn_manager->remove(c);
@@ -1656,6 +1705,10 @@ srs_error_t SrsServer::on_reload_http_api_enabled()
     if ((err = listen_http_api()) != srs_success) {
         return srs_error_wrap(err, "reload http_api");
     }
+
+    if ((err = listen_https_api()) != srs_success) {
+        return srs_error_wrap(err, "reload https_api");
+    }
     
     return err;
 }
@@ -1663,6 +1716,7 @@ srs_error_t SrsServer::on_reload_http_api_enabled()
 srs_error_t SrsServer::on_reload_http_api_disabled()
 {
     close_listeners(SrsListenerHttpApi);
+    close_listeners(SrsListenerHttpsApi);
     return srs_success;
 }
 
@@ -1673,6 +1727,10 @@ srs_error_t SrsServer::on_reload_http_stream_enabled()
     if ((err = listen_http_stream()) != srs_success) {
         return srs_error_wrap(err, "reload http_stream enabled");
     }
+
+    if ((err = listen_https_stream()) != srs_success) {
+        return srs_error_wrap(err, "reload https_stream enabled");
+    }
     
     return err;
 }
@@ -1680,6 +1738,7 @@ srs_error_t SrsServer::on_reload_http_stream_enabled()
 srs_error_t SrsServer::on_reload_http_stream_disabled()
 {
     close_listeners(SrsListenerHttpStream);
+    close_listeners(SrsListenerHttpsStream);
     return srs_success;
 }
 

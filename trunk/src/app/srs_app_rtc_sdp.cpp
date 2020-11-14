@@ -22,7 +22,6 @@
  */
 
 #include <srs_app_rtc_sdp.hpp>
-using namespace std;
 
 #include <stdlib.h>
 
@@ -30,6 +29,7 @@ using namespace std;
 #include <sstream>
 #include <vector>
 #include <algorithm>
+using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
@@ -254,6 +254,7 @@ srs_error_t SrsSSRCGroup::encode(std::ostringstream& os)
 SrsMediaPayloadType::SrsMediaPayloadType(int payload_type)
 {
     payload_type_ = payload_type;
+    clock_rate_ = 0;
 }
 
 SrsMediaPayloadType::~SrsMediaPayloadType()
@@ -288,7 +289,9 @@ SrsMediaDesc::SrsMediaDesc(const std::string& type)
 {
     type_ = type;
 
+    port_ = 0;
     rtcp_mux_ = false;
+    rtcp_rsize_ = false;
 
     sendrecv_ = false;
     recvonly_ = false;
@@ -315,7 +318,7 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
 {
     std::vector<SrsMediaPayloadType> payloads;
 
-    std::string lower_name, upper_name;
+    std::string lower_name(encoding_name), upper_name(encoding_name);
     transform(encoding_name.begin(), encoding_name.end(), lower_name.begin(), ::tolower);
     transform(encoding_name.begin(), encoding_name.end(), upper_name.begin(), ::toupper);
 
@@ -327,6 +330,20 @@ vector<SrsMediaPayloadType> SrsMediaDesc::find_media_with_encoding_name(const st
     }
 
     return payloads;
+}
+
+srs_error_t SrsMediaDesc::update_msid(string id)
+{
+    srs_error_t err = srs_success;
+
+    for(vector<SrsSSRCInfo>::iterator it = ssrc_infos_.begin(); it != ssrc_infos_.end(); ++it) {
+        SrsSSRCInfo& info = *it;
+
+        info.msid_ = id;
+        info.mslabel_ = id;
+    }
+
+    return err;
 }
 
 srs_error_t SrsMediaDesc::parse_line(const std::string& line)
@@ -752,6 +769,31 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
         }
     }
 
+    // The msid/tracker/mslabel is optional for SSRC, so we copy it when it's empty.
+    for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        SrsMediaDesc& media_desc = *iter;
+
+        for (size_t i = 0; i < media_desc.ssrc_infos_.size(); ++i) {
+            SrsSSRCInfo& ssrc_info = media_desc.ssrc_infos_.at(i);
+
+            if (ssrc_info.msid_.empty()) {
+                ssrc_info.msid_  = media_desc.msid_;
+            }
+
+            if (ssrc_info.msid_tracker_.empty()) {
+                ssrc_info.msid_tracker_ = media_desc.msid_tracker_;
+            }
+
+            if (ssrc_info.mslabel_.empty()) {
+                ssrc_info.mslabel_ = media_desc.msid_;
+            }
+
+            if (ssrc_info.label_.empty()) {
+                ssrc_info.label_ = media_desc.msid_tracker_;
+            }
+        }
+    }
+
     return err;
 }
 
@@ -793,49 +835,57 @@ srs_error_t SrsSdp::encode(std::ostringstream& os)
     return err;
 }
 
-const SrsMediaDesc* SrsSdp::find_media_desc(const std::string& type) const
+std::vector<SrsMediaDesc*> SrsSdp::find_media_descs(const std::string& type)
 {
-    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        if (iter->type_ == type) {
-            return &(*iter);
+    std::vector<SrsMediaDesc*> descs;
+    for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        SrsMediaDesc* desc = &(*iter);
+
+        if (desc->type_ == type) {
+            descs.push_back(desc);
         }
     }
 
-    return NULL;
+    return descs;
 }
 
 void SrsSdp::set_ice_ufrag(const std::string& ufrag)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->session_info_.ice_ufrag_ = ufrag;
+        SrsMediaDesc* desc = &(*iter);
+        desc->session_info_.ice_ufrag_ = ufrag;
     }
 }
 
 void SrsSdp::set_ice_pwd(const std::string& pwd)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->session_info_.ice_pwd_ = pwd;
+        SrsMediaDesc* desc = &(*iter);
+        desc->session_info_.ice_pwd_ = pwd;
     }
 }
 
 void SrsSdp::set_dtls_role(const std::string& dtls_role)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->session_info_.setup_ = dtls_role;
+        SrsMediaDesc* desc = &(*iter);
+        desc->session_info_.setup_ = dtls_role;
     }
 }
 
 void SrsSdp::set_fingerprint_algo(const std::string& algo)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->session_info_.fingerprint_algo_ = algo;
+        SrsMediaDesc* desc = &(*iter);
+        desc->session_info_.fingerprint_algo_ = algo;
     }
 }
 
 void SrsSdp::set_fingerprint(const std::string& fingerprint)
 {
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->session_info_.fingerprint_ = fingerprint;
+        SrsMediaDesc* desc = &(*iter);
+        desc->session_info_.fingerprint_ = fingerprint;
     }
 }
 
@@ -848,7 +898,8 @@ void SrsSdp::add_candidate(const std::string& ip, const int& port, const std::st
     candidate.type_ = type;
 
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        iter->candidates_.push_back(candidate);
+        SrsMediaDesc* desc = &(*iter);
+        desc->candidates_.push_back(candidate);
     }
 }
 
@@ -856,7 +907,8 @@ std::string SrsSdp::get_ice_ufrag() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        return iter->session_info_.ice_ufrag_;
+        const SrsMediaDesc* desc = &(*iter);
+        return desc->session_info_.ice_ufrag_;
     }
 
     return "";
@@ -866,7 +918,8 @@ std::string SrsSdp::get_ice_pwd() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        return iter->session_info_.ice_pwd_;
+        const SrsMediaDesc* desc = &(*iter);
+        return desc->session_info_.ice_pwd_;
     }
 
     return "";
@@ -876,7 +929,8 @@ std::string SrsSdp::get_dtls_role() const
 {
     // Becaues we use BUNDLE, so we can choose the first element.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
-        return iter->session_info_.setup_;
+        const SrsMediaDesc* desc = &(*iter);
+        return desc->session_info_.setup_;
     }
 
     return "";
@@ -1062,3 +1116,28 @@ srs_error_t SrsSdp::parse_media_description(const std::string& content)
 
     return err;
 }
+
+bool SrsSdp::is_unified() const
+{
+    // TODO: FIXME: Maybe we should consider other situations.
+    return media_descs_.size() > 2;
+}
+
+srs_error_t SrsSdp::update_msid(string id)
+{
+    srs_error_t err = srs_success;
+
+    msids_.clear();
+    msids_.push_back(id);
+
+    for (vector<SrsMediaDesc>::iterator it = media_descs_.begin(); it != media_descs_.end(); ++it) {
+        SrsMediaDesc& desc = *it;
+
+        if ((err = desc.update_msid(id)) != srs_success) {
+            return srs_error_wrap(err, "desc %s update msid %s", desc.mid_.c_str(), id.c_str());
+        }
+    }
+
+    return err;
+}
+

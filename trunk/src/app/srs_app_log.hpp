@@ -32,6 +32,13 @@
 #include <srs_app_reload.hpp>
 #include <srs_service_log.hpp>
 
+// For log TAGs.
+#define TAG_MAIN "MAIN"
+#define TAG_MAYBE "MAYBE"
+#define TAG_DTLS_ALERT "DTLS_ALERT"
+#define TAG_DTLS_HANG "DTLS_HANG"
+#define TAG_RESOURCE_UNSUB "RESOURCE_UNSUB"
+
 // Use memory/disk cache and donot flush when write log.
 // it's ok to use it without config, which will log to console, and default trace level.
 // when you want to use different level, override this classs, set the protected _level.

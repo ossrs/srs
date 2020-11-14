@@ -52,11 +52,11 @@ SrsHttpParser::~SrsHttpParser()
     srs_freep(header);
 }
 
-srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
+srs_error_t SrsHttpParser::initialize(enum http_parser_type type)
 {
     srs_error_t err = srs_success;
 
-    jsonp = allow_jsonp;
+    jsonp = false;
     type_ = type;
 
     // Initialize the parser, however it's not necessary.
@@ -73,6 +73,11 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
     settings.on_message_complete = on_message_complete;
     
     return err;
+}
+
+void SrsHttpParser::set_jsonp(bool allow_jsonp)
+{
+    jsonp = allow_jsonp;
 }
 
 srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg)
@@ -139,7 +144,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
             enum http_errno code;
 	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
 	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
-	                buffer->size(), consumed, code, http_errno_name(code), http_errno_description(code));
+	                buffer->size(), (int)consumed, code, http_errno_name(code), http_errno_description(code));
 	        }
 
             // When buffer consumed these bytes, it's dropped so the new ptr is actually the HTTP body. But http-parser
@@ -319,6 +324,7 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
     _content_length = -1;
     // From HTTP/1.1, default to keep alive.
     _keep_alive = true;
+    type_ = 0;
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -406,6 +412,11 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     }
     
     return err;
+}
+
+void SrsHttpMessage::set_https(bool v)
+{
+    _uri->set_schema(v? "https" : "http");
 }
 
 ISrsConnection* SrsHttpMessage::connection()
@@ -778,7 +789,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     iovs[3].iov_base = (char*)SRS_HTTP_CRLF;
     iovs[3].iov_len = 2;
     
-    ssize_t nwrite;
+    ssize_t nwrite = 0;
     if ((err = skt->writev(iovs, 4, &nwrite)) != srs_success) {
         return srs_error_wrap(err, "write chunk");
     }
@@ -854,7 +865,7 @@ srs_error_t SrsHttpResponseWriter::writev(const iovec* iov, int iovcnt, ssize_t*
     iovss[2+iovcnt].iov_len = 2;
 
     // sendout all ioves.
-    ssize_t nwrite;
+    ssize_t nwrite = 0;
     if ((err = srs_write_large_iovs(skt, iovss, nb_iovss, &nwrite)) != srs_success) {
         return srs_error_wrap(err, "writev large iovs");
     }
@@ -940,6 +951,7 @@ SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, ISrsReader* re
     nb_total_read = 0;
     nb_left_chunk = 0;
     buffer = body;
+    nb_chunk = 0;
 }
 
 SrsHttpResponseReader::~SrsHttpResponseReader()

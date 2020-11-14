@@ -40,6 +40,7 @@ class SrsRtcConnection;
 class SrsRequest;
 class SrsSdp;
 class SrsRtcStream;
+class SrsResourceManager;
 
 // The UDP black hole, for developer to use wireshark to catch plaintext packets.
 // For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
@@ -91,13 +92,6 @@ private:
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
     ISrsRtcServerHijacker* hijacker;
-private:
-    // TODO: FIXME: Rename it.
-    std::map<std::string, SrsRtcConnection*> map_username_session; // key: username(local_ufrag + ":" + remote_ufrag)
-    // TODO: FIXME: Rename it.
-    std::map<std::string, SrsRtcConnection*> map_id_session; // key: peerip(ip + ":" + port)
-    // The zombie sessions, we will free them.
-    std::vector<SrsRtcConnection*> zombies_;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
@@ -126,14 +120,10 @@ private:
     );
 public:
     // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
-    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, SrsRtcConnection** psession);
+    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession);
     srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
-    // Destroy the session from server.
-    void destroy(SrsRtcConnection* session);
 public:
-    bool insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
-private:
-    void check_and_clean_timeout_session();
+    void insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
 public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsHourGlass
@@ -154,6 +144,9 @@ public:
     virtual srs_error_t run();
     virtual void stop();
 };
+
+// Manager for RTC connections.
+extern SrsResourceManager* _srs_rtc_manager;
 
 #endif
 

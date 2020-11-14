@@ -27,81 +27,170 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
+#include <map>
+
+#include <openssl/ssl.h>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_service_conn.hpp>
 
 class SrsWallClock;
 
-// The basic connection of SRS,
+// Hooks for connection manager, to handle the event when disposing connections.
+class ISrsDisposingHandler
+{
+public:
+    ISrsDisposingHandler();
+    virtual ~ISrsDisposingHandler();
+public:
+    // When before disposing resource, trigger when manager.remove(c), sync API.
+    virtual void on_before_dispose(ISrsResource* c) = 0;
+    // When disposing resource, async API, c is freed after it.
+    virtual void on_disposing(ISrsResource* c) = 0;
+};
+
+// The resource manager remove resource and delete it asynchronously.
+class SrsResourceManager : virtual public ISrsCoroutineHandler, virtual public ISrsResourceManager
+{
+private:
+    std::string label_;
+    SrsContextId cid_;
+    bool verbose_;
+private:
+    SrsCoroutine* trd;
+    srs_cond_t cond;
+    // Callback handlers.
+    std::vector<ISrsDisposingHandler*> handlers_;
+    // Unsubscribing handlers, skip it for notifying.
+    std::vector<ISrsDisposingHandler*> unsubs_;
+    // Whether we are removing resources.
+    bool removing_;
+    // The zombie connections, we will delete it asynchronously.
+    std::vector<ISrsResource*> zombies_;
+    std::vector<ISrsResource*>* p_disposing_;
+private:
+    // The connections without any id.
+    std::vector<ISrsResource*> conns_;
+    // The connections with resource id.
+    std::map<std::string, ISrsResource*> conns_id_;
+    // The connections with resource name.
+    std::map<std::string, ISrsResource*> conns_name_;
+public:
+    SrsResourceManager(const std::string& label, bool verbose = false);
+    virtual ~SrsResourceManager();
+public:
+    srs_error_t start();
+    bool empty();
+    size_t size();
+// Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+public:
+    void add(ISrsResource* conn);
+    void add_with_id(const std::string& id, ISrsResource* conn);
+    void add_with_name(const std::string& name, ISrsResource* conn);
+    ISrsResource* at(int index);
+    ISrsResource* find_by_id(std::string id);
+    ISrsResource* find_by_name(std::string name);
+public:
+    void subscribe(ISrsDisposingHandler* h);
+    void unsubscribe(ISrsDisposingHandler* h);
+// Interface ISrsResourceManager
+public:
+    virtual void remove(ISrsResource* c);
+private:
+    void do_remove(ISrsResource* c);
+    void clear();
+    void do_clear();
+    void dispose(ISrsResource* c);
+};
+
+// If a connection is able to be expired,
+// user can use HTTP-API to kick-off it.
+class ISrsExpire
+{
+public:
+    ISrsExpire();
+    virtual ~ISrsExpire();
+public:
+    // Set connection to expired to kick-off it.
+    virtual void expire() = 0;
+};
+
+// Interface for connection that is startable.
+class ISrsStartableConneciton : virtual public ISrsConnection
+    , virtual public ISrsStartable, virtual public ISrsKbpsDelta
+{
+public:
+    ISrsStartableConneciton();
+    virtual ~ISrsStartableConneciton();
+};
+
+// The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsConnection : virtual public ISrsConnection, virtual public ISrsCoroutineHandler
-    , virtual public ISrsKbpsDelta, virtual public ISrsReloadHandler
+class SrsTcpConnection : virtual public ISrsProtocolReadWriter
 {
-protected:
-    // Each connection start a green thread,
-    // when thread stop, the connection will be delete by server.
-    SrsCoroutine* trd;
-    // The manager object to manage the connection.
-    IConnectionManager* manager;
+private:
     // The underlayer st fd handler.
     srs_netfd_t stfd;
-    // The ip and port of client.
-    std::string ip;
-    int port;
     // The underlayer socket.
     SrsStSocket* skt;
-    // The connection total kbps.
-    // not only the rtmp or http connection, all type of connection are
-    // need to statistic the kbps of io.
-    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
-    SrsKbps* kbps;
-    SrsWallClock* clk;
-    // The create time in milliseconds.
-    // for current connection to log self create time and calculate the living time.
-    int64_t create_time;
 public:
-    SrsConnection(IConnectionManager* cm, srs_netfd_t c, std::string cip, int cport);
-    virtual ~SrsConnection();
-// Interface ISrsKbpsDelta
+    SrsTcpConnection(srs_netfd_t c);
+    virtual ~SrsTcpConnection();
 public:
-    virtual void remark(int64_t* in, int64_t* out);
+    virtual srs_error_t initialize();
 public:
-    // To dipose the connection.
-    virtual void dispose();
-    // Start the client green thread.
-    // when server get a client from listener,
-    // 1. server will create an concrete connection(for instance, RTMP connection),
-    // 2. then add connection to its connection manager,
-    // 3. start the client thread by invoke this start()
-    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
-    // To remove the client by server->remove(this).
-    virtual srs_error_t start();
     // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
     // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-// Interface ISrsOneCycleThreadHandler
+// Interface ISrsProtocolReadWriter
 public:
-    // The thread cycle function,
-    // when serve connection completed, terminate the loop which will terminate the thread,
-    // thread will invoke the on_thread_stop() when it terminated.
-    virtual srs_error_t cycle();
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+};
+
+// The SSL connection over TCP transport, in server mode.
+class SrsSslConnection : virtual public ISrsProtocolReadWriter
+{
+private:
+    // The under-layer plaintext transport.
+    ISrsProtocolReadWriter* transport;
+private:
+    SSL_CTX* ssl_ctx;
+    SSL* ssl;
+    BIO* bio_in;
+    BIO* bio_out;
 public:
-    // Get the srs id which identify the client.
-    // TODO: FIXME: Rename to cid.
-    virtual SrsContextId srs_id();
-    // Get the remote ip of peer.
-    virtual std::string remote_ip();
-    // Set connection to expired.
-    virtual void expire();
-protected:
-    // For concrete connection to do the cycle.
-    virtual srs_error_t do_cycle() = 0;
+    SrsSslConnection(ISrsProtocolReadWriter* c);
+    virtual ~SrsSslConnection();
+public:
+    virtual srs_error_t handshake(std::string key_file, std::string crt_file);
+// Interface ISrsProtocolReadWriter
+public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual srs_error_t read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 #endif

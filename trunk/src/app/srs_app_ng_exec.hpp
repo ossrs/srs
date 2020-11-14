@@ -29,7 +29,7 @@
 #include <vector>
 #include <string>
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 
 class SrsRequest;
 class SrsPithyPrint;

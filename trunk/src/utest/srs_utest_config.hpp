@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define _MIN_OK_CONF "listen 1935; "
 
-class MockSrsConfigBuffer : public _srs_internal::SrsConfigBuffer
+class MockSrsConfigBuffer : public srs_internal::SrsConfigBuffer
 {
 public:
     MockSrsConfigBuffer(std::string buf);
