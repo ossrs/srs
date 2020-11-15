@@ -699,7 +699,7 @@ srs_error_t  SrsGb28181SipService::send_invite(SrsSipRequest *req,  string ip, i
     req->from_realm = config->sip_realm;
    
     std::stringstream ss;
-    sip->req_invite(ss, req, ip, port, ssrc);
+    sip->req_invite(ss, req, ip, port, ssrc, config->rtp_mux_tcp_enable);
    
     sockaddr addr = sip_session->sockaddr_from();
 

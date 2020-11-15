@@ -72,3 +72,4 @@ CONTRIBUTORS ordered by first contribution.
 * chenhaibo<chenhaibo@RD-CHB-0476-01>
 * jasongwq<jasongwq@gmail.com>
 * xialixin@kanzhun.com<xialixin@kanzhun.com>
+* yinjiaoyuan<yinjiaoyuan@163.com>

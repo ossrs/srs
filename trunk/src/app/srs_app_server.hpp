@@ -177,6 +177,21 @@ public:
     virtual ~SrsGb28181Listener();
 };
 
+class SrsGb28181TcpListener : virtual public SrsListener, virtual public ISrsTcpHandler
+{
+private:
+	SrsTcpListener* listener;
+	SrsGb28181Caster* caster;
+public:
+	SrsGb28181TcpListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+	virtual ~SrsGb28181TcpListener();
+public:
+	virtual srs_error_t listen(std::string i, int p);
+// Interface ISrsTcpHandler
+public:
+	virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+};
+
 #endif
 
 // Convert signal to io,

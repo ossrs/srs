@@ -499,6 +499,8 @@ public:
     virtual std::string get_stream_caster_output(SrsConfDirective* conf);
     // Get the listen port of stream caster.
     virtual int get_stream_caster_listen(SrsConfDirective* conf);
+    // Get the listen port type of stream caster.
+    virtual bool get_stream_caster_tcp_enable(SrsConfDirective* conf);
     // Get the min udp port for rtp of stream caster rtsp.
     virtual int get_stream_caster_rtp_port_min(SrsConfDirective* conf);
     // Get the max udp port for rtp of stream caster rtsp.
