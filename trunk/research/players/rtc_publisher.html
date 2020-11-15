@@ -96,17 +96,16 @@
                 self.pc.addTransceiver("video", {direction: "sendonly"});
 
                 var stream = await navigator.mediaDevices.getUserMedia(
-                    {audio: true, video: {height: {max: 320 }}}
+                    {audio: true, video: {height: {max: 320}}}
                 );
                 // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
-                stream.getTracks().forEach(function(track) {
+                stream.getTracks().forEach(function (track) {
                     self.pc.addTrack(track);
                 });
-                self.onaddstream && self.onaddstream({stream: stream});
 
                 var offer = await self.pc.createOffer();
                 await self.pc.setLocalDescription(offer);
-                var session = await new Promise(function(resolve, reject) {
+                var session = await new Promise(function (resolve, reject) {
                     // @see https://github.com/rtcdn/rtcdn-draft
                     var data = {
                         api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
@@ -115,15 +114,16 @@
 
                     $.ajax({
                         type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                        contentType:'application/json', dataType: 'json'
-                    }).done(function(data) {
+                        contentType: 'application/json', dataType: 'json'
+                    }).done(function (data) {
                         console.log("Got answer: ", data);
                         if (data.code) {
-                            reject(data); return;
+                            reject(data);
+                            return;
                         }
 
                         resolve(data);
-                    }).fail(function(reason){
+                    }).fail(function (reason) {
                         reject(reason);
                     });
                 });
@@ -131,20 +131,56 @@
                     new RTCSessionDescription({type: 'answer', sdp: session.sdp})
                 );
                 session.simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
+
+                // Notify about local stream when success.
+                self.onaddstream && self.onaddstream({stream: stream});
+
                 return session;
             };
 
             // Close the publisher.
-            self.close = function() {
-                    self.pc.close();
-        };
+            self.close = function () {
+                self.pc.close();
+            };
 
             // The callback when got local stream.
-            self.onaddstream = function (event) {};
+            self.onaddstream = function (event) {
+            };
 
             // Internal APIs.
             self.__internal = {
                 defaultPath: '/rtc/v1/publish/',
+                prepareUrl: function (webrtcUrl) {
+                    var urlObject = self.__internal.parse(webrtcUrl);
+
+                    // If user specifies the schema, use it as API schema.
+                    var schema = urlObject.user_query.schema;
+                    schema = schema ? schema + ':' : window.location.protocol;
+
+                    var port = urlObject.port || 1985;
+                    if (schema === 'https:') {
+                        port = urlObject.port || 443;
+                    }
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var api = urlObject.user_query.play || self.__internal.defaultPath;
+                    if (api.lastIndexOf('/') !== api.length - 1) {
+                        api += '/';
+                    }
+
+                    apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                    for (var key in urlObject.user_query) {
+                        if (key !== 'api' && key !== 'play') {
+                            apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                        }
+                    }
+                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                    var apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                    var streamUrl = urlObject.url;
+
+                    return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+                },
                 parse: function (url) {
                     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
                     var a = document.createElement("a");
@@ -219,37 +255,6 @@
                     }
 
                     return ret;
-                },
-                prepareUrl: function (webrtcUrl) {
-                    var urlObject = self.__internal.parse(webrtcUrl);
-
-                    // If user specifies the schema, use it as API schema.
-                    var schema = urlObject.user_query.schema;
-                    schema = schema ? schema + ':' : window.location.protocol;
-
-                    var port = urlObject.port || 1985;
-                    if (schema === 'https:') {
-                        port = urlObject.port || 443;
-                    }
-
-                    // @see https://github.com/rtcdn/rtcdn-draft
-                    var api = urlObject.user_query.play || self.__internal.defaultPath;
-                    if (api.lastIndexOf('/') !== api.length - 1) {
-                        api += '/';
-                    }
-
-                    apiUrl = schema + '//' + urlObject.server + ':' + port + api;
-                    for (var key in urlObject.user_query) {
-                        if (key !== 'api' && key !== 'play') {
-                            apiUrl += '&' + key + '=' + urlObject.user_query[key];
-                        }
-                    }
-                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
-                    var apiUrl = apiUrl.replace(api + '&', api + '?');
-
-                    var streamUrl = urlObject.url;
-
-                    return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
                 },
                 fill_query: function (query_string, obj) {
                     // pure user query object.

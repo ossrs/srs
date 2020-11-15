@@ -134,6 +134,37 @@
             // Internal APIs.
             self.__internal = {
                 defaultPath: '/rtc/v1/play/',
+                prepareUrl: function (webrtcUrl) {
+                    var urlObject = self.__internal.parse(webrtcUrl);
+
+                    // If user specifies the schema, use it as API schema.
+                    var schema = urlObject.user_query.schema;
+                    schema = schema ? schema + ':' : window.location.protocol;
+
+                    var port = urlObject.port || 1985;
+                    if (schema === 'https:') {
+                        port = urlObject.port || 443;
+                    }
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var api = urlObject.user_query.play || self.__internal.defaultPath;
+                    if (api.lastIndexOf('/') !== api.length - 1) {
+                        api += '/';
+                    }
+
+                    apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                    for (var key in urlObject.user_query) {
+                        if (key !== 'api' && key !== 'play') {
+                            apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                        }
+                    }
+                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                    var apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                    var streamUrl = urlObject.url;
+
+                    return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+                },
                 parse: function (url) {
                     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
                     var a = document.createElement("a");
@@ -208,37 +239,6 @@
                     }
 
                     return ret;
-                },
-                prepareUrl: function (webrtcUrl) {
-                    var urlObject = self.__internal.parse(webrtcUrl);
-
-                    // If user specifies the schema, use it as API schema.
-                    var schema = urlObject.user_query.schema;
-                    schema = schema ? schema + ':' : window.location.protocol;
-
-                    var port = urlObject.port || 1985;
-                    if (schema === 'https:') {
-                        port = urlObject.port || 443;
-                    }
-
-                    // @see https://github.com/rtcdn/rtcdn-draft
-                    var api = urlObject.user_query.play || self.__internal.defaultPath;
-                    if (api.lastIndexOf('/') !== api.length - 1) {
-                        api += '/';
-                    }
-
-                    apiUrl = schema + '//' + urlObject.server + ':' + port + api;
-                    for (var key in urlObject.user_query) {
-                        if (key !== 'api' && key !== 'play') {
-                            apiUrl += '&' + key + '=' + urlObject.user_query[key];
-                        }
-                    }
-                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
-                    var apiUrl = apiUrl.replace(api + '&', api + '?');
-
-                    var streamUrl = urlObject.url;
-
-                    return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
                 },
                 fill_query: function (query_string, obj) {
                     // pure user query object.
