@@ -68,37 +68,36 @@ public:
     }
     static bool IsUTF8(const char *pInBuf, int InLen)
     {
-        if (InLen < 0)
+        if (InLen < 0) {
             return false;
+        }
+
         int i = 0;
-        int nBytes = 0; //UTF8可用1-6个字节编码
+        int nBytes = 0;
         unsigned char chr = 0;
 
-        while (i < InLen)
-        {
+        while (i < InLen) {
             chr = *(pInBuf + i);
-            if (nBytes == 0) //计算字节数
-            {
-                if ((chr & 0x80) != 0)
-                {
-                    while ((chr & 0x80) != 0)
-                    {
+            if (nBytes == 0) {
+                if ((chr & 0x80) != 0) {
+                    while ((chr & 0x80) != 0) {
                         chr <<= 1;
                         nBytes++;
                     }
-                    if (nBytes < 2 || nBytes > 6)
-                        return false; //第一个字节最少为110x xxxx
-                    nBytes--;         //减去自身占的一个字节
+                    if (nBytes < 2 || nBytes > 6) {
+                        return false;
+                    }
+                    nBytes--;
                 }
-            }
-            else //多字节除了第一个字节外剩下的字节
-            {
-                if ((chr & 0xc0) != 0x80)
-                    return false; //剩下的字节都是10xx xxxx的形式
+            } else {
+                if ((chr & 0xc0) != 0x80) {
+                    return false;
+                }
                 nBytes--;
             }
             ++i;
         }
+
         return nBytes == 0;
     }
 };
@@ -491,11 +490,6 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
             xml_layer--;
 
             if (json_key[xml_layer] == "Item") {
-                // std::map<string, string>::iterator it2;
-                // for (it2 = one_item.begin(); it2 != one_item.end(); ++it2) {
-                //     srs_trace("========one_item========%s:%s", it2->first.c_str(), it2->second.c_str());
-                // }
-                // srs_trace("========one_item end========");
                 in_item_tag = 0;
                 // all items (DeviceList, Alarmstatus, RecordList) have "DeviceID"
                 if (one_item.find("DeviceID") != one_item.end())

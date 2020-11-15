@@ -306,8 +306,8 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
         if(key != cache_ps_rtp_packet.end())
         {
             SrsGb28181RtmpMuxer* muxer = NULL;
-            //First, search according to the channel_id. Otherwise, search according to the SSRC. 
-            //Some channel_id are created by RTP pool, which are different ports. 
+            //First, search according to the channel_id. Otherwise, search according to the SSRC.
+            //Some channel_id are created by RTP pool, which are different ports.
             //No channel_id are created by multiplexing ports, which are the same port
             if (!channel_id.empty()){
                 muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
@@ -551,7 +551,6 @@ srs_error_t SrsGb28181TcpPsRtpProcessor::on_rtp_packet(char* buf, int nb_buf, st
 	}*/
 
 	//itoa(port, port_string, 10);
-	
 	int peer_port = port;// atoi(port_string);
 
 	if (true) {
@@ -697,8 +696,8 @@ SrsGb28181RtmpMuxer* SrsGb28181TcpPsRtpProcessor::create_rtmpmuxer(std::string c
 {
 	if (true) {
 		SrsGb28181RtmpMuxer* muxer = NULL;
-		//First, search according to the channel_id. Otherwise, search according to the SSRC. 
-		//Some channel_id are created by RTP pool, which are different ports. 
+		//First, search according to the channel_id. Otherwise, search according to the SSRC.
+		//Some channel_id are created by RTP pool, which are different ports.
 		//No channel_id are created by multiplexing ports, which are the same port
 		if (!channel_id.empty()) {
 			muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
@@ -776,7 +775,6 @@ srs_error_t SrsGb28181TcpPsRtpProcessor::on_rtp_packet_jitter(char* buf, int nb_
 	}*/
 
 	//itoa(port, port_string, 10);
-
 	int peer_port = port;// atoi(port_string);
 
 	if (true) {
@@ -2411,20 +2409,20 @@ void SrsGb28181Manger::rtmpmuxer_unmap_by_ssrc(uint32_t ssrc)
 
 void SrsGb28181Manger::destroy()
 {
-	if (!config->rtp_mux_tcp_enable) {
-		//destory ps rtp listen
-		std::map<uint32_t, SrsPsRtpListener*>::iterator it;
-		for (it = rtp_pool.begin(); it != rtp_pool.end(); ++it) {
-			SrsPsRtpListener* listener = it->second;
-			srs_freep(listener);
-		}
-		rtp_pool.clear();
-	}
+    if (!config->rtp_mux_tcp_enable) {
+        //destory ps rtp listen
+        std::map<uint32_t, SrsPsRtpListener*>::iterator it;
+        for (it = rtp_pool.begin(); it != rtp_pool.end(); ++it) {
+            SrsPsRtpListener* listener = it->second;
+            srs_freep(listener);
+        }
+        rtp_pool.clear();
+    }
 
     //destory gb28181 muxer
-    std::map<std::string, SrsGb28181RtmpMuxer*>::iterator it2;
-    for (it2 = rtmpmuxers.begin(); it2 != rtmpmuxers.end(); ++it2) {
-        SrsGb28181RtmpMuxer* muxer = it2->second;
+    std::map<std::string, SrsGb28181RtmpMuxer*>::iterator it;
+    for (it = rtmpmuxers.begin(); it != rtmpmuxers.end(); ++it) {
+        SrsGb28181RtmpMuxer* muxer = it->second;
         SrsGb28181StreamChannel sess = muxer->get_channel();
         rtmpmuxer_unmap_by_ssrc(sess.get_ssrc());
         manager->remove(muxer);
@@ -2463,19 +2461,19 @@ srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
        return srs_error_wrap(err, "start rtp listen port rtmp muxer is null"); 
     }
 
-	if (!config->rtp_mux_tcp_enable) {
-		if (rtp_pool.find(port) == rtp_pool.end())
-		{
-			SrsPsRtpListener* rtp = new SrsPsRtpListener(this->config, port, id);
-			rtp_pool[port] = rtp;
-			if ((err = rtp_pool[port]->listen()) != srs_success) {
-				stop_rtp_listen(id);
-				return srs_error_wrap(err, "rtp listen");
-			}
+    if (!config->rtp_mux_tcp_enable) {
+        if (rtp_pool.find(port) == rtp_pool.end())
+        {
+            SrsPsRtpListener* rtp = new SrsPsRtpListener(this->config, port, id);
+            rtp_pool[port] = rtp;
+            if ((err = rtp_pool[port]->listen()) != srs_success) {
+                stop_rtp_listen(id);
+                return srs_error_wrap(err, "rtp listen");
+            }
 
-			srs_trace("gb28181: start rtp ps stream over server-port=%d", port);
-		}
-	}
+            srs_trace("gb28181: start rtp ps stream over server-port=%d", port);
+        }
+    }
 
     return err;
 }
@@ -2495,13 +2493,13 @@ void SrsGb28181Manger::stop_rtp_listen(std::string id)
         return; 
     }
 
-	if (!config->rtp_mux_tcp_enable) {
-		map<uint32_t, SrsPsRtpListener*>::iterator it2 = rtp_pool.find(port);
-		if (it2 != rtp_pool.end()) {
-			srs_freep(it2->second);
-			rtp_pool.erase(it2);
-		}
-	}
+    if (!config->rtp_mux_tcp_enable) {
+        map<uint32_t, SrsPsRtpListener*>::iterator it2 = rtp_pool.find(port);
+        if (it2 != rtp_pool.end()) {
+            srs_freep(it2->second);
+            rtp_pool.erase(it2);
+        }
+    }
     free_port(port, port+1);
 }
 
