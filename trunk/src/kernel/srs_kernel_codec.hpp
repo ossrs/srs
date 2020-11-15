@@ -42,6 +42,7 @@ class SrsBuffer;
  *      5 = On2 VP6 with alpha channel
  *      6 = Screen video version 2
  *      7 = AVC
+ *     12 = HEVC
  */
 enum SrsVideoCodecId
 {
@@ -262,6 +263,12 @@ public:
      * check codec h264.
      */
     static bool h264(char* data, int size);
+#ifdef SRS_H265
+    /**
+     * check codec hevc.
+     */
+    static bool hevc(char* data, int size);
+#endif
     /**
      * check the video RTMP/flv header info,
      * @return true if video RTMP/flv header is ok.
@@ -397,6 +404,80 @@ enum SrsAvcNaluType
     SrsAvcNaluTypeCodedSliceExt = 20,
 };
 std::string srs_avc_nalu2str(SrsAvcNaluType nalu_type);
+
+#ifdef SRS_H265
+enum SrsHevcNaluType
+{
+	NAL_UNIT_CODED_SLICE_TRAIL_N = 0,
+	NAL_UNIT_CODED_SLICE_TRAIL_R, //1
+	NAL_UNIT_CODED_SLICE_TSA_N,   //2
+	NAL_UNIT_CODED_SLICE_TLA,     //3
+	NAL_UNIT_CODED_SLICE_STSA_N,  //4
+	NAL_UNIT_CODED_SLICE_STSA_R,  //5
+	NAL_UNIT_CODED_SLICE_RADL_N,  //6
+	NAL_UNIT_CODED_SLICE_DLP,     //7
+	NAL_UNIT_CODED_SLICE_RASL_N,  //8
+	NAL_UNIT_CODED_SLICE_TFD,     //9
+	NAL_UNIT_RESERVED_10,
+	NAL_UNIT_RESERVED_11,
+	NAL_UNIT_RESERVED_12,
+	NAL_UNIT_RESERVED_13,
+	NAL_UNIT_RESERVED_14,
+	NAL_UNIT_RESERVED_15,
+	NAL_UNIT_CODED_SLICE_BLA,      //16
+	NAL_UNIT_CODED_SLICE_BLANT,    //17
+	NAL_UNIT_CODED_SLICE_BLA_N_LP, //18
+	NAL_UNIT_CODED_SLICE_IDR,      //19
+	NAL_UNIT_CODED_SLICE_IDR_N_LP, //20
+	NAL_UNIT_CODED_SLICE_CRA,      //21
+	NAL_UNIT_RESERVED_22,
+	NAL_UNIT_RESERVED_23,
+	NAL_UNIT_RESERVED_24,
+	NAL_UNIT_RESERVED_25,
+	NAL_UNIT_RESERVED_26,
+	NAL_UNIT_RESERVED_27,
+	NAL_UNIT_RESERVED_28,
+	NAL_UNIT_RESERVED_29,
+	NAL_UNIT_RESERVED_30,
+	NAL_UNIT_RESERVED_31,
+	NAL_UNIT_VPS,                   // 32
+	NAL_UNIT_SPS,                   // 33
+	NAL_UNIT_PPS,                   // 34
+	NAL_UNIT_ACCESS_UNIT_DELIMITER, // 35
+	NAL_UNIT_EOS,                   // 36
+	NAL_UNIT_EOB,                   // 37
+	NAL_UNIT_FILLER_DATA,           // 38
+	NAL_UNIT_SEI ,                  // 39 Prefix SEI
+	NAL_UNIT_SEI_SUFFIX,            // 40 Suffix SEI
+	NAL_UNIT_RESERVED_41,
+	NAL_UNIT_RESERVED_42,
+	NAL_UNIT_RESERVED_43,
+	NAL_UNIT_RESERVED_44,
+	NAL_UNIT_RESERVED_45,
+	NAL_UNIT_RESERVED_46,
+	NAL_UNIT_RESERVED_47,
+	NAL_UNIT_UNSPECIFIED_48,
+	NAL_UNIT_UNSPECIFIED_49,
+	NAL_UNIT_UNSPECIFIED_50,
+	NAL_UNIT_UNSPECIFIED_51,
+	NAL_UNIT_UNSPECIFIED_52,
+	NAL_UNIT_UNSPECIFIED_53,
+	NAL_UNIT_UNSPECIFIED_54,
+	NAL_UNIT_UNSPECIFIED_55,
+	NAL_UNIT_UNSPECIFIED_56,
+	NAL_UNIT_UNSPECIFIED_57,
+	NAL_UNIT_UNSPECIFIED_58,
+	NAL_UNIT_UNSPECIFIED_59,
+	NAL_UNIT_UNSPECIFIED_60,
+	NAL_UNIT_UNSPECIFIED_61,
+	NAL_UNIT_UNSPECIFIED_62,
+	NAL_UNIT_UNSPECIFIED_63,
+	NAL_UNIT_INVALID,
+};
+
+//for nalu data first byte
+#define HEVC_NALU_TYPE(code) (SrsHevcNaluType)((code & 0x7E)>>1)
+#endif
 
 /**
  * Table 7-6 – Name association to slice_type
@@ -608,6 +689,41 @@ public:
     virtual bool is_aac_codec_ok();
 };
 
+#ifdef SRS_H265
+struct HEVCNalData {
+    uint16_t nalUnitLength;
+    std::vector<uint8_t>  nalUnitData;
+};
+
+struct HVCCNALUnit {
+    uint8_t  array_completeness;
+    uint8_t  NAL_unit_type;
+    uint16_t numNalus;
+    std::vector<HEVCNalData> nalData_vec;
+};
+
+struct HEVCDecoderConfigurationRecord {
+    uint8_t  configurationVersion;
+    uint8_t  general_profile_space;
+    uint8_t  general_tier_flag;
+    uint8_t  general_profile_idc;
+    uint32_t general_profile_compatibility_flags;
+    uint64_t general_constraint_indicator_flags;
+    uint8_t  general_level_idc;
+    uint16_t min_spatial_segmentation_idc;
+    uint8_t  parallelismType;
+    uint8_t  chromaFormat;
+    uint8_t  bitDepthLumaMinus8;
+    uint8_t  bitDepthChromaMinus8;
+    uint16_t avgFrameRate;
+    uint8_t  constantFrameRate;
+    uint8_t  numTemporalLayers;
+    uint8_t  temporalIdNested;
+    uint8_t  lengthSizeMinusOne;
+    std::vector<HVCCNALUnit> nalu_vec;
+};
+#endif
+
 /**
  * The video codec info.
  */
@@ -627,7 +743,7 @@ public:
      * @see: ffmpeg, AVCodecContext::extradata
      */
     std::vector<char> avc_extra_data;
-public:
+public://H264
     /**
      * video specified
      */
@@ -643,6 +759,10 @@ public:
 public:
     // the avc payload format.
     SrsAvcPayloadFormat payload_format;
+#ifdef SRS_H265
+public:
+    HEVCDecoderConfigurationRecord _hevcDecConfRecord;
+#endif
 public:
     SrsVideoCodecConfig();
     virtual ~SrsVideoCodecConfig();
@@ -767,10 +887,24 @@ private:
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer* stream);
     virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+
 private:
-    // Parse the H.264 NALUs.
+    srs_error_t  (SrsFormat::*demux_ibmf_format_func)(SrsBuffer* stream);
+
+#ifdef SRS_H265
+private:
+    // Parse the hevc vps/sps/pps
+    virtual srs_error_t hevc_demux_hvcc(SrsBuffer* stream);
+    virtual srs_error_t hevc_demux_ibmf_format(SrsBuffer* stream);
+    virtual srs_error_t hevc_vps_data(char*& data_p, int& len);
+    virtual srs_error_t hevc_pps_data(char*& data_p, int& len);
+    virtual srs_error_t hevc_sps_data(char*& data_p, int& len);
+#endif
+
+private:
+    // Parse the H.264/hevc NALUs.
     virtual srs_error_t video_nalu_demux(SrsBuffer* stream);
-    // Demux the avc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
+    // Demux the avc/hevc NALU in "AnnexB" from ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     virtual srs_error_t avc_demux_annexb_format(SrsBuffer* stream);
     // Demux the avc NALU in "ISO Base Media File Format" from ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     virtual srs_error_t avc_demux_ibmf_format(SrsBuffer* stream);
