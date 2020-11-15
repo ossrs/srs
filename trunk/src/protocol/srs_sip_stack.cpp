@@ -842,7 +842,7 @@ void SrsSipStack::resp_status(stringstream& ss, SrsSipRequest *req)
    
 }
 
-void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, int port, uint32_t ssrc)
+void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, int port, uint32_t ssrc, bool tcpFlag)
 {
     /* 
     //request: sip-agent <-------INVITE------ sip-server
@@ -919,23 +919,45 @@ void SrsSipStack::req_invite(stringstream& ss, SrsSipRequest *req, string ip, in
     sprintf(_ssrc, "%010d", ssrc);
   
     std::stringstream sdp;
-    sdp << "v=0" << SRS_RTSP_CRLF
-    << "o=" << req->serial << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
-    << "s=Play" << SRS_RTSP_CRLF
-    << "c=IN IP4 " << ip << SRS_RTSP_CRLF
-    << "t=0 0" << SRS_RTSP_CRLF
-    //TODO 97 98 99 current no support
-    //<< "m=video " << port <<" RTP/AVP 96 97 98 99" << SRS_RTSP_CRLF
-    << "m=video " << port <<" RTP/AVP 96" << SRS_RTSP_CRLF
-    << "a=recvonly" << SRS_RTSP_CRLF
-    << "a=rtpmap:96 PS/90000" << SRS_RTSP_CRLF
-    //TODO: current no support
-    //<< "a=rtpmap:97 MPEG4/90000" << SRS_RTSP_CRLF
-    //<< "a=rtpmap:98 H264/90000" << SRS_RTSP_CRLF
-    //<< "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
-    //<< "a=streamMode:MAIN\r\n"
-    //<< "a=filesize:0\r\n"
-    << "y=" << _ssrc << SRS_RTSP_CRLF;
+    if (!tcpFlag){
+        sdp << "v=0" << SRS_RTSP_CRLF
+        << "o=" << req->serial << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
+        << "s=Play" << SRS_RTSP_CRLF
+        << "c=IN IP4 " << ip << SRS_RTSP_CRLF
+        << "t=0 0" << SRS_RTSP_CRLF
+        //TODO 97 98 99 current no support
+        //<< "m=video " << port <<" RTP/AVP 96 97 98 99" << SRS_RTSP_CRLF
+        << "m=video " << port <<" RTP/AVP 96" << SRS_RTSP_CRLF
+        << "a=recvonly" << SRS_RTSP_CRLF
+        << "a=rtpmap:96 PS/90000" << SRS_RTSP_CRLF
+        //TODO: current no support
+        //<< "a=rtpmap:97 MPEG4/90000" << SRS_RTSP_CRLF
+        //<< "a=rtpmap:98 H264/90000" << SRS_RTSP_CRLF
+        //<< "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
+        //<< "a=streamMode:MAIN\r\n"
+        //<< "a=filesize:0\r\n"
+        << "y=" << _ssrc << SRS_RTSP_CRLF;
+    } else {
+        sdp << "v=0" << SRS_RTSP_CRLF
+        << "o=" << req->serial << " 0 0 IN IP4 " << ip << SRS_RTSP_CRLF
+        << "s=Play" << SRS_RTSP_CRLF
+        << "c=IN IP4 " << ip << SRS_RTSP_CRLF
+        << "t=0 0" << SRS_RTSP_CRLF
+        //TODO 97 98 99 current no support
+        //<< "m=video " << port <<" RTP/AVP 96 97 98 99" << SRS_RTSP_CRLF
+        //<< "m=video " << port <<" RTP/AVP 96" << SRS_RTSP_CRLF
+        << "m=video " << port << " TCP/RTP/AVP 96" << SRS_RTSP_CRLF
+        //<< "m=video " << port << " TCP/RTP/AVP 98" << SRS_RTSP_CRLF
+        << "a=recvonly" << SRS_RTSP_CRLF
+        << "a=rtpmap:96 PS/90000" << SRS_RTSP_CRLF
+        //TODO: current no support
+        //<< "a=rtpmap:97 MPEG4/90000" << SRS_RTSP_CRLF
+        //<< "a=rtpmap:98 H264/90000" << SRS_RTSP_CRLF
+        //<< "a=rtpmap:99 H265/90000" << SRS_RTSP_CRLF
+        //<< "a=streamMode:MAIN\r\n"
+        //<< "a=filesize:0\r\n"
+        << "y=" << _ssrc << SRS_RTSP_CRLF;
+    }
 
     
     std::stringstream from, to, uri;

@@ -3746,7 +3746,7 @@ srs_error_t SrsConfig::check_normal_config()
             SrsConfDirective* conf = stream_caster->at(i);
             string n = conf->name;
             if (n != "enabled" && n != "caster" && n != "output"
-                && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
+                && n != "listen" && n != "tcp_enable" && n != "rtp_port_min" && n != "rtp_port_max"
                 && n != "rtp_idle_timeout" && n != "sip"
                 && n != "audio_enable" && n != "wait_keyframe" && n != "jitterbuffer_enable"
                 && n != "host" && n != "auto_create_channel") {
@@ -4368,6 +4368,22 @@ int SrsConfig::get_stream_caster_listen(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_stream_caster_tcp_enable(SrsConfDirective* conf)
+{
+	static bool DEFAULT = false;
+
+	if (!conf) {
+		return DEFAULT;
+	}
+
+	conf = conf->get("tcp_enable");
+	if (!conf || conf->arg0().empty()) {
+		return DEFAULT;
+	}
+
+	return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 int SrsConfig::get_stream_caster_rtp_port_min(SrsConfDirective* conf)

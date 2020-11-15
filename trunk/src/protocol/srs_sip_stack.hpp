@@ -169,7 +169,7 @@ public:
   
     //request:  request sent by the sip-server, wait for sip-agent response
     virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, 
-        int port, uint32_t ssrc);
+        int port, uint32_t ssrc, bool tcpFlag);
     virtual void req_ack(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);
