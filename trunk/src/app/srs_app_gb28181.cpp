@@ -954,7 +954,8 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
         ps_fw.write(ps_data, ps_size, NULL);          
 #endif
 
-	while(incomplete_len >= sizeof(SrsPsPacketStartCode))
+	while(incomplete_len > 0 
+        && incomplete_len >= sizeof(SrsPsPacketStartCode))
     {
     	if (next_ps_pack
 			&& next_ps_pack[0] == (char)0x00
