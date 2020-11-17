@@ -74,3 +74,4 @@ CONTRIBUTORS ordered by first contribution.
 * xialixin@kanzhun.com<xialixin@kanzhun.com>
 * yinjiaoyuan<yinjiaoyuan@163.com>
 * PieerePi<pihuibin@hotmail.com>
+* JesseXi<jesse.jinjin@wo.cn>
