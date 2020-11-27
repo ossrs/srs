@@ -1278,6 +1278,8 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
 
     pprint = SrsPithyPrint::create_caster();
     trd = new SrsSTCoroutine("gb28181rtmpmuxer", this);
+    //change stack size to 256K, fix crash when call FFMpeg
+    ((SrsSTCoroutine*)trd)->set_stack_size(1 << 18);
     
     sdk = NULL;
     vjitter = new SrsRtspJitter();
