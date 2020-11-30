@@ -75,3 +75,5 @@ CONTRIBUTORS ordered by first contribution.
 * yinjiaoyuan<yinjiaoyuan@163.com>
 * PieerePi<pihuibin@hotmail.com>
 * JesseXi<jesse.jinjin@wo.cn>
+* PieerePi<40780488+PieerePi@users.noreply.github.com>
+* ghostsf<ghost_sf@163.com>
