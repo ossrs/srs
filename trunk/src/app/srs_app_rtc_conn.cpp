@@ -647,9 +647,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
 
-            // The player may change the PT, so it's not equal to publisher's.
-            pkt->header.set_payload_type(audio_track->get_track_media_pt());
-
             if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
@@ -658,9 +655,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         } else {
             // TODO: FIXME: Any simple solution?
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
-
-            // The player may change the PT, so it's not equal to publisher's.
-            pkt->header.set_payload_type(video_track->get_track_media_pt());
 
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
