@@ -2993,7 +2993,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             track->media_->pt_ = remote_payload.payload_type_;
 
             vector<SrsMediaPayloadType> red_pts = remote_media_desc.find_media_with_encoding_name("red");
-            if (!red_pts.empty() && !track->red_) {
+            if (!red_pts.empty() && track->red_) {
                 SrsMediaPayloadType red_pt = red_pts.at(0);
 
                 track->red_->pt_of_publisher_ = track->red_->pt_;

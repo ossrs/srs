@@ -1056,9 +1056,6 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher)
     uint8_t* p =  (uint8_t*)plaintext.c_str();
     while(si < n) {
         // Convert 3x 8bit source bytes into 4 bytes
-        uint32_t v1 = uint32_t(p[si+0]) << 16;
-        uint32_t v2 = uint32_t(p[si+1]) << 8;
-        uint32_t v3 = uint32_t(p[si+2]); 
         val = (uint32_t(p[si + 0]) << 16) | (uint32_t(p[si + 1])<< 8) | uint32_t(p[si + 2]);
 
         cipher += encoder[val>>18&0x3f];

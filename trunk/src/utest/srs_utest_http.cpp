@@ -1903,3 +1903,125 @@ VOID TEST(ProtocolHTTPTest, ParseUri)
         EXPECT_STREQ("/0", uri.get_path().c_str());
     }
 }
+
+VOID TEST(ProtocolHTTPTest, ParseHttpUri)
+{
+    srs_error_t err = srs_success;
+
+    std::string url_str = "http://me.com";
+    url_str += "?xxxIdxxx=xxxxxCPrzDUzxxxxx&Action=DescribeXXX";
+    url_str += "&XXXUid=000140000&AppId=xxxx2rxxx&Caller=rtc&Format=JSON&QueryAppId=xxx9xrxxx";
+    url_str += "&Region=cn-hangzhou&RequestId=xxx6i4bmxxx74kxxx" ;
+    url_str += "&SignatureMethod=HMAC-SHA1&SignatureNonce=xxxk1q0t42v37ske24j329xxxx";
+    url_str += "&SignatureVersion=1.0&Timestamp=2020-11-02T09:10:28Z&Version=2018-01-11";
+    url_str += "&Signature=xxxGXBBGnoR4vHsTcUxxx+tRM";
+    SrsHttpUri uri;
+    HELPER_ASSERT_SUCCESS(uri.initialize(url_str));
+    EXPECT_STREQ("http", uri.get_schema().c_str());
+    EXPECT_EQ(80, uri.get_port());
+    EXPECT_STREQ("me.com", uri.get_host().c_str());
+    EXPECT_STREQ("", uri.get_path().c_str());
+    EXPECT_STREQ("xxxxxCPrzDUzxxxxx", uri.get_query_by_key("xxxIdxxx").c_str());
+    EXPECT_STREQ("DescribeXXX", uri.get_query_by_key("Action").c_str());
+    EXPECT_STREQ("000140000", uri.get_query_by_key("XXXUid").c_str());
+    EXPECT_STREQ("rtc", uri.get_query_by_key("Caller").c_str());
+    EXPECT_STREQ("xxxx2rxxx", uri.get_query_by_key("AppId").c_str());
+    EXPECT_STREQ("JSON", uri.get_query_by_key("Format").c_str());
+    EXPECT_STREQ("xxx9xrxxx", uri.get_query_by_key("QueryAppId").c_str());
+    EXPECT_STREQ("cn-hangzhou", uri.get_query_by_key("Region").c_str());
+    EXPECT_STREQ("xxx6i4bmxxx74kxxx", uri.get_query_by_key("RequestId").c_str());
+    EXPECT_STREQ("HMAC-SHA1", uri.get_query_by_key("SignatureMethod").c_str());
+    EXPECT_STREQ("xxxk1q0t42v37ske24j329xxxx", uri.get_query_by_key("SignatureNonce").c_str());
+    EXPECT_STREQ("1.0", uri.get_query_by_key("SignatureVersion").c_str());
+    EXPECT_STREQ("2020-11-02T09:10:28Z", uri.get_query_by_key("Timestamp").c_str());
+    EXPECT_STREQ("2018-01-11", uri.get_query_by_key("Version").c_str());
+    EXPECT_STREQ("xxxGXBBGnoR4vHsTcUxxx+tRM", uri.get_query_by_key("Signature").c_str());
+
+}
+
+struct EscapeTest {
+    string in;
+    string out;
+    srs_error_t err;
+};
+
+VOID TEST(ProtocolHTTPTest, QueryEscape)
+{
+    srs_error_t err = srs_success;
+    //Test query unescapse
+    if(true) {
+        struct EscapeTest unescape[] = {
+            {"", "", srs_success},
+            {"abc", "abc", srs_success},
+            {"1%41", "1A", srs_success},
+            {"1%41%42%43", "1ABC", srs_success},
+            {"%4a", "J", srs_success},
+            {"%6F", "o", srs_success},
+            {"%"/* not enough characters after %*/, "", srs_error_new(ERROR_HTTP_URL_UNESCAPE, "%")},
+            {"%a"/* not enough characters after % */, "", srs_error_new(ERROR_HTTP_URL_UNESCAPE, "%a")},
+            {"%1" /* not enough characters after % */, "", srs_error_new(ERROR_HTTP_URL_UNESCAPE, "%1")},
+            {"123%45%6"/* not enough characters after % */, "", srs_error_new(ERROR_HTTP_URL_UNESCAPE, "%6")},
+            {"%zzzzz"/* invalid hex digits */, "", srs_error_new(ERROR_HTTP_URL_UNESCAPE, "%zz")},
+            {"a+b", "a b", srs_success},
+            {"a%20b", "a b", srs_success}
+        };
+
+        for(int i = 0; i < (sizeof(unescape) / sizeof(struct EscapeTest)); ++i) {
+            struct EscapeTest& d = unescape[i];
+            string value;
+            if(srs_success == d.err) {
+                HELPER_ASSERT_SUCCESS(SrsHttpUri::query_unescape(d.in, value));
+                EXPECT_STREQ(d.out.c_str(), value.c_str());
+            } else {
+                HELPER_ASSERT_FAILED(SrsHttpUri::query_unescape(d.in, value));
+            }
+        }
+    }
+
+    //Test Escape
+    if(true) {
+        struct EscapeTest escape[] = {
+            {"", "", srs_success},
+	        {"abc", "abc", srs_success},
+	        {"one two", "one+two", srs_success},
+	        {"10%", "10%25", srs_success},
+	        {" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;", 
+            "+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B", srs_success},
+        };
+        for(int i = 0; i < (sizeof(escape) / sizeof(struct EscapeTest)); ++i) {
+            struct EscapeTest& d = escape[i];
+            EXPECT_STREQ(d.out.c_str(), SrsHttpUri::query_escape(d.in).c_str());
+
+            string value;
+            HELPER_ASSERT_SUCCESS(SrsHttpUri::query_unescape(d.out, value));
+            EXPECT_STREQ(d.in.c_str(), value.c_str());
+        }
+    }
+}
+
+VOID TEST(ProtocolHTTPTest, PathEscape)
+{
+    srs_error_t err = srs_success;
+    struct EscapeTest path[] = {
+        {"", "", srs_success},
+	    {"abc", "abc", srs_success},
+	    {"abc+def", "abc+def", srs_success},
+	    {"a/b", "a%2Fb", srs_success},
+	    {"one two", "one%20two", srs_success},
+	    {"10%", "10%25", srs_success},
+	    {" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+	    "%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
+		srs_success},
+    };
+
+    for(int i = 0; i < (sizeof(path) / sizeof(struct EscapeTest)); ++i) {
+        struct EscapeTest& d = path[i];
+        EXPECT_STREQ(d.out.c_str(), SrsHttpUri::path_escape(d.in).c_str());
+
+        string value;
+        HELPER_ASSERT_SUCCESS(SrsHttpUri::path_unescape(d.out, value));
+        EXPECT_STREQ(d.in.c_str(), value.c_str());
+        EXPECT_EQ(0, memcmp(d.in.c_str(), value.c_str(), d.in.length()));
+    }
+
+}

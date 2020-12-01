@@ -518,6 +518,7 @@ private:
     std::string query;
     std::string username_;
     std::string password_;
+    std::map<std::string, std::string> query_values_;
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
@@ -533,12 +534,19 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    virtual std::string get_query_by_key(std::string key);
     virtual std::string username();
     virtual std::string password();
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
     virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
+    srs_error_t parse_query();
+public:
+    static std::string query_escape(std::string s);
+    static std::string path_escape(std::string s);
+    static srs_error_t query_unescape(std::string s, std::string& value);
+    static srs_error_t path_unescape(std::string s, std::string& value);
 };
 
 // For #if !defined(SRS_EXPORT_LIBRTMP)

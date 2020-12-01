@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_protocol_utility.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
@@ -898,8 +899,6 @@ SrsHttpUri::~SrsHttpUri()
 
 srs_error_t SrsHttpUri::initialize(string _url)
 {
-    srs_error_t err = srs_success;
-
     schema = host = path = query = "";
 
     url = _url;
@@ -944,7 +943,7 @@ srs_error_t SrsHttpUri::initialize(string _url)
         username_ = username_.substr(0, pos);
     }
 
-    return err;
+    return parse_query();
 }
 
 void SrsHttpUri::set_schema(std::string v)
@@ -988,6 +987,15 @@ string SrsHttpUri::get_query()
     return query;
 }
 
+string SrsHttpUri::get_query_by_key(std::string key)
+{
+    map<string, string>::iterator it = query_values_.find(key);
+    if(it == query_values_.end()) {
+      return "";
+    }
+    return it->second;
+}
+
 std::string SrsHttpUri::username()
 {
     return username_;
@@ -1011,6 +1019,331 @@ string SrsHttpUri::get_uri_field(string uri, void* php_u, int ifield)
     int len = hp_u->field_data[field].len;
 
     return uri.substr(offset, len);
+}
+
+srs_error_t SrsHttpUri::parse_query()
+{
+    srs_error_t err = srs_success;
+    if(query.empty()) {
+        return err;
+    }
+
+    size_t begin = query.find("?");
+    if(string::npos != begin) {
+        begin++;
+    } else {
+        begin = 0;
+    }
+    string query_str = query.substr(begin);
+    query_values_.clear();
+    srs_parse_query_string(query_str, query_values_);
+
+    return err;
+}
+
+
+// @see golang net/url/url.go
+namespace {
+  enum EncodeMode {
+	  encodePath,
+	  encodePathSegment,
+	  encodeHost,
+	  encodeZone,
+	  encodeUserPassword,
+	  encodeQueryComponent,
+	  encodeFragment,
+  };
+
+  bool should_escape(uint8_t c, EncodeMode mode) {
+    // §2.3 Unreserved characters (alphanum)
+    if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9')) {
+      return false;
+    }
+
+    if(encodeHost == mode || encodeZone == mode) {
+      // §3.2.2 Host allows
+      //	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+      // as part of reg-name.
+      // We add : because we include :port as part of host.
+      // We add [ ] because we include [ipv6]:port as part of host.
+      // We add < > because they're the only characters left that
+      // we could possibly allow, and Parse will reject them if we
+      // escape them (because hosts can't use %-encoding for
+      // ASCII bytes).
+      switch(c) {
+        case '!':
+        case '$':
+        case '&':
+        case '\'':
+        case '(':
+        case ')':
+        case '*':
+        case '+':
+        case ',':
+        case ';':
+        case '=':
+        case ':':
+        case '[':
+        case ']':
+        case '<':
+        case '>':
+        case '"':
+          return false;
+      }
+    }
+
+    switch(c) {
+    case '-':
+    case '_':
+    case '.':
+    case '~': // §2.3 Unreserved characters (mark)
+      return false; 
+    case '$':
+    case '&':
+    case '+':
+    case ',':
+    case '/':
+    case ':':
+    case ';':
+    case '=':
+    case '?':
+    case '@': // §2.2 Reserved characters (reserved)
+      // Different sections of the URL allow a few of
+      // the reserved characters to appear unescaped.
+      switch (mode) {
+      case encodePath: // §3.3
+        // The RFC allows : @ & = + $ but saves / ; , for assigning
+        // meaning to individual path segments. This package
+        // only manipulates the path as a whole, so we allow those
+        // last three as well. That leaves only ? to escape.
+        return c == '?';
+
+      case encodePathSegment: // §3.3
+        // The RFC allows : @ & = + $ but saves / ; , for assigning
+        // meaning to individual path segments.
+        return c == '/' || c == ';' || c == ',' || c == '?';
+
+      case encodeUserPassword: // §3.2.1
+        // The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
+        // userinfo, so we must escape only '@', '/', and '?'.
+        // The parsing of userinfo treats ':' as special so we must escape
+        // that too.
+        return c == '@' || c == '/' || c == '?' || c == ':';
+
+      case encodeQueryComponent: // §3.4
+        // The RFC reserves (so we must escape) everything.
+        return true;
+
+      case encodeFragment: // §4.1
+        // The RFC text is silent but the grammar allows
+        // everything, so escape nothing.
+        return false;
+      default:
+        break;
+      }
+    }
+
+    if(mode == encodeFragment) {
+      // RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
+      // included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
+      // need to be escaped. To minimize potential breakage, we apply two restrictions:
+      // (1) we always escape sub-delims outside of the fragment, and (2) we always
+      // escape single quote to avoid breaking callers that had previously assumed that
+      // single quotes would be escaped. See issue #19917.
+      switch (c) {
+      case '!':
+      case '(':
+      case ')':
+      case '*':
+        return false;
+      }
+    }
+
+    // Everything else must be escaped.
+    return true;
+  }
+
+  bool ishex(uint8_t c) {
+    if( '0' <= c && c <= '9') {
+      return true;
+    } else if('a' <= c && c <= 'f') {
+      return true;
+    } else if( 'A' <= c && c <= 'F') {
+      return true;
+    }
+    return false;
+  }
+
+  uint8_t hex_to_num(uint8_t c) {
+    if('0' <= c && c <= '9') {
+      return c - '0';
+    } else if('a' <= c && c <= 'f') {
+      return c - 'a' + 10;
+    } else if('A' <= c && c <= 'F') {
+      return c - 'A' + 10;
+    }
+    return 0;
+  }
+
+  srs_error_t unescapse(string s, string& value, EncodeMode mode) {
+    srs_error_t err = srs_success;
+    int n = 0;
+    bool has_plus = false;
+    int i = 0;
+    // Count %, check that they're well-formed.
+    while(i < s.length()) {
+      switch (s.at(i)) {
+      case '%':
+        {
+          n++;
+          if((i+2) >= s.length() || !ishex(s.at(i+1)) || !ishex(s.at(i+2))) {
+              string msg = s.substr(i);
+              if(msg.length() > 3) {
+                msg = msg.substr(0, 3);
+              }
+              return srs_error_new(ERROR_HTTP_URL_UNESCAPE, "invalid URL escape: %s", msg.c_str());
+          }
+
+          // Per https://tools.ietf.org/html/rfc3986#page-21
+          // in the host component %-encoding can only be used
+          // for non-ASCII bytes.
+          // But https://tools.ietf.org/html/rfc6874#section-2
+          // introduces %25 being allowed to escape a percent sign
+          // in IPv6 scoped-address literals. Yay.
+          if(encodeHost == mode && hex_to_num(s.at(i+1)) < 8 && s.substr(i, 3) != "%25") {
+            return srs_error_new(ERROR_HTTP_URL_UNESCAPE, "invalid URL escap: %s", s.substr(i, 3).c_str());
+          }
+
+          if(encodeZone == mode) {
+            // RFC 6874 says basically "anything goes" for zone identifiers
+            // and that even non-ASCII can be redundantly escaped,
+            // but it seems prudent to restrict %-escaped bytes here to those
+            // that are valid host name bytes in their unescaped form.
+            // That is, you can use escaping in the zone identifier but not
+            // to introduce bytes you couldn't just write directly.
+            // But Windows puts spaces here! Yay.
+            uint8_t v = (hex_to_num(s.at(i+1)) << 4) | (hex_to_num(s.at(i+2)));
+            if("%25" != s.substr(i, 3) && ' ' != v && should_escape(v, encodeHost)) {
+              return srs_error_new(ERROR_HTTP_URL_UNESCAPE, "invalid URL escap: %s", s.substr(i, 3).c_str());
+            }
+          }
+          i += 3;
+        }
+        break;
+      case '+':
+        has_plus = encodeQueryComponent == mode;
+        i++;
+      break;
+      default:
+        if((encodeHost == mode || encodeZone == mode) && ((uint8_t)s.at(i) < 0x80) && should_escape(s.at(i), mode)) {
+          return srs_error_new(ERROR_HTTP_URL_UNESCAPE, "invalid character %u in host name", s.at(i));
+        }
+        i++;
+        break;
+      } 
+    }
+
+    if(0 == n && !has_plus) {
+      value = s;
+      return err;
+    }
+
+    value.clear();
+    //value.resize(s.length() - 2*n);
+    for(int i = 0; i < s.length(); ++i) {
+      switch(s.at(i)) {
+      case '%':
+        value += (hex_to_num(s.at(i+1))<<4 | hex_to_num(s.at(i+2)));
+        i += 2;
+        break;
+      case '+':
+        if(encodeQueryComponent == mode) {
+          value += " ";
+        } else {
+          value += "+";
+        }
+        break;
+      default:
+        value += s.at(i);
+        break;
+      }
+    }
+
+    return srs_success;
+  }
+
+  string escape(string s, EncodeMode mode) {
+    int space_count = 0;
+    int hex_count = 0;
+    for(int i = 0; i < s.length(); ++i) {
+      uint8_t c = s.at(i);
+      if(should_escape(c, mode)) {
+        if(' ' == c && encodeQueryComponent == mode) {
+          space_count++;
+        } else {
+          hex_count++;
+        }
+      }
+    }
+
+    if(0 == space_count && 0 == hex_count) {
+      return s;
+    }
+
+    string value;
+    if(0 == hex_count) {
+      value = s;
+      for(int i = 0; i < s.length(); ++i) {
+        if(' ' == s.at(i)) {
+          value[i] = '+';
+        }
+      }
+      return value;
+    }
+
+    //value.resize(s.length() + 2*hex_count);
+    const char escape_code[] = "0123456789ABCDEF";
+    //int j = 0;
+    for(int i = 0; i < s.length(); ++i) {
+      uint8_t c = s.at(i);
+      if(' ' == c && encodeQueryComponent == mode) {
+        value += '+';
+      } else if (should_escape(c, mode)) {
+        value += '%';
+        value += escape_code[c>>4];
+        value += escape_code[c&15];
+        //j += 3;
+      } else {
+        value += s[i];
+        
+      }
+    }
+
+    return value;
+  }
+
+
+}
+
+
+string SrsHttpUri::query_escape(std::string s)
+{
+  return escape(s, encodeQueryComponent);
+}
+
+string SrsHttpUri::path_escape(std::string s)
+{
+  return escape(s, encodePathSegment);
+}
+
+srs_error_t SrsHttpUri::query_unescape(std::string s, std::string& value)
+{
+  return unescapse(s, value, encodeQueryComponent);
+}
+
+srs_error_t SrsHttpUri::path_unescape(std::string s, std::string& value)
+{
+  return unescapse(s, value, encodePathSegment);
 }
 
 // For #if !defined(SRS_EXPORT_LIBRTMP)
