@@ -1275,16 +1275,10 @@ srs_error_t SrsServer::listen_http_api()
     return err;
 }
 
-/**
- * shikeDebug 
- * 1. add rtmp listen log;
- * **/
-NetDataLog sk_log("/home/sk95120/Document/" ,"20201201.txt" ,1024 ,1 ,NETLOG);
-
 srs_error_t SrsServer::listen_http_stream()
 {
     srs_error_t err = srs_success;
-    sk_log::addLog("123");
+    srs_trace("shikeDebug rtmp listen");
     close_listeners(SrsListenerHttpStream);
     if (_srs_config->get_http_stream_enabled()) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpStream);
@@ -1453,6 +1447,7 @@ srs_error_t SrsServer::fd2conn(SrsListenerType type, srs_netfd_t stfd, SrsConnec
     }
     
     if (type == SrsListenerRtmpStream) {
+    	srs_trace("shikeDebug rtmp type");
         *pconn = new SrsRtmpConn(this, stfd, ip);
     } else if (type == SrsListenerHttpApi) {
         *pconn = new SrsHttpApi(this, stfd, http_api_mux, ip);

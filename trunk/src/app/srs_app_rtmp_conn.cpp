@@ -151,8 +151,8 @@ srs_error_t SrsRtmpConn::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    srs_trace("RTMP client ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
-    
+    srs_trace("RTMP client shikeDebug ip=%s, fd=%d", ip.c_str(), srs_netfd_fileno(stfd));
+    srs_trace("shikeDebug rtmp do cycle");
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
     rtmp->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
 

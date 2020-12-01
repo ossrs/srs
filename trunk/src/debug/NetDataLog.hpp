@@ -3,9 +3,9 @@
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
-#include <direct.h>
+//#include <direct.h>
 #include <string>
-#include <io.h>
+//#include <io.h>
 #include <stdlib.h>
 #include <time.h>
 #include <fcntl.h>
