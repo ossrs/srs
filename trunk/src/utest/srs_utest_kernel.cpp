@@ -2393,6 +2393,89 @@ VOID TEST(KernelUtility, Base64Decode)
     EXPECT_TRUE(expect == plaintext);
 }
 
+VOID TEST(KernelUtility, Base64Encode)
+{
+	srs_error_t err;
+
+    string expect = "dXNlcjpwYXNzd29yZA==";
+    string plaintext = "user:password";
+    
+    string cipher;
+    HELPER_EXPECT_SUCCESS(srs_av_base64_encode(plaintext, cipher));
+    EXPECT_TRUE(expect == cipher);
+}
+
+VOID TEST(KernelUtility, Base64)
+{
+    srs_error_t err = srs_success;
+    struct testpair {
+	    string decoded;
+        string encoded;
+    };
+
+    struct testpair data[] = {
+        // RFC 3548 examples
+        {"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
+        {"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
+        {"\x14\xfb\x9c\x03", "FPucAw=="},
+
+        // RFC 4648 examples
+        {"", ""},
+        {"f", "Zg=="},
+        {"fo", "Zm8="},
+        {"foo", "Zm9v"},
+        {"foob", "Zm9vYg=="},
+        {"fooba", "Zm9vYmE="},
+        {"foobar", "Zm9vYmFy"},
+
+        // Wikipedia examples
+        {"sure.", "c3VyZS4="},
+        {"sure", "c3VyZQ=="},
+        {"sur", "c3Vy"},
+        {"su", "c3U="},
+        {"leasure.", "bGVhc3VyZS4="},
+        {"easure.", "ZWFzdXJlLg=="},
+        {"asure.", "YXN1cmUu"},
+        {"sure.", "c3VyZS4="},
+        {"Twas brillig, and the slithy toves", "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw=="}
+    };
+
+    for(int i = 0; i < (sizeof(data) / sizeof(struct testpair)); ++i) {
+        struct testpair& d = data[i];
+        string cipher;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_encode(d.decoded, cipher));
+        EXPECT_STREQ(d.encoded.c_str(), cipher.c_str());
+
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode(d.encoded, plaintext));
+        EXPECT_STREQ(d.decoded.c_str(), plaintext.c_str());
+    }
+
+    string expected = "sure";
+	string examples[11] = {
+		"c3VyZQ==",
+		"c3VyZQ==\r",
+		"c3VyZQ==\n",
+		"c3VyZQ==\r\n",
+		"c3VyZ\r\nQ==",
+		"c3V\ryZ\nQ==",
+		"c3V\nyZ\rQ==",
+		"c3VyZ\nQ==",
+		"c3VyZQ\n==",
+		"c3VyZQ=\n=",
+		"c3VyZQ=\r\n\r\n=",
+	};
+
+    for(int i = 0; i < 11; ++i) {
+        string& encoded_str = examples[i];
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode(encoded_str, plaintext));
+        EXPECT_STREQ(expected.c_str(), plaintext.c_str());
+    }
+
+
+}
+
 VOID TEST(KernelUtility, StringToHex)
 {
     if (true) {

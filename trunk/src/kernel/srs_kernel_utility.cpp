@@ -926,16 +926,17 @@ uint32_t srs_crc32_mpegts(const void* buf, int size)
     return __crc32_table_driven(__crc32_MPEG_table, buf, size, 0x00, reflect_in, xor_in, reflect_out, xor_out);
 }
 
+// We use the standard encoding:
+//      var StdEncoding = NewEncoding(encodeStd)
+// StdEncoding is the standard base64 encoding, as defined in RFC 4648.
+namespace {
+    char padding = '=';
+    string encoder = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+}
 // @see golang encoding/base64/base64.go
 srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
 {
     srs_error_t err = srs_success;
-    
-    // We use the standard encoding:
-    //      var StdEncoding = NewEncoding(encodeStd)
-    // StdEncoding is the standard base64 encoding, as defined in RFC 4648.
-    char padding = '=';
-    string encoder = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     
     uint8_t decodeMap[256];
     memset(decodeMap, 0xff, sizeof(decodeMap));
@@ -1033,6 +1034,67 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
         }
     }
     
+    return err;
+}
+
+// @see golang encoding/base64/base64.go
+srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher)
+{
+    srs_error_t err = srs_success;
+    uint8_t decodeMap[256];
+    memset(decodeMap, 0xff, sizeof(decodeMap));
+    
+    for (int i = 0; i < (int)encoder.length(); i++) {
+        decodeMap[(uint8_t)encoder.at(i)] = uint8_t(i);
+    }
+    cipher.clear();
+
+    uint32_t val = 0;
+    int di = 0;
+    int si = 0;
+    int n = (plaintext.length() / 3) * 3;
+    uint8_t* p =  (uint8_t*)plaintext.c_str();
+    while(si < n) {
+        // Convert 3x 8bit source bytes into 4 bytes
+        uint32_t v1 = uint32_t(p[si+0]) << 16;
+        uint32_t v2 = uint32_t(p[si+1]) << 8;
+        uint32_t v3 = uint32_t(p[si+2]); 
+        val = (uint32_t(p[si + 0]) << 16) | (uint32_t(p[si + 1])<< 8) | uint32_t(p[si + 2]);
+
+        cipher += encoder[val>>18&0x3f];
+        cipher += encoder[val>>12&0x3f];
+        cipher += encoder[val>>6&0x3f];
+        cipher += encoder[val&0x3f];
+
+        si += 3;
+        di += 4;
+    }
+
+    int remain = plaintext.length() - si;
+    if(0 == remain) {
+        return err;
+    }
+
+    val = uint32_t(p[si + 0]) << 16;
+    if( 2 == remain) {
+        val |= uint32_t(p[si + 1]) << 8;
+    }
+
+    cipher += encoder[val>>18&0x3f];
+    cipher += encoder[val>>12&0x3f];
+
+    switch (remain) {
+    case 2:
+        cipher += encoder[val>>6&0x3f];
+        cipher += padding;
+        break;
+    case 1:
+        cipher += padding;
+        cipher += padding;
+        break;
+    }
+
+
     return err;
 }
 

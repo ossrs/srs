@@ -141,6 +141,8 @@ extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0)
 
 // Decode a base64-encoded string.
 extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plaintext);
+// Encode a plaintext to  base64-encoded string.
+extern srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher);
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)
