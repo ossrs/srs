@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
+#include <../debug/NetDataLog.hpp>
 
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
@@ -1274,10 +1275,16 @@ srs_error_t SrsServer::listen_http_api()
     return err;
 }
 
+/**
+ * shikeDebug 
+ * 1. add rtmp listen log;
+ * **/
+NetDataLog sk_log("/home/sk95120/Document/" ,"20201201.txt" ,1024 ,1 ,NETLOG);
+
 srs_error_t SrsServer::listen_http_stream()
 {
     srs_error_t err = srs_success;
-    
+    sk_log::addLog("123");
     close_listeners(SrsListenerHttpStream);
     if (_srs_config->get_http_stream_enabled()) {
         SrsListener* listener = new SrsBufferListener(this, SrsListenerHttpStream);
