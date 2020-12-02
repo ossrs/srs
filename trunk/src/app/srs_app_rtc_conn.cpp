@@ -3275,15 +3275,19 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         if (!unified_plan) {
             // for plan b, we only add one m= for video track.
             if (i == 0) {
-                video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
+                video_track_generate_play_offer(track, "video-" +srs_int2str(i), local_sdp);
             }
         } else {
             // unified plan SDP, generate a m= for each video track.
-            video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
+            video_track_generate_play_offer(track, "video-" +srs_int2str(i), local_sdp);
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
         local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(track->ssrc_, cname, track->msid_, track->id_));
+        if (unified_plan) {
+            local_media_desc.msid_ = track->msid_;
+            local_media_desc.msid_tracker_ = track->id_;
+        }
 
         if (track->rtx_ && track->rtx_ssrc_) {
             std::vector<uint32_t> group_ssrcs;
