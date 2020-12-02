@@ -2,7 +2,7 @@
 
 一、 软件运行
 1、 编译
-  config --full && make -j3
+  configure -use-sys-ssl --full && make -j3
   
 2、 RTMP媒体端口监听
   ./obj/srs -c conf/rtmp.confg
