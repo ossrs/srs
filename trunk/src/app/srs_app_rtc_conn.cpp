@@ -3068,11 +3068,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
             }
 
             track->mid_ = req_audio_track->mid_;
-            track->msid_ = req_audio_track->msid_;
-
             sub_relations.insert(make_pair(track->ssrc_, track));
             track->set_direction("sendonly");
-
             track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
         }
     }
@@ -3098,9 +3095,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
                 }
 
                 track->mid_ = req_video->mid_;
-                track->set_direction("sendonly");
-
                 sub_relations.insert(make_pair(track->ssrc_, track));
+                track->set_direction("sendonly");
                 track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
             }
         }
