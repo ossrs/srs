@@ -1191,7 +1191,7 @@ SrsCodecPayload* SrsCodecPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
-    cp->pt_of_publisher_ = cp->pt_of_publisher_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1234,6 +1234,7 @@ SrsVideoPayload* SrsVideoPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1328,6 +1329,7 @@ SrsAudioPayload* SrsAudioPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1406,6 +1408,7 @@ SrsRedPayload* SrsRedPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1446,6 +1449,7 @@ SrsRtxPayloadDes* SrsRtxPayloadDes::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;

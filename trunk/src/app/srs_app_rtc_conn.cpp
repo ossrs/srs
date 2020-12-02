@@ -3051,11 +3051,28 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     std::vector<SrsRtcTrackDescription*> src_track_descs;
     //negotiate audio media
     if(NULL != req_stream_desc->audio_track_desc_) {
+        SrsRtcTrackDescription* req_audio_track = req_stream_desc->audio_track_desc_;
+
         src_track_descs = source->get_track_desc("audio", "opus");
         if (src_track_descs.size() > 0) {
             // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
             SrsRtcTrackDescription *track = src_track_descs[0]->copy();
+
+            // Use remote/source/offer PayloadType.
+            track->media_->pt_of_publisher_ = track->media_->pt_;
+            track->media_->pt_ = req_audio_track->media_->pt_;
+
+            if (req_audio_track->red_ && track->red_) {
+                track->red_->pt_of_publisher_ = track->red_->pt_;
+                track->red_->pt_ = req_audio_track->red_->pt_;
+            }
+
+            track->mid_ = req_audio_track->mid_;
+            track->msid_ = req_audio_track->msid_;
+
             sub_relations.insert(make_pair(track->ssrc_, track));
+            track->set_direction("sendonly");
+
             track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
         }
     }
@@ -3070,6 +3087,19 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
             if(req_video->id_ == src_video->id_) {
                 // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
                 SrsRtcTrackDescription *track = src_video->copy();
+
+                // Use remote/source/offer PayloadType.
+                track->media_->pt_of_publisher_ = track->media_->pt_;
+                track->media_->pt_ = req_video->media_->pt_;
+
+                if (req_video->red_ && track->red_) {
+                    track->red_->pt_of_publisher_ = track->red_->pt_;
+                    track->red_->pt_ = req_video->red_->pt_;
+                }
+
+                track->mid_ = req_video->mid_;
+                track->set_direction("sendonly");
+
                 sub_relations.insert(make_pair(track->ssrc_, track));
                 track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
             }
