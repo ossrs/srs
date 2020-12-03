@@ -3310,10 +3310,6 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
         local_media_desc.ssrc_infos_.push_back(SrsSSRCInfo(track->ssrc_, cname, track->msid_, track->id_));
-        if (unified_plan) {
-            local_media_desc.msid_ = track->msid_;
-            local_media_desc.msid_tracker_ = track->id_;
-        }
 
         if (track->rtx_ && track->rtx_ssrc_) {
             std::vector<uint32_t> group_ssrcs;
