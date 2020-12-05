@@ -255,7 +255,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="SERVER"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "SERVICE" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibSSLRoot})
-    MODULE_FILES=("srs_main_server")
+    MODULE_FILES=("srs_main_server2")
     SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
     SERVER_OBJS="${MODULE_OBJS[@]}"
 fi
@@ -284,7 +284,7 @@ fi
 # Disable SRS application for exporting librtmp.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
-    MAIN_ENTRANCES=("srs_main_server")
+    MAIN_ENTRANCES=("srs_main_server2")
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
         MAIN_ENTRANCES+=("${SRS_MODULE_MAIN[*]}")
@@ -297,7 +297,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
     # srs: srs(simple rtmp server) over st(state-threads)
-    BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
+    BUILD_KEY="srs" APP_MAIN="srs_main_server2" APP_NAME="srs" . auto/apps.sh
     #
     # For modules, without the app module.
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${SERVICE_OBJS[@]} ${MAIN_OBJS[@]}"

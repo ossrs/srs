@@ -5,7 +5,7 @@ INCLUDE_DIRECTORIES(../../objs
     ../../objs/st ../../objs/hp ../../objs/openssl/include 
     ../../src/core ../../src/kernel ../../src/protocol ../../src/app)
 
-set(SOURCE_FILES ../../src/main/srs_main_server.cpp)
+set(SOURCE_FILES ../../src/main/srs_main_server2.cpp)
 AUX_SOURCE_DIRECTORY(../../src/core SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/kernel SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/protocol SOURCE_FILES)
