@@ -771,6 +771,9 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
     } else if(SrsRtcpType_xr == rtcp->type()) {
         SrsRtcpXr* xr = dynamic_cast<SrsRtcpXr*>(rtcp);
         return on_rtcp_xr(xr);
+    } else if(SrsRtcpType_bye == rtcp->type()) {
+        // TODO: FIXME: process rtcp bye.
+        return srs_success;
     } else {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", rtcp->type());
     }
@@ -1329,6 +1332,9 @@ srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
     } else if(SrsRtcpType_sdes == rtcp->type()) {
         //ignore RTCP SDES
         return srs_success;
+    } else if(SrsRtcpType_bye == rtcp->type()) {
+        // TODO: FIXME: process rtcp bye.
+        return srs_success;
     } else {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", rtcp->type());
     }
@@ -1372,7 +1378,7 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
     uint16_t length = (stream.read_2bytes() + 1) * 4;
     /*uint32_t ssrc = */stream.read_4bytes();
 
-    if (length != rtcp->size()) {
+    if (length > rtcp->size()) {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid XR packet, length=%u, nb_buf=%d", length, rtcp->size());
     }
 
@@ -1962,7 +1968,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 
         if(srs_success != err) {
             return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
-                srs_string_dumps_hex(unprotected_buf, nb_unprotected_buf, 8).c_str(),
+                srs_string_dumps_hex(rtcp->data(), rtcp->size(), rtcp->size()).c_str(),
                 rtcp->get_rc(), rtcp->type(), rtcp->get_ssrc(), rtcp->size());
         }
     }
