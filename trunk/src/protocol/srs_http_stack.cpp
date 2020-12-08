@@ -1191,12 +1191,12 @@ namespace {
     bool has_plus = false;
     int i = 0;
     // Count %, check that they're well-formed.
-    while(i < s.length()) {
+    while(i < (int)s.length()) {
       switch (s.at(i)) {
       case '%':
         {
           n++;
-          if((i+2) >= s.length() || !ishex(s.at(i+1)) || !ishex(s.at(i+2))) {
+          if((i+2) >= (int)s.length() || !ishex(s.at(i+1)) || !ishex(s.at(i+2))) {
               string msg = s.substr(i);
               if(msg.length() > 3) {
                 msg = msg.substr(0, 3);
@@ -1250,7 +1250,7 @@ namespace {
 
     value.clear();
     //value.resize(s.length() - 2*n);
-    for(int i = 0; i < s.length(); ++i) {
+    for(int i = 0; i < (int)s.length(); ++i) {
       switch(s.at(i)) {
       case '%':
         value += (hex_to_num(s.at(i+1))<<4 | hex_to_num(s.at(i+2)));
@@ -1275,7 +1275,7 @@ namespace {
   string escape(string s, EncodeMode mode) {
     int space_count = 0;
     int hex_count = 0;
-    for(int i = 0; i < s.length(); ++i) {
+    for(int i = 0; i < (int)s.length(); ++i) {
       uint8_t c = s.at(i);
       if(should_escape(c, mode)) {
         if(' ' == c && encodeQueryComponent == mode) {
@@ -1293,7 +1293,7 @@ namespace {
     string value;
     if(0 == hex_count) {
       value = s;
-      for(int i = 0; i < s.length(); ++i) {
+      for(int i = 0; i < (int)s.length(); ++i) {
         if(' ' == s.at(i)) {
           value[i] = '+';
         }
@@ -1304,7 +1304,7 @@ namespace {
     //value.resize(s.length() + 2*hex_count);
     const char escape_code[] = "0123456789ABCDEF";
     //int j = 0;
-    for(int i = 0; i < s.length(); ++i) {
+    for(int i = 0; i < (int)s.length(); ++i) {
       uint8_t c = s.at(i);
       if(' ' == c && encodeQueryComponent == mode) {
         value += '+';

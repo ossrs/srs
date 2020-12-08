@@ -753,7 +753,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
     srs_error_t err = srs_success;
 
     // Limit the max retry for ARQ.
-    for (int i = 0; i < sizeof(arq_to_ratios) / sizeof(int); i++) {
+    for (int i = 0; i < (int)(sizeof(arq_to_ratios) / sizeof(int)); i++) {
         srs_utime_t arq_to = arq_interval * arq_to_ratios[i];
         srs_usleep(arq_to);
 

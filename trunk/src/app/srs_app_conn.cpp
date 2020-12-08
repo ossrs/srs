@@ -687,7 +687,7 @@ srs_error_t SrsSslConnection::read(void* plaintext, size_t nn_plaintext, ssize_t
 
         // OK, got data.
         if (r0 > 0) {
-            srs_assert(r0 <= nn_plaintext);
+            srs_assert(r0 <= (int)nn_plaintext);
             if (nread) {
                 *nread = r0;
             }
