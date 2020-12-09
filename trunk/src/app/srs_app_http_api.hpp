@@ -222,6 +222,15 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
+class SrsGoApiSnapshot : public ISrsHttpHandler
+{
+public:
+    SrsGoApiSnapshot();
+    virtual ~SrsGoApiSnapshot();
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
+};
+
 class SrsGoApiError : public ISrsHttpHandler
 {
 public:

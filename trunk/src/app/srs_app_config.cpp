@@ -3584,7 +3584,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             SrsConfDirective* obj = conf->at(i);
             string n = obj->name;
-            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "https") {
+            if (n != "enabled" && n != "listen" && n != "crossdomain" && n != "raw_api" && n != "https" && n != "snapshot_api") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.%s", n.c_str());
             }
             
@@ -8377,4 +8377,65 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     }
     
     return conf;
+}
+
+SrsConfDirective* SrsConfig::get_snapshot_api()
+{
+    SrsConfDirective* conf = root->get("http_api");
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("snapshot_api");
+}
+
+bool SrsConfig::get_snapshot_api_enabled()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_snapshot_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_snapshot_api_ffmpeg()
+{
+    static string DEFAULT = "ffmpeg";
+
+    SrsConfDirective* conf = get_snapshot_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ffmpeg");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_snapshot_api_output()
+{
+    static string DEFAULT = "./objs/nginx/html/[app]/[stream]/[timestamp].png";
+
+    SrsConfDirective* conf = get_snapshot_api();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("output");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
