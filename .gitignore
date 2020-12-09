@@ -15,6 +15,7 @@
 # by winlin
 *.pyc
 *.swp
+*.md
 .DS_Store
 /trunk/Makefile
 /trunk/objs
