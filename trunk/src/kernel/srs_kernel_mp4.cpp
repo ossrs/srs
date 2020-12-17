@@ -1758,6 +1758,12 @@ void SrsMp4TrackBox::set_tkhd(SrsMp4TrackHeaderBox* v)
     boxes.insert(boxes.begin(), v);
 }
 
+void SrsMp4TrackBox::set_edts(SrsMp4EditBox* v)
+{
+    remove(SrsMp4BoxTypeEDTS);
+    boxes.insert(boxes.begin(), v);
+}
+
 SrsMp4ChunkOffsetBox* SrsMp4TrackBox::stco()
 {
     SrsMp4SampleTableBox* box = stbl();
@@ -2020,6 +2026,12 @@ SrsMp4EditBox::SrsMp4EditBox()
 
 SrsMp4EditBox::~SrsMp4EditBox()
 {
+}
+
+void SrsMp4EditBox::set_elst(SrsMp4EditListBox* v)
+{
+    remove(SrsMp4BoxTypeELST);
+    boxes.insert(boxes.begin(), v);
 }
 
 SrsMp4ElstEntry::SrsMp4ElstEntry() : segment_duration(0), media_time(0), media_rate_integer(0)
@@ -2744,12 +2756,10 @@ SrsMp4DataEntryBox* SrsMp4DataReferenceBox::entry_at(int index)
     return entries.at(index);
 }
 
-void SrsMp4DataReferenceBox::append(SrsMp4Box* v)
+// Note that box must be SrsMp4DataEntryBox*
+void SrsMp4DataReferenceBox::append(SrsMp4Box* box)
 {
-    SrsMp4DataEntryBox* pv = dynamic_cast<SrsMp4DataEntryBox*>(v);
-    if (pv) {
-        entries.push_back(pv);
-    }
+    entries.push_back((SrsMp4DataEntryBox*)box);
 }
 
 int SrsMp4DataReferenceBox::nb_header()
@@ -3767,12 +3777,10 @@ SrsMp4SampleEntry* SrsMp4SampleDescriptionBox::entrie_at(int index)
     return entries.at(index);
 }
 
-void SrsMp4SampleDescriptionBox::append(SrsMp4Box* v)
+// Note that box must be SrsMp4SampleEntry*
+void SrsMp4SampleDescriptionBox::append(SrsMp4Box* box)
 {
-    SrsMp4SampleEntry* pv = dynamic_cast<SrsMp4SampleEntry*>(v);
-    if (pv) {
-        entries.push_back(pv);
-    }
+    entries.push_back((SrsMp4SampleEntry*)box);
 }
 
 int SrsMp4SampleDescriptionBox::nb_header()
@@ -5779,6 +5787,18 @@ srs_error_t SrsMp4Encoder::flush()
         if (nb_videos || !pavcc.empty()) {
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
             moov->add_trak(trak);
+
+            SrsMp4EditBox* edts = new SrsMp4EditBox();
+            trak->set_edts(edts);
+
+            SrsMp4EditListBox* elst = new SrsMp4EditListBox();
+            edts->set_elst(elst);
+            elst->version = 0;
+
+            SrsMp4ElstEntry entry;
+            entry.segment_duration = mvhd->duration_in_tbn;
+            entry.media_rate_integer = 1;
+            elst->entries.push_back(entry);
             
             SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
             trak->set_tkhd(tkhd);
