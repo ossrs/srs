@@ -1173,7 +1173,8 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4DataEntryBox* entry_at(int index);
-    virtual SrsMp4DataReferenceBox* append(SrsMp4DataEntryBox* v);
+    // Note that box must be SrsMp4DataEntryBox*
+    virtual void append(SrsMp4Box* box);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1520,7 +1521,8 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4SampleEntry* entrie_at(int index);
-    virtual SrsMp4SampleDescriptionBox* append(SrsMp4SampleEntry* v);
+    // Note that box must be SrsMp4SampleEntry*
+    virtual void append(SrsMp4Box* box);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
