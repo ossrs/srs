@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-12-17, Fix [#1548][bug #1548], Add edts in MP4 for Windows10. 3.0.154
 * <strong>v3.0, 2020-10-31, [3.0 release2(3.0.153)][r3.0r2] released. 122663 lines.</strong>
 * v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
 * v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
@@ -1707,6 +1708,7 @@ Winlin
 [bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #1780]: https://github.com/ossrs/srs/issues/1780
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
+[bug #1548]: https://github.com/ossrs/srs/issues/1548
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

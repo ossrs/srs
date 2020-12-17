@@ -71,6 +71,8 @@ class SrsMp4TrackFragmentBox;
 class SrsMp4TrackFragmentHeaderBox;
 class SrsMp4TrackFragmentDecodeTimeBox;
 class SrsMp4TrackFragmentRunBox;
+class SrsMp4EditBox;
+class SrsMp4EditListBox;
 
 // 4.2 Object Structure
 // ISO_IEC_14496-12-base-format-2012.pdf, page 16
@@ -766,6 +768,8 @@ public:
     // Get the track header box.
     virtual SrsMp4TrackHeaderBox* tkhd();
     virtual void set_tkhd(SrsMp4TrackHeaderBox* v);
+    // Set the EDTS box.
+    virtual void set_edts(SrsMp4EditBox* v);
 public:
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
@@ -874,6 +878,8 @@ class SrsMp4EditBox : public SrsMp4Box
 public:
     SrsMp4EditBox();
     virtual ~SrsMp4EditBox();
+public:
+    virtual void set_elst(SrsMp4EditListBox* v);
 };
 
 // 8.6.6 Edit List Box

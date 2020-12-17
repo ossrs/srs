@@ -1758,6 +1758,12 @@ void SrsMp4TrackBox::set_tkhd(SrsMp4TrackHeaderBox* v)
     boxes.insert(boxes.begin(), v);
 }
 
+void SrsMp4TrackBox::set_edts(SrsMp4EditBox* v)
+{
+    remove(SrsMp4BoxTypeEDTS);
+    boxes.insert(boxes.begin(), v);
+}
+
 SrsMp4ChunkOffsetBox* SrsMp4TrackBox::stco()
 {
     SrsMp4SampleTableBox* box = stbl();
@@ -2020,6 +2026,12 @@ SrsMp4EditBox::SrsMp4EditBox()
 
 SrsMp4EditBox::~SrsMp4EditBox()
 {
+}
+
+void SrsMp4EditBox::set_elst(SrsMp4EditListBox* v)
+{
+    remove(SrsMp4BoxTypeELST);
+    boxes.insert(boxes.begin(), v);
 }
 
 SrsMp4ElstEntry::SrsMp4ElstEntry() : segment_duration(0), media_time(0), media_rate_integer(0)
@@ -5773,6 +5785,18 @@ srs_error_t SrsMp4Encoder::flush()
         if (nb_videos || !pavcc.empty()) {
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
             moov->add_trak(trak);
+
+            SrsMp4EditBox* edts = new SrsMp4EditBox();
+            trak->set_edts(edts);
+
+            SrsMp4EditListBox* elst = new SrsMp4EditListBox();
+            edts->set_elst(elst);
+            elst->version = 0;
+
+            SrsMp4ElstEntry entry;
+            entry.segment_duration = mvhd->duration_in_tbn;
+            entry.media_rate_integer = 1;
+            elst->entries.push_back(entry);
             
             SrsMp4TrackHeaderBox* tkhd = new SrsMp4TrackHeaderBox();
             trak->set_tkhd(tkhd);
