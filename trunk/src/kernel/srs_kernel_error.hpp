@@ -287,6 +287,7 @@
 #define ERROR_INOTIFY_CREATE                3092
 #define ERROR_INOTIFY_OPENFD                3093
 #define ERROR_INOTIFY_WATCH                 3094
+#define ERROR_MP4_ILLEGAL_MDAT              3090
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
