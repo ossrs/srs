@@ -104,6 +104,7 @@ public:
     std::string chid;
 
     std::map<std::string, std::string> xml_body_map;
+    //map key:"device_id" value:"status,parental,parentid,name"
     std::map<std::string, std::string> device_list_map;
 
 public:

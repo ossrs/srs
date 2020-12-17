@@ -465,19 +465,29 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
 {
     srs_error_t err = srs_success;
 
-    std::vector<std::string> header_body = srs_string_split(recv_msg, SRS_RTSP_CRLFCRLF);
-    if (header_body.empty()){
+    // std::vector<std::string> header_body = srs_string_split(recv_msg, SRS_RTSP_CRLFCRLF);
+    // if (header_body.empty()){
+    //     return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse reques message"); 
+    // }
+
+    // std::string header = header_body.at(0);
+    // //Must be added SRS_RTSP_CRLFCRLF in order to handle the last line header
+    // header += SRS_RTSP_CRLFCRLF; 
+    // std::string body = "";
+
+    // if (header_body.size() > 1){
+    //    body =  header_body.at(1);
+    // }
+
+    std::string header_body = recv_msg;
+    size_t header_body_split_pos = header_body.find(SRS_RTSP_CRLFCRLF);
+    if (header_body_split_pos == string::npos || header_body_split_pos==0){
         return srs_error_new(ERROR_GB28181_SIP_PRASE_FAILED, "parse reques message"); 
     }
-
-    std::string header = header_body.at(0);
-    //Must be added SRS_RTSP_CRLFCRLF in order to handle the last line header
-    header += SRS_RTSP_CRLFCRLF; 
-    std::string body = "";
-
-    if (header_body.size() > 1){
-       body =  header_body.at(1);
-    }
+    std::string header = header_body.substr(0, header_body_split_pos);
+    std::string body = header_body.substr(header_body_split_pos+4, header_body.length()-header_body_split_pos-4);
+    
+    
 
     srs_info("sip: header=%s\n", header.c_str());
     srs_info("sip: body=%s\n", body.c_str());
@@ -633,16 +643,36 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                 std::vector<std::string> vec_device_id = srs_string_split(body_map["Response@DeviceList@Item@DeviceID"], ",");
                 //Response@DeviceList@Item@Status:ON,OFF
                 std::vector<std::string> vec_device_status = srs_string_split(body_map["Response@DeviceList@Item@Status"], ",");
-                 
-                //map key:devicd_id value:status 
+                /*    edit by xbpeng 20201217  start */
+                //Response@DeviceList@Item@Name:平湖出入口,地铁A口    
+                std::vector<std::string> vec_device_name = srs_string_split(body_map["Response@DeviceList@Item@Name"], ",");//GBK encoding
+                //Response@DeviceList@Item@ParentID:64010000001110000001,64010000001110000002
+                std::vector<std::string> vec_device_parent_id = srs_string_split(body_map["Response@DeviceList@Item@ParentID"], ",");
+                //Response@DeviceList@Item@Parental:1,0
+                std::vector<std::string> vec_device_parental = srs_string_split(body_map["Response@DeviceList@Item@Parental"], ",");
+            
+                //map key:"device_id" value:"status,parental,parentid,name" 
                 for(int i=0 ; i< (int)vec_device_id.size(); i++){
-                    std::string status = "";
-                    if ((int)vec_device_status.size() > i) {
-                        status = vec_device_status.at(i);
+                    std::string value = "";
+                    if ((int)vec_device_status.size() == (int)vec_device_id.size()) {
+                        value = value + vec_device_status.at(i);
                     }
-              
-                    req->device_list_map[vec_device_id.at(i)] = status;
+                    value = value + ",";
+                    if ((int)vec_device_parental.size() == (int)vec_device_id.size()) {
+                        value = value + vec_device_parental.at(i);
+                    }
+                    value = value + ",";
+                    if ((int)vec_device_parent_id.size() == (int)vec_device_id.size()) {
+                        value = value + vec_device_parent_id.at(i);
+                    }
+                    value = value + ",";
+                    if ((int)vec_device_name.size() == (int)vec_device_id.size()) {
+                        value = value + vec_device_name.at(i);
+                    }
+                    srs_info("map-value=%s",value.c_str());
+                    req->device_list_map[vec_device_id.at(i)] = value;
                 }
+                /*    edit by xbpeng 20201217  end */
             }else{
                 //TODO: fixme
                 srs_trace("sip: Response cmdtype=%s not processed", cmdtype.c_str());

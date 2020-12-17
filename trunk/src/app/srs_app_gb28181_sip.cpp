@@ -71,6 +71,10 @@ SrsGb28181Device::SrsGb28181Device()
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
+    device_parental = "";
+    device_parent_id = "";
+    device_name = "";
+
     
 }
 
@@ -329,23 +333,33 @@ srs_error_t SrsGb28181SipSession::cycle()
 }
 
 void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string> lst)
-{
+{//map key:"device_id" value:"status,parental,parentid,name"
     std::map<std::string, std::string>::iterator it;
     for (it = lst.begin(); it != lst.end(); ++it) {
         std::string id = it->first;
-        std::string status = it->second;
-
+        std::vector<std::string> value = srs_string_split2(it->second, ",");
+        std::string status = value[0];
+        std::string parental = value[1];
+        std::string parent_id = value[2];
+        std::string name = value[3];
+        srs_info("SrsGb28181SipSession::update_device_list():status=%s, parental=%s, parent_id=%s, name=%s",status.c_str(),parental.c_str(),parent_id.c_str(),name.c_str());
         if  (_device_list.find(id) == _device_list.end()){
             SrsGb28181Device *device = new SrsGb28181Device();
             device->device_id = id;
             device->device_status = status;
             device->invite_status = SrsGb28181SipSessionUnkonw;
             device->invite_time = 0;
+            device->device_parental = parental;
+            device->device_parent_id = parent_id;
+            device->device_name = name;
             _device_list[id] = device;
 
         }else {
             SrsGb28181Device *device = _device_list[id];
             device->device_status = status;
+            device->device_parental = parental;
+            device->device_parent_id = parent_id;
+            device->device_name = name;
         }
 
     }
@@ -372,6 +386,9 @@ void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
         obj->set("device_id", SrsJsonAny::str(device->device_id.c_str()));
+        obj->set("device_parental", SrsJsonAny::str(device->device_parental.c_str()));
+        obj->set("device_parent_id", SrsJsonAny::str(device->device_parent_id.c_str()));
+        obj->set("device_name", SrsJsonAny::str(device->device_name.c_str()));
         obj->set("device_status", SrsJsonAny::str(device->device_status.c_str()));
         obj->set("invite_status", SrsJsonAny::str(srs_get_sip_session_status_str(device->invite_status).c_str()));
         obj->set("invite_time", SrsJsonAny::integer(device->invite_time/SRS_UTIME_SECONDS));

@@ -505,6 +505,22 @@ vector<string> srs_string_split(string str, string flag)
     
     return arr;
 }
+//accept "" string and donot change the order
+vector<string> srs_string_split2(string s, string seperator) {
+     vector<string> result;
+     unsigned int posBegin = 0;
+     size_t posSeperator = s.find(seperator);
+ 
+     while (posSeperator != string::npos) {
+         result.push_back(s.substr(posBegin, posSeperator - posBegin));
+         posBegin = posSeperator + seperator.size(); // next byte of seperator
+         posSeperator = s.find(seperator, posBegin);
+     }
+     if (posBegin != s.length()) // push the last element
+         result.push_back(s.substr(posBegin));
+ 
+     return result;
+ }
 
 string srs_string_min_match(string str, vector<string> flags)
 {
