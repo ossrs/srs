@@ -208,6 +208,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2020-12-17, Fix [#1694][bug #1694], Support DVR 2GB+ MP4 file. 3.0.155
 * v3.0, 2020-12-17, Fix [#1548][bug #1548], Add edts in MP4 for Windows10. 3.0.154
 * <strong>v3.0, 2020-10-31, [3.0 release2(3.0.153)][r3.0r2] released. 122663 lines.</strong>
 * v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
@@ -1784,6 +1785,7 @@ Winlin
 [bug #1780]: https://github.com/ossrs/srs/issues/1780
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #1548]: https://github.com/ossrs/srs/issues/1548
+[bug #1694]: https://github.com/ossrs/srs/issues/1694
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631

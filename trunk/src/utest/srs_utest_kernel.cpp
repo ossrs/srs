@@ -361,7 +361,7 @@ MockSrsCodec::~MockSrsCodec()
 {
 }
 
-int MockSrsCodec::nb_bytes()
+uint64_t MockSrsCodec::nb_bytes()
 {
     return 0;
 }

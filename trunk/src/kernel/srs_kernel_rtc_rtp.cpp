@@ -136,7 +136,7 @@ srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
     return err;
 }
 
-int SrsRtpExtensionTwcc::nb_bytes()
+uint64_t SrsRtpExtensionTwcc::nb_bytes()
 {
     return 3;
 }
@@ -260,7 +260,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
     return err;
 }
 
-int SrsRtpExtensions::nb_bytes()
+uint64_t SrsRtpExtensions::nb_bytes()
 {
     int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
     // add padding
@@ -488,7 +488,7 @@ srs_error_t SrsRtpHeader::set_twcc_sequence_number(uint8_t id, uint16_t sn)
     return extensions_.set_twcc_sequence_number(id, sn);
 }
 
-int SrsRtpHeader::nb_bytes()
+uint64_t SrsRtpHeader::nb_bytes()
 {
     return kRtpHeaderFixedSize + cc * 4 + (extensions_.exists() ? extensions_.nb_bytes() : 0);
 }
@@ -634,7 +634,7 @@ void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
     return header.set_extensions(v);
 }
 
-int SrsRtpPacket2::nb_bytes()
+uint64_t SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
         int nn_payload = (payload? payload->nb_bytes():0);
@@ -714,7 +714,7 @@ SrsRtpRawPayload::~SrsRtpRawPayload()
 {
 }
 
-int SrsRtpRawPayload::nb_bytes()
+uint64_t SrsRtpRawPayload::nb_bytes()
 {
     return nn_payload;
 }
@@ -833,7 +833,7 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int packet
     return srs_success;
 }
 
-int SrsRtpRawNALUs::nb_bytes()
+uint64_t SrsRtpRawNALUs::nb_bytes()
 {
     int size = 0;
 
@@ -944,7 +944,7 @@ SrsSample* SrsRtpSTAPPayload::get_pps()
     return NULL;
 }
 
-int SrsRtpSTAPPayload::nb_bytes()
+uint64_t SrsRtpSTAPPayload::nb_bytes()
 {
     int size = 1;
 
@@ -1048,7 +1048,7 @@ SrsRtpFUAPayload::~SrsRtpFUAPayload()
     }
 }
 
-int SrsRtpFUAPayload::nb_bytes()
+uint64_t SrsRtpFUAPayload::nb_bytes()
 {
     int size = 2;
 
@@ -1158,7 +1158,7 @@ SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
 {
 }
 
-int SrsRtpFUAPayload2::nb_bytes()
+uint64_t SrsRtpFUAPayload2::nb_bytes()
 {
     return 2 + size;
 }

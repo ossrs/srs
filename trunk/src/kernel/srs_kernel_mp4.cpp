@@ -190,17 +190,18 @@ int SrsMp4Box::sz_header()
     return nb_header();
 }
 
-int SrsMp4Box::update_size()
+uint64_t SrsMp4Box::update_size()
 {
     uint64_t size = nb_bytes();
 
     if (size > 0xffffffff) {
         largesize = size;
+        smallsize = SRS_MP4_USE_LARGE_SIZE;
     } else {
         smallsize = (uint32_t)size;
     }
 
-    return (int)size;
+    return size;
 }
 
 int SrsMp4Box::left_space(SrsBuffer* buf)
@@ -299,11 +300,11 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
     *ppbox = NULL;
     
     srs_error_t err = srs_success;
-    
+
     if (!buf->require(8)) {
         return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "requires 8 only %d bytes", buf->left());
     }
-    
+
     // Discovery the size and type.
     uint64_t largesize = 0;
     uint32_t smallsize = (uint32_t)buf->read_4bytes();
@@ -313,15 +314,14 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
             return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "requires 16 only %d bytes", buf->left());
         }
         largesize = (uint64_t)buf->read_8bytes();
+    }
+
+    // Reset the buffer, because we only peek it.
+    buf->skip(-8);
+    if (smallsize == SRS_MP4_USE_LARGE_SIZE) {
         buf->skip(-8);
     }
-    buf->skip(-8);
-    
-    // Only support 31bits size.
-    if (largesize > 0x7fffffff) {
-        return srs_error_new(ERROR_MP4_BOX_OVERFLOW, "overflow 31bits, largesize=%" PRId64, largesize);
-    }
-    
+
     SrsMp4Box* box = NULL;
     switch(type) {
         case SrsMp4BoxTypeFTYP: box = new SrsMp4FileTypeBox(); break;
@@ -382,9 +382,9 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
     return err;
 }
 
-int SrsMp4Box::nb_bytes()
+uint64_t SrsMp4Box::nb_bytes()
 {
-    int sz = nb_header();
+    uint64_t sz = nb_header();
     
     vector<SrsMp4Box*>::iterator it;
     for (it = boxes.begin(); it != boxes.end(); ++it) {
@@ -488,21 +488,16 @@ srs_error_t SrsMp4Box::encode_header(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
     
-    // Only support 31bits size.
-    if (sz() > 0x7fffffff) {
-        return srs_error_new(ERROR_MP4_BOX_OVERFLOW, "box size overflow 31bits, size=%" PRId64, sz());
-    }
-    
     int size = SrsMp4Box::nb_header();
     if (!buf->require(size)) {
         return srs_error_new(ERROR_MP4_BOX_REQUIRE_SPACE, "requires %d only %d bytes", size, buf->left());
     }
     
     buf->write_4bytes(smallsize);
+    buf->write_4bytes(type);
     if (smallsize == SRS_MP4_USE_LARGE_SIZE) {
         buf->write_8bytes(largesize);
     }
-    buf->write_4bytes(type);
     
     if (type == SrsMp4BoxTypeUUID) {
         buf->write_bytes(&usertype[0], 16);
@@ -1071,7 +1066,7 @@ SrsMp4TrunEntry::~SrsMp4TrunEntry()
 {
 }
 
-int SrsMp4TrunEntry::nb_bytes()
+uint64_t SrsMp4TrunEntry::nb_bytes()
 {
     int size = 0;
     
@@ -1291,7 +1286,7 @@ SrsMp4MediaDataBox::~SrsMp4MediaDataBox()
 {
 }
 
-int SrsMp4MediaDataBox::nb_bytes()
+uint64_t SrsMp4MediaDataBox::nb_bytes()
 {
     return SrsMp4Box::nb_header() + nb_data;
 }
@@ -1315,7 +1310,7 @@ srs_error_t SrsMp4MediaDataBox::decode(SrsBuffer* buf)
         return srs_error_wrap(err, "decode box");
     }
     
-    nb_data = (int)(sz() - nb_header());
+    nb_data = sz() - (uint64_t)nb_header();
     
     return err;
 }
@@ -3270,7 +3265,7 @@ int SrsMp4BaseDescriptor::left_space(SrsBuffer* buf)
     return srs_max(0, left);
 }
 
-int SrsMp4BaseDescriptor::nb_bytes()
+uint64_t SrsMp4BaseDescriptor::nb_bytes()
 {
     // 1 byte tag.
     int size = 1;
@@ -5964,16 +5959,15 @@ srs_error_t SrsMp4Encoder::flush()
     
     // Write mdat box.
     if (true) {
-        // Update the mdat box header.
-        if ((err = wsio->lseek(mdat_offset, SEEK_SET, NULL)) != srs_success) {
-            return srs_error_wrap(err, "seek to mdat");
-        }
-        
         // Write mdat box with size of data,
         // its payload already writen by samples,
         // and we will update its header(size) when flush.
         SrsMp4MediaDataBox* mdat = new SrsMp4MediaDataBox();
         SrsAutoFree(SrsMp4MediaDataBox, mdat);
+
+        // Update the size of mdat first, for over 2GB file.
+        mdat->nb_data = mdat_bytes;
+        mdat->update_size();
         
         int nb_data = mdat->sz_header();
         uint8_t* data = new uint8_t[nb_data];
@@ -5981,11 +5975,24 @@ srs_error_t SrsMp4Encoder::flush()
         
         SrsBuffer* buffer = new SrsBuffer((char*)data, nb_data);
         SrsAutoFree(SrsBuffer, buffer);
-        
-        // TODO: FIXME: Support 64bits size.
-        mdat->nb_data = (int)mdat_bytes;
+
         if ((err = mdat->encode(buffer)) != srs_success) {
             return srs_error_wrap(err, "encode mdat");
+        }
+
+        // We might adjust the offset of mdat, for large size, 2GB+ as such.
+        if (nb_data > 8) {
+            // For large size, the header of mdat MUST be 16.
+            if (nb_data != 16) {
+                return srs_error_new(ERROR_MP4_ILLEGAL_MDAT, "Invalid mdat header size %d", nb_data);
+            }
+            // Use large size, to the start of reserved free box.
+            mdat_offset -= 8;
+        }
+
+        // Seek to the start of mdat.
+        if ((err = wsio->lseek(mdat_offset, SEEK_SET, NULL)) != srs_success) {
+            return srs_error_wrap(err, "seek to mdat");
         }
         
         // TODO: FIXME: Ensure all bytes are writen.
@@ -6448,7 +6455,7 @@ srs_error_t SrsMp4M2tsSegmentEncoder::flush(uint64_t& dts)
         // @remark Remember the data_offset of turn is size(moof)+header(mdat), not including styp or sidx.
         int moof_bytes = moof->nb_bytes();
         trun->data_offset = (int32_t)(moof_bytes + mdat->sz_header());
-        mdat->nb_data = (int)mdat_bytes;
+        mdat->nb_data = mdat_bytes;
 
         // Update the size of sidx.
         SrsMp4SegmentIndexEntry* entry = &sidx->entries[0];

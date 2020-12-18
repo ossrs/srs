@@ -130,7 +130,7 @@ public:
     MockSrsCodec();
     virtual ~MockSrsCodec();
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 };
