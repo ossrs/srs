@@ -115,7 +115,7 @@ srs_error_t SrsRtcpCommon::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpCommon::nb_bytes()
+uint64_t SrsRtcpCommon::nb_bytes()
 {
     return sizeof(SrsRtcpHeader) + 4 + payload_len_;
 }
@@ -255,7 +255,7 @@ srs_error_t SrsRtcpApp::decode(SrsBuffer *buffer)
     return srs_success;
 }
 
-int SrsRtcpApp::nb_bytes()
+uint64_t SrsRtcpApp::nb_bytes()
 {
     return sizeof(SrsRtcpHeader) + sizeof(ssrc_) + sizeof(name_) + payload_len_;
 }
@@ -422,7 +422,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     return err;
 }
 
-int SrsRtcpSR::nb_bytes()
+uint64_t SrsRtcpSR::nb_bytes()
 {
     return (header_.length + 1) * 4;
 }
@@ -644,7 +644,7 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     return err;
 }
 
-int SrsRtcpRR::nb_bytes()
+uint64_t SrsRtcpRR::nb_bytes()
 {
     return (header_.length + 1) * 4;
 }
@@ -863,7 +863,7 @@ srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpTWCC::nb_bytes()
+uint64_t SrsRtcpTWCC::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1271,7 +1271,7 @@ srs_error_t SrsRtcpNack::decode(SrsBuffer *buffer)
 
     return err;
 }
-int SrsRtcpNack::nb_bytes()
+uint64_t SrsRtcpNack::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1403,7 +1403,7 @@ srs_error_t SrsRtcpPsfbCommon::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpPsfbCommon::nb_bytes()
+uint64_t SrsRtcpPsfbCommon::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1455,7 +1455,7 @@ srs_error_t SrsRtcpPli::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpPli::nb_bytes()
+uint64_t SrsRtcpPli::nb_bytes()
 {
     return 12;
 }
@@ -1548,7 +1548,7 @@ srs_error_t SrsRtcpSli::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpSli::nb_bytes()
+uint64_t SrsRtcpSli::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1619,7 +1619,7 @@ srs_error_t SrsRtcpRpsi::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpRpsi::nb_bytes()
+uint64_t SrsRtcpRpsi::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1672,7 +1672,7 @@ srs_error_t SrsRtcpXr::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpXr::nb_bytes()
+uint64_t SrsRtcpXr::nb_bytes()
 {
     return kRtcpPacketSize;
 }
@@ -1775,7 +1775,7 @@ srs_error_t SrsRtcpCompound::decode(SrsBuffer *buffer)
     return err;
 }
 
-int SrsRtcpCompound::nb_bytes()
+uint64_t SrsRtcpCompound::nb_bytes()
 {
     return kRtcpPacketSize;
 }

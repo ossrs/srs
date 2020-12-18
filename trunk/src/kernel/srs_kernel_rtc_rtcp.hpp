@@ -103,7 +103,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
@@ -129,7 +129,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
@@ -181,7 +181,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
@@ -215,7 +215,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 
 };
@@ -322,7 +322,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);   
 private:
     srs_error_t do_encode(SrsBuffer *buffer);
@@ -351,7 +351,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);      
 };
 
@@ -369,7 +369,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);   
 };
 
@@ -382,7 +382,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);  
 };
 
@@ -399,7 +399,7 @@ public:
  // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);   
 }; 
 
@@ -418,7 +418,7 @@ public:
  // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);   
 };
 
@@ -431,7 +431,7 @@ public:
    // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);   
 };
 
@@ -457,7 +457,7 @@ public:
 // interface ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer *buffer);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buffer);
 };
 
