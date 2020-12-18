@@ -80,9 +80,12 @@ public:
     ISrsCodec();
     virtual ~ISrsCodec();
 public:
-    /**
-     * decode object from bytes in SrsBuffer.
-     */
+    // Get the number of bytes to code to.
+    virtual uint64_t nb_bytes() = 0;
+    // Encode object to bytes in SrsBuffer.
+    virtual srs_error_t encode(SrsBuffer* buf) = 0;
+public:
+    // Decode object from bytes in SrsBuffer.
     virtual srs_error_t decode(SrsBuffer* buf) = 0;
 };
 
