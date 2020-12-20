@@ -188,8 +188,8 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     SrsContextRestore(_srs_context->get_id());
     if (verbose_) {
         _srs_context->set_id(c->get_id());
-        srs_trace("%s: before dispose resource(%s), zombies=%d",
-            label_.c_str(), c->desc().c_str(), (int)zombies_.size());
+        srs_trace("%s: before dispose resource(%s)(%p), zombies=%d",
+            label_.c_str(), c->desc().c_str(), c, (int)zombies_.size());
     }
 
     // Only notify when not removed(in zombies_).
@@ -218,7 +218,8 @@ void SrsResourceManager::do_remove(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose for %p", label_.c_str(), h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose resource(%s)(%p) for %p",
+                label_.c_str(), c->desc().c_str(), c, h);
             continue;
         }
 
@@ -265,8 +266,8 @@ void SrsResourceManager::do_clear()
 
         if (verbose_) {
             _srs_context->set_id(conn->get_id());
-            srs_trace("%s: disposing resource(%s), zombies=%d/%d", label_.c_str(),
-                conn->desc().c_str(), (int)copy.size(), (int)zombies_.size());
+            srs_trace("%s: disposing resource(%s)(%p), zombies=%d/%d", label_.c_str(),
+                conn->desc().c_str(), conn, (int)copy.size(), (int)zombies_.size());
         }
 
         dispose(conn);
@@ -307,7 +308,8 @@ void SrsResourceManager::dispose(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing for %p", label_.c_str(), h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing resource(%s)(%p) for %p",
+                label_.c_str(), c->desc().c_str(), c, h);
             continue;
         }
 
