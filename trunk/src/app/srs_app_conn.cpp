@@ -272,6 +272,13 @@ void SrsResourceManager::do_clear()
 
         dispose(conn);
     }
+
+    // We should free the resources when finished all disposing callbacks,
+    // which might cause context switch and reuse the freed addresses.
+    for (int i = 0; i < (int)copy.size(); i++) {
+        ISrsResource* conn = copy.at(i);
+        srs_freep(conn);
+    }
 }
 
 void SrsResourceManager::dispose(ISrsResource* c)
@@ -315,8 +322,6 @@ void SrsResourceManager::dispose(ISrsResource* c)
 
         h->on_disposing(c);
     }
-
-    srs_freep(c);
 }
 
 ISrsExpire::ISrsExpire()
