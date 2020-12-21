@@ -261,9 +261,6 @@ void SrsResourceManager::clear()
     }
 
     do_clear();
-
-    // Reset it for it points to a local object.
-    p_disposing_ = NULL;
 }
 
 void SrsResourceManager::do_clear()
@@ -285,6 +282,11 @@ void SrsResourceManager::do_clear()
 
         dispose(conn);
     }
+
+    // Reset it for it points to a local object.
+    // @remark We must set the disposing to NULL to avoid reusing address,
+    // because the context might switch.
+    p_disposing_ = NULL;
 
     // We should free the resources when finished all disposing callbacks,
     // which might cause context switch and reuse the freed addresses.
