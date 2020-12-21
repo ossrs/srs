@@ -103,6 +103,7 @@ public:
     virtual void remove(ISrsResource* c);
 private:
     void do_remove(ISrsResource* c);
+    void check_remove(ISrsResource* c, bool& in_zombie, bool& in_disposing);
     void clear();
     void do_clear();
     void dispose(ISrsResource* c);
