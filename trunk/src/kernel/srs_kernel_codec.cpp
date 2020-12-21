@@ -844,7 +844,7 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     int8_t numOfPictureParameterSets = stream->read_1bytes();
     numOfPictureParameterSets &= 0x1f;
     if (numOfPictureParameterSets != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+        srs_trace("decode PPS count %d.", numOfPictureParameterSets);
     }
     if (!stream->require(2)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
