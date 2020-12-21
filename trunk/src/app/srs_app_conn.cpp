@@ -95,7 +95,7 @@ srs_error_t SrsResourceManager::cycle()
 {
     srs_error_t err = srs_success;
 
-    srs_trace("%s: connection manager run", label_.c_str());
+    srs_trace("%s: connection manager run, conns=%d", label_.c_str(), (int)conns_.size());
 
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -178,6 +178,8 @@ void SrsResourceManager::unsubscribe(ISrsDisposingHandler* h)
 
 void SrsResourceManager::remove(ISrsResource* c)
 {
+    SrsContextRestore(_srs_context->get_id());
+
     removing_ = true;
     do_remove(c);
     removing_ = false;
@@ -185,25 +187,19 @@ void SrsResourceManager::remove(ISrsResource* c)
 
 void SrsResourceManager::do_remove(ISrsResource* c)
 {
-    SrsContextRestore(_srs_context->get_id());
+    bool in_zombie = false;
+    bool in_disposing = false;
+    check_remove(c, in_zombie, in_disposing);
+    bool ignored = in_zombie || in_disposing;
+
     if (verbose_) {
         _srs_context->set_id(c->get_id());
-        srs_trace("%s: before dispose resource(%s), zombies=%d",
-            label_.c_str(), c->desc().c_str(), (int)zombies_.size());
+        srs_trace("%s: before dispose resource(%s)(%p), conns=%d, zombies=%d, ign=%d, inz=%d, ind=%d",
+            label_.c_str(), c->desc().c_str(), c, (int)conns_.size(), (int)zombies_.size(), ignored,
+            in_zombie, in_disposing);
     }
-
-    // Only notify when not removed(in zombies_).
-    vector<ISrsResource*>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
-    if (it != zombies_.end()) {
+    if (ignored) {
         return;
-    }
-
-    // Also ignore when we are disposing it.
-    if (p_disposing_) {
-        it = std::find(p_disposing_->begin(), p_disposing_->end(), c);
-        if (it != p_disposing_->end()) {
-            return;
-        }
     }
 
     // Push to zombies, we will free it in another coroutine.
@@ -218,7 +214,8 @@ void SrsResourceManager::do_remove(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose for %p", label_.c_str(), h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose resource(%s)(%p) for %p, conns=%d",
+                label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
             continue;
         }
 
@@ -229,6 +226,23 @@ void SrsResourceManager::do_remove(ISrsResource* c)
     srs_cond_signal(cond);
 }
 
+void SrsResourceManager::check_remove(ISrsResource* c, bool& in_zombie, bool& in_disposing)
+{
+    // Only notify when not removed(in zombies_).
+    vector<ISrsResource*>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
+    if (it != zombies_.end()) {
+        in_zombie = true;
+    }
+
+    // Also ignore when we are disposing it.
+    if (p_disposing_) {
+        it = std::find(p_disposing_->begin(), p_disposing_->end(), c);
+        if (it != p_disposing_->end()) {
+            in_disposing = true;
+        }
+    }
+}
+
 void SrsResourceManager::clear()
 {
     if (zombies_.empty()) {
@@ -237,7 +251,8 @@ void SrsResourceManager::clear()
 
     SrsContextRestore(cid_);
     if (verbose_) {
-        srs_trace("%s: clear zombies=%d connections", label_.c_str(), (int)zombies_.size());
+        srs_trace("%s: clear zombies=%d resources, conns=%d, removing=%d, unsubs=%d",
+            label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
     }
 
     // Clear all unsubscribing handlers, if not removing any resource.
@@ -259,17 +274,23 @@ void SrsResourceManager::do_clear()
     copy.swap(zombies_);
     p_disposing_ = &copy;
 
-    vector<ISrsResource*>::iterator it;
-    for (it = copy.begin(); it != copy.end(); ++it) {
-        ISrsResource* conn = *it;
+    for (int i = 0; i < (int)copy.size(); i++) {
+        ISrsResource* conn = copy.at(i);
 
         if (verbose_) {
             _srs_context->set_id(conn->get_id());
-            srs_trace("%s: disposing resource(%s), zombies=%d/%d", label_.c_str(),
-                conn->desc().c_str(), (int)copy.size(), (int)zombies_.size());
+            srs_trace("%s: disposing #%d resource(%s)(%p), conns=%d, disposing=%d, zombies=%d", label_.c_str(),
+                i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
         }
 
         dispose(conn);
+    }
+
+    // We should free the resources when finished all disposing callbacks,
+    // which might cause context switch and reuse the freed addresses.
+    for (int i = 0; i < (int)copy.size(); i++) {
+        ISrsResource* conn = copy.at(i);
+        srs_freep(conn);
     }
 }
 
@@ -307,14 +328,13 @@ void SrsResourceManager::dispose(ISrsResource* c)
 
         // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
-            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing for %p", label_.c_str(), h);
+            srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing resource(%s)(%p) for %p, conns=%d",
+                label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
             continue;
         }
 
         h->on_disposing(c);
     }
-
-    srs_freep(c);
 }
 
 ISrsExpire::ISrsExpire()
