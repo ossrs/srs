@@ -319,7 +319,13 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
 
                 SrsGb28181StreamChannel channel;
                 channel.set_channel_id(tmp_id);
-                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+                // channel.set_port_mode(RTP_PORT_MODE_FIXED); 
+                if (!config->sip_invite_port_fixed) {
+                    channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+                }else
+                {
+                    channel.set_port_mode(RTP_PORT_MODE_FIXED);
+                }
                 channel.set_ssrc(pkt.ssrc);
               
                 srs_error_t err2 = srs_success;
@@ -377,7 +383,13 @@ SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::create_rtmpmuxer(std::string chan
 
             SrsGb28181StreamChannel channel;
             channel.set_channel_id(tmp_id);
-            channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            // channel.set_port_mode(RTP_PORT_MODE_FIXED); 
+            if (!config->sip_invite_port_fixed) {
+                channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+            }else
+            {
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            }
             channel.set_ssrc(ssrc);
             
             srs_error_t err2 = srs_success;
@@ -2087,10 +2099,12 @@ srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
         return srs_error_wrap(err, "start rtp listen port is mux port"); 
     }
 
-    map<std::string, SrsGb28181RtmpMuxer*>::iterator key = rtmpmuxers.find(id);
-    if (key == rtmpmuxers.end()){
-       return srs_error_wrap(err, "start rtp listen port rtmp muxer is null"); 
-    }
+    /* delete by xbpeng 20201222 should not check rtmpmuxers, becasue it always not find*/
+    // map<std::string, SrsGb28181RtmpMuxer*>::iterator key = rtmpmuxers.find(id);
+    // if (key == rtmpmuxers.end()){
+    //     srs_warn("start rtp listen port rtmp muxer is null. id=%s,port=%d", id.c_str(),port); 
+    //     return srs_error_wrap(err, "start rtp listen port rtmp muxer is null"); 
+    // }
 
     if (rtp_pool.find(port) == rtp_pool.end())
     {
@@ -2326,6 +2340,12 @@ srs_error_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, 
              //channel not exist
             SrsGb28181StreamChannel channel;
             channel.set_channel_id(key);
+            if (!this->config->sip_invite_port_fixed) {
+                channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+            }else
+            {
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            }
             err =  create_stream_channel(&channel);
             if (err != srs_success){
                 return err;
