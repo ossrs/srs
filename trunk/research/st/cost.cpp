@@ -49,6 +49,19 @@ int main(int argc, char** argv)
         );
     }
 
+    // The cost for loop.
+    if (true) {
+        int64_t start = srs_update_system_time();
+
+        for (long long i = 0; i < 1000000LL; i++);
+        int64_t ts_loop = srs_update_system_time();
+
+        for (long long i = 0; i < 10000000LL; i++);
+        int64_t ts_loop2 = srs_update_system_time();
+
+        printf("[COST] loop 100w=%dus, 1000w=%dus\n", srsu2i(ts_loop - start), srsu2i(ts_loop2 - ts_loop));
+    }
+
     // The cost for printf.
     if (true) {
         int64_t start = srs_update_system_time();
