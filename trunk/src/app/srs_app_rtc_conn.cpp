@@ -59,6 +59,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 #define SRS_TICKID_RTCP 0
+#define SRS_TICKID_TWCC 2
 
 ISrsRtcTransport::ISrsRtcTransport()
 {
@@ -908,7 +909,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass(this, 10 * SRS_UTIME_MILLISECONDS);
 
     cid_ = cid;
     is_started = false;
@@ -927,6 +928,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     twcc_fb_count_ = 0;
     
     pli_worker_ = new SrsRtcPLIWorker(this);
+    last_time_send_twcc_ = 0;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -998,6 +1000,10 @@ srs_error_t SrsRtcPublishStream::start()
 
     if (is_started) {
         return err;
+    }
+
+    if ((err = timer_->tick(SRS_TICKID_TWCC, 50 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "twcc tick");
     }
 
     if ((err = timer_->tick(SRS_TICKID_RTCP, 200 * SRS_UTIME_MILLISECONDS)) != srs_success) {
@@ -1297,6 +1303,14 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 {
     srs_error_t err = srs_success;
 
+    if (last_time_send_twcc_) {
+        srs_utime_t duration = srs_duration(last_time_send_twcc_, srs_get_system_time());
+        if (duration > 80 * SRS_UTIME_MILLISECONDS) {
+            srs_warn2(TAG_LARGE_TIMER, "send_twcc interval exceeded  %dms > 100ms", srsu2msi(duration));
+        }
+    }
+    last_time_send_twcc_ = srs_get_system_time();
+
     if (!rtcp_twcc_.need_feedback()) {
         return err;
     }
@@ -1457,7 +1471,9 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
             srs_warn("XR err %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
+    }
 
+    if (type == SRS_TICKID_TWCC) {
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
         if ((err = send_periodic_twcc()) != srs_success) {

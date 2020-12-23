@@ -341,6 +341,7 @@ private:
     SrsRtcpTWCC rtcp_twcc_;
     SrsRtpExtensionTypes extension_types_;
     bool is_started;
+    srs_utime_t last_time_send_twcc_;
 public:
     SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid);
     virtual ~SrsRtcPublishStream();
