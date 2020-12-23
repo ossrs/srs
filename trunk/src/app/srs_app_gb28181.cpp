@@ -301,41 +301,41 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
         if(key != cache_ps_rtp_packet.end())
         {
             SrsGb28181RtmpMuxer* muxer = NULL;
-            //First, search according to the channel_id. Otherwise, search according to the SSRC. 
-            //Some channel_id are created by RTP pool, which are different ports. 
-            //No channel_id are created by multiplexing ports, which are the same port
-            if (!channel_id.empty()){
-                muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
-            }else {
-                muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
-            }
+            // //First, search according to the channel_id. Otherwise, search according to the SSRC. 
+            // //Some channel_id are created by RTP pool, which are different ports. 
+            // //No channel_id are created by multiplexing ports, which are the same port
+            // if (!channel_id.empty()){
+            //     muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
+            // }else {
+            //     muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
+            // }
 
-            //auto crate channel
-            if (!muxer && config->auto_create_channel){
-                //auto create channel generated id
-                std::stringstream ss, ss1;
-                ss << "chid" << pkt.ssrc;
-                std::string tmp_id = ss.str();
+            // //auto crate channel
+            // if (!muxer && config->auto_create_channel){
+            //     //auto create channel generated id
+            //     std::stringstream ss, ss1;
+            //     ss << "chid" << pkt.ssrc;
+            //     std::string tmp_id = ss.str();
 
-                SrsGb28181StreamChannel channel;
-                channel.set_channel_id(tmp_id);
-                // channel.set_port_mode(RTP_PORT_MODE_FIXED); 
-                if (!config->sip_invite_port_fixed) {
-                    channel.set_port_mode(RTP_PORT_MODE_RANDOM);
-                }else
-                {
-                    channel.set_port_mode(RTP_PORT_MODE_FIXED);
-                }
-                channel.set_ssrc(pkt.ssrc);
+            //     SrsGb28181StreamChannel channel;
+            //     channel.set_channel_id(tmp_id);
+            //     // channel.set_port_mode(RTP_PORT_MODE_FIXED); 
+            //     if (!config->sip_invite_port_fixed) {
+            //         channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+            //     }else
+            //     {
+            //         channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            //     }
+            //     channel.set_ssrc(pkt.ssrc);
               
-                srs_error_t err2 = srs_success;
-                if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success){
-                    srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
-                    srs_error_reset(err2);
-                };
-
-                muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
-            }
+            //     srs_error_t err2 = srs_success;
+            //     if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success){
+            //         srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
+            //         srs_error_reset(err2);
+            //     };
+            //     muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+            // }
+            muxer = fetch_rtmpmuxer(channel_id,pkt.ssrc);       
           
             if (muxer){
                 //TODO: fixme: the same device uses the same SSRC to send with different local ports
@@ -361,7 +361,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const 
     return err;
 }
 
-SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::create_rtmpmuxer(std::string channel_id, uint32_t ssrc)
+SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc)
 {
     if(true){
         SrsGb28181RtmpMuxer* muxer = NULL;
@@ -473,7 +473,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet_jitter(const sockaddr* from,
                         );
         }
       
-        SrsGb28181RtmpMuxer *muxer = create_rtmpmuxer(channel_id,  pkt->ssrc);
+        SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(channel_id,  pkt->ssrc);
         if (muxer){
             rtmpmuxer_enqueue_data(muxer, pkt->ssrc, peer_port, address_string, pkt);
         }
@@ -2051,7 +2051,28 @@ void SrsGb28181Manger::rtmpmuxer_unmap_by_ssrc(uint32_t ssrc)
          rtmpmuxers_ssrc.erase(it);
     }
 }
+void SrsGb28181Manger::update_ssrc_by_invite_respond(std::string id,uint32_t new_ssrc)
+{
+    if (id.empty() || new_ssrc==0) {
+        srs_warn("gb28181: invaild input at update_ssrc_by_invite_respond(), id is empty or new_ssrc=0");
+        return;
+    }
 
+    SrsGb28181RtmpMuxer* muxer = fetch_rtmpmuxer(id);
+    if (!muxer) {//find
+        uint32_t old_ssrc = muxer->get_channel().get_ssrc();
+        if (old_ssrc!=new_ssrc) {
+            rtmpmuxer_map_by_ssrc(muxer,new_ssrc);
+            muxer->get_channel().set_ssrc(new_ssrc);
+            rtmpmuxer_unmap_by_ssrc(old_ssrc);
+            srs_trace("gb28181: update_ssrc_by_invite_respond success. client_id=%s, new_ssrc=%#x, old_ssrc=%#x",id.c_str(),new_ssrc,old_ssrc);
+        }
+    }else
+    {
+       srs_warn("gb28181: at update_ssrc_by_invite_respond() client_id not found. client_id=%s",id.c_str());
+    }
+    
+}
 void SrsGb28181Manger::destroy()
 {
     //destory ps rtp listen

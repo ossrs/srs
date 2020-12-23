@@ -287,7 +287,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                         invite_duration = 0;
                 }
 
-                srs_trace("gb28181: sip session=%s device=%s status(%s, %s), duration(%u)",
+                srs_info("gb28181: sip session=%s device=%s status(%s, %s), duration(%u)",
                     _session_id.c_str(), chid.c_str(), device->device_status.c_str(), 
                     srs_get_sip_session_status_str(device->invite_status).c_str(),
                     (invite_duration / SRS_UTIME_SECONDS));
@@ -525,6 +525,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
         //reponse status 
         if (req->cmdtype == SrsSipCmdRequest){
             send_status(req, from, fromlen);
+            send_status(req, from, fromlen);
             sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
             sip_session->set_alive_time(srs_get_system_time());
             sip_session->set_sockaddr((sockaddr)*from);
@@ -571,6 +572,13 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
                     device->req_inivate.copy(req);
                     device->invite_time = srs_get_system_time();
                 }
+                uint32_t ssrc_in_sdp = atoi(srs_string_split(req->sdp_body_map["y"],",").at(0).c_str());//gb28181 protocol,sdp-type-y is the ssrc
+                std::string sess_in_sdp = srs_string_split(srs_string_split(req->sdp_body_map["o"],",").at(0)," ").at(0);
+                std::string chid_in_sdp = srs_string_split(req->to, "@").at(0);//fixme this is guess
+                std::string channel_id_in_respond = sess_in_sdp+"@"+chid_in_sdp;//channel_id=sessid@chid
+                srs_info("gb28181: at the invite respond, the channel_id=%s",channel_id_in_respond.c_str());
+                _srs_gb28181->update_ssrc_by_invite_respond(channel_id_in_respond,ssrc_in_sdp);
+
             }else if (req->status == "100") {
                 //send_ack(req, from, fromlen);
                 SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);

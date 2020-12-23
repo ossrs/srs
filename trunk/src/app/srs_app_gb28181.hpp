@@ -105,6 +105,7 @@ class SrsRequest;
 class SrsResourceManager;
 
 //ps rtp header packet parse
+//ps doc: 
 class SrsPsRtpPacket: public SrsRtpPacket
 {
 public:
@@ -157,7 +158,7 @@ private:
     SrsPithyPrint* pprint;
     SrsGb28181Config* config;
     std::map<std::string, SrsPsRtpPacket*> cache_ps_rtp_packet;
-    std::map<std::string,  SrsPsRtpPacket*> pre_packet;
+    std::map<std::string, SrsPsRtpPacket*> pre_packet;
     std::string channel_id;
     bool auto_create_channel;
 public:
@@ -167,7 +168,7 @@ private:
     bool can_send_ps_av_packet();
     void dispose();
     void clear_pre_packet();
-    SrsGb28181RtmpMuxer* create_rtmpmuxer(std::string channel_id, uint32_t ssrc);
+    SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc);
     srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc, 
             int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
 // Interface ISrsUdpHandler
@@ -489,6 +490,7 @@ public:
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer_by_ssrc(uint32_t ssrc);
     void rtmpmuxer_map_by_ssrc(SrsGb28181RtmpMuxer*muxer, uint32_t ssrc);
     void rtmpmuxer_unmap_by_ssrc(uint32_t ssrc);
+    void update_ssrc_by_invite_respond(std::string id,uint32_t new_ssrc);
     uint32_t generate_ssrc(std::string id);
     uint32_t hash_code(std::string str);
 

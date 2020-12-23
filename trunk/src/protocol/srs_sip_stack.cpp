@@ -290,6 +290,7 @@ void SrsSipRequest::copy(SrsSipRequest* src)
     chid = src->chid;
 
     xml_body_map = src->xml_body_map;
+    sdp_body_map = src->sdp_body_map;
     device_list_map = src->device_list_map;
 
     from_realm = src->from_realm;
@@ -461,6 +462,30 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
     return srs_success;
 }
 
+srs_error_t SrsSipStack::parse_sdp(std::string sdp_msg, std::map<std::string, std::string> &json_map){
+    /* SDP描述由许多文本行组成，文本行的格式为<类型>=<值>，<类型>是一个字母，<值>是结构化的文本串，其格式依<类型>而定。
+     * ＜type＞=<value>[CRLF]
+     * json_map[type]=value
+     * json_map[type]=value1,value2,value3  if type is the same
+     */
+    srs_error_t err = srs_success;
+    std::vector<string> pairs = srs_string_split(sdp_msg, SRS_RTSP_CRLF);
+    std::vector<string>::iterator it;
+    for (it = pairs.begin(); it != pairs.end(); ++it) {
+        std::vector<string> type_value = srs_string_split(*it, "=");
+        std::string mkey = type_value.at(0);
+        std::string mvalue = type_value.at(1);
+        //set map value
+        if (!mkey.empty()){
+            if (json_map.find(mkey) == json_map.end()){
+                json_map[mkey] = mvalue;         
+            }else{
+                json_map[mkey] = json_map[mkey] + ","+mvalue;
+            }    
+        }
+    }
+    return err;
+}
 srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_msg)
 {
     srs_error_t err = srs_success;
@@ -492,7 +517,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     srs_info("sip: header=%s\n", header.c_str());
     srs_info("sip: body=%s\n", body.c_str());
 
-    // parse one by one.
+    // parse header one by one.
     char* start = (char*)header.c_str();
     char* end = start + header.size();
     char* p = start;
@@ -629,27 +654,26 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
 
     //Content-Type: Application/MANSCDP+xml
     if (!strcasecmp(req->content_type.c_str(),"application/manscdp+xml")){
-        std::map<std::string, std::string> body_map;
         //xml to map
-        if ((err = parse_xml(body, body_map)) != srs_success) {
+        if ((err = parse_xml(body, req->xml_body_map)) != srs_success) {
             return srs_error_wrap(err, "sip parse xml");
         };
         
         //Response Cmd
-        if (body_map.find("Response") != body_map.end()){
-            std::string cmdtype = body_map["Response@CmdType"];
+        if (req->xml_body_map.find("Response") != req->xml_body_map.end()){
+            std::string cmdtype = req->xml_body_map["Response@CmdType"];
             if (cmdtype == "Catalog"){
                 //Response@DeviceList@Item@DeviceID:3000001,3000002
-                std::vector<std::string> vec_device_id = srs_string_split(body_map["Response@DeviceList@Item@DeviceID"], ",");
+                std::vector<std::string> vec_device_id = srs_string_split(req->xml_body_map["Response@DeviceList@Item@DeviceID"], ",");
                 //Response@DeviceList@Item@Status:ON,OFF
-                std::vector<std::string> vec_device_status = srs_string_split(body_map["Response@DeviceList@Item@Status"], ",");
+                std::vector<std::string> vec_device_status = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Status"], ",");
                 /*    edit by xbpeng 20201217  start */
                 //Response@DeviceList@Item@Name:平湖出入口,地铁A口    
-                std::vector<std::string> vec_device_name = srs_string_split(body_map["Response@DeviceList@Item@Name"], ",");//GBK encoding
+                std::vector<std::string> vec_device_name = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Name"], ",");//GBK encoding
                 //Response@DeviceList@Item@ParentID:64010000001110000001,64010000001110000002
-                std::vector<std::string> vec_device_parent_id = srs_string_split(body_map["Response@DeviceList@Item@ParentID"], ",");
+                std::vector<std::string> vec_device_parent_id = srs_string_split(req->xml_body_map["Response@DeviceList@Item@ParentID"], ",");
                 //Response@DeviceList@Item@Parental:1,0
-                std::vector<std::string> vec_device_parental = srs_string_split(body_map["Response@DeviceList@Item@Parental"], ",");
+                std::vector<std::string> vec_device_parental = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Parental"], ",");
             
                 //map key:"device_id" value:"status,parental,parentid,name" 
                 for(int i=0 ; i< (int)vec_device_id.size(); i++){
@@ -672,17 +696,16 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                     srs_info("map-value=%s",value.c_str());
                     req->device_list_map[vec_device_id.at(i)] = value;
                 }
-                /*    edit by xbpeng 20201217  end */
             }else{
                 //TODO: fixme
                 srs_trace("sip: Response cmdtype=%s not processed", cmdtype.c_str());
             }
         } //Notify Cmd
-        else if (body_map.find("Notify") !=  body_map.end()){
-            std::string cmdtype = body_map["Notify@CmdType"];
+        else if (req->xml_body_map.find("Notify") !=  req->xml_body_map.end()){
+            std::string cmdtype = req->xml_body_map["Notify@CmdType"];
             if (cmdtype == "Keepalive"){
                 //TODO: ????
-                std::vector<std::string> vec_device_id = srs_string_split(body_map["Notify@Info@DeviceID"], ",");
+                std::vector<std::string> vec_device_id = srs_string_split(req->xml_body_map["Notify@Info@DeviceID"], ",");
                 for(int i=0; i< (int)vec_device_id.size(); i++){
                     //req->device_list_map[vec_device_id.at(i)] = "OFF";
                 }
@@ -690,8 +713,15 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                //TODO: fixme
                srs_trace("sip: Notify cmdtype=%s not processed", cmdtype.c_str());
             }
-        }// end if(body_map)
-    }//end if (!strcasecmp)
+        }// end if(req->xml_body_map)
+    }//end if(application/manscdp+xml)
+    //Content-Type: Application/SDP 
+    else if (!strcasecmp(req->content_type.c_str(),"application/sdp")){
+        //sdp to map
+        if ((err = parse_sdp(body, req->sdp_body_map)) != srs_success) {
+            return srs_error_wrap(err, "sip parse sdp");
+        };
+    }
    
     srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
            req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
@@ -702,6 +732,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     srs_info("from=%s",  req->from.c_str());
     srs_info("to=%s",  req->to.c_str());
     srs_info("callid=%s", req->call_id.c_str());
+    srs_info("ssrc=%s", req->sdp_body_map["y"].c_str());
     srs_info("status=%s", req->status.c_str());
     srs_info("from_tag=%s", req->from_tag.c_str());
     srs_info("to_tag=%s", req->to_tag.c_str());
