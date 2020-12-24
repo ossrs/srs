@@ -430,36 +430,38 @@ echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
-# Detect python or python2
-python --version >/dev/null 2>&1 && SYS_PYTHON=python;
-python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
-# Install cherrypy for api server.
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
-    echo "CherryPy-3.2.4 is ok.";
-else
-    echo "Installing CherryPy-3.2.4";
-    (
-        rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-        unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
-        $SYS_PYTHON setup.py install --user --prefix=''
-    )
-fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+if [[ $SRS_CHERRYPY == YES ]]; then
+    # Detect python or python2
+    python --version >/dev/null 2>&1 && SYS_PYTHON=python;
+    python2 --version >/dev/null 2>&1 && SYS_PYTHON=python2;
+    # Install cherrypy for api server.
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]]; then
+        echo "CherryPy-3.2.4 is ok.";
+    else
+        echo "Installing CherryPy-3.2.4";
+        (
+            rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/CherryPy-3.2.4.zip && cd CherryPy-3.2.4 &&
+            $SYS_PYTHON setup.py install --user --prefix=''
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 
-echo "Link players to cherrypy static-dir"
-rm -rf research/api-server/static-dir/players &&
-ln -sf `pwd`/research/players research/api-server/static-dir/players &&
-rm -f research/api-server/static-dir/crossdomain.xml &&
-ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
-rm -rf research/api-server/static-dir/live &&
-mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
-ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-rm -rf research/api-server/static-dir/forward &&
-mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
-ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
+    echo "Link players to cherrypy static-dir"
+    rm -rf research/api-server/static-dir/players &&
+    ln -sf `pwd`/research/players research/api-server/static-dir/players &&
+    rm -f research/api-server/static-dir/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
+    rm -rf research/api-server/static-dir/live &&
+    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
+    ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
+    rm -rf research/api-server/static-dir/forward &&
+    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
+    ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Warning: Ignore error to link players to cherrypy static-dir."; fi
+fi
 
 #####################################################################################
 # openssl, for rtmp complex handshake and HLS encryption.
