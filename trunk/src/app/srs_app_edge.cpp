@@ -240,6 +240,8 @@ srs_error_t SrsEdgeFlvUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         return srs_error_wrap(err, "edge get %s failed, path=%s", url.c_str(), path.c_str());
     }
 
+    srs_trace("Edge: Connect to %s ok", url.c_str());
+
     srs_freep(reader_);
     reader_ = new SrsHttpFileReader(hr_->body_reader());
 
@@ -446,8 +448,17 @@ srs_error_t SrsEdgeIngester::do_cycle()
             return srs_error_wrap(err, "do cycle pull");
         }
 
-        srs_freep(upstream);
+        // Use protocol in config.
         string edge_protocol = _srs_config->get_vhost_edge_protocol(req->vhost);
+
+        // If follow client protocol, change to protocol of client.
+        bool follow_client = _srs_config->get_vhost_edge_follow_client(req->vhost);
+        if (follow_client && !req->protocol.empty()) {
+            edge_protocol = req->protocol;
+        }
+
+        // Create object by protocol.
+        srs_freep(upstream);
         if (edge_protocol == "flv" || edge_protocol == "flvs") {
             upstream = new SrsEdgeFlvUpstream(edge_protocol == "flv"? "http" : "https");
         } else {

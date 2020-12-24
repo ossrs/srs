@@ -1578,6 +1578,8 @@ SrsRequest::SrsRequest()
     duration = -1;
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     args = NULL;
+
+    protocol = "rtmp";
 }
 
 SrsRequest::~SrsRequest()
@@ -1605,6 +1607,8 @@ SrsRequest* SrsRequest::copy()
     if (args) {
         cp->args = args->copy()->to_object();
     }
+
+    cp->protocol = protocol;
     
     return cp;
 }
@@ -1632,6 +1636,8 @@ void SrsRequest::update_auth(SrsRequest* req)
     if (req->args) {
         args = req->args->copy()->to_object();
     }
+
+    protocol = req->protocol;
     
     srs_info("update req of soruce for auth ok");
 }
