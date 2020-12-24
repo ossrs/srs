@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-12-24, Support disable CherryPy. 4.0.57
 * v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
 * v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
 * v4.0, 2020-11-06, For [#1657][bug #1657], Read cached data first in SSL. 4.0.48
