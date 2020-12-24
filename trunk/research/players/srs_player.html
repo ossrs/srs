@@ -448,6 +448,8 @@
             $(player).attr("id", "player_id");
             $(div_container).append(player);
 
+            apply_url_change();
+
             srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
             srs_player.on_player_ready = function() {
                 var buffer_time = 0.5;
@@ -563,6 +565,8 @@
             }
 
             var queries = user_extra_params(query);
+            queries = user_extra_params(rtmp, queries);
+            
             if (queries && queries.length) {
                 url += '&' + queries.join('&');
             }
