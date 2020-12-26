@@ -82,7 +82,7 @@ extern std::string srs_generate_tc_url(std::string host, std::string vhost, std:
  * Generate the stream with param.
  * @remark Append vhost in query string if not default vhost.
  */
-extern std::string srs_generate_stream_with_query(std::string host, std::string vhost, std::string stream, std::string param);
+extern std::string srs_generate_stream_with_query(std::string host, std::string vhost, std::string stream, std::string param, bool with_vhost = true);
 
 /**
  * create shared ptr message from bytes.

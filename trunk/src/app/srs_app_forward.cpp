@@ -222,8 +222,10 @@ srs_error_t SrsForwarder::do_cycle()
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "sdk connect url=%s, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
-    
-    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
+
+    // For RTMP client, we pass the vhost in tcUrl when connecting,
+    // so we publish without vhost in stream.
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
     

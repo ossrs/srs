@@ -200,24 +200,26 @@ string srs_generate_tc_url(string host, string vhost, string app, int port)
     return tcUrl;
 }
 
-string srs_generate_stream_with_query(string host, string vhost, string stream, string param)
+string srs_generate_stream_with_query(string host, string vhost, string stream, string param, bool with_vhost)
 {
     string url = stream;
     string query = param;
-    
-    // If no vhost in param, try to append one.
-    string guessVhost;
-    if (query.find("vhost=") == string::npos) {
-        if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
-            guessVhost = vhost;
-        } else if (!srs_is_ipv4(host)) {
-            guessVhost = host;
+
+    if (with_vhost) {
+        // If no vhost in param, try to append one.
+        string guessVhost;
+        if (query.find("vhost=") == string::npos) {
+            if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+                guessVhost = vhost;
+            } else if (!srs_is_ipv4(host)) {
+                guessVhost = host;
+            }
         }
-    }
-    
-    // Well, if vhost exists, always append in query string.
-    if (!guessVhost.empty()) {
-        query += "&vhost=" + guessVhost;
+
+        // Well, if vhost exists, always append in query string.
+        if (!guessVhost.empty()) {
+            query += "&vhost=" + guessVhost;
+        }
     }
     
     // Remove the start & when param is empty.
