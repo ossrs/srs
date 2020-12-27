@@ -225,7 +225,8 @@ srs_error_t SrsForwarder::do_cycle()
 
     // For RTMP client, we pass the vhost in tcUrl when connecting,
     // so we publish without vhost in stream.
-    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false)) != srs_success) {
+    string stream;
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
     
@@ -236,6 +237,8 @@ srs_error_t SrsForwarder::do_cycle()
     if ((err = forward()) != srs_success) {
         return srs_error_wrap(err, "forward");
     }
+
+    srs_trace("forward publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
     
     return err;
 }

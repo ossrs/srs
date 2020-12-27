@@ -205,20 +205,35 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
     string url = stream;
     string query = param;
 
-    if (with_vhost) {
-        // If no vhost in param, try to append one.
-        string guessVhost;
-        if (query.find("vhost=") == string::npos) {
-            if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
-                guessVhost = vhost;
-            } else if (!srs_is_ipv4(host)) {
-                guessVhost = host;
-            }
+    // If no vhost in param, try to append one.
+    string guessVhost;
+    if (query.find("vhost=") == string::npos) {
+        if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+            guessVhost = vhost;
+        } else if (!srs_is_ipv4(host)) {
+            guessVhost = host;
+        }
+    }
+
+    // Well, if vhost exists, always append in query string.
+    if (!guessVhost.empty() && query.find("vhost=") == string::npos) {
+        query += "&vhost=" + guessVhost;
+    }
+
+    // If not pass in query, remove it.
+    if (!with_vhost) {
+        size_t pos = query.find("&vhost=");
+        if (pos == string::npos) {
+            pos = query.find("vhost=");
         }
 
-        // Well, if vhost exists, always append in query string.
-        if (!guessVhost.empty()) {
-            query += "&vhost=" + guessVhost;
+        size_t end = query.find("&", pos + 1);
+        if (end == string::npos) {
+            end = query.length();
+        }
+
+        if (pos != string::npos && end != string::npos && end > pos) {
+            query = query.substr(0, pos) + query.substr(end);
         }
     }
     
