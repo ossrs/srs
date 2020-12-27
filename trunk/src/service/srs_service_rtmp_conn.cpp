@@ -147,12 +147,17 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     return err;
 }
 
-srs_error_t SrsBasicRtmpClient::publish(int chunk_size, bool with_vhost)
+srs_error_t SrsBasicRtmpClient::publish(int chunk_size, bool with_vhost, std::string* pstream)
 {
     srs_error_t err = srs_success;
     
     // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
     string stream = srs_generate_stream_with_query(req->host, req->vhost, req->stream, req->param, with_vhost);
+
+    // Return the generated stream.
+    if (pstream) {
+        *pstream = stream;
+    }
     
     // publish.
     if ((err = client->publish(stream, stream_id, chunk_size)) != srs_success) {
@@ -162,12 +167,17 @@ srs_error_t SrsBasicRtmpClient::publish(int chunk_size, bool with_vhost)
     return err;
 }
 
-srs_error_t SrsBasicRtmpClient::play(int chunk_size, bool with_vhost)
+srs_error_t SrsBasicRtmpClient::play(int chunk_size, bool with_vhost, std::string* pstream)
 {
     srs_error_t err = srs_success;
     
     // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
     string stream = srs_generate_stream_with_query(req->host, req->vhost, req->stream, req->param, with_vhost);
+
+    // Return the generated stream.
+    if (pstream) {
+        *pstream = stream;
+    }
     
     if ((err = client->play(stream, stream_id, chunk_size)) != srs_success) {
         return srs_error_wrap(err, "connect with server failed, stream=%s, stream_id=%d", stream.c_str(), stream_id);
