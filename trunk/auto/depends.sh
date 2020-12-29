@@ -84,13 +84,6 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
-    wget --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Installing wget."
-        require_sudoer "sudo apt-get install -y --force-yes wget"
-        sudo apt-get install -y --force-yes wget; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "The wget is installed."
-    fi
-
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
@@ -562,8 +555,8 @@ else
     (
         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
-        wget -O config.guess 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' &&
-        wget -O config.sub 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' &&
+        $SYS_PYTHON -c "import urllib; urllib.urlretrieve('http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD','config.guess')" &&
+        $SYS_PYTHON -c "import urllib; urllib.urlretrieve('http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD','config.sub')" &&
         ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
         cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
