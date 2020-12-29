@@ -84,6 +84,13 @@ function Ubuntu_prepare()
         echo "The unzip is installed."
     fi
 
+    wget --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Installing wget."
+        require_sudoer "sudo apt-get install -y --force-yes wget"
+        sudo apt-get install -y --force-yes wget; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "The wget is installed."
+    fi
+
     if [[ $SRS_VALGRIND == YES ]]; then
         valgrind --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing valgrind."
