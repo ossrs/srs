@@ -630,6 +630,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
               --prefix=`pwd`/${SRS_PLATFORM}/_release \
               --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
+              --disable-neon \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
