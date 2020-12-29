@@ -473,7 +473,7 @@ fi
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
-    OPENSSL_OPTIONS="-no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
+    OPENSSL_OPTIONS="-no-afalgeng -no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
     OPENSSL_CONFIG="./config"
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
