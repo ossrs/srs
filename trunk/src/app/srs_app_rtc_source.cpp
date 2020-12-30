@@ -481,6 +481,9 @@ void SrsRtcStream::on_unpublish()
         h->on_unpublish();
     }
 
+    // release unpublish stream description.
+    set_stream_desc(NULL);
+
     // TODO: FIXME: Handle by statistic.
 }
 
@@ -527,7 +530,10 @@ srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 void SrsRtcStream::set_stream_desc(SrsRtcStreamDescription* stream_desc)
 {
     srs_freep(stream_desc_);
-    stream_desc_ = stream_desc->copy();
+
+    if (stream_desc) {
+        stream_desc_ = stream_desc->copy();
+    }
 }
 
 std::vector<SrsRtcTrackDescription*> SrsRtcStream::get_track_desc(std::string type, std::string media_name)

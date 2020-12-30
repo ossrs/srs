@@ -943,6 +943,18 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
         source->on_unpublish();
     }
 
+    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
+        SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
+        srs_freep(track);
+    }
+    video_tracks_.clear();
+
+    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
+        SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
+        srs_freep(track);
+    }
+    audio_tracks_.clear();
+
     srs_freep(timer_);
     srs_freep(pli_worker_);
     srs_freep(pli_epp);
@@ -1785,7 +1797,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
     source->set_stream_created();
 
     // Apply the SDP to source.
-    source->set_stream_desc(stream_desc->copy());
+    source->set_stream_desc(stream_desc);
 
     // TODO: FIXME: What happends when error?
     if ((err = create_publisher(req, stream_desc)) != srs_success) {
