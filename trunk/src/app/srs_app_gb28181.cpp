@@ -2059,7 +2059,7 @@ void SrsGb28181Manger::update_ssrc_by_invite_respond(std::string id,uint32_t new
     }
 
     SrsGb28181RtmpMuxer* muxer = fetch_rtmpmuxer(id);
-    if (!muxer) {//find
+    if (muxer) {//find
         uint32_t old_ssrc = muxer->get_channel().get_ssrc();
         if (old_ssrc!=new_ssrc) {
             rtmpmuxer_map_by_ssrc(muxer,new_ssrc);
