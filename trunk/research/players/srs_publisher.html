@@ -24,11 +24,6 @@
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
                     <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
                     <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
-                    <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
-                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
-                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
-                    <li><a id="nav_gb28181" href="srs_gb28181.html">SRS-GB28181</a></li>
                 </ul>
             </div>
         </div>
@@ -40,8 +35,8 @@
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Warning:</span></strong>
         <span id="txt_log_msg">
-            Flash推流已经很少用，建议用<a href="https://obsproject.com/" target="_blank">OBS</a>或<a href="http://ffmpeg.org/" target="_blank">FFMPEG</a>推流，
-            如果一定要使用Flash推流请点<a id="https_publisher" href="srs_publisher2.html">这里</a>。
+            Flash推流已经很少用，建议用<a href="rtc_publisher.html">RTC推流</a>，<a href="https://obsproject.com/" target="_blank">OBS</a>或<a href="http://ffmpeg.org/" target="_blank">FFMPEG</a>推流，
+            如果一定要使用Flash推流请点<a id="https_publisher" href="srs_publisher_flash.html">这里</a>。
         </span>
     </div>
     <hr/>
@@ -56,12 +51,12 @@
     $(function(){
         var l = window.location;
         var url = window.location.href;
-        if (l.hostname !== 'localhost' && l.hostname !== '127.0.0.1' && l.protocol == 'http:') {
+        if (l.hostname !== 'localhost' && l.hostname !== '127.0.0.1' && l.protocol === 'http:') {
             // For flash publisher, must use HTTPS.
             url = window.location.href.replace('http:', 'https:');
         }
 
-        url = url.substr(0, url.lastIndexOf('/')) + '/srs_publisher2.html';
+        url = url.substr(0, url.lastIndexOf('/')) + '/srs_publisher_flash.html';
         $('#https_publisher').attr('href', url);
     });
 </script>

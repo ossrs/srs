@@ -205,7 +205,7 @@ public:
     // @remark For mdat box, we must codec its header, use this instead of sz().
     virtual int sz_header();
     // Update the size of box.
-    virtual int update_size();
+    virtual uint64_t update_size();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -227,7 +227,7 @@ public:
     static srs_error_t discovery(SrsBuffer* buf, SrsMp4Box** ppbox);
 // Interface ISrsCodec
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 protected:
@@ -495,7 +495,7 @@ public:
     SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 
@@ -581,8 +581,7 @@ class SrsMp4MediaDataBox : public SrsMp4Box
 {
 public:
     // The contained media data, which we never directly read/write it.
-    // TODO: FIXME: Support 64bits size.
-    int nb_data;
+    uint64_t nb_data;
 public:
     SrsMp4MediaDataBox();
     virtual ~SrsMp4MediaDataBox();
@@ -590,7 +589,7 @@ public:
 public:
     // The total size of bytes, including the sz_header() and nb_data,
     // which used to write the smallsize or largesize of mp4.
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     // To encode the mdat box, the buf should only contains the sz_header(),
     // because the mdata only encode the header.
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -1369,7 +1368,7 @@ public:
     virtual int left_space(SrsBuffer* buf);
 // Interface ISrsCodec
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 protected:

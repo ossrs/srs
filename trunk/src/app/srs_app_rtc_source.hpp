@@ -280,6 +280,9 @@ class SrsCodecPayload
 public:
     std::string type_;
     uint8_t pt_;
+    // for publish, equals to PT of itself;
+    // for subscribe, is the PT of publisher;
+    uint8_t pt_of_publisher_;
     std::string name_;
     int sample_;
 
@@ -562,7 +565,6 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
-    int get_track_media_pt();
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;

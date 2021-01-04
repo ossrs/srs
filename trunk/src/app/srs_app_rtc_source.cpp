@@ -481,6 +481,9 @@ void SrsRtcStream::on_unpublish()
         h->on_unpublish();
     }
 
+    // release unpublish stream description.
+    set_stream_desc(NULL);
+
     // TODO: FIXME: Handle by statistic.
 }
 
@@ -527,7 +530,10 @@ srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 void SrsRtcStream::set_stream_desc(SrsRtcStreamDescription* stream_desc)
 {
     srs_freep(stream_desc_);
-    stream_desc_ = stream_desc->copy();
+
+    if (stream_desc) {
+        stream_desc_ = stream_desc->copy();
+    }
 }
 
 std::vector<SrsRtcTrackDescription*> SrsRtcStream::get_track_desc(std::string type, std::string media_name)
@@ -1170,13 +1176,13 @@ void SrsRtcDummyBridger::on_unpublish()
 
 SrsCodecPayload::SrsCodecPayload()
 {
-    pt_ = 0;
+    pt_of_publisher_ = pt_ = 0;
     sample_ = 0;
 }
 
 SrsCodecPayload::SrsCodecPayload(uint8_t pt, std::string encode_name, int sample)
 {
-    pt_ = pt;
+    pt_of_publisher_ = pt_ = pt;
     name_ = encode_name;
     sample_ = sample;
 }
@@ -1191,6 +1197,7 @@ SrsCodecPayload* SrsCodecPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1233,6 +1240,7 @@ SrsVideoPayload* SrsVideoPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1327,6 +1335,7 @@ SrsAudioPayload* SrsAudioPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1405,6 +1414,7 @@ SrsRedPayload* SrsRedPayload::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1445,6 +1455,7 @@ SrsRtxPayloadDes* SrsRtxPayloadDes::copy()
 
     cp->type_ = type_;
     cp->pt_ = pt_;
+    cp->pt_of_publisher_ = pt_of_publisher_;
     cp->name_ = name_;
     cp->sample_ = sample_;
     cp->rtcp_fbs_ = rtcp_fbs_;
@@ -1941,11 +1952,6 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-int SrsRtcSendTrack::get_track_media_pt()
-{
-    return track_desc_->media_->pt_;
-}
-
 void SrsRtcSendTrack::on_recv_nack()
 {
     SrsRtcTrackStatistic* statistic = statistic_;
@@ -1971,6 +1977,17 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     }
 
     pkt->header.set_ssrc(track_desc_->ssrc_);
+
+    // Should update PT, because subscriber may use different PT to publisher.
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
+        // If PT is media from publisher, change to PT of media for subscriber.
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
+    } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
+        // If PT is RED from publisher, change to PT of RED for subscriber.
+        pkt->header.set_payload_type(track_desc_->red_->pt_);
+    } else {
+        // TODO: FIXME: Should update PT for RTX.
+    }
 
     // Put rtp packet to NACK/ARQ queue
     if (true) {
@@ -2027,6 +2044,17 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     SrsRtcTrackStatistic* statistic = statistic_;
     
     pkt->header.set_ssrc(track_desc_->ssrc_);
+
+    // Should update PT, because subscriber may use different PT to publisher.
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
+        // If PT is media from publisher, change to PT of media for subscriber.
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
+    } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
+        // If PT is RED from publisher, change to PT of RED for subscriber.
+        pkt->header.set_payload_type(track_desc_->red_->pt_);
+    } else {
+        // TODO: FIXME: Should update PT for RTX.
+    }
 
     // Put rtp packet to NACK/ARQ queue
     if (true) {

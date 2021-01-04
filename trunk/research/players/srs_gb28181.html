@@ -465,7 +465,12 @@
     var url = null;
 
     var query = parse_query_string();
-    $("#txt_api_url").val("http://" + query.host + ":1985")
+    var query_host = query.host.split(':');
+    if (query_host && query_host.length == 2) {
+        $("#txt_api_url").val("http://" + query_host[0] + ":1985");
+    } else {
+        $("#txt_api_url").val("http://" + query.host + ":1985");
+    }
 
     var __active_dar = null;
     function select_dar(dar_id, num, den) {
@@ -588,7 +593,7 @@
             for (idx2 in devices)
             {
                 //href="javascript:void(0)" onclick="fn(this)">
-                var id = "-->" + devices[idx2].device_id + ":" + devices[idx2].device_status + ":" + devices[idx2].invite_status;
+                var id = "-->" + devices[idx2].device_name + ":" + devices[idx2].device_id + ":" + devices[idx2].device_status + ":" + devices[idx2].invite_status;
                 var li = "<li><a id='linkChannelId1' href='javascript:void(0)' onclick='sipSessionOnClick(this)' rel='"+ session.id + "'>" +id + "</a></li>";
                 $("#sipSessionList").append(li); 
             }
@@ -1007,7 +1012,7 @@
                     var str = text.split("-->");
                     id = str[0];
                     var str2 = str[1].split(":")
-                    chid = str2[0];
+                    chid = str2[1];
 
                     url = $("#txt_api_url").val();
                     var apiurl = url + "/api/v1/gb28181?action=sip_invite&id=" + id + "&chid="+chid;
@@ -1026,7 +1031,7 @@
                     var str = text.split("-->");
                     id = str[0];
                     var str2 = str[1].split(":")
-                    chid = str2[0];
+                    chid = str2[1];
 
                     url = $("#txt_api_url").val();
                     var apiurl = url + "/api/v1/gb28181?action=sip_bye&id=" + id + "&chid="+chid;
@@ -1048,7 +1053,7 @@
                     chid = str2[0];
 
                     url = $("#txt_api_url").val();
-                    var apiurl = url + "/api/v1/gb28181?action=sip_query_catalog&id=" + id + "&chid="+chid;
+                    var apiurl = url + "/api/v1/gb28181?action=sip_query_catalog&id=" + id;
                     var ret = http_get(apiurl);
                     $('#sipSessionMessage').html(syntaxHighlight(ret)); 
                     if (ret != undefined && ret.code == 0){
@@ -1069,9 +1074,17 @@
             });
 
             $("#btn_delete_channel").click(function(){
-                var id = $("#gb28181ChannelId").text();
+                var str = $("#gb28181ChannelId").text();
+                var str_array = str.split("@")
+                var chid = "";
+                var id = "";
+                if (str_array.length != 2){
+                    return;
+                }
+                id = str_array[0];
+                chid = str_array[1];
                 url = $("#txt_api_url").val();
-                var apiurl = url + "/api/v1/gb28181?action=delete_channel&id=" + id;
+                var apiurl = url + "/api/v1/gb28181?action=delete_channel&id=" + id + "&chid="+chid;
                 var ret = http_get(apiurl);
                 $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
                 if (ret != undefined && ret.code == 0){
@@ -1190,7 +1203,8 @@
                         return pc.setLocalDescription(offer).then(function(){ return offer; });
                     }).then(function(offer) {
                         return new Promise(function(resolve, reject) {
-                            var port = urlObject.port || 1985;
+                            // var port = urlObject.port || 1985;
+                            var port = 1985;
 
                             // @see https://github.com/rtcdn/rtcdn-draft
                             var api = urlObject.user_query.play || '/rtc/v1/play/';

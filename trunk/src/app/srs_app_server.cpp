@@ -373,6 +373,62 @@ SrsGb28181Listener::~SrsGb28181Listener()
     srs_freep(caster);
 }
 
+SrsGb28181TcpListener::SrsGb28181TcpListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
+{
+	// the caller already ensure the type is ok,
+	// we just assert here for unknown stream caster.
+	srs_assert(type == SrsListenerGb28181RtpMux);
+
+    caster = new SrsGb28181Caster(c);
+	listener = NULL;
+}
+
+SrsGb28181TcpListener::~SrsGb28181TcpListener()
+{
+	srs_freep(caster);
+	srs_freep(listener);
+}
+
+srs_error_t SrsGb28181TcpListener::listen(std::string i, int p)
+{
+	srs_error_t err = srs_success;
+
+	// the caller already ensure the type is ok,
+	// we just assert here for unknown stream caster.
+	srs_assert(type == SrsListenerGb28181RtpMux);
+
+	ip = i;
+	port = p;
+
+	if ((err = caster->initialize()) != srs_success) {
+	    return srs_error_wrap(err, "init caster");
+	}
+
+	srs_freep(listener);
+	listener = new SrsTcpListener(this, ip, port);
+
+	if ((err = listener->listen()) != srs_success) {
+		return srs_error_wrap(err, "rtsp listen %s:%d", ip.c_str(), port);
+	}
+
+	string v = srs_listener_type2string(type);
+
+	return err;
+}
+
+srs_error_t SrsGb28181TcpListener::on_tcp_client(srs_netfd_t stfd)
+{
+	int fd = srs_netfd_fileno(stfd);
+	string ip = srs_get_peer_ip(fd);
+
+	srs_error_t err = caster->on_tcp_client(stfd);
+	if (err != srs_success) {
+		srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
+		srs_freep(err);
+	}
+	return srs_success;
+}
+
 #endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -1460,8 +1516,8 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
-        } else if (srs_stream_caster_is_gb28181(caster)) {
 #ifdef SRS_GB28181
+        } else if (srs_stream_caster_is_gb28181(caster)) {
             //init global gb28181 manger
             if (_srs_gb28181 == NULL){
                 _srs_gb28181 = new SrsGb28181Manger(this, stream_caster);
@@ -1478,7 +1534,11 @@ srs_error_t SrsServer::listen_stream_caster()
             }
 
             //gb28181 stream listener
-            listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
+            if (!_srs_config->get_stream_caster_tcp_enable(stream_caster)) {
+                listener = new SrsGb28181Listener(this, SrsListenerGb28181RtpMux, stream_caster);
+            } else {
+                listener = new SrsGb28181TcpListener(this, SrsListenerGb28181RtpMux, stream_caster);
+            }
 #else
             srs_warn("gb28181 is disabled, please enable it by: ./configure --with-gb28181");
             continue;
