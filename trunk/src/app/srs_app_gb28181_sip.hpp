@@ -59,7 +59,6 @@ public:
     virtual ~SrsGb28181Device();
 public:
     std::string device_id;
-    std::string device_name;
     std::string device_status;
     std::string device_parental;
     std::string device_parent_id;

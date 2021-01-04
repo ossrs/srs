@@ -480,33 +480,8 @@ int srs_string_count(string str, string flag)
     return nn;
 }
 
-vector<string> srs_string_split(string str, string flag)
-{
-    vector<string> arr;
-    
-    if (flag.empty()) {
-        arr.push_back(str);
-        return arr;
-    }
-    
-    size_t pos;
-    string s = str;
-    
-    while ((pos = s.find(flag)) != string::npos) {
-        if (pos != 0) {
-            arr.push_back(s.substr(0, pos));
-        }
-        s = s.substr(pos + flag.length());
-    }
-    
-    if (!s.empty()) {
-        arr.push_back(s);
-    }
-    
-    return arr;
-}
-//accept "" string and donot change the order
-vector<string> srs_string_split2(string s, string seperator) {
+
+vector<string> srs_string_split(string s, string seperator) {
      vector<string> result;
      unsigned int posBegin = 0;
      size_t posSeperator = s.find(seperator);

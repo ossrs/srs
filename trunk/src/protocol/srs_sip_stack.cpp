@@ -792,14 +792,12 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
         //sdp to map
         if ((err = parse_sdp(body, req->sdp_body_map)) != srs_success) {
             return srs_error_wrap(err, "sip parse sdp");
-        };
+        }
         req->y_ssrc = strtoul(srs_string_split(req->sdp_body_map["y"],",").at(0).c_str(), NULL, 10);
         srs_trace("gb28181: ssrc in y line is %u:%x", req->y_ssrc, req->y_ssrc);
-        };
     }
    
-    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
-           req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
+    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s",req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
     srs_info("via=%s", req->via.c_str());
     srs_info("via_branch=%s", req->branch.c_str());
     srs_info("cseq=%d", req->seq);
