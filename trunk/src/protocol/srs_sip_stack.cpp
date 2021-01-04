@@ -46,61 +46,61 @@ using namespace std;
 #include <iconv.h>
 
 /* Code (GB2312 <--> UTF-8) Convert Class */
-class CodeConverter
-{
-private:
-    iconv_t cd;
-public:
-    CodeConverter(const char *pFromCharset, const char *pToCharset)
-    {
-        cd = iconv_open(pToCharset, pFromCharset);
-        if ((iconv_t)(-1) == cd)
-            srs_warn("CodeConverter: iconv_open failed <%s --> %s>", pFromCharset, pToCharset);
-    }
-    ~CodeConverter()
-    {
-        if ((iconv_t)(-1) != cd)
-            iconv_close(cd);
-    }
-    int Convert(char *pInBuf, size_t InLen, char *pOutBuf, size_t OutLen)
-    {
-        return iconv(cd, &pInBuf, (size_t *)&InLen, &pOutBuf, (size_t *)&OutLen);
-    }
-    static bool IsUTF8(const char *pInBuf, int InLen)
-    {
-        if (InLen < 0) {
-            return false;
-        }
+// class CodeConverter
+// {
+// private:
+//     iconv_t cd;
+// public:
+//     CodeConverter(const char *pFromCharset, const char *pToCharset)
+//     {
+//         cd = iconv_open(pToCharset, pFromCharset);
+//         if ((iconv_t)(-1) == cd)
+//             srs_warn("CodeConverter: iconv_open failed <%s --> %s>", pFromCharset, pToCharset);
+//     }
+//     ~CodeConverter()
+//     {
+//         if ((iconv_t)(-1) != cd)
+//             iconv_close(cd);
+//     }
+//     int Convert(char *pInBuf, size_t InLen, char *pOutBuf, size_t OutLen)
+//     {
+//         return iconv(cd, &pInBuf, (size_t *)&InLen, &pOutBuf, (size_t *)&OutLen);
+//     }
+//     static bool IsUTF8(const char *pInBuf, int InLen)
+//     {
+//         if (InLen < 0) {
+//             return false;
+//         }
 
-        int i = 0;
-        int nBytes = 0;
-        unsigned char chr = 0;
+//         int i = 0;
+//         int nBytes = 0;
+//         unsigned char chr = 0;
 
-        while (i < InLen) {
-            chr = *(pInBuf + i);
-            if (nBytes == 0) {
-                if ((chr & 0x80) != 0) {
-                    while ((chr & 0x80) != 0) {
-                        chr <<= 1;
-                        nBytes++;
-                    }
-                    if (nBytes < 2 || nBytes > 6) {
-                        return false;
-                    }
-                    nBytes--;
-                }
-            } else {
-                if ((chr & 0xc0) != 0x80) {
-                    return false;
-                }
-                nBytes--;
-            }
-            ++i;
-        }
+//         while (i < InLen) {
+//             chr = *(pInBuf + i);
+//             if (nBytes == 0) {
+//                 if ((chr & 0x80) != 0) {
+//                     while ((chr & 0x80) != 0) {
+//                         chr <<= 1;
+//                         nBytes++;
+//                     }
+//                     if (nBytes < 2 || nBytes > 6) {
+//                         return false;
+//                     }
+//                     nBytes--;
+//                 }
+//             } else {
+//                 if ((chr & 0xc0) != 0x80) {
+//                     return false;
+//                 }
+//                 nBytes--;
+//             }
+//             ++i;
+//         }
 
-        return nBytes == 0;
-    }
-};
+//         return nBytes == 0;
+//     }
+// };
 
 unsigned int srs_sip_random(int min,int max)  
 {  
@@ -402,14 +402,14 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
     </Notify>
     */
 
-    if (CodeConverter::IsUTF8(xml_msg.c_str(), xml_msg.size()) == false) {
-        char *outBuf = (char *)calloc(1, xml_msg.size() * 2);
-        CodeConverter cc("gb2312", "utf-8");
-        if (cc.Convert((char *)xml_msg.c_str(), xml_msg.size(), (char *)outBuf, xml_msg.size() * 2 - 1) != -1)
-            xml_msg = string(outBuf);
-        if (outBuf)
-            free(outBuf);
-    }
+    // if (CodeConverter::IsUTF8(xml_msg.c_str(), xml_msg.size()) == false) {
+    //     char *outBuf = (char *)calloc(1, xml_msg.size() * 2);
+    //     CodeConverter cc("gb2312", "utf-8");
+    //     if (cc.Convert((char *)xml_msg.c_str(), xml_msg.size(), (char *)outBuf, xml_msg.size() * 2 - 1) != -1)
+    //         xml_msg = string(outBuf);
+    //     if (outBuf)
+    //         free(outBuf);
+    // }
 
     const char* start = xml_msg.c_str();
     const char* end = start + xml_msg.size();
