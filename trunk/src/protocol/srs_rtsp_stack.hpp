@@ -78,6 +78,8 @@ class ISrsProtocolReadWriter;
 // RTSP-Version
 #define SRS_RTSP_VERSION "RTSP/1.0"
 
+// GB28181 sdp
+#define SRS_GB_SDP_MAP_CONNETOR "`"
 // The rtsp sdp parse state.
 enum SrsRtspSdpState
 {
