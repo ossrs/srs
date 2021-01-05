@@ -632,7 +632,6 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
                     device->req_inivate.copy(req);
                     device->invite_time = srs_get_system_time();
                 }
-
             }else if (req->status == "100") {
                 //send_ack(req, from, fromlen);
                 SrsGb28181Device *device = sip_session->get_device_info(req->sip_auth_id);
