@@ -994,6 +994,14 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
     // STAP header, RTP payload format for aggregation packets
     // @see https://tools.ietf.org/html/rfc6184#section-5.7
     uint8_t v = buf->read_1bytes();
+
+    // forbidden_zero_bit shoul be zero.
+    // @see https://tools.ietf.org/html/rfc6184#section-5.3
+    uint8_t f = (v & 0x80);
+    if (f == 0x80) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "forbidden_zero_bit should be zero");
+    }
+
     nri = SrsAvcNaluType(v & (~kNalTypeMask));
 
     // NALUs.
