@@ -72,9 +72,7 @@ SrsGb28181Device::SrsGb28181Device()
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
-    
-
-    
+      
 }
 
 SrsGb28181Device::~SrsGb28181Device()

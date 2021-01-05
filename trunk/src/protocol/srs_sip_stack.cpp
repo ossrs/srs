@@ -350,7 +350,6 @@ void SrsSipRequest::copy(SrsSipRequest* src)
     chid = src->chid;
 
     xml_body_map = src->xml_body_map;
-    sdp_body_map = src->sdp_body_map;
     device_list_map = src->device_list_map;
 
     from_realm = src->from_realm;
@@ -573,7 +572,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     srs_info("sip: header=%s\n", header.c_str());
     srs_info("sip: body=%s\n", body.c_str());
 
-    // parse header one by one.
+    // parse one by one.
     char* start = (char*)header.c_str();
     char* end = start + header.size();
     char* p = start;
@@ -764,10 +763,8 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
                srs_trace("sip: Notify cmdtype=%s not processed", cmdtype.c_str());
             }
         }// end if(req->xml_body_map)
-
-    }//end if(application/manscdp+xml)
-    //Content-Type: Application/SDP 
-    else if (!strcasecmp(req->content_type.c_str(),"application/sdp")){
+    }//end if (!strcasecmp)
+    else if (!strcasecmp(req->content_type.c_str(),"application/sdp")) {
         std::vector<std::string> sdp_lines = srs_string_split(body.c_str(), SRS_RTSP_CRLF);
         for(int i=0 ; i< (int)sdp_lines.size(); i++){
             if (!strncasecmp(sdp_lines.at(i).c_str(), "y=", 2)) {
@@ -780,7 +777,8 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
         }
     }
    
-    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s",req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
+    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s",
+           req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
     srs_info("via=%s", req->via.c_str());
     srs_info("via_branch=%s", req->branch.c_str());
     srs_info("cseq=%d", req->seq);
