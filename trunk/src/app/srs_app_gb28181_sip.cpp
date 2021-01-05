@@ -68,10 +68,11 @@ std::string srs_get_sip_session_status_str(SrsGb28181SipSessionStatusType status
 SrsGb28181Device::SrsGb28181Device()
 {
     device_id = ""; 
+    device_name = "";
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
-    device_name = "";
+    
 
     
 }
@@ -560,7 +561,6 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
        
         //reponse status 
         if (req->cmdtype == SrsSipCmdRequest){
-            send_status(req, from, fromlen);
             send_status(req, from, fromlen);
             sip_session->set_alive_status(SrsGb28181SipSessionAliveOk);
             sip_session->set_alive_time(srs_get_system_time());

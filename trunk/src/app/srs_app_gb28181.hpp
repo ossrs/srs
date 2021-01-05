@@ -108,7 +108,7 @@ class SrsGb28181Conn;
 class SrsGb28181Caster;
 
 //ps rtp header packet parse
-//ps doc: 
+
 class SrsPsRtpPacket: public SrsRtpPacket
 {
 public:

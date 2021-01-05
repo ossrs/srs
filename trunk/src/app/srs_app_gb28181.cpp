@@ -2350,7 +2350,7 @@ void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_
     }
 
     muxer = rtmpmuxers[id];
-    //TODO: find out whether muxer->get_channel().set_ssrc(new_ssrc) is different with the under codes
+    
     SrsGb28181StreamChannel mc = muxer->get_channel();
     uint32_t old_ssrc = mc.get_ssrc();
     if (old_ssrc == ssrc) {
@@ -2362,7 +2362,6 @@ void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_
     mc.set_ssrc(ssrc);
     muxer->copy_channel(&mc);
     rtmpmuxer_map_by_ssrc(muxer, ssrc);
-    srs_trace("gb28181: update_rtmpmuxer_to_newssrc_by_id success. client_id=%s, new_ssrc=%#x, old_ssrc=%#x",id.c_str(),ssrc,old_ssrc);
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer_by_ssrc(uint32_t ssrc)

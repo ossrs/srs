@@ -59,8 +59,8 @@ public:
     virtual ~SrsGb28181Device();
 public:
     std::string device_id;
-    std::string device_status;
     std::string device_name;
+    std::string device_status;
     SrsGb28181SipSessionStatusType  invite_status; 
     srs_utime_t  invite_time;
     SrsSipRequest  req_inivate;
