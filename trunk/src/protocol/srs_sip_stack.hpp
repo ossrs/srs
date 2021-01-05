@@ -105,7 +105,6 @@ public:
     std::string chid;
 
     std::map<std::string, std::string> xml_body_map;
-    std::map<std::string, std::string> sdp_body_map;
     
     std::map<std::string, std::string> device_list_map;
     // add an item_list, you can do a lot of other things
@@ -161,7 +160,6 @@ protected:
     virtual srs_error_t do_parse_request(SrsSipRequest* req, const char *recv_msg);
 
     virtual srs_error_t parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map, std::vector<std::map<std::string, std::string> > &item_list);
-    virtual srs_error_t parse_sdp(std::string sdp_msg, std::map<std::string, std::string> &json_map);
 
 private:
     //response from

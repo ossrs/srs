@@ -549,30 +549,6 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
     return srs_success;
 }
 
-srs_error_t SrsSipStack::parse_sdp(std::string sdp_msg, std::map<std::string, std::string> &json_map){
-    /* SDP描述由许多文本行组成，文本行的格式为<类型>=<值>，<类型>是一个字母，<值>是结构化的文本串，其格式依<类型>而定。
-     * ＜type＞=<value>[CRLF]
-     * json_map[type]=value
-     * json_map[type]=value1`value2`value3  if type is the same
-     */
-    srs_error_t err = srs_success;
-    std::vector<string> pairs = srs_string_split(sdp_msg, SRS_RTSP_CRLF);
-    std::vector<string>::iterator it;
-    for (it = pairs.begin(); it != pairs.end(); ++it) {
-        std::vector<string> type_value = srs_string_split(*it, "=");
-        std::string mkey = type_value.at(0);
-        std::string mvalue = type_value.at(1);
-        //set map value
-        if (!mkey.empty()){
-            if (json_map.find(mkey) == json_map.end()){
-                json_map[mkey] = mvalue;         
-            }else{
-                json_map[mkey] = json_map[mkey] + SRS_GB_SDP_MAP_CONNETOR +mvalue;
-            }    
-        }
-    }
-    return err;
-}
 srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_msg)
 {
     srs_error_t err = srs_success;
@@ -792,12 +768,16 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     }//end if(application/manscdp+xml)
     //Content-Type: Application/SDP 
     else if (!strcasecmp(req->content_type.c_str(),"application/sdp")){
-        //sdp to map
-        if ((err = parse_sdp(body, req->sdp_body_map)) != srs_success) {
-            return srs_error_wrap(err, "sip parse sdp");
+        std::vector<std::string> sdp_lines = srs_string_split(body.c_str(), SRS_RTSP_CRLF);
+        for(int i=0 ; i< (int)sdp_lines.size(); i++){
+            if (!strncasecmp(sdp_lines.at(i).c_str(), "y=", 2)) {
+                string yline = sdp_lines.at(i);
+                string ssrc = yline.substr(2);
+                req->y_ssrc = strtoul(ssrc.c_str(), NULL, 10);
+                srs_trace("gb28181: ssrc in y line is %u:%x", req->y_ssrc, req->y_ssrc);
+                break;
+            }
         }
-        req->y_ssrc = strtoul(srs_string_split(req->sdp_body_map["y"],SRS_GB_SDP_MAP_CONNETOR).at(0).c_str(), NULL, 10);
-        srs_trace("gb28181: ssrc in y line is %u:%x", req->y_ssrc, req->y_ssrc);
     }
    
     srs_info("sip: method=%s uri=%s version=%s cmdtype=%s",req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
