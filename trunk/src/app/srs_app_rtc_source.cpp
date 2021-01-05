@@ -1627,7 +1627,7 @@ SrsRtcStreamDescription* SrsRtcStreamDescription::copy()
 
 SrsRtcTrackDescription* SrsRtcStreamDescription::find_track_description_by_ssrc(uint32_t ssrc)
 {
-    if (audio_track_desc_->has_ssrc(ssrc)) {
+    if (audio_track_desc_ && audio_track_desc_->has_ssrc(ssrc)) {
         return audio_track_desc_;
     }
 
