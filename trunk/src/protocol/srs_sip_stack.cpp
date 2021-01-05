@@ -777,7 +777,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
         }
     }
    
-    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s",
+    srs_info("sip: method=%s uri=%s version=%s cmdtype=%s", 
            req->method.c_str(), req->uri.c_str(), req->version.c_str(), req->get_cmdtype_str().c_str());
     srs_info("via=%s", req->via.c_str());
     srs_info("via_branch=%s", req->branch.c_str());
@@ -786,7 +786,6 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
     srs_info("from=%s",  req->from.c_str());
     srs_info("to=%s",  req->to.c_str());
     srs_info("callid=%s", req->call_id.c_str());
-    srs_info("ssrc=%s", req->sdp_body_map["y"].c_str());
     srs_info("status=%s", req->status.c_str());
     srs_info("from_tag=%s", req->from_tag.c_str());
     srs_info("to_tag=%s", req->to_tag.c_str());
