@@ -106,7 +106,7 @@ public:
 
     std::map<std::string, std::string> xml_body_map;
     std::map<std::string, std::string> sdp_body_map;
-    //map key:"device_id" value:"status,parental,parentid,name"
+    
     std::map<std::string, std::string> device_list_map;
     // add an item_list, you can do a lot of other things
     // used by DeviceList, Alarmstatus, RecordList in "GB/T 28181—2016"
