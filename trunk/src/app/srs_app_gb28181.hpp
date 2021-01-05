@@ -522,7 +522,6 @@ public:
     void update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_t ssrc);
     void rtmpmuxer_map_by_ssrc(SrsGb28181RtmpMuxer*muxer, uint32_t ssrc);
     void rtmpmuxer_unmap_by_ssrc(uint32_t ssrc);
-    void update_ssrc_by_invite_respond(std::string id,uint32_t new_ssrc);
     uint32_t generate_ssrc(std::string id);
     uint32_t hash_code(std::string str);
 
