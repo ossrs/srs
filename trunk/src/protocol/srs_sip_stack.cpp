@@ -553,7 +553,7 @@ srs_error_t SrsSipStack::parse_sdp(std::string sdp_msg, std::map<std::string, st
     /* SDP描述由许多文本行组成，文本行的格式为<类型>=<值>，<类型>是一个字母，<值>是结构化的文本串，其格式依<类型>而定。
      * ＜type＞=<value>[CRLF]
      * json_map[type]=value
-     * json_map[type]=value1,value2,value3  if type is the same
+     * json_map[type]=value1`value2`value3  if type is the same
      */
     srs_error_t err = srs_success;
     std::vector<string> pairs = srs_string_split(sdp_msg, SRS_RTSP_CRLF);
@@ -567,7 +567,7 @@ srs_error_t SrsSipStack::parse_sdp(std::string sdp_msg, std::map<std::string, st
             if (json_map.find(mkey) == json_map.end()){
                 json_map[mkey] = mvalue;         
             }else{
-                json_map[mkey] = json_map[mkey] + ","+mvalue;
+                json_map[mkey] = json_map[mkey] + SRS_GB_SDP_MAP_CONNETOR +mvalue;
             }    
         }
     }
@@ -796,7 +796,7 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
         if ((err = parse_sdp(body, req->sdp_body_map)) != srs_success) {
             return srs_error_wrap(err, "sip parse sdp");
         }
-        req->y_ssrc = strtoul(srs_string_split(req->sdp_body_map["y"],",").at(0).c_str(), NULL, 10);
+        req->y_ssrc = strtoul(srs_string_split(req->sdp_body_map["y"],SRS_GB_SDP_MAP_CONNETOR).at(0).c_str(), NULL, 10);
         srs_trace("gb28181: ssrc in y line is %u:%x", req->y_ssrc, req->y_ssrc);
     }
    

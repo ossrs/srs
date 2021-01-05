@@ -627,7 +627,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
                     device->req_inivate.copy(req);
                     device->invite_time = srs_get_system_time();
                 }
-                uint32_t ssrc_in_sdp = strtoul(srs_string_split(req->sdp_body_map["y"],",").at(0).c_str(), NULL, 10);//gb28181 protocol,sdp-type-y is the ssrc
+                uint32_t ssrc_in_sdp = strtoul(srs_string_split(req->sdp_body_map["y"],SRS_GB_SDP_MAP_CONNETOR).at(0).c_str(), NULL, 10);//gb28181 protocol,sdp-type-y is the ssrc
                 std::string channel_id_in_respond = sip_session->session_id()+"@"+req->sip_auth_id;//channel_id=sessid@chid
                 srs_trace("gb28181: at the invite respond, the channel_id=%s",channel_id_in_respond.c_str());
                 _srs_gb28181->update_ssrc_by_invite_respond(channel_id_in_respond,ssrc_in_sdp);
