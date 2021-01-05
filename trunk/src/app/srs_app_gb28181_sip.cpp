@@ -71,8 +71,6 @@ SrsGb28181Device::SrsGb28181Device()
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
-    device_parental = "";
-    device_parent_id = "";
     device_name = "";
 
     
@@ -335,32 +333,37 @@ srs_error_t SrsGb28181SipSession::cycle()
 }
 
 void SrsGb28181SipSession::update_device_list(std::map<std::string, std::string> lst)
-{//map key:"device_id" value:"status,parental,parentid,name"
+{
     std::map<std::string, std::string>::iterator it;
     for (it = lst.begin(); it != lst.end(); ++it) {
         std::string id = it->first;
-        std::vector<std::string> value = srs_string_split(it->second, ",");
-        std::string status = value[0];
-        std::string parental = value[1];
-        std::string parent_id = value[2];
-        std::string name = (value[3]!=""?value[3]:"NONAME");
-        srs_info("SrsGb28181SipSession::update_device_list():status=%s, parental=%s, parent_id=%s, name=%s",status.c_str(),parental.c_str(),parent_id.c_str(),name.c_str());
+        std::string status = it->second;
+
         if  (_device_list.find(id) == _device_list.end()){
             SrsGb28181Device *device = new SrsGb28181Device();
             device->device_id = id;
+            if (status.find(",") != std::string::npos) {
+                device->device_status = status.substr(0,status.find(","));
+                device->device_name = status.substr(status.find(",")+1);
+            } else {
+                device->device_status = status;
+                device->device_name = "NONAME";
+            }
             device->invite_status = SrsGb28181SipSessionUnkonw;
             device->invite_time = 0;
-            device->device_parental = parental;
-            device->device_parent_id = parent_id;
-            device->device_name = name;
             _device_list[id] = device;
+
         }else {
             SrsGb28181Device *device = _device_list[id];
-            device->device_status = status;
-            device->device_parental = parental;
-            device->device_parent_id = parent_id;
-            device->device_name = name;
+            if (status.find(",") != std::string::npos) {
+                device->device_status = status.substr(0,status.find(","));
+                device->device_name = status.substr(status.find(",")+1);
+            } else {
+                device->device_status = status;
+                device->device_name = "NONAME";
+            }
         }
+
     }
 }
 
@@ -396,8 +399,6 @@ void SrsGb28181SipSession::dumps(SrsJsonObject* obj)
         SrsJsonObject* obj = SrsJsonAny::object();
         arr->append(obj);
         obj->set("device_id", SrsJsonAny::str(device->device_id.c_str()));
-        obj->set("device_parental", SrsJsonAny::str(device->device_parental.c_str()));
-        obj->set("device_parent_id", SrsJsonAny::str(device->device_parent_id.c_str()));
         obj->set("device_name", SrsJsonAny::str(device->device_name.c_str()));
         obj->set("device_status", SrsJsonAny::str(device->device_status.c_str()));
         obj->set("invite_status", SrsJsonAny::str(srs_get_sip_session_status_str(device->invite_status).c_str()));
@@ -627,9 +628,7 @@ srs_error_t SrsGb28181SipService::on_udp_sip(string peer_ip, int peer_port,
                     device->invite_time = srs_get_system_time();
                 }
                 uint32_t ssrc_in_sdp = strtoul(srs_string_split(req->sdp_body_map["y"],",").at(0).c_str(), NULL, 10);//gb28181 protocol,sdp-type-y is the ssrc
-                std::string sess_in_sdp = srs_string_split(srs_string_split(req->sdp_body_map["o"],",").at(0)," ").at(0);
-                std::string chid_in_sdp = req->sip_auth_id;
-                std::string channel_id_in_respond = sess_in_sdp+"@"+chid_in_sdp;//channel_id=sessid@chid
+                std::string channel_id_in_respond = sip_session->session_id()+"@"+req->sip_auth_id;//channel_id=sessid@chid
                 srs_trace("gb28181: at the invite respond, the channel_id=%s",channel_id_in_respond.c_str());
                 _srs_gb28181->update_ssrc_by_invite_respond(channel_id_in_respond,ssrc_in_sdp);
 

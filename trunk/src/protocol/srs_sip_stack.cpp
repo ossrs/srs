@@ -743,38 +743,32 @@ srs_error_t SrsSipStack::do_parse_request(SrsSipRequest* req, const char* recv_m
         if (req->xml_body_map.find("Response") != req->xml_body_map.end()){
             std::string cmdtype = req->xml_body_map["Response@CmdType"];
             if (cmdtype == "Catalog"){
+                #if 0
                 //Response@DeviceList@Item@DeviceID:3000001,3000002
                 std::vector<std::string> vec_device_id = srs_string_split(req->xml_body_map["Response@DeviceList@Item@DeviceID"], ",");
                 //Response@DeviceList@Item@Status:ON,OFF
                 std::vector<std::string> vec_device_status = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Status"], ",");
-                /*    edit by xbpeng 20201217  start */
-                //Response@DeviceList@Item@Name:平湖出入口,地铁A口    
-                std::vector<std::string> vec_device_name = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Name"], ",");//GBK encoding
-                //Response@DeviceList@Item@ParentID:64010000001110000001,64010000001110000002
-                std::vector<std::string> vec_device_parent_id = srs_string_split(req->xml_body_map["Response@DeviceList@Item@ParentID"], ",");
-                //Response@DeviceList@Item@Parental:1,0
-                std::vector<std::string> vec_device_parental = srs_string_split(req->xml_body_map["Response@DeviceList@Item@Parental"], ",");
-        
-                //map key:"device_id" value:"status,parental,parentid,name" 
+                 
+                //map key:devicd_id value:status 
                 for(int i=0 ; i< (int)vec_device_id.size(); i++){
-                    std::string value = "";
-                    if ((int)vec_device_status.size() == (int)vec_device_id.size()) {
-                        value = value + vec_device_status.at(i);
+                    std::string status = "";
+                    if ((int)vec_device_status.size() > i) {
+                        status = vec_device_status.at(i);
                     }
-                    value = value + ",";
-                    if ((int)vec_device_parental.size() == (int)vec_device_id.size()) {
-                        value = value + vec_device_parental.at(i);
+              
+                    req->device_list_map[vec_device_id.at(i)] = status;
+                }
+                #endif
+                for(int i=0 ; i< (int)req->item_list.size(); i++){
+                    std::map<std::string, std::string> one_item = req->item_list.at(i);
+                    std::string status;
+                    if (one_item.find("Status") != one_item.end() && one_item.find("Name") != one_item.end()) {
+                        status = one_item["Status"] + "," + one_item["Name"];
+                    } else {
+                        // if no Status, it's not a camera but a group
+                        continue;
                     }
-                    value = value + ",";
-                    if ((int)vec_device_parent_id.size() == (int)vec_device_id.size()) {
-                        value = value + vec_device_parent_id.at(i);
-                    }
-                    value = value + ",";
-                    if ((int)vec_device_name.size() == (int)vec_device_id.size()) {
-                        value = value + vec_device_name.at(i);
-                    }
-                    srs_info("map-value=%s",value.c_str());
-                    req->device_list_map[vec_device_id.at(i)] = value;
+                    req->device_list_map[one_item["DeviceID"]] = status;
                 }
             }else{
                 //TODO: fixme
