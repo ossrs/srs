@@ -60,8 +60,6 @@ public:
 public:
     std::string device_id;
     std::string device_status;
-    std::string device_parental;
-    std::string device_parent_id;
     std::string device_name;
     SrsGb28181SipSessionStatusType  invite_status; 
     srs_utime_t  invite_time;

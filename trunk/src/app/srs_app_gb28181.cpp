@@ -2345,10 +2345,12 @@ void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_
     SrsGb28181RtmpMuxer* muxer = NULL;
 
     if (rtmpmuxers.find(id) == rtmpmuxers.end()) {
+        srs_warn("gb28181: at update_rtmpmuxer_to_newssrc_by_id() client_id not found. client_id=%s",id.c_str());
         return;
     }
 
     muxer = rtmpmuxers[id];
+    //TODO: find out whether muxer->get_channel().set_ssrc(new_ssrc) is different with the under codes
     SrsGb28181StreamChannel mc = muxer->get_channel();
     uint32_t old_ssrc = mc.get_ssrc();
     if (old_ssrc == ssrc) {
@@ -2360,6 +2362,7 @@ void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_
     mc.set_ssrc(ssrc);
     muxer->copy_channel(&mc);
     rtmpmuxer_map_by_ssrc(muxer, ssrc);
+    srs_trace("gb28181: update_rtmpmuxer_to_newssrc_by_id success. client_id=%s, new_ssrc=%#x, old_ssrc=%#x",id.c_str(),new_ssrc,old_ssrc);
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer_by_ssrc(uint32_t ssrc)
@@ -2387,28 +2390,7 @@ void SrsGb28181Manger::rtmpmuxer_unmap_by_ssrc(uint32_t ssrc)
          rtmpmuxers_ssrc.erase(it);
     }
 }
-void SrsGb28181Manger::update_ssrc_by_invite_respond(std::string id,uint32_t new_ssrc)
-{
-    if (id.empty() || new_ssrc==0) {
-        srs_warn("gb28181: invaild input at update_ssrc_by_invite_respond(), id is empty or new_ssrc=0");
-        return;
-    }
 
-    SrsGb28181RtmpMuxer* muxer = fetch_rtmpmuxer(id);
-    if (muxer) {//find
-        uint32_t old_ssrc = muxer->get_channel().get_ssrc();
-        if (old_ssrc!=new_ssrc) {
-            rtmpmuxer_map_by_ssrc(muxer,new_ssrc);
-            muxer->get_channel().set_ssrc(new_ssrc);
-            rtmpmuxer_unmap_by_ssrc(old_ssrc);
-            srs_trace("gb28181: update_ssrc_by_invite_respond success. client_id=%s, new_ssrc=%#x, old_ssrc=%#x",id.c_str(),new_ssrc,old_ssrc);
-        }
-    }else
-    {
-       srs_warn("gb28181: at update_ssrc_by_invite_respond() client_id not found. client_id=%s",id.c_str());
-    }
-    
-}
 void SrsGb28181Manger::destroy()
 {
     if (!config->rtp_mux_tcp_enable) {
