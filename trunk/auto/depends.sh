@@ -392,7 +392,7 @@ if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib fa
 function write_nginx_html5()
 {
     cat<<END > ${html_file}
-<video autoplay controls autobuffer type="application/vnd.apple.mpegurl"
+<video width="100%" autoplay controls autobuffer type="application/vnd.apple.mpegurl"
     src="${hls_stream}">
 </video>
 END
