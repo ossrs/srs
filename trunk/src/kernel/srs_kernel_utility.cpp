@@ -480,30 +480,24 @@ int srs_string_count(string str, string flag)
     return nn;
 }
 
-vector<string> srs_string_split(string str, string flag)
-{
-    vector<string> arr;
-    
-    if (flag.empty()) {
-        arr.push_back(str);
-        return arr;
+
+vector<string> srs_string_split(string s, string seperator) {
+    vector<string> result;
+    if(seperator.empty()){
+        result.push_back(s);
+        return result;
     }
     
-    size_t pos;
-    string s = str;
-    
-    while ((pos = s.find(flag)) != string::npos) {
-        if (pos != 0) {
-            arr.push_back(s.substr(0, pos));
-        }
-        s = s.substr(pos + flag.length());
+    size_t posBegin = 0;
+    size_t posSeperator = s.find(seperator);
+    while (posSeperator != string::npos) {
+        result.push_back(s.substr(posBegin, posSeperator - posBegin));
+        posBegin = posSeperator + seperator.length(); // next byte of seperator
+        posSeperator = s.find(seperator, posBegin);
     }
-    
-    if (!s.empty()) {
-        arr.push_back(s);
-    }
-    
-    return arr;
+    // push the last element
+    result.push_back(s.substr(posBegin));
+    return result;
 }
 
 string srs_string_min_match(string str, vector<string> flags)

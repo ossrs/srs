@@ -108,6 +108,7 @@ class SrsGb28181Conn;
 class SrsGb28181Caster;
 
 //ps rtp header packet parse
+
 class SrsPsRtpPacket: public SrsRtpPacket
 {
 public:
@@ -160,7 +161,7 @@ private:
     SrsPithyPrint* pprint;
     SrsGb28181Config* config;
     std::map<std::string, SrsPsRtpPacket*> cache_ps_rtp_packet;
-    std::map<std::string,  SrsPsRtpPacket*> pre_packet;
+    std::map<std::string, SrsPsRtpPacket*> pre_packet;
     std::string channel_id;
     bool auto_create_channel;
 public:
@@ -170,7 +171,7 @@ private:
     bool can_send_ps_av_packet();
     void dispose();
     void clear_pre_packet();
-    SrsGb28181RtmpMuxer* create_rtmpmuxer(std::string channel_id, uint32_t ssrc);
+    SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc);
     srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc, 
             int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
 // Interface ISrsUdpHandler

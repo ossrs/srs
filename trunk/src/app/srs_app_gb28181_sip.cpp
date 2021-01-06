@@ -72,7 +72,7 @@ SrsGb28181Device::SrsGb28181Device()
     invite_status = SrsGb28181SipSessionUnkonw;
     invite_time = 0;
     device_status = "";
-    
+      
 }
 
 SrsGb28181Device::~SrsGb28181Device()
@@ -286,7 +286,7 @@ srs_error_t SrsGb28181SipSession::do_cycle()
                         invite_duration = 0;
                 }
 
-                srs_trace("gb28181: sip session=%s device=%s status(%s, %s), duration(%u)",
+                srs_info("gb28181: sip session=%s device=%s status(%s, %s), duration(%u)",
                     _session_id.c_str(), chid.c_str(), device->device_status.c_str(), 
                     srs_get_sip_session_status_str(device->invite_status).c_str(),
                     (invite_duration / SRS_UTIME_SECONDS));
