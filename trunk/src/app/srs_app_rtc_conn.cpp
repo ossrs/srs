@@ -3497,7 +3497,7 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
             publishers_ssrc_map_[track_desc->fec_ssrc_] = publisher;
         }
 
-        if(0 != track_desc->rtx_ssrc_ && track_desc->rtx_ssrc_ != track_desc->rtx_ssrc_) {
+        if(0 != track_desc->rtx_ssrc_ && track_desc->ssrc_ != track_desc->rtx_ssrc_) {
             if(publishers_ssrc_map_.end() != publishers_ssrc_map_.find(track_desc->rtx_ssrc_)) {
                 return srs_error_new(ERROR_RTC_DUPLICATED_SSRC, " duplicate rtx ssrc %d, track id: %s",
                     track_desc->rtx_ssrc_, track_desc->id_.c_str());
