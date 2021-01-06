@@ -482,20 +482,23 @@ int srs_string_count(string str, string flag)
 
 
 vector<string> srs_string_split(string s, string seperator) {
-     vector<string> result;
-     unsigned int posBegin = 0;
-     size_t posSeperator = s.find(seperator);
- 
-     while (posSeperator != string::npos) {
-         result.push_back(s.substr(posBegin, posSeperator - posBegin));
-         posBegin = posSeperator + seperator.size(); // next byte of seperator
-         posSeperator = s.find(seperator, posBegin);
-     }
-     if (posBegin != s.length()) // push the last element
-         result.push_back(s.substr(posBegin));
- 
-     return result;
- }
+    vector<string> result;
+    if(seperator.empty()){
+        result.push_back(s);
+        return result;
+    }
+    
+    size_t posBegin = 0;
+    size_t posSeperator = s.find(seperator);
+    while (posSeperator != string::npos) {
+        result.push_back(s.substr(posBegin, posSeperator - posBegin));
+        posBegin = posSeperator + seperator.length(); // next byte of seperator
+        posSeperator = s.find(seperator, posBegin);
+    }
+    // push the last element
+    result.push_back(s.substr(posBegin));
+    return result;
+}
 
 string srs_string_min_match(string str, vector<string> flags)
 {
