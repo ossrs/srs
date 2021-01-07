@@ -483,6 +483,7 @@ void SrsRtcStream::on_unpublish()
 
     // release unpublish stream description.
     set_stream_desc(NULL);
+    srs_freep(bridger_);
 
     // TODO: FIXME: Handle by statistic.
 }
