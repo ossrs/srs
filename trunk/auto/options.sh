@@ -154,6 +154,7 @@ Features:
   --stat=on|off             Whether build the the data statistic, for http api.
   --librtmp=on|off          Whether build the srs-librtmp, library for client.
   --research=on|off         Whether build the research tools.
+  --cherrypy=on|off         Whether install CherryPy for demo api-server.
   --utest=on|off            Whether build the utest for SRS.
   --srt=on|off              Whether build the SRT support for SRS.
   --rtc=on|off              Whether build the WebRTC support for SRS.
