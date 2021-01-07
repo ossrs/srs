@@ -205,7 +205,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
+    res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
 
     // TODO: add candidates in response json?
 
@@ -557,7 +557,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
-    res->set("server", SrsJsonAny::integer(SrsStatistic::instance()->server_id()));
+    res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
 
     // TODO: add candidates in response json?
 
