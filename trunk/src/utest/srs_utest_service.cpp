@@ -529,7 +529,13 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
-	    EXPECT_EQ(100, m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	    EXPECT_STREQ("100", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/abc", false));
+	    EXPECT_STREQ("abc", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
 	}
 }
 

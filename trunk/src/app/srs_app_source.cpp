@@ -2464,7 +2464,7 @@ srs_error_t SrsSource::on_publish()
         return srs_error_wrap(err, "handle publish");
     }
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(req, _source_id);
+    stat->on_stream_publish(req, srs_int2str(_source_id));
     
     return err;
 }

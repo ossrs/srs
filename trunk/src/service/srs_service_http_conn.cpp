@@ -531,19 +531,19 @@ string SrsHttpMessage::ext()
     return _ext;
 }
 
-int SrsHttpMessage::parse_rest_id(string pattern)
+string SrsHttpMessage::parse_rest_id(string pattern)
 {
     string p = _uri->get_path();
     if (p.length() <= pattern.length()) {
-        return -1;
+        return "";
     }
     
     string id = p.substr((int)pattern.length());
     if (!id.empty()) {
-        return ::atoi(id.c_str());
+        return id;
     }
     
-    return -1;
+    return "";
 }
 
 srs_error_t SrsHttpMessage::enter_infinite_chunked()

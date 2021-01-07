@@ -145,6 +145,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
 * <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
 * v3.0, 2020-12-26, For RTMP edge/forward, pass vhost in tcUrl, not in stream. 3.0.156
 * v3.0, 2020-12-17, Fix [#1694][bug #1694], Support DVR 2GB+ MP4 file. 3.0.155

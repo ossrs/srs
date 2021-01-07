@@ -485,12 +485,12 @@ public:
     virtual std::string path() = 0;
     virtual std::string query() = 0;
     virtual std::string ext() = 0;
-    // Get the RESTful id,
+    // Get the RESTful id, in string,
     // for example, pattern is /api/v1/streams, path is /api/v1/streams/100,
     // then the rest id is 100.
     // @param pattern the handler pattern which will serve the request.
-    // @return the REST id; -1 if not matched.
-    virtual int parse_rest_id(std::string pattern) = 0;
+    // @return the REST id; "" if not matched.
+    virtual std::string parse_rest_id(std::string pattern) = 0;
 public:
     // The left all data is chunked body, the infinite chunked mode,
     // which is chunked encoding without chunked header.
