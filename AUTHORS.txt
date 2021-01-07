@@ -77,3 +77,5 @@ CONTRIBUTORS ordered by first contribution.
 * JesseXi<jesse.jinjin@wo.cn>
 * PieerePi<40780488+PieerePi@users.noreply.github.com>
 * ghostsf<ghost_sf@163.com>
+* xbpeng121<53243357+xbpeng121@users.noreply.github.com>
+* johzzy<hellojinqiang@gmail.com>
