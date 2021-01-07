@@ -481,7 +481,8 @@ int srs_string_count(string str, string flag)
 }
 
 
-vector<string> srs_string_split(string s, string seperator) {
+vector<string> srs_string_split(string s, string seperator)
+{
     vector<string> result;
     if(seperator.empty()){
         result.push_back(s);
@@ -500,33 +501,33 @@ vector<string> srs_string_split(string s, string seperator) {
     return result;
 }
 
-string srs_string_min_match(string str, vector<string> flags)
+string srs_string_min_match(string str, vector<string> seperators)
 {
     string match;
     
-    if (flags.empty()) {
+    if (seperators.empty()) {
         return str;
     }
     
     size_t min_pos = string::npos;
-    for (vector<string>::iterator it = flags.begin(); it != flags.end(); ++it) {
-        string flag = *it;
+    for (vector<string>::iterator it = seperators.begin(); it != seperators.end(); ++it) {
+        string seperator = *it;
         
-        size_t pos = str.find(flag);
+        size_t pos = str.find(seperator);
         if (pos == string::npos) {
             continue;
         }
         
         if (min_pos == string::npos || pos < min_pos) {
             min_pos = pos;
-            match = flag;
+            match = seperator;
         }
     }
     
     return match;
 }
 
-vector<string> srs_string_split(string str, vector<string> flags)
+vector<string> srs_string_split(string str, vector<string> seperators)
 {
     vector<string> arr;
     
@@ -534,19 +535,17 @@ vector<string> srs_string_split(string str, vector<string> flags)
     string s = str;
     
     while (true) {
-        string flag = srs_string_min_match(s, flags);
-        if (flag.empty()) {
+        string seperator = srs_string_min_match(s, seperators);
+        if (seperator.empty()) {
             break;
         }
         
-        if ((pos = s.find(flag)) == string::npos) {
+        if ((pos = s.find(seperator)) == string::npos) {
             break;
         }
-        
-        if (pos != 0) {
-            arr.push_back(s.substr(0, pos));
-        }
-        s = s.substr(pos + flag.length());
+
+        arr.push_back(s.substr(0, pos));
+        s = s.substr(pos + seperator.length());
     }
     
     if (!s.empty()) {

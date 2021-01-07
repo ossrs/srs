@@ -2626,11 +2626,118 @@ VOID TEST(KernelUtility, StringUtils)
         flags.push_back("x");
         EXPECT_TRUE("" == srs_string_min_match("srs", flags));
     }
-    
+}
+
+VOID TEST(KernelUtility, StringSplitUtils)
+{
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "r");
+        EXPECT_EQ(2, ss.size());
+        EXPECT_STREQ("oss", ss.at(0).c_str());
+        EXPECT_STREQ("s", ss.at(1).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "");
+        EXPECT_EQ(1, ss.size());
+        EXPECT_STREQ("ossrs", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "live");
+        EXPECT_EQ(1, ss.size());
+        EXPECT_STREQ("ossrs", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,live,rtc", ",");
+        EXPECT_EQ(3, ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,,rtc", ",");
+        EXPECT_EQ(3, ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,,,rtc", ",");
+        EXPECT_EQ(4, ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("", ss.at(2).c_str());
+        EXPECT_STREQ("rtc", ss.at(3).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,live,", ",");
+        EXPECT_EQ(3, ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split(",live,rtc", ",");
+        EXPECT_EQ(3, ss.size());
+        EXPECT_STREQ("", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
     if (true) {
         EXPECT_TRUE("srs" == srs_string_split("srs", "").at(0));
         EXPECT_TRUE("s" == srs_string_split("srs", "r").at(0));
         EXPECT_TRUE("s" == srs_string_split("srs", "rs").at(0));
+    }
+}
+
+VOID TEST(KernelUtility, StringSplitUtils2)
+{
+    if (true) {
+        vector<string> flags;
+        flags.push_back("e");
+        flags.push_back("wo");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("h", ss.at(0).c_str());
+        EXPECT_STREQ("llo, ", ss.at(1).c_str());
+        EXPECT_STREQ("rld", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back("");
+        flags.push_back("");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(1, (int)ss.size());
+        EXPECT_STREQ("hello, world", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back(",");
+        flags.push_back(" ");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("hello", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("world", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back(",");
+        vector<string> ss = srs_string_split("hello,,world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("hello", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("world", ss.at(2).c_str());
     }
 }
 
@@ -4481,17 +4588,6 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
         EXPECT_STREQ("1.00", srs_float2str(1).c_str());
         EXPECT_STREQ("on", srs_bool2switch(true).c_str());
         EXPECT_STREQ("off", srs_bool2switch(false).c_str());
-    }
-    
-    if (true) {
-        vector<string> flags;
-        flags.push_back("e");
-        flags.push_back("wo");
-        vector<string> ss = srs_string_split("hello, world", flags);
-        EXPECT_EQ(3, (int)ss.size());
-        EXPECT_STREQ("h", ss.at(0).c_str());
-        EXPECT_STREQ("llo, ", ss.at(1).c_str());
-        EXPECT_STREQ("rld", ss.at(2).c_str());
     }
     
     if (true) {

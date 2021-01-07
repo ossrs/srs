@@ -102,9 +102,9 @@ extern bool srs_string_contains(std::string str, std::string flag0, std::string 
 extern int srs_string_count(std::string str, std::string flag);
 // Find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
-// Split the string by flag to array.
+// Split the string by seperator to array.
 extern std::vector<std::string> srs_string_split(std::string s, std::string seperator);
-extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
+extern std::vector<std::string> srs_string_split(std::string s, std::vector<std::string> seperators);
 
 // Compare the memory in bytes.
 // @return true if completely equal; otherwise, false.
