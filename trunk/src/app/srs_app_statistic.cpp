@@ -40,9 +40,12 @@ string srs_generate_id()
     static int64_t srs_gvid = 0;
 
     if (srs_gvid == 0) {
-        srs_gvid = getpid() * 3;
+        srs_gvid = getpid();
     }
-    return "vid-" + srs_int2str(srs_gvid++);
+
+    string prefix = "vid";
+    string rand_id = srs_int2str(srs_get_system_time() % 1000);
+    return prefix + "-" + srs_int2str(srs_gvid++) + "-" + rand_id;
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
@@ -203,7 +206,6 @@ void SrsStatisticStream::close()
 
 SrsStatisticClient::SrsStatisticClient()
 {
-    id = srs_generate_id();
     stream = NULL;
     conn = NULL;
     req = NULL;
