@@ -2243,8 +2243,11 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
         SrsJsonObject* sobj = SrsJsonAny::object();
         sobjs->set(dir->arg0(), sobj);
         
-        SrsStatisticVhost* svhost = stat->find_vhost(dir->arg0());
-        sobj->set("id", SrsJsonAny::str(svhost? svhost->id.c_str() : ""));
+        SrsStatisticVhost* svhost = stat->find_vhost_by_name(dir->arg0());
+        if (!svhost) {
+            continue;
+        }
+        sobj->set("id", SrsJsonAny::str(svhost->id.c_str()));
         sobj->set("name", dir->dumps_arg0_to_str());
         sobj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(dir->arg0())));
         
@@ -2368,9 +2371,12 @@ srs_error_t SrsConfig::vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj
     // always present in vhost.
     SrsStatistic* stat = SrsStatistic::instance();
     
-    SrsStatisticVhost* svhost = stat->find_vhost(vhost->arg0());
-    obj->set("id", SrsJsonAny::str(svhost? svhost->id.c_str() : ""));
-    
+    SrsStatisticVhost* svhost = stat->find_vhost_by_name(vhost->arg0());
+    if (!svhost) {
+        return err;
+    }
+    obj->set("id", SrsJsonAny::str(svhost->id.c_str()));
+
     obj->set("name", vhost->dumps_arg0_to_str());
     obj->set("enabled", SrsJsonAny::boolean(get_vhost_enabled(vhost)));
     

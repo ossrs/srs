@@ -1638,7 +1638,7 @@ void SrsServer::remove(ISrsResource* c)
     SrsStatistic* stat = SrsStatistic::instance();
     stat->kbps_add_delta(c->get_id(), conn);
     stat->on_disconnect(c->get_id());
-    
+
     // use manager to free it async.
     conn_manager->remove(c);
 }

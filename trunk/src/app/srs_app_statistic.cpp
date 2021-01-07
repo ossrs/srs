@@ -35,14 +35,14 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 
-int64_t srs_gvid = 0;
-
-int64_t srs_generate_id()
+string srs_generate_id()
 {
+    static int64_t srs_gvid = 0;
+
     if (srs_gvid == 0) {
         srs_gvid = getpid() * 3;
     }
-    return srs_gvid++;
+    return "vid-" + srs_int2str(srs_gvid++);
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
@@ -202,7 +202,6 @@ void SrsStatisticStream::close()
 
 SrsStatisticClient::SrsStatisticClient()
 {
-    id = "";
     stream = NULL;
     conn = NULL;
     req = NULL;
@@ -318,10 +317,23 @@ SrsStatistic* SrsStatistic::instance()
     return _instance;
 }
 
-SrsStatisticVhost* SrsStatistic::find_vhost(string vid)
+SrsStatisticVhost* SrsStatistic::find_vhost_by_id(std::string vid)
 {
-    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    std::map<string, SrsStatisticVhost*>::iterator it;
     if ((it = vhosts.find(vid)) != vhosts.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+SrsStatisticVhost* SrsStatistic::find_vhost_by_name(string name)
+{
+    if (rvhosts.empty()) {
+        return NULL;
+    }
+
+    std::map<string, SrsStatisticVhost*>::iterator it;
+    if ((it = rvhosts.find(name)) != rvhosts.end()) {
         return it->second;
     }
     return NULL;
@@ -416,7 +428,7 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
     if (true) {
         std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=rstreams.find(stream->url)) != rstreams.end()) {
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
             rstreams.erase(it);
         }
     }
@@ -516,7 +528,7 @@ SrsKbps* SrsStatistic::kbps_sample()
     return kbps;
 }
 
-int64_t SrsStatistic::server_id()
+std::string SrsStatistic::server_id()
 {
     return _server_id;
 }
