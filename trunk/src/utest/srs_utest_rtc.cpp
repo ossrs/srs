@@ -474,25 +474,25 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
             MockSrsConnection* conn = new MockSrsConnection();
             conn->do_switch = true;
             manager.add(conn);
-            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, (int)manager.zombies_.size());
 
             manager.remove(conn); // Remove conn to zombies.
-            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, (int)manager.zombies_.size());
 
             srs_usleep(0); // Switch to manager coroutine to try to free zombies.
-            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, (int)manager.zombies_.size());
         }
 
         if (true) { // Now the previous conn switch back to here, and lost the signal.
             MockSrsConnection* conn = new MockSrsConnection();
             manager.add(conn);
-            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, (int)manager.zombies_.size());
 
             manager.remove(conn); // Remove conn to zombies, signal is lost.
-            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, (int)manager.zombies_.size());
 
             srs_usleep(0); // Switch to manager, but no signal is triggered before, so conn will be freed by loop.
-            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, (int)manager.zombies_.size());
         }
     }
 }

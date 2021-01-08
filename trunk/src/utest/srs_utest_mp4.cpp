@@ -499,7 +499,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
         SrsMp4FileTypeBox box;
         box.major_brand = SrsMp4BoxBrandISO2;
         box.compatible_brands.push_back(SrsMp4BoxBrandISOM);
-        EXPECT_EQ(20, box.update_size());
+        EXPECT_EQ(20, (int)box.update_size());
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -514,7 +514,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
         box.type = SrsMp4BoxTypeFTYP;
         box.version = 1;
         box.flags = 0x02;
-        EXPECT_EQ(12, box.update_size());
+        EXPECT_EQ(12, (int)box.update_size());
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -528,7 +528,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
         SrsMp4FullBox box;
         box.type = SrsMp4BoxTypeFTYP;
         box.version = 1;
-        EXPECT_EQ(12, box.update_size());
+        EXPECT_EQ(12, (int)box.update_size());
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -541,7 +541,7 @@ VOID TEST(KernelMp4Test, FullBoxDump)
     if (true) {
         SrsMp4FullBox box;
         box.type = SrsMp4BoxTypeFTYP;
-        EXPECT_EQ(12, box.update_size());
+        EXPECT_EQ(12, (int)box.update_size());
 
         stringstream ss;
         SrsMp4DumpContext dc;
@@ -570,7 +570,7 @@ VOID TEST(KernelMp4Test, MFHDBox)
     if (true) {
         SrsMp4MovieFragmentHeaderBox box;
         box.sequence_number = 3;
-        EXPECT_EQ(16, box.update_size());
+        EXPECT_EQ(16, (int)box.update_size());
 
         stringstream ss;
         SrsMp4DumpContext dc;
