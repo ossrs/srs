@@ -155,6 +155,9 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-01-08, Fix memory leak and bugs for RTC. 4.0.58
+* v4.0, 2021-01-06, Merge #2109, Refine srs_string_split.
+* v4.0, 2021-01-06, Merge #2109, Fix bugs for GB28181.
 * v4.0, 2020-12-24, Support disable CherryPy. 4.0.57
 * v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
 * v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
