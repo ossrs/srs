@@ -2695,6 +2695,14 @@ VOID TEST(KernelUtility, StringSplitUtils)
         EXPECT_TRUE("s" == srs_string_split("srs", "r").at(0));
         EXPECT_TRUE("s" == srs_string_split("srs", "rs").at(0));
     }
+
+    if (true) {
+        vector<string> ss = srs_string_split("/xxx/yyy", "/");
+        EXPECT_EQ(3, ss.size());
+        EXPECT_STREQ("", ss.at(0).c_str());
+        EXPECT_STREQ("xxx", ss.at(1).c_str());
+        EXPECT_STREQ("yyy", ss.at(2).c_str());
+    }
 }
 
 VOID TEST(KernelUtility, StringSplitUtils2)
