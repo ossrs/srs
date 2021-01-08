@@ -2632,26 +2632,26 @@ VOID TEST(KernelUtility, StringSplitUtils)
 {
     if (true) {
         vector<string> ss = srs_string_split("ossrs", "r");
-        EXPECT_EQ(2, ss.size());
+        EXPECT_EQ(2, (int)ss.size());
         EXPECT_STREQ("oss", ss.at(0).c_str());
         EXPECT_STREQ("s", ss.at(1).c_str());
     }
 
     if (true) {
         vector<string> ss = srs_string_split("ossrs", "");
-        EXPECT_EQ(1, ss.size());
+        EXPECT_EQ(1, (int)ss.size());
         EXPECT_STREQ("ossrs", ss.at(0).c_str());
     }
 
     if (true) {
         vector<string> ss = srs_string_split("ossrs", "live");
-        EXPECT_EQ(1, ss.size());
+        EXPECT_EQ(1, (int)ss.size());
         EXPECT_STREQ("ossrs", ss.at(0).c_str());
     }
 
     if (true) {
         vector<string> ss = srs_string_split("srs,live,rtc", ",");
-        EXPECT_EQ(3, ss.size());
+        EXPECT_EQ(3, (int)ss.size());
         EXPECT_STREQ("srs", ss.at(0).c_str());
         EXPECT_STREQ("live", ss.at(1).c_str());
         EXPECT_STREQ("rtc", ss.at(2).c_str());
@@ -2659,7 +2659,7 @@ VOID TEST(KernelUtility, StringSplitUtils)
 
     if (true) {
         vector<string> ss = srs_string_split("srs,,rtc", ",");
-        EXPECT_EQ(3, ss.size());
+        EXPECT_EQ(3, (int)ss.size());
         EXPECT_STREQ("srs", ss.at(0).c_str());
         EXPECT_STREQ("", ss.at(1).c_str());
         EXPECT_STREQ("rtc", ss.at(2).c_str());
@@ -2667,7 +2667,7 @@ VOID TEST(KernelUtility, StringSplitUtils)
 
     if (true) {
         vector<string> ss = srs_string_split("srs,,,rtc", ",");
-        EXPECT_EQ(4, ss.size());
+        EXPECT_EQ(4, (int)ss.size());
         EXPECT_STREQ("srs", ss.at(0).c_str());
         EXPECT_STREQ("", ss.at(1).c_str());
         EXPECT_STREQ("", ss.at(2).c_str());
@@ -2676,7 +2676,7 @@ VOID TEST(KernelUtility, StringSplitUtils)
 
     if (true) {
         vector<string> ss = srs_string_split("srs,live,", ",");
-        EXPECT_EQ(3, ss.size());
+        EXPECT_EQ(3, (int)ss.size());
         EXPECT_STREQ("srs", ss.at(0).c_str());
         EXPECT_STREQ("live", ss.at(1).c_str());
         EXPECT_STREQ("", ss.at(2).c_str());
@@ -2684,7 +2684,7 @@ VOID TEST(KernelUtility, StringSplitUtils)
 
     if (true) {
         vector<string> ss = srs_string_split(",live,rtc", ",");
-        EXPECT_EQ(3, ss.size());
+        EXPECT_EQ(3, (int)ss.size());
         EXPECT_STREQ("", ss.at(0).c_str());
         EXPECT_STREQ("live", ss.at(1).c_str());
         EXPECT_STREQ("rtc", ss.at(2).c_str());
@@ -2698,7 +2698,7 @@ VOID TEST(KernelUtility, StringSplitUtils)
 
     if (true) {
         vector<string> ss = srs_string_split("/xxx/yyy", "/");
-        EXPECT_EQ(3, ss.size());
+        EXPECT_EQ(3, (int)ss.size());
         EXPECT_STREQ("", ss.at(0).c_str());
         EXPECT_STREQ("xxx", ss.at(1).c_str());
         EXPECT_STREQ("yyy", ss.at(2).c_str());

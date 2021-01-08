@@ -192,7 +192,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceUnsubscribe* conn0 = new MockResourceUnsubscribe(&manager);
         conn0->unsubscribe_in_disposing = true;
@@ -208,7 +208,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
         // which should not cause the conn1 lost event.
         manager.remove(conn0);
         srs_usleep(0);
-        ASSERT_EQ(2, manager.size());
+        ASSERT_EQ(2, (int)manager.size());
 
         EXPECT_EQ(1, conn1->nn_before_dispose);
         EXPECT_EQ(1, conn1->nn_disposing); // Should get event.
@@ -221,7 +221,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceUnsubscribe* conn0 = new MockResourceUnsubscribe(&manager);
         conn0->unsubscribe_in_before_dispose = true;
@@ -237,7 +237,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
         // which should not cause the conn1 lost event.
         manager.remove(conn0);
         srs_usleep(0);
-        ASSERT_EQ(2, manager.size());
+        ASSERT_EQ(2, (int)manager.size());
 
         EXPECT_EQ(1, conn1->nn_before_dispose); // Should get event.
         EXPECT_EQ(1, conn1->nn_disposing);
@@ -250,7 +250,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceUnsubscribe* resource = new MockResourceUnsubscribe(&manager);
         resource->unsubscribe_in_before_dispose = true;
@@ -261,7 +261,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
         manager.remove(resource);
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
 
         EXPECT_EQ(1, result.nn_before_dispose);
         EXPECT_EQ(0, result.nn_disposing); // No disposing event, because we unsubscribe in before-dispose.
@@ -271,7 +271,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceUnsubscribe* resource = new MockResourceUnsubscribe(&manager);
         manager.add(resource);
@@ -281,7 +281,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
         manager.remove(resource);
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
 
         EXPECT_EQ(1, result.nn_before_dispose);
         EXPECT_EQ(1, result.nn_disposing);
@@ -291,102 +291,102 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceSelf* resource = new MockResourceSelf(&manager);
         resource->remove_in_disposing = true;
         manager.add(resource);
-        EXPECT_EQ(1, manager.size());
+        EXPECT_EQ(1, (int)manager.size());
 
         manager.remove(resource);
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
     }
 
     // When hooks before-dispose, remove itself again.
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceSelf* resource = new MockResourceSelf(&manager);
         resource->remove_in_before_dispose = true;
         manager.add(resource);
-        EXPECT_EQ(1, manager.size());
+        EXPECT_EQ(1, (int)manager.size());
 
         manager.remove(resource);
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
     }
 
     // Cover all normal scenarios.
     if (true) {
         SrsResourceManager manager("mgr", true);
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         // Resource without id or name.
         manager.add_with_id("100", new MockSrsConnection());
         manager.add_with_id("101", new MockSrsConnection());
         manager.add_with_name("srs", new MockSrsConnection());
         manager.add_with_name("av", new MockSrsConnection());
-        ASSERT_EQ(4, manager.size());
+        ASSERT_EQ(4, (int)manager.size());
 
         manager.remove(manager.at(3));
         manager.remove(manager.at(2));
         manager.remove(manager.at(1));
         manager.remove(manager.at(0));
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
     }
 
     // Callback: Remove worker when its master is disposing.
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockResourceHookOwner* master = new MockResourceHookOwner(&manager);
         manager.add(master);
-        EXPECT_EQ(1, manager.size());
+        EXPECT_EQ(1, (int)manager.size());
 
         MockResourceHookOwner* worker = new MockResourceHookOwner(&manager);
         worker->owner_ = master; // When disposing master, worker will hook the event and remove itself.
         manager.add(worker);
-        EXPECT_EQ(2, manager.size());
+        EXPECT_EQ(2, (int)manager.size());
 
         manager.remove(master);
         srs_usleep(0); // Trigger the disposing.
 
         // Both master and worker should be disposed.
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
     }
 
     // Normal scenario, free object by manager.
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         MockSrsConnection* conn = new MockSrsConnection();
         manager.add(conn);
-        EXPECT_EQ(1, manager.size()); EXPECT_FALSE(manager.empty());
+        EXPECT_EQ(1, (int)manager.size()); EXPECT_FALSE(manager.empty());
 
         manager.remove(conn);
         srs_usleep(0); // Switch context for manager to dispose connections.
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
     }
 
     // Resource with id or name.
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         // Resource without id or name.
         MockSrsConnection* conn = new MockSrsConnection();
         manager.add(conn);
-        ASSERT_EQ(1, manager.size());
+        ASSERT_EQ(1, (int)manager.size());
         EXPECT_TRUE(manager.at(0));
         EXPECT_TRUE(!manager.at(1));
         EXPECT_TRUE(!manager.find_by_id("100"));
@@ -394,34 +394,34 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
         manager.remove(conn);
         srs_usleep(0);
-        ASSERT_EQ(0, manager.size());
+        ASSERT_EQ(0, (int)manager.size());
 
         // Resource with id.
         if (true) {
             MockSrsConnection* id = new MockSrsConnection();
             manager.add_with_id("100", id);
-            EXPECT_EQ(1, manager.size());
+            EXPECT_EQ(1, (int)manager.size());
             EXPECT_TRUE(manager.find_by_id("100"));
             EXPECT_TRUE(!manager.find_by_id("101"));
             EXPECT_TRUE(!manager.find_by_name("100"));
 
             manager.remove(id);
             srs_usleep(0);
-            ASSERT_EQ(0, manager.size());
+            ASSERT_EQ(0, (int)manager.size());
         }
 
         // Resource with name.
         if (true) {
             MockSrsConnection* name = new MockSrsConnection();
             manager.add_with_name("srs", name);
-            EXPECT_EQ(1, manager.size());
+            EXPECT_EQ(1, (int)manager.size());
             EXPECT_TRUE(manager.find_by_name("srs"));
             EXPECT_TRUE(!manager.find_by_name("srs0"));
             EXPECT_TRUE(!manager.find_by_id("srs"));
 
             manager.remove(name);
             srs_usleep(0);
-            ASSERT_EQ(0, manager.size());
+            ASSERT_EQ(0, (int)manager.size());
         }
 
         // Resource with id and name.
@@ -431,7 +431,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
             manager.add_with_id("200", id_name);
             manager.add_with_name("srs", id_name);
             manager.add_with_name("av", id_name);
-            EXPECT_EQ(1, manager.size());
+            EXPECT_EQ(1, (int)manager.size());
             EXPECT_TRUE(manager.find_by_name("srs"));
             EXPECT_TRUE(manager.find_by_name("av"));
             EXPECT_TRUE(manager.find_by_id("100"));
@@ -441,7 +441,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
             manager.remove(id_name);
             srs_usleep(0);
-            ASSERT_EQ(0, manager.size());
+            ASSERT_EQ(0, (int)manager.size());
         }
 
         // Resource with same id or name.
@@ -456,11 +456,11 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
 
             manager.remove(conn0);
             srs_usleep(0);
-            ASSERT_EQ(1, manager.size());
+            ASSERT_EQ(1, (int)manager.size());
 
             manager.remove(conn1);
             srs_usleep(0);
-            ASSERT_EQ(0, manager.size());
+            ASSERT_EQ(0, (int)manager.size());
         }
     }
 
@@ -468,31 +468,31 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     if (true) {
         SrsResourceManager manager("mgr");
         HELPER_EXPECT_SUCCESS(manager.start());
-        EXPECT_EQ(0, manager.size()); EXPECT_TRUE(manager.empty());
+        EXPECT_EQ(0, (int)manager.size()); EXPECT_TRUE(manager.empty());
 
         if (true) { // First connection, which will switch context when deleting.
             MockSrsConnection* conn = new MockSrsConnection();
             conn->do_switch = true;
             manager.add(conn);
-            EXPECT_EQ(1, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
 
             manager.remove(conn); // Remove conn to zombies.
-            EXPECT_EQ(1, manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, manager.zombies_.size());
 
             srs_usleep(0); // Switch to manager coroutine to try to free zombies.
-            EXPECT_EQ(0, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
         }
 
         if (true) { // Now the previous conn switch back to here, and lost the signal.
             MockSrsConnection* conn = new MockSrsConnection();
             manager.add(conn);
-            EXPECT_EQ(1, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
 
             manager.remove(conn); // Remove conn to zombies, signal is lost.
-            EXPECT_EQ(1, manager.size()); EXPECT_EQ(1, manager.zombies_.size());
+            EXPECT_EQ(1, (int)manager.size()); EXPECT_EQ(1, manager.zombies_.size());
 
             srs_usleep(0); // Switch to manager, but no signal is triggered before, so conn will be freed by loop.
-            EXPECT_EQ(0, manager.size()); EXPECT_EQ(0, manager.zombies_.size());
+            EXPECT_EQ(0, (int)manager.size()); EXPECT_EQ(0, manager.zombies_.size());
         }
     }
 }
