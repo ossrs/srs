@@ -2440,7 +2440,7 @@ VOID TEST(KernelUtility, Base64)
         {"Twas brillig, and the slithy toves", "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw=="}
     };
 
-    for(int i = 0; i < (sizeof(data) / sizeof(struct testpair)); ++i) {
+    for(int i = 0; i < (int)(sizeof(data) / sizeof(struct testpair)); ++i) {
         struct testpair& d = data[i];
         string cipher;
         HELPER_EXPECT_SUCCESS(srs_av_base64_encode(d.decoded, cipher));

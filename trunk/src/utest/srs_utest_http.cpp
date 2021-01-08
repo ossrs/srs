@@ -1966,7 +1966,7 @@ VOID TEST(ProtocolHTTPTest, QueryEscape)
             {"a%20b", "a b", srs_success}
         };
 
-        for(int i = 0; i < (sizeof(unescape) / sizeof(struct EscapeTest)); ++i) {
+        for(int i = 0; i < (int)(sizeof(unescape) / sizeof(struct EscapeTest)); ++i) {
             struct EscapeTest& d = unescape[i];
             string value;
             if(srs_success == d.err) {
@@ -1988,7 +1988,7 @@ VOID TEST(ProtocolHTTPTest, QueryEscape)
 	        {" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;", 
             "+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B", srs_success},
         };
-        for(int i = 0; i < (sizeof(escape) / sizeof(struct EscapeTest)); ++i) {
+        for(int i = 0; i < (int)(sizeof(escape) / sizeof(struct EscapeTest)); ++i) {
             struct EscapeTest& d = escape[i];
             EXPECT_STREQ(d.out.c_str(), SrsHttpUri::query_escape(d.in).c_str());
 
@@ -2014,7 +2014,7 @@ VOID TEST(ProtocolHTTPTest, PathEscape)
 		srs_success},
     };
 
-    for(int i = 0; i < (sizeof(path) / sizeof(struct EscapeTest)); ++i) {
+    for(int i = 0; i < (int)(sizeof(path) / sizeof(struct EscapeTest)); ++i) {
         struct EscapeTest& d = path[i];
         EXPECT_STREQ(d.out.c_str(), SrsHttpUri::path_escape(d.in).c_str());
 
