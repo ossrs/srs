@@ -43,6 +43,7 @@
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
 #include <srs_service_conn.hpp>
+#include <srs_raw_hevc.hpp>
 
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
@@ -81,6 +82,7 @@ class SrsRtpPacket;
 class SrsRtmpClient;
 class SrsRawH264Stream;
 class SrsRawAacStream;
+class SrsRawHEVCStream;
 struct SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
 class SrsAudioFrame;
@@ -105,6 +107,8 @@ class SrsRequest;
 class SrsResourceManager;
 class SrsGb28181Conn;
 class SrsGb28181Caster;
+
+//typedef std::shared_ptr<SrsRawHEVCStream> HEVC_PTR;
 
 //ps rtp header packet parse
 
@@ -217,6 +221,7 @@ public:
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts)=0;
     virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type)=0;
+	virtual srs_error_t on_rtp_video_h265(SrsSimpleStream* stream, int64_t dts) = 0;
 };
 
 //analysis of PS stream and 
@@ -322,6 +327,16 @@ private:
     std::string h264_sps;
     std::string h264_pps;
 
+	//HEVC_PTR hevc_ptr;
+	SrsRawHEVCStream* hevc_ptr;
+	std::string h265_vps;
+	std::string h265_sps;
+	std::string h265_pps;
+	bool hevc_vps_changed;
+	bool hevc_sps_changed;
+	bool hevc_pps_changed;
+	bool hevc_sps_pps_sent;
+
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 
@@ -383,6 +398,7 @@ public:
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
     virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type);
+	virtual srs_error_t on_rtp_video_h265(SrsSimpleStream* stream, int64_t dts);
 private:
     
     srs_error_t replace_startcode_with_nalulen(char *video_data, int &size,  uint32_t pts, uint32_t dts);
@@ -392,6 +408,12 @@ private:
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
     virtual srs_error_t rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size);
+
+	srs_error_t replace_startcode_with_nalulen_h265(char *video_data, int &size, uint32_t pts, uint32_t dts);
+	virtual srs_error_t write_hevc_sps_pps(uint32_t dts, uint32_t pts);
+	virtual srs_error_t write_hevc_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+	srs_error_t write_hevc_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts);
+
 private:
     // Connect to RTMP server.
     virtual srs_error_t connect();

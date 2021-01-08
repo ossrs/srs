@@ -51,6 +51,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_sip.hpp>
+#include <srs_kernel_codec.hpp>
 
 //#define W_PS_FILE
 //#define W_VIDEO_FILE
@@ -1194,6 +1195,12 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             return srs_error_wrap(err, "process ps video packet");
         }
     }
+	else if (hander && video_stream.length() && can_send_ps_av_packet() && video_es_type == STREAM_TYPE_VIDEO_HEVC) {
+		if ((err = hander->on_rtp_video_h265(&video_stream, video_pts)) != srs_success) {
+			video_es_type = 0;
+			return srs_error_wrap(err, "process hevc ps video packet");
+		}
+	}
   
     return err;
 }
@@ -1263,6 +1270,8 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     
     avc = new SrsRawH264Stream();
     aac = new SrsRawAacStream();
+	//hevc_ptr = std::make_shared<SrsRawHEVCStream>();
+	hevc_ptr = new SrsRawHEVCStream();
 
     ps_demixer = new SrsPsStreamDemixer(this, id, a, k);
     wait_ps_queue = srs_cond_new();
@@ -1276,6 +1285,14 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     h264_sps = "";
     h264_pps = "";
     aac_specific_config = "";
+
+	h265_vps = "";
+	h265_sps = "";
+	h265_pps = "";
+	hevc_vps_changed = false;
+	hevc_sps_changed = false;
+	hevc_pps_changed = false;
+	hevc_sps_pps_sent = false;
 
     req = NULL;
     server = NULL;
@@ -1311,6 +1328,7 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     srs_freep(vjitter);
     srs_freep(ajitter);
     srs_freep(pprint);
+    srs_freep(hevc_ptr);
 
     destroy();
 }
@@ -1687,6 +1705,43 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
     return err;
 }
 
+srs_error_t SrsGb28181RtmpMuxer::on_rtp_video_h265(SrsSimpleStream *stream, int64_t fpts)
+{
+	srs_error_t err = srs_success;
+
+	if (!source_publish) {
+		// ensure rtmp connected.
+		if ((err = connect()) != srs_success) {
+			//after the connection fails, need to clear flag 
+			//and send the av header again next time
+			h265_vps = "";
+			h265_sps = "";
+			h265_pps = "";
+			aac_specific_config = "";
+			return srs_error_wrap(err, "connect");
+		}
+	}
+
+	if ((err = vjitter->correct(fpts)) != srs_success) {
+		return srs_error_wrap(err, "jitter");
+	}
+
+	// ts tbn to flv tbn.
+	uint32_t dts = (uint32_t)(fpts / 90);
+	uint32_t pts = (uint32_t)(fpts / 90);
+	srs_info("gb28181rtmpmuxer: on_rtp_video_h265 dts=%u", dts);
+
+	if (true) {
+		char *data = stream->bytes();
+		int length = stream->length();
+
+		err = replace_startcode_with_nalulen_h265(data, length, dts, pts);
+		
+	}
+
+	return err;
+}
+
 srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts)
 {
     srs_error_t err = srs_success;
@@ -1749,6 +1804,96 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
 
     return err;
 }
+
+srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts)
+{
+	srs_error_t err = srs_success;
+
+	if (!frame) {
+		return srs_error_new(ERROR_GB28181_H264_FRAME_FULL, "h265 frame null");
+	}
+
+	if (frame_size <= 0) {
+		return srs_error_new(ERROR_GB28181_H264_FRAMESIZE, "h265 frame size");
+	}
+
+	SrsHevcNaluType nal_unit_type = HEVC_NALU_TYPE(frame[0]);
+	
+	if (nal_unit_type == NAL_UNIT_ACCESS_UNIT_DELIMITER) {
+		return err;
+	}
+	// TODO: FIXME: Should cache this config, it's better not to get it for each video frame.
+	if (_srs_config->get_srt_sei_filter()) {
+		if (nal_unit_type == NAL_UNIT_SEI) {
+			return err;
+		}
+	}
+
+	// for vps
+	if (hevc_ptr->is_vps(frame, frame_size)) {
+		std::string vps;
+		if ((err = hevc_ptr->vps_demux(frame, frame_size, vps)) != srs_success) {
+			return srs_error_wrap(err, "hevc demux vps");
+		}
+
+		if (h265_vps == vps) {
+			return err;
+		}
+		hevc_vps_changed = true;
+		h265_vps = vps;
+		
+		//write hevc vps_sps_pps
+		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+			return srs_error_wrap(err, "hevc write vps/sps/pps");
+		}
+	}
+
+	// for sps
+	if (hevc_ptr->is_sps(frame, frame_size)) {
+		std::string sps;
+		if ((err = hevc_ptr->sps_demux(frame, frame_size, sps)) != srs_success) {
+			return srs_error_wrap(err, "demux hevc sps");
+		}
+
+		if (h265_sps == sps) {
+			return err;
+		}
+		hevc_sps_changed = true;
+		h265_sps = sps;
+
+		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+			return srs_error_wrap(err, "write hevc sps/pps");
+		}
+		return err;
+	}
+
+	// for pps
+	if (hevc_ptr->is_pps(frame, frame_size)) {
+		std::string pps;
+		if ((err = hevc_ptr->pps_demux(frame, frame_size, pps)) != srs_success) {
+			return srs_error_wrap(err, "demux hevc pps");
+		}
+
+		if (h265_pps == pps) {
+			return err;
+		}
+		hevc_pps_changed = true;
+		h265_pps = pps;
+
+		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+			return srs_error_wrap(err, "write hevc sps/pps");
+		}
+		return err;
+	}
+
+	srs_info("gb28181: demux hevc ibp frame size=%d, dts=%d", frame_size, dts);
+	if ((err = write_hevc_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
+		return srs_error_wrap(err, "write frame");
+	}
+
+	return err;
+}
+
 
  srs_error_t SrsGb28181RtmpMuxer::replace_startcode_with_nalulen(char *video_data, int &size, uint32_t pts, uint32_t dts)
  {
@@ -1817,6 +1962,98 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
         int frame_size = size;
         err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
     }
+
+    return err;
+}
+
+ srs_error_t SrsGb28181RtmpMuxer::replace_startcode_with_nalulen_h265(char *video_data, int &size, uint32_t pts, uint32_t dts)
+ {
+	 srs_error_t err = srs_success;
+
+	 int index = 0;
+	 std::list<int> list_index;
+
+	 for (; index < size; index++) {
+		 if (video_data[index] == 0x00 && video_data[index + 1] == 0x00 &&
+			 video_data[index + 2] == 0x00 && video_data[index + 3] == 0x01) {
+			 list_index.push_back(index);
+		 }
+
+		 if (index > (size - 4))
+			 break;
+	 }
+
+	 if (list_index.size() == 1) {
+		 int cur_pos = list_index.front();
+		 list_index.pop_front();
+
+		 //0001xxxxxxxxxx
+		 //xxxx0001xxxxxxx
+		 uint32_t naluLen = size - cur_pos;
+		 char *p = (char*)&naluLen;
+
+		 video_data[cur_pos] = p[3];
+		 video_data[cur_pos + 1] = p[2];
+		 video_data[cur_pos + 2] = p[1];
+		 video_data[cur_pos + 3] = p[0];
+
+		 char *frame = video_data + cur_pos + 4;
+		 int frame_size = naluLen;
+
+		 err = write_hevc_ipb_frame2(frame, frame_size, dts, pts);
+
+	 }
+	 else if (list_index.size() > 1) {
+		 int pre_pos = list_index.front();
+		 list_index.pop_front();
+		 int first_pos = pre_pos;
+
+		 while (list_index.size() > 0) {
+			 int cur_pos = list_index.front();
+			 list_index.pop_front();
+
+			 //pre=========cur======================
+			 //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+			 //xxxxxxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+			 uint32_t naluLen = cur_pos - pre_pos - 4;
+			 char *p = (char*)&naluLen;
+
+			 video_data[pre_pos] = p[3];
+			 video_data[pre_pos + 1] = p[2];
+			 video_data[pre_pos + 2] = p[1];
+			 video_data[pre_pos + 3] = p[0];
+
+			 char *frame = video_data + pre_pos + 4;
+			 int frame_size = naluLen;
+
+			 pre_pos = cur_pos;
+			 err = write_hevc_ipb_frame2(frame, frame_size, dts, pts);
+		 }
+
+		 //========================pre==========
+		 //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+		 if (first_pos != pre_pos) {
+
+			 uint32_t naluLen = size - pre_pos - 4;
+			 char *p = (char*)&naluLen;
+
+			 video_data[pre_pos] = p[3];
+			 video_data[pre_pos + 1] = p[2];
+			 video_data[pre_pos + 2] = p[1];
+			 video_data[pre_pos + 3] = p[0];
+
+			 char *frame = video_data + pre_pos + 4;
+			 int frame_size = naluLen;
+
+			 err = write_hevc_ipb_frame2(frame, frame_size, dts, pts);
+		 }
+	 }
+	 else {
+		 //xxxxxxxxxxxxxxxxxxx
+		 char *frame = video_data;
+		 int frame_size = size;
+		 err = write_hevc_ipb_frame2(frame, frame_size, dts, pts);
+	 }
 
     return err;
 }
@@ -1969,6 +2206,50 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return err;
 }
 
+srs_error_t SrsGb28181RtmpMuxer::write_hevc_sps_pps(uint32_t dts, uint32_t pts) {
+	srs_error_t err = srs_success;
+
+	// TODO: FIMXE: there exists bug, see following comments.
+	// when sps or pps changed, update the sequence header,
+	// for the pps maybe not changed while sps changed.
+	// so, we must check when each video ts message frame parsed.
+	if (!hevc_sps_changed || !hevc_pps_changed || !hevc_vps_changed) {
+		return err;
+	}
+
+	// hevc raw to hevc packet.
+	std::string sh;
+	if ((err = hevc_ptr->mux_sequence_header(h265_sps, h265_pps, h265_vps, dts, pts, sh)) != srs_success) {
+		return srs_error_wrap(err, "mux sequence header");
+	}
+
+	// hevc packet to flv packet.
+	int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
+	int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+	char* flv = NULL;
+	int nb_flv = 0;
+	if ((err = hevc_ptr->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+		return srs_error_wrap(err, "avc to flv");
+	}
+
+	//if (_srs_config->get_srt_mix_correct()) {
+	//	_rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
+	//	rtmp_write_work();
+	//}
+	//else {
+		rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
+	//}
+
+	// reset vps, sps and pps.
+	hevc_vps_changed = false;
+	hevc_sps_changed = false;
+	hevc_pps_changed = false;
+
+	hevc_sps_pps_sent = true;
+
+	return err;
+}
+
 srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool writelen)
 {
     srs_error_t err = srs_success;
@@ -2004,6 +2285,44 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_siz
     // the timestamp in rtmp message header is dts.
     uint32_t timestamp = dts;
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
+}
+
+srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts) {
+	srs_error_t err = srs_success;
+
+	// when vps, sps or pps not sent, ignore the packet.
+	if (!hevc_sps_pps_sent) {
+		return srs_error_new(ERROR_HEVC_DROP_BEFORE_SPS_PPS, "drop hevc vps/sps/pps");
+	}
+
+	SrsHevcNaluType nal_unit_type = HEVC_NALU_TYPE(frame[0]);
+	// for IDR frame, the frame is keyframe.
+	SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
+
+	if ((nal_unit_type >= NAL_UNIT_CODED_SLICE_BLA) && (nal_unit_type <= NAL_UNIT_RESERVED_23)) {
+		frame_type = SrsVideoAvcFrameTypeKeyFrame;
+	}
+
+	std::string ibp;
+	if ((err = hevc_ptr->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+		return srs_error_wrap(err, "mux frame");
+	}
+
+	int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
+	char* flv = NULL;
+	int nb_flv = 0;
+	if ((err = hevc_ptr->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+		return srs_error_wrap(err, "mux avc to flv");
+	}
+	//if (_srs_config->get_srt_mix_correct()) {
+	//	_rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
+	//	rtmp_write_work();
+	//}
+	//else {
+		rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
+	//}
+
+	return err;
 }
 
 srs_error_t SrsGb28181RtmpMuxer::write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts)
