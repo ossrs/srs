@@ -135,7 +135,7 @@ public:
     // ISrsCodec
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
 };
 
 class SrsRtpExtensions : public ISrsCodec
@@ -160,7 +160,7 @@ private:
     srs_error_t decode_0xbede(SrsBuffer* buf);
 public:
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
 };
 
 class SrsRtpHeader : public ISrsCodec
@@ -185,7 +185,7 @@ private:
     srs_error_t parse_extensions(SrsBuffer* buf);
 public:
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
 public:
     void set_marker(bool v);
     bool get_marker() const;
@@ -262,7 +262,7 @@ public:
     void set_extension_types(const SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 };
@@ -280,7 +280,7 @@ public:
     virtual ~SrsRtpRawPayload();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -305,7 +305,7 @@ public:
     srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -328,7 +328,7 @@ public:
     SrsSample* get_pps();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -353,7 +353,7 @@ public:
     virtual ~SrsRtpFUAPayload();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -378,7 +378,7 @@ public:
     virtual ~SrsRtpFUAPayload2();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();

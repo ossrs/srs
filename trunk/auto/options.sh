@@ -46,6 +46,7 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
+SRS_CHERRYPY=YES
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -154,6 +155,7 @@ Features:
   --stat=on|off             Whether build the the data statistic, for http api.
   --librtmp=on|off          Whether build the srs-librtmp, library for client.
   --research=on|off         Whether build the research tools.
+  --cherrypy=on|off         Whether install CherryPy for demo api-server.
   --utest=on|off            Whether build the utest for SRS.
   --srt=on|off              Whether build the SRT support for SRS.
   --rtc=on|off              Whether build the WebRTC support for SRS.
@@ -319,6 +321,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        if [[ $value == off ]]; then SRS_UTEST=NO; else SRS_UTEST=YES; fi    ;;
+        --cherrypy)                     if [[ $value == off ]]; then SRS_CHERRYPY=NO; else SRS_CHERRYPY=YES; fi    ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
@@ -552,6 +555,7 @@ function regenerate_options() {
     if [ $SRS_STREAM_CASTER = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=off"; fi
     if [ $SRS_HTTP_API = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=off"; fi
     if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
+    if [ $SRS_CHERRYPY = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=off"; fi
     if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
     if [ $SRS_H265 = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=off"; fi

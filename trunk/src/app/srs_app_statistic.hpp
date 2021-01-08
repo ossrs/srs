@@ -149,7 +149,7 @@ class SrsStatistic : public ISrsProtocolPerf
 private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
-    int64_t _server_id;
+    std::string _server_id;
 private:
     // The key: vhost id, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
@@ -180,7 +180,8 @@ private:
 public:
     static SrsStatistic* instance();
 public:
-    virtual SrsStatisticVhost* find_vhost(std::string vid);
+    virtual SrsStatisticVhost* find_vhost_by_id(std::string vid);
+    virtual SrsStatisticVhost* find_vhost_by_name(std::string name);
     virtual SrsStatisticStream* find_stream(std::string sid);
     virtual SrsStatisticClient* find_client(std::string client_id);
 public:
@@ -222,7 +223,7 @@ public:
 public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.
-    virtual int64_t server_id();
+    virtual std::string server_id();
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.

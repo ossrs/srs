@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-12-24, Support disable CherryPy. 4.0.57
 * v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
 * v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
 * v4.0, 2020-11-06, For [#1657][bug #1657], Read cached data first in SSL. 4.0.48
@@ -208,6 +209,11 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
+* <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
+* v3.0, 2020-12-26, For RTMP edge/forward, pass vhost in tcUrl, not in stream. 3.0.156
+* v3.0, 2020-12-17, Fix [#1694][bug #1694], Support DVR 2GB+ MP4 file. 3.0.155
+* v3.0, 2020-12-17, Fix [#1548][bug #1548], Add edts in MP4 for Windows10. 3.0.154
 * <strong>v3.0, 2020-10-31, [3.0 release2(3.0.153)][r3.0r2] released. 122663 lines.</strong>
 * v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
 * v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
@@ -837,6 +843,7 @@ For previous versions, please read:
 
 ## Releases
 
+* 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
 * 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
 * 2020-10-10, [Release v3.0-r1][r3.0r1], 3.0 release1, 3.0.144, 122674 lines.
 * 2020-06-27, [Release v3.0-r0][r3.0r0], 3.0 release0, 3.0.141, 122674 lines.
@@ -1782,6 +1789,8 @@ Winlin
 [bug #1629]: https://github.com/ossrs/srs/issues/1629
 [bug #1780]: https://github.com/ossrs/srs/issues/1780
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
+[bug #1548]: https://github.com/ossrs/srs/issues/1548
+[bug #1694]: https://github.com/ossrs/srs/issues/1694
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
@@ -1797,6 +1806,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0r3]: https://github.com/ossrs/srs/releases/tag/v3.0-r3
 [r3.0r2]: https://github.com/ossrs/srs/releases/tag/v3.0-r2
 [r3.0r1]: https://github.com/ossrs/srs/releases/tag/v3.0-r1
 [r3.0r0]: https://github.com/ossrs/srs/releases/tag/v3.0-r0

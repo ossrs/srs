@@ -102,9 +102,9 @@ extern bool srs_string_contains(std::string str, std::string flag0, std::string 
 extern int srs_string_count(std::string str, std::string flag);
 // Find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
-// Split the string by flag to array.
-extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
-extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
+// Split the string by seperator to array.
+extern std::vector<std::string> srs_string_split(std::string s, std::string seperator);
+extern std::vector<std::string> srs_string_split(std::string s, std::vector<std::string> seperators);
 
 // Compare the memory in bytes.
 // @return true if completely equal; otherwise, false.
@@ -141,6 +141,8 @@ extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0)
 
 // Decode a base64-encoded string.
 extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plaintext);
+// Encode a plaintext to  base64-encoded string.
+extern srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher);
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)

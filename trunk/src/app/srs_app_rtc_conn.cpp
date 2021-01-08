@@ -59,6 +59,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 #define SRS_TICKID_RTCP 0
+#define SRS_TICKID_TWCC 2
 
 ISrsRtcTransport::ISrsRtcTransport()
 {
@@ -647,9 +648,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
 
-            // The player may change the PT, so it's not equal to publisher's.
-            pkt->header.set_payload_type(audio_track->get_track_media_pt());
-
             if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
@@ -658,9 +656,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         } else {
             // TODO: FIXME: Any simple solution?
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
-
-            // The player may change the PT, so it's not equal to publisher's.
-            pkt->header.set_payload_type(video_track->get_track_media_pt());
 
             if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
                 return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
@@ -777,6 +772,9 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon* rtcp)
     } else if(SrsRtcpType_xr == rtcp->type()) {
         SrsRtcpXr* xr = dynamic_cast<SrsRtcpXr*>(rtcp);
         return on_rtcp_xr(xr);
+    } else if(SrsRtcpType_bye == rtcp->type()) {
+        // TODO: FIXME: process rtcp bye.
+        return srs_success;
     } else {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", rtcp->type());
     }
@@ -911,7 +909,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass(this, 200 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass(this, 10 * SRS_UTIME_MILLISECONDS);
 
     cid_ = cid;
     is_started = false;
@@ -930,6 +928,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     twcc_fb_count_ = 0;
     
     pli_worker_ = new SrsRtcPLIWorker(this);
+    last_time_send_twcc_ = 0;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -943,6 +942,18 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
         source->set_publish_stream(NULL);
         source->on_unpublish();
     }
+
+    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
+        SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
+        srs_freep(track);
+    }
+    video_tracks_.clear();
+
+    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
+        SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
+        srs_freep(track);
+    }
+    audio_tracks_.clear();
 
     srs_freep(timer_);
     srs_freep(pli_worker_);
@@ -1001,6 +1012,10 @@ srs_error_t SrsRtcPublishStream::start()
 
     if (is_started) {
         return err;
+    }
+
+    if ((err = timer_->tick(SRS_TICKID_TWCC, 50 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "twcc tick");
     }
 
     if ((err = timer_->tick(SRS_TICKID_RTCP, 200 * SRS_UTIME_MILLISECONDS)) != srs_success) {
@@ -1300,6 +1315,14 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 {
     srs_error_t err = srs_success;
 
+    if (last_time_send_twcc_) {
+        srs_utime_t duration = srs_duration(last_time_send_twcc_, srs_get_system_time());
+        if (duration > 80 * SRS_UTIME_MILLISECONDS) {
+            srs_warn2(TAG_LARGE_TIMER, "send_twcc interval exceeded  %dms > 100ms", srsu2msi(duration));
+        }
+    }
+    last_time_send_twcc_ = srs_get_system_time();
+
     if (!rtcp_twcc_.need_feedback()) {
         return err;
     }
@@ -1334,6 +1357,9 @@ srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
         return on_rtcp_xr(xr);
     } else if(SrsRtcpType_sdes == rtcp->type()) {
         //ignore RTCP SDES
+        return srs_success;
+    } else if(SrsRtcpType_bye == rtcp->type()) {
+        // TODO: FIXME: process rtcp bye.
         return srs_success;
     } else {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "unknown rtcp type=%u", rtcp->type());
@@ -1378,7 +1404,7 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
     uint16_t length = (stream.read_2bytes() + 1) * 4;
     /*uint32_t ssrc = */stream.read_4bytes();
 
-    if (length != rtcp->size()) {
+    if (length > rtcp->size()) {
         return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid XR packet, length=%u, nb_buf=%d", length, rtcp->size());
     }
 
@@ -1457,7 +1483,9 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
             srs_warn("XR err %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
+    }
 
+    if (type == SRS_TICKID_TWCC) {
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
         if ((err = send_periodic_twcc()) != srs_success) {
@@ -1769,7 +1797,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
     source->set_stream_created();
 
     // Apply the SDP to source.
-    source->set_stream_desc(stream_desc->copy());
+    source->set_stream_desc(stream_desc);
 
     // TODO: FIXME: What happends when error?
     if ((err = create_publisher(req, stream_desc)) != srs_success) {
@@ -1968,7 +1996,7 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 
         if(srs_success != err) {
             return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
-                srs_string_dumps_hex(unprotected_buf, nb_unprotected_buf, 8).c_str(),
+                srs_string_dumps_hex(rtcp->data(), rtcp->size(), rtcp->size()).c_str(),
                 rtcp->get_rc(), rtcp->type(), rtcp->get_ssrc(), rtcp->size());
         }
     }
@@ -2995,7 +3023,16 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             SrsRtcTrackDescription* track = track_descs[i]->copy();
 
             // Use remote/source/offer PayloadType.
+            track->media_->pt_of_publisher_ = track->media_->pt_;
             track->media_->pt_ = remote_payload.payload_type_;
+
+            vector<SrsMediaPayloadType> red_pts = remote_media_desc.find_media_with_encoding_name("red");
+            if (!red_pts.empty() && track->red_) {
+                SrsMediaPayloadType red_pt = red_pts.at(0);
+
+                track->red_->pt_of_publisher_ = track->red_->pt_;
+                track->red_->pt_ = red_pt.payload_type_;
+            }
 
             track->mid_ = remote_media_desc.mid_;
             uint32_t publish_ssrc = track->ssrc_;
@@ -3048,11 +3085,25 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     std::vector<SrsRtcTrackDescription*> src_track_descs;
     //negotiate audio media
     if(NULL != req_stream_desc->audio_track_desc_) {
+        SrsRtcTrackDescription* req_audio_track = req_stream_desc->audio_track_desc_;
+
         src_track_descs = source->get_track_desc("audio", "opus");
         if (src_track_descs.size() > 0) {
             // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
             SrsRtcTrackDescription *track = src_track_descs[0]->copy();
+
+            // Use remote/source/offer PayloadType.
+            track->media_->pt_of_publisher_ = track->media_->pt_;
+            track->media_->pt_ = req_audio_track->media_->pt_;
+
+            if (req_audio_track->red_ && track->red_) {
+                track->red_->pt_of_publisher_ = track->red_->pt_;
+                track->red_->pt_ = req_audio_track->red_->pt_;
+            }
+
+            track->mid_ = req_audio_track->mid_;
             sub_relations.insert(make_pair(track->ssrc_, track));
+            track->set_direction("sendonly");
             track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
         }
     }
@@ -3067,7 +3118,19 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
             if(req_video->id_ == src_video->id_) {
                 // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
                 SrsRtcTrackDescription *track = src_video->copy();
+
+                // Use remote/source/offer PayloadType.
+                track->media_->pt_of_publisher_ = track->media_->pt_;
+                track->media_->pt_ = req_video->media_->pt_;
+
+                if (req_video->red_ && track->red_) {
+                    track->red_->pt_of_publisher_ = track->red_->pt_;
+                    track->red_->pt_ = req_video->red_->pt_;
+                }
+
+                track->mid_ = req_video->mid_;
                 sub_relations.insert(make_pair(track->ssrc_, track));
+                track->set_direction("sendonly");
                 track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
             }
         }
@@ -3272,11 +3335,11 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         if (!unified_plan) {
             // for plan b, we only add one m= for video track.
             if (i == 0) {
-                video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
+                video_track_generate_play_offer(track, "video-" +srs_int2str(i), local_sdp);
             }
         } else {
             // unified plan SDP, generate a m= for each video track.
-            video_track_generate_play_offer(track, "video" +srs_int2str(i), local_sdp);
+            video_track_generate_play_offer(track, "video-" +srs_int2str(i), local_sdp);
         }
 
         SrsMediaDesc& local_media_desc = local_sdp.media_descs_.back();
@@ -3434,7 +3497,7 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcStreamDesc
             publishers_ssrc_map_[track_desc->fec_ssrc_] = publisher;
         }
 
-        if(0 != track_desc->rtx_ssrc_ && track_desc->rtx_ssrc_ != track_desc->fec_ssrc_) {
+        if(0 != track_desc->rtx_ssrc_ && track_desc->ssrc_ != track_desc->rtx_ssrc_) {
             if(publishers_ssrc_map_.end() != publishers_ssrc_map_.find(track_desc->rtx_ssrc_)) {
                 return srs_error_new(ERROR_RTC_DUPLICATED_SSRC, " duplicate rtx ssrc %d, track id: %s",
                     track_desc->rtx_ssrc_, track_desc->id_.c_str());

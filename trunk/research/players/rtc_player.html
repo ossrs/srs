@@ -49,7 +49,7 @@
     </div>
 
     <label></label>
-    <video id="rtc_media_player" controls autoplay></video>
+    <video id="rtc_media_player" width="100%" controls autoplay></video>
 
     <label></label>
     SessionID: <span id='sessionid'></span>
@@ -68,6 +68,7 @@
         function SrsRtcPlayerAsync() {
             var self = {};
 
+            // @see https://github.com/rtcdn/rtcdn-draft
             // @url The WebRTC url to play with, for example:
             //      webrtc://r.ossrs.net/live/livestream
             // or specifies the API port:
