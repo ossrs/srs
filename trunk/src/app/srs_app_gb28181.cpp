@@ -2621,19 +2621,20 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
     return err;
 }
 
-srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id, std::string chid)
+srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id)
 {
     srs_error_t err = srs_success;
 
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
-    notify_sip_bye(id, chid);
+    if (id.find("@") != string::npos) {
+        vector<string> ids = srs_string_split(id, "@");
+        notify_sip_bye(ids[0], ids[1]);
+    }
 
-    string channel_id = id + "@" + chid;
-
-    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(channel_id);
+    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(id);
     if (muxer){
-        stop_rtp_listen(channel_id);
+        stop_rtp_listen(id);
         muxer->stop();
        return err;
     }else {
