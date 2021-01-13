@@ -441,7 +441,8 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
             
             //</Notify> get Notify
             char *s = p;
-            while (p[0] != '>') {p++;}
+            while (p < end && p[0] != '>') {p++;}
+            if (p == end) return srs_success;
             std::string key(s, p-s);
 
             //<DeviceList Num="2"> get DeviceList
@@ -501,10 +502,13 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
 
             //<Notify> get Notify
             char *s = p;
-            while (p[0] != '>') {p++;}
+            while (p < end && p[0] != '>') {p++;}
+            if (p == end) return srs_success;
             std::string key(s, p-s);
 
-            if (srs_string_contains(key, "?xml")){
+            //ignore <key/>
+            if (*(p-1) == '/'){
+            }else if (srs_string_contains(key, "?xml")){
                 //xml header
                 xml_header = key;
                 json_map["XmlHeader"] = xml_header;
