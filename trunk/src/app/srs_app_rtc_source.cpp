@@ -43,6 +43,7 @@
 #include <srs_protocol_json.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_server.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -323,8 +324,10 @@ SrsRtcStream::~SrsRtcStream()
     consumers.clear();
 
     srs_freep(req);
-    srs_freep(bridger_);
     srs_freep(stream_desc_);
+
+    // Async remove the bridger, to notify the sources to clear it.
+    _srs_rtc_manager->remove(bridger_);
 }
 
 srs_error_t SrsRtcStream::initialize(SrsRequest* r)
@@ -483,7 +486,8 @@ void SrsRtcStream::on_unpublish()
 
     // release unpublish stream description.
     set_stream_desc(NULL);
-    srs_freep(bridger_);
+    // Async remove the bridger, to notify the sources to clear it.
+    _srs_rtc_manager->remove(bridger_);
 
     // TODO: FIXME: Handle by statistic.
 }
@@ -715,6 +719,16 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     }
 
     return err;
+}
+
+const SrsContextId& SrsRtcFromRtmpBridger::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string SrsRtcFromRtmpBridger::desc()
+{
+    return "Rtmp2Rtc";
 }
 
 srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio)
@@ -1173,6 +1187,16 @@ srs_error_t SrsRtcDummyBridger::on_video(SrsSharedPtrMessage* /*video*/)
 
 void SrsRtcDummyBridger::on_unpublish()
 {
+}
+
+const SrsContextId& SrsRtcDummyBridger::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string SrsRtcDummyBridger::desc()
+{
+    return "Rtmp2RtcDummy";
 }
 
 SrsCodecPayload::SrsCodecPayload()

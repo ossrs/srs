@@ -247,6 +247,10 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
+// interface ISrsResource
+public:
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 private:
     srs_error_t transcode(char* adts_audio, int nn_adts_audio);
     srs_error_t package_opus(char* data, int size, SrsRtpPacket2** ppkt);
@@ -272,6 +276,10 @@ public:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
     virtual void on_unpublish();
+// interface ISrsResource
+public:
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 };
 
 // TODO: FIXME: Rename it.
