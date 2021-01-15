@@ -34,7 +34,6 @@
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_service_st.hpp>
-#include <srs_app_conn.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -485,7 +484,7 @@ public:
 extern SrsSourceManager* _srs_sources;
 
 // For two sources to bridge with each other.
-class ISrsSourceBridger : public ISrsResource
+class ISrsSourceBridger
 {
 public:
     ISrsSourceBridger();
@@ -498,7 +497,7 @@ public:
 };
 
 // live streaming source.
-class SrsSource : virtual public ISrsReloadHandler, virtual public ISrsDisposingHandler
+class SrsSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
 private:
@@ -560,10 +559,6 @@ public:
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
     // Bridge to other source, forward packets to it.
     void bridge_to(ISrsSourceBridger* v);
-// interface ISrsDisposingHandler
-public:
-    virtual void on_before_dispose(ISrsResource* c);
-    virtual void on_disposing(ISrsResource* c);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

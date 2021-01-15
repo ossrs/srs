@@ -155,7 +155,6 @@ For previous versions, please read:
 
 ## V4 changes
 
-* v4.0, 2021-01-14, For [#2142][bug #2142], Async release bridger when unpublish. 4.0.60
 * v4.0, 2021-01-08, HTML5 video tag resolution adaptive. 4.0.59
 * v4.0, 2021-01-08, Fix memory leak and bugs for RTC. 4.0.58
 * v4.0, 2021-01-06, Merge #2109, Refine srs_string_split.
@@ -1796,7 +1795,6 @@ Winlin
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #1548]: https://github.com/ossrs/srs/issues/1548
 [bug #1694]: https://github.com/ossrs/srs/issues/1694
-[bug #2142]: https://github.com/ossrs/srs/issues/2142
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631

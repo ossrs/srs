@@ -51,7 +51,6 @@ using namespace std;
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_app_rtc_server.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -1882,13 +1881,10 @@ SrsSource::SrsSource()
     
     _srs_config->subscribe(this);
     atc = false;
-
-    _srs_rtc_manager->subscribe(this);
 }
 
 SrsSource::~SrsSource()
 {
-    _srs_rtc_manager->unsubscribe(this);
     _srs_config->unsubscribe(this);
     
     // never free the consumers,
@@ -1982,18 +1978,6 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
 void SrsSource::bridge_to(ISrsSourceBridger* v)
 {
     bridger = v;
-}
-
-void SrsSource::on_before_dispose(ISrsResource* c)
-{
-    ISrsSourceBridger* pb = dynamic_cast<ISrsSourceBridger*>(c);
-    if (bridger == pb) {
-        bridge_to(NULL);
-    }
-}
-
-void SrsSource::on_disposing(ISrsResource* c)
-{
 }
 
 srs_error_t SrsSource::on_reload_vhost_play(string vhost)
