@@ -216,6 +216,7 @@ public:
     // Consume the shared RTP packet, user must free it.
     srs_error_t on_rtp(SrsRtpPacket2* pkt);
     // Set and get stream description for souce
+    bool has_stream_desc();
     void set_stream_desc(SrsRtcStreamDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
 };

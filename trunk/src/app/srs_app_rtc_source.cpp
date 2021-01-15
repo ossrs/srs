@@ -531,6 +531,11 @@ srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
     return err;
 }
 
+bool SrsRtcStream::has_stream_desc()
+{
+    return stream_desc_;
+}
+
 void SrsRtcStream::set_stream_desc(SrsRtcStreamDescription* stream_desc)
 {
     srs_freep(stream_desc_);
@@ -615,7 +620,11 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
 
-    source_->set_stream_desc(stream_desc);
+    // If the stream description has already been setup by RTC publisher,
+    // we should ignore and it's ok, because we only need to setup it for bridger.
+    if (!source_->has_stream_desc()) {
+        source_->set_stream_desc(stream_desc);
+    }
 }
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
