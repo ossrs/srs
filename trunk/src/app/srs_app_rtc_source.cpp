@@ -309,11 +309,7 @@ SrsRtcStream::SrsRtcStream()
     stream_desc_ = NULL;
 
     req = NULL;
-#ifdef SRS_FFMPEG_FIT
-    bridger_ = new SrsRtcFromRtmpBridger(this);
-#else
-    bridger_ = new SrsRtcDummyBridger();
-#endif
+    bridger_ = new SrsRtcDummyBridger(this);
 }
 
 SrsRtcStream::~SrsRtcStream()
@@ -332,13 +328,6 @@ srs_error_t SrsRtcStream::initialize(SrsRequest* r)
     srs_error_t err = srs_success;
 
     req = r->copy();
-
-#ifdef SRS_FFMPEG_FIT
-    SrsRtcFromRtmpBridger* bridger = dynamic_cast<SrsRtcFromRtmpBridger*>(bridger_);
-    if ((err = bridger->initialize(req)) != srs_success) {
-        return srs_error_wrap(err, "bridge initialize");
-    }
-#endif
 
     return err;
 }
@@ -454,6 +443,16 @@ srs_error_t SrsRtcStream::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
+    // Create a new bridger, because it's been disposed when unpublish.
+#ifdef SRS_FFMPEG_FIT
+    SrsRtcFromRtmpBridger* impl = new SrsRtcFromRtmpBridger(this);
+    if ((err = impl->initialize(req)) != srs_success) {
+        return srs_error_wrap(err, "bridge initialize");
+    }
+
+    bridger_->setup(impl);
+#endif
+
     // TODO: FIXME: Handle by statistic.
 
     return err;
@@ -483,6 +482,11 @@ void SrsRtcStream::on_unpublish()
 
     // release unpublish stream description.
     set_stream_desc(NULL);
+
+    // Dispose the impl of bridger, to free memory.
+#ifdef SRS_FFMPEG_FIT
+    bridger_->setup(NULL);
+#endif
 
     // TODO: FIXME: Handle by statistic.
 }
@@ -663,13 +667,14 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
 
 void SrsRtcFromRtmpBridger::on_unpublish()
 {
-    // TODO: FIXME: Should sync with bridger?
-    source_->on_unpublish();
-
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta->update_previous_vsh();
     meta->update_previous_ash();
+
+    // @remark This bridger might be disposed here, so never use it.
+    // TODO: FIXME: Should sync with bridger?
+    source_->on_unpublish();
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
@@ -1147,31 +1152,54 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacket2*>& pkts)
 }
 #endif
 
-SrsRtcDummyBridger::SrsRtcDummyBridger()
+SrsRtcDummyBridger::SrsRtcDummyBridger(SrsRtcStream* s)
 {
+    rtc_ = s;
+    impl_ = NULL;
 }
 
 SrsRtcDummyBridger::~SrsRtcDummyBridger()
 {
+    srs_freep(impl_);
 }
 
 srs_error_t SrsRtcDummyBridger::on_publish()
 {
-    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+    if (impl_) {
+        return impl_->on_publish();
+    }
+    return rtc_->on_publish();
 }
 
-srs_error_t SrsRtcDummyBridger::on_audio(SrsSharedPtrMessage* /*audio*/)
+srs_error_t SrsRtcDummyBridger::on_audio(SrsSharedPtrMessage* audio)
 {
-    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+    if (impl_) {
+        return impl_->on_audio(audio);
+    }
+    return srs_success;
 }
 
-srs_error_t SrsRtcDummyBridger::on_video(SrsSharedPtrMessage* /*video*/)
+srs_error_t SrsRtcDummyBridger::on_video(SrsSharedPtrMessage* video)
 {
-    return srs_error_new(ERROR_RTC_DUMMY_BRIDGER, "no FFmpeg fit");
+    if (impl_) {
+        return impl_->on_video(video);
+    }
+    return srs_success;
 }
 
 void SrsRtcDummyBridger::on_unpublish()
 {
+    if (impl_) {
+        impl_->on_unpublish();
+        return;
+    }
+    rtc_->on_unpublish();
+}
+
+void SrsRtcDummyBridger::setup(ISrsSourceBridger* impl)
+{
+    srs_freep(impl_);
+    impl_ = impl;
 }
 
 SrsCodecPayload::SrsCodecPayload()

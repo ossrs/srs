@@ -55,6 +55,7 @@ class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsRtcPlayStreamStatistic;
 class SrsErrorPithyPrint;
+class SrsRtcDummyBridger;
 
 class SrsNtp
 {
@@ -159,7 +160,7 @@ private:
     SrsRequest* req;
     ISrsRtcPublishStream* publish_stream_;
     // Transmux RTMP to RTC.
-    ISrsSourceBridger* bridger_;
+    SrsRtcDummyBridger* bridger_;
     // Steam description for this steam.
     SrsRtcStreamDescription* stream_desc_;
 private:
@@ -264,14 +265,21 @@ private:
 
 class SrsRtcDummyBridger : public ISrsSourceBridger
 {
+private:
+    SrsRtcStream* rtc_;
+    // The optional implementation bridger, ignore if NULL.
+    ISrsSourceBridger* impl_;
 public:
-    SrsRtcDummyBridger();
+    SrsRtcDummyBridger(SrsRtcStream* s);
     virtual ~SrsRtcDummyBridger();
 public:
     virtual srs_error_t on_publish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
     virtual void on_unpublish();
+public:
+    // Setup a new implementation bridger, which might be NULL to free previous one.
+    void setup(ISrsSourceBridger* impl);
 };
 
 // TODO: FIXME: Rename it.
