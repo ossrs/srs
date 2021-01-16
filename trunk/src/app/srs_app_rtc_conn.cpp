@@ -1297,9 +1297,12 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer
     }
 
     uint32_t ssrc = pkt->header.get_ssrc();
-    if (get_audio_track(ssrc)) {
+    SrsRtcAudioRecvTrack* audio_track = get_audio_track(ssrc);
+    SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
+
+    if (audio_track) {
         *ppayload = new SrsRtpRawPayload();
-    } else if (get_video_track(ssrc)) {
+    } else if (video_track) {
         uint8_t v = (uint8_t)pkt->nalu_type;
         if (v == kStapA) {
             *ppayload = new SrsRtpSTAPPayload();
