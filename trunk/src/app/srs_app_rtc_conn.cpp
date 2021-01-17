@@ -400,6 +400,11 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+    // TODO: FIXME: Should not do callback in de-constructor?
+    if (_srs_rtc_hijacker) {
+        _srs_rtc_hijacker->on_stop_play(session_, this, req_);
+    }
+
     _srs_config->unsubscribe(this);
 
     srs_freep(nack_epp);
@@ -933,14 +938,18 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
-    if (_srs_rtc_hijacker) {
-        _srs_rtc_hijacker->on_stop_publish(session_, this, req);
-    }
-
     // TODO: FIXME: Should remove and delete source.
     if (source) {
         source->set_publish_stream(NULL);
         source->on_unpublish();
+    }
+
+    // TODO: FIXME: Should not do callback in de-constructor?
+    // NOTE: on_stop_publish lead to switch io,
+    // it must be called after source stream unpublish (set source stream is_created=false).
+    // if not, it lead to republish failed.
+    if (_srs_rtc_hijacker) {
+        _srs_rtc_hijacker->on_stop_publish(session_, this, req);
     }
 
     for (int i = 0; i < (int)video_tracks_.size(); ++i) {
@@ -1779,6 +1788,7 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
     SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
     SrsAutoFree(SrsRtcStreamDescription, stream_desc);
 
+    // TODO: FIXME: Change to api of stream desc.
     if ((err = negotiate_publish_capability(req, remote_sdp, stream_desc)) != srs_success) {
         return srs_error_wrap(err, "publish negotiate");
     }
