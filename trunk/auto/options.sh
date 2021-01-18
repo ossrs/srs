@@ -140,85 +140,69 @@ function show_help() {
     cat << END
 
 Presets:
-  --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
-  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
-  --osx                     Enable build for OSX/Darwin AppleOS.
+  --x86-64, --x86-x64       For x86/x64 cpu, common pc and servers. Default: $(value2switch $SRS_X86_X64)
+  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options. Default: $(value2switch $SRS_CROSS_BUILD)
+  --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
 
 Features:
   -h, --help                Print this message and exit 0.
 
-  --ssl=on|off              Whether build the rtmp complex handshake, requires openssl-devel installed.
-  --https=on|off            Whether enable HTTPS client and server. Default: off
-  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files.
-  --stream-caster=on|off    Whether build the stream caster to serve other stream over other protocol.
-  --stat=on|off             Whether build the the data statistic, for http api.
-  --librtmp=on|off          Whether build the srs-librtmp, library for client.
-  --research=on|off         Whether build the research tools.
-  --cherrypy=on|off         Whether install CherryPy for demo api-server.
-  --utest=on|off            Whether build the utest for SRS.
-  --srt=on|off              Whether build the SRT support for SRS.
-  --rtc=on|off              Whether build the WebRTC support for SRS.
-  --gb28181=on|off          Whether build the GB28181 support for SRS.
-  --cxx11=on|off            Whether enable the C++11 support for SRS.
-  --cxx14=on|off            Whether enable the C++14 support for SRS.
-  --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code) for SRS.
+  --https=on|off            Whether enable HTTPS client and server. Default: $(value2switch $SRS_HTTPS)
+  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
+  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
+  --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
+  --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
+  --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
+  --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
+  --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
+  --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
 
-  --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
-  --gcov=on|off             Whether enable the GCOV compiler options.
-  --debug=on|off            Whether enable the debug code, may hurt performance.
-  --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
-                            Used for make in the configure, for example, to make ffmpeg.
-  --log-verbose             Whether enable the log verbose level. default: no.
-  --log-info                Whether enable the log info level. default: no.
-  --log-trace               Whether enable the log trace level. default: yes.
+  --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
+  --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
+  --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
+  --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
+  --log-verbose             Whether enable the log verbose level. default: $(value2switch $SRS_LOG_VERBOSE)
+  --log-info                Whether enable the log info level. default: $(value2switch $SRS_LOG_INFO)
+  --log-trace               Whether enable the log trace level. default: $(value2switch $SRS_LOG_TRACE)
 
 Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
-  --valgrind=on|off         Whether build valgrind for memory check.
-  --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
-  --gmc=on|off              Whether build memory check for SRS with gperf tools.
-  --gmd=on|off              Whether build memory defense(corrupt memory) for SRS with gperf tools.
-  --gmp=on|off              Whether build memory profile for SRS with gperf tools.
-  --gcp=on|off              Whether build cpu profile for SRS with gperf tools.
-  --gprof=on|off            Whether build SRS with gprof(GNU profile tool).
+  --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
+  --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only). Default: $(value2switch $SRS_GPERF)
+  --gmc=on|off              Whether build memory check with gperf tools. Default: $(value2switch $SRS_GPERF_MC)
+  --gmd=on|off              Whether build memory defense(corrupt memory) with gperf tools. Default: $(value2switch $SRS_GPERF_MD)
+  --gmp=on|off              Whether build memory profile with gperf tools. Default: $(value2switch $SRS_GPERF_MP)
+  --gcp=on|off              Whether build cpu profile with gperf tools. Default: $(value2switch $SRS_GPERF_CP)
+  --gprof=on|off            Whether build SRS with gprof(GNU profile tool). Default: $(value2switch $SRS_GPROF)
 
-  --nasm=on|off             Whether build FFMPEG for RTC with nasm support.
-  --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
-  --sendmmsg=on|off         Whether enable UDP sendmmsg support. Default: off. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+  --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
+  --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
+  --sendmmsg=on|off         Whether enable UDP sendmmsg. Default: $(value2switch $SRS_SENDMMSG). @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
-  --static                  Whether add '-static' to link options.
-  --arm                     Enable crossbuild for ARM.
-  --cc=<CC>                 Use c compiler CC, default is gcc.
-  --cxx=<CXX>               Use c++ compiler CXX, default is g++.
-  --ar=<AR>                 Use archive tool AR, default is ar.
-  --ld=<LD>                 Use linker tool LD, default is ld.
-  --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib.
+  --static                  Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
+  --cc=<CC>                 Use c compiler CC, default is gcc. Default: $SRS_TOOL_CC
+  --cxx=<CXX>               Use c++ compiler CXX, default is g++. Default: $SRS_TOOL_CXX
+  --ar=<AR>                 Use archive tool AR, default is ar. Default: $SRS_TOOL_CXX
+  --ld=<LD>                 Use linker tool LD, default is ld. Default: $SRS_TOOL_CXX
+  --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
-Conflicts:
-  1. --with-gmc vs --with-gmp: 
-        @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
-  2. --with-gperf/gmc/gmp vs --with-gprof:
-        The gperftools not compatible with gprof.
-  3. --arm vs --with-ffmpeg/gperf/gmc/gmp/gprof:
-        The complex tools not available for arm.
-
 Experts:
-  --sys-ssl=on|off                  Do not compile ssl, use system ssl(-lssl) if required.
-  --use-shared-st                   Use link shared libraries for ST which uses MPL license.
-  --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
-  --build-tag=<TAG>                 Set the build object directory suffix.
-  --clean=on|off                    Whether do 'make clean' when configure.
-  --simulator=on|off                Whether enable RTC network simulator. Default: off
+  --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
+  --use-shared-st           Use link shared libraries for ST which uses MPL license. Default: $(value2switch $SRS_SHARED_ST)
+  --use-shared-srt          Use link shared libraries for SRT which uses MPL license. Default: $(value2switch $SRS_SHARED_SRT)
+  --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
+  --simulator=on|off        Whether enable RTC network simulator. Default: $(value2switch $SRS_SIMULATOR)
+  --build-tag=<TAG>         Set the build object directory suffix.
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
   2. Apply "Features", "Performance" and others. user specified option will override the preset.
-  3. Check conflicts, fail if exists conflicts.
-  4. Generate Makefile.
+  3. Check configs and generate Makefile.
 
 Remark:
-  1. For performance improving, read https://blog.csdn.net/win_lin/article/details/53503869
+  1. For performance, read https://blog.csdn.net/win_lin/article/details/53503869
 
 END
 }
@@ -425,6 +409,16 @@ function parse_user_option_to_value_and_option() {
     esac
 }
 
+function value2switch() {
+    if [[ $1 == YES ]]; then
+      echo on;
+    elif [[ $1 == NO ]]; then
+      echo off;
+    else
+      echo undefined;
+    fi
+}
+
 #####################################################################################
 # parse preset options
 #####################################################################################
@@ -444,10 +438,7 @@ fi
 
 function apply_detail_options() {
     # set default preset if not specifies
-    if [[ $SRS_PURE_RTMP == NO && $SRS_FAST == NO && $SRS_DISABLE_ALL == NO && $SRS_ENABLE_ALL == NO && \
-        $SRS_DEV == NO && $SRS_FAST_DEV == NO && $SRS_DEMO == NO && $SRS_PI == NO && $SRS_CUBIE == NO && \
-        $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO \
-    ]]; then
+    if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
 
