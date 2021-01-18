@@ -504,7 +504,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
-        echo "Openssl-1.1.0e is ok.";
+        echo "The $OPENSSL_CANDIDATE is ok.";
     else
         echo "Building $OPENSSL_CANDIDATE.";
         (
