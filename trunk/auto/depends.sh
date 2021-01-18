@@ -208,7 +208,7 @@ function OSX_prepare()
 
     # cross build for arm, install the cross build tool chain.
     if [ $SRS_CROSS_BUILD = YES ]; then
-        echo "embeded(arm/mips) is invalid for OSX"
+        echo "The embeded(arm/mips) is invalid for OSX"
         return 1
     fi
 

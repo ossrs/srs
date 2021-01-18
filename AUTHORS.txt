@@ -71,7 +71,7 @@ CONTRIBUTORS ordered by first contribution.
 * chenchengbin<chenchengbin@yy.com>
 * chenhaibo<chenhaibo@RD-CHB-0476-01>
 * jasongwq<jasongwq@gmail.com>
-* xialixin@kanzhun.com<xialixin@kanzhun.com>
+* xialixin<xialixin@kanzhun.com>
 * yinjiaoyuan<yinjiaoyuan@163.com>
 * PieerePi<pihuibin@hotmail.com>
 * JesseXi<jesse.jinjin@wo.cn>
