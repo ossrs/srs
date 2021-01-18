@@ -162,9 +162,9 @@ Features:
   --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
-  --log-verbose             Whether enable the log verbose level. default: $(value2switch $SRS_LOG_VERBOSE)
-  --log-info                Whether enable the log info level. default: $(value2switch $SRS_LOG_INFO)
-  --log-trace               Whether enable the log trace level. default: $(value2switch $SRS_LOG_TRACE)
+  --log-verbose             Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
+  --log-info                Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
+  --log-trace               Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
 
 Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
   --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
@@ -181,11 +181,11 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static                  Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
-  --cc=<CC>                 Use c compiler CC, default is gcc. Default: $SRS_TOOL_CC
-  --cxx=<CXX>               Use c++ compiler CXX, default is g++. Default: $SRS_TOOL_CXX
-  --ar=<AR>                 Use archive tool AR, default is ar. Default: $SRS_TOOL_CXX
-  --ld=<LD>                 Use linker tool LD, default is ld. Default: $SRS_TOOL_CXX
-  --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib. Default: $SRS_TOOL_CXX
+  --cc=<CC>                 Use c compiler CC. Default: $SRS_TOOL_CC
+  --cxx=<CXX>               Use c++ compiler CXX. Default: $SRS_TOOL_CXX
+  --ar=<AR>                 Use archive tool AR. Default: $SRS_TOOL_CXX
+  --ld=<LD>                 Use linker tool LD. Default: $SRS_TOOL_CXX
+  --randlib=<RANDLIB>       Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Experts:
