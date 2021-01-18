@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
 
 #include <srs_kernel_consts.hpp>
 
@@ -65,10 +66,11 @@ extern void srs_discovery_tc_url(std::string tcUrl, std::string& schema, std::st
 // must format as key=value&...&keyN=valueN
 extern void srs_parse_query_string(std::string q, std::map<std::string, std::string>& query);
 
-/**
- * generate ramdom data for handshake.
- */
+// Generate ramdom data for handshake.
 extern void srs_random_generate(char* bytes, int size);
+
+// Generate random string [0-9a-z] in size of len bytes.
+extern std::string srs_random_str(int len);
 
 /**
  * generate the tcUrl without param.
@@ -80,7 +82,7 @@ extern std::string srs_generate_tc_url(std::string host, std::string vhost, std:
  * Generate the stream with param.
  * @remark Append vhost in query string if not default vhost.
  */
-extern std::string srs_generate_stream_with_query(std::string host, std::string vhost, std::string stream, std::string param);
+extern std::string srs_generate_stream_with_query(std::string host, std::string vhost, std::string stream, std::string param, bool with_vhost = true);
 
 /**
  * create shared ptr message from bytes.
@@ -107,7 +109,20 @@ extern std::string srs_generate_rtmp_url(std::string server, int port, std::stri
 extern srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int size, ssize_t* pnwrite = NULL);
 
 // join string in vector with indicated separator
-extern std::string srs_join_vector_string(std::vector<std::string>& vs, std::string separator);
+template <typename T>
+std::string srs_join_vector_string(std::vector<T>& vs, std::string separator)
+{
+    std::stringstream ss;
+
+    for (int i = 0; i < (int)vs.size(); i++) {
+        ss << vs.at(i);
+        if (i != (int)vs.size() - 1) {
+            ss << separator;
+        }
+    }
+
+    return ss.str();
+}
 
 // Whether domain is an IPv4 address.
 extern bool srs_is_ipv4(std::string domain);

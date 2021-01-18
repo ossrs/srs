@@ -52,7 +52,7 @@ srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
-ISrsThreadContext* _srs_context = new SrsThreadContext();
+ISrsContext* _srs_context = new SrsThreadContext();
 
 /**
  * main entrance.
@@ -63,8 +63,8 @@ int main(int argc, char** argv)
     srs_assert(srs_is_little_endian());
     
     // directly failed when compile limited.
-#if defined(SRS_AUTO_GPERF_MP) || defined(SRS_AUTO_GPERF_MP) \
-    || defined(SRS_AUTO_GPERF_MC) || defined(SRS_AUTO_GPERF_MP)
+#if defined(SRS_GPERF_MP) || defined(SRS_GPERF_MP) \
+    || defined(SRS_GPERF_MC) || defined(SRS_GPERF_MP)
     srs_error("donot support gmc/gmp/gcp/gprof");
     exit(-1);
 #endif
@@ -147,6 +147,7 @@ private:
             skip = false;
             sent = false;
             dirty = false;
+            duration = 0.0;
         }
         
         int fetch(std::string m3u8);
@@ -369,7 +370,7 @@ int SrsIngestHlsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
     SrsHttpClient client;
     srs_trace("parse input hls %s", url->get_url().c_str());
     
-    if ((err = client.initialize(url->get_host(), url->get_port())) != srs_success) {
+    if ((err = client.initialize(url->get_schema(), url->get_host(), url->get_port())) != srs_success) {
         // TODO: FIXME: Use error
         ret = srs_error_code(err);
         srs_freep(err);
@@ -608,7 +609,7 @@ int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
     }
     
     // initialize the fresh http client.
-    if ((ret = client.initialize(uri.get_host(), uri.get_port()) != ERROR_SUCCESS)) {
+    if ((ret = client.initialize(uri.get_schema(), uri.get_host(), uri.get_port()) != ERROR_SUCCESS)) {
         return ret;
     }
     

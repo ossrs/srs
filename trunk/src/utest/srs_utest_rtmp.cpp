@@ -92,7 +92,7 @@ VOID TEST(ProtocolRTMPTest, PacketEncode)
         MockPacket pkt;
         pkt.size = 1024;
 
-        SrsBuffer b;
+        SrsBuffer b(NULL, 0);
         HELPER_EXPECT_FAILED(pkt.decode(&b));
     }
 
@@ -3139,7 +3139,7 @@ VOID TEST(ProtocolRTMPTest, MergeReadHandler)
 
 char* _strcpy(const char* src)
 {
-    return strcpy(new char[strlen(src)], src);
+    return strcpy(new char[strlen(src) + 1], src);
 }
 
 VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)

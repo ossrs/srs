@@ -23,7 +23,7 @@
 
 #include <srs_app_hds.hpp>
 
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
 
 #include <unistd.h>
 #include <string>

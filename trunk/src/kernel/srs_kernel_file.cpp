@@ -37,11 +37,11 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 
 // For utest to mock it.
-_srs_open_t _srs_open_fn = ::open;
-_srs_write_t _srs_write_fn = ::write;
-_srs_read_t _srs_read_fn = ::read;
-_srs_lseek_t _srs_lseek_fn = ::lseek;
-_srs_close_t _srs_close_fn = ::close;
+srs_open_t _srs_open_fn = ::open;
+srs_write_t _srs_write_fn = ::write;
+srs_read_t _srs_read_fn = ::read;
+srs_lseek_t _srs_lseek_fn = ::lseek;
+srs_close_t _srs_close_fn = ::close;
 
 SrsFileWriter::SrsFileWriter()
 {
@@ -81,7 +81,7 @@ srs_error_t SrsFileWriter::open_append(string p)
         return srs_error_new(ERROR_SYSTEM_FILE_ALREADY_OPENED, "file %s already opened", path.c_str());
     }
     
-    int flags = O_APPEND|O_WRONLY;
+    int flags = O_CREAT|O_APPEND|O_WRONLY;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
     
     if ((fd = _srs_open_fn(p.c_str(), flags, mode)) < 0) {

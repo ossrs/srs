@@ -124,8 +124,8 @@ srs_utime_t srs_get_system_startup_time()
 }
 
 // For utest to mock it.
-#ifndef SRS_AUTO_OSX
-_srs_gettimeofday_t _srs_gettimeofday = ::gettimeofday;
+#ifndef SRS_OSX
+srs_gettimeofday_t _srs_gettimeofday = (srs_gettimeofday_t)::gettimeofday;
 #endif
 
 srs_utime_t srs_update_system_time()
@@ -480,59 +480,54 @@ int srs_string_count(string str, string flag)
     return nn;
 }
 
-vector<string> srs_string_split(string str, string flag)
+
+vector<string> srs_string_split(string s, string seperator)
 {
-    vector<string> arr;
-    
-    if (flag.empty()) {
-        arr.push_back(str);
-        return arr;
+    vector<string> result;
+    if(seperator.empty()){
+        result.push_back(s);
+        return result;
     }
     
-    size_t pos;
-    string s = str;
-    
-    while ((pos = s.find(flag)) != string::npos) {
-        if (pos != 0) {
-            arr.push_back(s.substr(0, pos));
-        }
-        s = s.substr(pos + flag.length());
+    size_t posBegin = 0;
+    size_t posSeperator = s.find(seperator);
+    while (posSeperator != string::npos) {
+        result.push_back(s.substr(posBegin, posSeperator - posBegin));
+        posBegin = posSeperator + seperator.length(); // next byte of seperator
+        posSeperator = s.find(seperator, posBegin);
     }
-    
-    if (!s.empty()) {
-        arr.push_back(s);
-    }
-    
-    return arr;
+    // push the last element
+    result.push_back(s.substr(posBegin));
+    return result;
 }
 
-string srs_string_min_match(string str, vector<string> flags)
+string srs_string_min_match(string str, vector<string> seperators)
 {
     string match;
     
-    if (flags.empty()) {
+    if (seperators.empty()) {
         return str;
     }
     
     size_t min_pos = string::npos;
-    for (vector<string>::iterator it = flags.begin(); it != flags.end(); ++it) {
-        string flag = *it;
+    for (vector<string>::iterator it = seperators.begin(); it != seperators.end(); ++it) {
+        string seperator = *it;
         
-        size_t pos = str.find(flag);
+        size_t pos = str.find(seperator);
         if (pos == string::npos) {
             continue;
         }
         
         if (min_pos == string::npos || pos < min_pos) {
             min_pos = pos;
-            match = flag;
+            match = seperator;
         }
     }
     
     return match;
 }
 
-vector<string> srs_string_split(string str, vector<string> flags)
+vector<string> srs_string_split(string str, vector<string> seperators)
 {
     vector<string> arr;
     
@@ -540,19 +535,17 @@ vector<string> srs_string_split(string str, vector<string> flags)
     string s = str;
     
     while (true) {
-        string flag = srs_string_min_match(s, flags);
-        if (flag.empty()) {
+        string seperator = srs_string_min_match(s, seperators);
+        if (seperator.empty()) {
             break;
         }
         
-        if ((pos = s.find(flag)) == string::npos) {
+        if ((pos = s.find(seperator)) == string::npos) {
             break;
         }
-        
-        if (pos != 0) {
-            arr.push_back(s.substr(0, pos));
-        }
-        s = s.substr(pos + flag.length());
+
+        arr.push_back(s.substr(0, pos));
+        s = s.substr(pos + seperator.length());
     }
     
     if (!s.empty()) {
@@ -926,16 +919,17 @@ uint32_t srs_crc32_mpegts(const void* buf, int size)
     return __crc32_table_driven(__crc32_MPEG_table, buf, size, 0x00, reflect_in, xor_in, reflect_out, xor_out);
 }
 
+// We use the standard encoding:
+//      var StdEncoding = NewEncoding(encodeStd)
+// StdEncoding is the standard base64 encoding, as defined in RFC 4648.
+namespace {
+    char padding = '=';
+    string encoder = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+}
 // @see golang encoding/base64/base64.go
 srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
 {
     srs_error_t err = srs_success;
-    
-    // We use the standard encoding:
-    //      var StdEncoding = NewEncoding(encodeStd)
-    // StdEncoding is the standard base64 encoding, as defined in RFC 4648.
-    char padding = '=';
-    string encoder = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     
     uint8_t decodeMap[256];
     memset(decodeMap, 0xff, sizeof(decodeMap));
@@ -1036,6 +1030,64 @@ srs_error_t srs_av_base64_decode(string cipher, string& plaintext)
     return err;
 }
 
+// @see golang encoding/base64/base64.go
+srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher)
+{
+    srs_error_t err = srs_success;
+    uint8_t decodeMap[256];
+    memset(decodeMap, 0xff, sizeof(decodeMap));
+    
+    for (int i = 0; i < (int)encoder.length(); i++) {
+        decodeMap[(uint8_t)encoder.at(i)] = uint8_t(i);
+    }
+    cipher.clear();
+
+    uint32_t val = 0;
+    int di = 0;
+    int si = 0;
+    int n = (plaintext.length() / 3) * 3;
+    uint8_t* p =  (uint8_t*)plaintext.c_str();
+    while(si < n) {
+        // Convert 3x 8bit source bytes into 4 bytes
+        val = (uint32_t(p[si + 0]) << 16) | (uint32_t(p[si + 1])<< 8) | uint32_t(p[si + 2]);
+
+        cipher += encoder[val>>18&0x3f];
+        cipher += encoder[val>>12&0x3f];
+        cipher += encoder[val>>6&0x3f];
+        cipher += encoder[val&0x3f];
+
+        si += 3;
+        di += 4;
+    }
+
+    int remain = plaintext.length() - si;
+    if(0 == remain) {
+        return err;
+    }
+
+    val = uint32_t(p[si + 0]) << 16;
+    if( 2 == remain) {
+        val |= uint32_t(p[si + 1]) << 8;
+    }
+
+    cipher += encoder[val>>18&0x3f];
+    cipher += encoder[val>>12&0x3f];
+
+    switch (remain) {
+    case 2:
+        cipher += encoder[val>>6&0x3f];
+        cipher += padding;
+        break;
+    case 1:
+        cipher += padding;
+        cipher += padding;
+        break;
+    }
+
+
+    return err;
+}
+
 #define SPACE_CHARS " \t\r\n"
 
 int av_toupper(int c)
@@ -1074,6 +1126,22 @@ char* srs_data_to_hex(char* des, const u_int8_t* src, int len)
         des[i * 2]     = hex_table[src[i] >> 4];
         des[i * 2 + 1] = hex_table[src[i] & 0x0F];
     }  
+
+    return des;
+}
+
+char* srs_data_to_hex_lowercase(char* des, const u_int8_t* src, int len)
+{
+    if(src == NULL || len == 0 || des == NULL){
+        return NULL;
+    }
+
+    const char *hex_table = "0123456789abcdef";
+
+    for (int i=0; i<len; i++) {
+        des[i * 2]     = hex_table[src[i] >> 4];
+        des[i * 2 + 1] = hex_table[src[i] & 0x0F];
+    }
 
     return des;
 }

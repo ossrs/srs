@@ -57,7 +57,7 @@ SrsCplxError::SrsCplxError()
 {
     code = ERROR_SUCCESS;
     wrapped = NULL;
-    cid = rerrno = line = 0;
+    rerrno = line = 0;
 }
 
 SrsCplxError::~SrsCplxError()
@@ -79,7 +79,7 @@ std::string SrsCplxError::description() {
 
         next = this;
         while (next) {
-            ss << "thread [" << getpid() << "][" << next->cid << "]: "
+            ss << "thread [" << getpid() << "][" << next->cid.c_str() << "]: "
             << next->func << "() [" << next->file << ":" << next->line << "]"
             << "[errno=" << next->rerrno << "]";
 

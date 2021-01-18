@@ -39,7 +39,6 @@ class ISrsWriter;
 class ISrsReader;
 class SrsFileReader;
 class SrsPacket;
-class SrsRtpSharedPacket;
 class SrsSample;
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
@@ -158,6 +157,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // 4bytes.
     // Four-byte field that identifies the stream of the message. These
@@ -245,6 +245,7 @@ public:
     // 1byte.
     // One byte field to represent the message type. A range of type IDs
     // (1-7) are reserved for protocol control messages.
+    // For example, RTMP_MSG_AudioMessage or RTMP_MSG_VideoMessage.
     int8_t message_type;
     // Get the perfered cid(chunk stream id) which sendout over.
     // set at decoding, and canbe used for directly send message,
@@ -302,23 +303,6 @@ private:
         int size;
         // The reference count
         int shared_count;
-#ifdef SRS_AUTO_RTC
-    public:
-        // For RTC video, we need to know the NALU structures,
-        // because the RTP STAP-A or FU-A based on NALU.
-        SrsSample* samples;
-        int nn_samples;
-        // For RTC video, whether NALUs has IDR.
-        bool has_idr;
-    public:
-        // For RTC audio, we may need to transcode AAC to opus,
-        // so there must be an extra payloads, which is transformed from payload.
-        SrsSample* extra_payloads;
-        int nn_extra_payloads;
-        // The max size payload in extras.
-        // @remark For GSO to fast guess the best padding.
-        int nn_max_extra_payloads;
-#endif
     public:
         SrsSharedPtrPayload();
         virtual ~SrsSharedPtrPayload();
@@ -339,6 +323,9 @@ public:
     // @remark user should never free the payload.
     // @param pheader, the header to copy to the message. NULL to ignore.
     virtual srs_error_t create(SrsMessageHeader* pheader, char* payload, int size);
+    // Create shared ptr message from RAW payload.
+    // @remark Note that the header is set to zero.
+    virtual void wrap(char* payload, int size);
     // Get current reference count.
     // when this object created, count set to 0.
     // if copy() this object, count increase 1.
@@ -360,24 +347,6 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
-public:
-#ifdef SRS_AUTO_RTC
-    // Set extra samples, for example, when we transcode an AAC audio packet to OPUS,
-    // we may get more than one OPUS packets, we set these OPUS packets in extra payloads.
-    void set_extra_payloads(SrsSample* payloads, int nn_payloads);
-    int nn_extra_payloads() { return ptr->nn_extra_payloads; }
-    SrsSample* extra_payloads() { return ptr->extra_payloads; }
-    // The max extra payload size.
-    void set_max_extra_payload(int v) { ptr->nn_max_extra_payloads = v; }
-    int nn_max_extra_payloads() { return ptr->nn_max_extra_payloads; }
-    // Whether samples has idr.
-    bool has_idr() { return ptr->has_idr; }
-    void set_has_idr(bool v) { ptr->has_idr = v; }
-    // Set samples, each sample points to the address of payload.
-    void set_samples(SrsSample* samples, int nn_samples);
-    int nn_samples() { return ptr->nn_samples; }
-    SrsSample* samples() { return ptr->samples; }
-#endif
 };
 
 // Transmux RTMP packets to FLV stream.

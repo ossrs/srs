@@ -24,6 +24,8 @@
 #include <srs_app_gb28181.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -57,6 +59,7 @@ using namespace std;
 
 SrsPsRtpPacket::SrsPsRtpPacket()
 { 
+    isFirstPacket = false;
 }
 
 SrsPsRtpPacket::~SrsPsRtpPacket()
@@ -192,6 +195,15 @@ void SrsGb28181PsRtpProcessor::clear_pre_packet()
 
 srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
+    if (config->jitterbuffer_enable){
+        return on_rtp_packet_jitter(from, fromlen, buf, nb_buf);
+    }else{
+        return on_rtp_packet(from, fromlen, buf, nb_buf);
+    }
+}
+
+srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
+{
     srs_error_t err = srs_success;
     bool completed = false;
     
@@ -203,7 +215,9 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
                 (char*)&address_string, sizeof(address_string),
                 (char*)&port_string, sizeof(port_string),
                 NI_NUMERICHOST|NI_NUMERICSERV)){
-        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        srs_warn("gb28181 ps rtp: bad address");
+        return srs_success;
     }
     
     int peer_port = atoi(port_string);
@@ -213,11 +227,13 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         SrsPsRtpPacket pkt;
         
         if ((err = pkt.decode(&stream)) != srs_success) {
-            return srs_error_wrap(err, "ps rtp decode error");
+            // return srs_error_wrap(err, "ps rtp decode error");
+            srs_warn("gb28181 ps rtp: decode error");
+            srs_freep(err);
+            return srs_success;
         }
 
         //TODO: fixme: the same device uses the same SSRC to send with different local ports
-        
         std::stringstream ss;
         ss << pkt.ssrc << ":" << pkt.timestamp << ":" << port_string;
         std::string pkt_key = ss.str();
@@ -241,7 +257,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
 
         //TODO:  check sequence number out of order
         //it may be out of order, or multiple streaming ssrc are the same
-        if (pre_sequence_number + 1 != pkt.sequence_number && 
+        if (((pre_sequence_number + 1) % 65536) != pkt.sequence_number && 
             pre_sequence_number != pkt.sequence_number){
             srs_warn("gb28181: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, peer(%s, %s)",
               pkt.ssrc, pre_sequence_number, pkt.sequence_number, address_string, port_string);
@@ -283,7 +299,6 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         if (!completed){
             return err;
         }
-      
         //process completed frame data
         //clear processed one ps frame
         //on completed frame data rtp packet in muxer enqueue
@@ -291,36 +306,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
         if(key != cache_ps_rtp_packet.end())
         {
             SrsGb28181RtmpMuxer* muxer = NULL;
-            
-            //First, search according to the channel_id. Otherwise, search according to the SSRC. 
-            //Some channel_id are created by RTP pool, which are different ports. 
-            //No channel_id are created by multiplexing ports, which are the same port
-            if (!channel_id.empty()){
-                muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
-            }else {
-                muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
-            }
-
-            //auto crate channel
-            if (!muxer && config->auto_create_channel){
-                //auto create channel generated id
-                std::stringstream ss, ss1;
-                ss << "chid" << pkt.ssrc;
-                std::string tmp_id = ss.str();
-
-                SrsGb28181StreamChannel channel;
-                channel.set_channel_id(tmp_id);
-                channel.set_port_mode(RTP_PORT_MODE_FIXED);
-                channel.set_ssrc(pkt.ssrc);
-              
-                srs_error_t err2 = srs_success;
-                if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success){
-                    srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
-                    srs_error_reset(err2);
-                };
-
-                muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
-            }
+            muxer = fetch_rtmpmuxer(channel_id,pkt.ssrc);       
           
             if (muxer){
                 //TODO: fixme: the same device uses the same SSRC to send with different local ports
@@ -346,6 +332,464 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
     return err;
 }
 
+SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc)
+{
+    if(true){
+        SrsGb28181RtmpMuxer* muxer = NULL;
+        //First, search according to the channel_id. Otherwise, search according to the SSRC. 
+        //Some channel_id are created by RTP pool, which are different ports. 
+        //No channel_id are created by multiplexing ports, which are the same port
+        if (!channel_id.empty()){
+            muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
+        }else {
+            muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(ssrc);
+        }
+
+        //auto crate channel
+        if (!muxer && config->auto_create_channel){
+            //auto create channel generated id
+            std::stringstream ss, ss1;
+            ss << "chid" << ssrc;
+            std::string tmp_id = ss.str();
+
+            SrsGb28181StreamChannel channel;
+            channel.set_channel_id(tmp_id);
+            // channel.set_port_mode(RTP_PORT_MODE_FIXED); 
+            if (!config->sip_invite_port_fixed) {
+                channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+            }else
+            {
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            }
+            channel.set_ssrc(ssrc);
+            
+            srs_error_t err2 = srs_success;
+            if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success){
+                srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
+                srs_error_reset(err2);
+            };
+
+            muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+        }
+       
+        return muxer;
+    }//end if FoundFrame
+}
+
+srs_error_t SrsGb28181PsRtpProcessor::rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc, 
+            int peer_port, std::string address_string, SrsPsRtpPacket *pkt)
+{
+    srs_error_t err = srs_success;
+
+    if (!muxer)
+        return err;
+     
+    if (muxer){
+        //TODO: fixme: the same device uses the same SSRC to send with different local ports
+        //record the first peer port
+        muxer->set_channel_peer_port(peer_port);
+        muxer->set_channel_peer_ip(address_string);
+        //not the first peer port's non processing
+        if (muxer->channel_peer_port() != peer_port){
+            srs_warn("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
+                muxer->get_channel_id().c_str(), ssrc, muxer->channel_peer_port(), peer_port);
+        }else {
+            //muxer->ps_packet_enqueue(pkt);
+            muxer->insert_jitterbuffer(pkt);
+        }//end if (muxer->channel_peer_port() != peer_port)
+    }//end  if (muxer)
+
+    return err;
+}
+
+srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet_jitter(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+    bool completed = false;
+    
+    pprint->elapse();
+    
+    char address_string[64];
+    char port_string[16];
+    if (getnameinfo(from, fromlen, 
+                (char*)&address_string, sizeof(address_string),
+                (char*)&port_string, sizeof(port_string),
+                NI_NUMERICHOST|NI_NUMERICSERV)){
+        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+        srs_warn("gb28181 ps rtp: bad address");
+        return srs_success;
+    }
+    
+    int peer_port = atoi(port_string);
+
+    if (true) {
+        SrsBuffer stream(buf, nb_buf);
+        SrsPsRtpPacket *pkt = new SrsPsRtpPacket();;
+        
+        if ((err = pkt->decode(&stream)) != srs_success) {
+            srs_freep(pkt);
+            // return srs_error_wrap(err, "ps rtp decode error");
+            srs_warn("gb28181 ps rtp: decode error");
+            srs_freep(err);
+            return srs_success;
+        }
+        
+        std::stringstream ss3;
+        ss3 << pkt->ssrc << ":" << port_string;
+        std::string jitter_key = ss3.str();
+        
+        pkt->completed = pkt->marker;
+        
+        
+        if (pprint->can_print()) {
+            srs_trace("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, peer(%s, %d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
+                        channel_id.c_str(),  address_string, peer_port, nb_buf, pprint->age(), pkt->version, 
+                        pkt->payload_type, pkt->sequence_number, pkt->timestamp, pkt->ssrc,
+                        pkt->payload->length()
+                        );
+        }
+      
+        SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(channel_id,  pkt->ssrc);
+        if (muxer){
+            rtmpmuxer_enqueue_data(muxer, pkt->ssrc, peer_port, address_string, pkt);
+        }
+     
+        SrsAutoFree(SrsPsRtpPacket, pkt);
+    }
+
+    return err;
+}
+
+//SrsGb28181TcpPsRtpProcessor
+SrsGb28181TcpPsRtpProcessor::SrsGb28181TcpPsRtpProcessor(SrsGb28181Config* c, std::string id)
+{
+	config = c;
+	pprint = SrsPithyPrint::create_caster();
+	channel_id = id;
+}
+
+SrsGb28181TcpPsRtpProcessor::~SrsGb28181TcpPsRtpProcessor()
+{
+	dispose();
+	srs_freep(pprint);
+}
+
+void SrsGb28181TcpPsRtpProcessor::dispose()
+{
+	map<std::string, SrsPsRtpPacket*>::iterator it2;
+	for (it2 = cache_ps_rtp_packet.begin(); it2 != cache_ps_rtp_packet.end(); ++it2) {
+		srs_freep(it2->second);
+	}
+	cache_ps_rtp_packet.clear();
+
+	clear_pre_packet();
+
+	return;
+}
+
+void SrsGb28181TcpPsRtpProcessor::clear_pre_packet()
+{
+	map<std::string, SrsPsRtpPacket*>::iterator it;
+	for (it = pre_packet.begin(); it != pre_packet.end(); ++it) {
+		srs_freep(it->second);
+	}
+	pre_packet.clear();
+}
+
+srs_error_t SrsGb28181TcpPsRtpProcessor::on_rtp(char* buf, int nb_buf, std::string ip, int port)
+{
+	srs_error_t err = srs_success;
+
+	if (config->jitterbuffer_enable) {
+		err = on_rtp_packet_jitter(buf, nb_buf, ip, port);
+		if (err != srs_success) {
+			srs_warn("SrsGb28181TcpPsRtpProcessor::on_rtp on_rtp_packet_jitter err");
+		}
+	}
+	else {
+		return on_rtp_packet(buf, nb_buf, ip, port);
+	}
+	return err;
+}
+
+srs_error_t SrsGb28181TcpPsRtpProcessor::on_rtp_packet(char* buf, int nb_buf, std::string ip, int port)
+{
+	srs_error_t err = srs_success;
+	bool completed = false;
+
+	pprint->elapse();
+
+	char address_string[64] = {0};
+	char port_string[16] = {0};
+	/*if (getnameinfo(from, fromlen,
+		(char*)&address_string, sizeof(address_string),
+		(char*)&port_string, sizeof(port_string),
+		NI_NUMERICHOST | NI_NUMERICSERV)) {
+		return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+	}*/
+
+	//itoa(port, port_string, 10);
+	int peer_port = port;// atoi(port_string);
+
+	if (true) {
+		SrsBuffer stream(buf, nb_buf);
+		SrsPsRtpPacket pkt;
+
+		if ((err = pkt.decode(&stream)) != srs_success) {
+			return srs_error_wrap(err, "ps rtp decode error");
+		}
+
+		//TODO: fixme: the same device uses the same SSRC to send with different local ports
+		std::stringstream ss;
+		ss << pkt.ssrc << ":" << pkt.timestamp << ":" << port;// port_string;
+		std::string pkt_key = ss.str();
+
+		std::stringstream ss2;
+		ss2 << pkt.ssrc << ":" << port_string;
+		std::string pre_pkt_key = ss2.str();
+
+		if (pre_packet.find(pre_pkt_key) == pre_packet.end()) {
+			pre_packet[pre_pkt_key] = new SrsPsRtpPacket();
+			pre_packet[pre_pkt_key]->copy(&pkt);
+		}
+		//cache pkt by ssrc and timestamp
+		if (cache_ps_rtp_packet.find(pkt_key) == cache_ps_rtp_packet.end()) {
+			cache_ps_rtp_packet[pkt_key] = new SrsPsRtpPacket();
+		}
+
+		//get previous timestamp by ssrc
+		uint32_t pre_timestamp = pre_packet[pre_pkt_key]->timestamp;
+		uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
+
+		//TODO:  check sequence number out of order
+		//it may be out of order, or multiple streaming ssrc are the same
+		if (((pre_sequence_number + 1) % 65536) != pkt.sequence_number &&
+			pre_sequence_number != pkt.sequence_number) {
+			srs_warn("gb28181: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, peer(%s, %s)",
+				pkt.ssrc, pre_sequence_number, pkt.sequence_number, ip.c_str(), port_string);
+			//return err;
+		}
+
+		//copy header to cache
+		cache_ps_rtp_packet[pkt_key]->copy(&pkt);
+		//accumulate one frame of data, to payload cache
+		cache_ps_rtp_packet[pkt_key]->payload->append(pkt.payload);
+
+		//detect whether it is a completed frame
+		if (pkt.marker) {// rtp maker is true, is a completed frame
+			completed = true;
+		}
+		else if (pre_timestamp != pkt.timestamp) {
+			//current timestamp is different from previous timestamp
+			//previous timestamp, is a completed frame
+			std::stringstream ss;
+			ss << pkt.ssrc << ":" << pre_timestamp << ":" << port_string;
+			pkt_key = ss.str();
+			if (cache_ps_rtp_packet.find(pkt_key) != cache_ps_rtp_packet.end()) {
+				completed = true;
+			}
+		}
+
+		if (pprint->can_print()) {
+			srs_trace("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, peer(%s, %d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
+				channel_id.c_str(), ip.c_str(), peer_port, nb_buf, pprint->age(), pkt.version,
+				pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
+				pkt.payload->length()
+			);
+		}
+
+		//current packet becomes previous packet
+		srs_freep(pre_packet[pre_pkt_key]);
+		pre_packet[pre_pkt_key] = new SrsPsRtpPacket();
+		pre_packet[pre_pkt_key]->copy(&pkt);;
+
+		if (!completed) {
+			return err;
+		}
+		//process completed frame data
+		//clear processed one ps frame
+		//on completed frame data rtp packet in muxer enqueue
+		map<std::string, SrsPsRtpPacket*>::iterator key = cache_ps_rtp_packet.find(pkt_key);
+		if (key != cache_ps_rtp_packet.end())
+		{
+			SrsGb28181RtmpMuxer* muxer = NULL;
+			//First, search according to the channel_id. Otherwise, search according to the SSRC. 
+			//Some channel_id are created by RTP pool, which are different ports. 
+			//No channel_id are created by multiplexing ports, which are the same port
+			if (!channel_id.empty()) {
+				muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
+			}
+			else {
+				muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(pkt.ssrc);
+			}
+
+			//auto crate channel
+			if (!muxer && config->auto_create_channel) {
+				//auto create channel generated id
+				std::stringstream ss, ss1;
+				ss << "chid" << pkt.ssrc;
+				std::string tmp_id = ss.str();
+
+				SrsGb28181StreamChannel channel;
+				channel.set_channel_id(tmp_id);
+				channel.set_port_mode(RTP_PORT_MODE_FIXED);
+				channel.set_ssrc(pkt.ssrc);
+
+				srs_error_t err2 = srs_success;
+				if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success) {
+					srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
+					srs_error_reset(err2);
+				};
+
+				muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+			}
+
+			if (muxer) {
+				//TODO: fixme: the same device uses the same SSRC to send with different local ports
+				//record the first peer port
+				muxer->set_channel_peer_port(peer_port);
+				muxer->set_channel_peer_ip(address_string);
+				//not the first peer port's non processing
+				if (muxer->channel_peer_port() != peer_port) {
+					srs_warn("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
+						muxer->get_channel_id().c_str(), pkt.ssrc, muxer->channel_peer_port(), peer_port);
+					srs_freep(key->second);
+				}
+				else {
+					//put it in queue, wait for consumer to process, and then free
+					muxer->ps_packet_enqueue(key->second);
+				}
+			}
+			else {
+				//no consumer process it, discarded
+				srs_freep(key->second);
+			}
+			cache_ps_rtp_packet.erase(pkt_key);
+		}
+	}
+	return err;
+}
+
+SrsGb28181RtmpMuxer* SrsGb28181TcpPsRtpProcessor::create_rtmpmuxer(std::string channel_id, uint32_t ssrc)
+{
+	if (true) {
+		SrsGb28181RtmpMuxer* muxer = NULL;
+		//First, search according to the channel_id. Otherwise, search according to the SSRC.
+		//Some channel_id are created by RTP pool, which are different ports.
+		//No channel_id are created by multiplexing ports, which are the same port
+		if (!channel_id.empty()) {
+			muxer = _srs_gb28181->fetch_rtmpmuxer(channel_id);
+		}
+		else {
+			muxer = _srs_gb28181->fetch_rtmpmuxer_by_ssrc(ssrc);
+		}
+
+		//auto crate channel
+		if (!muxer && config->auto_create_channel) {
+			//auto create channel generated id
+			std::stringstream ss, ss1;
+			ss << "chid" << ssrc;
+			std::string tmp_id = ss.str();
+
+			SrsGb28181StreamChannel channel;
+			channel.set_channel_id(tmp_id);
+			channel.set_port_mode(RTP_PORT_MODE_FIXED);
+			channel.set_ssrc(ssrc);
+
+			srs_error_t err2 = srs_success;
+			if ((err2 = _srs_gb28181->create_stream_channel(&channel)) != srs_success) {
+				srs_warn("gb28181: RtpProcessor create stream channel error %s", srs_error_desc(err2).c_str());
+				srs_error_reset(err2);
+			};
+
+			muxer = _srs_gb28181->fetch_rtmpmuxer(tmp_id);
+		}
+
+		return muxer;
+	}//end if FoundFrame
+}
+
+srs_error_t SrsGb28181TcpPsRtpProcessor::rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc,
+	int peer_port, std::string address_string, SrsPsRtpPacket *pkt)
+{
+	srs_error_t err = srs_success;
+
+	if (!muxer)
+		return err;
+
+	if (muxer) {
+		//TODO: fixme: the same device uses the same SSRC to send with different local ports
+		//record the first peer port
+		muxer->set_channel_peer_port(peer_port);
+		muxer->set_channel_peer_ip(address_string);
+		//not the first peer port's non processing
+		if (muxer->channel_peer_port() != peer_port) {
+			srs_warn("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
+				muxer->get_channel_id().c_str(), ssrc, muxer->channel_peer_port(), peer_port);
+		}
+		else {
+			//muxer->ps_packet_enqueue(pkt);
+			muxer->insert_jitterbuffer(pkt);
+		}//end if (muxer->channel_peer_port() != peer_port)
+	}//end  if (muxer)
+
+	return err;
+}
+
+srs_error_t SrsGb28181TcpPsRtpProcessor::on_rtp_packet_jitter(char* buf, int nb_buf, std::string ip, int port)
+{
+	srs_error_t err = srs_success;
+	bool completed = false;
+
+	pprint->elapse();
+
+	char address_string[64] = {0};
+	char port_string[16] = {0};
+	/*if (getnameinfo(from, fromlen,
+		(char*)&address_string, sizeof(address_string),
+		(char*)&port_string, sizeof(port_string),
+		NI_NUMERICHOST | NI_NUMERICSERV)) {
+		return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+	}*/
+
+	//itoa(port, port_string, 10);
+	int peer_port = port;// atoi(port_string);
+
+	if (true) {
+		SrsBuffer stream(buf, nb_buf);
+		SrsPsRtpPacket *pkt = new SrsPsRtpPacket();;
+
+		if ((err = pkt->decode(&stream)) != srs_success) {
+			srs_freep(pkt);
+			return srs_error_wrap(err, "ps rtp decode error");
+		}
+
+		std::stringstream ss3;
+		ss3 << pkt->ssrc << ":" << port;// port_string;
+		std::string jitter_key = ss3.str();
+
+		pkt->completed = pkt->marker;
+
+
+		if (pprint->can_print()) {
+			srs_trace("<- " SRS_CONSTS_LOG_GB28181_CASTER " SrsGb28181TcpPsRtpProcessor::on_rtp_packet_jitter gb28181: client_id %s, peer(%s, %d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
+				channel_id.c_str(), address_string, peer_port, nb_buf, pprint->age(), pkt->version,
+				pkt->payload_type, pkt->sequence_number, pkt->timestamp, pkt->ssrc,
+				pkt->payload->length()
+			);
+		}
+
+		SrsGb28181RtmpMuxer *muxer = create_rtmpmuxer(channel_id, pkt->ssrc);
+		if (muxer) {
+			rtmpmuxer_enqueue_data(muxer, pkt->ssrc, peer_port, ip, pkt);
+		}
+
+		SrsAutoFree(SrsPsRtpPacket, pkt);
+	}
+
+	return err;
+}
+
 //ISrsPsStreamHander ps stream raw video/audio hander interface
 ISrsPsStreamHander::ISrsPsStreamHander()
 {
@@ -363,10 +807,19 @@ SrsPsStreamDemixer::SrsPsStreamDemixer(ISrsPsStreamHander *h, std::string id, bo
     wait_first_keyframe = k;
     channel_id = id;
     first_keyframe_flag = false;
+
+    video_es_id = 0;
+    video_es_type = 0;
+    audio_es_id = 0;
+    audio_es_type = 0;
+    audio_check_aac_try_count = 0;
+
+    aac = new SrsRawAacStream();
 }
 
 SrsPsStreamDemixer::~SrsPsStreamDemixer()
 {
+    srs_freep(aac);
 }
 
 bool SrsPsStreamDemixer::can_send_ps_av_packet(){
@@ -377,6 +830,58 @@ bool SrsPsStreamDemixer::can_send_ps_av_packet(){
        return true;
 
     return false;
+}
+
+std::string SrsPsStreamDemixer::get_ps_map_type_str(uint8_t type)
+{
+    switch(type){
+        case STREAM_TYPE_VIDEO_MPEG1:     //0x01
+           return "mpeg1";
+        case STREAM_TYPE_VIDEO_MPEG2://     0x02
+            return "mpeg2";
+        case STREAM_TYPE_AUDIO_MPEG1://     0x03
+            return "mpeg1";
+        case STREAM_TYPE_AUDIO_MPEG2://     0x04
+            return "mpeg2";
+        case STREAM_TYPE_PRIVATE_SECTION:// 0x05
+            return "private_section";
+        case STREAM_TYPE_PRIVATE_DATA://    0x06
+            return "private_data";
+        case STREAM_TYPE_AUDIO_AAC://       0x0f
+            return "aac";
+        case STREAM_TYPE_VIDEO_MPEG4://     0x10
+            return "mpeg4";
+        case STREAM_TYPE_VIDEO_H264://      0x1b
+            return "h264";
+        case STREAM_TYPE_VIDEO_HEVC://      0x24
+            return "hevc";
+        case STREAM_TYPE_VIDEO_CAVS://      0x42
+            return "cavs";
+        case STREAM_TYPE_VIDEO_SAVC://      0x80
+            return "savc";
+
+        case STREAM_TYPE_AUDIO_AC3://       0x81
+            return "ac3";
+
+        case STREAM_TYPE_AUDIO_G711://      0x90
+            return "g711";
+        case STREAM_TYPE_AUDIO_G711ULAW://    0x91
+            return "g711ulaw";
+        case STREAM_TYPE_AUDIO_G722_1://    0x92
+            return "g722_1";
+        case STREAM_TYPE_AUDIO_G723_1://    0x93
+            return "g723_1";
+        case STREAM_TYPE_AUDIO_G726://      0x96
+            return "g726";
+        case STREAM_TYPE_AUDIO_G729_1://    0x99
+            return "g729_1";
+        case STREAM_TYPE_AUDIO_SVAC://      0x9b
+            return "svac";
+        case STREAM_TYPE_AUDIO_PCM://       0x9c
+            return "pcm";
+        default:
+            return "unknow";
+    }
 }
 
 int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
@@ -406,7 +911,6 @@ int64_t  SrsPsStreamDemixer::parse_ps_timestamp(const uint8_t* p)
 	return val;
 }
 
-
 srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc)
 {
     srs_error_t err = srs_success;
@@ -428,7 +932,8 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
         ps_fw.write(ps_data, ps_size, NULL);          
 #endif
 
-	while(incomplete_len >= sizeof(SrsPsPacketStartCode))
+	while(incomplete_len > 0 
+        && incomplete_len >= sizeof(SrsPsPacketStartCode))
     {
     	if (next_ps_pack
 			&& next_ps_pack[0] == (char)0x00
@@ -468,12 +973,61 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             //program stream map 
 
 		    SrsPsMapPacket* psmap_pack = (SrsPsMapPacket*)next_ps_pack;
-          
             psmap_pack->length = htons(psmap_pack->length);
           
             next_ps_pack = next_ps_pack + psmap_pack->length + sizeof(SrsPsMapPacket);
             complete_len = complete_len + psmap_pack->length + sizeof(SrsPsMapPacket);
             incomplete_len = ps_size - complete_len;
+
+            //parse ps map
+            uint16_t psm_length=0, ps_info_length=0, es_map_length=0;
+            char *p = (char*)psmap_pack + sizeof(SrsPsMapPacket);
+
+            SrsBuffer buf(p, (int)psmap_pack->length);
+
+            psm_length =(int)psmap_pack->length;
+            buf.read_1bytes();
+            buf.read_1bytes();
+
+            ps_info_length = buf.read_2bytes();
+
+            /* skip program_stream_info */
+            buf.skip(ps_info_length);
+            /*es_map_length = */buf.read_2bytes();
+            /* Ignore es_map_length, trust psm_length */
+            es_map_length = psm_length - ps_info_length - 10;
+        
+            // /* at least one es available? */
+            while (es_map_length >= 4) {
+                uint8_t type      = buf.read_1bytes();
+                uint8_t es_id     = buf.read_1bytes();
+                uint16_t es_info_length = buf.read_2bytes();
+                std::string s_type = get_ps_map_type_str(type);
+
+                /* remember mapping from stream id to stream type */
+                if (es_id >= PS_AUDIO_ID && es_id <= PS_AUDIO_ID_END){
+                    if (audio_es_type != type){
+                        srs_trace("gb28181: ps map audio es_type=%s(%x), es_id=%0x, es_info_length=%d", 
+                         s_type.c_str(), type, es_id, es_info_length);
+                    }
+                    
+                    audio_es_id = es_id;
+                    audio_es_type = type;
+                }else if (es_id >= PS_VIDEO_ID && es_id <= PS_VIDEO_ID_END){
+                    
+                    if (video_es_type != type){
+                        srs_trace("gb28181: ps map video es_type=%s(%x), es_id=%0x, es_info_length=%d", 
+                         s_type.c_str(), type, es_id, es_info_length);
+                    }
+
+                    video_es_id = es_id;
+                    video_es_type = type;
+                }
+           
+                /* skip program_stream_info */
+                buf.skip(es_info_length);
+                es_map_length -= 4 + es_info_length;
+            }
     
         }
         else if(next_ps_pack
@@ -550,8 +1104,37 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
 			int payload_len = packlength - 2 - 1 - pse_pack->stuffing_length;
             next_ps_pack = next_ps_pack + 9 + pse_pack->stuffing_length;
 
-            audio_stream.append(next_ps_pack, payload_len);
+            //if ps map is not aac, but stream  many be aac adts , try update type, 
+            //TODO: dahua audio ps map type always is 0x90(g711)
 
+            uint8_t p1 = (uint8_t)(next_ps_pack[0]);
+            uint8_t p2 = (uint8_t)(next_ps_pack[1]);
+            uint8_t p3 = (uint8_t)(next_ps_pack[2]);
+            uint8_t p4 = (uint8_t)(next_ps_pack[3]);
+
+            if (audio_enable && audio_es_type != STREAM_TYPE_AUDIO_AAC &&
+                (p1 & 0xFF) == 0xFF &&  (p2 & 0xF0) == 0xF0) {
+                
+                //try update aac type
+                SrsBuffer avs(next_ps_pack, payload_len);
+                char* frame = NULL;
+                int frame_size = 0;
+                SrsRawAacStreamCodec codec;
+
+                srs_error_t err2 = srs_success;
+                if ((err2 = aac->adts_demux(&avs, &frame, &frame_size, codec)) != srs_success) {
+                    srs_info("gb28181: client_id %s, audio data not aac adts (%#x/%u) %02x %02x %02x %02x\n", 
+                             channel_id.c_str(), ssrc, timestamp, p1, p2, p3, p4);  
+                    srs_error_reset(err);
+                }else{
+                    srs_warn("gb28181: client_id %s, ps map is not aac (%s) type, but stream many be aac adts, try update type",
+                         channel_id.c_str(), get_ps_map_type_str(audio_es_type).c_str());
+                    audio_es_type = STREAM_TYPE_AUDIO_AAC;
+                }
+            }
+         
+            audio_stream.append(next_ps_pack, payload_len);
+            
 #ifdef W_AUDIO_FILE            
             if (!audio_fw.is_open()) {
                  std::string filename = "test_audio_" + channel_id + ".aac";
@@ -565,7 +1148,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             incomplete_len = ps_size - complete_len;
 
             if (hander && audio_enable && audio_stream.length() && can_send_ps_av_packet()) {
-                if ((err = hander->on_rtp_audio(&audio_stream, audio_pts)) != srs_success) {
+                if ((err = hander->on_rtp_audio(&audio_stream, audio_pts, audio_es_type)) != srs_success) {
                     return srs_error_wrap(err, "process ps audio packet");
                 }
             }
@@ -594,13 +1177,12 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
                 //ts=1000 seq=4 mark=true payload= audio
                 incomplete_len = ps_size - complete_len; 
                 complete_len = complete_len + incomplete_len;
-                
             }
 
             first_keyframe_flag = false;
             srs_trace("gb28181: client_id %s, unkonw ps data (%#x/%u) %02x %02x %02x %02x\n", 
                 channel_id.c_str(), ssrc, timestamp,  
-                next_ps_pack[0], next_ps_pack[1], next_ps_pack[2], next_ps_pack[3]);
+                next_ps_pack[0]&0xFF, next_ps_pack[1]&0xFF, next_ps_pack[2]&0xFF, next_ps_pack[3]&0xFF);
             break;
         }
     }
@@ -608,9 +1190,10 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
     if (complete_len != ps_size){
          srs_trace("gb28181: client_id %s decode ps packet error (%#x/%u)! ps_size=%d  complete=%d \n", 
                      channel_id.c_str(), ssrc, timestamp, ps_size, complete_len);
-    }else if (hander && video_stream.length() && can_send_ps_av_packet()) {
+    }else if (hander && video_stream.length() && can_send_ps_av_packet() && video_es_type == STREAM_TYPE_VIDEO_H264) {
          if ((err = hander->on_rtp_video(&video_stream, video_pts)) != srs_success) {
-             return srs_error_wrap(err, "process ps video packet");
+            video_es_type = 0;
+            return srs_error_wrap(err, "process ps video packet");
         }
     }
   
@@ -621,9 +1204,10 @@ static std::string get_host_candidate_ips(SrsConfDirective* c)
 {
     string candidate = _srs_config->get_stream_caster_gb28181_host(c);
     if (candidate == "*" || candidate == "0.0.0.0") {
-        std::vector<std::string> ips = srs_get_local_ips();
+        std::vector<SrsIPAddress*>& ips = srs_get_local_ips();
         int index = _srs_config->get_stats_network();
-        return ips.at(index);
+        SrsIPAddress* ip = ips.at(index);
+        return ip->ip;
     } else {
         return candidate;
     }
@@ -636,6 +1220,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
     host = get_host_candidate_ips(c);
     output = _srs_config->get_stream_caster_output(c);
     rtp_mux_port = _srs_config->get_stream_caster_listen(c);
+	rtp_mux_tcp_enable = _srs_config->get_stream_caster_tcp_enable(c);
     rtp_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
     rtp_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
     rtp_idle_timeout = _srs_config->get_stream_caster_gb28181_rtp_idle_timeout(c);
@@ -643,6 +1228,7 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
     wait_keyframe = _srs_config->get_stream_caster_gb28181_wait_keyframe(c);
     audio_enable = _srs_config->get_stream_caster_gb28181_audio_enable(c);
     auto_create_channel = _srs_config->get_stream_caster_gb28181_auto_create_channel(c);
+    jitterbuffer_enable = _srs_config->get_stream_caster_gb28181_jitterbuffer_enable(c);
 
     //sip config
     sip_enable = _srs_config->get_stream_caster_gb28181_sip_enable(c);
@@ -670,6 +1256,8 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
 
     pprint = SrsPithyPrint::create_caster();
     trd = new SrsSTCoroutine("gb28181rtmpmuxer", this);
+    //change stack size to 256K, fix crash when call FFMpeg
+    ((SrsSTCoroutine*)trd)->set_stack_size(1 << 18);
     
     sdk = NULL;
     vjitter = new SrsRtspJitter();
@@ -691,13 +1279,32 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
     h264_pps = "";
     aac_specific_config = "";
 
+    req = NULL;
+    server = NULL;
+    source = NULL;
+    source_publish = true;
+
+    jitter_buffer = new SrsPsJitterBuffer(id);
+    jitter_buffer_audio = new SrsPsJitterBuffer(id);
+
+    ps_buflen = 0;
+    ps_buffer = NULL;
+
+    ps_buflen_auido = 0;
+    ps_buffer_audio = NULL;
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
 {
+
     close();
-    destroy();
+    
     srs_cond_destroy(wait_ps_queue);
+ 
+    srs_freep(jitter_buffer);
+    srs_freep(jitter_buffer_audio);
+    srs_freepa(ps_buffer);
+    srs_freepa(ps_buffer_audio);
 
     srs_freep(channel);
     srs_freep(ps_demixer);
@@ -706,6 +1313,8 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     srs_freep(vjitter);
     srs_freep(ajitter);
     srs_freep(pprint);
+
+    destroy();
 }
 
 srs_error_t SrsGb28181RtmpMuxer::serve()
@@ -722,6 +1331,16 @@ srs_error_t SrsGb28181RtmpMuxer::serve()
 std::string SrsGb28181RtmpMuxer::remote_ip()
 {
     return "";
+}
+
+const SrsContextId& SrsGb28181RtmpMuxer::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string SrsGb28181RtmpMuxer::desc()
+{
+    return "GBConn";
 }
 
 std::string SrsGb28181RtmpMuxer::get_channel_id()
@@ -790,12 +1409,56 @@ void SrsGb28181RtmpMuxer::destroy()
     }
 }
 
+srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
+{
+    srs_error_t err = srs_success;
+
+    if (!jitter_buffer) {
+        jitter_buffer = new SrsPsJitterBuffer(channel_id);
+    }
+
+    jitter_buffer->SetDecodeErrorMode(kSelectiveErrors);
+    jitter_buffer->SetNackMode(kNack, -1, -1);
+    jitter_buffer->SetNackSettings(250, 450, 0);
+
+    if (!jitter_buffer_audio) {
+        jitter_buffer_audio = new SrsPsJitterBuffer(channel_id);
+    }
+
+    jitter_buffer_audio->SetDecodeErrorMode(kSelectiveErrors);
+    jitter_buffer_audio->SetNackMode(kNack, -1, -1);
+    jitter_buffer_audio->SetNackSettings(250, 450, 0);
+
+    if (!source_publish) return err;
+
+    req = r;
+    server = s;
+    
+    if ((err = _srs_sources->fetch_or_create(req, (ISrsSourceHandler*)server, &source)) != srs_success) {
+        return srs_error_wrap(err, "create source");
+    }
+
+    //TODO: ???
+    // if (!source->can_publish(false)) {
+    //     return srs_error_new(ERROR_GB28181_SESSION_IS_EXIST, "stream %s busy", req->get_stream_url().c_str());
+    // }
+
+    if ((err = source->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "on publish");
+    }
+
+    return err;
+}
+
+
 srs_error_t SrsGb28181RtmpMuxer::do_cycle()
 {
     srs_error_t err = srs_success;
     recv_rtp_stream_time =  srs_get_system_time();
     send_rtmp_stream_time = srs_get_system_time();
-
+    uint32_t cur_timestamp = 0;
+    int buffer_size = 0;
+           
     //consume ps stream, and check status
     while (true) {
 
@@ -805,19 +1468,45 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
             return srs_error_wrap(err, "gb28181 rtmp muxer cycle");
         }
 
-        //demix ps to h264/aac, to rtmp
-        while(!ps_queue.empty()){
-            SrsPsRtpPacket* pkt =  ps_queue.front();
-            if (pkt){ 
-                if ((err = ps_demixer->on_ps_stream(pkt->payload->bytes(),
-                    pkt->payload->length(), pkt->timestamp, pkt->ssrc)) != srs_success){
-                    srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
-                    srs_freep(err);
-                };
+        SrsGb28181Config config = gb28181_manger->get_gb28181_config();
+
+        if (config.jitterbuffer_enable){
+            if(jitter_buffer->FoundFrame(cur_timestamp)){
+                jitter_buffer->GetPsFrame(&ps_buffer, ps_buflen, buffer_size, cur_timestamp);
+            
+                if (buffer_size > 0){
+                    if ((err = ps_demixer->on_ps_stream(ps_buffer, buffer_size, cur_timestamp, 0)) != srs_success){
+                        srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
+                        srs_freep(err);
+                    };
+                }
             }
-            ps_queue.pop();
-            //must be free pkt
-            srs_freep(pkt);
+
+            if(jitter_buffer_audio->FoundFrame(cur_timestamp)){
+                jitter_buffer_audio->GetPsFrame(&ps_buffer_audio, ps_buflen_auido, buffer_size, cur_timestamp);
+            
+                if (buffer_size > 0){
+                    if ((err = ps_demixer->on_ps_stream(ps_buffer_audio, buffer_size, cur_timestamp, 0)) != srs_success){
+                        srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
+                        srs_freep(err);
+                    };
+                }
+            }
+        }else {
+            //demix ps to h264/aac, to rtmp
+            while(!ps_queue.empty()){
+                SrsPsRtpPacket* pkt =  ps_queue.front();
+                if (pkt){ 
+                    if ((err = ps_demixer->on_ps_stream(pkt->payload->bytes(),
+                        pkt->payload->length(), pkt->timestamp, pkt->ssrc)) != srs_success){
+                        srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
+                        srs_freep(err);
+                    };
+                }
+                ps_queue.pop();
+                //must be free pkt
+                srs_freep(pkt);
+            }
         }
 
         if (pprint->can_print()) {
@@ -841,7 +1530,7 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
             channel->set_rtp_peer_ip("");
         }
 
-        SrsGb28181Config config = gb28181_manger->get_gb28181_config();
+       
         if (duration > config.rtp_idle_timeout){
             srs_trace("gb28181: client id=%s, stream idle timeout, stop!!!", channel_id.c_str());
             break;
@@ -861,12 +1550,8 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
                 channel_id.c_str());
             rtmp_close();
         }
-      
-        if (ps_queue.empty()){
-           srs_cond_timedwait(wait_ps_queue, 200 * SRS_UTIME_MILLISECONDS);
-        }else {
-           srs_cond_timedwait(wait_ps_queue, 10 * SRS_UTIME_MILLISECONDS);
-        }
+        
+        srs_usleep(30 * SRS_UTIME_MILLISECONDS);
     }
     
     return err;
@@ -882,6 +1567,48 @@ void SrsGb28181RtmpMuxer::stop()
     close();
 }
 
+
+void SrsGb28181RtmpMuxer::insert_jitterbuffer(SrsPsRtpPacket *pkt)
+{
+    if (!pkt){
+        return;
+    }
+        
+    recv_rtp_stream_time = srs_get_system_time();
+
+    char *payload = pkt->payload->bytes();
+    if (!payload) {
+        return;
+    }
+
+    uint8_t p1 = (uint8_t)(payload[0]);
+    uint8_t p2 = (uint8_t)(payload[1]);
+    uint8_t p3 = (uint8_t)(payload[2]);
+    uint8_t p4 = (uint8_t)(payload[3]);
+
+   
+    //check for rtp ps audio streaming
+    bool av_same_ts = true;
+
+    if (p1 == 0x00 && p2 == 0x00 && p3 == 0x01 && p4 == 0xC0 &&
+        ps_rtp_video_ts != pkt->timestamp) {
+        av_same_ts = false;
+    }
+
+    //if audio and video are the same clock, 
+    //if both audio and video use jitter_buffer, 
+    //otherwise audio uses jitter_buffer_audio, and video uses jitter_buffer
+    if (av_same_ts){
+        pkt->marker = false;
+        jitter_buffer->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
+        ps_rtp_video_ts = pkt->timestamp;
+    }else {
+        jitter_buffer_audio->InsertPacket(*pkt, pkt->payload->bytes(), pkt->payload->length(), NULL);
+    }
+ 
+    //srs_cond_signal(wait_ps_queue);
+}
+
 void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
 {
     srs_assert(pkt);
@@ -893,7 +1620,7 @@ void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
     uint32_t size = ps_queue.size();
     if (size > 100){
         srs_warn("gb28181: rtmpmuxer too much queue data, need to clear!!!");
-        while(ps_queue.empty()) {
+        while(!ps_queue.empty()) {
             SrsPsRtpPacket* pkt =  ps_queue.front();
             ps_queue.pop();
             srs_freep(pkt);
@@ -901,7 +1628,7 @@ void SrsGb28181RtmpMuxer::ps_packet_enqueue(SrsPsRtpPacket *pkt)
     }
    
     ps_queue.push(pkt);
-    srs_cond_signal(wait_ps_queue);
+    //srs_cond_signal(wait_ps_queue);
 }
 
 srs_error_t SrsGb28181RtmpMuxer::cycle()
@@ -928,14 +1655,16 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
 {
     srs_error_t err = srs_success;
    
-    // ensure rtmp connected.
-    if ((err = connect()) != srs_success) {
-        //after the connection fails, need to clear flag 
-        //and send the av header again next time
-        h264_sps = "";
-        h264_pps = "";
-        aac_specific_config = "";
-        return srs_error_wrap(err, "connect");
+    if (!source_publish){
+        // ensure rtmp connected.
+        if ((err = connect()) != srs_success) {
+            //after the connection fails, need to clear flag 
+            //and send the av header again next time
+            h264_sps = "";
+            h264_pps = "";
+            aac_specific_config = "";
+            return srs_error_wrap(err, "connect");
+        }
     }
     
     if ((err = vjitter->correct(fpts)) != srs_success) {
@@ -947,89 +1676,184 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
     uint32_t pts = (uint32_t)(fpts / 90);
     srs_info("gb28181rtmpmuxer: on_rtp_video dts=%u", dts);
     
+    if (true) {
+        char *data = stream->bytes();
+        int length = stream->length();
 
-
-    SrsBuffer *avs = new SrsBuffer(stream->bytes(), stream->length());
-    SrsAutoFree(SrsBuffer, avs);
-    // send each frame.
-    while (!avs->empty()) {
-        char* frame = NULL;
-        int frame_size = 0;
-        if ((err = avc->annexb_demux(avs, &frame, &frame_size)) != srs_success) {
-            return srs_error_wrap(err, "demux annexb");
-        }
-        
-        // 5bits, 7.3.1 NAL unit syntax,
-        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
-        
-        // ignore the nalu type sei(6) aud(9) 
-        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter ||
-            nal_unit_type == SrsAvcNaluTypeSEI) {
-            continue;
-        }
-      
-        // for sps
-        if (avc->is_sps(frame, frame_size)) {
-            std::string sps;
-            if ((err = avc->sps_demux(frame, frame_size, sps)) != srs_success) {
-                return srs_error_wrap(err, "demux sps");
-            }
-            
-            if (h264_sps == sps) {
-                continue;
-            }
-            h264_sps = sps;
-            
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-                return srs_error_wrap(err, "write sps/pps");
-            }
-            continue;
-        }
-        
-        // for pps
-        if (avc->is_pps(frame, frame_size)) {
-            std::string pps;
-            if ((err = avc->pps_demux(frame, frame_size, pps)) != srs_success) {
-                return srs_error_wrap(err, "demux pps");
-            }
-            
-            if (h264_pps == pps) {
-                continue;
-            }
-            h264_pps = pps;
-            
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-                return srs_error_wrap(err, "write sps/pps");
-            }
-            continue;
-        }
-        
-        // ibp frame.
-        srs_info("gb28181: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write frame");
-        }
+        err = replace_startcode_with_nalulen(data, length, dts, pts);
     }
-    
+
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t fdts)
+srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts)
+{
+    srs_error_t err = srs_success;
+
+    if (!frame){
+        return srs_error_new(ERROR_GB28181_H264_FRAME_FULL, "h264 frame null");
+    }
+
+    if (frame_size <= 0){
+        return srs_error_new(ERROR_GB28181_H264_FRAMESIZE, "h264 frame size");
+    }
+
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+    // ignore the nalu type sei(6) aud(9) 
+    if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter ||
+        nal_unit_type == SrsAvcNaluTypeSEI) {
+        return err;
+    }
+
+    // for sps
+    if (avc->is_sps(frame, frame_size)) {
+        std::string sps;
+        if ((err = avc->sps_demux(frame, frame_size, sps)) != srs_success) {
+            return srs_error_wrap(err, "demux sps");
+        }
+        
+        if (h264_sps == sps) {
+            return err;
+        }
+        h264_sps = sps;
+
+        if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            return srs_error_wrap(err, "write sps/pps");
+        }
+        return err;
+    }
+
+    // for pps
+    if (avc->is_pps(frame, frame_size)) {
+        std::string pps;
+        if ((err = avc->pps_demux(frame, frame_size, pps)) != srs_success) {
+            return srs_error_wrap(err, "demux pps");
+        }
+        
+        if (h264_pps == pps) {
+            return err;
+        }
+        h264_pps = pps;
+        
+        if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            return srs_error_wrap(err, "write sps/pps");
+        }
+        return err;
+    }
+
+    srs_info("gb28181: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
+    if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
+        return srs_error_wrap(err, "write frame");
+    }
+
+    return err;
+}
+
+ srs_error_t SrsGb28181RtmpMuxer::replace_startcode_with_nalulen(char *video_data, int &size, uint32_t pts, uint32_t dts)
+ {
+    srs_error_t err = srs_success;
+
+    int index = 0;
+    std::list<int> list_index;
+
+    for(; index < size; index++){
+        if (index > (size-4))
+            break;
+        if (video_data[index] == 0x00 && video_data[index+1] == 0x00 &&
+             video_data[index+2] == 0x00 && video_data[index+3] == 0x01){
+                 list_index.push_back(index);
+             }
+    }
+
+    if (list_index.size() == 1){
+        int cur_pos = list_index.front();
+        list_index.pop_front();
+
+        //0001xxxxxxxxxx
+        //xxxx0001xxxxxxx
+        uint32_t naluLen = size - cur_pos;
+        char *p = (char*)&naluLen;
+                    
+        video_data[cur_pos] = p[3];
+        video_data[cur_pos+1] = p[2];
+        video_data[cur_pos+2] = p[1];
+        video_data[cur_pos+3] = p[0];
+
+        char *frame = video_data + cur_pos + 4;
+        int frame_size = naluLen;
+
+        err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+
+    }else if (list_index.size() > 1){
+        int pre_pos = list_index.front();
+        list_index.pop_front();
+        int first_pos = pre_pos;
+
+        while(list_index.size() > 0){
+            int cur_pos = list_index.front();
+            list_index.pop_front();
+
+            //pre=========cur======================
+            //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+            //xxxxxxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+            uint32_t naluLen = cur_pos - pre_pos - 4;
+            char *p = (char*)&naluLen;
+                        
+            video_data[pre_pos] = p[3];
+            video_data[pre_pos+1] = p[2];
+            video_data[pre_pos+2] = p[1];
+            video_data[pre_pos+3] = p[0];
+
+            char *frame = video_data + pre_pos + 4;
+            int frame_size = naluLen;
+
+            pre_pos = cur_pos;
+            err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+        }
+        
+        //========================pre==========
+        //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
+        if (first_pos != pre_pos){
+
+            uint32_t naluLen = size - pre_pos - 4;
+            char *p = (char*)&naluLen;
+                        
+            video_data[pre_pos] = p[3];
+            video_data[pre_pos+1] = p[2];
+            video_data[pre_pos+2] = p[1];
+            video_data[pre_pos+3] = p[0];
+
+            char *frame = video_data + pre_pos + 4;
+            int frame_size = naluLen;
+
+            err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+        }
+    }else{
+        //xxxxxxxxxxxxxxxxxxx
+        char *frame = video_data;
+        int frame_size = size;
+        err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+    }
+
+    return err;
+}
+
+srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t fdts, int type)
 {
     srs_error_t err = srs_success;
     
-    // ensure rtmp connected.
-    if ((err = connect()) != srs_success) {
-        //after the connection fails, need to clear flag 
-        //and send the av header again next time
-        h264_sps = "";
-        h264_pps = "";
-        aac_specific_config = "";
-        return srs_error_wrap(err, "connect");
+    if (!source_publish){
+        // ensure rtmp connected.
+        if ((err = connect()) != srs_success) {
+            //after the connection fails, need to clear flag 
+            //and send the av header again next time
+            h264_sps = "";
+            h264_pps = "";
+            aac_specific_config = "";
+            return srs_error_wrap(err, "connect");
+        }
     }
-    
+       
     if ((err = ajitter->correct(fdts)) != srs_success) {
         return srs_error_wrap(err, "jitter");
     }
@@ -1040,65 +1864,90 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
     SrsBuffer  *avs = new SrsBuffer(stream->bytes(), stream->length());
     SrsAutoFree(SrsBuffer, avs);
     if (!avs->empty()) {
-        char* frame = NULL;
-        int frame_size = 0;
-        SrsRawAacStreamCodec codec;
-        if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
-            return srs_error_wrap(err, "demux adts");
-        }
+        if (type == STREAM_TYPE_AUDIO_AAC) {
+            char* frame = NULL;
+            int frame_size = 0;
+            SrsRawAacStreamCodec codec;
+            if ((err = aac->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
+                return srs_error_wrap(err, "demux adts");
+            }
 
-        if (frame_size <= 0) {
-            return err;
-        }
+            if (frame_size <= 0) {
+                return err;
+            }
 
-        bool send_adts = false;
-        static int srs_aac_srates[] = {
-            96000, 88200, 64000, 48000,
-            44100, 32000, 24000, 22050,
-            16000, 12000, 11025,  8000,
-            7350,     0,     0,    0
-        };
-        switch (srs_aac_srates[codec.sampling_frequency_index]) {
-            case 11025:
-                codec.sound_rate = SrsAudioSampleRate11025;
-                break;
-            case 22050:
-                codec.sound_rate = SrsAudioSampleRate22050;
-                break;
-            case 44100:
-                codec.sound_rate = SrsAudioSampleRate44100;
-                break;
-            default:
-                send_adts = true; //raw with adts
-                break;
-        };
+            bool send_adts = false;
+            static int srs_aac_srates[] = {
+                96000, 88200, 64000, 48000,
+                44100, 32000, 24000, 22050,
+                16000, 12000, 11025,  8000,
+                7350,     0,     0,    0
+            };
+            switch (srs_aac_srates[codec.sampling_frequency_index]) {
+                case 11025:
+                    codec.sound_rate = SrsAudioSampleRate11025;
+                    break;
+                case 22050:
+                    codec.sound_rate = SrsAudioSampleRate22050;
+                    break;
+                case 44100:
+                    codec.sound_rate = SrsAudioSampleRate44100;
+                    break;
+                default:
+                    send_adts = true; //raw with adts
+                    break;
+            };
 
-        std::string sh;
-        if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
-            return srs_error_wrap(err, "mux sequence header");
-        }
-        
-        if (aac_specific_config != sh){
             std::string sh;
             if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
                 return srs_error_wrap(err, "mux sequence header");
             }
-            aac_specific_config = sh;
-            codec.aac_packet_type = 0;
-            if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
-                return srs_error_wrap(err, "write raw audio frame");
+            
+            if (aac_specific_config != sh){
+                std::string sh;
+                if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
+                    return srs_error_wrap(err, "mux sequence header");
+                }
+                aac_specific_config = sh;
+                codec.aac_packet_type = 0;
+                if ((err = write_audio_raw_frame((char*)sh.data(), (int)sh.length(), &codec, dts)) != srs_success) {
+                    return srs_error_wrap(err, "write raw audio frame");
+                }
             }
-        }
 
-        codec.aac_packet_type = 1;
-        if  (send_adts) {  // audio raw data. with  adts header
-            if ((err = write_audio_raw_frame(stream->bytes(), stream->length(), &codec, dts)) != srs_success) {
-                    return srs_error_wrap(err, "write audio raw frame");
-                }
-        }else {  // audio raw data. without  adts header
-             if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
-                    return srs_error_wrap(err, "write audio raw frame");
-                }
+            codec.aac_packet_type = 1;
+            if  (send_adts) {  // audio raw data. with  adts header
+                if ((err = write_audio_raw_frame(stream->bytes(), stream->length(), &codec, dts)) != srs_success) {
+                        return srs_error_wrap(err, "write audio raw frame");
+                    }
+            }else {  // audio raw data. without  adts header
+                if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+                        return srs_error_wrap(err, "write audio raw frame");
+                    }
+            }
+        }else if (type != 0) {
+            SrsRawAacStreamCodec codec;
+            codec.aac_packet_type = 0;
+
+            if (type == STREAM_TYPE_AUDIO_G711){
+                codec.sound_format = SrsAudioCodecIdReservedG711AlawLogarithmicPCM;
+                codec.sound_rate = SrsAudioSampleRate5512;
+                codec.sound_type = 0;  //MONO = 0, STEREO = 1
+                codec.sound_size = 0;  //0=8K, 1=16K
+            }else if(type == STREAM_TYPE_AUDIO_G711ULAW){
+                codec.sound_format = SrsAudioCodecIdReservedG711MuLawLogarithmicPCM;
+                codec.sound_rate = SrsAudioSampleRate5512;
+                codec.sound_type = 0;
+                codec.sound_size = 0;
+            }else {
+                return srs_error_wrap(err, "write audio raw frame, type=%d not suppered", type);
+            }
+
+            char* frame = stream->bytes();
+            int frame_size = stream->length();
+            if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
+                return srs_error_wrap(err, "write audio raw frame");
+            }
         }
     }//end if (!avs->empty()) 
    
@@ -1108,6 +1957,10 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
 srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
+
+    if (h264_sps == "" ||  h264_pps == ""){
+        return err;
+    }
 
     // h264 raw to h264 packet.
     std::string sh;
@@ -1130,11 +1983,10 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "write packet");
     }
 
-    
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts)
+srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool writelen)
 {
     srs_error_t err = srs_success;
     
@@ -1150,8 +2002,13 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_siz
     }
     
     std::string ibp;
-    if ((err = avc->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
-        return srs_error_wrap(err, "mux ibp frame");
+
+    if (writelen){
+        if ((err = avc->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+            return srs_error_wrap(err, "mux ibp frame");
+        }
+    }else{
+        ibp = string(frame, frame_size);
     }
     
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
@@ -1182,6 +2039,10 @@ srs_error_t SrsGb28181RtmpMuxer::write_audio_raw_frame(char* frame, int frame_si
 srs_error_t SrsGb28181RtmpMuxer::rtmp_write_packet(char type, uint32_t timestamp, char* data, int size)
 {
     srs_error_t err = srs_success;
+
+    if (source_publish){
+        return rtmp_write_packet_by_source(type, timestamp, data, size);
+    }
     
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
@@ -1200,6 +2061,41 @@ srs_error_t SrsGb28181RtmpMuxer::rtmp_write_packet(char type, uint32_t timestamp
     if ((err = sdk->send_and_free_message(msg)) != srs_success) {
         close();
         return srs_error_wrap(err, "write message");
+    }
+    return err;
+}
+
+srs_error_t SrsGb28181RtmpMuxer::rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    send_rtmp_stream_time = srs_get_system_time();
+
+    //create a source that will process stream without the need for internal rtmpclient
+    if (type == SrsFrameTypeAudio) {
+        SrsMessageHeader header;
+        header.message_type = RTMP_MSG_AudioMessage;
+        // TODO: FIXME: Maybe the tbn is not 90k.
+        header.timestamp = timestamp & 0x3fffffff;
+
+        SrsCommonMessage* shared_video = new SrsCommonMessage();
+        SrsAutoFree(SrsCommonMessage, shared_video);
+
+        // TODO: FIXME: Check error.
+        shared_video->create(&header, data, size);
+        source->on_audio(shared_video);
+    }else if(type == SrsFrameTypeVideo) {
+        SrsMessageHeader header;
+        header.message_type = RTMP_MSG_VideoMessage;
+        // TODO: FIXME: Maybe the tbn is not 90k.
+        header.timestamp = timestamp & 0x3fffffff;
+
+        SrsCommonMessage* shared_video = new SrsCommonMessage();
+        SrsAutoFree(SrsCommonMessage, shared_video);
+
+        // TODO: FIXME: Check error.
+        shared_video->create(&header, data, size);
+        source->on_video(shared_video);
     }
     
     return err;
@@ -1247,6 +2143,12 @@ void SrsGb28181RtmpMuxer::close()
     h264_sps = "";
     h264_pps = "";
     aac_specific_config = "";
+
+    // BUGFIX: if don't unpublish, it will always be in the /api/v1/streams list
+    //if (source_publish && !source){
+    if (source_publish && source){
+        source->on_unpublish();
+    }
 }
 
 void SrsGb28181RtmpMuxer::rtmp_close(){
@@ -1319,21 +2221,21 @@ void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
 SrsGb28181Manger* _srs_gb28181 = NULL;
 
 //SrsGb28181Manger
-SrsGb28181Manger::SrsGb28181Manger(SrsConfDirective* c)
+SrsGb28181Manger::SrsGb28181Manger(SrsServer *s, SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
+    server = s;
     config = new SrsGb28181Config(c);
-    manager = new SrsCoroutineManager();
+    manager = new SrsResourceManager("GB28181");
 }
 
 SrsGb28181Manger::~SrsGb28181Manger()
 {
     used_ports.clear();
-
+    destroy();
+  
     srs_freep(manager);
     srs_freep(config);
-    
-    destroy();
 }
 
 srs_error_t SrsGb28181Manger::initialize()
@@ -1402,7 +2304,7 @@ uint32_t SrsGb28181Manger::generate_ssrc(std::string id)
     return  ssrc;
 }
 
-srs_error_t SrsGb28181Manger::fetch_or_create_rtmpmuxer(std::string id,  SrsGb28181RtmpMuxer** gb28181)
+srs_error_t SrsGb28181Manger::fetch_or_create_rtmpmuxer(std::string id,  SrsRequest *req,  SrsGb28181RtmpMuxer** gb28181)
 {
     srs_error_t err = srs_success;
 
@@ -1413,6 +2315,10 @@ srs_error_t SrsGb28181Manger::fetch_or_create_rtmpmuxer(std::string id,  SrsGb28
     }
     
     muxer = new SrsGb28181RtmpMuxer(this, id, config->audio_enable, config->wait_keyframe);
+    if ((err = muxer->initialize(server, req)) != srs_success) {
+        return srs_error_wrap(err, "gb28181: rtmp muxer initialize %s", id.c_str());
+    }
+
     if ((err = muxer->serve()) != srs_success) {
         return srs_error_wrap(err, "gb28181: rtmp muxer serve %s", id.c_str());
     }
@@ -1432,6 +2338,30 @@ SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer(std::string id)
     
     muxer = rtmpmuxers[id];
     return muxer;
+}
+
+void SrsGb28181Manger::update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_t ssrc)
+{
+    SrsGb28181RtmpMuxer* muxer = NULL;
+
+    if (rtmpmuxers.find(id) == rtmpmuxers.end()) {
+        srs_warn("gb28181: at update_rtmpmuxer_to_newssrc_by_id() client_id not found. client_id=%s",id.c_str());
+        return;
+    }
+
+    muxer = rtmpmuxers[id];
+    
+    SrsGb28181StreamChannel mc = muxer->get_channel();
+    uint32_t old_ssrc = mc.get_ssrc();
+    if (old_ssrc == ssrc) {
+        return;
+    } else {
+        srs_trace("gb28181: update ssrc of muxer %s from %x to %x", id.c_str(), old_ssrc, ssrc);
+    }
+    rtmpmuxer_unmap_by_ssrc(old_ssrc);
+    mc.set_ssrc(ssrc);
+    muxer->copy_channel(&mc);
+    rtmpmuxer_map_by_ssrc(muxer, ssrc);
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181Manger::fetch_rtmpmuxer_by_ssrc(uint32_t ssrc)
@@ -1462,18 +2392,20 @@ void SrsGb28181Manger::rtmpmuxer_unmap_by_ssrc(uint32_t ssrc)
 
 void SrsGb28181Manger::destroy()
 {
-    //destory ps rtp listen
-    std::map<uint32_t, SrsPsRtpListener*>::iterator it;
-    for (it = rtp_pool.begin(); it != rtp_pool.end(); ++it) {
-        SrsPsRtpListener* listener = it->second;
-        srs_freep(listener);
+    if (!config->rtp_mux_tcp_enable) {
+        //destory ps rtp listen
+        std::map<uint32_t, SrsPsRtpListener*>::iterator it;
+        for (it = rtp_pool.begin(); it != rtp_pool.end(); ++it) {
+            SrsPsRtpListener* listener = it->second;
+            srs_freep(listener);
+        }
+        rtp_pool.clear();
     }
-    rtp_pool.clear();
 
     //destory gb28181 muxer
-    std::map<std::string, SrsGb28181RtmpMuxer*>::iterator it2;
-    for (it2 = rtmpmuxers.begin(); it2 != rtmpmuxers.end(); ++it2) {
-        SrsGb28181RtmpMuxer* muxer = it2->second;
+    std::map<std::string, SrsGb28181RtmpMuxer*>::iterator it;
+    for (it = rtmpmuxers.begin(); it != rtmpmuxers.end(); ++it) {
+        SrsGb28181RtmpMuxer* muxer = it->second;
         SrsGb28181StreamChannel sess = muxer->get_channel();
         rtmpmuxer_unmap_by_ssrc(sess.get_ssrc());
         manager->remove(muxer);
@@ -1507,21 +2439,25 @@ srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
         return srs_error_wrap(err, "start rtp listen port is mux port"); 
     }
 
-    map<std::string, SrsGb28181RtmpMuxer*>::iterator key = rtmpmuxers.find(id);
-    if (key == rtmpmuxers.end()){
-       return srs_error_wrap(err, "start rtp listen port rtmp muxer is null"); 
-    }
+    /* delete by xbpeng 20201222 should not check rtmpmuxers, becasue it always not find*/
+    // map<std::string, SrsGb28181RtmpMuxer*>::iterator key = rtmpmuxers.find(id);
+    // if (key == rtmpmuxers.end()){
+    //     srs_warn("start rtp listen port rtmp muxer is null. id=%s,port=%d", id.c_str(),port); 
+    //     return srs_error_wrap(err, "start rtp listen port rtmp muxer is null"); 
+    // }
 
-    if (rtp_pool.find(port) == rtp_pool.end())
-    {
-        SrsPsRtpListener* rtp = new SrsPsRtpListener(this->config, port, id);
-        rtp_pool[port] = rtp;
-        if ((err = rtp_pool[port]->listen()) != srs_success) {
-            stop_rtp_listen(id);
-            return srs_error_wrap(err, "rtp listen");
+    if (!config->rtp_mux_tcp_enable) {
+        if (rtp_pool.find(port) == rtp_pool.end())
+        {
+            SrsPsRtpListener* rtp = new SrsPsRtpListener(this->config, port, id);
+            rtp_pool[port] = rtp;
+            if ((err = rtp_pool[port]->listen()) != srs_success) {
+                stop_rtp_listen(id);
+                return srs_error_wrap(err, "rtp listen");
+            }
+
+            srs_trace("gb28181: start rtp ps stream over server-port=%d", port);
         }
-
-        srs_trace("gb28181: start rtp ps stream over server-port=%d", port);
     }
 
     return err;
@@ -1542,12 +2478,13 @@ void SrsGb28181Manger::stop_rtp_listen(std::string id)
         return; 
     }
 
-    map<uint32_t, SrsPsRtpListener*>::iterator it2 = rtp_pool.find(port);
-    if (it2 != rtp_pool.end()){
-        srs_freep(it2->second);
-        rtp_pool.erase(it2);
+    if (!config->rtp_mux_tcp_enable) {
+        map<uint32_t, SrsPsRtpListener*>::iterator it2 = rtp_pool.find(port);
+        if (it2 != rtp_pool.end()) {
+            srs_freep(it2->second);
+            rtp_pool.erase(it2);
+        }
     }
-
     free_port(port, port+1);
 }
 
@@ -1566,13 +2503,6 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
        channel->copy(&s);
        //return ERROR_GB28181_SESSION_IS_EXIST;
        return err;
-    }
-
-    //create on rtmp muxer, gb28181 stream to rtmp
-   
-    if ((err = fetch_or_create_rtmpmuxer(id, &muxer)) != srs_success){
-        srs_warn("gb28181: create rtmp muxer error, %s", srs_error_desc(err).c_str());
-        return err;
     }
 
     //Start RTP listening port, receive gb28181 stream, 
@@ -1610,7 +2540,6 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
         //of the string value of the id
         ssrc = generate_ssrc(id);
     }
-    rtmpmuxer_map_by_ssrc(muxer, ssrc);
 
     //generate RTMP push stream address,
     //if the app and stream in the API are empty, 
@@ -1619,6 +2548,8 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
     int rtmp_port;
     string app = channel->get_app();
     string stream = channel->get_stream();
+
+    SrsRequest request;
 
     if (true) {
         string tcUrl, stream_name;
@@ -1669,8 +2600,19 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
         channel->set_ip(config->host);
         std::string play_url = srs_generate_rtmp_url(config->host, rtmp_port, "", "", app, stream_name, "");
         channel->set_rtmp_url(play_url);
+
+        request.app = app;
+        request.stream = stream_name;
+        //request.vhost = config->host;
     }
 
+    //create on rtmp muxer, gb28181 stream to rtmp
+    if ((err = fetch_or_create_rtmpmuxer(id, &request, &muxer)) != srs_success){
+        srs_warn("gb28181: create rtmp muxer error, %s", srs_error_desc(err).c_str());
+        return err;
+    }
+
+    rtmpmuxer_map_by_ssrc(muxer, ssrc);
     muxer->set_rtmp_url(url);
     srs_trace("gb28181: create new stream channel id:%s rtmp url=%s", id.c_str(), url.c_str());
 
@@ -1679,17 +2621,19 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
     return err;
 }
 
-srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id)
+srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id, std::string chid)
 {
     srs_error_t err = srs_success;
 
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
-    notify_sip_bye(id, id);
+    notify_sip_bye(id, chid);
 
-    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(id);
+    string channel_id = id + "@" + chid;
+
+    SrsGb28181RtmpMuxer *muxer = fetch_rtmpmuxer(channel_id);
     if (muxer){
-        stop_rtp_listen(id);
+        stop_rtp_listen(channel_id);
         muxer->stop();
        return err;
     }else {
@@ -1741,6 +2685,12 @@ srs_error_t SrsGb28181Manger::notify_sip_invite(std::string id, std::string ip, 
              //channel not exist
             SrsGb28181StreamChannel channel;
             channel.set_channel_id(key);
+            if (!this->config->sip_invite_port_fixed) {
+                channel.set_port_mode(RTP_PORT_MODE_RANDOM);
+            }else
+            {
+                channel.set_port_mode(RTP_PORT_MODE_FIXED);
+            }
             err =  create_stream_channel(&channel);
             if (err != srs_success){
                 return err;
@@ -1804,7 +2754,11 @@ srs_error_t SrsGb28181Manger::notify_sip_unregister(std::string id)
         return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
     }
     sip_service->remove_session(id);
-    return delete_stream_channel(id);
+    return srs_success;
+    // useless, because
+    //   sip session has been removed
+    //   id is not channel id like id@chid
+    //return delete_stream_channel(id);
 }
 
 srs_error_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
@@ -1815,6 +2769,12 @@ srs_error_t SrsGb28181Manger::notify_sip_query_catalog(std::string id)
 
     SrsSipRequest req;
     req.sip_auth_id = id;
+    SrsGb28181SipSession *sip_session = sip_service->fetch(req.sip_auth_id);
+    if (sip_session) {
+        sip_session->item_list.clear();
+        sip_session->clear_device_list();
+        srs_trace("notify_sip_query_catalog, clear sip session item and device list");
+    }
     return sip_service->send_query_catalog(&req);
 }
 
@@ -1826,3 +2786,231 @@ srs_error_t SrsGb28181Manger::query_sip_session(std::string id, SrsJsonArray* ar
     
     return sip_service->query_sip_session(id, arr);
 }
+
+srs_error_t SrsGb28181Manger::query_device_list(std::string id, SrsJsonArray* arr)
+{
+    if (!sip_service){
+        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
+    }
+
+    return sip_service->query_device_list(id, arr);
+}
+
+#define SRS_RTSP_BUFFER 262144
+SrsGb28181Conn::SrsGb28181Conn(SrsGb28181Caster* c, srs_netfd_t fd, SrsGb28181TcpPsRtpProcessor *rtp_processor)
+{
+	caster = c;
+	stfd = fd;
+	skt = new SrsStSocket();
+	rtsp = new SrsRtspStack(skt);
+	trd = new SrsSTCoroutine("rtsp", this);
+	mbuffer = (char*)malloc(SRS_RTSP_BUFFER);
+	processor = rtp_processor;
+}
+
+SrsGb28181Conn::~SrsGb28181Conn()
+{
+	free(mbuffer);
+	srs_close_stfd(stfd);
+
+	srs_freep(trd);
+	srs_freep(skt);
+	srs_freep(rtsp);
+}
+
+srs_error_t SrsGb28181Conn::serve()
+{
+	srs_error_t err = srs_success;
+
+	if ((err = skt->initialize(stfd)) != srs_success) {
+		return srs_error_wrap(err, "socket initialize");
+	}
+
+	if ((err = trd->start()) != srs_success) {
+		return srs_error_wrap(err, "rtsp connection");
+	}
+	return err;
+}
+
+std::string SrsGb28181Conn::remote_ip()
+{
+	// TODO: FIXME: Implement it.
+	return "";
+}
+
+srs_error_t SrsGb28181Conn::do_cycle()
+{
+	srs_error_t err = srs_success;
+
+	// retrieve ip of client.
+	int fd = srs_netfd_fileno(stfd);
+	std::string ip = srs_get_peer_ip(fd);
+	int port = srs_get_peer_port(fd);
+
+	if (ip.empty() && !_srs_config->empty_ip_ok()) {
+		srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
+	}
+	srs_trace("rtsp: serve %s:%d", ip.c_str(), port);
+
+	char* leftData = (char*)malloc(SRS_RTSP_BUFFER);;
+	uint32_t leftDataLength = 0;
+	int16_t length = 0;
+	char* pp = (char*)&length;
+	char* p = &(mbuffer[0]);
+	ssize_t nb_read = 0;
+	int16_t length2;
+
+	// consume all rtp data.
+	while (true) {
+		if ((err = trd->pull()) != srs_success) {
+			free(leftData);
+			return srs_error_wrap(err, "rtsp cycle");
+		}
+
+		//memset(buffer, 0, SRS_RTSP_BUFFER);
+		nb_read = 0;
+		if ((err = skt->read(mbuffer + leftDataLength, SRS_RTSP_BUFFER - leftDataLength, &nb_read)) != srs_success) {
+			free(leftData);
+			return srs_error_wrap(err, "recv data");
+		}
+
+		nb_read = nb_read + leftDataLength;
+		
+		length;
+		pp = (char*)&length;
+		p = &(mbuffer[0]);
+		pp[1] = *p++;
+		pp[0] = *p++;
+
+		if (nb_read < (length + 2)) {//Not enough one packet.
+			leftDataLength = leftDataLength + nb_read;
+			continue;
+		}
+
+		memset(leftData, 0, SRS_RTSP_BUFFER);
+
+		while (length > 0) {
+			if ((length + 2) == nb_read) {//Only one packet.
+				nb_read = nb_read - 2;
+				processor->on_rtp(mbuffer + 2, nb_read, ip, port);
+				leftDataLength = 0;
+				break;
+			}
+			else { //multi packets.
+				pp = (char*)&length2;
+				p = &(mbuffer[length + 2]);
+				pp[1] = *p++;
+				pp[0] = *p++;
+
+				processor->on_rtp(mbuffer + 2, length, ip, port);
+
+				leftDataLength = nb_read - (length + 2);
+				nb_read = leftDataLength;
+				memcpy(leftData, mbuffer + length + 2, leftDataLength);
+
+				pp = (char*)&length;
+				p = &(mbuffer[length + 2]);
+				pp[1] = *p++;
+				pp[0] = *p++;
+
+				if (leftDataLength < (length + 2)) {//Not enough one packet.
+					memcpy(mbuffer, leftData, leftDataLength);
+					break;
+				}
+				else {
+					memcpy(mbuffer, leftData, leftDataLength);
+				}
+			}
+		}
+	}
+
+	free(leftData);
+
+	return err;
+}
+
+srs_error_t SrsGb28181Conn::cycle()
+{
+	// serve the rtsp client.
+	srs_error_t err = do_cycle();
+
+	caster->remove(this);
+
+	if (err == srs_success) {
+		srs_trace("client finished.");
+	}
+	else if (srs_is_client_gracefully_close(err)) {
+		srs_warn("client disconnect peer. code=%d", srs_error_code(err));
+		srs_freep(err);
+	}
+
+	return err;
+}
+
+std::string SrsGb28181Conn::desc()
+{
+    return "GB28181TcpConn";
+}
+
+const SrsContextId& SrsGb28181Conn::get_id()
+{
+    return trd->cid();
+}
+
+SrsGb28181Caster::SrsGb28181Caster(SrsConfDirective* c)
+{
+	// TODO: FIXME: support reload.
+	output = _srs_config->get_stream_caster_output(c);
+	config = new SrsGb28181Config(c);
+	rtp_processor = new SrsGb28181TcpPsRtpProcessor(config, "");
+	manager = new SrsResourceManager("GB28181TCP", true);
+}
+
+SrsGb28181Caster::~SrsGb28181Caster()
+{
+	std::vector<SrsGb28181Conn*>::iterator it;
+	for (it = clients.begin(); it != clients.end(); ++it) {
+		SrsGb28181Conn* conn = *it;
+		manager->remove(conn);
+	}
+	clients.clear();
+
+	srs_freep(manager);
+}
+
+srs_error_t SrsGb28181Caster::initialize()
+{
+	srs_error_t err = srs_success;
+	if ((err = manager->start()) != srs_success) {
+		return srs_error_wrap(err, "start manager");
+	}
+	return err;
+}
+
+srs_error_t SrsGb28181Caster::on_tcp_client(srs_netfd_t stfd)
+{
+	srs_error_t err = srs_success;
+
+	SrsGb28181Conn* conn = new SrsGb28181Conn(this, stfd, rtp_processor);
+
+	if ((err = conn->serve()) != srs_success) {
+		srs_freep(conn);
+		return srs_error_wrap(err, "serve conn");
+	}
+
+	clients.push_back(conn);
+
+	return err;
+}
+
+void SrsGb28181Caster::remove(SrsGb28181Conn* conn)
+{
+	std::vector<SrsGb28181Conn*>::iterator it = find(clients.begin(), clients.end(), conn);
+	if (it != clients.end()) {
+		clients.erase(it);
+	}
+	srs_info("rtsp: remove connection from caster.");
+
+	manager->remove(conn);
+}
+

@@ -148,18 +148,37 @@ void srs_parse_query_string(string q, map<string,string>& query)
     }
 }
 
+static bool _random_initialized = false;
+
 void srs_random_generate(char* bytes, int size)
 {
-    static bool _random_initialized = false;
     if (!_random_initialized) {
-        srand(0);
         _random_initialized = true;
+        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
     }
     
     for (int i = 0; i < size; i++) {
         // the common value in [0x0f, 0xf0]
-        bytes[i] = 0x0f + (rand() % (256 - 0x0f - 0x0f));
+        bytes[i] = 0x0f + (random() % (256 - 0x0f - 0x0f));
     }
+}
+
+std::string srs_random_str(int len)
+{
+    if (!_random_initialized) {
+        _random_initialized = true;
+        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
+    }
+
+    static string random_table = "01234567890123456789012345678901234567890123456789abcdefghijklmnopqrstuvwxyz";
+
+    string ret;
+    ret.reserve(len);
+    for (int i = 0; i < len; ++i) {
+        ret.append(1, random_table[random() % random_table.size()]);
+    }
+
+    return ret;
 }
 
 string srs_generate_tc_url(string host, string vhost, string app, int port)
@@ -181,11 +200,11 @@ string srs_generate_tc_url(string host, string vhost, string app, int port)
     return tcUrl;
 }
 
-string srs_generate_stream_with_query(string host, string vhost, string stream, string param)
+string srs_generate_stream_with_query(string host, string vhost, string stream, string param, bool with_vhost)
 {
     string url = stream;
     string query = param;
-    
+
     // If no vhost in param, try to append one.
     string guessVhost;
     if (query.find("vhost=") == string::npos) {
@@ -195,10 +214,27 @@ string srs_generate_stream_with_query(string host, string vhost, string stream, 
             guessVhost = host;
         }
     }
-    
+
     // Well, if vhost exists, always append in query string.
-    if (!guessVhost.empty()) {
+    if (!guessVhost.empty() && query.find("vhost=") == string::npos) {
         query += "&vhost=" + guessVhost;
+    }
+
+    // If not pass in query, remove it.
+    if (!with_vhost) {
+        size_t pos = query.find("&vhost=");
+        if (pos == string::npos) {
+            pos = query.find("vhost=");
+        }
+
+        size_t end = query.find("&", pos + 1);
+        if (end == string::npos) {
+            end = query.length();
+        }
+
+        if (pos != string::npos && end != string::npos && end > pos) {
+            query = query.substr(0, pos) + query.substr(end);
+        }
     }
     
     // Remove the start & when param is empty.
@@ -358,20 +394,6 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
     }
     
     return err;
-}
-
-string srs_join_vector_string(vector<string>& vs, string separator)
-{
-    string str = "";
-    
-    for (int i = 0; i < (int)vs.size(); i++) {
-        str += vs.at(i);
-        if (i != (int)vs.size() - 1) {
-            str += separator;
-        }
-    }
-    
-    return str;
 }
 
 bool srs_is_ipv4(string domain)

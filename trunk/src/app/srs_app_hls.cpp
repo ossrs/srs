@@ -55,7 +55,7 @@ using namespace std;
 
 // drop the segment when duration of ts too small.
 // TODO: FIXME: Refine to time unit.
-#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION (100 * SRS_UTIME_MILLISECONDS)
+#define SRS_HLS_SEGMENT_MIN_DURATION (100 * SRS_UTIME_MILLISECONDS)
 
 // fragment plus the deviation percent.
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.3
@@ -82,7 +82,7 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
     fw->config_cipher(key, iv);
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(int c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsContextId c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
 {
     req = r->copy();
     cid = c;
@@ -137,7 +137,7 @@ string SrsDvrAsyncCallOnHls::to_string()
     return "on_hls: " + path;
 }
 
-SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(int c, SrsRequest* r, string u)
+SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(SrsContextId c, SrsRequest* r, string u)
 {
     cid = c;
     req = r->copy();
@@ -200,6 +200,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     accept_floor_ts = 0;
     hls_ts_floor = false;
     max_td = 0;
+    writer = NULL;
     _sequence_no = 0;
     current = NULL;
     hls_keys = false;
@@ -214,6 +215,7 @@ SrsHlsMuxer::SrsHlsMuxer()
 
 SrsHlsMuxer::~SrsHlsMuxer()
 {
+    srs_freep(segments);
     srs_freep(current);
     srs_freep(req);
     srs_freep(async);
@@ -498,7 +500,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
+    if (current->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
@@ -518,7 +520,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration() < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION) {
+    if (current->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
         return false;
     }
     
@@ -619,7 +621,7 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     // when too small, it maybe not enough data to play.
     // when too large, it maybe timestamp corrupt.
     // make the segment more acceptable, when in [min, max_td * 2], it's ok.
-    bool matchMinDuration = current->duration() >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION;
+    bool matchMinDuration = current->duration() >= SRS_HLS_SEGMENT_MIN_DURATION;
     bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
     if (matchMinDuration && matchMaxDuration) {
         // use async to call the http hooks, for it will cause thread switch.
@@ -757,10 +759,11 @@ srs_error_t SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = dynamic_cast<SrsHlsSegment*>(segments->first());
+    if (first == NULL) {
+        return srs_error_new(ERROR_HLS_WRITE_FAILED, "segments cast");
+    }
+
     ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
-    
-    // iterator shared for td generation and segemnts wrote.
-    std::vector<SrsHlsSegment*>::iterator it;
     
     // #EXT-X-TARGETDURATION:4294967295\n
     /**

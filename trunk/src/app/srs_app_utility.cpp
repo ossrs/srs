@@ -35,7 +35,7 @@
 #include <sys/time.h>
 #include <math.h>
 #include <map>
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
 #include <sys/sysctl.h>
 #endif
 using namespace std;
@@ -235,7 +235,7 @@ void srs_update_system_rusage()
         return;
     }
     
-    _srs_system_rusage.sample_time = srsu2ms(srs_get_system_time());
+    _srs_system_rusage.sample_time = srsu2ms(srs_update_system_time());
     
     _srs_system_rusage.ok = true;
 }
@@ -329,7 +329,7 @@ SrsProcSystemStat* srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat& r)
 {
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/stat", "r");
     if (f == NULL) {
         srs_warn("open system cpu stat failed, ignore");
@@ -368,7 +368,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
 
 bool get_proc_self_stat(SrsProcSelfStat& r)
 {
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/self/stat", "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
@@ -420,7 +420,7 @@ void srs_update_proc_stat()
             return;
         }
         
-        r.sample_time = srsu2ms(srs_get_system_time());
+        r.sample_time = srsu2ms(srs_update_system_time());
         
         // calc usage in percent
         SrsProcSystemStat& o = _srs_system_cpu_system_stat;
@@ -446,7 +446,7 @@ void srs_update_proc_stat()
             return;
         }
         
-        r.sample_time = srsu2ms(srs_get_system_time());
+        r.sample_time = srsu2ms(srs_update_system_time());
         
         // calc usage in percent
         SrsProcSelfStat& o = _srs_system_cpu_self_stat;
@@ -491,14 +491,14 @@ SrsDiskStat* srs_get_disk_stat()
 
 bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 {
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
         return false;
     }
     
-    r.sample_time = srsu2ms(srs_get_system_time());
+    r.sample_time = srsu2ms(srs_update_system_time());
     
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
@@ -521,9 +521,9 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
 {
     r.ok = true;
-    r.sample_time = srsu2ms(srs_get_system_time());
+    r.sample_time = srsu2ms(srs_update_system_time());
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     // if disabled, ignore all devices.
     SrsConfDirective* conf = _srs_config->get_stats_disk_device();
     if (conf == NULL) {
@@ -687,7 +687,7 @@ void srs_update_meminfo()
 {
     SrsMemInfo& r = _srs_system_meminfo;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
         srs_warn("open meminfo failed, ignore");
@@ -715,7 +715,7 @@ void srs_update_meminfo()
     fclose(f);
 #endif
 
-    r.sample_time = srsu2ms(srs_get_system_time());
+    r.sample_time = srsu2ms(srs_update_system_time());
     r.MemActive = r.MemTotal - r.MemFree;
     r.RealInUse = r.MemActive - r.Buffers - r.Cached;
     r.NotInUse = r.MemTotal - r.RealInUse;
@@ -781,7 +781,7 @@ void srs_update_platform_info()
     
     r.srs_startup_time = srsu2ms(srs_get_system_startup_time());
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/uptime", "r");
         if (f == NULL) {
@@ -893,7 +893,7 @@ int srs_get_network_devices_count()
 
 void srs_update_network_devices()
 {
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/dev", "r");
         if (f == NULL) {
@@ -924,7 +924,7 @@ void srs_update_network_devices()
             _nb_srs_system_network_devices = i + 1;
             srs_info("scan network device ifname=%s, total=%d", r.name, _nb_srs_system_network_devices);
             
-            r.sample_time = srsu2ms(srs_get_system_time());
+            r.sample_time = srsu2ms(srs_update_system_time());
             r.ok = true;
         }
         
@@ -940,6 +940,9 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     nb_conn_sys = nb_conn_srs = 0;
     nb_conn_sys_et = nb_conn_sys_tw = 0;
     nb_conn_sys_udp = 0;
+    rkbps = skbps = 0;
+    rkbps_30s = skbps_30s = 0;
+    rkbps_5m = skbps_5m = 0;
 }
 
 static SrsNetworkRtmpServer _srs_network_rtmp_server;
@@ -978,7 +981,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     int nb_tcp_mem = 0;
     int nb_udp4 = 0;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
@@ -1021,7 +1024,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 
     int nb_tcp_estab = 0;
 
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
@@ -1067,7 +1070,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         r.ok = true;
         
         r.nb_conn_srs = nb_conn;
-        r.sample_time = srsu2ms(srs_get_system_time());
+        r.sample_time = srsu2ms(srs_update_system_time());
         
         r.rbytes = kbps->get_recv_bytes();
         r.rkbps = kbps->get_recv_kbps();
@@ -1143,6 +1146,28 @@ string srs_get_peer_ip(int fd)
     return std::string(saddr);
 }
 
+int srs_get_peer_port(int fd)
+{
+    // discovery client information
+    sockaddr_storage addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return 0;
+    }
+
+    int port = 0;
+    switch(addr.ss_family) {
+        case AF_INET:
+            port = ntohs(((sockaddr_in*)&addr)->sin_port);
+         break;
+        case AF_INET6:
+            port = ntohs(((sockaddr_in6*)&addr)->sin6_port);
+         break;
+    }
+
+    return port;
+}
+
 bool srs_is_boolean(string str)
 {
     return str == "true" || str == "false";
@@ -1165,7 +1190,7 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
         self_mem_percent = (float)(r->r.ru_maxrss / (double)m->MemTotal);
     }
     
-    int64_t now = srsu2ms(srs_get_system_time());
+    int64_t now = srsu2ms(srs_update_system_time());
     double srs_uptime = (now - p->srs_startup_time) / 100 / 10.0;
     
     int64_t n_sample_time = 0;
@@ -1259,37 +1284,63 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
 }
 
-string srs_string_dumps_hex(const std::string& str, const int& limit)
+string srs_string_dumps_hex(const std::string& str)
 {
-    return srs_string_dumps_hex(str.c_str(), str.size(), limit);
+    return srs_string_dumps_hex(str.c_str(), str.size());
 }
 
-string srs_string_dumps_hex(const char* buf, const int length, const int& limit)
+string srs_string_dumps_hex(const char* str, int length)
 {
-    string ret;
+    return srs_string_dumps_hex(str, length, INT_MAX);
+}
 
-    char tmp_buf[1024*16];
-    tmp_buf[0] = '\n';
-    int len = 1;
-    
-    for (int i = 0; i < length && i < limit; ++i) {
-        int nb = snprintf(tmp_buf + len, sizeof(tmp_buf) - len - 2, "%02X ", (uint8_t)buf[i]);
-        if (nb <= 0)
+string srs_string_dumps_hex(const char* str, int length, int limit)
+{
+    return srs_string_dumps_hex(str, length, limit, ' ', 128, '\n');
+}
+
+string srs_string_dumps_hex(const char* str, int length, int limit, char seperator, int line_limit, char newline)
+{
+    // 1 byte trailing '\0'.
+    const int LIMIT = 1024*16 + 1;
+    static char buf[LIMIT];
+
+    int len = 0;
+    for (int i = 0; i < length && i < limit && len < LIMIT; ++i) {
+        int nb = snprintf(buf + len, LIMIT - len, "%02x", (uint8_t)str[i]);
+        if (nb < 0 || nb >= LIMIT - len) {
             break;
+        }
+        len += nb;
 
-        len += nb; 
+        // Only append seperator and newline when not last byte.
+        if (i < length - 1 && i < limit - 1 && len < LIMIT) {
+            if (seperator) {
+                buf[len++] = seperator;
+            }
 
-        if (i % 48 == 47) {
-            tmp_buf[len++] = '\n';
-            ret.append(tmp_buf, len);
-            len = 0;
-        }   
-    }   
-    tmp_buf[len] = '\0';
-    ret.append(tmp_buf, len);
+            if (newline && line_limit && i > 0 && ((i + 1) % line_limit) == 0) {
+                buf[len++] = newline;
+            }
+        }
+    }
 
-    return ret;
+    // Empty string.
+    if (len <= 0) {
+        return "";
+    }
 
+    // If overflow, cut the trailing newline.
+    if (newline && len >= LIMIT - 2 && buf[len - 1] == newline) {
+        len--;
+    }
+
+    // If overflow, cut the trailing seperator.
+    if (seperator && len >= LIMIT - 3 && buf[len - 1] == seperator) {
+        len--;
+    }
+
+    return string(buf, len);
 }
 
 string srs_getenv(string key)

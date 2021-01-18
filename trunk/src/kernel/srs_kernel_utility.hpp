@@ -102,9 +102,9 @@ extern bool srs_string_contains(std::string str, std::string flag0, std::string 
 extern int srs_string_count(std::string str, std::string flag);
 // Find the min match in str for flags.
 extern std::string srs_string_min_match(std::string str, std::vector<std::string> flags);
-// Split the string by flag to array.
-extern std::vector<std::string> srs_string_split(std::string str, std::string flag);
-extern std::vector<std::string> srs_string_split(std::string str, std::vector<std::string> flags);
+// Split the string by seperator to array.
+extern std::vector<std::string> srs_string_split(std::string s, std::string seperator);
+extern std::vector<std::string> srs_string_split(std::string s, std::vector<std::string> seperators);
 
 // Compare the memory in bytes.
 // @return true if completely equal; otherwise, false.
@@ -141,16 +141,23 @@ extern uint32_t srs_crc32_ieee(const void* buf, int size, uint32_t previous = 0)
 
 // Decode a base64-encoded string.
 extern srs_error_t srs_av_base64_decode(std::string cipher, std::string& plaintext);
+// Encode a plaintext to  base64-encoded string.
+extern srs_error_t srs_av_base64_encode(std::string plaintext, std::string& cipher);
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x)+2) / 3 * 4 + 1)
 
-// Convert hex string to data, for example, p=config='139056E5A0'
-// The output data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0} as such.
+// Covert hex string to uint8 data, for example:
+//      srs_hex_to_data(data, string("139056E5A0"))
+//      which outputs the data in hex {0x13, 0x90, 0x56, 0xe5, 0xa0}.
 extern int srs_hex_to_data(uint8_t* data, const char* p, int size);
 
-// Convert data string to hex.
-extern char *srs_data_to_hex(char *des, const uint8_t *src, int len);
+// Convert data string to hex, for example:
+//      srs_data_to_hex(des, {0xf3, 0x3f}, 2)
+//      which outputs the des is string("F33F").
+extern char* srs_data_to_hex(char* des, const uint8_t* src, int len);
+// Output in lowercase, such as string("f33f").
+extern char* srs_data_to_hex_lowercase(char* des, const uint8_t* src, int len);
 
 // Generate the c0 chunk header for msg.
 // @param cache, the cache to write header.
@@ -166,10 +173,10 @@ extern int srs_chunk_header_c3(int perfer_cid, uint32_t timestamp, char* cache, 
 
 // For utest to mock it.
 #include <sys/time.h>
-#ifdef SRS_AUTO_OSX
+#ifdef SRS_OSX
     #define _srs_gettimeofday gettimeofday
 #else
-    typedef int (*_srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
+    typedef int (*srs_gettimeofday_t) (struct timeval* tv, struct timezone* tz);
 #endif
 
 #endif

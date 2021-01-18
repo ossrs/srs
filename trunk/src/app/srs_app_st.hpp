@@ -28,6 +28,7 @@
 
 #include <string>
 
+#include <srs_kernel_log.hpp>
 #include <srs_service_st.hpp>
 #include <srs_protocol_io.hpp>
 
@@ -67,20 +68,29 @@ public:
     virtual srs_error_t cycle() = 0;
 };
 
+// Start the object, generally a croutine.
+class ISrsStartable
+{
+public:
+    ISrsStartable();
+    virtual ~ISrsStartable();
+public:
+    virtual srs_error_t start() = 0;
+};
+
 // The corotine object.
-class SrsCoroutine
+class SrsCoroutine : public ISrsStartable
 {
 public:
     SrsCoroutine();
     virtual ~SrsCoroutine();
 public:
-    virtual srs_error_t start() = 0;
     virtual void stop() = 0;
     virtual void interrupt() = 0;
     // @return a copy of error, which should be freed by user.
     //      NULL if not terminated and user should pull again.
     virtual srs_error_t pull() = 0;
-    virtual int cid() = 0;
+    virtual const SrsContextId& cid() = 0;
 };
 
 // An empty coroutine, user can default to this object before create any real coroutine.
@@ -95,7 +105,7 @@ public:
     virtual void stop();
     virtual void interrupt();
     virtual srs_error_t pull();
-    virtual int cid();
+    virtual const SrsContextId& cid();
 };
 
 // For utest to mock the thread create.
@@ -118,10 +128,11 @@ class SrsSTCoroutine : public SrsCoroutine
 {
 private:
     std::string name;
+    int stack_size;
     ISrsCoroutineHandler* handler;
 private:
     srs_thread_t trd;
-    int context;
+    SrsContextId cid_;
     srs_error_t trd_err;
 private:
     bool started;
@@ -132,8 +143,12 @@ private:
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.
-    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, int cid = 0);
+    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h);
+    SrsSTCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
     virtual ~SrsSTCoroutine();
+public:
+    // Set the stack size of coroutine, default to 0(64KB).
+    void set_stack_size(int v);
 public:
     // Start the thread.
     // @remark Should never start it when stopped or terminated.
@@ -154,7 +169,7 @@ public:
     // @remark Return ERROR_THREAD_INTERRUPED when thread is interrupted.
     virtual srs_error_t pull();
     // Get the context id of thread.
-    virtual int cid();
+    virtual const SrsContextId& cid();
 private:
     virtual srs_error_t cycle();
     static void* pfn(void* arg);

@@ -48,6 +48,7 @@ SrsDvrSegmenter::SrsDvrSegmenter()
     req = NULL;
     jitter = NULL;
     plan = NULL;
+    wait_keyframe = true;
     
     fragment = new SrsFragment();
     fs = new SrsFileWriter();
@@ -533,7 +534,7 @@ srs_error_t SrsDvrMp4Segmenter::close_encoder()
     return err;
 }
 
-SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(int c, SrsRequest* r, string p)
+SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsContextId c, SrsRequest* r, string p)
 {
     cid = c;
     req = r->copy();
@@ -585,6 +586,7 @@ string SrsDvrAsyncCallOnDvr::to_string()
 SrsDvrPlan::SrsDvrPlan()
 {
     req = NULL;
+    hub = NULL;
     
     dvr_enabled = false;
     segment = NULL;
@@ -673,7 +675,7 @@ srs_error_t SrsDvrPlan::on_reap_segment()
 {
     srs_error_t err = srs_success;
     
-    int cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     
     SrsFragment* fragment = segment->current();
     string fullpath = fragment->fullpath();

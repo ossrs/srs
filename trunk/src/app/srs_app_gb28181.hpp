@@ -33,7 +33,6 @@
 #include <map>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_rtsp_stack.hpp>
 #include <srs_kernel_stream.hpp>
@@ -41,9 +40,42 @@
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_gb28181_sip.hpp>
+#include <srs_app_gb28181_jitbuffer.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_app_source.hpp>
+#include <srs_service_conn.hpp>
 
 #define RTP_PORT_MODE_FIXED "fixed"
 #define RTP_PORT_MODE_RANDOM "random"
+
+#define PS_AUDIO_ID 0xc0
+#define PS_AUDIO_ID_END 0xdf
+#define PS_VIDEO_ID 0xe0
+#define PS_VIDEO_ID_END 0xef
+
+#define STREAM_TYPE_VIDEO_MPEG1     0x01
+#define STREAM_TYPE_VIDEO_MPEG2     0x02
+#define STREAM_TYPE_AUDIO_MPEG1     0x03
+#define STREAM_TYPE_AUDIO_MPEG2     0x04
+#define STREAM_TYPE_PRIVATE_SECTION 0x05
+#define STREAM_TYPE_PRIVATE_DATA    0x06
+#define STREAM_TYPE_AUDIO_AAC       0x0f
+#define STREAM_TYPE_VIDEO_MPEG4     0x10
+#define STREAM_TYPE_VIDEO_H264      0x1b
+#define STREAM_TYPE_VIDEO_HEVC      0x24
+#define STREAM_TYPE_VIDEO_CAVS      0x42
+#define STREAM_TYPE_VIDEO_SAVC      0x80
+
+#define STREAM_TYPE_AUDIO_AC3       0x81
+
+#define STREAM_TYPE_AUDIO_G711      0x90
+#define STREAM_TYPE_AUDIO_G711ULAW  0x91
+#define STREAM_TYPE_AUDIO_G722_1    0x92
+#define STREAM_TYPE_AUDIO_G723_1    0x93
+#define STREAM_TYPE_AUDIO_G726      0x96
+#define STREAM_TYPE_AUDIO_G729_1    0x99
+#define STREAM_TYPE_AUDIO_SVAC      0x9b
+#define STREAM_TYPE_AUDIO_PCM       0x9c
 
 class SrsConfDirective;
 class SrsRtpPacket;
@@ -63,16 +95,26 @@ class SrsSipRequest;
 class SrsGb28181RtmpMuxer;
 class SrsGb28181Config;
 class SrsGb28181PsRtpProcessor;
+class SrsGb28181TcpPsRtpProcessor;
 class SrsGb28181SipService;
 class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
+class SrsPsJitterBuffer;
+class SrsServer;
+class SrsSource;
+class SrsRequest;
+class SrsResourceManager;
+class SrsGb28181Conn;
+class SrsGb28181Caster;
 
 //ps rtp header packet parse
+
 class SrsPsRtpPacket: public SrsRtpPacket
 {
 public:
     SrsPsRtpPacket();
     virtual ~SrsPsRtpPacket();
+    bool isFirstPacket;
 public:
     virtual srs_error_t decode(SrsBuffer* stream);
 };
@@ -119,7 +161,7 @@ private:
     SrsPithyPrint* pprint;
     SrsGb28181Config* config;
     std::map<std::string, SrsPsRtpPacket*> cache_ps_rtp_packet;
-    std::map<std::string,  SrsPsRtpPacket*> pre_packet;
+    std::map<std::string, SrsPsRtpPacket*> pre_packet;
     std::string channel_id;
     bool auto_create_channel;
 public:
@@ -129,9 +171,42 @@ private:
     bool can_send_ps_av_packet();
     void dispose();
     void clear_pre_packet();
+    SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc);
+    srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc, 
+            int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+public:
+    virtual srs_error_t on_rtp_packet_jitter(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    virtual srs_error_t on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+};
+
+class SrsGb28181TcpPsRtpProcessor
+{
+private:
+	SrsPithyPrint* pprint;
+	SrsGb28181Config* config;
+	std::map<std::string, SrsPsRtpPacket*> cache_ps_rtp_packet;
+	std::map<std::string, SrsPsRtpPacket*> pre_packet;
+	std::string channel_id;
+	bool auto_create_channel;
+public:
+	SrsGb28181TcpPsRtpProcessor(SrsGb28181Config* c, std::string sid);
+	virtual ~SrsGb28181TcpPsRtpProcessor();
+private:
+	bool can_send_ps_av_packet();
+	void dispose();
+	void clear_pre_packet();
+	SrsGb28181RtmpMuxer* create_rtmpmuxer(std::string channel_id, uint32_t ssrc);
+	srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc,
+		int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
+	// Interface ISrsTcpHandler
+public:
+	virtual srs_error_t on_rtp(char* buf, int nb_buf, std::string ip, int port);
+public:
+	virtual srs_error_t on_rtp_packet_jitter(char* buf, int nb_buf, std::string ip, int port);
+	virtual srs_error_t on_rtp_packet(char* buf, int nb_buf, std::string ip, int port);
 };
 
 //ps stream processing parsing interface
@@ -142,7 +217,7 @@ public:
     virtual ~ISrsPsStreamHander();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts)=0;
-    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts)=0;
+    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type)=0;
 };
 
 //analysis of PS stream and 
@@ -197,6 +272,14 @@ private:
     bool audio_enable;
     std::string channel_id;
 
+    uint8_t video_es_id;
+    uint8_t video_es_type;
+    uint8_t audio_es_id;
+    uint8_t audio_es_type;
+    int audio_check_aac_try_count;
+    
+    SrsRawAacStream *aac;
+
     ISrsPsStreamHander *hander;
 public:
     SrsPsStreamDemixer(ISrsPsStreamHander *h, std::string sid, bool a, bool k);
@@ -205,6 +288,7 @@ private:
     bool can_send_ps_av_packet();
 public:
     int64_t parse_ps_timestamp(const uint8_t* p);
+    std::string get_ps_map_type_str(uint8_t);
     virtual srs_error_t on_ps_stream(char* ps_data, int ps_size, uint32_t timestamp, uint32_t ssrc);
 };
 
@@ -242,6 +326,24 @@ private:
     SrsRawAacStream* aac;
     std::string aac_specific_config;
 
+    SrsRequest* req;
+    SrsSource* source;
+    SrsServer* server;
+
+    SrsPsJitterBuffer *jitter_buffer;
+    SrsPsJitterBuffer *jitter_buffer_audio;
+
+    char *ps_buffer;
+    char *ps_buffer_audio;
+
+    int ps_buflen;
+    int ps_buflen_auido;
+
+    uint32_t ps_rtp_video_ts;
+    uint32_t ps_rtp_audio_ts;
+
+    bool source_publish; 
+
 public:
     std::queue<SrsPsRtpPacket*> ps_queue;
 
@@ -252,6 +354,7 @@ public:
 public:
     virtual srs_error_t serve();
     virtual void stop();
+    srs_error_t initialize(SrsServer* s, SrsRequest* r);
    
     virtual std::string get_channel_id();
     virtual void ps_packet_enqueue(SrsPsRtpPacket *pkt);
@@ -265,6 +368,8 @@ public:
     virtual SrsGb28181StreamChannel get_channel();
     srs_utime_t get_recv_stream_time();
 
+    void insert_jitterbuffer(SrsPsRtpPacket *pkt);
+
 private:
     virtual srs_error_t do_cycle();
     virtual void destroy();
@@ -272,15 +377,23 @@ private:
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
+// Interface ISrsConnection.
+public:
     virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+    virtual std::string desc();
 public:
     virtual srs_error_t on_rtp_video(SrsSimpleStream* stream, int64_t dts);
-    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts);
+    virtual srs_error_t on_rtp_audio(SrsSimpleStream* stream, int64_t dts, int type);
 private:
+    
+    srs_error_t replace_startcode_with_nalulen(char *video_data, int &size,  uint32_t pts, uint32_t dts);
+    srs_error_t write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool b = true);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
+    virtual srs_error_t rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size);
 private:
     // Connect to RTMP server.
     virtual srs_error_t connect();
@@ -303,7 +416,9 @@ public:
     int rtp_port_min;
     int rtp_port_max;
     int rtp_mux_port;
+	bool rtp_mux_tcp_enable;
     bool auto_create_channel;
+    bool jitterbuffer_enable;
 
     //sip config
     int  sip_port;
@@ -393,16 +508,18 @@ private:
     std::map<uint32_t, SrsPsRtpListener*> rtp_pool;
     std::map<uint32_t, SrsGb28181RtmpMuxer*> rtmpmuxers_ssrc;
     std::map<std::string, SrsGb28181RtmpMuxer*> rtmpmuxers;
-    SrsCoroutineManager* manager;
+    SrsResourceManager* manager;
     SrsGb28181SipService* sip_service;
+    SrsServer* server;
 public:
-    SrsGb28181Manger(SrsConfDirective* c);
+    SrsGb28181Manger(SrsServer* s, SrsConfDirective* c);
     virtual ~SrsGb28181Manger();
 
 public:
-    srs_error_t fetch_or_create_rtmpmuxer(std::string id, SrsGb28181RtmpMuxer** gb28181);
+    srs_error_t fetch_or_create_rtmpmuxer(std::string id, SrsRequest *req, SrsGb28181RtmpMuxer** gb28181);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer(std::string id);
     SrsGb28181RtmpMuxer* fetch_rtmpmuxer_by_ssrc(uint32_t ssrc);
+    void update_rtmpmuxer_to_newssrc_by_id(std::string id, uint32_t ssrc);
     void rtmpmuxer_map_by_ssrc(SrsGb28181RtmpMuxer*muxer, uint32_t ssrc);
     void rtmpmuxer_unmap_by_ssrc(uint32_t ssrc);
     uint32_t generate_ssrc(std::string id);
@@ -410,11 +527,12 @@ public:
 
     void set_sip_service(SrsGb28181SipService *s) { sip_service = s; }
     SrsGb28181SipService* get_sip_service() { return sip_service; }
+    SrsGb28181Config* get_gb28181_config_ptr() { return config;}
 
 public:
     //stream channel api
     srs_error_t create_stream_channel(SrsGb28181StreamChannel *channel);
-    srs_error_t delete_stream_channel(std::string id);
+    srs_error_t delete_stream_channel(std::string id, std::string chid);
     srs_error_t query_stream_channel(std::string id, SrsJsonArray* arr);
     //sip api
     srs_error_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
@@ -424,6 +542,7 @@ public:
     srs_error_t notify_sip_query_catalog(std::string id);
     srs_error_t notify_sip_ptz(std::string id, std::string chid, std::string cmd, uint8_t speed, int priority);
     srs_error_t query_sip_session(std::string id, SrsJsonArray* arr);
+    srs_error_t query_device_list(std::string id, SrsJsonArray* arr);
 
 private:
     void destroy();
@@ -443,6 +562,55 @@ public:
 public:
     void remove(SrsGb28181RtmpMuxer* conn);
     void remove_sip_session(SrsGb28181SipSession* sess);
+};
+
+// The gb28181 tcp connection serve the fd.
+class SrsGb28181Conn : public ISrsCoroutineHandler, public ISrsConnection
+{
+private:
+	char* mbuffer;
+	srs_netfd_t stfd;
+	SrsStSocket* skt;
+	SrsRtspStack* rtsp;
+	SrsGb28181Caster* caster;
+	SrsCoroutine* trd;
+	SrsGb28181TcpPsRtpProcessor *processor;
+public:
+	SrsGb28181Conn(SrsGb28181Caster* c, srs_netfd_t fd, SrsGb28181TcpPsRtpProcessor *rtp_processor);
+	virtual ~SrsGb28181Conn();
+public:
+	virtual srs_error_t serve();
+	virtual std::string remote_ip();
+private:
+	virtual srs_error_t do_cycle();
+	// Interface ISrsOneCycleThreadHandler
+public:
+	virtual srs_error_t cycle();
+    virtual std::string desc();
+    virtual const SrsContextId& get_id();
+};
+
+// The caster for gb28181.
+class SrsGb28181Caster : public ISrsTcpHandler
+{
+private:
+	std::string output;
+	SrsGb28181Config *config;
+	SrsGb28181TcpPsRtpProcessor *rtp_processor;
+private:
+	std::vector<SrsGb28181Conn*> clients;
+	SrsResourceManager* manager;
+public:
+	SrsGb28181Caster(SrsConfDirective* c);
+	virtual ~SrsGb28181Caster();
+public:
+	virtual srs_error_t initialize();
+	// Interface ISrsTcpHandler
+public:
+	virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+	// internal methods.
+public:
+	virtual void remove(SrsGb28181Conn* conn);
 };
 
 #endif

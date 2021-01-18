@@ -23,7 +23,7 @@
 
 #include <srs_core_mem_watch.hpp>
 
-#ifdef SRS_AUTO_MEM_WATCH
+#ifdef SRS_MEM_WATCH
 
 #include <map>
 #include <stdio.h>

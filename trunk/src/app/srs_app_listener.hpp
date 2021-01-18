@@ -32,7 +32,6 @@
 #include <string>
 
 #include <srs_app_st.hpp>
-#include <srs_app_thread.hpp>
 
 struct sockaddr;
 
@@ -102,6 +101,8 @@ public:
 public:
     virtual int fd();
     virtual srs_netfd_t stfd();
+private:
+    void set_socket_buffer();
 public:
     virtual srs_error_t listen();
 // Interface ISrsReusableThreadHandler.
@@ -131,27 +132,10 @@ public:
     virtual srs_error_t cycle();
 };
 
-class ISrsUdpSender
-{
-public:
-    ISrsUdpSender();
-    virtual ~ISrsUdpSender();
-public:
-    // Fetch a mmsghdr from sender's cache.
-    virtual srs_error_t fetch(mmsghdr** pphdr) = 0;
-    // Notify the sender to send out the msg.
-    virtual srs_error_t sendmmsg(mmsghdr* hdr) = 0;
-    // Whether sender exceed the max queue, that is, overflow.
-    virtual bool overflow() = 0;
-    // Set the queue extra ratio, for example, when mw_msgs > 0, we need larger queue.
-    // For r, 100 means x1, 200 means x2.
-    virtual void set_extra_ratio(int r) = 0;
-};
-
+// TODO: FIXME: Rename it. Refine it for performance issue.
 class SrsUdpMuxSocket
 {
 private:
-    ISrsUdpSender* handler;
     char* buf;
     int nb_buf;
     int nread;
@@ -161,45 +145,37 @@ private:
     std::string peer_ip;
     int peer_port;
 public:
-    SrsUdpMuxSocket(ISrsUdpSender* h, srs_netfd_t fd);
+    SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
-
+public:
     int recvfrom(srs_utime_t timeout);
     srs_error_t sendto(void* data, int size, srs_utime_t timeout);
-
     srs_netfd_t stfd();
     sockaddr_in* peer_addr();
     socklen_t peer_addrlen();
-
-    char* data() { return buf; }
-    int size() { return nread; }
-    std::string get_peer_ip() const { return peer_ip; }
-    int get_peer_port() const { return peer_port; }
-    std::string get_peer_id();
-public:
+    char* data();
+    int size();
+    std::string get_peer_ip() const;
+    int get_peer_port() const;
+    std::string peer_id();
     SrsUdpMuxSocket* copy_sendonly();
-    ISrsUdpSender* sender() { return handler; };
-private:
-    // Don't allow copy, user copy_sendonly instead
-    SrsUdpMuxSocket(const SrsUdpMuxSocket& rhs);
-    SrsUdpMuxSocket& operator=(const SrsUdpMuxSocket& rhs);
 };
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler
 {
-protected:
+private:
     srs_netfd_t lfd;
-    ISrsUdpSender* sender;
     SrsCoroutine* trd;
-protected:
+    SrsContextId cid;
+private:
     char* buf;
     int nb_buf;
-protected:
+private:
     ISrsUdpMuxHandler* handler;
     std::string ip;
     int port;
 public:
-    SrsUdpMuxListener(ISrsUdpMuxHandler* h, ISrsUdpSender* s, std::string i, int p);
+    SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p);
     virtual ~SrsUdpMuxListener();
 public:
     virtual int fd();

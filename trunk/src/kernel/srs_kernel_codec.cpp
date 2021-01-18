@@ -32,7 +32,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_rtp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 string srs_video_codec_id2str(SrsVideoCodecId codec)
 {
@@ -368,6 +368,13 @@ SrsSample::SrsSample()
     bframe = false;
 }
 
+SrsSample::SrsSample(char* b, int s)
+{
+    size = s;
+    bytes = b;
+    bframe = false;
+}
+
 SrsSample::~SrsSample()
 {
 }
@@ -414,6 +421,7 @@ SrsSample* SrsSample::copy()
     SrsSample* p = new SrsSample();
     p->bytes = bytes;
     p->size = size;
+    p->bframe = bframe;
     return p;
 }
 
@@ -603,7 +611,7 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     srs_error_t err = srs_success;
     
     if (!data || size <= 0) {
-        srs_trace("no audio present, ignore it.");
+        srs_info("no audio present, ignore it.");
         return err;
     }
     

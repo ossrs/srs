@@ -307,6 +307,7 @@ SrsDashController::SrsDashController()
     vfragments = new SrsFragmentWindow();
     afragments = new SrsFragmentWindow();
     audio_dts = video_dts = 0;
+    fragment = 0;
 }
 
 SrsDashController::~SrsDashController()

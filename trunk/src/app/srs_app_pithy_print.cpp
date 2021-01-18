@@ -24,18 +24,20 @@
 #include <srs_app_pithy_print.hpp>
 
 #include <stdlib.h>
-#include <map>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsStageInfo::SrsStageInfo(int _stage_id)
+SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
 {
     stage_id = _stage_id;
     nb_clients = 0;
     age = 0;
+    nn_count = 0;
+    interval_ratio = ratio;
     
     update_print_time();
     
@@ -59,7 +61,7 @@ void SrsStageInfo::elapse(srs_utime_t diff)
 
 bool SrsStageInfo::can_print()
 {
-    srs_utime_t can_print_age = nb_clients * interval;
+    srs_utime_t can_print_age = nb_clients * (srs_utime_t)(interval_ratio * interval);
     
     bool can_print = age >= can_print_age;
     if (can_print) {
@@ -75,7 +77,96 @@ srs_error_t SrsStageInfo::on_reload_pithy_print()
     return srs_success;
 }
 
-static std::map<int, SrsStageInfo*> _srs_stages;
+SrsStageManager::SrsStageManager()
+{
+}
+
+SrsStageManager::~SrsStageManager()
+{
+    map<int, SrsStageInfo*>::iterator it;
+    for (it = stages.begin(); it != stages.end(); ++it) {
+        SrsStageInfo* stage = it->second;
+        srs_freep(stage);
+    }
+}
+
+SrsStageInfo* SrsStageManager::fetch_or_create(int stage_id, bool* pnew)
+{
+    std::map<int, SrsStageInfo*>::iterator it = stages.find(stage_id);
+
+    // Create one if not exists.
+    if (it == stages.end()) {
+        SrsStageInfo* stage = new SrsStageInfo(stage_id);
+        stages[stage_id] = stage;
+
+        if (pnew) {
+            *pnew = true;
+        }
+
+        return stage;
+    }
+
+    // Exists, fetch it.
+    SrsStageInfo* stage = it->second;
+
+    if (pnew) {
+        *pnew = false;
+    }
+
+    return stage;
+}
+
+SrsErrorPithyPrint::SrsErrorPithyPrint(double ratio)
+{
+    nn_count = 0;
+    ratio_ = ratio;
+}
+
+SrsErrorPithyPrint::~SrsErrorPithyPrint()
+{
+}
+
+bool SrsErrorPithyPrint::can_print(srs_error_t err, uint32_t* pnn)
+{
+    int error_code = srs_error_code(err);
+    return can_print(error_code, pnn);
+}
+
+bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
+{
+    bool new_stage = false;
+    SrsStageInfo* stage = stages.fetch_or_create(error_code, &new_stage);
+
+    // Increase the count.
+    stage->nn_count++;
+    nn_count++;
+
+    if (pnn) {
+        *pnn = stage->nn_count;
+    }
+
+    // Always and only one client.
+    if (new_stage) {
+        stage->nb_clients = 1;
+        stage->interval_ratio = ratio_;
+    }
+
+    srs_utime_t tick = ticks[error_code];
+    if (!tick) {
+        ticks[error_code] = tick = srs_get_system_time();
+    }
+
+    srs_utime_t diff = srs_get_system_time() - tick;
+    diff = srs_max(0, diff);
+
+    stage->elapse(diff);
+    ticks[error_code] = srs_get_system_time();
+
+    return new_stage || stage->can_print();
+}
+
+// The global stage manager for pithy print, multiple stages.
+static SrsStageManager* _srs_stages = new SrsStageManager();
 
 SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {
@@ -194,16 +285,7 @@ SrsPithyPrint::~SrsPithyPrint()
 
 int SrsPithyPrint::enter_stage()
 {
-    SrsStageInfo* stage = NULL;
-    
-    std::map<int, SrsStageInfo*>::iterator it = _srs_stages.find(stage_id);
-    if (it == _srs_stages.end()) {
-        stage = new SrsStageInfo(stage_id);
-        _srs_stages[stage_id] = stage;
-    } else {
-        stage = it->second;
-    }
-    
+    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
     client_id = stage->nb_clients++;
     
@@ -215,7 +297,7 @@ int SrsPithyPrint::enter_stage()
 
 void SrsPithyPrint::leave_stage()
 {
-    SrsStageInfo* stage = _srs_stages[stage_id];
+    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
     
     stage->nb_clients--;
@@ -226,7 +308,7 @@ void SrsPithyPrint::leave_stage()
 
 void SrsPithyPrint::elapse()
 {
-    SrsStageInfo* stage = _srs_stages[stage_id];
+    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
     
     srs_utime_t diff = srs_get_system_time() - previous_tick;
@@ -239,7 +321,7 @@ void SrsPithyPrint::elapse()
 
 bool SrsPithyPrint::can_print()
 {
-    SrsStageInfo* stage = _srs_stages[stage_id];
+    SrsStageInfo* stage = _srs_stages->fetch_or_create(stage_id);
     srs_assert(stage != NULL);
     
     return stage->can_print();

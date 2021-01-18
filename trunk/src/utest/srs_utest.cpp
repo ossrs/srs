@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_dtls.hpp>
 
 #include <string>
 using namespace std;
@@ -41,9 +42,9 @@ srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 
 // kernel module.
 ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
+ISrsContext* _srs_context = new SrsThreadContext();
 // app module.
-SrsConfig* _srs_config = NULL;
+SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
 
@@ -55,6 +56,10 @@ srs_error_t prepare_main() {
 
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "init st");
+    }
+
+    if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
+        return srs_error_wrap(err, "rtc dtls certificate initialize");
     }
 
     srs_freep(_srs_context);
@@ -127,5 +132,57 @@ VOID TEST(SampleTest, FastSampleMacrosTest)
     EXPECT_FLOAT_EQ(1.0, 1.000000000000001);
     EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
     EXPECT_NEAR(10, 15, 5);
+}
+
+VOID TEST(SampleTest, StringEQTest)
+{
+    string str = "100";
+    EXPECT_TRUE("100" == str);
+    EXPECT_EQ("100", str);
+    EXPECT_STREQ("100", str.c_str());
+}
+
+class MockSrsContextId
+{
+public:
+    MockSrsContextId() {
+        bind_ = NULL;
+    }
+    MockSrsContextId(const MockSrsContextId& cp){
+        bind_ = NULL;
+        if (cp.bind_) {
+            bind_ = cp.bind_->copy();
+        }
+    }
+    MockSrsContextId& operator= (const MockSrsContextId& cp) {
+        srs_freep(bind_);
+        if (cp.bind_) {
+            bind_ = cp.bind_->copy();
+        }
+        return *this;
+    }
+    virtual ~MockSrsContextId() {
+        srs_freep(bind_);
+    }
+public:
+    MockSrsContextId* copy() const {
+        MockSrsContextId* cp = new MockSrsContextId();
+        if (bind_) {
+            cp->bind_ = bind_->copy();
+        }
+        return cp;
+    }
+private:
+    MockSrsContextId* bind_;
+};
+
+VOID TEST(SampleTest, ContextTest)
+{
+    MockSrsContextId cid;
+    cid.bind_ = new MockSrsContextId();
+
+    static std::map<int, MockSrsContextId> cache;
+    cache[0] = cid;
+    cache[0] = cid;
 }
 

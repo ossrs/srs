@@ -38,20 +38,36 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_service_http_client.hpp>
 #include <srs_service_rtmp_conn.hpp>
+#include <srs_service_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 
-class MockSrsConnection : public ISrsConnection
+MockSrsConnection::MockSrsConnection()
 {
-public:
-    MockSrsConnection() {
+    do_switch = false;
+}
+
+MockSrsConnection::~MockSrsConnection()
+{
+    if (do_switch) {
+        srs_usleep(0);
     }
-    virtual ~MockSrsConnection() {
-    }
-    virtual std::string remote_ip() {
-        return "127.0.0.1";
-    }
-};
+}
+
+const SrsContextId& MockSrsConnection::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string MockSrsConnection::desc()
+{
+    return "Mock";
+}
+
+std::string MockSrsConnection::remote_ip()
+{
+    return "127.0.0.1";
+}
 
 VOID TEST(ServiceTimeTest, TimeUnit)
 {
@@ -110,7 +126,7 @@ VOID TEST(TCPServerTest, PingPong)
 		SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
 		HELPER_EXPECT_SUCCESS(c.connect());
 
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
 		EXPECT_TRUE(h.fd != NULL);
 	}
 
@@ -123,8 +139,8 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -145,8 +161,8 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -169,8 +185,8 @@ VOID TEST(TCPServerTest, PingPong)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -204,8 +220,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -226,8 +242,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -248,8 +264,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -382,7 +398,7 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"!1234567890";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
 #endif
         EXPECT_EQ(str, parsed);
@@ -400,7 +416,7 @@ VOID TEST(TCPServerTest, StringIsHex)
         char* str = (char*)"";
         char* parsed = str; errno = 0;
         EXPECT_EQ(0x0, ::strtol(str, &parsed, 16));
-#ifndef SRS_AUTO_OSX
+#ifndef SRS_OSX
         EXPECT_EQ(0, errno);
 #endif
         EXPECT_EQ(str, parsed);
@@ -428,8 +444,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -458,8 +474,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
 		HELPER_EXPECT_SUCCESS(c.connect());
 
 		SrsStSocket skt;
-		srs_usleep(100 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_AUTO_OSX
+		srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
 		ASSERT_TRUE(h.fd != NULL);
 #endif
 		HELPER_EXPECT_SUCCESS(skt.initialize(h.fd));
@@ -480,7 +496,7 @@ VOID TEST(TCPServerTest, WritevIOVC)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageConnection)
+VOID TEST(HTTPServerTest, MessageConnection)
 {
     srs_error_t err;
 
@@ -523,18 +539,17 @@ VOID TEST(TCPServerTest, MessageConnection)
 
 	if (true) {
 	    SrsHttpMessage m;
-	    m.set_basic(100, 0, 0); EXPECT_STREQ("OTHER", m.method_str().c_str());
-	    m.set_basic(SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
-	    m.set_basic(SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
-	    m.set_basic(SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
-	    m.set_basic(SRS_CONSTS_HTTP_DELETE, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
-	    m.set_basic(SRS_CONSTS_HTTP_OPTIONS, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, 100, 0, 0); EXPECT_STREQ("OTHER", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_GET, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_GET, m.method()); EXPECT_STREQ("GET", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_PUT, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_PUT, m.method()); EXPECT_STREQ("PUT", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_POST, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_POST, m.method()); EXPECT_STREQ("POST", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_DELETE, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_DELETE, m.method()); EXPECT_STREQ("DELETE", m.method_str().c_str());
+	    m.set_basic(HTTP_REQUEST, SRS_CONSTS_HTTP_OPTIONS, 0, 0); EXPECT_EQ(SRS_CONSTS_HTTP_OPTIONS, m.method()); EXPECT_STREQ("OPTIONS", m.method_str().c_str());
 	}
 
 	if (true) {
 	    SrsHttpMessage m;
 	    EXPECT_TRUE(m.is_keep_alive());
-	    EXPECT_FALSE(m.is_infinite_chunked());
 	}
 
 	if (true) {
@@ -558,46 +573,17 @@ VOID TEST(TCPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
-	    EXPECT_EQ(100, m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	    EXPECT_STREQ("100", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/abc", false));
+	    EXPECT_STREQ("abc", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
 	}
 }
 
-VOID TEST(TCPServerTest, MessageInfinityChunked)
-{
-    srs_error_t err;
-
-	if (true) {
-	    SrsHttpMessage m;
-	    EXPECT_FALSE(m.is_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    HELPER_EXPECT_SUCCESS(m.enter_infinite_chunked());
-	    EXPECT_TRUE(m.is_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Transfer-Encoding", "chunked");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-
-	if (true) {
-	    SrsHttpMessage m;
-	    SrsHttpHeader hdr;
-	    hdr.set("Content-Length", "100");
-	    m.set_header(&hdr, false);
-	    HELPER_EXPECT_FAILED(m.enter_infinite_chunked());
-	}
-}
-
-VOID TEST(TCPServerTest, MessageTurnRequest)
+VOID TEST(HTTPServerTest, MessageTurnRequest)
 {
     srs_error_t err;
 
@@ -645,7 +631,63 @@ VOID TEST(TCPServerTest, MessageTurnRequest)
 	}
 }
 
-VOID TEST(TCPServerTest, MessageWritev)
+VOID TEST(HTTPServerTest, ContentLength)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("World!");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, HTTPChunked)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("5\r\nHello\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 5, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.append("6\r\nWorld!\r\n");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 6, &nread));
+        EXPECT_EQ(6, nread);
+        EXPECT_STREQ("World!", buf);
+    }
+}
+
+VOID TEST(HTTPServerTest, InfiniteChunked)
 {
     srs_error_t err;
 
@@ -654,14 +696,9 @@ VOID TEST(TCPServerTest, MessageWritev)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
-
-        if (true) {
-            SrsHttpMessage* hm = dynamic_cast<SrsHttpMessage*>(msg);
-            ASSERT_TRUE(hm != NULL);
-            hm->enter_infinite_chunked();
-        }
+        SrsAutoFree(ISrsHttpMessage, msg);
 
         char buf[32]; ssize_t nread = 0;
         ISrsHttpResponseReader* r = msg->body_reader();
@@ -677,7 +714,108 @@ VOID TEST(TCPServerTest, MessageWritev)
         HELPER_ASSERT_SUCCESS(r->read(buf, 8, &nread));
         EXPECT_EQ(8, nread);
         EXPECT_STREQ("\r\nWorld!", buf);
+
+        EXPECT_FALSE(r->eof());
     }
+
+    // If read error, it's EOF.
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+
+        char buf[32]; ssize_t nread = 0;
+        ISrsHttpResponseReader* r = msg->body_reader();
+
+        io.append("Hello");
+        HELPER_ARRAY_INIT(buf, sizeof(buf), 0);
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_EQ(5, nread);
+        EXPECT_STREQ("Hello", buf);
+
+        io.in_err = srs_error_new(ERROR_SOCKET_READ, "EOF");
+        HELPER_ASSERT_SUCCESS(r->read(buf, 10, &nread));
+        EXPECT_TRUE(r->eof());
+    }
+}
+
+VOID TEST(HTTPServerTest, OPTIONSRead)
+{
+    srs_error_t err;
+
+    // If request, it has no content-length, not chunked, it's not infinite chunked,
+    // actually, it has no body.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+    }
+
+    // If response, it has no content-length, not chunked, it's infinite chunked,
+    if (true) {
+        MockBufferIO io;
+        io.append("HTTP/1.1 200 OK\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_FALSE(br->eof());
+    }
+
+    // So if OPTIONS has body, with chunked or content-length, it's ok to parsing it.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_FALSE(br->eof());
+
+        string b; HELPER_ASSERT_SUCCESS(req->body_read_all(b));
+        EXPECT_STREQ("Hello", b.c_str());
+
+        // The body will use as next HTTP request message.
+        io.append("GET /rtc/v1/play HTTP/1.1\r\n\r\n");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
+    }
+
+    // So if OPTIONS has body, but not specified the size, we think it has no body,
+    // and the body is parsed fail as the next parsing.
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
+
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
+        ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
+        SrsAutoFree(ISrsHttpMessage, req);
+
+        ISrsHttpResponseReader* br = req->body_reader();
+        EXPECT_TRUE(br->eof());
+
+        // The body will use as next HTTP request message.
+        io.append("Hello");
+        ISrsHttpMessage* req2 = NULL; HELPER_ASSERT_FAILED(hp.parse_message(&io, &req2));
+        SrsAutoFree(ISrsHttpMessage, req2);
+    }
+}
+
+VOID TEST(HTTPServerTest, MessageWritev)
+{
+    srs_error_t err;
 
     // Directly writev, merge to one chunk.
     if (true) {
@@ -782,7 +920,7 @@ class MockOnCycleThread : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_cond_t cond;
-    MockOnCycleThread() : trd("mock", this, 0) {
+    MockOnCycleThread() : trd("mock", this) {
         cond = srs_cond_new();
     };
     virtual ~MockOnCycleThread() {
@@ -822,7 +960,7 @@ class MockOnCycleThread2 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_mutex_t lock;
-    MockOnCycleThread2() : trd("mock", this, 0) {
+    MockOnCycleThread2() : trd("mock", this) {
         lock = srs_mutex_new();
     };
     virtual ~MockOnCycleThread2() {
@@ -863,7 +1001,7 @@ class MockOnCycleThread3 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread3() : trd("mock", this, 0) {
+    MockOnCycleThread3() : trd("mock", this) {
         fd = NULL;
     };
     virtual ~MockOnCycleThread3() {
@@ -1000,8 +1138,6 @@ VOID TEST(TCPServerTest, CoverUtility)
         EXPECT_FALSE(srs_net_device_is_internet((sockaddr*)r->ai_addr));
     }
 
-    EXPECT_FALSE(srs_net_device_is_internet("eth0"));
-
     if (true) {
         sockaddr_in addr;
         addr.sin_family = AF_INET;
@@ -1116,7 +1252,7 @@ class MockOnCycleThread4 : public ISrsCoroutineHandler
 public:
     SrsSTCoroutine trd;
     srs_netfd_t fd;
-    MockOnCycleThread4() : trd("mock", this, 0) {
+    MockOnCycleThread4() : trd("mock", this) {
         fd = NULL;
     };
     virtual ~MockOnCycleThread4() {
@@ -1176,7 +1312,7 @@ public:
     }
 };
 
-VOID TEST(TCPServerTest, HTTPClientUtility)
+VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
     srs_error_t err;
 
@@ -1186,7 +1322,7 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1208,7 +1344,7 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1230,7 +1366,7 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
         client.set_recv_timeout(1 * SRS_UTIME_SECONDS);
         client.set_header("agent", "srs");
 
@@ -1251,7 +1387,7 @@ VOID TEST(TCPServerTest, HTTPClientUtility)
     }
 }
 
-class MockConnectionManager : public IConnectionManager
+class MockConnectionManager : public ISrsResourceManager
 {
 public:
     MockConnectionManager() {
@@ -1259,7 +1395,7 @@ public:
     virtual ~MockConnectionManager() {
     }
 public:
-    virtual void remove(ISrsConnection* /*c*/) {
+    virtual void remove(ISrsResource* /*c*/) {
     }
 };
 
@@ -1268,38 +1404,56 @@ VOID TEST(TCPServerTest, ContextUtility)
     if (true) {
         SrsThreadContext ctx;
 
-        EXPECT_EQ(0, ctx.set_id(100));
-        EXPECT_EQ(100, ctx.set_id(1000));
-        EXPECT_EQ(1000, ctx.get_id());
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("100")).compare(cid));
+        }
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("1000")).compare(cid));
+        }
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.get_id().compare(cid.set_value("1000")));
+        }
 
         ctx.clear_cid();
-        EXPECT_EQ(0, ctx.set_id(100));
+        if (true) {
+            SrsContextId cid;
+            EXPECT_TRUE(!ctx.set_id(cid.set_value("100")).compare(cid));
+        }
     }
+
+    SrsContextId cid;
+    cid.set_value("100");
 
     int base_size = 0;
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, true, true, "SRS", cid, "Trace", &size));
         base_size = size;
         EXPECT_TRUE(base_size > 0);
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, "SRS", cid, "Trace", &size));
         EXPECT_EQ(base_size, size);
     }
 
     if (true) {
         errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, true, NULL, cid, "Trace", &size));
         EXPECT_EQ(base_size - 5, size);
     }
 
     if (true) {
+        errno = 0;
         int size = 0; char buf[1024]; HELPER_ARRAY_INIT(buf, 1024, 0);
-        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, 100, "Trace", &size));
+        ASSERT_TRUE(srs_log_header(buf, 1024, false, false, NULL, cid, "Trace", &size));
         EXPECT_EQ(base_size - 8, size);
     }
 

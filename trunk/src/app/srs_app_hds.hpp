@@ -26,7 +26,7 @@
 
 #include <srs_core.hpp>
 
-#ifdef SRS_AUTO_HDS
+#ifdef SRS_HDS
 
 #include <list>
 

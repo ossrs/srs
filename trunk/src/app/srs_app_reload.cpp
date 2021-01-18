@@ -85,6 +85,16 @@ srs_error_t ISrsReloadHandler::on_reload_http_api_disabled()
     return srs_success;
 }
 
+srs_error_t ISrsReloadHandler::on_reload_https_api_enabled()
+{
+    return srs_success;
+}
+
+srs_error_t ISrsReloadHandler::on_reload_https_api_disabled()
+{
+    return srs_success;
+}
+
 srs_error_t ISrsReloadHandler::on_reload_http_api_crossdomain()
 {
     return srs_success;

@@ -26,7 +26,6 @@
 
 #include <srs_core.hpp>
 
-class SrsStSocket;
 class ISrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
@@ -34,11 +33,21 @@ class SrsServer;
 class SrsRtcServer;
 class SrsJsonObject;
 class SrsSdp;
+class SrsRequest;
+class ISrsHttpResponseWriter;
+class SrsHttpConn;
+
+#include <string>
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_http_stack.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_app_http_conn.hpp>
+
+extern srs_error_t srs_api_response(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string json);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, int code);
+extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, srs_error_t code);
 
 // For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
@@ -167,25 +176,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-#ifdef SRS_AUTO_RTC
-class SrsGoApiRtcPlay : public ISrsHttpHandler
-{
-public:
-    static uint32_t ssrc_num;
-private:
-    SrsRtcServer* rtc_server;
-public:
-    SrsGoApiRtcPlay(SrsRtcServer* rtc_svr);
-    virtual ~SrsGoApiRtcPlay();
-public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t exchange_sdp(const std::string& app, const std::string& stream, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
-};
-#endif
-
 class SrsGoApiClients : public ISrsHttpHandler
 {
 public:
@@ -241,7 +231,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-#ifdef SRS_AUTO_GB28181
+#ifdef SRS_GB28181
 class SrsGoApiGb28181 : public ISrsHttpHandler
 {
 public:
@@ -254,7 +244,7 @@ private:
 };
 #endif
 
-#ifdef SRS_AUTO_GPERF
+#ifdef SRS_GPERF
 class SrsGoApiTcmalloc : public ISrsHttpHandler
 {
 public:
@@ -265,25 +255,49 @@ public:
 };
 #endif
 
-class SrsHttpApi : virtual public SrsConnection, virtual public ISrsReloadHandler
+// Handle the HTTP API request.
+class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
+    , virtual public ISrsReloadHandler
 {
 private:
-    SrsHttpParser* parser;
-    SrsHttpCorsMux* cors;
-    SrsHttpServeMux* mux;
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager;
+    SrsTcpConnection* skt;
+    SrsSslConnection* ssl;
+    SrsHttpConn* conn;
 public:
-    SrsHttpApi(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip);
+    SrsHttpApi(bool https, ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsHttpApi();
+// Interface ISrsHttpConnOwner.
+public:
+    virtual srs_error_t on_start();
+    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_conn_done(srs_error_t r0);
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
 // Interface ISrsKbpsDelta
 public:
     virtual void remark(int64_t* in, int64_t* out);
-protected:
-    virtual srs_error_t do_cycle();
-private:
-    virtual srs_error_t process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_http_api_crossdomain();
+// Extract APIs from SrsTcpConnection.
+// Interface ISrsStartable
+public:
+    // Start the client green thread.
+    // when server get a client from listener,
+    // 1. server will create an concrete connection(for instance, RTMP connection),
+    // 2. then add connection to its connection manager,
+    // 3. start the client thread by invoke this start()
+    // when client cycle thread stop, invoke the on_thread_stop(), which will use server
+    // To remove the client by server->remove(this).
+    virtual srs_error_t start();
+// Interface ISrsConnection.
+public:
+    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
 };
 
 #endif

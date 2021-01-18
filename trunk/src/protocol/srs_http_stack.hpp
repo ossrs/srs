@@ -28,9 +28,6 @@
 
 #include <srs_kernel_io.hpp>
 
-// Default http listen port.
-#define SRS_DEFAULT_HTTP_PORT 80
-
 #if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <map>
@@ -449,15 +446,11 @@ public:
 //
 // There are some modes to determine the length of body:
 //      1. content-length and chunked.
-//      2. user confirmed infinite chunked.
-//      3. no body or user not confirmed infinite chunked.
+//      2. infinite chunked.
+//      3. no body.
 // For example:
 //      ISrsHttpMessage* r = ...;
 //      while (!r->eof()) r->read(); // Read in mode 1 or 3.
-// For some server, we can confirm the body is infinite chunked:
-//      ISrsHttpMessage* r = ...;
-//      r->enter_infinite_chunked();
-//      while (!r->eof()) r->read(); // Read in mode 2
 // @rmark for mode 2, the infinite chunked, all left data is body.
 class ISrsHttpMessage
 {
@@ -485,17 +478,13 @@ public:
     virtual std::string path() = 0;
     virtual std::string query() = 0;
     virtual std::string ext() = 0;
-    // Get the RESTful id,
+    // Get the RESTful id, in string,
     // for example, pattern is /api/v1/streams, path is /api/v1/streams/100,
     // then the rest id is 100.
     // @param pattern the handler pattern which will serve the request.
-    // @return the REST id; -1 if not matched.
-    virtual int parse_rest_id(std::string pattern) = 0;
+    // @return the REST id; "" if not matched.
+    virtual std::string parse_rest_id(std::string pattern) = 0;
 public:
-    // The left all data is chunked body, the infinite chunked mode,
-    // which is chunked encoding without chunked header.
-    // @remark error when message is in chunked or content-length specified.
-    virtual srs_error_t enter_infinite_chunked() = 0;
     // Read body to string.
     // @remark for small http body.
     virtual srs_error_t body_read_all(std::string& body) = 0;
@@ -527,12 +516,17 @@ private:
     int port;
     std::string path;
     std::string query;
+    std::string username_;
+    std::string password_;
+    std::map<std::string, std::string> query_values_;
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
 public:
     // Initialize the http uri.
     virtual srs_error_t initialize(std::string _url);
+    // After parsed the message, set the schema to https.
+    virtual void set_schema(std::string v);
 public:
     virtual std::string get_url();
     virtual std::string get_schema();
@@ -540,10 +534,19 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    virtual std::string get_query_by_key(std::string key);
+    virtual std::string username();
+    virtual std::string password();
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
     virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
+    srs_error_t parse_query();
+public:
+    static std::string query_escape(std::string s);
+    static std::string path_escape(std::string s);
+    static srs_error_t query_unescape(std::string s, std::string& value);
+    static srs_error_t path_unescape(std::string s, std::string& value);
 };
 
 // For #if !defined(SRS_EXPORT_LIBRTMP)

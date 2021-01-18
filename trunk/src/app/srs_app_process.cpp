@@ -158,12 +158,14 @@ srs_error_t srs_redirect_output(string from_file, int to_fd)
     if ((fd = ::open(from_file.c_str(), flags, mode)) < 0) {
         return srs_error_new(ERROR_FORK_OPEN_LOG, "open process %d %s failed", to_fd, from_file.c_str());
     }
-    
-    if (dup2(fd, to_fd) < 0) {
-        return srs_error_new(ERROR_FORK_DUP2_LOG, "dup2 process %d failed", to_fd);
-    }
-    
+
+    int r0 = dup2(fd, to_fd);
     ::close(fd);
+
+    if (r0 < 0) {
+        return srs_error_new(ERROR_FORK_DUP2_LOG, "dup2 fd=%d, to=%d, file=%s failed, r0=%d",
+            fd, to_fd, from_file.c_str(), r0);
+    }
     
     return err;
 }
@@ -180,7 +182,7 @@ srs_error_t SrsProcess::start()
     srs_info("fork process: %s", cli.c_str());
     
     // for log
-    int cid = _srs_context->get_id();
+    SrsContextId cid = _srs_context->get_id();
     int ppid = getpid();
     
     // TODO: fork or vfork?
@@ -221,8 +223,8 @@ srs_error_t SrsProcess::start()
         // log basic info to stderr.
         if (true) {
             fprintf(stdout, "\n");
-            fprintf(stdout, "process ppid=%d, cid=%d, pid=%d, in=%d, out=%d, err=%d\n",
-                ppid, cid, getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
+            fprintf(stdout, "process ppid=%d, cid=%s, pid=%d, in=%d, out=%d, err=%d\n",
+                ppid, cid.c_str(), getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
             fprintf(stdout, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
             fprintf(stdout, "process actual cli: %s\n", actual_cli.c_str());
         }

@@ -38,6 +38,7 @@ using namespace std;
 SrsIngesterFFMPEG::SrsIngesterFFMPEG()
 {
     ffmpeg = NULL;
+    starttime = 0;
 }
 
 SrsIngesterFFMPEG::~SrsIngesterFFMPEG()
@@ -194,7 +195,7 @@ void SrsIngester::fast_kill()
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_AUTO_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
+#define SRS_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsIngester::cycle()
 {
@@ -212,7 +213,7 @@ srs_error_t SrsIngester::cycle()
             srs_freep(err);
         }
 
-        srs_usleep(SRS_AUTO_INGESTER_CIMS);
+        srs_usleep(SRS_INGESTER_CIMS);
     }
     
     return err;

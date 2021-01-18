@@ -282,11 +282,13 @@
 #define ERROR_DASH_WRITE_FAILED             3087
 #define ERROR_TS_CONTEXT_NOT_READY          3088
 #define ERROR_MP4_ILLEGAL_MOOF              3089
-#define ERROR_OCLUSTER_DISCOVER             3090
-#define ERROR_OCLUSTER_REDIRECT             3091
-#define ERROR_INOTIFY_CREATE                3092
-#define ERROR_INOTIFY_OPENFD                3093
-#define ERROR_INOTIFY_WATCH                 3094
+#define ERROR_MP4_ILLEGAL_MDAT              3090
+#define ERROR_OCLUSTER_DISCOVER             3091
+#define ERROR_OCLUSTER_REDIRECT             3092
+#define ERROR_INOTIFY_CREATE                3093
+#define ERROR_INOTIFY_OPENFD                3094
+#define ERROR_INOTIFY_WATCH                 3095
+#define ERROR_HTTP_URL_UNESCAPE             3096
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
@@ -324,6 +326,11 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
+#define ERROR_HTTPS_NOT_SUPPORTED           4041
+#define ERROR_HTTPS_HANDSHAKE               4042
+#define ERROR_HTTPS_READ                    4043
+#define ERROR_HTTPS_WRITE                   4044
+#define ERROR_HTTPS_KEY_CRT                 4045
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.
@@ -347,6 +354,19 @@
 #define ERROR_RTC_RTCP_CHECK                5016
 #define ERROR_RTC_SOURCE_CHECK              5017
 #define ERROR_RTC_SDP_EXCHANGE              5018
+#define ERROR_RTC_API_BODY                  5019
+#define ERROR_RTC_SOURCE_BUSY               5020
+#define ERROR_RTC_DISABLED                  5021
+#define ERROR_RTC_NO_SESSION                5022
+#define ERROR_RTC_INVALID_PARAMS            5023
+#define ERROR_RTC_DUMMY_BRIDGER             5024
+#define ERROR_RTC_STREM_STARTED             5025
+#define ERROR_RTC_TRACK_CODEC               5026
+#define ERROR_RTC_NO_PLAYER                 5027
+#define ERROR_RTC_NO_PUBLISHER              5028
+#define ERROR_RTC_DUPLICATED_SSRC           5029
+#define ERROR_RTC_NO_TRACK                  5030
+#define ERROR_RTC_RTCP_EMPTY_RR             5031
 
 ///////////////////////////////////////////////////////
 // GB28181 API error.
@@ -370,6 +390,8 @@
 #define ERROR_GB28181_SIP_PTZ_FAILED        6016
 #define ERROR_GB28181_SIP_NOT_INVITE        6017
 #define ERROR_GB28181_SIP_PTZ_CMD_INVALID   6018
+#define ERROR_GB28181_H264_FRAMESIZE        6019
+#define ERROR_GB28181_H264_FRAME_FULL       6020
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
@@ -406,7 +428,7 @@ private:
     std::string file;
     int line;
     
-    int cid;
+    SrsContextId cid;
     int rerrno;
     
     std::string desc;

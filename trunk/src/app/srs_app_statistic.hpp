@@ -36,14 +36,15 @@
 class SrsKbps;
 class SrsWallClock;
 class SrsRequest;
-class SrsConnection;
+class ISrsExpire;
 class SrsJsonObject;
 class SrsJsonArray;
+class ISrsKbpsDelta;
 
 struct SrsStatisticVhost
 {
 public:
-    int64_t id;
+    std::string id;
     std::string vhost;
     int nb_streams;
     int nb_clients;
@@ -61,13 +62,13 @@ public:
 struct SrsStatisticStream
 {
 public:
-    int64_t id;
+    std::string id;
     SrsStatisticVhost* vhost;
     std::string app;
     std::string stream;
     std::string url;
     bool active;
-    int connection_cid;
+    SrsContextId connection_cid;
     int nb_clients;
     uint64_t nb_frames;
 public:
@@ -101,7 +102,7 @@ public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
     // Publish the stream.
-    virtual void publish(int cid);
+    virtual void publish(SrsContextId cid);
     // Close the stream.
     virtual void close();
 };
@@ -109,11 +110,11 @@ public:
 struct SrsStatisticClient
 {
 public:
+    ISrsExpire* conn;
     SrsStatisticStream* stream;
-    SrsConnection* conn;
     SrsRequest* req;
     SrsRtmpConnType type;
-    int id;
+    std::string id;
     srs_utime_t create;
 public:
     SrsStatisticClient();
@@ -148,44 +149,41 @@ class SrsStatistic : public ISrsProtocolPerf
 private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
-    int64_t _server_id;
+    std::string _server_id;
 private:
     // The key: vhost id, value: vhost object.
-    std::map<int64_t, SrsStatisticVhost*> vhosts;
+    std::map<std::string, SrsStatisticVhost*> vhosts;
     // The key: vhost url, value: vhost Object.
     // @remark a fast index for vhosts.
     std::map<std::string, SrsStatisticVhost*> rvhosts;
 private:
     // The key: stream id, value: stream Object.
-    std::map<int64_t, SrsStatisticStream*> streams;
+    std::map<std::string, SrsStatisticStream*> streams;
     // The key: stream url, value: stream Object.
     // @remark a fast index for streams.
     std::map<std::string, SrsStatisticStream*> rstreams;
 private:
     // The key: client id, value: stream object.
-    std::map<int, SrsStatisticClient*> clients;
+    std::map<std::string, SrsStatisticClient*> clients;
     // The server total kbps.
     SrsKbps* kbps;
     SrsWallClock* clk;
     // The perf stat for mw(merged write).
     SrsStatisticCategory* perf_iovs;
     SrsStatisticCategory* perf_msgs;
-    SrsStatisticCategory* perf_sendmmsg;
-    SrsStatisticCategory* perf_gso;
     SrsStatisticCategory* perf_rtp;
     SrsStatisticCategory* perf_rtc;
     SrsStatisticCategory* perf_bytes;
-    SrsStatisticCategory* perf_dropped;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
 public:
     static SrsStatistic* instance();
 public:
-    virtual SrsStatisticVhost* find_vhost(int vid);
-    virtual SrsStatisticVhost* find_vhost(std::string name);
-    virtual SrsStatisticStream* find_stream(int sid);
-    virtual SrsStatisticClient* find_client(int cid);
+    virtual SrsStatisticVhost* find_vhost_by_id(std::string vid);
+    virtual SrsStatisticVhost* find_vhost_by_name(std::string name);
+    virtual SrsStatisticStream* find_stream(std::string sid);
+    virtual SrsStatisticClient* find_client(std::string client_id);
 public:
     // When got video info for stream.
     virtual srs_error_t on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile,
@@ -199,7 +197,7 @@ public:
     // When publish stream.
     // @param req the request object of publish connection.
     // @param cid the cid of publish connection.
-    virtual void on_stream_publish(SrsRequest* req, int cid);
+    virtual void on_stream_publish(SrsRequest* req, SrsContextId cid);
     // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
@@ -208,23 +206,24 @@ public:
     // @param req, the client request object.
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
-    virtual srs_error_t on_client(int id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
+    // TODO: FIXME: We should not use context id as client id.
+    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    virtual void on_disconnect(int id);
+    // TODO: FIXME: We should not use context id as client id.
+    virtual void on_disconnect(const SrsContextId& id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
-    // TODO: FIXME: the add delta must use ISrsKbpsDelta interface instead.
-    virtual void kbps_add_delta(SrsConnection* conn);
+    virtual void kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
     // @return the server kbps.
     virtual SrsKbps* kbps_sample();
 public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.
-    virtual int64_t server_id();
+    virtual std::string server_id();
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.
@@ -249,26 +248,13 @@ public:
     virtual void perf_on_rtp_packets(int nb_packets);
     virtual srs_error_t dumps_perf_rtp_packets(SrsJsonObject* obj);
 public:
-    // Stat for packets UDP GSO, nb_packets is the merged RTP packets.
-    // For example, three RTP/audio packets maybe GSO to one msghdr.
-    virtual void perf_on_gso_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_gso(SrsJsonObject* obj);
-public:
     // Stat for TCP writev, nb_iovs is the total number of iovec.
     virtual void perf_on_writev_iovs(int nb_iovs);
     virtual srs_error_t dumps_perf_writev_iovs(SrsJsonObject* obj);
 public:
-    // Stat for packets UDP sendmmsg, nb_packets is the vlen for sendmmsg.
-    virtual void perf_on_sendmmsg_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_sendmmsg(SrsJsonObject* obj);
-public:
     // Stat for bytes, nn_bytes is the size of bytes, nb_padding is padding bytes.
     virtual void perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding);
     virtual srs_error_t dumps_perf_bytes(SrsJsonObject* obj);
-public:
-    // Stat for rtc messages, nn_rtc is rtc messages, nn_dropped is dropped messages.
-    virtual void perf_on_dropped(int nn_msgs, int nn_rtc, int nn_dropped);
-    virtual srs_error_t dumps_perf_dropped(SrsJsonObject* obj);
 public:
     // Reset all perf stat data.
     virtual void reset_perf();

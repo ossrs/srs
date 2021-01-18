@@ -38,7 +38,7 @@ using namespace std;
 
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
-ISrsThreadContext* _srs_context = new SrsThreadContext();
+ISrsContext* _srs_context = new SrsThreadContext();
 
 srs_error_t parse(std::string mp4_file, bool verbose)
 {
