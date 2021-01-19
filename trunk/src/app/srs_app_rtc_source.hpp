@@ -36,6 +36,7 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_source.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -531,21 +532,25 @@ protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
-class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
+class SrsRtcAudioRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcAudioRecvTrack();
 public:
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
+public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
-class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
+class SrsRtcVideoRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
+public:
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
     virtual srs_error_t check_send_nacks();

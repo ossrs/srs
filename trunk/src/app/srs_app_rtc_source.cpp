@@ -1831,6 +1831,16 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
+void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+{
+    // No payload, ignore.
+    if (buf->empty()) {
+        return;
+    }
+
+    *ppayload = new SrsRtpRawPayload();
+}
+
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
@@ -1873,6 +1883,23 @@ SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrac
 
 SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
+}
+
+void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+{
+    // No payload, ignore.
+    if (buf->empty()) {
+        return;
+    }
+
+    uint8_t v = (uint8_t)pkt->nalu_type;
+    if (v == kStapA) {
+        *ppayload = new SrsRtpSTAPPayload();
+    } else if (v == kFuA) {
+        *ppayload = new SrsRtpFUAPayload2();
+    } else {
+        *ppayload = new SrsRtpRawPayload();
+    }
 }
 
 srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)

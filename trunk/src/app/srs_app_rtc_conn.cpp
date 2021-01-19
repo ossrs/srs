@@ -1310,16 +1310,9 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
 
     if (audio_track) {
-        *ppayload = new SrsRtpRawPayload();
+        audio_track->on_before_decode_payload(pkt, buf, ppayload);
     } else if (video_track) {
-        uint8_t v = (uint8_t)pkt->nalu_type;
-        if (v == kStapA) {
-            *ppayload = new SrsRtpSTAPPayload();
-        } else if (v == kFuA) {
-            *ppayload = new SrsRtpFUAPayload2();
-        } else {
-            *ppayload = new SrsRtpRawPayload();
-        }
+        video_track->on_before_decode_payload(pkt, buf, ppayload);
     }
 }
 
