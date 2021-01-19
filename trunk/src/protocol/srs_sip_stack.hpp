@@ -30,6 +30,7 @@
 
 #include <string>
 #include <sstream>
+#include <vector>
 #include <map>
 
 #include <srs_kernel_consts.hpp>
@@ -105,6 +106,9 @@ public:
 
     std::map<std::string, std::string> xml_body_map;
     std::map<std::string, std::string> device_list_map;
+    // add an item_list, you can do a lot of other things
+    // used by DeviceList, Alarmstatus, RecordList in "GB/T 28181—2016"
+    std::vector<std::map<std::string, std::string> > item_list;
 
 public:
     std::string serial;
@@ -120,6 +124,7 @@ public:
 
     std::string from_realm;
     std::string to_realm;
+    uint32_t y_ssrc;
 
 public:
     SrsRtspSdp* sdp;
@@ -152,7 +157,7 @@ public:
     virtual srs_error_t parse_request(SrsSipRequest** preq, const char *recv_msg, int nb_buf);
 protected:
     virtual srs_error_t do_parse_request(SrsSipRequest* req, const char *recv_msg);
-    virtual srs_error_t parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map);
+    virtual srs_error_t parse_xml(std::string xml_msg, std::map<std::string, std::string> &json_map, std::vector<std::map<std::string, std::string> > &item_list);
 
 private:
     //response from
@@ -169,7 +174,7 @@ public:
   
     //request:  request sent by the sip-server, wait for sip-agent response
     virtual void req_invite(std::stringstream& ss, SrsSipRequest *req, std::string ip, 
-        int port, uint32_t ssrc);
+        int port, uint32_t ssrc, bool tcpFlag);
     virtual void req_ack(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_bye(std::stringstream& ss, SrsSipRequest *req);
     virtual void req_401_unauthorized(std::stringstream& ss, SrsSipRequest *req);

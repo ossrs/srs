@@ -52,11 +52,11 @@ SrsHttpParser::~SrsHttpParser()
     srs_freep(header);
 }
 
-srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jsonp)
+srs_error_t SrsHttpParser::initialize(enum http_parser_type type)
 {
     srs_error_t err = srs_success;
 
-    jsonp = allow_jsonp;
+    jsonp = false;
     type_ = type;
 
     // Initialize the parser, however it's not necessary.
@@ -73,6 +73,11 @@ srs_error_t SrsHttpParser::initialize(enum http_parser_type type, bool allow_jso
     settings.on_message_complete = on_message_complete;
     
     return err;
+}
+
+void SrsHttpParser::set_jsonp(bool allow_jsonp)
+{
+    jsonp = allow_jsonp;
 }
 
 srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** ppmsg)
@@ -320,6 +325,8 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader* reader, SrsFastStream* buffer) : ISrs
     // From HTTP/1.1, default to keep alive.
     _keep_alive = true;
     type_ = 0;
+
+    schema_ = "http";
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -409,6 +416,12 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
     return err;
 }
 
+void SrsHttpMessage::set_https(bool v)
+{
+    schema_ = v? "https" : "http";
+    _uri->set_schema(schema_);
+}
+
 ISrsConnection* SrsHttpMessage::connection()
 {
     return owner_conn;
@@ -417,6 +430,11 @@ ISrsConnection* SrsHttpMessage::connection()
 void SrsHttpMessage::set_connection(ISrsConnection* conn)
 {
     owner_conn = conn;
+}
+
+string SrsHttpMessage::schema()
+{
+    return schema_;
 }
 
 uint8_t SrsHttpMessage::method()

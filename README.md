@@ -56,18 +56,14 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 * Usage: How to delivery HTTP-FLV Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307#issuecomment-602193458)
+* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
 * Usage: How to publish SRT(Experimental) to SRS?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
-* Usage: How to transcode to h.264+aac for HLS?([CN][v3_CN_SampleTranscode2HLS], [EN][v3_EN_SampleTranscode2HLS])
 * Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
 * Usage: How to enable low lantency live streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 * Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to delivery HLS by SRS HTTP server?([CN][v3_CN_SampleHTTP], [EN][v3_EN_SampleHTTP])
 * Usage: How to delivery DASH(Experimental)?([CN][v3_CN_SampleDASH], [EN][v3_EN_SampleDASH])
-* Usage: How to publish h.264 raw stream as RTMP? ([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2])
 * Usage: How to enable multiple processes? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
-* Usage: Why SRS? What's the milestones? ([CN][v1_CN_Product], [EN][v1_EN_Product])
 * Usage: Want to contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact]) Or file an issue [here](https://github.com/ossrs/srs/issues/new)?
 
 <a name="srs-30-wiki"></a>
@@ -140,13 +136,13 @@ For previous versions, please read:
 - [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
+- [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
 - [ ] Enhanced forwarding with vhost and variables.
 - [ ] Support source cleanup for idle streams.
 - [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
-- [ ] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [ ] Support UDP protocol such as QUIC or KCP in cluster.
 - [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
@@ -159,6 +155,18 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2020-12-24, Support disable CherryPy. 4.0.57
+* v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
+* v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
+* v4.0, 2020-11-06, For [#1657][bug #1657], Read cached data first in SSL. 4.0.48
+* v4.0, 2020-11-06, For [#1657][bug #1657-3], support HTTPS Streaming(HTTPS-FLV, etc). 4.0.47
+* v4.0, 2020-11-06, For [#1657][bug #1657-2], support HTTPS API. 4.0.46
+* v4.0, 2020-11-03, For [#1657][bug #1657-1], support HTTPS client, for http-callback. 4.0.45
+* v4.0, 2020-10-31, Support gdb/srs.py to stat coroutines. 4.0.44
+* v4.0, 2020-09-19, RTC: Extract resource manager. Use any UDP packet to keep alive. 4.0.43
+* v4.0, 2020-09-09, RTC: Refine NACK RTT and efficiency. 4.0.42
+* v4.0, 2020-09-08, Refine PLI/NACK/DTLS logs. 4.0.41
+* v4.0, 2020-08-30, Fix serval bugs for RTC. Refine context API. 4.0.40
 * v4.0, 2020-08-18, RTC: DTLS support ARQ, covered with utest. 4.0.39
 * v4.0, 2020-08-06, RTC: Refine error check. 4.0.37
 * v4.0, 2020-07-25, RTC: Support multiple address for client. 4.0.36
@@ -201,6 +209,25 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
+* <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
+* v3.0, 2020-12-26, For RTMP edge/forward, pass vhost in tcUrl, not in stream. 3.0.156
+* v3.0, 2020-12-17, Fix [#1694][bug #1694], Support DVR 2GB+ MP4 file. 3.0.155
+* v3.0, 2020-12-17, Fix [#1548][bug #1548], Add edts in MP4 for Windows10. 3.0.154
+* <strong>v3.0, 2020-10-31, [3.0 release2(3.0.153)][r3.0r2] released. 122663 lines.</strong>
+* v3.0, 2020-10-31, Fix [#509][bug #509], Always malloc stack on heap. 3.0.153
+* v3.0, 2020-10-31, Remove some global elements for debugging. 3.0.152
+* v3.0, 2020-10-31, Use global _srs_server for debugging. 3.0.151
+* v3.0, 2020-10-31, Refine source cid, track previous one. 3.0.150
+* v3.0, 2020-10-25, Add hls.realtime.conf for low-latency HLS. 3.0.149
+* v3.0, 2020-10-24, Refine script and startup logs. 3.0.148
+* v3.0, 2020-10-23, Allow FFmpeg if exists at /usr/local/bin/ffmpeg. 3.0.147
+* v3.0, 2020-10-23, Refine build script, use libssl in docker. 3.0.146
+* v3.0, 2020-10-14, Fix [#1987][bug #1987], Fix Kbps resample bug. 3.0.145
+* <strong>v3.0, 2020-10-10, [3.0 release1(3.0.144)][r3.0r1] released. 122674 lines.</strong>
+* v3.0, 2020-10-10, Fix [#1780][bug #1780], build fail on Ubuntu20(focal). 3.0.144
+* v3.0, 2020-09-14, Prevent stop ingest for multiple times. 3.0.143
+* v3.0, 2020-09-10, RTC: Change SO_REUSEPORT fail to warning. 3.0.142
 * <strong>v3.0, 2020-06-27, [3.0 release0(3.0.141)][r3.0r0] released. 122674 lines.</strong>
 * v3.0, 2020-03-30, For [#1672][bug #1672], fix dvr close file failed bug. 3.0.140
 * <strong>v3.0, 2020-03-29, [3.0 beta4(3.0.139)][r3.0b4] released. 122674 lines.</strong>
@@ -816,6 +843,9 @@ For previous versions, please read:
 
 ## Releases
 
+* 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
+* 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
+* 2020-10-10, [Release v3.0-r1][r3.0r1], 3.0 release1, 3.0.144, 122674 lines.
 * 2020-06-27, [Release v3.0-r0][r3.0r0], 3.0 release0, 3.0.141, 122674 lines.
 * 2020-03-29, [Release v3.0-b3][r3.0b4], 3.0 beta4, 3.0.139, 122674 lines.
 * 2020-03-18, [Release v3.0-b3][r3.0b3], 3.0 beta3, 3.0.134, 122509 lines.
@@ -1757,6 +1787,10 @@ Winlin
 [bug #1651]: https://github.com/ossrs/srs/issues/1651
 [bug #1619]: https://github.com/ossrs/srs/issues/1619
 [bug #1629]: https://github.com/ossrs/srs/issues/1629
+[bug #1780]: https://github.com/ossrs/srs/issues/1780
+[bug #1987]: https://github.com/ossrs/srs/issues/1987
+[bug #1548]: https://github.com/ossrs/srs/issues/1548
+[bug #1694]: https://github.com/ossrs/srs/issues/1694
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
@@ -1764,10 +1798,17 @@ Winlin
 [bug #1636]: https://github.com/ossrs/srs/issues/1636
 [bug #1657]: https://github.com/ossrs/srs/issues/1657
 [bug #1830]: https://github.com/ossrs/srs/issues/1830
+[bug #1657-1]: https://github.com/ossrs/srs/issues/1657#issuecomment-720889906
+[bug #1657-2]: https://github.com/ossrs/srs/issues/1657#issuecomment-722904004
+[bug #1657-3]: https://github.com/ossrs/srs/issues/1657#issuecomment-722971676
+[bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0r3]: https://github.com/ossrs/srs/releases/tag/v3.0-r3
+[r3.0r2]: https://github.com/ossrs/srs/releases/tag/v3.0-r2
+[r3.0r1]: https://github.com/ossrs/srs/releases/tag/v3.0-r1
 [r3.0r0]: https://github.com/ossrs/srs/releases/tag/v3.0-r0
 [r3.0b4]: https://github.com/ossrs/srs/releases/tag/v3.0-b4
 [r3.0b3]: https://github.com/ossrs/srs/releases/tag/v3.0-b3

@@ -71,6 +71,8 @@ class SrsMp4TrackFragmentBox;
 class SrsMp4TrackFragmentHeaderBox;
 class SrsMp4TrackFragmentDecodeTimeBox;
 class SrsMp4TrackFragmentRunBox;
+class SrsMp4EditBox;
+class SrsMp4EditListBox;
 
 // 4.2 Object Structure
 // ISO_IEC_14496-12-base-format-2012.pdf, page 16
@@ -203,7 +205,7 @@ public:
     // @remark For mdat box, we must codec its header, use this instead of sz().
     virtual int sz_header();
     // Update the size of box.
-    virtual int update_size();
+    virtual uint64_t update_size();
     // Get the left space of box, for decoder.
     virtual int left_space(SrsBuffer* buf);
     // Box type helper.
@@ -225,7 +227,7 @@ public:
     static srs_error_t discovery(SrsBuffer* buf, SrsMp4Box** ppbox);
 // Interface ISrsCodec
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 protected:
@@ -493,7 +495,7 @@ public:
     SrsMp4TrunEntry(SrsMp4FullBox* o);
     virtual ~SrsMp4TrunEntry();
     
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 
@@ -579,8 +581,7 @@ class SrsMp4MediaDataBox : public SrsMp4Box
 {
 public:
     // The contained media data, which we never directly read/write it.
-    // TODO: FIXME: Support 64bits size.
-    int nb_data;
+    uint64_t nb_data;
 public:
     SrsMp4MediaDataBox();
     virtual ~SrsMp4MediaDataBox();
@@ -588,7 +589,7 @@ public:
 public:
     // The total size of bytes, including the sz_header() and nb_data,
     // which used to write the smallsize or largesize of mp4.
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     // To encode the mdat box, the buf should only contains the sz_header(),
     // because the mdata only encode the header.
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -766,6 +767,8 @@ public:
     // Get the track header box.
     virtual SrsMp4TrackHeaderBox* tkhd();
     virtual void set_tkhd(SrsMp4TrackHeaderBox* v);
+    // Set the EDTS box.
+    virtual void set_edts(SrsMp4EditBox* v);
 public:
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
@@ -874,6 +877,8 @@ class SrsMp4EditBox : public SrsMp4Box
 public:
     SrsMp4EditBox();
     virtual ~SrsMp4EditBox();
+public:
+    virtual void set_elst(SrsMp4EditListBox* v);
 };
 
 // 8.6.6 Edit List Box
@@ -1173,7 +1178,8 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4DataEntryBox* entry_at(int index);
-    virtual void append(SrsMp4Box* v);
+    // Note that box must be SrsMp4DataEntryBox*
+    virtual void append(SrsMp4Box* box);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1362,7 +1368,7 @@ public:
     virtual int left_space(SrsBuffer* buf);
 // Interface ISrsCodec
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 protected:
@@ -1520,7 +1526,8 @@ public:
 public:
     virtual uint32_t entry_count();
     virtual SrsMp4SampleEntry* entrie_at(int index);
-    virtual void append(SrsMp4Box* v);
+    // Note that box must be SrsMp4SampleEntry*
+    virtual void append(SrsMp4Box* box);
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);

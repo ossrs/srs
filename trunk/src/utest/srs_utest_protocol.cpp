@@ -352,7 +352,7 @@ VOID TEST(ProtocolHandshakeTest, OpensslSha256)
 // verify the dh key
 VOID TEST(ProtocolHandshakeTest, DHKey)
 {
-    _srs_internal::SrsDH dh;
+    srs_internal::SrsDH dh;
     
     ASSERT_TRUE(ERROR_SUCCESS == dh.initialize(true));
     
@@ -368,7 +368,7 @@ VOID TEST(ProtocolHandshakeTest, DHKey)
     EXPECT_TRUE(srs_bytes_equals(pub_key1, pub_key2, 128));
     
     // another dh
-    _srs_internal::SrsDH dh0;
+    srs_internal::SrsDH dh0;
     
     ASSERT_TRUE(ERROR_SUCCESS == dh0.initialize(true));
     
@@ -6006,7 +6006,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
 
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
         ISrsHttpMessage* req = NULL;
         HELPER_ASSERT_SUCCESS(hp.parse_message(&bio, &req));
@@ -6030,7 +6030,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
 
         bio.append("GET");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
 
 		// Should fail if not completed message.
         ISrsHttpMessage* req = NULL;
@@ -6043,7 +6043,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
@@ -6061,7 +6061,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\nContent-Length: 0\r\n\r\n");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
@@ -6073,7 +6073,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);
@@ -6085,7 +6085,7 @@ VOID TEST(ProtocolHTTPTest, ParseHTTPMessage)
         SrsHttpParser hp;
         
         bio.append("GET /gslb/v1/versions HTTP/1.1\r\n\r\n");
-        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         
         ISrsHttpMessage* req = NULL;
         SrsAutoFree(ISrsHttpMessage, req);

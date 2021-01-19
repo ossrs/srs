@@ -36,6 +36,8 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
+SRS_SSL_1_0=NO
+SRS_HTTPS=YES
 SRS_STAT=YES
 SRS_TRANSCODE=YES
 SRS_HTTP_CALLBACK=YES
@@ -44,6 +46,7 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
+SRS_CHERRYPY=YES
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -146,11 +149,13 @@ Features:
   -h, --help                Print this message and exit 0.
 
   --ssl=on|off              Whether build the rtmp complex handshake, requires openssl-devel installed.
+  --https=on|off            Whether enable HTTPS client and server. Default: off
   --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files.
   --stream-caster=on|off    Whether build the stream caster to serve other stream over other protocol.
   --stat=on|off             Whether build the the data statistic, for http api.
   --librtmp=on|off          Whether build the srs-librtmp, library for client.
   --research=on|off         Whether build the research tools.
+  --cherrypy=on|off         Whether install CherryPy for demo api-server.
   --utest=on|off            Whether build the utest for SRS.
   --srt=on|off              Whether build the SRT support for SRS.
   --rtc=on|off              Whether build the WebRTC support for SRS.
@@ -274,6 +279,8 @@ function parse_user_option() {
 
         --with-ssl)                     SRS_SSL=YES                 ;;
         --ssl)                          if [[ $value == off ]]; then SRS_SSL=NO; else SRS_SSL=YES; fi    ;;
+        --https)                        if [[ $value == off ]]; then SRS_HTTPS=NO; else SRS_HTTPS=YES; fi ;;
+        --ssl-1-0)                      if [[ $value == off ]]; then SRS_SSL_1_0=NO; else SRS_SSL_1_0=YES; fi ;;
 
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
@@ -314,6 +321,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        if [[ $value == off ]]; then SRS_UTEST=NO; else SRS_UTEST=YES; fi    ;;
+        --cherrypy)                     if [[ $value == off ]]; then SRS_CHERRYPY=NO; else SRS_CHERRYPY=YES; fi    ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
@@ -514,6 +522,12 @@ function apply_detail_options() {
         SRS_SRTP_ASM=NO
     fi
 
+    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    if [[ $SRS_SRTP_ASM == YES && $SRS_SSL_1_0 == NO ]]; then
+        echo "Use openssl-1.0 for SRTP ASM."
+        SRS_SSL_1_0=YES
+    fi
+
     if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
         echo "Disable sendmmsg for OSX"
         SRS_SENDMMSG=NO
@@ -530,6 +544,8 @@ function regenerate_options() {
     if [ $SRS_HDS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=off"; fi
     if [ $SRS_DVR = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=off"; fi
     if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
+    if [ $SRS_HTTPS = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=off"; fi
+    if [ $SRS_SSL_1_0 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=off"; fi
     if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
     if [ $SRS_TRANSCODE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=off"; fi
     if [ $SRS_INGEST = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=on"; else          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=off"; fi
@@ -539,6 +555,7 @@ function regenerate_options() {
     if [ $SRS_STREAM_CASTER = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=off"; fi
     if [ $SRS_HTTP_API = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=off"; fi
     if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
+    if [ $SRS_CHERRYPY = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=off"; fi
     if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
     if [ $SRS_H265 = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --h265=off"; fi
@@ -593,12 +610,6 @@ function check_option_conflicts() {
     if [[ $SRS_NGINX == YES ]]; then
         echo "Warning: Don't support building NGINX, please use docker https://github.com/ossrs/srs-docker"
         SRS_NGINX=NO
-    fi
-
-    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
-    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
-        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
-        exit -1
     fi
 
     # TODO: FIXME: check more os.

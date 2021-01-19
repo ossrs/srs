@@ -38,7 +38,6 @@
 #include <srs_app_source.hpp>
 
 class SrsRequest;
-class SrsConnection;
 class SrsMetaCache;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
@@ -132,7 +131,17 @@ public:
 public:
     // Request keyframe(PLI) from publisher, for fresh consumer.
     virtual void request_keyframe(uint32_t ssrc) = 0;
-    // Notify publisher that all consumers is finished.
+};
+
+class ISrsRtcStreamEventHandler
+{
+public:
+    ISrsRtcStreamEventHandler();
+    virtual ~ISrsRtcStreamEventHandler();
+public:
+    // stream unpublish, sync API.
+    virtual void on_unpublish() = 0;
+    // no player subscribe this stream, sync API
     virtual void on_consumers_finished() = 0;
 };
 
@@ -160,6 +169,8 @@ private:
     bool is_created_;
     // Whether stream is delivering data, that is, DTLS is done.
     bool is_delivering_packets_;
+    // Notify stream event to event handler
+    std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -193,6 +204,10 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+public:
+    // For event handler
+    void subscribe(ISrsRtcStreamEventHandler* h);
+    void unsubscribe(ISrsRtcStreamEventHandler* h);
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     ISrsRtcPublishStream* publish_stream();
@@ -265,6 +280,9 @@ class SrsCodecPayload
 public:
     std::string type_;
     uint8_t pt_;
+    // for publish, equals to PT of itself;
+    // for subscribe, is the PT of publisher;
+    uint8_t pt_of_publisher_;
     std::string name_;
     int sample_;
 
@@ -381,7 +399,7 @@ public:
     bool is_active_;
     // direction
     std::string direction_;
-    // TODO: FIXME: whether mid is needed?
+    // mid is used in BOUNDLE
     std::string mid_;
     // msid_: track stream id
     std::string msid_;
@@ -411,9 +429,6 @@ public:
     int get_rtp_extension_id(std::string uri);
 public:
     SrsRtcTrackDescription* copy();
-public:
-    // find media with payload type.
-    SrsMediaPayloadType generate_media_payload_type(int payload_type);
 };
 
 class SrsRtcStreamDescription
@@ -490,6 +505,7 @@ public:
     virtual ~SrsRtcRecvTrack();
 public:
     bool has_ssrc(uint32_t ssrc);
+    uint32_t get_ssrc();
     void update_rtt(int rtt);
     void update_send_report_time(const SrsNtp& ntp);
     srs_error_t send_rtcp_rr();
@@ -501,6 +517,9 @@ protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t check_send_nacks() = 0;
+protected:
+    virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
@@ -510,19 +529,17 @@ public:
     virtual ~SrsRtcAudioRecvTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t check_send_nacks();
 };
 
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
 {
-private:
-    bool request_key_frame_;
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
-public:
-    void request_keyframe();
+    virtual srs_error_t check_send_nacks();
 };
 
 class SrsRtcSendTrack

@@ -28,8 +28,32 @@
 
 #include <string>
 
+// The resource managed by ISrsResourceManager.
+class ISrsResource
+{
+public:
+    ISrsResource();
+    virtual ~ISrsResource();
+public:
+    // Get the context id of connection.
+    virtual const SrsContextId& get_id() = 0;
+    // The resource description, optional.
+    virtual std::string desc() = 0;
+};
+
+// The manager for resource.
+class ISrsResourceManager
+{
+public:
+    ISrsResourceManager();
+    virtual ~ISrsResourceManager();
+public:
+    // Remove then free the specified connection.
+    virtual void remove(ISrsResource* c) = 0;
+};
+
 // The connection interface for all HTTP/RTMP/RTSP object.
-class ISrsConnection
+class ISrsConnection : public ISrsResource
 {
 public:
     ISrsConnection();
@@ -37,17 +61,6 @@ public:
 public:
     // Get remote ip address.
     virtual std::string remote_ip() = 0;
-};
-
-// The manager for connection.
-class IConnectionManager
-{
-public:
-    IConnectionManager();
-    virtual ~IConnectionManager();
-public:
-    // Remove then free the specified connection.
-    virtual void remove(ISrsConnection* c) = 0;
 };
 
 #endif

@@ -282,13 +282,13 @@
 #define ERROR_DASH_WRITE_FAILED             3087
 #define ERROR_TS_CONTEXT_NOT_READY          3088
 #define ERROR_MP4_ILLEGAL_MOOF              3089
-#define ERROR_OCLUSTER_DISCOVER             3090
-#define ERROR_OCLUSTER_REDIRECT             3091
-#define ERROR_INOTIFY_CREATE                3092
-#define ERROR_INOTIFY_OPENFD                3093
-#define ERROR_INOTIFY_WATCH                 3094
-#define ERROR_HEVC_API_NO_PREFIXED          3095
-#define ERROR_HEVC_DROP_BEFORE_SPS_PPS      3096
+#define ERROR_MP4_ILLEGAL_MDAT              3090
+#define ERROR_OCLUSTER_DISCOVER             3091
+#define ERROR_OCLUSTER_REDIRECT             3092
+#define ERROR_INOTIFY_CREATE                3093
+#define ERROR_INOTIFY_OPENFD                3094
+#define ERROR_INOTIFY_WATCH                 3095
+#define ERROR_HTTP_URL_UNESCAPE             3096
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
@@ -326,9 +326,16 @@
 #define ERROR_HTTP_302_INVALID              4038
 #define ERROR_BASE64_DECODE                 4039
 #define ERROR_HTTP_STREAM_EOF               4040
-#define ERROR_STREAM_CASTER_HEVC_PPS        4041
-#define ERROR_STREAM_CASTER_HEVC_VPS        4042
-#define ERROR_STREAM_CASTER_HEVC_SPS        4043
+#define ERROR_HTTPS_NOT_SUPPORTED           4041
+#define ERROR_HTTPS_HANDSHAKE               4042
+#define ERROR_HTTPS_READ                    4043
+#define ERROR_HTTPS_WRITE                   4044
+#define ERROR_HTTPS_KEY_CRT                 4045
+#define ERROR_STREAM_CASTER_HEVC_PPS        4046
+#define ERROR_STREAM_CASTER_HEVC_VPS        4047
+#define ERROR_STREAM_CASTER_HEVC_SPS        4048
+#define ERROR_HEVC_API_NO_PREFIXED          4049
+#define ERROR_HEVC_DROP_BEFORE_SPS_PPS      4050
 
 ///////////////////////////////////////////////////////
 // RTC protocol error.

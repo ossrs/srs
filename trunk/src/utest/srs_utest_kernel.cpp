@@ -361,7 +361,7 @@ MockSrsCodec::~MockSrsCodec()
 {
 }
 
-int MockSrsCodec::nb_bytes()
+uint64_t MockSrsCodec::nb_bytes()
 {
     return 0;
 }
@@ -2393,6 +2393,89 @@ VOID TEST(KernelUtility, Base64Decode)
     EXPECT_TRUE(expect == plaintext);
 }
 
+VOID TEST(KernelUtility, Base64Encode)
+{
+	srs_error_t err;
+
+    string expect = "dXNlcjpwYXNzd29yZA==";
+    string plaintext = "user:password";
+    
+    string cipher;
+    HELPER_EXPECT_SUCCESS(srs_av_base64_encode(plaintext, cipher));
+    EXPECT_TRUE(expect == cipher);
+}
+
+VOID TEST(KernelUtility, Base64)
+{
+    srs_error_t err = srs_success;
+    struct testpair {
+	    string decoded;
+        string encoded;
+    };
+
+    struct testpair data[] = {
+        // RFC 3548 examples
+        {"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
+        {"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
+        {"\x14\xfb\x9c\x03", "FPucAw=="},
+
+        // RFC 4648 examples
+        {"", ""},
+        {"f", "Zg=="},
+        {"fo", "Zm8="},
+        {"foo", "Zm9v"},
+        {"foob", "Zm9vYg=="},
+        {"fooba", "Zm9vYmE="},
+        {"foobar", "Zm9vYmFy"},
+
+        // Wikipedia examples
+        {"sure.", "c3VyZS4="},
+        {"sure", "c3VyZQ=="},
+        {"sur", "c3Vy"},
+        {"su", "c3U="},
+        {"leasure.", "bGVhc3VyZS4="},
+        {"easure.", "ZWFzdXJlLg=="},
+        {"asure.", "YXN1cmUu"},
+        {"sure.", "c3VyZS4="},
+        {"Twas brillig, and the slithy toves", "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw=="}
+    };
+
+    for(int i = 0; i < (int)(sizeof(data) / sizeof(struct testpair)); ++i) {
+        struct testpair& d = data[i];
+        string cipher;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_encode(d.decoded, cipher));
+        EXPECT_STREQ(d.encoded.c_str(), cipher.c_str());
+
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode(d.encoded, plaintext));
+        EXPECT_STREQ(d.decoded.c_str(), plaintext.c_str());
+    }
+
+    string expected = "sure";
+	string examples[11] = {
+		"c3VyZQ==",
+		"c3VyZQ==\r",
+		"c3VyZQ==\n",
+		"c3VyZQ==\r\n",
+		"c3VyZ\r\nQ==",
+		"c3V\ryZ\nQ==",
+		"c3V\nyZ\rQ==",
+		"c3VyZ\nQ==",
+		"c3VyZQ\n==",
+		"c3VyZQ=\n=",
+		"c3VyZQ=\r\n\r\n=",
+	};
+
+    for(int i = 0; i < 11; ++i) {
+        string& encoded_str = examples[i];
+        string plaintext;
+        HELPER_EXPECT_SUCCESS(srs_av_base64_decode(encoded_str, plaintext));
+        EXPECT_STREQ(expected.c_str(), plaintext.c_str());
+    }
+
+
+}
+
 VOID TEST(KernelUtility, StringToHex)
 {
     if (true) {
@@ -2543,11 +2626,126 @@ VOID TEST(KernelUtility, StringUtils)
         flags.push_back("x");
         EXPECT_TRUE("" == srs_string_min_match("srs", flags));
     }
-    
+}
+
+VOID TEST(KernelUtility, StringSplitUtils)
+{
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "r");
+        EXPECT_EQ(2, (int)ss.size());
+        EXPECT_STREQ("oss", ss.at(0).c_str());
+        EXPECT_STREQ("s", ss.at(1).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "");
+        EXPECT_EQ(1, (int)ss.size());
+        EXPECT_STREQ("ossrs", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("ossrs", "live");
+        EXPECT_EQ(1, (int)ss.size());
+        EXPECT_STREQ("ossrs", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,live,rtc", ",");
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,,rtc", ",");
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,,,rtc", ",");
+        EXPECT_EQ(4, (int)ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("", ss.at(2).c_str());
+        EXPECT_STREQ("rtc", ss.at(3).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("srs,live,", ",");
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("srs", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split(",live,rtc", ",");
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("", ss.at(0).c_str());
+        EXPECT_STREQ("live", ss.at(1).c_str());
+        EXPECT_STREQ("rtc", ss.at(2).c_str());
+    }
+
     if (true) {
         EXPECT_TRUE("srs" == srs_string_split("srs", "").at(0));
         EXPECT_TRUE("s" == srs_string_split("srs", "r").at(0));
         EXPECT_TRUE("s" == srs_string_split("srs", "rs").at(0));
+    }
+
+    if (true) {
+        vector<string> ss = srs_string_split("/xxx/yyy", "/");
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("", ss.at(0).c_str());
+        EXPECT_STREQ("xxx", ss.at(1).c_str());
+        EXPECT_STREQ("yyy", ss.at(2).c_str());
+    }
+}
+
+VOID TEST(KernelUtility, StringSplitUtils2)
+{
+    if (true) {
+        vector<string> flags;
+        flags.push_back("e");
+        flags.push_back("wo");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("h", ss.at(0).c_str());
+        EXPECT_STREQ("llo, ", ss.at(1).c_str());
+        EXPECT_STREQ("rld", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back("");
+        flags.push_back("");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(1, (int)ss.size());
+        EXPECT_STREQ("hello, world", ss.at(0).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back(",");
+        flags.push_back(" ");
+        vector<string> ss = srs_string_split("hello, world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("hello", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("world", ss.at(2).c_str());
+    }
+
+    if (true) {
+        vector<string> flags;
+        flags.push_back(",");
+        vector<string> ss = srs_string_split("hello,,world", flags);
+        EXPECT_EQ(3, (int)ss.size());
+        EXPECT_STREQ("hello", ss.at(0).c_str());
+        EXPECT_STREQ("", ss.at(1).c_str());
+        EXPECT_STREQ("world", ss.at(2).c_str());
     }
 }
 
@@ -3713,11 +3911,11 @@ VOID TEST(KernelFileTest, FileWriteReader)
 }
 
 // Mock the system call hooks.
-extern _srs_open_t _srs_open_fn;
-extern _srs_write_t _srs_write_fn;
-extern _srs_read_t _srs_read_fn;
-extern _srs_lseek_t _srs_lseek_fn;
-extern _srs_close_t _srs_close_fn;
+extern srs_open_t _srs_open_fn;
+extern srs_write_t _srs_write_fn;
+extern srs_read_t _srs_read_fn;
+extern srs_lseek_t _srs_lseek_fn;
+extern srs_close_t _srs_close_fn;
 
 int mock_open(const char* /*path*/, int /*oflag*/, ...) {
 	return -1;
@@ -3742,13 +3940,13 @@ int mock_close(int /*fildes*/) {
 class MockSystemIO
 {
 private:
-	_srs_open_t oo;
-	_srs_write_t ow;
-	_srs_read_t _or;
-	_srs_lseek_t os;
-	_srs_close_t oc;
+	srs_open_t oo;
+	srs_write_t ow;
+	srs_read_t _or;
+	srs_lseek_t os;
+	srs_close_t oc;
 public:
-	MockSystemIO(_srs_open_t o = NULL, _srs_write_t w = NULL, _srs_read_t r = NULL, _srs_lseek_t s = NULL, _srs_close_t c = NULL) {
+	MockSystemIO(srs_open_t o = NULL, srs_write_t w = NULL, srs_read_t r = NULL, srs_lseek_t s = NULL, srs_close_t c = NULL) {
 		oo = _srs_open_fn;
 		ow = _srs_write_fn;
 		os = _srs_lseek_fn;
@@ -4191,7 +4389,7 @@ VOID TEST(KernelUtilityTest, CoverBitsBufferAll)
 }
 
 #ifndef SRS_OSX
-extern _srs_gettimeofday_t _srs_gettimeofday;
+extern srs_gettimeofday_t _srs_gettimeofday;
 int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
 	return -1;
 }
@@ -4199,9 +4397,9 @@ int mock_gettimeofday(struct timeval* /*tp*/, struct timezone* /*tzp*/) {
 class MockTime
 {
 private:
-	_srs_gettimeofday_t ot;
+	srs_gettimeofday_t ot;
 public:
-	MockTime(_srs_gettimeofday_t t = NULL) {
+	MockTime(srs_gettimeofday_t t = NULL) {
 		ot = _srs_gettimeofday;
 		if (t) {
 			_srs_gettimeofday = t;
@@ -4398,17 +4596,6 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
         EXPECT_STREQ("1.00", srs_float2str(1).c_str());
         EXPECT_STREQ("on", srs_bool2switch(true).c_str());
         EXPECT_STREQ("off", srs_bool2switch(false).c_str());
-    }
-    
-    if (true) {
-        vector<string> flags;
-        flags.push_back("e");
-        flags.push_back("wo");
-        vector<string> ss = srs_string_split("hello, world", flags);
-        EXPECT_EQ(3, (int)ss.size());
-        EXPECT_STREQ("h", ss.at(0).c_str());
-        EXPECT_STREQ("llo, ", ss.at(1).c_str());
-        EXPECT_STREQ("rld", ss.at(2).c_str());
     }
     
     if (true) {

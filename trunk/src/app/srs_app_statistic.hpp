@@ -36,9 +36,10 @@
 class SrsKbps;
 class SrsWallClock;
 class SrsRequest;
-class SrsConnection;
+class ISrsExpire;
 class SrsJsonObject;
 class SrsJsonArray;
+class ISrsKbpsDelta;
 
 struct SrsStatisticVhost
 {
@@ -109,8 +110,8 @@ public:
 struct SrsStatisticClient
 {
 public:
+    ISrsExpire* conn;
     SrsStatisticStream* stream;
-    SrsConnection* conn;
     SrsRequest* req;
     SrsRtmpConnType type;
     std::string id;
@@ -148,7 +149,7 @@ class SrsStatistic : public ISrsProtocolPerf
 private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
-    int64_t _server_id;
+    std::string _server_id;
 private:
     // The key: vhost id, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
@@ -179,7 +180,8 @@ private:
 public:
     static SrsStatistic* instance();
 public:
-    virtual SrsStatisticVhost* find_vhost(std::string vid);
+    virtual SrsStatisticVhost* find_vhost_by_id(std::string vid);
+    virtual SrsStatisticVhost* find_vhost_by_name(std::string name);
     virtual SrsStatisticStream* find_stream(std::string sid);
     virtual SrsStatisticClient* find_client(std::string client_id);
 public:
@@ -205,24 +207,23 @@ public:
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
     // TODO: FIXME: We should not use context id as client id.
-    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
     // TODO: FIXME: We should not use context id as client id.
-    virtual void on_disconnect(SrsContextId id);
+    virtual void on_disconnect(const SrsContextId& id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
-    // TODO: FIXME: the add delta must use ISrsKbpsDelta interface instead.
-    virtual void kbps_add_delta(SrsConnection* conn);
+    virtual void kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
     // @return the server kbps.
     virtual SrsKbps* kbps_sample();
 public:
     // Get the server id, used to identify the server.
     // For example, when restart, the server id must changed.
-    virtual int64_t server_id();
+    virtual std::string server_id();
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.

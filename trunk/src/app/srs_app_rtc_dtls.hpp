@@ -93,6 +93,8 @@ public:
     virtual srs_error_t on_dtls_application_data(const char* data, const int len) = 0;
     // DTLS write dtls data.
     virtual srs_error_t write_dtls_data(void* data, int size) = 0;
+    // Callback when DTLS Alert message.
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 };
 
 // The state for DTLS client.
@@ -122,6 +124,8 @@ protected:
     // DTLS packet cache, only last out-going packet.
     uint8_t* last_outgoing_packet_cache;
     int nn_last_outgoing_packet;
+    // The stat for ARQ packets.
+    int nn_arq_packets;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
@@ -135,6 +139,7 @@ protected:
     void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+    void callback_by_ssl(std::string type, std::string desc);
 protected:
     virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached) = 0;
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;
@@ -151,8 +156,8 @@ private:
     // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
     // The timeout for ARQ.
-    srs_utime_t arq_first;
     srs_utime_t arq_interval;
+    int arq_to_ratios[8];
 public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();

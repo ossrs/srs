@@ -49,6 +49,8 @@ public:
     virtual srs_error_t on_reload_pithy_print();
     virtual srs_error_t on_reload_http_api_enabled();
     virtual srs_error_t on_reload_http_api_disabled();
+    virtual srs_error_t on_reload_https_api_enabled();
+    virtual srs_error_t on_reload_https_api_disabled();
     virtual srs_error_t on_reload_http_api_crossdomain();
     virtual srs_error_t on_reload_http_api_raw_api();
     virtual srs_error_t on_reload_http_stream_enabled();

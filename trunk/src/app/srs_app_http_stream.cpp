@@ -129,7 +129,7 @@ srs_error_t SrsBufferCache::cycle()
     // which will trigger to fetch stream from origin for edge.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
     if ((err = source->consumer_dumps(consumer, false, false, true)) != srs_success) {
@@ -587,7 +587,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
     SrsAutoFree(SrsConsumer, consumer);
-    if ((err = source->create_consumer(NULL, consumer)) != srs_success) {
+    if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
     if ((err = source->consumer_dumps(consumer, true, true, !enc->has_cache())) != srs_success) {
@@ -602,7 +602,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     // Use receive thread to accept the close event to avoid FD leak.
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
-    SrsResponseOnlyHttpConn* hc = dynamic_cast<SrsResponseOnlyHttpConn*>(hr->connection());
+    SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
@@ -622,23 +622,29 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             return srs_error_wrap(err, "encoder dump cache");
         }
     }
-    
+
+    // Try to use fast flv encoder, remember that it maybe NULL.
     SrsFlvStreamEncoder* ffe = dynamic_cast<SrsFlvStreamEncoder*>(enc);
+
+    // Note that the handler of hc now is rohc.
+    SrsResponseOnlyHttpConn* rohc = dynamic_cast<SrsResponseOnlyHttpConn*>(hc->handler());
+    srs_assert(rohc);
     
     // Set the socket options for transport.
     bool tcp_nodelay = _srs_config->get_tcp_nodelay(req->vhost);
     if (tcp_nodelay) {
-        if ((err = hc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
+        if ((err = rohc->set_tcp_nodelay(tcp_nodelay)) != srs_success) {
             return srs_error_wrap(err, "set tcp nodelay");
         }
     }
     
     srs_utime_t mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    if ((err = hc->set_socket_buffer(mw_sleep)) != srs_success) {
+    if ((err = rohc->set_socket_buffer(mw_sleep)) != srs_success) {
         return srs_error_wrap(err, "set mw_sleep %" PRId64, mw_sleep);
     }
 
-    SrsHttpRecvThread* trd = new SrsHttpRecvThread(hc);
+    // Start a thread to receive all messages from client, then drop them.
+    SrsHttpRecvThread* trd = new SrsHttpRecvThread(rohc);
     SrsAutoFree(SrsHttpRecvThread, trd);
     
     if ((err = trd->start()) != srs_success) {
@@ -1141,9 +1147,9 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     
     // trigger edge to fetch from origin.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
-    srs_trace("flv: source url=%s, is_edge=%d, source_id=[%d][%s]",
-        r->get_stream_url().c_str(), vhost_is_edge, ::getpid(), s->source_id().c_str());
-    
+    srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
+        r->get_stream_url().c_str(), vhost_is_edge, s->source_id().c_str(), s->pre_source_id().c_str());
+
     return err;
 }
 

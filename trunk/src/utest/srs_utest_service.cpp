@@ -38,20 +38,36 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_service_http_client.hpp>
 #include <srs_service_rtmp_conn.hpp>
+#include <srs_service_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
 
-class MockSrsConnection : public ISrsConnection
+MockSrsConnection::MockSrsConnection()
 {
-public:
-    MockSrsConnection() {
+    do_switch = false;
+}
+
+MockSrsConnection::~MockSrsConnection()
+{
+    if (do_switch) {
+        srs_usleep(0);
     }
-    virtual ~MockSrsConnection() {
-    }
-    virtual std::string remote_ip() {
-        return "127.0.0.1";
-    }
-};
+}
+
+const SrsContextId& MockSrsConnection::get_id()
+{
+    return _srs_context->get_id();
+}
+
+std::string MockSrsConnection::desc()
+{
+    return "Mock";
+}
+
+std::string MockSrsConnection::remote_ip()
+{
+    return "127.0.0.1";
+}
 
 VOID TEST(ServiceTimeTest, TimeUnit)
 {
@@ -557,7 +573,13 @@ VOID TEST(HTTPServerTest, MessageConnection)
 	if (true) {
 	    SrsHttpMessage m;
 	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/100", false));
-	    EXPECT_EQ("100", m.parse_rest_id("/v1/streams/")); EXPECT_FALSE(m.is_jsonp());
+	    EXPECT_STREQ("100", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
+	}
+
+	if (true) {
+	    SrsHttpMessage m;
+	    HELPER_EXPECT_SUCCESS(m.set_url("http://127.0.0.1/v1/streams/abc", false));
+	    EXPECT_STREQ("abc", m.parse_rest_id("/v1/streams/").c_str()); EXPECT_FALSE(m.is_jsonp());
 	}
 }
 
@@ -617,7 +639,7 @@ VOID TEST(HTTPServerTest, ContentLength)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -645,7 +667,7 @@ VOID TEST(HTTPServerTest, HTTPChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -674,7 +696,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
         SrsAutoFree(ISrsHttpMessage, msg);
 
@@ -701,7 +723,7 @@ VOID TEST(HTTPServerTest, InfiniteChunked)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
 
         char buf[32]; ssize_t nread = 0;
@@ -729,7 +751,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -742,7 +764,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("HTTP/1.1 200 OK\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -755,7 +777,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\nContent-Length: 5\r\n\r\nHello");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -777,7 +799,7 @@ VOID TEST(HTTPServerTest, OPTIONSRead)
         MockBufferIO io;
         io.append("OPTIONS /rtc/v1/play HTTP/1.1\r\n\r\n");
 
-        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST, false));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_REQUEST));
         ISrsHttpMessage* req = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &req));
         SrsAutoFree(ISrsHttpMessage, req);
 
@@ -1300,7 +1322,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1322,7 +1344,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
 
         ISrsHttpMessage* res = NULL;
         SrsAutoFree(ISrsHttpMessage, res);
@@ -1344,7 +1366,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
         HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 8080));
 
         SrsHttpClient client;
-        HELPER_ASSERT_SUCCESS(client.initialize("127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8080, 1*SRS_UTIME_SECONDS));
         client.set_recv_timeout(1 * SRS_UTIME_SECONDS);
         client.set_header("agent", "srs");
 
@@ -1365,7 +1387,7 @@ VOID TEST(HTTPClientTest, HTTPClientUtility)
     }
 }
 
-class MockConnectionManager : public IConnectionManager
+class MockConnectionManager : public ISrsResourceManager
 {
 public:
     MockConnectionManager() {
@@ -1373,7 +1395,7 @@ public:
     virtual ~MockConnectionManager() {
     }
 public:
-    virtual void remove(ISrsConnection* /*c*/) {
+    virtual void remove(ISrsResource* /*c*/) {
     }
 };
 

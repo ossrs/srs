@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_kbps.hpp>
 
-using namespace _srs_internal;
+using namespace srs_internal;
 
 #include <srs_protocol_io.hpp>
 
