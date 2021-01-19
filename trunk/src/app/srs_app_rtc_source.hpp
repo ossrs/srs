@@ -582,7 +582,7 @@ public:
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;
-    virtual void on_recv_nack();
+    virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info);
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack

@@ -2016,11 +2016,37 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-void SrsRtcSendTrack::on_recv_nack()
+srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info)
 {
+    srs_error_t err = srs_success;
+
     SrsRtcTrackStatistic* statistic = statistic_;
 
     statistic->nacks++;
+
+    vector<SrsRtpPacket2*> resend_pkts;
+    for(int i = 0; i < (int)lost_seqs.size(); ++i) {
+        uint16_t seq = lost_seqs.at(i);
+        SrsRtpPacket2* pkt = fetch_rtp_packet(seq);
+        if (pkt == NULL) {
+            continue;
+        }
+        resend_pkts.push_back(pkt);
+
+        info.nn_bytes += pkt->nb_bytes();
+        uint32_t nn = 0;
+        if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
+            srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", pkt->header.get_sequence(),
+                pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+        }
+    }
+
+    // By default, we send packets by sendmmsg.
+    if ((err = session_->do_send_packets(resend_pkts, info)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
+    return err;
 }
 
 SrsRtcAudioSendTrack::SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)
