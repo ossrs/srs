@@ -675,53 +675,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
     return err;
 }
 
-void SrsRtcPlayStream::nack_fetch(vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq)
-{
-    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-        SrsRtcAudioSendTrack* track = it->second;
-
-        // If track is inactive, not process nack request.
-        if (!track->get_track_status()){
-            continue;
-        }
-
-        if (!track->has_ssrc(ssrc)) {
-            continue;
-        }
-
-        // update recv nack statistic
-        track->on_recv_nack();
-
-        SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
-        if (pkt != NULL) {
-            pkts.push_back(pkt);
-        }
-        return;
-    }
-
-    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-        SrsRtcVideoSendTrack* track = it->second;
-
-        // If track is inactive, not process nack request.
-        if (!track->get_track_status()){
-            continue;
-        }
-
-        if (!track->has_ssrc(ssrc)) {
-            continue;
-        }
-
-        // update recv nack statistic
-        track->on_recv_nack();
-
-        SrsRtpPacket2* pkt = track->fetch_rtp_packet(seq);
-        if (pkt != NULL) {
-            pkts.push_back(pkt);
-        }
-        return;
-    }
-}
-
 void SrsRtcPlayStream::set_all_tracks_status(bool status)
 {
     std::ostringstream merged_log;
@@ -811,36 +764,44 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
 {
     srs_error_t err = srs_success;
 
+    uint32_t ssrc = rtcp->get_media_ssrc();
+
     // If NACK disabled, print a log.
     if (!nack_enabled_) {
         vector<uint16_t> sns = rtcp->get_lost_sns();
-        srs_trace("RTC NACK ssrc=%u, seq=%s, ignored", rtcp->get_media_ssrc(), srs_join_vector_string(sns, ",").c_str());
+        srs_trace("RTC NACK ssrc=%u, seq=%s, ignored", ssrc, srs_join_vector_string(sns, ",").c_str());
         return err;
     }
 
-    // TODO: FIXME: Support ARQ.
-    vector<SrsRtpPacket2*> resend_pkts;
-
-    vector<uint16_t> sns = rtcp->get_lost_sns();
-    for(int i = 0; i < (int)sns.size(); ++i) {
-        uint16_t seq = sns.at(i);
-        nack_fetch(resend_pkts, rtcp->get_media_ssrc(), seq);
-    }
-
-    for (int i = 0; i < (int)resend_pkts.size(); ++i) {
-        SrsRtpPacket2* pkt = resend_pkts[i];
-        info.nn_bytes += pkt->nb_bytes();
-
-        uint32_t nn = 0;
-        if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
-            srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", pkt->header.get_sequence(),
-                pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+    SrsRtcSendTrack* target = NULL;
+    // Try audio track first.
+    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioSendTrack* track = it->second;
+        if (!track->get_track_status() || !track->has_ssrc(ssrc)) {
+            continue;
         }
+
+        target = track;
+        break;
+    }
+    // If not found, try video track.
+    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); !target && it != video_tracks_.end(); ++it) {
+        SrsRtcVideoSendTrack* track = it->second;
+        if (!track->get_track_status() || !track->has_ssrc(ssrc)) {
+            continue;
+        }
+
+        target = track;
+        break;
+    }
+    // Error if no track.
+    if (!target) {
+        return srs_error_new(ERROR_RTC_NO_TRACK, "no track for %u ssrc", ssrc);
     }
 
-    // By default, we send packets by sendmmsg.
-    if ((err = session_->do_send_packets(resend_pkts, info)) != srs_success) {
-        return srs_error_wrap(err, "raw send");
+    vector<uint16_t> seqs = rtcp->get_lost_sns();
+    if((err = target->on_recv_nack(seqs, info)) != srs_success) {
+        return srs_error_wrap(err, "track response nack. id:%s, ssrc=%u", target->get_track_id().c_str(), ssrc);
     }
 
     session_->stat_->nn_nack++;

@@ -289,7 +289,6 @@ public:
     virtual srs_error_t cycle();
 private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
-    void nack_fetch(std::vector<SrsRtpPacket2*>& pkts, uint32_t ssrc, uint16_t seq);
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
