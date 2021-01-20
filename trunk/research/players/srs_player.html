@@ -181,6 +181,7 @@
 
     var start_play = function (r) {
         stopPlayers();
+        if (!r) return;
 
         // Start play HTTP-FLV.
         if (r.stream.indexOf('.flv') > 0) {
