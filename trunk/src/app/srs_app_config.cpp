@@ -3557,8 +3557,23 @@ srs_error_t SrsConfig::check_normal_config()
         }
         for (int i = 0; i < (int)listens.size(); i++) {
             string port = listens[i];
-            if (port.empty() || ::atoi(port.c_str()) <= 0) {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%d is invalid", port.c_str());
+            bool err = false;
+            if (port.empty()) {
+                err = true;
+            } else if(port[0] == '['){
+                int pos = port.rfind("]");
+                pos += 1;
+                if( port[pos] != ':' || port.substr(0, pos) != "[::]" || ::atol(port.substr(pos + 1, port.length() - pos).c_str()) <= 0) {
+                    err = true;
+                }
+            } else {
+                if (::atol(port.c_str()) <= 0) {
+                    err = true;
+                }
+            }
+
+            if (err) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "listen.port=%s is invalid", port.c_str());
             }
         }
     }
