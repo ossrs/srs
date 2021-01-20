@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-01-20, Support HTTP-FLV and HLS for srs-player by H5. 4.0.63
 * v4.0, 2021-01-08, HTML5 video tag resolution adaptive. 4.0.59
 * v4.0, 2021-01-08, Fix memory leak and bugs for RTC. 4.0.58
 * v4.0, 2021-01-06, Merge #2109, Refine srs_string_split.
