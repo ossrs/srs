@@ -49,7 +49,7 @@
     </div>
 
     <label></label>
-    <video id="rtc_media_player" width="100%" controls autoplay></video>
+    <video id="rtc_media_player" controls autoplay></video>
 
     <label></label>
     SessionID: <span id='sessionid'></span>
@@ -312,10 +312,16 @@
         var query = parse_query_string();
         srs_init_rtc("#txt_url", query);
 
-        $("#btn_play").click(startPlay);
+        $("#btn_play").click(function() {
+            $('#rtc_media_player').prop('muted', false);
+            startPlay();
+        });
+
         if (query.autostart === 'true') {
-            // For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a
             $('#rtc_media_player').prop('muted', true);
+            console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
+                'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
+
             startPlay();
         }
     });

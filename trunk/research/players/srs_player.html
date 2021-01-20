@@ -122,12 +122,25 @@
     var flvPlayer = null;
     var hlsPlayer = null;
 
+    var stopPlayers = function () {
+        if (flvPlayer) {
+            flvPlayer.destroy();
+            flvPlayer = null;
+        }
+        if (hlsPlayer) {
+            hlsPlayer.destroy();
+            hlsPlayer = null;
+        }
+    };
+
     var hide_for_error = function () {
         $('#main_flash_alert').show();
         $('#main_info').hide();
         $('#main_tips').hide();
         $('#video_player').hide();
         //$('#btn_play').hide();
+
+        stopPlayers();
     };
 
     var show_for_ok = function () {
@@ -142,11 +155,11 @@
         var r = parse_rtmp_url($("#txt_url").val());
         var url = window.location.protocol + "//" + query.host + query.pathname + "?autostart=true"
             + "&app=" + r.app + "&stream=" + r.stream + "&server=" + r.server + "&port=" + r.port;
-        url += (query.shp_identify)? "&shp_identify=" + query.shp_identify : '';
-        url += (r.vhost === "__defaultVhost__")? "&vhost=" + r.server : "&vhost=" + r.vhost;
-        url += (r.schema !== "rtmp")? "&schema=" + r.schema : '';
-        url += (query.buffer)? "&buffer=" + query.buffer : '';
-        url += (query.api_port)? "&api_port=" + query.api_port : '';
+        url += (query.shp_identify) ? "&shp_identify=" + query.shp_identify : '';
+        url += (r.vhost === "__defaultVhost__") ? "&vhost=" + r.server : "&vhost=" + r.vhost;
+        url += (r.schema !== "rtmp") ? "&schema=" + r.schema : '';
+        url += (query.buffer) ? "&buffer=" + query.buffer : '';
+        url += (query.api_port) ? "&api_port=" + query.api_port : '';
 
         var queries = user_extra_params(query);
         queries = user_extra_params(r, queries);
@@ -157,19 +170,17 @@
         $("#player_url").text($("#txt_url").val()).attr("href", url);
         $("#link_url").attr("href", url);
 
-        // Stop players.
-        if (flvPlayer) {
-            flvPlayer.destroy();
-        }
-        if (hlsPlayer) {
-            hlsPlayer.destroy();
-        }
-
         // For RTMP, not support.
         if (r.schema === 'rtmp') {
             hide_for_error();
             return;
         }
+
+        return r;
+    };
+
+    var start_play = function (r) {
+        stopPlayers();
 
         // Start play HTTP-FLV.
         if (r.stream.indexOf('.flv') > 0) {
@@ -211,7 +222,9 @@
     });
 
     $("#btn_play").click(function(){
-        apply_url_change();
+        $('#video_player').prop('muted', false);
+        var r = apply_url_change();
+        start_play(r);
     });
 
     /****
@@ -238,7 +251,12 @@
     srs_init_rtmp("#txt_url");
 
     if (query.autostart === "true") {
-        apply_url_change();
+        $('#video_player').prop('muted', true);
+        console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
+            'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
+
+        var r = apply_url_change();
+        start_play(r);
     }
 </script>
 </html>
