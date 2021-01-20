@@ -3561,9 +3561,11 @@ srs_error_t SrsConfig::check_normal_config()
             if (port.empty()) {
                 err = true;
             } else if(port[0] == '['){
-                int pos = port.rfind("]");
+                uint pos = port.rfind("]");
                 pos += 1;
-                if( port[pos] != ':' || port.substr(0, pos) != "[::]" || ::atol(port.substr(pos + 1, port.length() - pos).c_str()) <= 0) {
+                if( pos >= port.length() || port[pos] != ':' 
+                    || port.substr(0, pos) != "[::]" 
+                    || ::atol(port.substr(pos + 1, port.length() - pos).c_str()) <= 0) {
                     err = true;
                 }
             } else {
