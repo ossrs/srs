@@ -690,7 +690,9 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
-    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
+    // rtc can't process mp3 proberly, so pass it
+    // mp3 streaming was blocked by rtc, even it would crash in it
+    if (acodec != SrsAudioCodecIdAAC/* && acodec != SrsAudioCodecIdMP3*/) {
         return err;
     }
 
