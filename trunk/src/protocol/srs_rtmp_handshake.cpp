@@ -34,7 +34,7 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 
-using namespace _srs_internal;
+using namespace srs_internal;
 
 // for openssl_HMACsha256
 #include <openssl/evp.h>
@@ -112,7 +112,7 @@ static int DH_set_length(DH *dh, long length)
 
 #endif
 
-namespace _srs_internal
+namespace srs_internal
 {
     // 68bytes FMS key which is used to sign the sever packet.
     uint8_t SrsGenuineFMSKey[] = {
@@ -865,6 +865,8 @@ namespace _srs_internal
     c1s1::c1s1()
     {
         payload = NULL;
+        version = 0;
+        time = 0;
     }
     c1s1::~c1s1()
     {
@@ -978,7 +980,7 @@ namespace _srs_internal
         srs_random_generate(random, 1504);
         
         int size = snprintf(random, 1504, "%s", RTMP_SIG_SRS_HANDSHAKE);
-        srs_assert(++size < 1504);
+        srs_assert(size < 1504);
         snprintf(random + 1504 - size, size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         
         srs_random_generate(digest, 32);
@@ -1225,6 +1227,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_byt
     }
     // verify s2
     if ((err = s2.s2_validate(&c1, is_valid)) != srs_success || !is_valid) {
+        srs_freep(err);
         return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "verify s2 failed, try simple handshake");
     }
     

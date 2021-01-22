@@ -65,6 +65,7 @@ SrsEdgeRtmpUpstream::SrsEdgeRtmpUpstream(string r)
 {
     redirect = r;
     sdk = NULL;
+    selected_port = 0;
 }
 
 SrsEdgeRtmpUpstream::~SrsEdgeRtmpUpstream()
@@ -124,10 +125,15 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "edge pull %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
-    
-    if ((err = sdk->play(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
+
+    // For RTMP client, we pass the vhost in tcUrl when connecting,
+    // so we publish without vhost in stream.
+    string stream;
+    if ((err = sdk->play(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "edge pull %s stream failed", url.c_str());
     }
+
+    srs_trace("edge-pull publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
     
     return err;
 }
@@ -440,6 +446,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     edge = NULL;
     req = NULL;
     send_error_code = ERROR_SUCCESS;
+    source = NULL;
     
     sdk = NULL;
     lb = new SrsLbRoundRobin();
@@ -504,8 +511,11 @@ srs_error_t SrsEdgeForwarder::start()
     if ((err = sdk->connect()) != srs_success) {
         return srs_error_wrap(err, "sdk connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
-    
-    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost))) != srs_success) {
+
+    // For RTMP client, we pass the vhost in tcUrl when connecting,
+    // so we publish without vhost in stream.
+    string stream;
+    if ((err = sdk->publish(_srs_config->get_chunk_size(req->vhost), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
     
@@ -515,7 +525,8 @@ srs_error_t SrsEdgeForwarder::start()
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
     }
-    srs_trace("edge-fwr publish url %s", url.c_str());
+
+    srs_trace("edge-fwr publish url %s, stream=%s%s as %s", url.c_str(), req->stream.c_str(), req->param.c_str(), stream.c_str());
     
     return err;
 }
@@ -689,11 +700,13 @@ void SrsPlayEdge::on_all_client_stop()
     // when all client disconnected,
     // and edge is ingesting origin stream, abort it.
     if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
-        ingester->stop();
-        
         SrsEdgeState pstate = state;
+        state = SrsEdgeStateIngestStopping;
+
+        ingester->stop();
+
         state = SrsEdgeStateInit;
-        srs_trace("edge change from %d to state %d (init).", pstate, state);
+        srs_trace("edge change from %d to %d then %d (init).", pstate, SrsEdgeStateIngestStopping, state);
         
         return;
     }

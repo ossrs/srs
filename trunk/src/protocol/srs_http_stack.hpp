@@ -28,9 +28,6 @@
 
 #include <srs_kernel_io.hpp>
 
-// Default http listen port.
-#define SRS_DEFAULT_HTTP_PORT 80
-
 #if !defined(SRS_EXPORT_LIBRTMP)
 
 #include <map>
@@ -481,11 +478,11 @@ public:
     virtual std::string path() = 0;
     virtual std::string query() = 0;
     virtual std::string ext() = 0;
-    // Get the RESTful id,
+    // Get the RESTful id, in string,
     // for example, pattern is /api/v1/streams, path is /api/v1/streams/100,
     // then the rest id is 100.
     // @param pattern the handler pattern which will serve the request.
-    // @return the REST id; -1 if not matched.
+    // @return the REST id; "" if not matched.
     virtual std::string parse_rest_id(std::string pattern) = 0;
 public:
     // Read body to string.
@@ -519,12 +516,17 @@ private:
     int port;
     std::string path;
     std::string query;
+    std::string username_;
+    std::string password_;
+    std::map<std::string, std::string> query_values_;
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
 public:
     // Initialize the http uri.
     virtual srs_error_t initialize(std::string _url);
+    // After parsed the message, set the schema to https.
+    virtual void set_schema(std::string v);
 public:
     virtual std::string get_url();
     virtual std::string get_schema();
@@ -532,10 +534,19 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    virtual std::string get_query_by_key(std::string key);
+    virtual std::string username();
+    virtual std::string password();
 private:
     // Get the parsed url field.
     // @return return empty string if not set.
     virtual std::string get_uri_field(std::string uri, void* hp_u, int field);
+    srs_error_t parse_query();
+public:
+    static std::string query_escape(std::string s);
+    static std::string path_escape(std::string s);
+    static srs_error_t query_unescape(std::string s, std::string& value);
+    static srs_error_t path_unescape(std::string s, std::string& value);
 };
 
 // For #if !defined(SRS_EXPORT_LIBRTMP)

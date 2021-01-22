@@ -87,7 +87,7 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     }
     
     SrsHttpClient http;
-    if ((err = http.initialize(uri.get_host(), uri.get_port())) != srs_success) {
+    if ((err = http.initialize(uri.get_schema(), uri.get_host(), uri.get_port())) != srs_success) {
         return srs_error_wrap(err, "init uri=%s", uri.get_url().c_str());
     }
     

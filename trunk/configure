@@ -228,12 +228,15 @@ MODULE_DEPENDS=("CORE" "KERNEL")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
         "srs_rtmp_handshake" "srs_protocol_utility" "srs_rtmp_msg_array" "srs_protocol_stream"
-        "srs_raw_avc" "srs_rtsp_stack" "srs_sip_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
+        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps" "srs_protocol_json"
         "srs_protocol_format" "srs_service_log" "srs_service_st" "srs_service_http_client" "srs_service_http_conn"
         "srs_service_rtmp_conn" "srs_service_utility" "srs_service_conn")
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_rtc_stun_stack")
     ModuleLibIncs+=(${LibSrtpRoot})
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    MODULE_FILES+=("srs_sip_stack")
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
@@ -267,7 +270,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
-        "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config"
+        "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config"
         "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks"
         "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_edge"
         "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
@@ -679,11 +682,6 @@ if [ $SRS_HLS = YES ]; then
 else
     echo -e "${YELLOW}Warning: HLS is disabled.${BLACK}"
 fi
-if [ $SRS_LAS = YES ]; then
-    echo -e "${YELLOW}Experiment: LAS is enabled.${BLACK}"
-else
-    echo -e "${GREEN}Warning: LAS is disabled.${BLACK}"
-fi
 if [ $SRS_STREAM_CASTER = YES ]; then
     echo -e "${YELLOW}Experiment: StreamCaster is enabled.${BLACK}"
 else
@@ -703,6 +701,11 @@ if [ $SRS_RTC = YES ]; then
     echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"
 else
     echo -e "${GREEN}Warning: RTC is disabled.${BLACK}"
+fi
+if [ $SRS_HTTPS = YES ]; then
+    echo -e "${YELLOW}Experiment: HTTPS is enabled. https://github.com/ossrs/srs/issues/1657${BLACK}"
+else
+    echo -e "${GREEN}Warning: HTTPS is disabled.${BLACK}"
 fi
 if [ $SRS_DVR = YES ]; then
     echo -e "${GREEN}DVR is enabled.${BLACK}"

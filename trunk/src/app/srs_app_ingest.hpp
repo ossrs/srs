@@ -28,7 +28,7 @@
 
 #include <vector>
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 
 class SrsFFMPEG;

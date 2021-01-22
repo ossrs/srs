@@ -40,7 +40,7 @@ class SrsFlvDecoder;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
 
-#include <srs_app_thread.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_http_conn.hpp>
@@ -48,13 +48,13 @@ class SrsSimpleRtmpClient;
 
 // The stream caster for flv stream over HTTP POST.
 class SrsAppCasterFlv : virtual public ISrsTcpHandler
-    , virtual public IConnectionManager, virtual public ISrsHttpHandler
+    , virtual public ISrsResourceManager, virtual public ISrsHttpHandler
 {
 private:
     std::string output;
     SrsHttpServeMux* http_mux;
-    std::vector<SrsHttpConn*> conns;
-    SrsCoroutineManager* manager;
+    std::vector<ISrsStartableConneciton*> conns;
+    SrsResourceManager* manager;
 public:
     SrsAppCasterFlv(SrsConfDirective* c);
     virtual ~SrsAppCasterFlv();
@@ -63,30 +63,60 @@ public:
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
-// Interface IConnectionManager
+// Interface ISrsResourceManager
 public:
-    virtual void remove(ISrsConnection* c);
+    virtual void remove(ISrsResource* c);
 // Interface ISrsHttpHandler
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 // The dynamic http connection, never drop the body.
-class SrsDynamicHttpConn : public SrsHttpConn
+class SrsDynamicHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
+    , virtual public ISrsReloadHandler
 {
 private:
+    // The manager object to manage the connection.
+    ISrsResourceManager* manager;
     std::string output;
     SrsPithyPrint* pprint;
     SrsSimpleRtmpClient* sdk;
+    SrsTcpConnection* skt;
+    SrsHttpConn* conn;
+private:
+    // The ip and port of client.
+    std::string ip;
+    int port;
 public:
-    SrsDynamicHttpConn(IConnectionManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
+    SrsDynamicHttpConn(ISrsResourceManager* cm, srs_netfd_t fd, SrsHttpServeMux* m, std::string cip, int port);
     virtual ~SrsDynamicHttpConn();
-public:
-    virtual srs_error_t on_got_http_message(ISrsHttpMessage* msg);
 public:
     virtual srs_error_t proxy(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string o);
 private:
     virtual srs_error_t do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
+// Extract APIs from SrsTcpConnection.
+// Interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_http_stream_crossdomain();
+// Interface ISrsHttpConnOwner.
+public:
+    virtual srs_error_t on_start();
+    virtual srs_error_t on_http_message(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_message_done(ISrsHttpMessage* r, SrsHttpResponseWriter* w);
+    virtual srs_error_t on_conn_done(srs_error_t r0);
+// Interface ISrsResource.
+public:
+    virtual std::string desc();
+// Interface ISrsConnection.
+public:
+    virtual std::string remote_ip();
+    virtual const SrsContextId& get_id();
+// Interface ISrsStartable
+public:
+    virtual srs_error_t start();
+// Interface ISrsKbpsDelta
+public:
+    virtual void remark(int64_t* in, int64_t* out);
 };
 
 // The http wrapper for file reader, to read http post stream like a file.

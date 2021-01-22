@@ -63,12 +63,6 @@ else
     srs_undefine_macro "SRS_HDS" $SRS_AUTO_HEADERS_H
 fi
 
-if [ $SRS_LAS = YES ]; then
-    srs_define_macro "SRS_LAS" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_LAS" $SRS_AUTO_HEADERS_H
-fi
-
 if [ $SRS_SRT = YES ]; then
     srs_define_macro "SRS_SRT" $SRS_AUTO_HEADERS_H
 else
@@ -109,6 +103,12 @@ if [ $SRS_GB28181 = YES ]; then
     srs_define_macro "SRS_GB28181" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_GB28181" $SRS_AUTO_HEADERS_H
+fi
+
+if [ $SRS_HTTPS = YES ]; then
+    srs_define_macro "SRS_HTTPS" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_HTTPS" $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_MEM_WATCH = YES ]; then
@@ -206,6 +206,7 @@ if [[ -f ../AUTHORS.txt ]]; then
 	SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
 	echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 	for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
+	    CONTRIBUTOR=`echo $CONTRIBUTOR|sed 's/@users.noreply.github.com>/@github>/g'`
 	    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
 	done
 	echo "\"" >> $SRS_AUTO_HEADERS_H

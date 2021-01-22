@@ -47,6 +47,10 @@ SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
 
 SrsRtpRingBuffer::~SrsRtpRingBuffer()
 {
+    for (int i = 0; i < capacity_; ++i) {
+        SrsRtpPacket2* pkt = queue_[i];
+        srs_freep(pkt);
+    }
     srs_freepa(queue_);
 }
 
@@ -160,9 +164,13 @@ void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 SrsNackOption::SrsNackOption()
 {
     max_count = 15;
-    max_alive_time = 1 * SRS_UTIME_SECONDS;
+    max_alive_time = 1000 * SRS_UTIME_MILLISECONDS;
     first_nack_interval = 10 * SRS_UTIME_MILLISECONDS;
     nack_interval = 50 * SRS_UTIME_MILLISECONDS;
+    max_nack_interval = 500 * SRS_UTIME_MILLISECONDS;
+    min_nack_interval = 20 * SRS_UTIME_MILLISECONDS;
+
+    nack_check_interval = 3 * SRS_UTIME_MILLISECONDS;
 
     //TODO: FIXME: audio and video using diff nack strategy
     // video:
@@ -188,10 +196,10 @@ SrsRtpNackForReceiver::SrsRtpNackForReceiver(SrsRtpRingBuffer* rtp, size_t queue
     max_queue_size_ = queue_size;
     rtp_ = rtp;
     pre_check_time_ = 0;
-    last_remove_packet_time_ = -1;
+    rtt_ = 0;
 
     srs_info("max_queue_size=%u, nack opt: max_count=%d, max_alive_time=%us, first_nack_interval=%" PRId64 ", nack_interval=%" PRId64,
-        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts.first_nack_interval, opts_.nack_interval);
+        max_queue_size_, opts_.max_count, opts_.max_alive_time, opts_.first_nack_interval, opts_.nack_interval);
 }
 
 SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
@@ -229,13 +237,13 @@ void SrsRtpNackForReceiver::check_queue_size()
     }
 }
 
-void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
+void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
 {
     // TODO: FIXME: Use packet as tick count, not clock.
     srs_utime_t now = srs_update_system_time();
 
     srs_utime_t interval = now - pre_check_time_;
-    if (interval < opts_.nack_interval / 2) {
+    if (interval < opts_.nack_check_interval) {
         return;
     }
     pre_check_time_ = now;
@@ -247,6 +255,7 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 
         int alive_time = now - nack_info.generate_time_;
         if (alive_time > opts_.max_alive_time || nack_info.req_nack_count_ > opts_.max_count) {
+            ++timeout_nacks;
             rtp_->notify_drop_seq(seq);
             queue_.erase(iter++);
             continue;
@@ -257,10 +266,15 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
             break;
         }
 
-        if (now - nack_info.pre_req_nack_time_ >= opts_.nack_interval && nack_info.req_nack_count_ <= opts_.max_count) {
+        srs_utime_t nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval / 3);
+        if(opts_.nack_interval < 50 * SRS_UTIME_MILLISECONDS){
+            nack_interval = srs_max(opts_.min_nack_interval, opts_.nack_interval);
+        }
+
+        if (now - nack_info.pre_req_nack_time_ >= nack_interval ) {
             ++nack_info.req_nack_count_;
             nack_info.pre_req_nack_time_ = now;
-            seqs.push_back(seq);
+            seqs.add_lost_sn(seq);
         }
 
         ++iter;
@@ -270,26 +284,13 @@ void SrsRtpNackForReceiver::get_nack_seqs(vector<uint16_t>& seqs)
 void SrsRtpNackForReceiver::update_rtt(int rtt)
 {
     rtt_ = rtt * SRS_UTIME_MILLISECONDS;
-    // FIXME: limit min and max value.
-    opts_.nack_interval = rtt_;
-}
 
-#define PACKET_CLEAR_TIMEOUT (3000 * SRS_UTIME_MILLISECONDS)
-
-void SrsRtpNackForReceiver::remove_timeout_packets(void) 
-{
-    srs_utime_t now = srs_get_system_time();
-    if (last_remove_packet_time_ == -1) {
-        last_remove_packet_time_ = now;
-        return;
+    if (rtt_ > opts_.nack_interval) {
+        opts_.nack_interval = opts_.nack_interval  * 0.8 + rtt_ * 0.2;
+    } else {
+        opts_.nack_interval = rtt_;
     }
 
-    srs_utime_t elapsed_time = now - last_remove_packet_time_;
-    last_remove_packet_time_ = now;
-    
-    if (elapsed_time > PACKET_CLEAR_TIMEOUT) {
-        rtp_->notify_nack_list_full();
-        queue_.clear();
-    }
+    opts_.nack_interval = srs_min(opts_.nack_interval, opts_.max_nack_interval);
 }
 

@@ -55,6 +55,7 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
@@ -63,7 +64,7 @@ SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
 {
-    for (int i = 0; i < (int)sizeof(kExtensions); ++i) {
+    for (int i = 0; i < (int)(sizeof(kExtensions)/sizeof(kExtensions[0])); ++i) {
         if (kExtensions[i].uri == uri) {
             return register_id(id, kExtensions[i].type, kExtensions[i].uri);
         }
@@ -135,26 +136,22 @@ srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
     return err;
 }
 
-int SrsRtpExtensionTwcc::nb_bytes()
+uint64_t SrsRtpExtensionTwcc::nb_bytes()
 {
-    return 4;
+    return 3;
 }
 
 srs_error_t SrsRtpExtensionTwcc::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Only requires 3 bytes.
-    if(!buf->require(4)) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 4);
+    if(!buf->require(3)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
     }
  
     uint8_t id_len = (id_ & 0x0F)<< 4| 0x01;
     buf->write_1bytes(id_len);
     buf->write_2bytes(sn_);
-
-    // TODO: FIXME: Should padding in the final of SrsRtpExtensions::encode.
-    buf->write_1bytes(0x00);
     
     return err;
 }
@@ -180,6 +177,58 @@ void SrsRtpExtensionTwcc::set_sn(uint16_t sn)
 {
     sn_ = sn;
     has_twcc_ = true;
+}
+
+SrsRtpExtensionOneByte::SrsRtpExtensionOneByte() : has_ext_(false), id_(0), value_(0)
+{
+}
+
+void SrsRtpExtensionOneByte::set_id(int id)
+{
+    id_ = id;
+    has_ext_ = true;
+}
+
+void SrsRtpExtensionOneByte::set_value(uint8_t value)
+{
+    value_ = value;
+    has_ext_ = true;
+}
+
+srs_error_t SrsRtpExtensionOneByte::decode(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+    uint8_t v = buf->read_1bytes();
+
+    id_ = (v & 0xF0) >> 4;
+    uint8_t len = (v & 0x0F);
+    if(!id_ || len != 0) {
+        return srs_error_new(ERROR_RTC_RTP, "invalid rtp extension id=%d, len=%d", id_, len);
+    }
+
+    value_ = buf->read_1bytes();
+
+    has_ext_ = true;
+    return err;
+}
+
+srs_error_t SrsRtpExtensionOneByte::encode(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+
+    uint8_t id_len = (id_ & 0x0F)<< 4 | 0x00;
+    buf->write_1bytes(id_len);
+    buf->write_1bytes(value_);
+
+    return err;
 }
 
 SrsRtpExtensions::SrsRtpExtensions() : has_ext_(false)
@@ -251,8 +300,13 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
         SrsRtpExtensionType xtype = types_.get_type(id);
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if (srs_success != (err = twcc_.decode(buf))) {
+            if ((err = twcc_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode twcc extension");
+            }
+            has_ext_ = true;
+        } else if (xtype == kRtpExtensionAudioLevel) {
+            if((err = audio_level_.decode(buf)) != srs_success) {
+                return srs_error_wrap(err, "decode audio level extension");
             }
             has_ext_ = true;
         } else {
@@ -263,9 +317,13 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
     return err;
 }
 
-int SrsRtpExtensions::nb_bytes()
+uint64_t SrsRtpExtensions::nb_bytes()
 {
-    return 4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    size += (audio_level_.exists() ? audio_level_.nb_bytes() : 0);
+    // add padding
+    size += (size % 4 == 0) ? 0 : (4 - size % 4);
+    return size;
 }
 
 srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
@@ -274,18 +332,41 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
 
     buf->write_2bytes(0xBEDE);
 
+    // Write length.
     int len = 0;
-    //TODO: When add new rtp extension, it should add the extension length into len
+
     if (twcc_.has_twcc_ext()) {
         len += twcc_.nb_bytes();
     }
+
+    if (audio_level_.exists()) {
+        len += audio_level_.nb_bytes();
+    }
+
+    int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
+    len += padding_count;
+
     buf->write_2bytes(len / 4);
 
+    // Write extensions.
     if (twcc_.has_twcc_ext()) {
-        if (srs_success != (err = twcc_.encode(buf))) {
+        if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
     }
+
+    if (audio_level_.exists()) {
+        if (srs_success != (err = audio_level_.encode(buf))) {
+            return srs_error_wrap(err, "encode audio level extension");
+        }
+    }
+
+    // add padding
+    while(padding_count > 0) {
+        buf->write_1bytes(0);
+        padding_count--;
+    }
+
     return err;
 }
 
@@ -315,6 +396,23 @@ srs_error_t SrsRtpExtensions::set_twcc_sequence_number(uint8_t id, uint16_t sn)
     has_ext_ = true;
     twcc_.set_id(id);
     twcc_.set_sn(sn);
+    return srs_success;
+}
+
+srs_error_t SrsRtpExtensions::get_audio_level(uint8_t& level)
+{
+    if(audio_level_.exists()) {
+        level = audio_level_.get_value();
+        return srs_success;
+    }
+    return srs_error_new(ERROR_RTC_RTP_MUXER, "not find rtp extension audio level");
+}
+
+srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
+{
+    has_ext_ = true;
+    audio_level_.set_id(id);
+    audio_level_.set_value(level);
     return srs_success;
 }
 
@@ -475,7 +573,7 @@ srs_error_t SrsRtpHeader::set_twcc_sequence_number(uint8_t id, uint16_t sn)
     return extensions_.set_twcc_sequence_number(id, sn);
 }
 
-int SrsRtpHeader::nb_bytes()
+uint64_t SrsRtpHeader::nb_bytes()
 {
     return kRtpHeaderFixedSize + cc * 4 + (extensions_.exists() ? extensions_.nb_bytes() : 0);
 }
@@ -621,7 +719,7 @@ void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
     return header.set_extensions(v);
 }
 
-int SrsRtpPacket2::nb_bytes()
+uint64_t SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
         int nn_payload = (payload? payload->nb_bytes():0);
@@ -701,7 +799,7 @@ SrsRtpRawPayload::~SrsRtpRawPayload()
 {
 }
 
-int SrsRtpRawPayload::nb_bytes()
+uint64_t SrsRtpRawPayload::nb_bytes()
 {
     return nn_payload;
 }
@@ -820,7 +918,7 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsSample*>& samples, int packet
     return srs_success;
 }
 
-int SrsRtpRawNALUs::nb_bytes()
+uint64_t SrsRtpRawNALUs::nb_bytes()
 {
     int size = 0;
 
@@ -931,7 +1029,7 @@ SrsSample* SrsRtpSTAPPayload::get_pps()
     return NULL;
 }
 
-int SrsRtpSTAPPayload::nb_bytes()
+uint64_t SrsRtpSTAPPayload::nb_bytes()
 {
     int size = 1;
 
@@ -981,6 +1079,14 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer* buf)
     // STAP header, RTP payload format for aggregation packets
     // @see https://tools.ietf.org/html/rfc6184#section-5.7
     uint8_t v = buf->read_1bytes();
+
+    // forbidden_zero_bit shoul be zero.
+    // @see https://tools.ietf.org/html/rfc6184#section-5.3
+    uint8_t f = (v & 0x80);
+    if (f == 0x80) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "forbidden_zero_bit should be zero");
+    }
+
     nri = SrsAvcNaluType(v & (~kNalTypeMask));
 
     // NALUs.
@@ -1035,7 +1141,7 @@ SrsRtpFUAPayload::~SrsRtpFUAPayload()
     }
 }
 
-int SrsRtpFUAPayload::nb_bytes()
+uint64_t SrsRtpFUAPayload::nb_bytes()
 {
     int size = 2;
 
@@ -1145,7 +1251,7 @@ SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
 {
 }
 
-int SrsRtpFUAPayload2::nb_bytes()
+uint64_t SrsRtpFUAPayload2::nb_bytes()
 {
     return 2 + size;
 }

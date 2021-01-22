@@ -77,6 +77,9 @@ SrsConfig* _srs_config = new SrsConfig();
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
 
+// @global main SRS server, for debugging
+SrsServer* _srs_server = NULL;
+
 /**
  * main entrance.
  */
@@ -134,7 +137,7 @@ srs_error_t do_main(int argc, char** argv)
     }
     
     // config already applied to log.
-    srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
+    srs_trace2(TAG_MAIN, "%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
     srs_trace("contributors: %s", SRS_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d",
@@ -358,8 +361,8 @@ void show_macro_features()
 #endif
     
 #if VERSION_MAJOR > VERSION_STABLE
-    #warning "Current branch is develop."
-    srs_warn("%s/%s is develop", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
+    #warning "Current branch is not stable."
+    srs_warn("%s/%s is not stable", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
 #endif
     
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
@@ -409,16 +412,16 @@ srs_error_t run_directly_or_daemon()
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
-    bool in_daemon = _srs_config->get_daemon();
-    if (in_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
+    bool run_as_daemon = _srs_config->get_daemon();
+    if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
         srs_warn("disable daemon for docker");
-        in_daemon = false;
+        run_as_daemon = false;
     }
     
-    // If not daemon, directly run master.
-    if (!in_daemon) {
+    // If not daemon, directly run hybrid server.
+    if (!run_as_daemon) {
         if ((err = run_hybrid_server()) != srs_success) {
-            return srs_error_wrap(err, "run master");
+            return srs_error_wrap(err, "run hybrid");
         }
         return srs_success;
     }
@@ -455,7 +458,7 @@ srs_error_t run_directly_or_daemon()
     srs_trace("son(daemon) process running.");
     
     if ((err = run_hybrid_server()) != srs_success) {
-        return srs_error_wrap(err, "daemon run master");
+        return srs_error_wrap(err, "daemon run hybrid");
     }
     
     return err;

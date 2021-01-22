@@ -86,8 +86,11 @@ enum SrsRtpExtensionType
 {
     kRtpExtensionNone,
     kRtpExtensionTransportSequenceNumber,
+    kRtpExtensionAudioLevel,
     kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
+
+const std::string kAudioLevelUri = "urn:ietf:params:rtp-hdrext:ssrc-audio-level";
 
 struct SrsExtensionInfo
 {
@@ -96,7 +99,8 @@ struct SrsExtensionInfo
 };
 
 const SrsExtensionInfo kExtensions[] = {
-    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
+    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")},
+    {kRtpExtensionAudioLevel, kAudioLevelUri},
 };
 
 class SrsRtpExtensionTypes
@@ -135,7 +139,28 @@ public:
     // ISrsCodec
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
+};
+
+class SrsRtpExtensionOneByte : public ISrsCodec
+{
+    bool has_ext_;
+    int id_;
+    uint8_t value_;
+public:
+    SrsRtpExtensionOneByte();
+    virtual ~SrsRtpExtensionOneByte() {}
+
+    bool exists() { return has_ext_; }
+    int get_id() { return id_; }
+    uint8_t get_value() { return value_; }
+    void set_id(int id);
+    void set_value(uint8_t value);
+public:
+    // ISrsCodec
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual uint64_t nb_bytes() { return 2; };
 };
 
 class SrsRtpExtensions : public ISrsCodec
@@ -144,6 +169,7 @@ private:
     bool has_ext_;
     SrsRtpExtensionTypes types_;
     SrsRtpExtensionTwcc twcc_;
+    SrsRtpExtensionOneByte audio_level_;
 public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
@@ -152,6 +178,8 @@ public:
     void set_types_(const SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
+    srs_error_t get_audio_level(uint8_t& level);
+    srs_error_t set_audio_level(int id, uint8_t level);
 
 // ISrsCodec
 public:
@@ -160,7 +188,7 @@ private:
     srs_error_t decode_0xbede(SrsBuffer* buf);
 public:
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
 };
 
 class SrsRtpHeader : public ISrsCodec
@@ -185,7 +213,7 @@ private:
     srs_error_t parse_extensions(SrsBuffer* buf);
 public:
     virtual srs_error_t encode(SrsBuffer* buf);
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
 public:
     void set_marker(bool v);
     bool get_marker() const;
@@ -257,12 +285,12 @@ public:
     // Whether the packet is Audio packet.
     bool is_audio();
     // Copy the RTP packet.
-    SrsRtpPacket2* copy();
+    virtual SrsRtpPacket2* copy();
     // Set RTP header extensions for encoding or decoding header extension
     void set_extension_types(const SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 };
@@ -280,7 +308,7 @@ public:
     virtual ~SrsRtpRawPayload();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -305,7 +333,7 @@ public:
     srs_error_t read_samples(std::vector<SrsSample*>& samples, int packet_size);
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -328,7 +356,7 @@ public:
     SrsSample* get_pps();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -353,7 +381,7 @@ public:
     virtual ~SrsRtpFUAPayload();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
@@ -378,7 +406,7 @@ public:
     virtual ~SrsRtpFUAPayload2();
 // interface ISrsRtpPayloader
 public:
-    virtual int nb_bytes();
+    virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();

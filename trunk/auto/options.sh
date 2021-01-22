@@ -16,7 +16,6 @@ help=no
 ################################################################
 # feature options
 SRS_HDS=NO
-SRS_LAS=NO
 SRS_SRT=NO
 SRS_RTC=YES
 SRS_GB28181=NO
@@ -36,6 +35,8 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
+SRS_SSL_1_0=NO
+SRS_HTTPS=YES
 SRS_STAT=YES
 SRS_TRANSCODE=YES
 SRS_HTTP_CALLBACK=YES
@@ -44,6 +45,7 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
+SRS_CHERRYPY=YES
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -138,86 +140,69 @@ function show_help() {
     cat << END
 
 Presets:
-  --x86-64, --x86-x64       [default] For x86/x64 cpu, common pc and servers.
-  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options.
-  --osx                     Enable build for OSX/Darwin AppleOS.
+  --x86-64, --x86-x64       For x86/x64 cpu, common pc and servers. Default: $(value2switch $SRS_X86_X64)
+  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options. Default: $(value2switch $SRS_CROSS_BUILD)
+  --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
 
 Features:
   -h, --help                Print this message and exit 0.
 
-  --ssl=on|off              Whether build the rtmp complex handshake, requires openssl-devel installed.
-  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files.
-  --las=on|off              Whether use LAS for http-flv adaptive stream.
-  --stream-caster=on|off    Whether build the stream caster to serve other stream over other protocol.
-  --stat=on|off             Whether build the the data statistic, for http api.
-  --librtmp=on|off          Whether build the srs-librtmp, library for client.
-  --research=on|off         Whether build the research tools.
-  --utest=on|off            Whether build the utest for SRS.
-  --srt=on|off              Whether build the SRT support for SRS.
-  --rtc=on|off              Whether build the WebRTC support for SRS.
-  --gb28181=on|off          Whether build the GB28181 support for SRS.
-  --cxx11=on|off            Whether enable the C++11 support for SRS.
-  --cxx14=on|off            Whether enable the C++14 support for SRS.
-  --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code) for SRS.
+  --https=on|off            Whether enable HTTPS client and server. Default: $(value2switch $SRS_HTTPS)
+  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
+  --cherrypy=on|off         Whether install CherryPy for demo api-server. Default: $(value2switch $SRS_CHERRYPY)
+  --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
+  --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
+  --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
+  --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
+  --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
+  --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
 
-  --prefix=<path>           The absolute installation path for srs. Default: $SRS_PREFIX
-  --gcov=on|off             Whether enable the GCOV compiler options.
-  --debug=on|off            Whether enable the debug code, may hurt performance.
-  --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
-                            Used for make in the configure, for example, to make ffmpeg.
-  --log-verbose             Whether enable the log verbose level. default: no.
-  --log-info                Whether enable the log info level. default: no.
-  --log-trace               Whether enable the log trace level. default: yes.
+  --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
+  --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
+  --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
+  --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
+  --log-verbose             Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
+  --log-info                Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
+  --log-trace               Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
 
 Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
-  --valgrind=on|off         Whether build valgrind for memory check.
-  --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only).
-  --gmc=on|off              Whether build memory check for SRS with gperf tools.
-  --gmd=on|off              Whether build memory defense(corrupt memory) for SRS with gperf tools.
-  --gmp=on|off              Whether build memory profile for SRS with gperf tools.
-  --gcp=on|off              Whether build cpu profile for SRS with gperf tools.
-  --gprof=on|off            Whether build SRS with gprof(GNU profile tool).
+  --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
+  --gperf=on|off            Whether build SRS with gperf tools(no gmd/gmc/gmp/gcp, with tcmalloc only). Default: $(value2switch $SRS_GPERF)
+  --gmc=on|off              Whether build memory check with gperf tools. Default: $(value2switch $SRS_GPERF_MC)
+  --gmd=on|off              Whether build memory defense(corrupt memory) with gperf tools. Default: $(value2switch $SRS_GPERF_MD)
+  --gmp=on|off              Whether build memory profile with gperf tools. Default: $(value2switch $SRS_GPERF_MP)
+  --gcp=on|off              Whether build cpu profile with gperf tools. Default: $(value2switch $SRS_GPERF_CP)
+  --gprof=on|off            Whether build SRS with gprof(GNU profile tool). Default: $(value2switch $SRS_GPROF)
 
-  --nasm=on|off             Whether build FFMPEG for RTC with nasm support.
-  --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm) support, requires RTC and openssl-1.0.*.
-  --sendmmsg=on|off         Whether enable UDP sendmmsg support. @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
+  --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
+  --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
+  --sendmmsg=on|off         Whether enable UDP sendmmsg. Default: $(value2switch $SRS_SENDMMSG). @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
-  --static                  Whether add '-static' to link options.
-  --arm                     Enable crossbuild for ARM.
-  --cc=<CC>                 Use c compiler CC, default is gcc.
-  --cxx=<CXX>               Use c++ compiler CXX, default is g++.
-  --ar=<AR>                 Use archive tool AR, default is ar.
-  --ld=<LD>                 Use linker tool LD, default is ld.
-  --randlib=<RANDLIB>       Use randlib tool RANDLIB, default is randlib.
+  --static                  Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
+  --cc=<CC>                 Use c compiler CC. Default: $SRS_TOOL_CC
+  --cxx=<CXX>               Use c++ compiler CXX. Default: $SRS_TOOL_CXX
+  --ar=<AR>                 Use archive tool AR. Default: $SRS_TOOL_CXX
+  --ld=<LD>                 Use linker tool LD. Default: $SRS_TOOL_CXX
+  --randlib=<RANDLIB>       Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
-Conflicts:
-  1. --with-gmc vs --with-gmp: 
-        @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
-  2. --with-gperf/gmc/gmp vs --with-gprof:
-        The gperftools not compatible with gprof.
-  3. --arm vs --with-ffmpeg/gperf/gmc/gmp/gprof:
-        The complex tools not available for arm.
-
 Experts:
-  --sys-ssl=on|off                  Do not compile ssl, use system ssl(-lssl) if required.
-  --use-shared-st                   Use link shared libraries for ST which uses MPL license.
-  --use-shared-srt                  Use link shared libraries for SRT which uses MPL license.
-  --build-tag=<TAG>                 Set the build object directory suffix.
-  --clean=on|off                    Whether do 'make clean' when configure.
-  --detect-sendmmsg=on|off          Whether detect the sendmmsg API.
-  --has-sendmmsg=on|off             Whether OS supports sendmmsg API.
-  --simulator=on|off                Whether enable RTC network simulator.
+  --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
+  --use-shared-st           Use link shared libraries for ST which uses MPL license. Default: $(value2switch $SRS_SHARED_ST)
+  --use-shared-srt          Use link shared libraries for SRT which uses MPL license. Default: $(value2switch $SRS_SHARED_SRT)
+  --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
+  --simulator=on|off        Whether enable RTC network simulator. Default: $(value2switch $SRS_SIMULATOR)
+  --build-tag=<TAG>         Set the build object directory suffix.
 
 Workflow:
   1. Apply "Presets". if not specified, use default preset.
   2. Apply "Features", "Performance" and others. user specified option will override the preset.
-  3. Check conflicts, fail if exists conflicts.
-  4. Generate Makefile.
+  3. Check configs and generate Makefile.
 
 Remark:
-  1. For performance improving, read https://blog.csdn.net/win_lin/article/details/53503869
+  1. For performance, read https://blog.csdn.net/win_lin/article/details/53503869
 
 END
 }
@@ -276,14 +261,12 @@ function parse_user_option() {
 
         --with-ssl)                     SRS_SSL=YES                 ;;
         --ssl)                          if [[ $value == off ]]; then SRS_SSL=NO; else SRS_SSL=YES; fi    ;;
+        --https)                        if [[ $value == off ]]; then SRS_HTTPS=NO; else SRS_HTTPS=YES; fi ;;
+        --ssl-1-0)                      if [[ $value == off ]]; then SRS_SSL_1_0=NO; else SRS_SSL_1_0=YES; fi ;;
 
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
         --hds)                          if [[ $value == off ]]; then SRS_HDS=NO; else SRS_HDS=YES; fi    ;;
-
-        --with-las)                     SRS_LAS=YES                 ;;
-        --without-las)                  SRS_LAS=NO                  ;;
-        --las)                          if [[ $value == off ]]; then SRS_LAS=NO; else SRS_LAS=YES; fi    ;;
 
         --with-nginx)                   SRS_NGINX=YES               ;;
         --without-nginx)                SRS_NGINX=NO                ;;
@@ -320,6 +303,7 @@ function parse_user_option() {
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        if [[ $value == off ]]; then SRS_UTEST=NO; else SRS_UTEST=YES; fi    ;;
+        --cherrypy)                     if [[ $value == off ]]; then SRS_CHERRYPY=NO; else SRS_CHERRYPY=YES; fi    ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
@@ -425,6 +409,16 @@ function parse_user_option_to_value_and_option() {
     esac
 }
 
+function value2switch() {
+    if [[ $1 == YES ]]; then
+      echo on;
+    elif [[ $1 == NO ]]; then
+      echo off;
+    else
+      echo undefined;
+    fi
+}
+
 #####################################################################################
 # parse preset options
 #####################################################################################
@@ -444,10 +438,7 @@ fi
 
 function apply_detail_options() {
     # set default preset if not specifies
-    if [[ $SRS_PURE_RTMP == NO && $SRS_FAST == NO && $SRS_DISABLE_ALL == NO && $SRS_ENABLE_ALL == NO && \
-        $SRS_DEV == NO && $SRS_FAST_DEV == NO && $SRS_DEMO == NO && $SRS_PI == NO && $SRS_CUBIE == NO && \
-        $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO \
-    ]]; then
+    if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
 
@@ -518,6 +509,12 @@ function apply_detail_options() {
         SRS_SRTP_ASM=NO
     fi
 
+    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
+    if [[ $SRS_SRTP_ASM == YES && $SRS_SSL_1_0 == NO ]]; then
+        echo "Use openssl-1.0 for SRTP ASM."
+        SRS_SSL_1_0=YES
+    fi
+
     if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
         echo "Disable sendmmsg for OSX"
         SRS_SENDMMSG=NO
@@ -532,9 +529,10 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
     if [ $SRS_HLS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=off"; fi
     if [ $SRS_HDS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=off"; fi
-    if [ $SRS_LAS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --las=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --las=off"; fi
     if [ $SRS_DVR = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=off"; fi
     if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
+    if [ $SRS_HTTPS = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=off"; fi
+    if [ $SRS_SSL_1_0 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=off"; fi
     if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
     if [ $SRS_TRANSCODE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=off"; fi
     if [ $SRS_INGEST = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=on"; else          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=off"; fi
@@ -544,6 +542,7 @@ function regenerate_options() {
     if [ $SRS_STREAM_CASTER = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=off"; fi
     if [ $SRS_HTTP_API = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=off"; fi
     if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
+    if [ $SRS_CHERRYPY = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=off"; fi
     if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
     if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
     if [ $SRS_SIMULATOR = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=off"; fi
@@ -599,12 +598,6 @@ function check_option_conflicts() {
         SRS_NGINX=NO
     fi
 
-    # For OSX, recommend to use DTrace, https://blog.csdn.net/win_lin/article/details/53503869
-    if [[ $SRS_OSX == YES && $SRS_GPROF == YES ]]; then
-        echo "Tool gprof for OSX is unavailable, please use dtrace, read https://blog.csdn.net/win_lin/article/details/53503869"
-        exit -1
-    fi
-
     # TODO: FIXME: check more os.
 
     __check_ok=YES
@@ -633,7 +626,6 @@ function check_option_conflicts() {
 
     # check variable neccessary
     if [ $SRS_HDS = RESERVED ]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_LAS = RESERVED ]; then echo "you must specifies the las, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_STREAM_CASTER = RESERVED ]; then echo "you must specifies the stream-caster, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_UTEST = RESERVED ]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi

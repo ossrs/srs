@@ -35,14 +35,17 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 
-int64_t srs_gvid = 0;
-
-int64_t srs_generate_id()
+string srs_generate_id()
 {
+    static int64_t srs_gvid = 0;
+
     if (srs_gvid == 0) {
-        srs_gvid = getpid() * 3;
+        srs_gvid = getpid();
     }
-    return srs_gvid++;
+
+    string prefix = "vid";
+    string rand_id = srs_int2str(srs_get_system_time() % 1000);
+    return prefix + "-" + srs_int2str(srs_gvid++) + "-" + rand_id;
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
@@ -202,7 +205,6 @@ void SrsStatisticStream::close()
 
 SrsStatisticClient::SrsStatisticClient()
 {
-    id = "";
     stream = NULL;
     conn = NULL;
     req = NULL;
@@ -318,10 +320,23 @@ SrsStatistic* SrsStatistic::instance()
     return _instance;
 }
 
-SrsStatisticVhost* SrsStatistic::find_vhost(string vid)
+SrsStatisticVhost* SrsStatistic::find_vhost_by_id(std::string vid)
 {
-    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    std::map<string, SrsStatisticVhost*>::iterator it;
     if ((it = vhosts.find(vid)) != vhosts.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+SrsStatisticVhost* SrsStatistic::find_vhost_by_name(string name)
+{
+    if (rvhosts.empty()) {
+        return NULL;
+    }
+
+    std::map<string, SrsStatisticVhost*>::iterator it;
+    if ((it = rvhosts.find(name)) != rvhosts.end()) {
         return it->second;
     }
     return NULL;
@@ -416,13 +431,13 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
     if (true) {
         std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=rstreams.find(stream->url)) != rstreams.end()) {
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
             rstreams.erase(it);
         }
     }
 }
 
-srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsConnection* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 
@@ -453,7 +468,7 @@ srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, SrsConnec
     return err;
 }
 
-void SrsStatistic::on_disconnect(SrsContextId cid)
+void SrsStatistic::on_disconnect(const SrsContextId& cid)
 {
     // TODO: FIXME: We should use UUID for client ID.
     std::string id = cid.c_str();
@@ -474,10 +489,10 @@ void SrsStatistic::on_disconnect(SrsContextId cid)
     vhost->nb_clients--;
 }
 
-void SrsStatistic::kbps_add_delta(SrsConnection* conn)
+void SrsStatistic::kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta)
 {
     // TODO: FIXME: Should not use context id as connection id.
-    std::string id = conn->srs_id().c_str();
+    std::string id = cid.c_str();
     if (clients.find(id) == clients.end()) {
         return;
     }
@@ -486,7 +501,7 @@ void SrsStatistic::kbps_add_delta(SrsConnection* conn)
     
     // resample the kbps to collect the delta.
     int64_t in, out;
-    conn->remark(&in, &out);
+    delta->remark(&in, &out);
     
     // add delta of connection to kbps.
     // for next sample() of server kbps can get the stat.
@@ -516,7 +531,7 @@ SrsKbps* SrsStatistic::kbps_sample()
     return kbps;
 }
 
-int64_t SrsStatistic::server_id()
+std::string SrsStatistic::server_id()
 {
     return _server_id;
 }

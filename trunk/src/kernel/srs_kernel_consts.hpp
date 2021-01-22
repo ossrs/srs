@@ -26,6 +26,18 @@
 
 #include <srs_core.hpp>
 
+// Default port of rtmp
+#define SRS_CONSTS_RTMP_DEFAULT_PORT 1935
+
+// Default http listen port.
+#define SRS_DEFAULT_HTTP_PORT 80
+
+// Default https listen port.
+#define SRS_DEFAULT_HTTPS_PORT 443
+
+// Default Redis listen port.
+#define SRS_DEFAULT_REDIS_PORT 6379
+
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -39,8 +51,6 @@
 // Default vhost of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_VHOST "__defaultVhost__"
 #define SRS_CONSTS_RTMP_DEFAULT_APP "__defaultApp__"
-// Default port of rtmp
-#define SRS_CONSTS_RTMP_DEFAULT_PORT 1935
 
 // The default chunk size for system.
 #define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
