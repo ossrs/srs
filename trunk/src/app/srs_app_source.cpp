@@ -2348,7 +2348,11 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
 
     // For bridger to consume the message.
     if (bridger_ && (err = bridger_->on_video(msg)) != srs_success) {
-        return srs_error_wrap(err, "bridger consume video");
+        // rtc doesn't support hevc, here fails if it's a hevc key frame
+        // so consumers can't get 1c01 VideoTag
+        // return srs_error_wrap(err, "bridger consume video");
+        // srs_warn("rtc on video err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
     }
 
     // copy to all consumer
