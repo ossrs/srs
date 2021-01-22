@@ -100,7 +100,9 @@ srs_error_t SrsPsRtpPacket::decode(SrsBuffer* stream)
         }
         // append left bytes to payload.
         payload->append(stream->data() + stream->pos() , stream->size()-stream->pos());
-    } 
+    } else {
+        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "unknown payload data");
+    }
     return err;
 }
 
@@ -1843,9 +1845,10 @@ srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame2(char *frame, int frame_si
 		h265_vps = vps;
 		
 		//write hevc vps_sps_pps
-		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
-			return srs_error_wrap(err, "hevc write vps/sps/pps");
-		}
+		// if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+		// 	return srs_error_wrap(err, "hevc write vps/sps/pps");
+		// }
+		return err;
 	}
 
 	// for sps
@@ -1861,9 +1864,9 @@ srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame2(char *frame, int frame_si
 		hevc_sps_changed = true;
 		h265_sps = sps;
 
-		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
-			return srs_error_wrap(err, "write hevc sps/pps");
-		}
+		// if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+		// 	return srs_error_wrap(err, "write hevc sps/pps");
+		// }
 		return err;
 	}
 
@@ -1880,10 +1883,16 @@ srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame2(char *frame, int frame_si
 		hevc_pps_changed = true;
 		h265_pps = pps;
 
+		// if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
+		// 	return srs_error_wrap(err, "write hevc sps/pps");
+		// }
+		return err;
+	}
+
+	if (hevc_sps_changed || hevc_pps_changed || hevc_vps_changed) {
 		if ((err = write_hevc_sps_pps(dts, pts)) != srs_success) {
 			return srs_error_wrap(err, "write hevc sps/pps");
 		}
-		return err;
 	}
 
 	srs_info("gb28181: demux hevc ibp frame size=%d, dts=%d", frame_size, dts);
@@ -1974,13 +1983,12 @@ srs_error_t SrsGb28181RtmpMuxer::write_hevc_ipb_frame2(char *frame, int frame_si
 	 std::list<int> list_index;
 
 	 for (; index < size; index++) {
+		 if (index > (size - 4))
+			 break;
 		 if (video_data[index] == 0x00 && video_data[index + 1] == 0x00 &&
 			 video_data[index + 2] == 0x00 && video_data[index + 3] == 0x01) {
 			 list_index.push_back(index);
 		 }
-
-		 if (index > (size - 4))
-			 break;
 	 }
 
 	 if (list_index.size() == 1) {
@@ -2213,7 +2221,8 @@ srs_error_t SrsGb28181RtmpMuxer::write_hevc_sps_pps(uint32_t dts, uint32_t pts) 
 	// when sps or pps changed, update the sequence header,
 	// for the pps maybe not changed while sps changed.
 	// so, we must check when each video ts message frame parsed.
-	if (!hevc_sps_changed || !hevc_pps_changed || !hevc_vps_changed) {
+	// if (!hevc_sps_changed || !hevc_pps_changed || !hevc_vps_changed) {
+	if (!(hevc_sps_changed || hevc_pps_changed || hevc_vps_changed)) {
 		return err;
 	}
 
