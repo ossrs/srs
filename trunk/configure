@@ -717,6 +717,16 @@ if [ $SRS_SSL = YES ]; then
 else
     echo -e "${YELLOW}Warning: RTMP complex handshake is disabled, flash cann't play h264/aac.${BLACK}"
 fi
+if [[ $SRS_NASM == YES ]]; then
+    echo -e "${GREEN}NASM for HTTPS(openssl) and FFmepg is enabled${BLACK}"
+else
+    echo -e "${YELLOW}Warning: NASM for HTTPS(openssl) and FFmepg is disabled${BLACK}"
+fi
+if [[ $SRS_SRTP_ASM == YES ]]; then
+    echo -e "${GREEN}SRTP-NASM for WebRTC(openssl) is enabled${BLACK}"
+else
+    echo -e "${YELLOW}Warning: SRTP-NASM for WebRTC(openssl) is disabled${BLACK}"
+fi
 if [ $SRS_TRANSCODE = YES ]; then
     echo -e "${GREEN}The transcoding is enabled${BLACK}"
 else

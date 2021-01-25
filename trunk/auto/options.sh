@@ -128,8 +128,8 @@ SRS_EXTRA_FLAGS=
 #
 #####################################################################################
 # Performance optimize.
-SRS_NASM=NO
-SRS_SRTP_ASM=NO
+SRS_NASM=YES
+SRS_SRTP_ASM=YES
 SRS_SENDMMSG=NO
 SRS_DEBUG=NO
 
@@ -500,18 +500,18 @@ function apply_detail_options() {
     fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
-        echo "Disable SRTP ASM, because RTC is disabled."
+        echo "Disable SRTP-ASM, because RTC is disabled."
         SRS_SRTP_ASM=NO
     fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
-        echo "Disable SRTP ASM, because NASM is disabled."
+        echo "Disable SRTP-ASM, because NASM is disabled."
         SRS_SRTP_ASM=NO
     fi
 
     # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
     if [[ $SRS_SRTP_ASM == YES && $SRS_SSL_1_0 == NO ]]; then
-        echo "Use openssl-1.0 for SRTP ASM."
+        echo "Use openssl-1.0 for SRTP-ASM."
         SRS_SSL_1_0=YES
     fi
 
