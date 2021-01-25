@@ -426,6 +426,10 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
             srs_freep(it->second);
         }
     }
+
+    // update the statistic when client coveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(cid_);
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
@@ -515,6 +519,12 @@ srs_error_t SrsRtcPlayStream::start()
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, req_)) != srs_success) {
             return srs_error_wrap(err, "on start play");
         }
+    }
+
+    // update the statistic when client discoveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_, req_, NULL, SrsRtmpConnPlay)) != srs_success) {
+        srs_trace("webrtc: add client failed!");
     }
 
     is_started = true;

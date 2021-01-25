@@ -113,6 +113,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     if ((prop = req->ensure_property_string("clientip")) != NULL) {
         clientip = prop->to_str();
     }
+    if (clientip.empty())
+    {
+        clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+    }
 
     string api;
     if ((prop = req->ensure_property_string("api")) != NULL) {
@@ -123,14 +127,13 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // Parse app and stream from streamurl.
     string app;
     string stream_name;
-    if (true) {
-        string tcUrl;
-        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
 
-        int port;
-        string schema, host, vhost, param;
-        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
-    }
+    string tcUrl;
+    srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+
+    int port;
+    string schema, host, vhost, param;
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
@@ -155,6 +158,12 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsRequest request;
     request.app = app;
     request.stream = stream_name;
+    request.tcUrl = tcUrl;
+    request.ip = clientip;
+    request.host = host;
+    //	request.vhost = vhost; //vhost‘›≤ª÷ß≥÷
+    request.schema = schema;
+    request.param = param;
 
     // TODO: FIXME: Parse vhost.
     // discovery vhost, resolve the vhost from config
