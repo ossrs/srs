@@ -52,6 +52,10 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_sip_stack.hpp>
 
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+#include <srs_app_rtc_codec.hpp>
+#endif
+
 //#define W_PS_FILE
 //#define W_VIDEO_FILE
 //#define W_AUDIO_FILE
@@ -1292,6 +1296,12 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
 
     ps_buflen_auido = 0;
     ps_buffer_audio = NULL;
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+    transcoder = NULL;
+    for (int i = 0; i < kMaxAacPackets; i++) {
+        aac_payloads[i] = NULL;
+    }
+#endif
 }
 
 SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
@@ -1305,6 +1315,12 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     srs_freep(jitter_buffer_audio);
     srs_freepa(ps_buffer);
     srs_freepa(ps_buffer_audio);
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+    srs_freep(transcoder);
+    for (int i = 0; i < kMaxAacPackets; i++) {
+        srs_freepa(aac_payloads[i]);
+    }
+#endif
 
     srs_freep(channel);
     srs_freep(ps_demixer);
@@ -1838,6 +1854,63 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
     return err;
 }
 
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+srs_error_t SrsGb28181RtmpMuxer::transcode(char* ptr_audio, int num_audio, uint32_t dts)
+{
+    srs_error_t err = srs_success;
+
+    if (!aac_payloads[0]) {
+        for (int i = 0; i < kMaxAacPackets; i++) {
+           aac_payloads[i] = new char[kMaxAacPacketSize];
+        }
+    }
+
+    // Transcode a g711 packet to many aac packets.
+    SrsSample g711;
+    g711.bytes = ptr_audio;
+    g711.size = num_audio;
+
+    int nn_aac_packets = 0;
+    int aac_sizes[kMaxAacPackets];
+    if (!transcoder || (err = transcoder->transcode(&g711, aac_payloads, aac_sizes,
+                                                    kMaxAacPackets, kMaxAacPacketSize, nn_aac_packets)) != srs_success) {
+        return srs_error_wrap(err, "transcode error");
+    }
+
+    if (nn_aac_packets <= 0) {
+        return err;
+    }
+
+    SrsRawAacStreamCodec codec;
+    codec.sound_format = SrsAudioCodecIdAAC;
+    codec.sound_rate = SrsAudioSampleRate44100;
+    codec.sound_type = 0;  //MONO = 0, STEREO = 1
+    codec.sound_size = 1;  //0=8K, 1=16K
+
+    string sh = "\x12\x08"; // mono
+    // string sh = "\x12\x10"; // stereo
+
+    if (aac_specific_config != sh){
+        aac_specific_config = sh;
+        codec.aac_packet_type = 0;
+        if ((err = write_audio_raw_frame((char*)aac_specific_config.data(), (int)aac_specific_config.length(), &codec, dts)) != srs_success) {
+            return srs_error_wrap(err, "write raw audio frame");
+        }
+    }
+
+    codec.aac_packet_type = 1;
+    for (int i = 0; i < nn_aac_packets; i++) {
+        char* data = (char*)aac_payloads[i];
+        int size = (int)aac_sizes[i];
+        if ((err = write_audio_raw_frame(data, size, &codec, dts)) != srs_success) {
+            return srs_error_wrap(err, "write raw audio frame");
+        }
+    }
+
+    return err;
+}
+#endif
+
 srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t fdts, int type)
 {
     srs_error_t err = srs_success;
@@ -1926,6 +1999,35 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
                     }
             }
         }else if (type != 0) {
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+            // Before publish rtmp to srs, transcode G711 to AAC
+            // This will transcode twice: GB28181, G711 -> AAC; WebRTC, AAC -> Opus
+            // If you only use WebRTC to play stream, you can undef GB28181_TRANSCODE_G711_TO_AAC in srs_app_gb28181.hpp 
+            // This will only transcode once: WebRTC, G711 -> Opus
+            if (type == STREAM_TYPE_AUDIO_G711 || type == STREAM_TYPE_AUDIO_G711ULAW){
+                if (!transcoder) {
+                    SrsAudioCodecId decode_id = (type == STREAM_TYPE_AUDIO_G711) ? SrsAudioCodecIdReservedG711AlawLogarithmicPCM: SrsAudioCodecIdReservedG711MuLawLogarithmicPCM;
+                    // stereo
+                    // transcoder = new SrsAudioTranscoder(decode_id, 1, 8000, SrsAudioCodecIdAAC, 2, 44100);
+                    // mono
+                    // if you want to change it to stereo, you also need to modify the sh in SrsGb28181RtmpMuxer::transcode
+                    transcoder = new SrsAudioTranscoder(decode_id, 1, 8000, SrsAudioCodecIdAAC, 1, 44100);
+                    if (transcoder) {
+                        if ((err = transcoder->initialize()) != srs_success) {
+                            return srs_error_wrap(err, "init transcoder");
+                        }
+                    }
+                }
+                char *ptr_audio = new char[stream->length()];
+                int num_audio = stream->length();
+                if (ptr_audio) {
+                    memcpy(ptr_audio, stream->bytes(), stream->length());
+                    err = transcode(ptr_audio, num_audio, dts);
+                    srs_freep(ptr_audio);
+                }
+                return err;
+            }
+#else
             SrsRawAacStreamCodec codec;
             codec.aac_packet_type = 0;
 
@@ -1948,6 +2050,7 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
             if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
                 return srs_error_wrap(err, "write audio raw frame");
             }
+#endif
         }
     }//end if (!avs->empty()) 
    

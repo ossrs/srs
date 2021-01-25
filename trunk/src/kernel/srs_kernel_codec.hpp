@@ -779,7 +779,7 @@ private:
     //          Demux the asc from sequence header.
     //          Demux the sampels from RAW data.
     virtual srs_error_t audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
-    virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_other_demux(SrsBuffer* stream, int64_t timestamp);
 public:
     // Directly demux the sequence header, without RTMP packet header.
     virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);

@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2013-2020 Bepartofyou
+ * Copyright (c) 2021 PieerePi - new SrsAudioTranscoder
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -49,88 +50,79 @@ class SrsSample;
 class SrsAudioDecoder
 {
 private:
+    SrsAudioCodecId codec_id_;
+    int sampling_rate_;
+    int channels_;
     AVFrame* frame_;
     AVPacket* packet_;
     AVCodecContext* codec_ctx_;
-    SrsAudioCodecId codec_id_;
 public:
-    //Only support "aac","opus"
-    SrsAudioDecoder(SrsAudioCodecId codec);
+    //Only support "pcm_alaw","pcm_mulaw","aac","opus"
+    SrsAudioDecoder(SrsAudioCodecId codec, int samplerate, int channels);
     virtual ~SrsAudioDecoder();
     srs_error_t initialize();
-    virtual srs_error_t decode(SrsSample *pkt, char *buf, int &size);
+    virtual srs_error_t decode(SrsSample *pkt, AVFrame** decoded_frame, int feed);
     AVCodecContext* codec_ctx();
 };
 
 class SrsAudioEncoder
 {
 private:
-	int channels_;
-	int sampling_rate_;
-    AVCodecContext* codec_ctx_;
     SrsAudioCodecId codec_id_;
-    int want_bytes_;
+    int sampling_rate_;
+    int channels_;
     AVFrame* frame_;
+    int left_samples;
+    AVPacket* packet_;
+    AVCodecContext* codec_ctx_;
 public:
     //Only support "aac","opus"
-    SrsAudioEncoder(SrsAudioCodecId codec, int samplerate, int channelsy);
+    SrsAudioEncoder(SrsAudioCodecId codec, int samplerate, int channels);
     virtual ~SrsAudioEncoder();
     srs_error_t initialize();
-    //The encoder wanted bytes to call encode, if > 0, caller must feed the same bytes
-    //Call after initialize successed
-    int want_bytes();
-    virtual srs_error_t encode(SrsSample *frame, char *buf, int &size);
+    virtual srs_error_t encode(AVFrame *resampled_frame, int &used_samples, AVPacket **encoded_packet);
     AVCodecContext* codec_ctx();
 };
 
-class SrsAudioResample
+class SrsAudioResampler
 {
 private:
     int src_rate_;
     int src_ch_layout_;
-    int src_nb_channels_;
     enum AVSampleFormat src_sample_fmt_;
-    int src_linesize_;
-    int src_nb_samples_;
-    uint8_t **src_data_;
 
     int dst_rate_;
     int dst_ch_layout_;
-    int dst_nb_channels_;
     enum AVSampleFormat dst_sample_fmt_;
-    int dst_linesize_;
-    int dst_nb_samples_;
-    uint8_t **dst_data_;
 
     int max_dst_nb_samples_;
+    AVFrame* frame_;
     struct SwrContext *swr_ctx_;
 public:
-    SrsAudioResample(int src_rate, int src_layout, enum AVSampleFormat src_fmt,
-        int src_nb, int dst_rate, int dst_layout, enum AVSampleFormat dst_fmt);
-    virtual ~SrsAudioResample();
+    SrsAudioResampler(int src_rate, int src_layout, enum AVSampleFormat src_fmt,
+        int dst_rate, int dst_layout, enum AVSampleFormat dst_fmt);
+    virtual ~SrsAudioResampler();
     srs_error_t initialize();
-    virtual srs_error_t resample(SrsSample *pcm, char *buf, int &size);
+    virtual srs_error_t resample(AVFrame *decoded_frame, AVFrame **resampled_frame);
 };
 
-// TODO: FIXME: Rename to Transcoder.
-class SrsAudioRecode
+class SrsAudioTranscoder
 {
 private:
     SrsAudioDecoder *dec_;
+    SrsAudioCodecId src_codec_;
+    int src_channels_;
+    int src_samplerate_;
     SrsAudioEncoder *enc_;
-    SrsAudioResample *resample_;
+    SrsAudioCodecId dst_codec_;
     int dst_channels_;
     int dst_samplerate_;
-    int size_;
-    char *data_;
-    SrsAudioCodecId src_codec_;
-    SrsAudioCodecId dst_codec_;
-    int enc_want_bytes_;
+    SrsAudioResampler *resample_;
 public:
-    SrsAudioRecode(SrsAudioCodecId src_codec, SrsAudioCodecId dst_codec,int channels, int samplerate);
-    virtual ~SrsAudioRecode();
+    SrsAudioTranscoder(SrsAudioCodecId src_codec, int src_channels, int src_samplerate, SrsAudioCodecId dst_codec, int dst_channels, int dst_samplerate);
+    virtual ~SrsAudioTranscoder();
     srs_error_t initialize();
-    virtual srs_error_t transcode(SrsSample *pkt, char **buf, int *buf_len, int &n);
+    virtual srs_error_t transcode(SrsSample *pkt, char **buf_array, int *len_array, int buf_array_max, int buf_max_size, int &n);
 };
 
-#endif /* SRS_APP_AUDIO_RECODE_HPP */
+#endif /* SRS_APP_RTC_CODEC_HPP */

@@ -37,6 +37,7 @@
 #include <srs_service_st.hpp>
 #include <srs_app_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_codec.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -45,7 +46,7 @@ class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
-class SrsAudioRecode;
+class SrsAudioTranscoder;
 class SrsRtpPacket2;
 class SrsSample;
 class SrsRtcStreamDescription;
@@ -223,6 +224,11 @@ public:
 };
 
 #ifdef SRS_FFMPEG_FIT
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
@@ -234,7 +240,9 @@ private:
     SrsMetaCache* meta;
 private:
     bool discard_aac;
-    SrsAudioRecode* codec;
+    SrsAudioTranscoder* codec;
+    char* opus_payloads[kMaxOpusPackets];
+    SrsAudioCodecConfig codec_info;
     bool discard_bframe;
     bool merge_nalus;
     uint32_t audio_timestamp;

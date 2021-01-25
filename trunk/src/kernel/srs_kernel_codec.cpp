@@ -625,7 +625,9 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     uint8_t v = buffer->read_1bytes();
     SrsAudioCodecId codec = (SrsAudioCodecId)((v >> 4) & 0x0f);
     
-    if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC) {
+    if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC
+        && codec != SrsAudioCodecIdReservedG711AlawLogarithmicPCM
+        && codec != SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
         return err;
     }
     
@@ -643,8 +645,9 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     // Parse by specified codec.
     buffer->skip(-1 * buffer->pos());
     
-    if (codec == SrsAudioCodecIdMP3) {
-        return audio_mp3_demux(buffer, timestamp);
+    if (codec == SrsAudioCodecIdMP3 || codec == SrsAudioCodecIdReservedG711AlawLogarithmicPCM
+        || codec == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
+        return audio_other_demux(buffer, timestamp);
     }
     
     return audio_aac_demux(buffer, timestamp);
@@ -1346,7 +1349,7 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer* stream, int64_t timestamp)
     return err;
 }
 
-srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
+srs_error_t SrsFormat::audio_other_demux(SrsBuffer* stream, int64_t timestamp)
 {
     srs_error_t err = srs_success;
     
@@ -1369,13 +1372,15 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     acodec->sound_size = (SrsAudioSampleBits)sound_size;
     
     // we always decode aac then mp3.
-    srs_assert(acodec->id == SrsAudioCodecIdMP3);
+    // srs_assert(acodec->id == SrsAudioCodecIdMP3);
     
     // Update the RAW MP3 data.
     raw = stream->data() + stream->pos();
     nb_raw = stream->size() - stream->pos();
     
-    stream->skip(1);
+    if (acodec->id == SrsAudioCodecIdMP3) {
+        stream->skip(1);
+    }
     if (stream->empty()) {
         return err;
     }

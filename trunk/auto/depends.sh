@@ -637,7 +637,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
               --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi \
               --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv \
               --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
-              --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
+              --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus \
+              --enable-decoder=pcm_alaw --enable-encoder=pcm_alaw --enable-decoder=pcm_mulaw --enable-encoder=pcm_mulaw &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
         )

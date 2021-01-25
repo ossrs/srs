@@ -107,6 +107,17 @@ class SrsResourceManager;
 class SrsGb28181Conn;
 class SrsGb28181Caster;
 
+// comment it (means undef) if you don't want to transcode G711 to AAC in GB28181
+#define GB28181_TRANSCODE_G711_TO_AAC 1
+
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+// An G711 packet may be transcoded to many AAC packets.
+const int kMaxAacPackets = 8;
+// The max size for each AAC packet.
+const int kMaxAacPacketSize = 4096;
+class SrsAudioTranscoder;
+#endif
+
 //ps rtp header packet parse
 
 class SrsPsRtpPacket: public SrsRtpPacket
@@ -335,6 +346,10 @@ private:
 
     char *ps_buffer;
     char *ps_buffer_audio;
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+    SrsAudioTranscoder* transcoder;
+    char* aac_payloads[kMaxAacPackets];
+#endif
 
     int ps_buflen;
     int ps_buflen_auido;
@@ -392,6 +407,9 @@ private:
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
     virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool b = true);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+#if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
+    virtual srs_error_t transcode(char* ptr_audio, int num_audio, uint32_t dts);
+#endif
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
     virtual srs_error_t rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size);
 private:
