@@ -268,9 +268,9 @@ srs_error_t SrsAudioEncoder::encode(AVFrame *resampled_frame, int &used_samples,
                                  codec_ctx_->frame_size - left_samples : resampled_frame->nb_samples - used_samples;
             int pcm_size = av_get_bytes_per_sample(codec_ctx_->sample_fmt);
             if (!av_sample_fmt_is_planar(codec_ctx_->sample_fmt)) {
-               memcpy(frame_->data[0] + left_samples * codec_ctx_->channels * pcm_size,
-                      resampled_frame->data[0] + used_samples * codec_ctx_->channels * pcm_size,
-                      filled_samples * codec_ctx_->channels * pcm_size);
+                memcpy(frame_->data[0] + left_samples * codec_ctx_->channels * pcm_size,
+                       resampled_frame->data[0] + used_samples * codec_ctx_->channels * pcm_size,
+                       filled_samples * codec_ctx_->channels * pcm_size);
             } else {
                 for (int i = 0; i < codec_ctx_->channels; i++) {
                     memcpy(frame_->data[i] + left_samples * pcm_size,

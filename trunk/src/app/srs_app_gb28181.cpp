@@ -2023,7 +2023,7 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
                 if (ptr_audio) {
                     memcpy(ptr_audio, stream->bytes(), stream->length());
                     err = transcode(ptr_audio, num_audio, dts);
-                    srs_freep(ptr_audio);
+                    srs_freepa(ptr_audio);
                 }
                 return err;
             }

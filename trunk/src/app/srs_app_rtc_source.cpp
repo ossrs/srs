@@ -777,7 +777,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
         g711_raw_data(msg, format, &adts_audio, &nn_adts_audio);
         if (adts_audio) {
             err = transcode(adts_audio, nn_adts_audio);
-            srs_freep(adts_audio);
+            srs_freepa(adts_audio);
         }
         return err;
     }
@@ -789,7 +789,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 
     if (adts_audio) {
         err = transcode(adts_audio, nn_adts_audio);
-        srs_freep(adts_audio);
+        srs_freepa(adts_audio);
     }
 
     return err;

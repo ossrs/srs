@@ -122,7 +122,7 @@ public:
     SrsAudioTranscoder(SrsAudioCodecId src_codec, int src_channels, int src_samplerate, SrsAudioCodecId dst_codec, int dst_channels, int dst_samplerate);
     virtual ~SrsAudioTranscoder();
     srs_error_t initialize();
-    virtual srs_error_t transcode(SrsSample *pkt, char **buf_array, int *len_array, int buf_array_max, int buf_max_size, int &n);
+    virtual srs_error_t transcode(SrsSample *pkt, char **buf_array, int *len_array, int buf_array_size, int buf_max_size, int &n);
 };
 
 #endif /* SRS_APP_RTC_CODEC_HPP */
