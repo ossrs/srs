@@ -491,6 +491,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # For RTC, we should use ASM to improve performance, not a little improving.
     if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
         OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
+        echo "Warning: NASM is off, performance is hurt"
     fi
     # Mac OS X can have issues (its often a neglected platform).
     # @see https://wiki.openssl.org/index.php/Compilation_and_Installation
@@ -537,7 +538,7 @@ if [[ $SRS_SRTP_ASM == YES ]]; then
     echo "  #endif                                                " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
     ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
     if [[ $? -ne 0 ]]; then
-        SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
+        SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP-ASM optimization, please update docker";
     fi
     rm -f ${SRS_OBJS}/_tmp_srtp_asm_detect.c
 fi;
