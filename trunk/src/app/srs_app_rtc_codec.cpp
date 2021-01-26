@@ -148,7 +148,9 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, AVFrame **decoded_frame, int
         packet_->size = pkt->size;
         ret = avcodec_send_packet(codec_ctx_, packet_);
         if (ret < 0) {
-            return srs_error_new(ERROR_RTC_RTP_MUXER, "Error submitting the packet to the decoder");
+            char error_buf[1024];
+            av_strerror(ret, error_buf, sizeof(error_buf) - 1);
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "Error submitting the packet to the decoder: %s", error_buf);
         }
     }
 
@@ -487,8 +489,9 @@ srs_error_t SrsAudioTranscoder::transcode(SrsSample *pkt, char **buf_array, int 
                 len_array[n] = encoded_packet->size;
                 n++;
             } else {
-                return srs_error_wrap(err, "copy error, n %d, buf array size %d, pkt size %d, buf max size %d",
-                                      n, buf_array_size, encoded_packet->size, buf_max_size);
+                av_packet_unref(encoded_packet);
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "copy error, n %d, buf array size %d, pkt size %d, buf max size %d",
+                                     n, buf_array_size, encoded_packet->size, buf_max_size);
             }
 
             av_packet_unref(encoded_packet);
