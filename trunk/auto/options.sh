@@ -36,6 +36,7 @@ SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
 SRS_SSL_1_0=NO
+SRS_SSL_LOCAL=NO
 SRS_HTTPS=YES
 SRS_STAT=YES
 SRS_TRANSCODE=YES
@@ -190,6 +191,8 @@ Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuec
 
 Experts:
   --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
+  --ssl-1-0=on|off          Whether use openssl-1.0.*. Default: $(value2switch $SRS_SSL_1_0)
+  --ssl-local=on|off        Whether use local openssl, not system even exists. Default: $(value2switch $SRS_SSL_LOCAL)
   --use-shared-st           Use link shared libraries for ST which uses MPL license. Default: $(value2switch $SRS_SHARED_ST)
   --use-shared-srt          Use link shared libraries for SRT which uses MPL license. Default: $(value2switch $SRS_SHARED_SRT)
   --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
@@ -263,6 +266,7 @@ function parse_user_option() {
         --ssl)                          if [[ $value == off ]]; then SRS_SSL=NO; else SRS_SSL=YES; fi    ;;
         --https)                        if [[ $value == off ]]; then SRS_HTTPS=NO; else SRS_HTTPS=YES; fi ;;
         --ssl-1-0)                      if [[ $value == off ]]; then SRS_SSL_1_0=NO; else SRS_SSL_1_0=YES; fi ;;
+        --ssl-local)                    if [[ $value == off ]]; then SRS_SSL_LOCAL=NO; else SRS_SSL_LOCAL=YES; fi ;;
 
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
@@ -533,6 +537,7 @@ function regenerate_options() {
     if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
     if [ $SRS_HTTPS = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=off"; fi
     if [ $SRS_SSL_1_0 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=off"; fi
+    if [ $SRS_SSL_LOCAL = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=off"; fi
     if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
     if [ $SRS_TRANSCODE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=off"; fi
     if [ $SRS_INGEST = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=on"; else          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=off"; fi
