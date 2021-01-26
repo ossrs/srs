@@ -71,7 +71,7 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 ## GDB Tools
 
 - [x] Support [nn_coroutines](https://github.com/ossrs/state-threads/issues/15#issuecomment-742218041), show number of coroutines.
-- [x] Support [show_coroutines](https://github.com/ossrs/state-threads/issues/15#issuecomment-742218612), show all coroutines and caller funciton.
+- [x] Support [show_coroutines](https://github.com/ossrs/state-threads/issues/15#issuecomment-742218612), show all coroutines and caller function.
 
 ## Valgrind
 
