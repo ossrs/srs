@@ -57,6 +57,11 @@ const int kAudioSamplerate      = 48000;
 const int kVideoPayloadType = 102;
 const int kVideoSamplerate  = 90000;
 
+// An AAC packet may be transcoded to many OPUS packets.
+const int kMaxOpusPackets = 8;
+// The max size for each OPUS packet.
+const int kMaxOpusPacketSize = 4096;
+
 // The RTP payload max size, reserved some paddings for SRTP as such:
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
 // For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
@@ -591,9 +596,6 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     source_ = source;
     format = new SrsRtmpFormat();
     codec = NULL;
-    for (int i = 0; i < kMaxOpusPackets; i++) {
-        opus_payloads[i] = NULL;
-    }
     discard_aac = false;
     discard_bframe = false;
     merge_nalus = false;
@@ -649,9 +651,6 @@ SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
     srs_freep(format);
     srs_freep(codec);
-    for (int i = 0; i < kMaxOpusPackets; i++) {
-        srs_freepa(opus_payloads[i]);
-    }
     srs_freep(meta);
 }
 
@@ -759,7 +758,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 #else
     // In lastest code on branch develop, SrsRtcFromRtmpBridger and its codec will be released
     // after the stream is unpublished.
-    // codec_info may not be needed.
+    // codec_info may also not be needed.
     if (!codec) {
 #endif
         // Libavcodec will set sample_rate/channels/channel_layout for AAC audio with ADTS header.
@@ -799,9 +798,17 @@ srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio
 {
     srs_error_t err = srs_success;
 
-    if (!opus_payloads[0]) {
-        for (int i = 0; i < kMaxOpusPackets; i++) {
-           opus_payloads[i] = new char[kMaxOpusPacketSize];
+    // Opus packet cache.
+    static char* opus_payloads[kMaxOpusPackets];
+
+    static bool initialized = false;
+    if (!initialized) {
+        initialized = true;
+
+        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
+        opus_payloads[0] = &opus_packets_cache[0][0];
+        for (int i = 1; i < kMaxOpusPackets; i++) {
+           opus_payloads[i] = opus_packets_cache[i];
         }
     }
 

@@ -111,10 +111,10 @@ class SrsGb28181Caster;
 #define GB28181_TRANSCODE_G711_TO_AAC 1
 
 #if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
-// An G711 packet may be transcoded to many AAC packets.
-const int kMaxAacPackets = 8;
+// A G711 packet may be transcoded to many AAC packets.
+const int kMaxAacPackets = 4;
 // The max size for each AAC packet.
-const int kMaxAacPacketSize = 4096;
+const int kMaxAacPacketSize = 2048;
 class SrsAudioTranscoder;
 #endif
 
@@ -348,6 +348,8 @@ private:
     char *ps_buffer_audio;
 #if defined(SRS_FFMPEG_FIT) && defined(GB28181_TRANSCODE_G711_TO_AAC)
     SrsAudioTranscoder* transcoder;
+    // Here doesn't use static buffer like opus_payloads, because there is a very long process
+    // after write_audio_raw_frame and we can't ensure there is no state thread switch.
     char* aac_payloads[kMaxAacPackets];
 #endif
 

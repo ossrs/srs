@@ -224,11 +224,6 @@ public:
 };
 
 #ifdef SRS_FFMPEG_FIT
-// An AAC packet may be transcoded to many OPUS packets.
-const int kMaxOpusPackets = 8;
-// The max size for each OPUS packet.
-const int kMaxOpusPacketSize = 4096;
-
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
@@ -241,7 +236,6 @@ private:
 private:
     bool discard_aac;
     SrsAudioTranscoder* codec;
-    char* opus_payloads[kMaxOpusPackets];
     SrsAudioCodecConfig codec_info;
     bool discard_bframe;
     bool merge_nalus;
