@@ -35,3 +35,9 @@
 .idea
 .DS_Store
 
+/trunk/VisualGDBCache/srs_fork-Debug/SourceCache.dat
+/trunk/Debug/srs_fork.log
+/.vs/srs_fork/v15/ipch/AutoPCH
+/.vs/srs_fork/v15/Browse.VC.opendb
+/.vs/srs_fork/v15/Browse.VC.db
+/.vs/srs_fork/v15/.suo
