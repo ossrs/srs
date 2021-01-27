@@ -1,0 +1,27 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.852
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "srs_fork", "trunk\srs_fork.vcxproj", "{48B9BF5F-EB52-4056-8419-F3252A353AE7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Debug|x64.ActiveCfg = Debug|Win32
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Debug|x86.ActiveCfg = Debug|Win32
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Debug|x86.Build.0 = Debug|Win32
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Release|x64.ActiveCfg = Release|Win32
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Release|x86.ActiveCfg = Release|Win32
+		{48B9BF5F-EB52-4056-8419-F3252A353AE7}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2C6672FC-AEC9-408F-88DA-BE932CC0F0F8}
+	EndGlobalSection
+EndGlobal
