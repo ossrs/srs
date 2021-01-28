@@ -293,6 +293,8 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 
     fromlen = 0;
     peer_port = 0;
+
+    in_bytes = out_bytes = 0;
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()
@@ -327,6 +329,7 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         peer_ip = std::string(address_string);
         peer_port = atoi(port_string);    
     }
+    in_bytes += nread;
 
     return nread;
 }
@@ -343,7 +346,8 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
         }   
     
         return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
-    }   
+    }  
+    out_bytes += nb_write;
 
     return err;
 }
@@ -407,6 +411,17 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
 
     return sendonly;
 }
+
+int64_t SrsUdpMuxSocket::get_recv_bytes()
+{
+    return in_bytes;
+}
+
+int64_t SrsUdpMuxSocket::get_send_bytes()
+{
+    return out_bytes;
+}
+
 
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
 {

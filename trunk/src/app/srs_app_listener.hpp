@@ -32,6 +32,7 @@
 #include <string>
 
 #include <srs_app_st.hpp>
+#include <srs_protocol_io.hpp>
 
 struct sockaddr;
 
@@ -133,8 +134,11 @@ public:
 };
 
 // TODO: FIXME: Rename it. Refine it for performance issue.
-class SrsUdpMuxSocket
+class SrsUdpMuxSocket : public ISrsProtocolStatistic
 {
+private:
+    int64_t in_bytes;
+    int64_t out_bytes;
 private:
     char* buf;
     int nb_buf;
@@ -159,6 +163,9 @@ public:
     int get_peer_port() const;
     std::string peer_id();
     SrsUdpMuxSocket* copy_sendonly();
+public:
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
 };
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler

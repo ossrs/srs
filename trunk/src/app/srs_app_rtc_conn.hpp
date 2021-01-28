@@ -40,6 +40,7 @@
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_protocol_kbps.hpp>
 
 #include <string>
 #include <map>
@@ -62,6 +63,7 @@ class SrsRtcConsumer;
 class SrsRtcAudioSendTrack;
 class SrsRtcVideoSendTrack;
 class SrsErrorPithyPrint;
+class SrsWallClock;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -216,28 +218,28 @@ class SrsRtcPlayStreamStatistic
 {
 public:
     // The total bytes of AVFrame packets.
-    int nn_bytes;
+    uint64_t nn_bytes;
     // The total bytes of RTP packets.
-    int nn_rtp_bytes;
+    uint64_t nn_rtp_bytes;
     // The total padded bytes.
-    int nn_padding_bytes;
+    uint64_t nn_padding_bytes;
 public:
     // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
     // one msghdr by GSO, it's only one RTP packet, because we only send once.
-    int nn_rtp_pkts;
+    uint64_t nn_rtp_pkts;
     // For video, the samples or NALUs.
     // TODO: FIXME: Remove it because we may don't know.
-    int nn_samples;
+    uint64_t nn_samples;
     // For audio, the generated extra audio packets.
     // For example, when transcoding AAC to opus, may many extra payloads for a audio.
     // TODO: FIXME: Remove it because we may don't know.
-    int nn_extras;
+    uint64_t nn_extras;
     // The original audio messages.
-    int nn_audios;
+    uint64_t nn_audios;
     // The original video messages.
-    int nn_videos;
+    uint64_t nn_videos;
     // The number of padded packet.
-    int nn_paddings;
+    uint64_t nn_paddings;
 public:
     SrsRtcPlayStreamStatistic();
     virtual ~SrsRtcPlayStreamStatistic();
@@ -415,7 +417,7 @@ public:
 
 // A RTC Peer Connection, SDP level object.
 class SrsRtcConnection : virtual public ISrsHourGlass, virtual public ISrsResource
-    , virtual public ISrsDisposingHandler
+    , virtual public ISrsDisposingHandler, virtual public ISrsKbpsDelta
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -439,6 +441,12 @@ private:
     // key: publisher track's ssrc
     std::map<uint32_t, SrsRtcPublishStream*> publishers_ssrc_map_;
 private:
+    // The connection total kbps.
+    // not only the rtmp or http connection, all type of connection are
+    // need to statistic the kbps of io.
+    // The SrsStatistic will use it indirectly to statistic the bytes delta of current connection.
+    SrsKbps* kbps;
+    SrsWallClock* clk;
     // The local:remote username, such as m5x0n128:jvOm where local name is m5x0n128.
     std::string username_;
     // The peer address, client maybe use more than one address, it's the current selected one.
@@ -470,6 +478,9 @@ private:
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
+// Interface ISrsKbpsDelta
+public:
+    virtual void remark(int64_t* in, int64_t* out);
 // interface ISrsDisposingHandler
 public:
     virtual void on_before_dispose(ISrsResource* c);

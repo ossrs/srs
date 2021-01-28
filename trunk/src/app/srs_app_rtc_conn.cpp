@@ -616,6 +616,9 @@ srs_error_t SrsRtcPlayStream::cycle()
                 srs_freep(pkt);
             }
             pkts.clear();
+
+            // add webrtc kbps statistic
+            stat->kbps_add_delta(cid_, session_);
         }
 
         // Stat for performance analysis.
@@ -1613,6 +1616,9 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     pli_epp = new SrsErrorPithyPrint();
 
     _srs_rtc_manager->subscribe(this);
+
+    clk = new SrsWallClock();
+    kbps = new SrsKbps(clk);
 }
 
 SrsRtcConnection::~SrsRtcConnection()
@@ -1650,6 +1656,13 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(stat_);
     srs_freep(pp_address_change);
     srs_freep(pli_epp);
+    srs_freep(kbps);
+    srs_freep(clk);
+}
+
+void SrsRtcConnection::remark(int64_t* in, int64_t* out)
+{
+    kbps->remark(in, out);
 }
 
 void SrsRtcConnection::on_before_dispose(ISrsResource* c)
@@ -2254,6 +2267,8 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 
     // Update the transport.
     sendonly_skt = addr_cache;
+
+    kbps->set_io(sendonly_skt, sendonly_skt);
 }
 
 srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t tick)
