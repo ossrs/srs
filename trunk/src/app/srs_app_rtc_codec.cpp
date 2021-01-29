@@ -26,7 +26,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_app_rtc_codec.hpp>
 
-static const char* id2codec_name(SrsAudioCodecId id) 
+static const char* id2codec_name(SrsAudioCodecId id)
 {
     switch (id) {
     case SrsAudioCodecIdAAC:
@@ -268,18 +268,8 @@ srs_error_t SrsAudioEncoder::encode(AVFrame *resampled_frame, int &used_samples,
         } else {
             int filled_samples = codec_ctx_->frame_size - left_samples < resampled_frame->nb_samples - used_samples ?
                                  codec_ctx_->frame_size - left_samples : resampled_frame->nb_samples - used_samples;
-            int pcm_size = av_get_bytes_per_sample(codec_ctx_->sample_fmt);
-            if (!av_sample_fmt_is_planar(codec_ctx_->sample_fmt)) {
-                memcpy(frame_->data[0] + left_samples * codec_ctx_->channels * pcm_size,
-                       resampled_frame->data[0] + used_samples * codec_ctx_->channels * pcm_size,
-                       filled_samples * codec_ctx_->channels * pcm_size);
-            } else {
-                for (int i = 0; i < codec_ctx_->channels; i++) {
-                    memcpy(frame_->data[i] + left_samples * pcm_size,
-                           resampled_frame->data[i] + used_samples * pcm_size,
-                           filled_samples * pcm_size);
-                }
-            }
+            av_samples_copy(frame_->data, resampled_frame->data, left_samples, used_samples, filled_samples,
+                            codec_ctx_->channels, codec_ctx_->sample_fmt);
             left_samples += filled_samples;
             srs_assert(left_samples <= codec_ctx_->frame_size);
             if (left_samples == codec_ctx_->frame_size) {
@@ -392,7 +382,7 @@ srs_error_t SrsAudioResampler::resample(AVFrame *decoded_frame, AVFrame **resamp
     if (nb_samples < 0) {
         char error_buf[1024];
         av_strerror(nb_samples, error_buf, sizeof(error_buf) - 1);
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error while converting: %s", error_buf); 
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error while converting: %s", error_buf);
     }
 
     frame_->nb_samples = nb_samples;
@@ -442,7 +432,7 @@ srs_error_t SrsAudioTranscoder::transcode(SrsSample *pkt, char **buf_array, int 
 {
     srs_error_t err = srs_success;
 
-    n = 0;    
+    n = 0;
 
     if (!dec_ || !enc_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "dec_ or enc_ nullptr");
@@ -481,6 +471,9 @@ srs_error_t SrsAudioTranscoder::transcode(SrsSample *pkt, char **buf_array, int 
                 return srs_error_wrap(err, "encode error");
             }
             if (!encoded_packet) {
+                if (resampled_frame->nb_samples > used_samples) {
+                    continue;
+                }
                 break;
             }
 
