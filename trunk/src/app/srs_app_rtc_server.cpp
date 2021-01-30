@@ -469,8 +469,12 @@ srs_error_t SrsRtcServer::do_create_session(
 
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
-        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
-        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+        string host;
+        int port = _srs_config->get_rtc_server_listen();
+        srs_parse_hostport(mock_eip, host, port);
+
+        local_sdp.add_candidate(host, port, "host");
+        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", mock_eip.c_str(), host.c_str(), port);
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
@@ -534,8 +538,12 @@ srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, co
 
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
-        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
-        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+        string host;
+        int port = _srs_config->get_rtc_server_listen();
+        srs_parse_hostport(mock_eip, host, port);
+
+        local_sdp.add_candidate(host, port, "host");
+        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", mock_eip.c_str(), host.c_str(), port);
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
