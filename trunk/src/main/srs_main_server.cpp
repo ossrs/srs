@@ -401,6 +401,8 @@ srs_error_t srs_detect_docker()
     return err;
 }
 
+#include <poll.h>
+static int pipefd[2];
 srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
@@ -442,6 +444,11 @@ srs_error_t run_directly_or_daemon()
         exit(0);
     }
     
+    if (pipe(pipefd) == -1) {
+        srs_error("pipe error!");
+        exit(1);
+    }
+
     // father
     pid = fork();
     
@@ -450,9 +457,32 @@ srs_error_t run_directly_or_daemon()
     }
     
     if(pid > 0) {
-        sleep(3);
+        close(pipefd[1]);
+        int code = -1;
+        struct pollfd pollfds;
+
+        while (code < 0) {
+            pollfds.fd = pipefd[0];
+            pollfds.events = POLLIN;
+            int res = poll(&pollfds, 1, -1);
+            if (res < 0)
+                break;
+            if (res == 0)
+                continue;
+            if (pollfds.revents & POLLERR || pollfds.revents & POLLHUP)
+                break;
+            if (pollfds.revents & POLLIN) {
+                res = read(pipefd[0], &code, sizeof(int));
+                break;
+            }
+        }
+        if (code < 0)
+            code = 1;
+
+        if (code)
+            srs_error("Error launching SRS (error code %d), check the logs for more details!", code);
         srs_trace("father process exit");
-        exit(0);
+        exit(code);
     }
     
     // son
@@ -483,6 +513,15 @@ srs_error_t run_hybrid_server()
     // Do some system initialize.
     if ((err = _srs_hybrid->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
+    }
+
+    if (1) {
+        int code = 0;
+        ssize_t res = 0;
+        close(pipefd[0]);
+        do {
+            res = write(pipefd[1], &code, sizeof(int));
+        } while (res == -1 && errno == EINTR);
     }
 
     // Should run util hybrid servers all done.
