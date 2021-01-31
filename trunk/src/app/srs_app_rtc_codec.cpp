@@ -291,7 +291,7 @@ srs_error_t SrsAudioEncoder::encode(AVFrame *resampled_frame, int &used_samples,
     } else if (ret < 0) {
         char error_buf[1024];
         av_strerror(ret, error_buf, sizeof(error_buf) - 1);
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error during decoding: %s", error_buf);
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Error during encoding: %s", error_buf);
     }
 
     // av_packet_unref(*encoded_packet) outside
