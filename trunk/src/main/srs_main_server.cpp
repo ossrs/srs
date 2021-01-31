@@ -515,7 +515,7 @@ srs_error_t run_hybrid_server()
         return srs_error_wrap(err, "hybrid initialize");
     }
 
-    if (1) {
+    if (!(pipefd[0] == 0 && pipefd[1] == 0)) {
         int code = 0;
         ssize_t res = 0;
         close(pipefd[0]);
