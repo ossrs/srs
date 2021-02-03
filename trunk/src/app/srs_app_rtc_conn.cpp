@@ -2199,7 +2199,7 @@ srs_error_t SrsRtcConnection::start_publish(std::string stream_uri)
 
 bool SrsRtcConnection::is_alive()
 {
-    return last_stun_time + session_timeout < srs_get_system_time();
+    return last_stun_time + session_timeout > srs_get_system_time();
 }
 
 void SrsRtcConnection::alive()

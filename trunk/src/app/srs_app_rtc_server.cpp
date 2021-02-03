@@ -603,7 +603,13 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
         SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
-        if (!session || !session->is_alive() || session->disposing_) {
+        // Ignore not session, or already disposing.
+        if (!session || session->disposing_) {
+            continue;
+        }
+
+        // Update stat if session is alive.
+        if (session->is_alive()) {
             nn_rtc_conns++;
             continue;
         }
