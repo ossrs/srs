@@ -313,7 +313,25 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         return 0;
     }
 
-    if (nread > 0) {
+    // Parse address from cache.
+    bool parsed = false;
+    if (from.ss_family == AF_INET) {
+        sockaddr_in* addr = (sockaddr_in*)&from;
+
+        // Load from fast cache, previous ip.
+        std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
+        if (it == cache_.end()) {
+            peer_ip = inet_ntoa(addr->sin_addr);
+            cache_[addr->sin_addr.s_addr] = peer_ip;
+        } else {
+            peer_ip = it->second;
+        }
+
+        peer_port = ntohs(addr->sin_port);
+        parsed = true;
+    }
+
+    if (!parsed && nread > 0) {
         // TODO: FIXME: Maybe we should not covert to string for each packet.
         char address_string[64];
         char port_string[16];
@@ -514,6 +532,11 @@ srs_error_t SrsUdpMuxListener::cycle()
     SrsAutoFree(SrsErrorPithyPrint, pp_pkt_handler_err);
 
     set_socket_buffer();
+
+    // Because we have to decrypt the cipher of received packet payload,
+    // and the size is not determined, so we think there is at least one copy,
+    // and we can reuse the plaintext h264/opus with players when got plaintext.
+    SrsUdpMuxSocket skt(lfd);
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -521,12 +544,6 @@ srs_error_t SrsUdpMuxListener::cycle()
         }
 
         nn_loop++;
-
-        // TODO: FIXME: Refactor the memory cache for receiver.
-        // Because we have to decrypt the cipher of received packet payload,
-        // and the size is not determined, so we think there is at least one copy,
-        // and we can reuse the plaintext h264/opus with players when got plaintext.
-        SrsUdpMuxSocket skt(lfd);
 
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
