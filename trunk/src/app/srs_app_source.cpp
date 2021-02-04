@@ -269,7 +269,9 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
 {
     srs_error_t err = srs_success;
     
-    if (msg->is_av()) {
+    // maybe the SH timestamp much short than A/V packet,
+    // shrink does not contain SH
+    if ((msg->is_audio() && !SrsFlvAudio::sh(msg->payload, msg->size)) || (msg->is_video() && !SrsFlvVideo::sh(msg->payload, msg->size))) {
         if (av_start_time == -1) {
             av_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
         }
