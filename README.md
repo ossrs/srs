@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-02-04, At least wait 1ms when <1ms, to avoid epoll_wait spin loop. 4.0.66
 * v4.0, 2021-01-31, Enable -std=c++11 by default. 4.0.65
 * v4.0, 2021-01-25, Enable --nasm and --srtp-asm by default for performance. 4.0.64
 * v4.0, 2021-01-20, Support HTTP-FLV and HLS for srs-player by H5. 4.0.63
