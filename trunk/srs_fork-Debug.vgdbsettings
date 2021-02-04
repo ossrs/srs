@@ -59,11 +59,10 @@
         <Transport>BuiltinShortcut</Transport>
       </RemoteHost>
       <Command>make</Command>
-      <Arguments />
+      <Arguments>-j8</Arguments>
       <WorkingDirectory>$(RemoteSourceDir)</WorkingDirectory>
       <Environment>
         <Records />
-        <EnvironmentSetupFiles />
       </Environment>
       <BackgroundMode xsi:nil="true" />
     </BuildCommand>
