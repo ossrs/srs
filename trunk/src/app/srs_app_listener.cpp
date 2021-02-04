@@ -315,7 +315,25 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         return 0;
     }
 
-    if (nread > 0) {
+    // Parse address from cache.
+    bool parsed = false;
+    if (from.ss_family == AF_INET) {
+        sockaddr_in* addr = (sockaddr_in*)&from;
+
+        // Load from fast cache, previous ip.
+        std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
+        if (it == cache_.end()) {
+            peer_ip = inet_ntoa(addr->sin_addr);
+            cache_[addr->sin_addr.s_addr] = peer_ip;
+        } else {
+            peer_ip = it->second;
+        }
+
+        peer_port = ntohs(addr->sin_port);
+        parsed = true;
+    }
+
+    if (!parsed && nread > 0) {
         // TODO: FIXME: Maybe we should not covert to string for each packet.
         char address_string[64];
         char port_string[16];
@@ -529,6 +547,11 @@ srs_error_t SrsUdpMuxListener::cycle()
     SrsAutoFree(SrsErrorPithyPrint, pp_pkt_handler_err);
 
     set_socket_buffer();
+
+    // Because we have to decrypt the cipher of received packet payload,
+    // and the size is not determined, so we think there is at least one copy,
+    // and we can reuse the plaintext h264/opus with players when got plaintext.
+    SrsUdpMuxSocket skt(lfd);
     
     while (true) {
         if ((err = trd->pull()) != srs_success) {
@@ -536,12 +559,6 @@ srs_error_t SrsUdpMuxListener::cycle()
         }
 
         nn_loop++;
-
-        // TODO: FIXME: Refactor the memory cache for receiver.
-        // Because we have to decrypt the cipher of received packet payload,
-        // and the size is not determined, so we think there is at least one copy,
-        // and we can reuse the plaintext h264/opus with players when got plaintext.
-        SrsUdpMuxSocket skt(lfd);
 
         int nread = skt.recvfrom(SRS_UTIME_NO_TIMEOUT);
         if (nread <= 0) {
@@ -555,15 +572,16 @@ srs_error_t SrsUdpMuxListener::cycle()
         nn_msgs++;
         nn_msgs_stage++;
 
-        // Restore context when packets processed.
-        if (true) {
-            SrsContextRestore(cid);
-            err = handler->on_udp_packet(&skt);
-        }
+        // Handle the UDP packet.
+        err = handler->on_udp_packet(&skt);
+
         // Use pithy print to show more smart information.
         if (err != srs_success) {
             uint32_t nn = 0;
             if (pp_pkt_handler_err->can_print(err, &nn)) {
+                // For performance, only restore context when output log.
+                _srs_context->set_id(cid);
+
                 // Append more information.
                 err = srs_error_wrap(err, "size=%u, data=[%s]", skt.size(), srs_string_dumps_hex(skt.data(), skt.size(), 8).c_str());
                 srs_warn("handle udp pkt, count=%u/%u, err: %s", pp_pkt_handler_err->nn_count, nn, srs_error_desc(err).c_str());
@@ -573,6 +591,9 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
+            // For performance, only restore context when output log.
+            _srs_context->set_id(cid);
+
             int pps_average = 0; int pps_last = 0;
             if (true) {
                 if (srs_get_system_time() > srs_get_system_startup_time()) {

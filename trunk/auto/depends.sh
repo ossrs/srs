@@ -480,17 +480,22 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         OPENSSL_CONFIG="./Configure linux-armv4"
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         # Try to use exists libraries.
-        if [[ -f /usr/local/ssl/lib/libssl.a ]]; then
+        if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib &&
                 ln -sf /usr/local/ssl/lib/libssl.a && ln -sf /usr/local/ssl/lib/libcrypto.a &&
                 mkdir -p /usr/local/ssl/lib/pkgconfig && ln -sf /usr/local/ssl/lib/pkgconfig)
             (mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include && cd ${SRS_OBJS}/${SRS_PLATFORM}/openssl/include &&
                 ln -sf /usr/local/ssl/include/openssl)
         fi
+        # Warning if not use the system ssl.
+        if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == YES ]]; then
+            echo "Warning: Local openssl is on, ignore system openssl"
+        fi
     fi
     # For RTC, we should use ASM to improve performance, not a little improving.
     if [[ $SRS_RTC == NO || $SRS_NASM == NO ]]; then
         OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-asm"
+        echo "Warning: NASM is off, performance is hurt"
     fi
     # Mac OS X can have issues (its often a neglected platform).
     # @see https://wiki.openssl.org/index.php/Compilation_and_Installation
@@ -504,7 +509,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
-        echo "Openssl-1.1.0e is ok.";
+        echo "The $OPENSSL_CANDIDATE is ok.";
     else
         echo "Building $OPENSSL_CANDIDATE.";
         (
@@ -537,7 +542,7 @@ if [[ $SRS_SRTP_ASM == YES ]]; then
     echo "  #endif                                                " >> ${SRS_OBJS}/_tmp_srtp_asm_detect.c
     ${SRS_TOOL_CC} -c ${SRS_OBJS}/_tmp_srtp_asm_detect.c -I${SRS_OBJS}/openssl/include -o /dev/null >/dev/null 2>&1
     if [[ $? -ne 0 ]]; then
-        SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP ASM optimization, please update docker";
+        SRS_SRTP_ASM=NO && echo "Warning: Disable SRTP-ASM optimization, please update docker";
     fi
     rm -f ${SRS_OBJS}/_tmp_srtp_asm_detect.c
 fi;

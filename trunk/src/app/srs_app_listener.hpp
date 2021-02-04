@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <map>
 #include <string>
 
 #include <srs_app_st.hpp>
@@ -139,6 +140,8 @@ class SrsUdpMuxSocket : public ISrsProtocolStatistic
 private:
     int64_t in_bytes;
     int64_t out_bytes;
+
+    std::map<uint32_t, std::string> cache_;
 private:
     char* buf;
     int nb_buf;

@@ -146,10 +146,7 @@ SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq) {
 
 void SrsRtpRingBuffer::notify_nack_list_full()
 {
-    while(begin <= end) {
-        remove(begin);
-        ++begin;
-    }
+    clear_all_histroy();
 
     begin = end = 0;
     initialized_ = false;
@@ -159,6 +156,29 @@ void SrsRtpRingBuffer::notify_drop_seq(uint16_t seq)
 {
     remove(seq);
     advance_to(seq+1);
+}
+
+void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
+{
+    // TODO FIXME Did not consider loopback
+    for (uint16_t i = 0; i < capacity_; i++) {
+        SrsRtpPacket2* p = queue_[i];
+        if (p && p->header.get_sequence() < seq) {
+            srs_freep(p);
+            queue_[i] = NULL;
+        }
+    }
+}
+
+void SrsRtpRingBuffer::clear_all_histroy()
+{
+    for (uint16_t i = 0; i < capacity_; i++) {
+        SrsRtpPacket2* p = queue_[i];
+        if (p) {
+            srs_freep(p);
+            queue_[i] = NULL;
+        }
+    }
 }
 
 SrsNackOption::SrsNackOption()
