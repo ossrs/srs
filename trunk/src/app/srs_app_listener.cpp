@@ -540,15 +540,16 @@ srs_error_t SrsUdpMuxListener::cycle()
         nn_msgs++;
         nn_msgs_stage++;
 
-        // Restore context when packets processed.
-        if (true) {
-            SrsContextRestore(cid);
-            err = handler->on_udp_packet(&skt);
-        }
+        // Handle the UDP packet.
+        err = handler->on_udp_packet(&skt);
+
         // Use pithy print to show more smart information.
         if (err != srs_success) {
             uint32_t nn = 0;
             if (pp_pkt_handler_err->can_print(err, &nn)) {
+                // For performance, only restore context when output log.
+                _srs_context->set_id(cid);
+
                 // Append more information.
                 err = srs_error_wrap(err, "size=%u, data=[%s]", skt.size(), srs_string_dumps_hex(skt.data(), skt.size(), 8).c_str());
                 srs_warn("handle udp pkt, count=%u/%u, err: %s", pp_pkt_handler_err->nn_count, nn, srs_error_desc(err).c_str());
@@ -558,6 +559,9 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
+            // For performance, only restore context when output log.
+            _srs_context->set_id(cid);
+
             int pps_average = 0; int pps_last = 0;
             if (true) {
                 if (srs_get_system_time() > srs_get_system_startup_time()) {
