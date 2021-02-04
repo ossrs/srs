@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <map>
 #include <string>
 
 #include <srs_app_st.hpp>
@@ -135,6 +136,8 @@ public:
 // TODO: FIXME: Rename it. Refine it for performance issue.
 class SrsUdpMuxSocket
 {
+private:
+    std::map<uint32_t, std::string> cache_;
 private:
     char* buf;
     int nb_buf;
