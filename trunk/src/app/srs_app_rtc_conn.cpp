@@ -938,6 +938,10 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     }
     audio_tracks_.clear();
 
+    // update the statistic when client coveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(cid_);
+
     srs_freep(timer_);
     srs_freep(pli_worker_);
     srs_freep(pli_epp);
@@ -1021,6 +1025,12 @@ srs_error_t SrsRtcPublishStream::start()
         if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req)) != srs_success) {
             return srs_error_wrap(err, "on start publish");
         }
+    }
+
+    // update the statistic when client discoveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_, req, NULL, SrsRtmpConnFMLEPublish)) != srs_success) {
+        srs_trace("webrtc: add client failed!");
     }
 
     is_started = true;

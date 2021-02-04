@@ -43,6 +43,7 @@
 #include <srs_protocol_json.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_statistic.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -454,6 +455,8 @@ srs_error_t SrsRtcStream::on_publish()
 #endif
 
     // TODO: FIXME: Handle by statistic.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_publish(req, _source_id);
 
     return err;
 }
@@ -489,6 +492,8 @@ void SrsRtcStream::on_unpublish()
 #endif
 
     // TODO: FIXME: Handle by statistic.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_close(req);
 }
 
 void SrsRtcStream::subscribe(ISrsRtcStreamEventHandler* h)
