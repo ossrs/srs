@@ -67,6 +67,7 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
 - [x] Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
 - [x] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
+- [x] Refine performance for sleep or epoll_wait(0), [#17](https://github.com/ossrs/state-threads/issues/17).
 
 ## GDB Tools
 
