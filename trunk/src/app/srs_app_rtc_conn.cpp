@@ -1124,7 +1124,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
     // Decode the header first.
     SrsRtpHeader h;
-    if (pt_to_drop_ && twcc_id_) {
+    if (pt_to_drop_ || twcc_id_) {
         SrsBuffer b(data, nb_data);
         h.ignore_padding(true); h.set_extensions(&extension_types_);
         if ((err = h.decode(&b)) != srs_success) {
