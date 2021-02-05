@@ -76,6 +76,8 @@ private:
     std::vector<ISrsResource*> conns_;
     // The connections with resource id.
     std::map<std::string, ISrsResource*> conns_id_;
+    // The connections with resource fast(int) id.
+    std::map<uint64_t, ISrsResource*> conns_fast_id_;
     // The connections with resource name.
     std::map<std::string, ISrsResource*> conns_name_;
 public:
@@ -91,9 +93,11 @@ public:
 public:
     void add(ISrsResource* conn);
     void add_with_id(const std::string& id, ISrsResource* conn);
+    void add_with_fast_id(uint64_t id, ISrsResource* conn);
     void add_with_name(const std::string& name, ISrsResource* conn);
     ISrsResource* at(int index);
     ISrsResource* find_by_id(std::string id);
+    ISrsResource* find_by_fast_id(uint64_t id);
     ISrsResource* find_by_name(std::string name);
 public:
     void subscribe(ISrsDisposingHandler* h);

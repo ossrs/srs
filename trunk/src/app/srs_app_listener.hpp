@@ -145,8 +145,14 @@ private:
     srs_netfd_t lfd;
     sockaddr_storage from;
     int fromlen;
+private:
     std::string peer_ip;
     int peer_port;
+private:
+    // Cache for peer id.
+    std::string peer_id_;
+    // For IPv4 client, we use 8 bytes int id to find it fastly.
+    uint64_t fast_id_;
 public:
     SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
@@ -161,6 +167,7 @@ public:
     std::string get_peer_ip() const;
     int get_peer_port() const;
     std::string peer_id();
+    uint64_t fast_id();
     SrsUdpMuxSocket* copy_sendonly();
 };
 
