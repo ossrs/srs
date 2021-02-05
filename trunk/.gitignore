@@ -45,7 +45,6 @@ srs
 /janus
 *.dump
 bug
-/research/thread-model/thread-local
 *.gcp
 *.svg
 
