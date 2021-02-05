@@ -127,6 +127,12 @@ void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
     conns_id_[id] = conn;
 }
 
+void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource* conn)
+{
+    add(conn);
+    conns_fast_id_[id] = conn;
+}
+
 void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
 {
     add(conn);
@@ -142,6 +148,12 @@ ISrsResource* SrsResourceManager::find_by_id(std::string id)
 {
     map<string, ISrsResource*>::iterator it = conns_id_.find(id);
     return (it != conns_id_.end())? it->second : NULL;
+}
+
+ISrsResource* SrsResourceManager::find_by_fast_id(uint64_t id)
+{
+    map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.find(id);
+    return (it != conns_fast_id_.end())? it->second : NULL;
 }
 
 ISrsResource* SrsResourceManager::find_by_name(std::string name)
@@ -313,6 +325,15 @@ void SrsResourceManager::dispose(ISrsResource* c)
         } else {
             // Use C++98 style: https://stackoverflow.com/a/4636230
             conns_id_.erase(it++);
+        }
+    }
+
+    for (map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.begin(); it != conns_fast_id_.end();) {
+        if (c != it->second) {
+            ++it;
+        } else {
+            // Use C++98 style: https://stackoverflow.com/a/4636230
+            conns_fast_id_.erase(it++);
         }
     }
 

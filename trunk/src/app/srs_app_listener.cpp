@@ -293,6 +293,8 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 
     fromlen = 0;
     peer_port = 0;
+
+    fast_id_ = 0;
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()
@@ -327,7 +329,9 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
             peer_ip = it->second;
         }
 
+        peer_id_ = "";
         peer_port = ntohs(addr->sin_port);
+        fast_id_ = uint64_t(peer_port)<<48 | uint64_t(addr->sin_addr.s_addr);
         parsed = true;
     }
 
@@ -403,10 +407,17 @@ int SrsUdpMuxSocket::get_peer_port() const
 
 std::string SrsUdpMuxSocket::peer_id()
 {
-    char id_buf[1024];
-    int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
+    if (peer_id_.empty()) {
+        static char id_buf[128];
+        int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
+        peer_id_ = string(id_buf, len);
+    }
+    return peer_id_;
+}
 
-    return string(id_buf, len);
+uint64_t SrsUdpMuxSocket::fast_id()
+{
+    return fast_id_;
 }
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
@@ -422,6 +433,10 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
     sendonly->fromlen   = fromlen;
     sendonly->peer_ip   = peer_ip;
     sendonly->peer_port = peer_port;
+
+    // Copy the fast id.
+    sendonly->peer_id_ = peer_id_;
+    sendonly->fast_id_ = fast_id_;
 
     return sendonly;
 }

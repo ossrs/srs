@@ -2257,7 +2257,12 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
     // If no cache, build cache and setup the relations in connection.
     if (!addr_cache) {
         peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        server_->insert_into_id_sessions(peer_id, this);
+        _srs_rtc_manager->add_with_id(peer_id, this);
+
+        uint64_t fast_id = skt->fast_id();
+        if (fast_id) {
+            _srs_rtc_manager->add_with_fast_id(fast_id, this);
+        }
     }
 
     // Update the transport.
