@@ -507,6 +507,10 @@ public:
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
+private:
+    // Decode the RTP header from buf, find the publisher by SSRC.
+    srs_error_t find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher);
+public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);

@@ -2078,13 +2078,26 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+    SrsRtcPublishStream* publisher = NULL;
+    if ((err = find_publisher(data, nb_data, &publisher)) != srs_success) {
+        return srs_error_wrap(err, "find");
+    }
+    srs_assert(publisher);
+
+    return publisher->on_rtp(data, nb_data);
+}
+
+srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher)
+{
+    srs_error_t err = srs_success;
+
     if (publishers_.size() == 0) {
         return srs_error_new(ERROR_RTC_RTCP, "no publisher");
     }
 
     SrsRtpHeader header;
     if (true) {
-        SrsBuffer* buffer = new SrsBuffer(data, nb_data);
+        SrsBuffer* buffer = new SrsBuffer(buf, size);
         SrsAutoFree(SrsBuffer, buffer);
         header.ignore_padding(true);
         if(srs_success != (err = header.decode(buffer))) {
@@ -2097,8 +2110,9 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
         return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no publisher for ssrc:%u", header.get_ssrc());
     }
 
-    SrsRtcPublishStream* publisher = it->second;
-    return publisher->on_rtp(data, nb_data);
+    *ppublisher = it->second;
+
+    return err;
 }
 
 srs_error_t SrsRtcConnection::on_connection_established()
