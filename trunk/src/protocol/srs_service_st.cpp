@@ -381,6 +381,21 @@ int srs_mutex_unlock(srs_mutex_t mutex)
     return st_mutex_unlock((st_mutex_t)mutex);
 }
 
+int srs_key_create(int *keyp, void (*destructor)(void *))
+{
+    return st_key_create(keyp, destructor);
+}
+
+int srs_thread_setspecific(int key, void *value)
+{
+    return st_thread_setspecific(key, value);
+}
+
+void *srs_thread_getspecific(int key)
+{
+    return st_thread_getspecific(key);
+}
+
 int srs_netfd_fileno(srs_netfd_t stfd)
 {
     return st_netfd_fileno((st_netfd_t)stfd);
