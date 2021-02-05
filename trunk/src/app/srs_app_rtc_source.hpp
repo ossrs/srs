@@ -526,7 +526,7 @@ public:
 protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
@@ -540,7 +540,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -552,7 +552,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
     virtual srs_error_t check_send_nacks();
 };
 
