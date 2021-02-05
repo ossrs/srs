@@ -1123,14 +1123,13 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
     }
 
     // Decode the header first.
-    SrsRtpHeader h;
     if (pt_to_drop_ || twcc_id_) {
+        SrsRtpHeader h;
         SrsBuffer b(data, nb_data);
         h.ignore_padding(true); h.set_extensions(&extension_types_);
         if ((err = h.decode(&b)) != srs_success) {
             return srs_error_wrap(err, "twcc decode header");
         }
-    }
 
         // We must parse the TWCC from RTP header before SRTP unprotect, because:
         //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
@@ -1151,6 +1150,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         if (pt_to_drop_ && pt_to_drop_ == h.get_payload_type()) {
             return err;
         }
+    }
 
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
