@@ -2095,19 +2095,14 @@ srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishS
         return srs_error_new(ERROR_RTC_RTCP, "no publisher");
     }
 
-    SrsRtpHeader header;
-    if (true) {
-        SrsBuffer* buffer = new SrsBuffer(buf, size);
-        SrsAutoFree(SrsBuffer, buffer);
-        header.ignore_padding(true);
-        if(srs_success != (err = header.decode(buffer))) {
-            return srs_error_wrap(err, "decode rtp header");
-        }
+    uint32_t ssrc = srs_rtp_fast_parse_ssrc(buf, size);
+    if (ssrc == 0) {
+        return srs_error_new(ERROR_RTC_NO_PUBLISHER, "invalid ssrc");
     }
 
-    map<uint32_t, SrsRtcPublishStream*>::iterator it = publishers_ssrc_map_.find(header.get_ssrc());
+    map<uint32_t, SrsRtcPublishStream*>::iterator it = publishers_ssrc_map_.find(ssrc);
     if(it == publishers_ssrc_map_.end()) {
-        return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no publisher for ssrc:%u", header.get_ssrc());
+        return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no publisher for ssrc:%u", ssrc);
     }
 
     *ppublisher = it->second;
