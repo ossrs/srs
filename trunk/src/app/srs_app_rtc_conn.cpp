@@ -1132,25 +1132,25 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         }
     }
 
-    // We must parse the TWCC from RTP header before SRTP unprotect, because:
-    //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
-    //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
-    // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
-    if (twcc_id_) {
-        uint16_t twcc_sn = 0;
-        if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
-            if((err = on_twcc(twcc_sn)) != srs_success) {
-                return srs_error_wrap(err, "on twcc");
+        // We must parse the TWCC from RTP header before SRTP unprotect, because:
+        //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
+        //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
+        // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
+        if (twcc_id_) {
+            uint16_t twcc_sn = 0;
+            if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
+                if((err = on_twcc(twcc_sn)) != srs_success) {
+                    return srs_error_wrap(err, "on twcc");
+                }
+            } else {
+                srs_error_reset(err);
             }
-        } else {
-            srs_error_reset(err);
         }
-    }
 
-    // If payload type is configed to drop, ignore this packet.
-    if (pt_to_drop_ && pt_to_drop_ == h.get_payload_type()) {
-        return err;
-    }
+        // If payload type is configed to drop, ignore this packet.
+        if (pt_to_drop_ && pt_to_drop_ == h.get_payload_type()) {
+            return err;
+        }
 
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
@@ -1159,6 +1159,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
+
         err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h.get_marker(), h.get_payload_type(),
             h.get_sequence(), h.get_timestamp(), h.get_ssrc(), h.get_padding(), nb_data - b.pos());
 
@@ -1172,6 +1173,10 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
     // Handle the plaintext RTP packet.
     if ((err = do_on_rtp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
+        // We try to decode the RTP header for more detail error informations.
+        SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
+        srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
+
         int nb_header = h.nb_bytes();
         const char* body = unprotected_buf + nb_header;
         int nb_body = nb_unprotected_buf - nb_header;
