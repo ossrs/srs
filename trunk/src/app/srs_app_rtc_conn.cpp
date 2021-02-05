@@ -1225,7 +1225,7 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
 
     // Check then send NACK every each RTP packet, to make it more efficient.
     // For example, NACK of video track maybe triggered by audio RTP packets.
-    if ((err = check_send_nacks()) != srs_success) {
+    if (nack_enabled_ && (err = check_send_nacks()) != srs_success) {
         srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
