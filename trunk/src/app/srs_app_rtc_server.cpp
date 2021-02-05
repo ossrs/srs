@@ -303,18 +303,12 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     string peer_id = skt->peer_id();
     char* data = skt->data(); int size = skt->size();
 
-    SrsRtcConnection* session = NULL;
-    if (true) {
-        ISrsResource* conn = _srs_rtc_manager->find_by_id(peer_id);
-        if (conn) {
-            // Switch to the session to write logs to the context.
-            session = dynamic_cast<SrsRtcConnection*>(conn);
-            session->switch_to_context();
-        }
-    }
-
-    // When got any packet, the session is alive now.
+    SrsRtcConnection* session = (SrsRtcConnection*)_srs_rtc_manager->find_by_id(peer_id);
     if (session) {
+        // Switch to the session to write logs to the context.
+        session->switch_to_context();
+
+        // When got any packet, the session is alive now.
         session->alive();
     }
 

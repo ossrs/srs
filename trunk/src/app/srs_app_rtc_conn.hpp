@@ -415,8 +415,11 @@ public:
 };
 
 // A RTC Peer Connection, SDP level object.
-class SrsRtcConnection : virtual public ISrsHourGlass, virtual public ISrsResource
-    , virtual public ISrsDisposingHandler
+//
+// For performance, we use non-virtual public from resource,
+// see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
+class SrsRtcConnection : public ISrsResource
+    , virtual public ISrsHourGlass, virtual public ISrsDisposingHandler
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
