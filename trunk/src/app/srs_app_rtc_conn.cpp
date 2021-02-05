@@ -1211,12 +1211,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (audio_track) {
         pkt->frame_type = SrsFrameTypeAudio;
-        if ((err = audio_track->on_rtp(source, pkt)) != srs_success) {
+        if ((err = audio_track->on_rtp(source, pkt, nack_enabled_)) != srs_success) {
             return srs_error_wrap(err, "on audio");
         }
     } else if (video_track) {
         pkt->frame_type = SrsFrameTypeVideo;
-        if ((err = video_track->on_rtp(source, pkt)) != srs_success) {
+        if ((err = video_track->on_rtp(source, pkt, nack_enabled_)) != srs_success) {
             return srs_error_wrap(err, "on video");
         }
     } else {

@@ -1841,7 +1841,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     *ppayload = new SrsRtpRawPayload();
 }
 
-srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
+srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
 {
     srs_error_t err = srs_success;
 
@@ -1857,7 +1857,7 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     }
 
     // For NACK to handle packet.
-    if ((err = on_nack(pkt)) != srs_success) {
+    if (nack_enabled && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
 
@@ -1902,7 +1902,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     }
 }
 
-srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
+srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
 {
     srs_error_t err = srs_success;
 
@@ -1920,7 +1920,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     }
 
     // For NACK to handle packet.
-    if ((err = on_nack(pkt)) != srs_success) {
+    if (nack_enabled && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
 
