@@ -25,22 +25,81 @@
 
 #include <srs_kernel_utility.hpp>
 
-SrsKbpsSample::SrsKbpsSample()
+SrsRateSample::SrsRateSample()
 {
-    bytes = time = -1;
-    kbps = 0;
+    total = time = -1;
+    rate = 0;
 }
 
-SrsKbpsSample::~SrsKbpsSample()
+SrsRateSample::~SrsRateSample()
 {
 }
 
-SrsKbpsSample* SrsKbpsSample::update(int64_t b, srs_utime_t t, int k)
+SrsRateSample* SrsRateSample::update(int64_t nn, srs_utime_t t, int k)
 {
-    bytes = b;
+    total = nn;
     time = t;
-    kbps = k;
+    rate = k;
     return this;
+}
+
+SrsPps::SrsPps(SrsWallClock* c)
+{
+    clk_ = c;
+    sugar = 0;
+}
+
+SrsPps::~SrsPps()
+{
+}
+
+void SrsPps::update()
+{
+    update(sugar);
+}
+
+void SrsPps::update(int64_t nn)
+{
+    srs_utime_t now = clk_->now();
+
+    if (sample_30s_.time < 0) {
+        sample_30s_.update(nn, now, 0);
+    }
+    if (sample_1m_.time < 0) {
+        sample_1m_.update(nn, now, 0);
+    }
+    if (sample_5m_.time < 0) {
+        sample_5m_.update(nn, now, 0);
+    }
+    if (sample_60m_.time < 0) {
+        sample_60m_.update(nn, now, 0);
+    }
+
+    if (now - sample_10s_.time >= 10 * SRS_UTIME_SECONDS) {
+        int kps = (int)((nn - sample_10s_.total) * 1000 / srsu2ms(now - sample_10s_.time));
+        sample_10s_.update(nn, now, kps);
+    }
+    if (now - sample_30s_.time >= 30 * SRS_UTIME_SECONDS) {
+        int kps = (int)((nn - sample_30s_.total) * 1000 / srsu2ms(now - sample_30s_.time));
+        sample_30s_.update(nn, now, kps);
+    }
+    if (now - sample_1m_.time >= 60 * SRS_UTIME_SECONDS) {
+        int kps = (int)((nn - sample_1m_.total) * 1000 / srsu2ms(now - sample_1m_.time));
+        sample_1m_.update(nn, now, kps);
+    }
+    if (now - sample_5m_.time >= 300 * SRS_UTIME_SECONDS) {
+        int kps = (int)((nn - sample_5m_.total) * 1000 / srsu2ms(now - sample_5m_.time));
+        sample_5m_.update(nn, now, kps);
+    }
+    if (now - sample_60m_.time >= 3600 * SRS_UTIME_SECONDS) {
+        int kps = (int)((nn - sample_60m_.total) * 1000 / srsu2ms(now - sample_60m_.time));
+        sample_60m_.update(nn, now, kps);
+    }
+}
+
+int SrsPps::r10s()
+{
+    return sample_10s_.rate;
 }
 
 SrsKbpsSlice::SrsKbpsSlice(SrsWallClock* c)
@@ -78,19 +137,19 @@ void SrsKbpsSlice::sample()
     }
     
     if (now - sample_30s.time >= 30 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_30s.bytes) * 8 / srsu2ms(now - sample_30s.time));
+        int kbps = (int)((total_bytes - sample_30s.total) * 8 / srsu2ms(now - sample_30s.time));
         sample_30s.update(total_bytes, now, kbps);
     }
     if (now - sample_1m.time >= 60 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_1m.bytes) * 8 / srsu2ms(now - sample_1m.time));
+        int kbps = (int)((total_bytes - sample_1m.total) * 8 / srsu2ms(now - sample_1m.time));
         sample_1m.update(total_bytes, now, kbps);
     }
     if (now - sample_5m.time >= 300 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_5m.bytes) * 8 / srsu2ms(now - sample_5m.time));
+        int kbps = (int)((total_bytes - sample_5m.total) * 8 / srsu2ms(now - sample_5m.time));
         sample_5m.update(total_bytes, now, kbps);
     }
     if (now - sample_60m.time >= 3600 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_60m.bytes) * 8 / srsu2ms(now - sample_60m.time));
+        int kbps = (int)((total_bytes - sample_60m.total) * 8 / srsu2ms(now - sample_60m.time));
         sample_60m.update(total_bytes, now, kbps);
     }
 }
@@ -188,22 +247,22 @@ int SrsKbps::get_recv_kbps()
 
 int SrsKbps::get_send_kbps_30s()
 {
-    return os.sample_30s.kbps;
+    return os.sample_30s.rate;
 }
 
 int SrsKbps::get_recv_kbps_30s()
 {
-    return is.sample_30s.kbps;
+    return is.sample_30s.rate;
 }
 
 int SrsKbps::get_send_kbps_5m()
 {
-    return os.sample_5m.kbps;
+    return os.sample_5m.rate;
 }
 
 int SrsKbps::get_recv_kbps_5m()
 {
-    return is.sample_5m.kbps;
+    return is.sample_5m.rate;
 }
 
 void SrsKbps::add_delta(int64_t in, int64_t out)
@@ -296,4 +355,6 @@ int SrsKbps::size_memory()
 {
     return sizeof(SrsKbps);
 }
+
+SrsWallClock* _srs_clock = new SrsWallClock();
 

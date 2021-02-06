@@ -30,21 +30,46 @@
 
 class SrsWallClock;
 
-/**
- * a kbps sample, for example, the kbps at time,
- * 10minute kbps sample.
- */
-class SrsKbpsSample
+// A sample for rate-based stat, such as kbps or kps.
+class SrsRateSample
 {
 public:
-    int64_t bytes;
+    int64_t total;
     srs_utime_t time;
-    int kbps;
+    // kbps or kps
+    int rate;
 public:
-    SrsKbpsSample();
-    virtual ~SrsKbpsSample();
+    SrsRateSample();
+    virtual ~SrsRateSample();
 public:
-    virtual SrsKbpsSample* update(int64_t b, srs_utime_t t, int k);
+    virtual SrsRateSample* update(int64_t nn, srs_utime_t t, int k);
+};
+
+// A pps manager every some duration.
+class SrsPps
+{
+private:
+    SrsWallClock* clk_;
+private:
+    // samples
+    SrsRateSample sample_10s_;
+    SrsRateSample sample_30s_;
+    SrsRateSample sample_1m_;
+    SrsRateSample sample_5m_;
+    SrsRateSample sample_60m_;
+public:
+    // Sugar for target to stat.
+    int64_t sugar;
+public:
+    SrsPps(SrsWallClock* clk);
+    virtual ~SrsPps();
+public:
+    // Update with the nn which is target.
+    void update();
+    // Update with the nn.
+    void update(int64_t nn);
+    // Get the 10s average stat.
+    int r10s();
 };
 
 /**
@@ -82,10 +107,10 @@ public:
     // cache for io maybe freed.
     int64_t last_bytes;
     // samples
-    SrsKbpsSample sample_30s;
-    SrsKbpsSample sample_1m;
-    SrsKbpsSample sample_5m;
-    SrsKbpsSample sample_60m;
+    SrsRateSample sample_30s;
+    SrsRateSample sample_1m;
+    SrsRateSample sample_5m;
+    SrsRateSample sample_60m;
 public:
     // for the delta bytes.
     int64_t delta_bytes;
@@ -232,5 +257,8 @@ public:
 public:
     virtual int size_memory();
 };
+
+// The global clock.
+extern SrsWallClock* _srs_clock;
 
 #endif
