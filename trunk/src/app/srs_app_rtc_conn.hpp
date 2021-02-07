@@ -97,9 +97,12 @@ public:
     virtual srs_error_t on_dtls(char* data, int nb_data) = 0;
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr) = 0;
+    // Encrypt the packet(paintext) to cipher, which is aso the packet ptr.
+    // The nb_cipher should be initialized to the size of cipher, with some paddings.
+    virtual srs_error_t protect_rtp(void* packet, int* nb_cipher) = 0;
+    virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher) = 0;
+    // Decrypt the packet(cipher) to plaintext, which is also the packet ptr.
+    // The nb_plaintext should be initialized to the size of cipher.
     virtual srs_error_t unprotect_rtp(void* packet, int* nb_plaintext) = 0;
     virtual srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext) = 0;
 };
@@ -122,14 +125,10 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_dtls_alert(std::string type, std::string desc);
 public:
-    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_cipher is the size of input plaintext, and 
-    // it also is the length of output cipher when return.
-    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    // Encrypt the input rtp_hdr with *len_ptr bytes.
-    // @remark the input plaintext and out cipher reuse rtp_hdr.
-    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    // Encrypt the packet(paintext) to cipher, which is aso the packet ptr.
+    // The nb_cipher should be initialized to the size of cipher, with some paddings.
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
     // Decrypt the packet(cipher) to plaintext, which is also the packet ptr.
     // The nb_plaintext should be initialized to the size of cipher.
     srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
@@ -150,9 +149,8 @@ public:
     SrsSemiSecurityTransport(SrsRtcConnection* s);
     virtual ~SrsSemiSecurityTransport();
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
 };
 
 // Plaintext transport, without DTLS or SRTP.
@@ -172,9 +170,8 @@ public:
     virtual srs_error_t on_dtls_application_data(const char* data, const int len);
     virtual srs_error_t write_dtls_data(void* data, int size);
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
     srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
     srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };

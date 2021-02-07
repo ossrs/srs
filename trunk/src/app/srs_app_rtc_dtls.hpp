@@ -224,14 +224,8 @@ public:
     // Intialize srtp context with recv_key and send_key.
     srs_error_t initialize(std::string recv_key, std::string send_key);
 public:
-    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_cipher is the size of input plaintext, and 
-    // it also is the length of output cipher when return.
-    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    // Encrypt the input rtp_hdr with *len_ptr bytes.
-    // @remark the input plaintext and out cipher reuse rtp_hdr.
-    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
     srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
     srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
