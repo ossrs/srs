@@ -283,7 +283,6 @@ srs_error_t SrsPlaintextTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
 
 srs_error_t SrsPlaintextTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
 {
-    memcpy(plaintext, cipher, nb_plaintext);
     return srs_success;
 }
 
@@ -1148,8 +1147,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
-    char* unprotected_buf = new char[kRtpPacketSize];
-    if ((err = session_->transport_->unprotect_rtp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
+    if ((err = session_->transport_->unprotect_rtp(data, NULL, nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
@@ -1157,9 +1155,12 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         err = srs_error_wrap(err, "marker=%u, pt=%u, seq=%u, ts=%u, ssrc=%u, pad=%u, payload=%uB", h.get_marker(), h.get_payload_type(),
             h.get_sequence(), h.get_timestamp(), h.get_ssrc(), h.get_padding(), nb_data - b.pos());
 
-        srs_freepa(unprotected_buf);
         return err;
     }
+
+    srs_assert(nb_unprotected_buf > 0);
+    char* unprotected_buf = new char[nb_unprotected_buf];
+    memcpy(unprotected_buf, data, nb_unprotected_buf);
 
     if (_srs_blackhole->blackhole) {
         _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
@@ -1172,8 +1173,8 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
 
         int nb_header = h.nb_bytes();
-        const char* body = unprotected_buf + nb_header;
-        int nb_body = nb_unprotected_buf - nb_header;
+        const char* body = data + nb_header;
+        int nb_body = nb_data - nb_header;
         return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=[%s]", nb_data, nb_unprotected_buf,
             srs_string_dumps_hex(body, nb_body, 8).c_str());
     }

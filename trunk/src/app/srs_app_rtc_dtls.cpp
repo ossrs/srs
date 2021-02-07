@@ -1019,10 +1019,8 @@ srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "not ready");
     }
 
-    memcpy(plaintext, cipher, nb_plaintext);
-
     srtp_err_status_t r0 = srtp_err_status_ok;
-    if ((r0 = srtp_unprotect(recv_ctx_, plaintext, &nb_plaintext)) != srtp_err_status_ok) {
+    if ((r0 = srtp_unprotect(recv_ctx_, (void*)cipher, &nb_plaintext)) != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect r0=%u", r0);
     }
 
