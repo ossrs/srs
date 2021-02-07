@@ -45,6 +45,10 @@ using namespace std;
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 
+extern SrsPps* _srs_pps_pkts;
+extern SrsPps* _srs_pps_addrs;
+extern SrsPps* _srs_pps_fast_addrs;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -637,8 +641,15 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     // Resident Set Size: number of pages the process has in real memory.
     int memory = (int)(u->rss * 4 / 1024);
+
+    // Update the pps stat for UDP socket and adddresses.
+    _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB", nn_rtc_conns, u->percent * 100, memory);
+    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d",
+        nn_rtc_conns, u->percent * 100, memory,
+        _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()
+    );
 
     return err;
 }

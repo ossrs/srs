@@ -43,6 +43,12 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_pkts = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_addrs = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_fast_addrs = new SrsPps(_srs_clock);
+
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
@@ -332,6 +338,9 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     // We will regenerate the peer_ip, peer_port and peer_id.
     address_changed_ = true;
 
+    // Update the stat.
+    ++_srs_pps_pkts->sugar;
+
     return nread;
 }
 
@@ -429,6 +438,9 @@ std::string SrsUdpMuxSocket::peer_id()
         static char id_buf[128];
         int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
         peer_id_ = string(id_buf, len);
+
+        // Update the stat.
+        ++_srs_pps_addrs->sugar;
     }
 
     return peer_id_;
@@ -436,6 +448,7 @@ std::string SrsUdpMuxSocket::peer_id()
 
 uint64_t SrsUdpMuxSocket::fast_id()
 {
+    ++_srs_pps_fast_addrs->sugar;
     return fast_id_;
 }
 
