@@ -296,6 +296,7 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     peer_port = 0;
 
     fast_id_ = 0;
+    address_changed_ = false;
     cache_buffer_ = new SrsBuffer(buf, nb_buf);
 }
 
@@ -323,39 +324,13 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     }
 
     // Parse address from cache.
-    bool parsed = false;
     if (from.ss_family == AF_INET) {
         sockaddr_in* addr = (sockaddr_in*)&from;
-
-        // Load from fast cache, previous ip.
-        std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
-        if (it == cache_.end()) {
-            peer_ip = inet_ntoa(addr->sin_addr);
-            cache_[addr->sin_addr.s_addr] = peer_ip;
-        } else {
-            peer_ip = it->second;
-        }
-
-        peer_id_ = "";
-        peer_port = ntohs(addr->sin_port);
-        fast_id_ = uint64_t(peer_port)<<48 | uint64_t(addr->sin_addr.s_addr);
-        parsed = true;
+        fast_id_ = uint64_t(addr->sin_port)<<48 | uint64_t(addr->sin_addr.s_addr);
     }
 
-    if (!parsed && nread > 0) {
-        // TODO: FIXME: Maybe we should not covert to string for each packet.
-        char address_string[64];
-        char port_string[16];
-        if (getnameinfo((sockaddr*)&from, fromlen, 
-                       (char*)&address_string, sizeof(address_string),
-                       (char*)&port_string, sizeof(port_string),
-                       NI_NUMERICHOST|NI_NUMERICSERV)) {
-            return -1;
-        }
-
-        peer_ip = std::string(address_string);
-        peer_port = atoi(port_string);    
-    }
+    // We will regenerate the peer_ip, peer_port and peer_id.
+    address_changed_ = true;
 
     return nread;
 }
@@ -414,11 +389,48 @@ int SrsUdpMuxSocket::get_peer_port() const
 
 std::string SrsUdpMuxSocket::peer_id()
 {
-    if (peer_id_.empty()) {
+    if (address_changed_) {
+        address_changed_ = false;
+
+        // Parse address from cache.
+        bool parsed = false;
+        if (from.ss_family == AF_INET) {
+            sockaddr_in* addr = (sockaddr_in*)&from;
+
+            // Load from fast cache, previous ip.
+            std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
+            if (it == cache_.end()) {
+                peer_ip = inet_ntoa(addr->sin_addr);
+                cache_[addr->sin_addr.s_addr] = peer_ip;
+            } else {
+                peer_ip = it->second;
+            }
+
+            peer_port = ntohs(addr->sin_port);
+            parsed = true;
+        }
+
+        if (!parsed) {
+            // TODO: FIXME: Maybe we should not covert to string for each packet.
+            char address_string[64];
+            char port_string[16];
+            if (getnameinfo((sockaddr*)&from, fromlen,
+                           (char*)&address_string, sizeof(address_string),
+                           (char*)&port_string, sizeof(port_string),
+                           NI_NUMERICHOST|NI_NUMERICSERV)) {
+                return "";
+            }
+
+            peer_ip = std::string(address_string);
+            peer_port = atoi(port_string);
+        }
+
+        // Build the peer id.
         static char id_buf[128];
         int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
         peer_id_ = string(id_buf, len);
     }
+
     return peer_id_;
 }
 

@@ -153,6 +153,8 @@ private:
 private:
     // Cache for peer id.
     std::string peer_id_;
+    // If the address changed, we should generate the peer_id.
+    bool address_changed_;
     // For IPv4 client, we use 8 bytes int id to find it fastly.
     uint64_t fast_id_;
 public:
