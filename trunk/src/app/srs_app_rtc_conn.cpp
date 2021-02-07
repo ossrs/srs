@@ -186,14 +186,14 @@ srs_error_t SrsSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
     return srtp_->protect_rtp2(rtp_hdr, len_ptr);
 }
 
-srs_error_t SrsSecurityTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsSecurityTransport::unprotect_rtp(void* packet, int* nb_plaintext)
 {
-    return srtp_->unprotect_rtp(cipher, plaintext, nb_plaintext);
+    return srtp_->unprotect_rtp(packet, nb_plaintext);
 }
 
-srs_error_t SrsSecurityTransport::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsSecurityTransport::unprotect_rtcp(void* packet, int* nb_plaintext)
 {
-    return srtp_->unprotect_rtcp(cipher, plaintext, nb_plaintext);
+    return srtp_->unprotect_rtcp(packet, nb_plaintext);
 }
 
 SrsSemiSecurityTransport::SrsSemiSecurityTransport(SrsRtcConnection* s) : SrsSecurityTransport(s)
@@ -281,14 +281,13 @@ srs_error_t SrsPlaintextTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
     return srs_success;
 }
 
-srs_error_t SrsPlaintextTransport::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsPlaintextTransport::unprotect_rtp(void* packet, int* nb_plaintext)
 {
     return srs_success;
 }
 
-srs_error_t SrsPlaintextTransport::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsPlaintextTransport::unprotect_rtcp(void* packet, int* nb_plaintext)
 {
-    memcpy(plaintext, cipher, nb_plaintext);
     return srs_success;
 }
 
@@ -1147,7 +1146,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
-    if ((err = session_->transport_->unprotect_rtp(data, NULL, nb_unprotected_buf)) != srs_success) {
+    if ((err = session_->transport_->unprotect_rtp(data, &nb_unprotected_buf)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
@@ -1940,12 +1939,12 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    char unprotected_buf[kRtpPacketSize];
     int nb_unprotected_buf = nb_data;
-    if ((err = transport_->unprotect_rtcp(data, unprotected_buf, nb_unprotected_buf)) != srs_success) {
+    if ((err = transport_->unprotect_rtcp(data, &nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "rtcp unprotect");
     }
 
+    char* unprotected_buf = data;
     if (_srs_blackhole->blackhole) {
         _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
     }

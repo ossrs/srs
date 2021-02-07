@@ -100,8 +100,8 @@ public:
     virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
     virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
     virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr) = 0;
-    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
-    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+    virtual srs_error_t unprotect_rtp(void* packet, int* nb_plaintext) = 0;
+    virtual srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext) = 0;
 };
 
 // The security transport, use DTLS/SRTP to protect the data.
@@ -130,11 +130,10 @@ public:
     // Encrypt the input rtp_hdr with *len_ptr bytes.
     // @remark the input plaintext and out cipher reuse rtp_hdr.
     srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    // Decrypt the input cipher to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_plaintext is the size of input cipher, and 
-    // it also is the length of output plaintext when return.
-    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    // Decrypt the packet(cipher) to plaintext, which is also the packet ptr.
+    // The nb_plaintext should be initialized to the size of cipher.
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 // implement ISrsDtlsCallback
 public:
     virtual srs_error_t on_dtls_handshake_done();
@@ -176,8 +175,8 @@ public:
     virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
     virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
     virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 // The handler for PLI worker coroutine.

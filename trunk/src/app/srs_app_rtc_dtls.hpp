@@ -232,11 +232,8 @@ public:
     // Encrypt the input rtp_hdr with *len_ptr bytes.
     // @remark the input plaintext and out cipher reuse rtp_hdr.
     srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    // Decrypt the input cipher to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_plaintext is the size of input cipher, and 
-    // it also is the length of output plaintext when return.
-    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 #endif

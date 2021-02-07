@@ -1010,7 +1010,7 @@ srs_error_t SrsSRTP::protect_rtp2(void* rtp_hdr, int* len_ptr)
     return err;
 }
 
-srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsSRTP::unprotect_rtp(void* packet, int* nb_plaintext)
 {
     srs_error_t err = srs_success;
 
@@ -1020,14 +1020,14 @@ srs_error_t SrsSRTP::unprotect_rtp(const char* cipher, char* plaintext, int& nb_
     }
 
     srtp_err_status_t r0 = srtp_err_status_ok;
-    if ((r0 = srtp_unprotect(recv_ctx_, (void*)cipher, &nb_plaintext)) != srtp_err_status_ok) {
+    if ((r0 = srtp_unprotect(recv_ctx_, packet, nb_plaintext)) != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtp unprotect r0=%u", r0);
     }
 
     return err;
 }
 
-srs_error_t SrsSRTP::unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext)
+srs_error_t SrsSRTP::unprotect_rtcp(void* packet, int* nb_plaintext)
 {
     srs_error_t err = srs_success;
 
@@ -1036,10 +1036,8 @@ srs_error_t SrsSRTP::unprotect_rtcp(const char* cipher, char* plaintext, int& nb
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "not ready");
     }
 
-    memcpy(plaintext, cipher, nb_plaintext);
-
     srtp_err_status_t r0 = srtp_err_status_ok;
-    if ((r0 = srtp_unprotect_rtcp(recv_ctx_, plaintext, &nb_plaintext)) != srtp_err_status_ok) {
+    if ((r0 = srtp_unprotect_rtcp(recv_ctx_, packet, nb_plaintext)) != srtp_err_status_ok) {
         return srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "rtcp unprotect r0=%u", r0);
     }
 
