@@ -36,6 +36,11 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_fids = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_fids_level0 = new SrsPps(_srs_clock);
+
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
 }
@@ -190,9 +195,11 @@ ISrsResource* SrsResourceManager::find_by_fast_id(uint64_t id)
 {
     SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
     if (item->available && item->fast_id == id) {
+        ++_srs_pps_fids_level0->sugar;
         return item->impl;
     }
 
+    ++_srs_pps_fids->sugar;
     map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.find(id);
     return (it != conns_fast_id_.end())? it->second : NULL;
 }
