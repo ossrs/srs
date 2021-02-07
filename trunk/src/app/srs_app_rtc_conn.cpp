@@ -855,7 +855,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass(this, 10 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass(this, 20 * SRS_UTIME_MILLISECONDS);
 
     cid_ = cid;
     is_started = false;
@@ -966,7 +966,7 @@ srs_error_t SrsRtcPublishStream::start()
         return err;
     }
 
-    if ((err = timer_->tick(SRS_TICKID_TWCC, 50 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+    if ((err = timer_->tick(SRS_TICKID_TWCC, 40 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "twcc tick");
     }
 
