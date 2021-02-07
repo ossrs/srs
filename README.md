@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-02-07, RTC: Parse PT fast and refine udp handler. 4.0.69
 * v4.0, 2021-02-05, RTC: Refine UDP packet peer fast id. 4.0.68
 * v4.0, 2021-02-04, RTC: Reuse UDP socket to receive packet. 4.0.67
 * v4.0, 2021-02-04, At least wait 1ms when <1ms, to avoid epoll_wait spin loop. 4.0.66

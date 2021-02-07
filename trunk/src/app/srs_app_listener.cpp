@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_buffer.hpp>
 
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
@@ -295,17 +296,23 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     peer_port = 0;
 
     fast_id_ = 0;
+    cache_buffer_ = new SrsBuffer(buf, nb_buf);
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()
 {
     srs_freepa(buf);
+    srs_freep(cache_buffer_);
 }
 
 int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 {
     fromlen = sizeof(from);
     nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
+
+    // Reset the fast cache buffer size.
+    cache_buffer_->set_size(nread);
+    cache_buffer_->skip(-1 * cache_buffer_->pos());
 
     // Drop UDP health check packet of Aliyun SLB.
     //      Healthcheck udp check
@@ -418,6 +425,11 @@ std::string SrsUdpMuxSocket::peer_id()
 uint64_t SrsUdpMuxSocket::fast_id()
 {
     return fast_id_;
+}
+
+SrsBuffer* SrsUdpMuxSocket::buffer()
+{
+    return cache_buffer_;
 }
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()

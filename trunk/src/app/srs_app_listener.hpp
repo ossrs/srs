@@ -36,6 +36,7 @@
 
 struct sockaddr;
 
+class SrsBuffer;
 class SrsUdpMuxSocket;
 
 // The udp packet handler.
@@ -138,6 +139,7 @@ class SrsUdpMuxSocket
 {
 private:
     std::map<uint32_t, std::string> cache_;
+    SrsBuffer* cache_buffer_;
 private:
     char* buf;
     int nb_buf;
@@ -168,6 +170,7 @@ public:
     int get_peer_port() const;
     std::string peer_id();
     uint64_t fast_id();
+    SrsBuffer* buffer();
     SrsUdpMuxSocket* copy_sendonly();
 };
 
