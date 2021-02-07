@@ -33,22 +33,22 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
 
+/* @see https://tools.ietf.org/html/rfc1889#section-5.1
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                           timestamp                           |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |           synchronization source (SSRC) identifier            |
+ +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+ |            contributing source (CSRC) identifiers             |
+ |                             ....                              |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
 {
-    /* @see https://tools.ietf.org/html/rfc1889#section-5.1
-      0                   1                   2                   3
-      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     |V=2|P|X|  CC   |M|     PT      |       sequence number         |
-     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     |                           timestamp                           |
-     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     |           synchronization source (SSRC) identifier            |
-     +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-     |            contributing source (CSRC) identifiers             |
-     |                             ....                              |
-     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    */
     if (size < 12) {
         return 0;
     }
@@ -62,6 +62,13 @@ uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
     pp[1] = *p++;
     pp[0] = *p++;
     return value;
+}
+uint8_t srs_rtp_fast_parse_pt(char* buf, int size)
+{
+    if (size < 12) {
+        return 0;
+    }
+    return buf[1] & 0x7f;
 }
 
 // If value is newer than pre_value，return true; otherwise false

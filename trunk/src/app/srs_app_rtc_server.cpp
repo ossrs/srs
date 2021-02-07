@@ -302,6 +302,8 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     SrsRtcConnection* session = NULL;
     char* data = skt->data(); int size = skt->size();
+    bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t*)data, size);
+    bool is_rtcp = srs_is_rtcp((uint8_t*)data, size);
 
     uint64_t fast_id = skt->fast_id();
     // Try fast id first, if not found, search by long peer id.
@@ -322,7 +324,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     // Notify hijack to handle the UDP packet.
-    if (hijacker) {
+    if (hijacker && is_rtp_or_rtcp && is_rtcp) {
         bool consumed = false;
         if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
             return srs_error_wrap(err, "hijack consumed=%u", consumed);
@@ -334,7 +336,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     // For STUN, the peer address may change.
-    if (srs_is_stun((uint8_t*)data, size)) {
+    if (!is_rtp_or_rtcp && srs_is_stun((uint8_t*)data, size)) {
         string peer_id = skt->peer_id();
 
         SrsStunPacket ping;
@@ -368,13 +370,13 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s, fast=%" PRId64, peer_id.c_str(), fast_id);
     }
 
-    if (srs_is_dtls((uint8_t*)data, size)) {
-        return session->on_dtls(data, size);
-    } else if (srs_is_rtp_or_rtcp((uint8_t*)data, size)) {
-        if (srs_is_rtcp((uint8_t*)data, size)) {
+    if (is_rtp_or_rtcp) {
+        if (is_rtcp) {
             return session->on_rtcp(data, size);
         }
         return session->on_rtp(data, size);
+    } else if (srs_is_dtls((uint8_t*)data, size)) {
+        return session->on_dtls(data, size);
     }
 
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");

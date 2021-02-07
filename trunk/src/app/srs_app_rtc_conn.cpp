@@ -1122,8 +1122,16 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         return err;
     }
 
+    // If payload type is configed to drop, ignore this packet.
+    if (pt_to_drop_) {
+        uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
+        if (pt_to_drop_ == pt) {
+            return err;
+        }
+    }
+
     // Decode the header first.
-    if (pt_to_drop_ || twcc_id_) {
+    if (twcc_id_) {
         SrsRtpHeader h;
         SrsBuffer b(data, nb_data);
         h.ignore_padding(true); h.set_extensions(&extension_types_);
@@ -1135,20 +1143,13 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
         //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
         // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
-        if (twcc_id_) {
-            uint16_t twcc_sn = 0;
-            if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
-                if((err = on_twcc(twcc_sn)) != srs_success) {
-                    return srs_error_wrap(err, "on twcc");
-                }
-            } else {
-                srs_error_reset(err);
+        uint16_t twcc_sn = 0;
+        if ((err = h.get_twcc_sequence_number(twcc_sn)) == srs_success) {
+            if((err = on_twcc(twcc_sn)) != srs_success) {
+                return srs_error_wrap(err, "on twcc");
             }
-        }
-
-        // If payload type is configed to drop, ignore this packet.
-        if (pt_to_drop_ && pt_to_drop_ == h.get_payload_type()) {
-            return err;
+        } else {
+            srs_error_reset(err);
         }
     }
 
