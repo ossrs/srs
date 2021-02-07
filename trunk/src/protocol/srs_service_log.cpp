@@ -33,6 +33,11 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_cids_get = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_cids_set = new SrsPps(_srs_clock);
+
 #define SRS_BASIC_LOG_SIZE 8192
 
 SrsThreadContext::SrsThreadContext()
@@ -59,6 +64,8 @@ void _srs_context_destructor(void* arg)
 
 const SrsContextId& SrsThreadContext::get_id()
 {
+    ++_srs_pps_cids_get->sugar;
+
     if (!srs_thread_self()) {
         return _srs_context_default;
     }
@@ -73,6 +80,8 @@ const SrsContextId& SrsThreadContext::get_id()
 
 const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
 {
+    ++_srs_pps_cids_set->sugar;
+
     if (!srs_thread_self()) {
         _srs_context_default = v;
         return v;

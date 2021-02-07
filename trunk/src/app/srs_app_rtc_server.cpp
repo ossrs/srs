@@ -53,6 +53,9 @@ extern SrsPps* _srs_pps_ids;
 extern SrsPps* _srs_pps_fids;
 extern SrsPps* _srs_pps_fids_level0;
 
+extern SrsPps* _srs_pps_cids_get;
+extern SrsPps* _srs_pps_cids_set;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -649,12 +652,14 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     // Update the pps stat for UDP socket and adddresses.
     _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update();
+    _srs_pps_cids_get->update(); _srs_pps_cids_set->update();
 
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d, fid=%d,%d,%d",
+    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, cid=%d,%d",
         nn_rtc_conns, u->percent * 100, memory,
         _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
-        _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s()
+        _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(),
+        _srs_pps_cids_get->r10s(), _srs_pps_cids_set->r10s()
     );
 
     return err;
