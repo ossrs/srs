@@ -38,6 +38,7 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
+SrsPps* _srs_pps_ids = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fids = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fids_level0 = new SrsPps(_srs_clock);
 
@@ -187,6 +188,7 @@ ISrsResource* SrsResourceManager::at(int index)
 
 ISrsResource* SrsResourceManager::find_by_id(std::string id)
 {
+    ++_srs_pps_ids->sugar;
     map<string, ISrsResource*>::iterator it = conns_id_.find(id);
     return (it != conns_id_.end())? it->second : NULL;
 }
@@ -206,6 +208,7 @@ ISrsResource* SrsResourceManager::find_by_fast_id(uint64_t id)
 
 ISrsResource* SrsResourceManager::find_by_name(std::string name)
 {
+    ++_srs_pps_ids->sugar;
     map<string, ISrsResource*>::iterator it = conns_name_.find(name);
     return (it != conns_name_.end())? it->second : NULL;
 }
