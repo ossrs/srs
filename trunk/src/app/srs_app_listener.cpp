@@ -474,6 +474,7 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
     // Copy the fast id.
     sendonly->peer_id_ = peer_id_;
     sendonly->fast_id_ = fast_id_;
+    sendonly->address_changed_ = address_changed_;
 
     return sendonly;
 }
