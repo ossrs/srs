@@ -170,20 +170,14 @@ srs_error_t SrsSecurityTransport::srtp_initialize()
     return err;
 }
 
-srs_error_t SrsSecurityTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
+srs_error_t SrsSecurityTransport::protect_rtp(void* packet, int* nb_cipher)
 {
-    return srtp_->protect_rtp(plaintext, cipher, nb_cipher);
+    return srtp_->protect_rtp(packet, nb_cipher);
 }
 
-srs_error_t SrsSecurityTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
+srs_error_t SrsSecurityTransport::protect_rtcp(void* packet, int* nb_cipher)
 {
-    return srtp_->protect_rtcp(plaintext, cipher, nb_cipher);
-}
-
-// TODO: FIXME: Merge with protect_rtp.
-srs_error_t SrsSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
-{
-    return srtp_->protect_rtp2(rtp_hdr, len_ptr);
+    return srtp_->protect_rtcp(packet, nb_cipher);
 }
 
 srs_error_t SrsSecurityTransport::unprotect_rtp(void* packet, int* nb_plaintext)
@@ -204,17 +198,12 @@ SrsSemiSecurityTransport::~SrsSemiSecurityTransport()
 {
 }
 
-srs_error_t SrsSemiSecurityTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
+srs_error_t SrsSemiSecurityTransport::protect_rtp(void* packet, int* nb_cipher)
 {
     return srs_success;
 }
 
-srs_error_t SrsSemiSecurityTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
-{
-    return srs_success;
-}
-
-srs_error_t SrsSemiSecurityTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
+srs_error_t SrsSemiSecurityTransport::protect_rtcp(void* packet, int* nb_cipher)
 {
     return srs_success;
 }
@@ -264,19 +253,12 @@ srs_error_t SrsPlaintextTransport::write_dtls_data(void* data, int size)
     return srs_success;
 }
 
-srs_error_t SrsPlaintextTransport::protect_rtp(const char* plaintext, char* cipher, int& nb_cipher)
+srs_error_t SrsPlaintextTransport::protect_rtp(void* packet, int* nb_cipher)
 {
-    memcpy(cipher, plaintext, nb_cipher);
     return srs_success;
 }
 
-srs_error_t SrsPlaintextTransport::protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher)
-{
-    memcpy(cipher, plaintext, nb_cipher);
-    return srs_success;
-}
-
-srs_error_t SrsPlaintextTransport::protect_rtp2(void* rtp_hdr, int* len_ptr)
+srs_error_t SrsPlaintextTransport::protect_rtcp(void* packet, int* nb_cipher)
 {
     return srs_success;
 }
@@ -1308,12 +1290,11 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
     }
 
     int nb_protected_buf = buffer->pos();
-    char protected_buf[kRtpPacketSize];
-    if ((err = session_->transport_->protect_rtcp(pkt, protected_buf, nb_protected_buf)) != srs_success) {
+    if ((err = session_->transport_->protect_rtcp(pkt, &nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp, size=%u", nb_protected_buf);
     }
 
-    return session_->sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+    return session_->sendonly_skt->sendto(pkt, nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
@@ -2274,12 +2255,11 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
     srs_error_t err = srs_success;
 
     int  nb_buf = nb_data;
-    char protected_buf[kRtpPacketSize];
-    if ((err = transport_->protect_rtcp(data, protected_buf, nb_buf)) != srs_success) {
+    if ((err = transport_->protect_rtcp(data, &nb_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp");
     }
 
-    if ((err = sendonly_skt->sendto(protected_buf, nb_buf, 0)) != srs_success) {
+    if ((err = sendonly_skt->sendto(data, nb_buf, 0)) != srs_success) {
         return srs_error_wrap(err, "send");
     }
 
@@ -2305,12 +2285,11 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.encode(&stream);
 
     // TODO: FIXME: Check error.
-    char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf);
+    transport_->protect_rtcp(stream.data(), &nb_protected_buf);
 
     // TODO: FIXME: Check error.
-    sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+    sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
@@ -2350,13 +2329,12 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
-    char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
+    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp rr");
     }
 
-    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
@@ -2403,13 +2381,12 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     stream.write_4bytes(cur_ntp.ntp_second_);
     stream.write_4bytes(cur_ntp.ntp_fractions_);
 
-    char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
+    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp xr");
     }
 
-    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
@@ -2434,13 +2411,12 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
         _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
-    char protected_buf[kRtpPacketSize];
     int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), protected_buf, nb_protected_buf)) != srs_success) {
+    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp psfb pli");
     }
 
-    return sendonly_skt->sendto(protected_buf, nb_protected_buf, 0);
+    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)
@@ -2491,7 +2467,7 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
         // Cipher RTP to SRTP packet.
         if (true) {
             int nn_encrypt = (int)iov->iov_len;
-            if ((err = transport_->protect_rtp2(iov->iov_base, &nn_encrypt)) != srs_success) {
+            if ((err = transport_->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
                 return srs_error_wrap(err, "srtp protect");
             }
             iov->iov_len = (size_t)nn_encrypt;
