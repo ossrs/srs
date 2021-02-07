@@ -52,6 +52,9 @@ SrsResourceManager::SrsResourceManager(const std::string& label, bool verbose)
     trd = NULL;
     p_disposing_ = NULL;
     removing_ = false;
+
+    nn_level0_cache_ = 100000;
+    conns_level0_cache_ = new SrsResourceFastIdItem[nn_level0_cache_];
 }
 
 SrsResourceManager::~SrsResourceManager()
@@ -65,6 +68,8 @@ SrsResourceManager::~SrsResourceManager()
     }
 
     clear();
+
+    srs_freepa(conns_level0_cache_);
 }
 
 srs_error_t SrsResourceManager::start()
@@ -114,10 +119,14 @@ srs_error_t SrsResourceManager::cycle()
     return err;
 }
 
-void SrsResourceManager::add(ISrsResource* conn)
+void SrsResourceManager::add(ISrsResource* conn, bool* exists)
 {
     if (std::find(conns_.begin(), conns_.end(), conn) == conns_.end()) {
         conns_.push_back(conn);
+    } else {
+        if (exists) {
+            *exists = false;
+        }
     }
 }
 
@@ -129,8 +138,35 @@ void SrsResourceManager::add_with_id(const std::string& id, ISrsResource* conn)
 
 void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource* conn)
 {
-    add(conn);
+    bool exists = false;
+    add(conn, &exists);
     conns_fast_id_[id] = conn;
+
+    if (exists) {
+        return;
+    }
+
+    // For new resource, build the level-0 cache for fast-id.
+    SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+
+    // Ignore if exits item.
+    if (item->fast_id && item->fast_id == id) {
+        return;
+    }
+
+    // Fresh one, create the item.
+    if (!item->fast_id) {
+        item->fast_id = id;
+        item->impl = conn;
+        item->nn_collisions = 1;
+        item->available = true;
+    }
+
+    // Collision, increase the collisions.
+    if (item->fast_id != id) {
+        item->nn_collisions++;
+        item->available = false;
+    }
 }
 
 void SrsResourceManager::add_with_name(const std::string& name, ISrsResource* conn)
@@ -152,6 +188,11 @@ ISrsResource* SrsResourceManager::find_by_id(std::string id)
 
 ISrsResource* SrsResourceManager::find_by_fast_id(uint64_t id)
 {
+    SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+    if (item->available && item->fast_id == id) {
+        return item->impl;
+    }
+
     map<uint64_t, ISrsResource*>::iterator it = conns_fast_id_.find(id);
     return (it != conns_fast_id_.end())? it->second : NULL;
 }
@@ -332,6 +373,15 @@ void SrsResourceManager::dispose(ISrsResource* c)
         if (c != it->second) {
             ++it;
         } else {
+            // Update the level-0 cache for fast-id.
+            uint64_t id = it->first;
+            SrsResourceFastIdItem* item = &conns_level0_cache_[(id | id>>32) % nn_level0_cache_];
+            item->nn_collisions--;
+            if (!item->nn_collisions) {
+                item->fast_id = 0;
+                item->available = false;
+            }
+
             // Use C++98 style: https://stackoverflow.com/a/4636230
             conns_fast_id_.erase(it++);
         }

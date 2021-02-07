@@ -52,6 +52,27 @@ public:
     virtual void on_disposing(ISrsResource* c) = 0;
 };
 
+// The item to identify the fast id object.
+class SrsResourceFastIdItem
+{
+public:
+    // If available, use the resource in item.
+    bool available;
+    // How many resource have the same fast-id, which contribute a collision.
+    int nn_collisions;
+    // The first fast-id of resources.
+    uint64_t fast_id;
+    // The first resource object.
+    ISrsResource* impl;
+public:
+    SrsResourceFastIdItem() {
+        available = false;
+        nn_collisions = 0;
+        fast_id = 0;
+        impl = NULL;
+    }
+};
+
 // The resource manager remove resource and delete it asynchronously.
 class SrsResourceManager : virtual public ISrsCoroutineHandler, virtual public ISrsResourceManager
 {
@@ -78,6 +99,9 @@ private:
     std::map<std::string, ISrsResource*> conns_id_;
     // The connections with resource fast(int) id.
     std::map<uint64_t, ISrsResource*> conns_fast_id_;
+    // The level-0 fast cache for fast id.
+    int nn_level0_cache_;
+    SrsResourceFastIdItem* conns_level0_cache_;
     // The connections with resource name.
     std::map<std::string, ISrsResource*> conns_name_;
 public:
@@ -91,7 +115,7 @@ public:
 public:
     virtual srs_error_t cycle();
 public:
-    void add(ISrsResource* conn);
+    void add(ISrsResource* conn, bool* exists = NULL);
     void add_with_id(const std::string& id, ISrsResource* conn);
     void add_with_fast_id(uint64_t id, ISrsResource* conn);
     void add_with_name(const std::string& name, ISrsResource* conn);
