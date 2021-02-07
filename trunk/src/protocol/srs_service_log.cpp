@@ -87,7 +87,8 @@ const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
         return v;
     }
 
-    SrsContextId* cid = v.copy();
+    SrsContextId* cid = new SrsContextId();
+    *cid = v;
 
     if (_srs_context_key < 0) {
         int r0 = srs_key_create(&_srs_context_key, _srs_context_destructor);
