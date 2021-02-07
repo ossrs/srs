@@ -57,10 +57,12 @@ class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
+class SrsRtpExtensionTypes;
 
 // Fast parse the SSRC from RTP packet. Return 0 if invalid.
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, SrsRtpExtensionTypes* types, uint16_t& twcc_sn);
 
 // The "distance" between two uint16 number, for example:
 //      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
