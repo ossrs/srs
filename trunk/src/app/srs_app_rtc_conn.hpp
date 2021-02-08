@@ -319,6 +319,7 @@ private:
     uint16_t pt_to_drop_;
     // Whether enabled nack.
     bool nack_enabled_;
+    bool twcc_enabled_;
 private:
     bool request_keyframe_;
     SrsErrorPithyPrint* pli_epp;
