@@ -65,6 +65,9 @@ SrsPps* _srs_pps_twcc = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_rr = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_pub = new SrsPps(_srs_clock);
 
+extern SrsPps* _srs_pps_snack;
+extern SrsPps* _srs_pps_snack2;
+
 #define SRS_TICKID_RTCP 0
 #define SRS_TICKID_TWCC 2
 
@@ -2281,6 +2284,8 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks, uint32_t& timeout_nacks)
 {
+    ++_srs_pps_snack->sugar;
+
     SrsRtcpNack rtcpNack(ssrc);
 
     rtcpNack.set_media_ssrc(ssrc);
@@ -2290,6 +2295,8 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     if(!sent_nacks){
         return;
     }
+
+    ++_srs_pps_snack2->sugar;
 
     char buf[kRtcpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
