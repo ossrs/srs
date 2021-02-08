@@ -316,6 +316,9 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 {
     fromlen = sizeof(from);
     nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
+    if (nread <= 0) {
+        return nread;
+    }
 
     // Reset the fast cache buffer size.
     cache_buffer_->set_size(nread);
