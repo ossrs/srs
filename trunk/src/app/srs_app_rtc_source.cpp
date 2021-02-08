@@ -48,6 +48,14 @@
 #include <srs_app_rtc_codec.hpp>
 #endif
 
+#include <srs_protocol_kbps.hpp>
+
+// The NACK sent by us(SFU).
+SrsPps* _srs_pps_snack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_snack2 = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sanack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_svnack = new SrsPps(_srs_clock);
+
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 const int kAudioChannel         = 2;
@@ -1868,6 +1876,8 @@ srs_error_t SrsRtcAudioRecvTrack::check_send_nacks()
 {
     srs_error_t err = srs_success;
 
+    ++_srs_pps_sanack->sugar;
+
     uint32_t timeout_nacks = 0;
     if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
         return srs_error_wrap(err, "audio");
@@ -1930,6 +1940,8 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_svnack->sugar;
 
     uint32_t timeout_nacks = 0;
     if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
