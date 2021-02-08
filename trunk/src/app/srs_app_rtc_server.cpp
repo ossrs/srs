@@ -56,6 +56,10 @@ extern SrsPps* _srs_pps_fids_level0;
 extern SrsPps* _srs_pps_cids_get;
 extern SrsPps* _srs_pps_cids_set;
 
+extern SrsPps* _srs_pps_pli;
+extern SrsPps* _srs_pps_timer;
+extern SrsPps* _srs_pps_dispose;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -228,7 +232,7 @@ SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
     hijacker = NULL;
-    timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
+    timer = new SrsHourGlass("server", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcServer::~SrsRtcServer()
@@ -653,13 +657,15 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update();
     _srs_pps_cids_get->update(); _srs_pps_cids_set->update();
+    _srs_pps_pli->update(); _srs_pps_timer->update(); _srs_pps_dispose->update();
 
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, cid=%d,%d",
+    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, cid=%d,%d, pli=%d, timer=%d, dispose=%d",
         nn_rtc_conns, u->percent * 100, memory,
         _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
         _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(),
-        _srs_pps_cids_get->r10s(), _srs_pps_cids_set->r10s()
+        _srs_pps_cids_get->r10s(), _srs_pps_cids_set->r10s(),
+        _srs_pps_pli->r10s(), _srs_pps_timer->r10s(), _srs_pps_dispose->r10s()
     );
 
     return err;

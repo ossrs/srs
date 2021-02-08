@@ -58,6 +58,10 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_pli = new SrsPps(_srs_clock);
+
 #define SRS_TICKID_RTCP 0
 #define SRS_TICKID_TWCC 2
 
@@ -331,6 +335,8 @@ srs_error_t SrsRtcPLIWorker::cycle()
                 uint32_t ssrc = it->first;
                 SrsContextId cid = it->second;
 
+                ++_srs_pps_pli->sugar;
+
                 if ((err = handler_->do_request_keyframe(ssrc, cid)) != srs_success) {
                     srs_warn("PLI error, %s", srs_error_desc(err).c_str());
                     srs_error_reset(err);
@@ -373,7 +379,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     nack_enabled_ = false;
 
     _srs_config->subscribe(this);
-    timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass("play", this, 1000 * SRS_UTIME_MILLISECONDS);
     nack_epp = new SrsErrorPithyPrint();
     pli_worker_ = new SrsRtcPLIWorker(this);
 }
@@ -855,7 +861,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass(this, 20 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass("publish", this, 20 * SRS_UTIME_MILLISECONDS);
 
     cid_ = cid;
     is_started = false;
@@ -1268,7 +1274,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         uint32_t nn = 0;
         srs_utime_t duration = srs_duration(last_time_send_twcc_, srs_get_system_time());
         if (duration > 80 * SRS_UTIME_MILLISECONDS && twcc_epp_->can_print(0, &nn)) {
-            srs_warn2(TAG_LARGE_TIMER, "send_twcc interval exceeded %dms > 100ms, count=%u/%u",
+            srs_warn2(TAG_LARGE_TIMER, "send_twcc interval exceeded %dms > 80ms, count=%u/%u",
                 srsu2msi(duration), nn, twcc_epp_->nn_count);
         }
     }
@@ -1569,7 +1575,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     req = NULL;
     cid_ = cid;
     stat_ = new SrsRtcConnectionStatistic();
-    timer_ = new SrsHourGlass(this, 1000 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass("conn", this, 1000 * SRS_UTIME_MILLISECONDS);
     hijacker_ = NULL;
 
     sendonly_skt = NULL;
