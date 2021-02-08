@@ -68,6 +68,9 @@ SrsPps* _srs_pps_pub = new SrsPps(_srs_clock);
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
 
+extern SrsPps* _srs_pps_rnack;
+extern SrsPps* _srs_pps_rnack2;
+
 #define SRS_TICKID_RTCP 0
 #define SRS_TICKID_TWCC 2
 
@@ -755,6 +758,8 @@ srs_error_t SrsRtcPlayStream::on_rtcp_xr(SrsRtcpXr* rtcp)
 srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_rnack->sugar;
 
     uint32_t ssrc = rtcp->get_media_ssrc();
 

@@ -56,6 +56,9 @@ SrsPps* _srs_pps_snack2 = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sanack = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_svnack = new SrsPps(_srs_clock);
 
+SrsPps* _srs_pps_rnack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rnack2 = new SrsPps(_srs_clock);
+
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 const int kAudioChannel         = 2;
@@ -2031,6 +2034,8 @@ std::string SrsRtcSendTrack::get_track_id()
 srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_rnack2->sugar;
 
     SrsRtcTrackStatistic* statistic = statistic_;
 
