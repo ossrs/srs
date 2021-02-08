@@ -72,7 +72,8 @@ extern SrsPps* _srs_pps_rnack;
 extern SrsPps* _srs_pps_rnack2;
 
 #define SRS_TICKID_RTCP 0
-#define SRS_TICKID_TWCC 2
+#define SRS_TICKID_TWCC 1
+#define SRS_TICKID_SEND_NACKS 2
 
 ISrsRtcTransport::ISrsRtcTransport()
 {
@@ -1221,13 +1222,6 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
     }
 
-    // Check then send NACK every each RTP packet, to make it more efficient.
-    // For example, NACK of video track maybe triggered by audio RTP packets.
-    if (nack_enabled_ && (err = check_send_nacks()) != srs_success) {
-        srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-    }
-
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt)) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
@@ -1595,7 +1589,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     req = NULL;
     cid_ = cid;
     stat_ = new SrsRtcConnectionStatistic();
-    timer_ = new SrsHourGlass("conn", this, 1000 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass("conn", this, 20 * SRS_UTIME_MILLISECONDS);
     hijacker_ = NULL;
 
     sendonly_skt = NULL;
@@ -1897,6 +1891,10 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     SrsSessionConfig* cfg = &local_sdp.session_config_;
     if ((err = transport_->initialize(cfg)) != srs_success) {
         return srs_error_wrap(err, "init");
+    }
+
+    if ((err = timer_->tick(SRS_TICKID_SEND_NACKS, 20 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick nack");
     }
 
     if ((err = timer_->start()) != srs_success) {
@@ -2273,6 +2271,20 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
+
+    // For publisher to send NACK.
+    if (type == SRS_TICKID_SEND_NACKS) {
+        std::map<std::string, SrsRtcPublishStream*>::iterator it;
+        for (it = publishers_.begin(); it != publishers_.end(); it++) {
+            SrsRtcPublishStream* publisher = it->second;
+
+            if ((err = publisher->check_send_nacks()) != srs_success) {
+                srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+        }
+    }
+
     return err;
 }
 
