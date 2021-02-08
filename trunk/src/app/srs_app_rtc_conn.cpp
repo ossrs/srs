@@ -949,9 +949,9 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
     pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req->vhost);
-    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
+    twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req->vhost);
 
-    srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled, twcc_id);
+    srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled_, twcc_id);
 
     session_->stat_->nn_publishers++;
 
@@ -1231,6 +1231,10 @@ srs_error_t SrsRtcPublishStream::check_send_nacks()
 {
     srs_error_t err = srs_success;
 
+    if (!nack_enabled_) {
+        return err;
+    }
+
     for (int i = 0; i < (int)video_tracks_.size(); ++i) {
         SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
         if ((err = track->check_send_nacks()) != srs_success) {
@@ -1441,7 +1445,7 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
         }
     }
 
-    if (type == SRS_TICKID_TWCC) {
+    if (twcc_enabled_ && type == SRS_TICKID_TWCC) {
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
         if ((err = send_periodic_twcc()) != srs_success) {

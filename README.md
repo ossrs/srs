@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-02-08, RTC: Print stat for pli and timer every 5s. 4.0.70
 * v4.0, 2021-02-07, RTC: Parse PT fast and refine udp handler. 4.0.69
 * v4.0, 2021-02-05, RTC: Refine UDP packet peer fast id. 4.0.68
 * v4.0, 2021-02-04, RTC: Reuse UDP socket to receive packet. 4.0.67
