@@ -331,9 +331,6 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     if (session) {
-        // Switch to the session to write logs to the context.
-        session->switch_to_context();
-
         // When got any packet, the session is alive now.
         session->alive();
     }
@@ -341,6 +338,9 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     // Notify hijack to handle the UDP packet.
     if (hijacker && is_rtp_or_rtcp && is_rtcp) {
         bool consumed = false;
+        if (session) {
+            session->switch_to_context();
+        }
         if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
             return srs_error_wrap(err, "hijack consumed=%u", consumed);
         }
@@ -358,17 +358,15 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
         }
-        srs_info("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
-
         if (!session) {
             session = find_session_by_username(ping.get_username());
-
-            // Switch to the session to write logs to the context.
-            if (session) {
-                session->switch_to_context();
-            }
         }
+        if (session) {
+            session->switch_to_context();
+        }
+
+        srs_info("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
+            peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
@@ -385,15 +383,22 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s, fast=%" PRId64, peer_id.c_str(), fast_id);
     }
 
-    if (is_rtp_or_rtcp) {
-        if (is_rtcp) {
-            return session->on_rtcp(data, size);
+    // Note that we don't(except error) switch to the context of session, for performance issue.
+    if (is_rtp_or_rtcp && !is_rtcp) {
+        err = session->on_rtp(data, size);
+        if (err != srs_success) {
+            session->switch_to_context();
         }
-        return session->on_rtp(data, size);
-    } else if (srs_is_dtls((uint8_t*)data, size)) {
-        return session->on_dtls(data, size);
+        return err;
     }
 
+    session->switch_to_context();
+    if (is_rtp_or_rtcp && is_rtcp) {
+        return session->on_rtcp(data, size);
+    }
+    if (srs_is_dtls((uint8_t*)data, size)) {
+        return session->on_dtls(data, size);
+    }
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
