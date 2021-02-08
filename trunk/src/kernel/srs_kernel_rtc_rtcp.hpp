@@ -345,6 +345,7 @@ public:
 
     uint32_t get_media_ssrc() const;
     std::vector<uint16_t> get_lost_sns() const;
+    bool empty();
 
     void set_media_ssrc(uint32_t ssrc);
     void add_lost_sn(uint16_t sn);
