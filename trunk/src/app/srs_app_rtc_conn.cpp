@@ -2295,8 +2295,7 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.set_media_ssrc(ssrc);
     nack->get_nack_seqs(rtcpNack, timeout_nacks);
 
-    sent_nacks = rtcpNack.get_lost_sns().size();
-    if(!sent_nacks){
+    if(rtcpNack.empty()){
         return;
     }
 

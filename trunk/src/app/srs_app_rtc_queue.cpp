@@ -190,7 +190,7 @@ SrsNackOption::SrsNackOption()
     max_nack_interval = 500 * SRS_UTIME_MILLISECONDS;
     min_nack_interval = 20 * SRS_UTIME_MILLISECONDS;
 
-    nack_check_interval = 3 * SRS_UTIME_MILLISECONDS;
+    nack_check_interval = 20 * SRS_UTIME_MILLISECONDS;
 
     //TODO: FIXME: audio and video using diff nack strategy
     // video:
@@ -259,8 +259,7 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
 {
-    // TODO: FIXME: Use packet as tick count, not clock.
-    srs_utime_t now = srs_update_system_time();
+    srs_utime_t now = srs_get_system_time();
 
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_check_interval) {

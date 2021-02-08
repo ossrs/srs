@@ -1212,6 +1212,11 @@ vector<uint16_t> SrsRtcpNack::get_lost_sns() const
     return sn;
 }
 
+bool SrsRtcpNack::empty()
+{
+    return lost_sns_.empty();
+}
+
 void SrsRtcpNack::set_media_ssrc(uint32_t ssrc)
 {
     media_ssrc_ = ssrc;
