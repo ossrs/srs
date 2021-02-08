@@ -64,6 +64,7 @@ SrsPps* _srs_pps_pli = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_twcc = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_rr = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_pub = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_conn = new SrsPps(_srs_clock);
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
@@ -2272,8 +2273,12 @@ srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t
 {
     srs_error_t err = srs_success;
 
+    ++_srs_pps_conn->sugar;
+
     // For publisher to send NACK.
     if (type == SRS_TICKID_SEND_NACKS) {
+        srs_update_system_time();
+        
         std::map<std::string, SrsRtcPublishStream*>::iterator it;
         for (it = publishers_.begin(); it != publishers_.end(); it++) {
             SrsRtcPublishStream* publisher = it->second;
