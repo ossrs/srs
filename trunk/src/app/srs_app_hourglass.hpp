@@ -59,7 +59,7 @@ public:
 // It's a complex and high-performance timer.
 //
 // Usage:
-//      SrsHourGlass* hg = new SrsHourGlass(handler, 100 * SRS_UTIME_MILLISECONDS);
+//      SrsHourGlass* hg = new SrsHourGlass("nack", handler, 100 * SRS_UTIME_MILLISECONDS);
 //
 //      hg->tick(1, 300 * SRS_UTIME_MILLISECONDS);
 //      hg->tick(2, 500 * SRS_UTIME_MILLISECONDS);
