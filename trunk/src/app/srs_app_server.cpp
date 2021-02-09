@@ -56,47 +56,6 @@ using namespace std;
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
 
-// system interval in srs_utime_t,
-// all resolution times should be times togother,
-// for example, system-interval is x=1s(1000ms),
-// then rusage can be 3*x, for instance, 3*1=3s,
-// the meminfo canbe 6*x, for instance, 6*1=6s,
-// for performance refine, @see: https://github.com/ossrs/srs/issues/194
-// @remark, recomment to 1000ms.
-#define SRS_SYS_CYCLE_INTERVAL (1000 * SRS_UTIME_MILLISECONDS)
-
-// update time interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
-#define SRS_SYS_TIME_RESOLUTION_MS_TIMES 1
-
-// update rusage interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_RUSAGE_RESOLUTION_TIMES
-#define SRS_SYS_RUSAGE_RESOLUTION_TIMES 3
-
-// update network devices info interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES
-#define SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES 3
-
-// update rusage interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_CPU_STAT_RESOLUTION_TIMES
-#define SRS_SYS_CPU_STAT_RESOLUTION_TIMES 3
-
-// update the disk iops interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_DISK_STAT_RESOLUTION_TIMES
-#define SRS_SYS_DISK_STAT_RESOLUTION_TIMES 6
-
-// update rusage interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_MEMINFO_RESOLUTION_TIMES
-#define SRS_SYS_MEMINFO_RESOLUTION_TIMES 6
-
-// update platform info interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES
-#define SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES 9
-
-// update network devices info interval:
-//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES
-#define SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES 9
-
 std::string srs_listener_type2string(SrsListenerType type)
 {
     switch (type) {
@@ -729,6 +688,7 @@ SrsServer::SrsServer()
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
     trd_ = new SrsSTCoroutine("srs", this, _srs_context->get_id());
+    timer_ = NULL;
 }
 
 SrsServer::~SrsServer()
@@ -741,6 +701,7 @@ void SrsServer::destroy()
     srs_warn("start destroy server");
 
     srs_freep(trd_);
+    srs_freep(timer_);
 
     dispose();
     
@@ -1108,8 +1069,16 @@ srs_error_t SrsServer::start()
 {
     srs_error_t err = srs_success;
 
+    if ((err = _srs_sources->initialize()) != srs_success) {
+        return srs_error_wrap(err, "sources");
+    }
+
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start");
+    }
+
+    if ((err = setup_ticks()) != srs_success) {
+        return srs_error_wrap(err, "tick");
     }
 
     return err;
@@ -1164,7 +1133,6 @@ srs_error_t SrsServer::cycle()
 
     return err;
 }
-
 
 void SrsServer::on_signal(int signo)
 {
@@ -1235,135 +1203,129 @@ srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
     
-    // find the max loop
-    int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
-    
-    max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_DISK_STAT_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES);
-    
     // for asprocess.
     bool asprocess = _srs_config->get_asprocess();
-    
-    // the daemon thread, update the time cache
-    // TODO: FIXME: use SrsHourGlass.
+
     while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "pull");
+        }
+
         if (handler && (err = handler->on_cycle()) != srs_success) {
             return srs_error_wrap(err, "handle callback");
         }
-        
-        // the interval in config.
-        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
-        
-        // dynamic fetch the max.
-        int dynamic_max = srs_max(max, heartbeat_max_resolution);
-        
-        for (int i = 0; i < dynamic_max; i++) {
-            if ((err = trd_->pull()) != srs_success) {
-                return srs_error_wrap(err, "pull");
-            }
-
-            srs_usleep(SRS_SYS_CYCLE_INTERVAL);
             
-            // asprocess check.
-            if (asprocess && ::getppid() != ppid) {
-                return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid, ::getppid());
-            }
-            
-            // gracefully quit for SIGINT or SIGTERM or SIGQUIT.
-            if (signal_fast_quit || signal_gracefully_quit) {
-                srs_trace("cleanup for quit signal fast=%d, grace=%d", signal_fast_quit, signal_gracefully_quit);
-                return err;
-            }
-            
-            // for gperf heap checker,
-            // @see: research/gperftools/heap-checker/heap_checker.cc
-            // if user interrupt the program, exit to check mem leak.
-            // but, if gperf, use reload to ensure main return normally,
-            // because directly exit will cause core-dump.
-#ifdef SRS_GPERF_MC
-            if (signal_gmc_stop) {
-                srs_warn("gmc got singal to stop server.");
-                return err;
-            }
-#endif
-            
-            // do persistence config to file.
-            if (signal_persistence_config) {
-                signal_persistence_config = false;
-                srs_info("get signal to persistence config to file.");
-                
-                if ((err = _srs_config->persistence()) != srs_success) {
-                    return srs_error_wrap(err, "config persistence to file");
-                }
-                srs_trace("persistence config to file success.");
-            }
-            
-            // do reload the config.
-            if (signal_reload) {
-                signal_reload = false;
-                srs_info("get signal to reload the config.");
-                
-                if ((err = _srs_config->reload()) != srs_success) {
-                    return srs_error_wrap(err, "config reload");
-                }
-                srs_trace("reload config success.");
-            }
-            
-            // notice the stream sources to cycle.
-            if ((err = _srs_sources->cycle()) != srs_success) {
-                return srs_error_wrap(err, "source cycle");
-            }
-            
-            // update the cache time
-            if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
-                srs_info("update current time cache.");
-                srs_update_system_time();
-            }
-            
-            if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
-                srs_info("update resource info, rss.");
-                srs_update_system_rusage();
-            }
-            if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
-                srs_info("update cpu info, cpu usage.");
-                srs_update_proc_stat();
-            }
-            if ((i % SRS_SYS_DISK_STAT_RESOLUTION_TIMES) == 0) {
-                srs_info("update disk info, disk iops.");
-                srs_update_disk_stat();
-            }
-            if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
-                srs_info("update memory info, usage/free.");
-                srs_update_meminfo();
-            }
-            if ((i % SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES) == 0) {
-                srs_info("update platform info, uptime/load.");
-                srs_update_platform_info();
-            }
-            if ((i % SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES) == 0) {
-                srs_info("update network devices info.");
-                srs_update_network_devices();
-            }
-            if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
-                srs_info("update network server kbps info.");
-                resample_kbps();
-            }
-            if (_srs_config->get_heartbeat_enabled()) {
-                if ((i % heartbeat_max_resolution) == 0) {
-                    srs_info("do http heartbeat, for internal server to report.");
-                    http_heartbeat->heartbeat();
-                }
-            }
-            
-            srs_info("server main thread loop");
+        // asprocess check.
+        if (asprocess && ::getppid() != ppid) {
+            return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid, ::getppid());
         }
+
+        // gracefully quit for SIGINT or SIGTERM or SIGQUIT.
+        if (signal_fast_quit || signal_gracefully_quit) {
+            srs_trace("cleanup for quit signal fast=%d, grace=%d", signal_fast_quit, signal_gracefully_quit);
+            return err;
+        }
+
+        // for gperf heap checker,
+        // @see: research/gperftools/heap-checker/heap_checker.cc
+        // if user interrupt the program, exit to check mem leak.
+        // but, if gperf, use reload to ensure main return normally,
+        // because directly exit will cause core-dump.
+#ifdef SRS_GPERF_MC
+        if (signal_gmc_stop) {
+            srs_warn("gmc got singal to stop server.");
+            return err;
+        }
+#endif
+
+        // do persistence config to file.
+        if (signal_persistence_config) {
+            signal_persistence_config = false;
+            srs_info("get signal to persistence config to file.");
+
+            if ((err = _srs_config->persistence()) != srs_success) {
+                return srs_error_wrap(err, "config persistence to file");
+            }
+            srs_trace("persistence config to file success.");
+        }
+
+        // do reload the config.
+        if (signal_reload) {
+            signal_reload = false;
+            srs_info("get signal to reload the config.");
+
+            if ((err = _srs_config->reload()) != srs_success) {
+                return srs_error_wrap(err, "config reload");
+            }
+            srs_trace("reload config success.");
+        }
+
+        srs_usleep(1 * SRS_UTIME_SECONDS);
     }
     
+    return err;
+}
+
+srs_error_t SrsServer::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    srs_freep(timer_);
+    timer_ = new SrsHourGlass("srs", this, 1 * SRS_UTIME_SECONDS);
+
+    if ((err = timer_->tick(1, 1 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(2, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(3, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(4, 6 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(5, 6 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(6, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(7, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if ((err = timer_->tick(8, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+    if (_srs_config->get_heartbeat_enabled()) {
+        if ((err = timer_->tick(9, _srs_config->get_heartbeat_interval())) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "timer");
+    }
+
+    return err;
+}
+
+srs_error_t SrsServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    switch (event) {
+        case 1: srs_update_system_time(); break;
+        case 2: srs_update_system_rusage(); break;
+        case 3: srs_update_proc_stat(); break;
+        case 4: srs_update_disk_stat(); break;
+        case 5: srs_update_meminfo(); break;
+        case 6: srs_update_platform_info(); break;
+        case 7: srs_update_network_devices(); break;
+        case 8: resample_kbps(); break;
+        case 9: http_heartbeat->heartbeat(); break;
+    }
+
     return err;
 }
 

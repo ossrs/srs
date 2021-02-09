@@ -8282,7 +8282,7 @@ bool SrsConfig::get_heartbeat_enabled()
 
 srs_utime_t SrsConfig::get_heartbeat_interval()
 {
-    static srs_utime_t DEFAULT = (srs_utime_t)(9.9 * SRS_UTIME_SECONDS);
+    static srs_utime_t DEFAULT = (srs_utime_t)(10 * SRS_UTIME_SECONDS);
     
     SrsConfDirective* conf = get_heartbeart();
     if (!conf) {
@@ -8294,7 +8294,7 @@ srs_utime_t SrsConfig::get_heartbeat_interval()
         return DEFAULT;
     }
     
-    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_heartbeat_url()
