@@ -57,6 +57,7 @@ extern srs_error_t srs_fd_keepalive(int fd);
 
 // Get current coroutine/thread.
 extern srs_thread_t srs_thread_self();
+extern void srs_thread_exit(void* retval);
 
 // For client, to open socket and connect to server.
 // @param tm The timeout in srs_utime_t.
