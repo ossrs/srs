@@ -126,7 +126,8 @@ private:
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
-class SrsRtpExtensionTwcc : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionTwcc// : public ISrsCodec
 {
     bool has_twcc_;
     uint8_t id_;
@@ -148,7 +149,8 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpExtensionOneByte : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionOneByte// : public ISrsCodec
 {
     bool has_ext_;
     int id_;
@@ -169,7 +171,8 @@ public:
     virtual uint64_t nb_bytes() { return 2; };
 };
 
-class SrsRtpExtensions : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensions// : public ISrsCodec
 {
 private:
     bool has_ext_;
@@ -197,7 +200,8 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpHeader : public ISrsCodec
+// Note that the header should never extends from any class, for performance.
+class SrsRtpHeader// : public ISrsCodec
 {
 private:
     uint8_t padding_length;
