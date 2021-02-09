@@ -65,6 +65,11 @@ srs_error_t SrsHourGlass::start()
     return err;
 }
 
+void SrsHourGlass::stop()
+{
+    trd->stop();
+}
+
 srs_error_t SrsHourGlass::tick(srs_utime_t interval)
 {
     return tick(0, interval);
