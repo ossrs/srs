@@ -260,7 +260,8 @@ public:
 
 // TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler
+    , virtual public ISrsResourceManager, virtual public ISrsCoroutineHandler
 {
 private:
     // TODO: FIXME: Extract an HttpApiServer.
@@ -269,6 +270,7 @@ private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsResourceManager* conn_manager;
+    SrsCoroutine* trd_;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -315,6 +317,9 @@ public:
     virtual srs_error_t register_signal();
     virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
+    virtual srs_error_t start();
+// interface ISrsCoroutineHandler
+public:
     virtual srs_error_t cycle();
 // server utilities.
 public:

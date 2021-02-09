@@ -151,6 +151,11 @@ srs_thread_t srs_thread_self()
     return (srs_thread_t)st_thread_self();
 }
 
+void srs_thread_exit(void* retval)
+{
+    st_thread_exit(retval);
+}
+
 srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;

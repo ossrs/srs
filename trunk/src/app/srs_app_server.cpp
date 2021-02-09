@@ -728,6 +728,7 @@ SrsServer::SrsServer()
     http_server = new SrsHttpServer(this);
     http_heartbeat = new SrsHttpHeartbeat();
     ingester = new SrsIngester();
+    trd_ = new SrsSTCoroutine("srs", this, _srs_context->get_id());
 }
 
 SrsServer::~SrsServer()
@@ -738,7 +739,9 @@ SrsServer::~SrsServer()
 void SrsServer::destroy()
 {
     srs_warn("start destroy server");
-    
+
+    srs_freep(trd_);
+
     dispose();
     
     srs_freep(http_api_mux);
@@ -1101,6 +1104,17 @@ srs_error_t SrsServer::ingest()
     return err;
 }
 
+srs_error_t SrsServer::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
+
+    return err;
+}
+
 srs_error_t SrsServer::cycle()
 {
     srs_error_t err = srs_success;
@@ -1249,6 +1263,10 @@ srs_error_t SrsServer::do_cycle()
         int dynamic_max = srs_max(max, heartbeat_max_resolution);
         
         for (int i = 0; i < dynamic_max; i++) {
+            if ((err = trd_->pull()) != srs_success) {
+                return srs_error_wrap(err, "pull");
+            }
+
             srs_usleep(SRS_SYS_CYCLE_INTERVAL);
             
             // asprocess check.

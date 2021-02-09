@@ -91,8 +91,8 @@ srs_error_t SrsServerAdapter::run()
         return srs_error_wrap(err, "ingest");
     }
 
-    if ((err = srs->cycle()) != srs_success) {
-        return srs_error_wrap(err, "main cycle");
+    if ((err = srs->start()) != srs_success) {
+        return srs_error_wrap(err, "start");
     }
 
     return err;
@@ -151,29 +151,17 @@ srs_error_t SrsHybridServer::run()
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Identify master server directly.
-    // Run master server in this main thread.
-    SrsServerAdapter* master_server = NULL;
-
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
-
-        if (!master_server) {
-            master_server = dynamic_cast<SrsServerAdapter*>(server);
-            if (master_server) {
-                continue;
-            }
-        }
 
         if ((err = server->run()) != srs_success) {
             return srs_error_wrap(err, "run server");
         }
     }
 
-    if (master_server) {
-        return master_server->run();
-    }
+    // Wait for all server to quit.
+    srs_thread_exit(NULL);
 
     return err;
 }
