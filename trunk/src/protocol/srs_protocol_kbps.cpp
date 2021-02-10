@@ -43,6 +43,15 @@ SrsRateSample* SrsRateSample::update(int64_t nn, srs_utime_t t, int k)
     return this;
 }
 
+void srs_pps_update(SrsRateSample& sample, int64_t nn, srs_utime_t now)
+{
+    int pps = (int)((nn - sample.total) * 1000 / srsu2ms(now - sample.time));
+    if (pps == 0 && nn > sample.total) {
+        pps = 1; // For pps in (0, 1), we set to 1.
+    }
+    sample.update(nn, now, pps);
+}
+
 SrsPps::SrsPps(SrsWallClock* c)
 {
     clk_ = c;
@@ -76,24 +85,19 @@ void SrsPps::update(int64_t nn)
     }
 
     if (now - sample_10s_.time >= 10 * SRS_UTIME_SECONDS) {
-        int kps = (int)((nn - sample_10s_.total) * 1000 / srsu2ms(now - sample_10s_.time));
-        sample_10s_.update(nn, now, kps);
+        srs_pps_update(sample_10s_, nn, now);
     }
     if (now - sample_30s_.time >= 30 * SRS_UTIME_SECONDS) {
-        int kps = (int)((nn - sample_30s_.total) * 1000 / srsu2ms(now - sample_30s_.time));
-        sample_30s_.update(nn, now, kps);
+        srs_pps_update(sample_30s_, nn, now);
     }
     if (now - sample_1m_.time >= 60 * SRS_UTIME_SECONDS) {
-        int kps = (int)((nn - sample_1m_.total) * 1000 / srsu2ms(now - sample_1m_.time));
-        sample_1m_.update(nn, now, kps);
+        srs_pps_update(sample_1m_, nn, now);
     }
     if (now - sample_5m_.time >= 300 * SRS_UTIME_SECONDS) {
-        int kps = (int)((nn - sample_5m_.total) * 1000 / srsu2ms(now - sample_5m_.time));
-        sample_5m_.update(nn, now, kps);
+        srs_pps_update(sample_5m_, nn, now);
     }
     if (now - sample_60m_.time >= 3600 * SRS_UTIME_SECONDS) {
-        int kps = (int)((nn - sample_60m_.total) * 1000 / srsu2ms(now - sample_60m_.time));
-        sample_60m_.update(nn, now, kps);
+        srs_pps_update(sample_60m_, nn, now);
     }
 }
 
