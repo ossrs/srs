@@ -1282,8 +1282,8 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
     if (last_time_send_twcc_) {
         uint32_t nn = 0;
         srs_utime_t duration = srs_duration(last_time_send_twcc_, srs_get_system_time());
-        if (duration > 80 * SRS_UTIME_MILLISECONDS && twcc_epp_->can_print(0, &nn)) {
-            srs_warn2(TAG_LARGE_TIMER, "send_twcc interval exceeded %dms > 80ms, count=%u/%u",
+        if (duration > 100 * SRS_UTIME_MILLISECONDS && twcc_epp_->can_print(0, &nn)) {
+            srs_warn2(TAG_LARGE_TIMER, "twcc delay %dms > 100ms, count=%u/%u",
                 srsu2msi(duration), nn, twcc_epp_->nn_count);
         }
     }

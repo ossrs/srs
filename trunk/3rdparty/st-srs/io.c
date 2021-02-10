@@ -52,6 +52,25 @@
 #include <errno.h>
 #include "common.h"
 
+// Global stat.
+#ifdef DEBUG
+unsigned long long _st_stat_recvfrom = 0;
+unsigned long long _st_stat_recvfrom_eagain = 0;
+unsigned long long _st_stat_sendto = 0;
+unsigned long long _st_stat_sendto_eagain = 0;
+unsigned long long _st_stat_read = 0;
+unsigned long long _st_stat_read_eagain = 0;
+unsigned long long _st_stat_readv = 0;
+unsigned long long _st_stat_readv_eagain = 0;
+unsigned long long _st_stat_writev = 0;
+unsigned long long _st_stat_writev_eagain = 0;
+unsigned long long _st_stat_recvmsg = 0;
+unsigned long long _st_stat_recvmsg_eagain = 0;
+unsigned long long _st_stat_sendmsg = 0;
+unsigned long long _st_stat_sendmsg_eagain = 0;
+unsigned long long _st_stat_sendmmsg = 0;
+unsigned long long _st_stat_sendmmsg_eagain = 0;
+#endif
 
 #if EAGAIN != EWOULDBLOCK
     #define _IO_NOT_READY_ERROR  ((errno == EAGAIN) || (errno == EWOULDBLOCK))
@@ -437,12 +456,21 @@ int st_connect(_st_netfd_t *fd, const struct sockaddr *addr, int addrlen, st_uti
 ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
 {
     ssize_t n;
+
+    #ifdef DEBUG
+    ++_st_stat_read;
+    #endif
     
     while ((n = read(fd->osfd, buf, nbyte)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_read_eagain;
+        #endif
+
         /* Wait until the socket becomes readable */
         if (st_netfd_poll(fd, POLLIN, timeout) < 0)
             return -1;
@@ -470,12 +498,21 @@ int st_read_resid(_st_netfd_t *fd, void *buf, size_t *resid, st_utime_t timeout)
 ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_utime_t timeout)
 {
     ssize_t n;
+
+    #ifdef DEBUG
+    ++_st_stat_readv;
+    #endif
     
     while ((n = readv(fd->osfd, iov, iov_size)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_readv_eagain;
+        #endif
+
         /* Wait until the socket becomes readable */
         if (st_netfd_poll(fd, POLLIN, timeout) < 0)
             return -1;
@@ -572,6 +609,10 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_uti
     nleft = nbyte;
     tmp_iov = (struct iovec *) iov;    /* we promise not to modify iov */
     iov_cnt = iov_size;
+
+    #ifdef DEBUG
+    ++_st_stat_writev;
+    #endif
     
     while (nleft > 0) {
         if (iov_cnt == 1) {
@@ -616,6 +657,11 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_uti
                 tmp_iov[iov_cnt].iov_len = iov[index].iov_len;
             }
         }
+
+        #ifdef DEBUG
+        ++_st_stat_writev_eagain;
+        #endif
+
         /* Wait until the socket becomes writable */
         if (st_netfd_poll(fd, POLLOUT, timeout) < 0) {
             rv = -1;
@@ -633,6 +679,10 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_uti
 int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size, st_utime_t timeout)
 {
     ssize_t n;
+
+    #ifdef DEBUG
+    ++_st_stat_writev;
+    #endif
     
     while (*iov_size > 0) {
         if (*iov_size == 1)
@@ -659,6 +709,11 @@ int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size, st_utime
             (*iov)->iov_base = (char *) (*iov)->iov_base + n;
             (*iov)->iov_len -= n;
         }
+
+        #ifdef DEBUG
+        ++_st_stat_writev_eagain;
+        #endif
+
         /* Wait until the socket becomes writable */
         if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
             return -1;
@@ -674,12 +729,21 @@ int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size, st_utime
 int st_recvfrom(_st_netfd_t *fd, void *buf, int len, struct sockaddr *from, int *fromlen, st_utime_t timeout)
 {
     int n;
-    
+
+    #ifdef DEBUG
+    ++_st_stat_recvfrom;
+    #endif
+
     while ((n = recvfrom(fd->osfd, buf, len, 0, from, (socklen_t *)fromlen)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_recvfrom_eagain;
+        #endif
+
         /* Wait until the socket becomes readable */
         if (st_netfd_poll(fd, POLLIN, timeout) < 0)
             return -1;
@@ -692,12 +756,21 @@ int st_recvfrom(_st_netfd_t *fd, void *buf, int len, struct sockaddr *from, int 
 int st_sendto(_st_netfd_t *fd, const void *msg, int len, const struct sockaddr *to, int tolen, st_utime_t timeout)
 {
     int n;
+
+    #ifdef DEBUG
+    ++_st_stat_sendto;
+    #endif
     
     while ((n = sendto(fd->osfd, msg, len, 0, to, tolen)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_sendto_eagain;
+        #endif
+
         /* Wait until the socket becomes writable */
         if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
             return -1;
@@ -710,12 +783,21 @@ int st_sendto(_st_netfd_t *fd, const void *msg, int len, const struct sockaddr *
 int st_recvmsg(_st_netfd_t *fd, struct msghdr *msg, int flags, st_utime_t timeout)
 {
     int n;
+
+    #ifdef DEBUG
+    ++_st_stat_recvmsg;
+    #endif
     
     while ((n = recvmsg(fd->osfd, msg, flags)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_recvmsg_eagain;
+        #endif
+
         /* Wait until the socket becomes readable */
         if (st_netfd_poll(fd, POLLIN, timeout) < 0)
             return -1;
@@ -728,12 +810,21 @@ int st_recvmsg(_st_netfd_t *fd, struct msghdr *msg, int flags, st_utime_t timeou
 int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t timeout)
 {
     int n;
+
+    #ifdef DEBUG
+    ++_st_stat_sendmsg;
+    #endif
     
     while ((n = sendmsg(fd->osfd, msg, flags)) < 0) {
         if (errno == EINTR)
             continue;
         if (!_IO_NOT_READY_ERROR)
             return -1;
+
+        #ifdef DEBUG
+        ++_st_stat_sendmsg_eagain;
+        #endif
+
         /* Wait until the socket becomes writable */
         if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
             return -1;
@@ -749,6 +840,10 @@ int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int
     int left;
     struct mmsghdr *p;
 
+    #ifdef DEBUG
+    ++_st_stat_sendmmsg;
+    #endif
+
     left = (int)vlen;
     while (left > 0) {
         p = (struct mmsghdr*)msgvec + (vlen - left);
@@ -758,6 +853,11 @@ int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int
                 continue;
             if (!_IO_NOT_READY_ERROR)
                 break;
+
+            #ifdef DEBUG
+            ++_st_stat_sendmmsg_eagain;
+            #endif
+
             /* Wait until the socket becomes writable */
             if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
                 break;
