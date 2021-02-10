@@ -74,6 +74,34 @@ SrsPps* _srs_pps_sendmsg_eagain = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sendmmsg = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sendmmsg_eagain = new SrsPps(_srs_clock);
 
+extern unsigned long long _st_stat_epoll;
+extern unsigned long long _st_stat_epoll_zero;
+extern unsigned long long _st_stat_epoll_shake;
+extern unsigned long long _st_stat_epoll_spin;
+SrsPps* _srs_pps_epoll = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_epoll_zero = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_epoll_shake = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_epoll_spin = new SrsPps(_srs_clock);
+
+extern unsigned long long _st_stat_clock_us;
+extern unsigned long long _st_stat_clock_10ms;
+extern unsigned long long _st_stat_clock_20ms;
+extern unsigned long long _st_stat_clock_40ms;
+extern unsigned long long _st_stat_clock_80ms;
+extern unsigned long long _st_stat_clock_160ms;
+extern unsigned long long _st_stat_clock_320ms;
+extern unsigned long long _st_stat_clock_1000ms;
+extern unsigned long long _st_stat_clock_s;
+SrsPps* _srs_pps_clock_us = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_10ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_20ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_40ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_80ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_160ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_320ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_1000ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_s = new SrsPps(_srs_clock);
+
 ISrsHybridServer::ISrsHybridServer()
 {
 }
@@ -287,10 +315,7 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     _srs_pps_recvfrom->update(_st_stat_recvfrom); _srs_pps_recvfrom_eagain->update(_st_stat_recvfrom_eagain);
     _srs_pps_sendto->update(_st_stat_sendto); _srs_pps_sendto_eagain->update(_st_stat_sendto_eagain);
     if (_srs_pps_recvfrom->r10s() || _srs_pps_recvfrom_eagain->r10s() || _srs_pps_sendto->r10s() || _srs_pps_sendto_eagain->r10s()) {
-        snprintf(buf, sizeof(buf), ", udp=%d,%d,%d,%d",
-            _srs_pps_recvfrom->r10s(), _srs_pps_recvfrom_eagain->r10s(),
-            _srs_pps_sendto->r10s(), _srs_pps_sendto_eagain->r10s()
-        );
+        snprintf(buf, sizeof(buf), ", udp=%d,%d,%d,%d", _srs_pps_recvfrom->r10s(), _srs_pps_recvfrom_eagain->r10s(), _srs_pps_sendto->r10s(), _srs_pps_sendto_eagain->r10s());
         recvfrom_desc = buf;
     }
 
@@ -299,11 +324,7 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     _srs_pps_readv->update(_st_stat_readv); _srs_pps_readv_eagain->update(_st_stat_readv_eagain);
     _srs_pps_writev->update(_st_stat_writev); _srs_pps_writev_eagain->update(_st_stat_writev_eagain);
     if (_srs_pps_read->r10s() || _srs_pps_read_eagain->r10s() || _srs_pps_readv->r10s() || _srs_pps_readv_eagain->r10s() || _srs_pps_writev->r10s() || _srs_pps_writev_eagain->r10s()) {
-        snprintf(buf, sizeof(buf), ", io=%d,%d,%d,%d,%d,%d",
-            _srs_pps_read->r10s(), _srs_pps_read_eagain->r10s(),
-            _srs_pps_readv->r10s(), _srs_pps_readv_eagain->r10s(),
-            _srs_pps_writev->r10s(), _srs_pps_writev_eagain->r10s()
-        );
+        snprintf(buf, sizeof(buf), ", io=%d,%d,%d,%d,%d,%d", _srs_pps_read->r10s(), _srs_pps_read_eagain->r10s(), _srs_pps_readv->r10s(), _srs_pps_readv_eagain->r10s(), _srs_pps_writev->r10s(), _srs_pps_writev_eagain->r10s());
         io_desc = buf;
     }
 
@@ -312,18 +333,34 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     _srs_pps_sendmsg->update(_st_stat_sendmsg); _srs_pps_sendmsg_eagain->update(_st_stat_sendmsg_eagain);
     _srs_pps_sendmmsg->update(_st_stat_sendmmsg); _srs_pps_sendmmsg_eagain->update(_st_stat_sendmmsg_eagain);
     if (_srs_pps_recvmsg->r10s() || _srs_pps_recvmsg_eagain->r10s() || _srs_pps_sendmsg->r10s() || _srs_pps_sendmsg_eagain->r10s() || _srs_pps_sendmmsg->r10s() || _srs_pps_sendmmsg_eagain->r10s()) {
-        snprintf(buf, sizeof(buf), ", msg=%d,%d,%d,%d,%d,%d",
-        _srs_pps_recvmsg->r10s(), _srs_pps_recvmsg_eagain->r10s(),
-        _srs_pps_sendmsg->r10s(), _srs_pps_sendmsg_eagain->r10s(),
-        _srs_pps_sendmmsg->r10s(), _srs_pps_sendmmsg_eagain->r10s()
-        );
+        snprintf(buf, sizeof(buf), ", msg=%d,%d,%d,%d,%d,%d", _srs_pps_recvmsg->r10s(), _srs_pps_recvmsg_eagain->r10s(), _srs_pps_sendmsg->r10s(), _srs_pps_sendmsg_eagain->r10s(), _srs_pps_sendmmsg->r10s(), _srs_pps_sendmmsg_eagain->r10s());
         msg_desc = buf;
     }
 
-    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s",
+    string epoll_desc;
+    _srs_pps_epoll->update(_st_stat_epoll); _srs_pps_epoll_zero->update(_st_stat_epoll_zero);
+    _srs_pps_epoll_shake->update(_st_stat_epoll_shake); _srs_pps_epoll_spin->update(_st_stat_epoll_spin);
+    if (_srs_pps_epoll->r10s() || _srs_pps_epoll_zero->r10s() || _srs_pps_epoll_shake->r10s() || _srs_pps_epoll_spin->r10s()) {
+        snprintf(buf, sizeof(buf), ", epoll=%d,%d,%d,%d", _srs_pps_epoll->r10s(), _srs_pps_epoll_zero->r10s(), _srs_pps_epoll_shake->r10s(), _srs_pps_epoll_spin->r10s());
+        epoll_desc = buf;
+    }
+
+    string clock_desc;
+    _srs_pps_clock_us->update(_st_stat_clock_us); _srs_pps_clock_s->update(_st_stat_clock_s);
+    _srs_pps_clock_10ms->update(_st_stat_clock_10ms); _srs_pps_clock_20ms->update(_st_stat_clock_20ms);
+    _srs_pps_clock_40ms->update(_st_stat_clock_40ms); _srs_pps_clock_80ms->update(_st_stat_clock_80ms);
+    _srs_pps_clock_160ms->update(_st_stat_clock_160ms); _srs_pps_clock_320ms->update(_st_stat_clock_320ms);
+    _srs_pps_clock_1000ms->update(_st_stat_clock_1000ms);
+    if (_srs_pps_clock_us->r10s() || _srs_pps_clock_s->r10s() || _srs_pps_clock_10ms->r10s() || _srs_pps_clock_20ms->r10s() || _srs_pps_clock_40ms->r10s() || _srs_pps_clock_80ms->r10s() || _srs_pps_clock_160ms->r10s() || _srs_pps_clock_320ms->r10s() || _srs_pps_clock_1000ms->r10s()) {
+        snprintf(buf, sizeof(buf), ", clock=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_clock_us->r10s(), _srs_pps_clock_10ms->r10s(), _srs_pps_clock_20ms->r10s(), _srs_pps_clock_40ms->r10s(), _srs_pps_clock_80ms->r10s(), _srs_pps_clock_160ms->r10s(), _srs_pps_clock_320ms->r10s(), _srs_pps_clock_1000ms->r10s(), _srs_pps_clock_s->r10s());
+        clock_desc = buf;
+    }
+
+    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s",
         u->percent * 100, memory,
         cid_desc.c_str(), timer_desc.c_str(), free_desc.c_str(),
-        recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str()
+        recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str(),
+        epoll_desc.c_str(), clock_desc.c_str()
     );
 
     return err;

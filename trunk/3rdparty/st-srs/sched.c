@@ -52,6 +52,19 @@
 #include <valgrind/valgrind.h>
 #endif
 
+// Global stat.
+#ifdef DEBUG
+unsigned long long _st_stat_clock_us = 0;
+unsigned long long _st_stat_clock_10ms = 0;
+unsigned long long _st_stat_clock_20ms = 0;
+unsigned long long _st_stat_clock_40ms = 0;
+unsigned long long _st_stat_clock_80ms = 0;
+unsigned long long _st_stat_clock_160ms = 0;
+unsigned long long _st_stat_clock_320ms = 0;
+unsigned long long _st_stat_clock_1000ms = 0;
+unsigned long long _st_stat_clock_s = 0;
+#endif
+
 
 /* Global data */
 _st_vp_t _st_this_vp;           /* This VP */
@@ -482,6 +495,28 @@ void _st_vp_check_clock(void)
     now = st_utime();
     elapsed = now - _ST_LAST_CLOCK;
     _ST_LAST_CLOCK = now;
+
+    #ifdef DEBUG
+    if (elapsed < 1000) {
+        ++_st_stat_clock_us;
+    } else if (elapsed < 10000) {
+        ++_st_stat_clock_10ms;
+    } else if (elapsed < 20000) {
+        ++_st_stat_clock_20ms;
+    } else if (elapsed < 40000) {
+        ++_st_stat_clock_40ms;
+    } else if (elapsed < 80000) {
+        ++_st_stat_clock_80ms;
+    } else if (elapsed < 160000) {
+        ++_st_stat_clock_160ms;
+    } else if (elapsed < 320000) {
+        ++_st_stat_clock_320ms;
+    } else if (elapsed < 1000000) {
+        ++_st_stat_clock_1000ms;
+    } else {
+        ++_st_stat_clock_s;
+    }
+    #endif
     
     if (_st_curr_time && now - _st_last_tset > 999000) {
         _st_curr_time = time(NULL);

@@ -47,6 +47,14 @@
 #include <sys/epoll.h>
 #endif
 
+// Global stat.
+#ifdef DEBUG
+unsigned long long _st_stat_epoll = 0;
+unsigned long long _st_stat_epoll_zero = 0;
+unsigned long long _st_stat_epoll_shake = 0;
+unsigned long long _st_stat_epoll_spin = 0;
+#endif
+
 #if defined(USE_POLL) && !defined(MD_HAVE_POLL)
     /* Force poll usage if explicitly asked for it */
     #define MD_HAVE_POLL
@@ -1205,6 +1213,10 @@ ST_HIDDEN void _st_epoll_dispatch(void)
     int events, op;
     short revents;
 
+    #ifdef DEBUG
+    ++_st_stat_epoll;
+    #endif
+
     if (_ST_SLEEPQ == NULL) {
         timeout = -1;
     } else {
@@ -1212,8 +1224,18 @@ ST_HIDDEN void _st_epoll_dispatch(void)
         timeout = (int) (min_timeout / 1000);
 
         // At least wait 1ms when <1ms, to avoid epoll_wait spin loop.
-        if (min_timeout > 0 && timeout == 0) {
-            timeout = 1;
+        if (timeout == 0) {
+            #ifdef DEBUG
+            ++_st_stat_epoll_zero;
+            #endif
+
+            if (min_timeout > 0) {
+                #ifdef DEBUG
+                ++_st_stat_epoll_shake;
+                #endif
+
+                timeout = 1;
+            }
         }
     }
 
@@ -1239,6 +1261,12 @@ ST_HIDDEN void _st_epoll_dispatch(void)
 
     /* Check for I/O operations */
     nfd = epoll_wait(_st_epoll_data->epfd, _st_epoll_data->evtlist, _st_epoll_data->evtlist_size, timeout);
+
+    #ifdef DEBUG
+    if (nfd <= 0) {
+        ++_st_stat_epoll_spin;
+    }
+    #endif
 
     if (nfd > 0) {
         for (i = 0; i < nfd; i++) {
