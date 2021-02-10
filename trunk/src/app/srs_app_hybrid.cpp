@@ -226,7 +226,8 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     int memory = (int)(u->rss * 4 / 1024);
 
     _srs_pps_cids_get->update(); _srs_pps_cids_set->update();
-    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update(); _srs_pps_dispose->update();
+    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update();
+    _srs_pps_dispose->update();
 
     srs_trace("Hybrid cpu=%.2f%%,%dMB, cid=%d,%d, timer=%d,%d,%d, free=%d",
         u->percent * 100, memory,
