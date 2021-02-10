@@ -225,14 +225,11 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     // Resident Set Size: number of pages the process has in real memory.
     int memory = (int)(u->rss * 4 / 1024);
 
-    _srs_pps_cids_get->update(); _srs_pps_cids_set->update();
-    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update(); _srs_pps_dispose->update();
+    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update();
 
-    srs_trace("Hybrid cpu=%.2f%%,%dMB, cid=%d,%d, timer=%d,%d,%d, free=%d",
+    srs_trace("Hybrid cpu=%.2f%%,%dMB, timer=%d,%d,%d",
         u->percent * 100, memory,
-        _srs_pps_cids_get->r10s(), _srs_pps_cids_set->r10s(),
-        _srs_pps_timer->r10s(), _srs_pps_pub->r10s(), _srs_pps_conn->r10s(),
-        _srs_pps_dispose->r10s()
+        _srs_pps_timer->r10s(), _srs_pps_pub->r10s(), _srs_pps_conn->r10s()
     );
 
     return err;
