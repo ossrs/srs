@@ -83,6 +83,7 @@ private:
     // for each cycle, we increase it with a resolution.
     srs_utime_t total_elapse;
 public:
+    // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
     SrsHourGlass(std::string label, ISrsHourGlass* h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
 public:
@@ -90,6 +91,7 @@ public:
     virtual srs_error_t start();
     virtual void stop();
 public:
+    // TODO: FIXME: Refine to tick with handler. Remove the tick(interval).
     // Add a pair of tick(event, interval).
     // @param event the event of tick, default is 0.
     // @param interval the interval in srs_utime_t of tick.

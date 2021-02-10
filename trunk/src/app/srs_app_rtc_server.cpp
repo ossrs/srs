@@ -53,17 +53,9 @@ extern SrsPps* _srs_pps_ids;
 extern SrsPps* _srs_pps_fids;
 extern SrsPps* _srs_pps_fids_level0;
 
-extern SrsPps* _srs_pps_cids_get;
-extern SrsPps* _srs_pps_cids_set;
-
 extern SrsPps* _srs_pps_pli;
 extern SrsPps* _srs_pps_twcc;
 extern SrsPps* _srs_pps_rr;
-
-extern SrsPps* _srs_pps_timer;
-extern SrsPps* _srs_pps_pub;
-extern SrsPps* _srs_pps_conn;
-extern SrsPps* _srs_pps_dispose;
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
@@ -666,29 +658,19 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         return err;
     }
 
-    // Show statistics for RTC server.
-    SrsProcSelfStat* u = srs_get_self_proc_stat();
-    // Resident Set Size: number of pages the process has in real memory.
-    int memory = (int)(u->rss * 4 / 1024);
-
     // Update the pps stat for UDP socket and adddresses.
     _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update();
-    _srs_pps_cids_get->update(); _srs_pps_cids_set->update();
     _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
-    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update(); _srs_pps_dispose->update();
     _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
     _srs_pps_rnack->update(); _srs_pps_rnack2->update();
 
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, cid=%d,%d, rtcp=%d,%d,%d, timer=%d,%d,%d, free=%d, snk=%d,%d,%d,%d, rnk=%d,%d",
-        nn_rtc_conns, u->percent * 100, memory,
+    srs_trace("RTC: Server conns=%u, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d",
+        nn_rtc_conns,
         _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
         _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(),
-        _srs_pps_cids_get->r10s(), _srs_pps_cids_set->r10s(),
         _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s(),
-        _srs_pps_timer->r10s(), _srs_pps_pub->r10s(), _srs_pps_conn->r10s(),
-        _srs_pps_dispose->r10s(),
         _srs_pps_snack->r10s(), _srs_pps_snack2->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(),
         _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s()
     );
