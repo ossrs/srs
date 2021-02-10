@@ -29,6 +29,7 @@
 #include <srs_app_st.hpp>
 
 #include <map>
+#include <string>
 
 class SrsCoroutine;
 
@@ -70,6 +71,7 @@ public:
 class SrsHourGlass : virtual public ISrsCoroutineHandler
 {
 private:
+    std::string label_;
     SrsCoroutine* trd;
     ISrsHourGlass* handler;
     srs_utime_t _resolution;
@@ -81,7 +83,8 @@ private:
     // for each cycle, we increase it with a resolution.
     srs_utime_t total_elapse;
 public:
-    SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution);
+    // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
+    SrsHourGlass(std::string label, ISrsHourGlass* h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
 public:
     // Start or stop the hourglass.
