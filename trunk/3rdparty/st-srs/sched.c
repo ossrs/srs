@@ -54,15 +54,15 @@
 
 // Global stat.
 #ifdef DEBUG
-unsigned long long _st_stat_clock_us = 0;
-unsigned long long _st_stat_clock_10ms = 0;
-unsigned long long _st_stat_clock_20ms = 0;
-unsigned long long _st_stat_clock_40ms = 0;
-unsigned long long _st_stat_clock_80ms = 0;
-unsigned long long _st_stat_clock_160ms = 0;
-unsigned long long _st_stat_clock_320ms = 0;
-unsigned long long _st_stat_clock_1000ms = 0;
-unsigned long long _st_stat_clock_s = 0;
+unsigned long long _st_stat_sched_us = 0;
+unsigned long long _st_stat_sched_10ms = 0;
+unsigned long long _st_stat_sched_20ms = 0;
+unsigned long long _st_stat_sched_40ms = 0;
+unsigned long long _st_stat_sched_80ms = 0;
+unsigned long long _st_stat_sched_160ms = 0;
+unsigned long long _st_stat_sched_320ms = 0;
+unsigned long long _st_stat_sched_1000ms = 0;
+unsigned long long _st_stat_sched_s = 0;
 #endif
 
 
@@ -498,23 +498,23 @@ void _st_vp_check_clock(void)
 
     #ifdef DEBUG
     if (elapsed < 1000) {
-        ++_st_stat_clock_us;
+        ++_st_stat_sched_us;
     } else if (elapsed < 10000) {
-        ++_st_stat_clock_10ms;
+        ++_st_stat_sched_10ms;
     } else if (elapsed < 20000) {
-        ++_st_stat_clock_20ms;
+        ++_st_stat_sched_20ms;
     } else if (elapsed < 40000) {
-        ++_st_stat_clock_40ms;
+        ++_st_stat_sched_40ms;
     } else if (elapsed < 80000) {
-        ++_st_stat_clock_80ms;
+        ++_st_stat_sched_80ms;
     } else if (elapsed < 160000) {
-        ++_st_stat_clock_160ms;
+        ++_st_stat_sched_160ms;
     } else if (elapsed < 320000) {
-        ++_st_stat_clock_320ms;
+        ++_st_stat_sched_320ms;
     } else if (elapsed < 1000000) {
-        ++_st_stat_clock_1000ms;
+        ++_st_stat_sched_1000ms;
     } else {
-        ++_st_stat_clock_s;
+        ++_st_stat_sched_s;
     }
     #endif
     

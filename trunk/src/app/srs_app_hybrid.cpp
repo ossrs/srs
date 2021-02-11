@@ -83,33 +83,33 @@ SrsPps* _srs_pps_epoll_zero = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_epoll_shake = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_epoll_spin = new SrsPps(_srs_clock);
 
-extern unsigned long long _st_stat_clock_us;
-extern unsigned long long _st_stat_clock_10ms;
-extern unsigned long long _st_stat_clock_20ms;
-extern unsigned long long _st_stat_clock_40ms;
-extern unsigned long long _st_stat_clock_80ms;
-extern unsigned long long _st_stat_clock_160ms;
-extern unsigned long long _st_stat_clock_320ms;
-extern unsigned long long _st_stat_clock_1000ms;
-extern unsigned long long _st_stat_clock_s;
-SrsPps* _srs_pps_clock_us = new SrsPps(_srs_clock);
+extern unsigned long long _st_stat_sched_us;
+extern unsigned long long _st_stat_sched_10ms;
+extern unsigned long long _st_stat_sched_20ms;
+extern unsigned long long _st_stat_sched_40ms;
+extern unsigned long long _st_stat_sched_80ms;
+extern unsigned long long _st_stat_sched_160ms;
+extern unsigned long long _st_stat_sched_320ms;
+extern unsigned long long _st_stat_sched_1000ms;
+extern unsigned long long _st_stat_sched_s;
+SrsPps* _srs_pps_sched_us = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_10ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_20ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_40ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_80ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_160ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_320ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_1000ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_s = new SrsPps(_srs_clock);
+
+SrsPps* _srs_pps_clock_s = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_10ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_20ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_30ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_40ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_80ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_160ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_clock_320ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_clock_1000ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_clock_s = new SrsPps(_srs_clock);
-
-SrsPps* _srs_pps_timer_us = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_10ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_20ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_40ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_80ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_160ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_320ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_timer_1000ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_clock_500ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_timer_s = new SrsPps(_srs_clock);
 
 ISrsHybridServer::ISrsHybridServer()
@@ -312,21 +312,21 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
         clock = now;
 
         if (elapsed < 1 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_us->sugar;
+            ++_srs_pps_clock_s->sugar;
         } else if (elapsed < 10 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_10ms->sugar;
+            ++_srs_pps_clock_10ms->sugar;
         } else if (elapsed < 20 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_20ms->sugar;
+            ++_srs_pps_clock_20ms->sugar;
+        } else if (elapsed < 30 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_clock_30ms->sugar;
         } else if (elapsed < 40 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_40ms->sugar;
+            ++_srs_pps_clock_40ms->sugar;
         } else if (elapsed < 80 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_80ms->sugar;
+            ++_srs_pps_clock_80ms->sugar;
         } else if (elapsed < 160 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_160ms->sugar;
-        } else if (elapsed < 320 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_timer_320ms->sugar;
-        } else if (elapsed < 1 * SRS_UTIME_SECONDS) {
-            ++_srs_pps_timer_1000ms->sugar;
+            ++_srs_pps_clock_160ms->sugar;
+        } else if (elapsed < 500 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_clock_500ms->sugar;
         } else {
             ++_srs_pps_timer_s->sugar;
         }
@@ -396,24 +396,24 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     }
 
     string sched_desc;
-    _srs_pps_clock_us->update(_st_stat_clock_us); _srs_pps_clock_s->update(_st_stat_clock_s);
-    _srs_pps_clock_10ms->update(_st_stat_clock_10ms); _srs_pps_clock_20ms->update(_st_stat_clock_20ms);
-    _srs_pps_clock_40ms->update(_st_stat_clock_40ms); _srs_pps_clock_80ms->update(_st_stat_clock_80ms);
-    _srs_pps_clock_160ms->update(_st_stat_clock_160ms); _srs_pps_clock_320ms->update(_st_stat_clock_320ms);
-    _srs_pps_clock_1000ms->update(_st_stat_clock_1000ms);
-    if (_srs_pps_clock_us->r10s() || _srs_pps_clock_s->r10s() || _srs_pps_clock_10ms->r10s() || _srs_pps_clock_20ms->r10s() || _srs_pps_clock_40ms->r10s() || _srs_pps_clock_80ms->r10s() || _srs_pps_clock_160ms->r10s() || _srs_pps_clock_320ms->r10s() || _srs_pps_clock_1000ms->r10s()) {
-        snprintf(buf, sizeof(buf), ", sched=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_clock_us->r10s(), _srs_pps_clock_10ms->r10s(), _srs_pps_clock_20ms->r10s(), _srs_pps_clock_40ms->r10s(), _srs_pps_clock_80ms->r10s(), _srs_pps_clock_160ms->r10s(), _srs_pps_clock_320ms->r10s(), _srs_pps_clock_1000ms->r10s(), _srs_pps_clock_s->r10s());
+    _srs_pps_sched_us->update(_st_stat_sched_us); _srs_pps_sched_s->update(_st_stat_sched_s);
+    _srs_pps_sched_10ms->update(_st_stat_sched_10ms); _srs_pps_sched_20ms->update(_st_stat_sched_20ms);
+    _srs_pps_sched_40ms->update(_st_stat_sched_40ms); _srs_pps_sched_80ms->update(_st_stat_sched_80ms);
+    _srs_pps_sched_160ms->update(_st_stat_sched_160ms); _srs_pps_sched_320ms->update(_st_stat_sched_320ms);
+    _srs_pps_sched_1000ms->update(_st_stat_sched_1000ms);
+    if (_srs_pps_sched_us->r10s() || _srs_pps_sched_s->r10s() || _srs_pps_sched_10ms->r10s() || _srs_pps_sched_20ms->r10s() || _srs_pps_sched_40ms->r10s() || _srs_pps_sched_80ms->r10s() || _srs_pps_sched_160ms->r10s() || _srs_pps_sched_320ms->r10s() || _srs_pps_sched_1000ms->r10s()) {
+        snprintf(buf, sizeof(buf), ", sched=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_sched_us->r10s(), _srs_pps_sched_10ms->r10s(), _srs_pps_sched_20ms->r10s(), _srs_pps_sched_40ms->r10s(), _srs_pps_sched_80ms->r10s(), _srs_pps_sched_160ms->r10s(), _srs_pps_sched_320ms->r10s(), _srs_pps_sched_1000ms->r10s(), _srs_pps_sched_s->r10s());
         sched_desc = buf;
     }
 
     string clock_desc;
-    _srs_pps_timer_us->update(); _srs_pps_timer_10ms->update();
-    _srs_pps_timer_20ms->update(); _srs_pps_timer_40ms->update();
-    _srs_pps_timer_80ms->update(); _srs_pps_timer_160ms->update();
-    _srs_pps_timer_320ms->update(); _srs_pps_timer_1000ms->update();
+    _srs_pps_clock_s->update(); _srs_pps_clock_10ms->update();
+    _srs_pps_clock_20ms->update(); _srs_pps_clock_30ms->update();
+    _srs_pps_clock_40ms->update(); _srs_pps_clock_80ms->update();
+    _srs_pps_clock_160ms->update(); _srs_pps_clock_500ms->update();
     _srs_pps_timer_s->update();
-    if (_srs_pps_timer_us->r10s() || _srs_pps_timer_s->r10s() || _srs_pps_timer_10ms->r10s() || _srs_pps_timer_20ms->r10s() || _srs_pps_timer_40ms->r10s() || _srs_pps_timer_80ms->r10s() || _srs_pps_timer_160ms->r10s() || _srs_pps_timer_320ms->r10s() || _srs_pps_timer_1000ms->r10s()) {
-        snprintf(buf, sizeof(buf), ", clock=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_timer_us->r10s(), _srs_pps_timer_10ms->r10s(), _srs_pps_timer_20ms->r10s(), _srs_pps_timer_40ms->r10s(), _srs_pps_timer_80ms->r10s(), _srs_pps_timer_160ms->r10s(), _srs_pps_timer_320ms->r10s(), _srs_pps_timer_1000ms->r10s(), _srs_pps_timer_s->r10s());
+    if (_srs_pps_clock_s->r10s() || _srs_pps_timer_s->r10s() || _srs_pps_clock_10ms->r10s() || _srs_pps_clock_20ms->r10s() || _srs_pps_clock_30ms->r10s() || _srs_pps_clock_40ms->r10s() || _srs_pps_clock_80ms->r10s() || _srs_pps_clock_160ms->r10s() || _srs_pps_clock_500ms->r10s()) {
+        snprintf(buf, sizeof(buf), ", clock=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_clock_s->r10s(), _srs_pps_clock_10ms->r10s(), _srs_pps_clock_20ms->r10s(), _srs_pps_clock_30ms->r10s(), _srs_pps_clock_40ms->r10s(), _srs_pps_clock_80ms->r10s(), _srs_pps_clock_160ms->r10s(), _srs_pps_clock_500ms->r10s(), _srs_pps_timer_s->r10s());
         clock_desc = buf;
     }
 
