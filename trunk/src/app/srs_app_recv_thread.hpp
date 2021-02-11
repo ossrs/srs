@@ -144,6 +144,7 @@ class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public IS
 #endif
 {
 private:
+    uint32_t nn_msgs_for_yield_;
     SrsRecvThread trd;
     SrsRtmpServer* rtmp;
     SrsRequest* req;

@@ -828,6 +828,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         }
 
         // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777437476
         srs_thread_yield();
     }
     
