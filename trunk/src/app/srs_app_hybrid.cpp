@@ -83,23 +83,23 @@ SrsPps* _srs_pps_epoll_zero = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_epoll_shake = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_epoll_spin = new SrsPps(_srs_clock);
 
-extern unsigned long long _st_stat_sched_us;
-extern unsigned long long _st_stat_sched_10ms;
+extern unsigned long long _st_stat_sched_15ms;
 extern unsigned long long _st_stat_sched_20ms;
+extern unsigned long long _st_stat_sched_25ms;
+extern unsigned long long _st_stat_sched_30ms;
+extern unsigned long long _st_stat_sched_35ms;
 extern unsigned long long _st_stat_sched_40ms;
 extern unsigned long long _st_stat_sched_80ms;
 extern unsigned long long _st_stat_sched_160ms;
-extern unsigned long long _st_stat_sched_320ms;
-extern unsigned long long _st_stat_sched_1000ms;
 extern unsigned long long _st_stat_sched_s;
-SrsPps* _srs_pps_sched_us = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_sched_10ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_15ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sched_20ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_25ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_30ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sched_35ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sched_40ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sched_80ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sched_160ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_sched_320ms = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_sched_1000ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_sched_s = new SrsPps(_srs_clock);
 
 SrsPps* _srs_pps_clock_15ms = new SrsPps(_srs_clock);
@@ -112,6 +112,7 @@ SrsPps* _srs_pps_clock_80ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_160ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_timer_s = new SrsPps(_srs_clock);
 
+extern int _st_active_count;
 extern unsigned long long _st_stat_thread_run;
 extern unsigned long long _st_stat_thread_idle;
 SrsPps* _srs_pps_thread_run = new SrsPps(_srs_clock);
@@ -277,6 +278,9 @@ SrsServerAdapter* SrsHybridServer::srs()
     return NULL;
 }
 
+extern void _srs_coroutine_switch_in();
+extern void _srs_coroutine_switch_out();
+
 srs_error_t SrsHybridServer::setup_ticks()
 {
     srs_error_t err = srs_success;
@@ -401,13 +405,13 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     }
 
     string sched_desc;
-    _srs_pps_sched_us->update(_st_stat_sched_us); _srs_pps_sched_s->update(_st_stat_sched_s);
-    _srs_pps_sched_10ms->update(_st_stat_sched_10ms); _srs_pps_sched_20ms->update(_st_stat_sched_20ms);
-    _srs_pps_sched_40ms->update(_st_stat_sched_40ms); _srs_pps_sched_80ms->update(_st_stat_sched_80ms);
-    _srs_pps_sched_160ms->update(_st_stat_sched_160ms); _srs_pps_sched_320ms->update(_st_stat_sched_320ms);
-    _srs_pps_sched_1000ms->update(_st_stat_sched_1000ms);
-    if (_srs_pps_sched_us->r10s() || _srs_pps_sched_s->r10s() || _srs_pps_sched_10ms->r10s() || _srs_pps_sched_20ms->r10s() || _srs_pps_sched_40ms->r10s() || _srs_pps_sched_80ms->r10s() || _srs_pps_sched_160ms->r10s() || _srs_pps_sched_320ms->r10s() || _srs_pps_sched_1000ms->r10s()) {
-        snprintf(buf, sizeof(buf), ", sched=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_sched_us->r10s(), _srs_pps_sched_10ms->r10s(), _srs_pps_sched_20ms->r10s(), _srs_pps_sched_40ms->r10s(), _srs_pps_sched_80ms->r10s(), _srs_pps_sched_160ms->r10s(), _srs_pps_sched_320ms->r10s(), _srs_pps_sched_1000ms->r10s(), _srs_pps_sched_s->r10s());
+    _srs_pps_sched_160ms->update(_st_stat_sched_160ms); _srs_pps_sched_s->update(_st_stat_sched_s);
+    _srs_pps_sched_15ms->update(_st_stat_sched_15ms); _srs_pps_sched_20ms->update(_st_stat_sched_20ms);
+    _srs_pps_sched_25ms->update(_st_stat_sched_25ms); _srs_pps_sched_30ms->update(_st_stat_sched_30ms);
+    _srs_pps_sched_35ms->update(_st_stat_sched_35ms); _srs_pps_sched_40ms->update(_st_stat_sched_40ms);
+    _srs_pps_sched_80ms->update(_st_stat_sched_80ms);
+    if (_srs_pps_sched_160ms->r10s() || _srs_pps_sched_s->r10s() || _srs_pps_sched_15ms->r10s() || _srs_pps_sched_20ms->r10s() || _srs_pps_sched_25ms->r10s() || _srs_pps_sched_30ms->r10s() || _srs_pps_sched_35ms->r10s() || _srs_pps_sched_40ms->r10s() || _srs_pps_sched_80ms->r10s()) {
+        snprintf(buf, sizeof(buf), ", sched=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_sched_15ms->r10s(), _srs_pps_sched_20ms->r10s(), _srs_pps_sched_25ms->r10s(), _srs_pps_sched_30ms->r10s(), _srs_pps_sched_35ms->r10s(), _srs_pps_sched_40ms->r10s(), _srs_pps_sched_80ms->r10s(), _srs_pps_sched_160ms->r10s(), _srs_pps_sched_s->r10s());
         sched_desc = buf;
     }
 
@@ -424,8 +428,8 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
 
     string thread_desc;
     _srs_pps_thread_run->update(_st_stat_thread_run); _srs_pps_thread_idle->update(_st_stat_thread_idle);
-    if (_srs_pps_thread_run->r10s() || _srs_pps_thread_idle->r10s()) {
-        snprintf(buf, sizeof(buf), ", co=%d,%d", _srs_pps_thread_run->r10s(), _srs_pps_thread_idle->r10s());
+    if (_st_active_count > 0 || _srs_pps_thread_run->r10s() || _srs_pps_thread_idle->r10s()) {
+        snprintf(buf, sizeof(buf), ", co=%d,%d,%d", _st_active_count, _srs_pps_thread_run->r10s(), _srs_pps_thread_idle->r10s());
         thread_desc = buf;
     }
 

@@ -1084,6 +1084,8 @@ private:
     // Get the stats directive.
     virtual SrsConfDirective* get_stats();
 public:
+    // Whether enabled stats.
+    virtual bool get_stats_enabled();
     // Get the network device index, used to retrieve the ip of device,
     // For heartbeat to report to server, or to get the local ip.
     // For example, 0 means the eth0 maybe.

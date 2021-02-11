@@ -3640,7 +3640,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective* conf = get_stats();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "network" && n != "disk") {
+            if (n != "enabled" && n != "network" && n != "disk") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stats.%s", n.c_str());
             }
         }
@@ -8351,6 +8351,23 @@ bool SrsConfig::get_heartbeat_summaries()
 SrsConfDirective* SrsConfig::get_stats()
 {
     return root->get("stats");
+}
+
+bool SrsConfig::get_stats_enabled()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_stats();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 int SrsConfig::get_stats_network()
