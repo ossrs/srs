@@ -593,7 +593,10 @@ srs_error_t SrsUdpMuxListener::cycle()
     // and the size is not determined, so we think there is at least one copy,
     // and we can reuse the plaintext h264/opus with players when got plaintext.
     SrsUdpMuxSocket skt(lfd);
-    
+
+    // How many messages to run a yield.
+    uint32_t nn_msgs_for_yield = 0;
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
@@ -660,7 +663,14 @@ srs_error_t SrsUdpMuxListener::cycle()
     
         if (SrsUdpPacketRecvCycleInterval > 0) {
             srs_usleep(SrsUdpPacketRecvCycleInterval);
-        }   
+        }
+
+        // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777485531
+        if (++nn_msgs_for_yield > 10) {
+            nn_msgs_for_yield = 0;
+            srs_thread_yield();
+        }
     }   
     
     return err;
