@@ -54,14 +54,14 @@
 
 // Global stat.
 #ifdef DEBUG
-unsigned long long _st_stat_sched_us = 0;
-unsigned long long _st_stat_sched_10ms = 0;
+unsigned long long _st_stat_sched_15ms = 0;
 unsigned long long _st_stat_sched_20ms = 0;
+unsigned long long _st_stat_sched_25ms = 0;
+unsigned long long _st_stat_sched_30ms = 0;
+unsigned long long _st_stat_sched_35ms = 0;
 unsigned long long _st_stat_sched_40ms = 0;
 unsigned long long _st_stat_sched_80ms = 0;
 unsigned long long _st_stat_sched_160ms = 0;
-unsigned long long _st_stat_sched_320ms = 0;
-unsigned long long _st_stat_sched_1000ms = 0;
 unsigned long long _st_stat_sched_s = 0;
 
 unsigned long long _st_stat_thread_run = 0;
@@ -504,26 +504,26 @@ void _st_vp_check_clock(void)
     st_utime_t elapsed, now;
     
     now = st_utime();
-    elapsed = now - _ST_LAST_CLOCK;
+    elapsed = now < _ST_LAST_CLOCK? 0 : now - _ST_LAST_CLOCK; // Might step back.
     _ST_LAST_CLOCK = now;
 
     #ifdef DEBUG
-    if (elapsed <= 1000) {
-        ++_st_stat_sched_us;
-    } else if (elapsed <= 10000) {
-        ++_st_stat_sched_10ms;
+    if (elapsed <= 10000) {
+        ++_st_stat_sched_15ms;
     } else if (elapsed <= 21000) {
         ++_st_stat_sched_20ms;
+    } else if (elapsed <= 25000) {
+        ++_st_stat_sched_25ms;
+    } else if (elapsed <= 30000) {
+        ++_st_stat_sched_30ms;
+    } else if (elapsed <= 35000) {
+        ++_st_stat_sched_35ms;
     } else if (elapsed <= 40000) {
         ++_st_stat_sched_40ms;
     } else if (elapsed <= 80000) {
         ++_st_stat_sched_80ms;
     } else if (elapsed <= 160000) {
         ++_st_stat_sched_160ms;
-    } else if (elapsed <= 320000) {
-        ++_st_stat_sched_320ms;
-    } else if (elapsed <= 1000000) {
-        ++_st_stat_sched_1000ms;
     } else {
         ++_st_stat_sched_s;
     }
@@ -548,7 +548,8 @@ void _st_vp_check_clock(void)
         /* Make thread runnable */
         ST_ASSERT(!(thread->flags & _ST_FL_IDLE_THREAD));
         thread->state = _ST_ST_RUNNABLE;
-        _ST_ADD_RUNQ(thread);
+        // Insert at the head of RunQ, to execute timer first.
+        _ST_INSERT_RUNQ(thread);
     }
 }
 

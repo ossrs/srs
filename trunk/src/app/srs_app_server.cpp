@@ -1270,27 +1270,31 @@ srs_error_t SrsServer::setup_ticks()
     srs_freep(timer_);
     timer_ = new SrsHourGlass("srs", this, 1 * SRS_UTIME_SECONDS);
 
-    if ((err = timer_->tick(2, 3 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
+    if (_srs_config->get_stats_enabled()) {
+        if ((err = timer_->tick(2, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+        if ((err = timer_->tick(3, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+        if ((err = timer_->tick(4, 6 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+        if ((err = timer_->tick(5, 6 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+        if ((err = timer_->tick(6, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+        if ((err = timer_->tick(7, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
+
+        if ((err = timer_->tick(8, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
     }
-    if ((err = timer_->tick(3, 3 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-    if ((err = timer_->tick(4, 6 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-    if ((err = timer_->tick(5, 6 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-    if ((err = timer_->tick(6, 9 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-    if ((err = timer_->tick(7, 9 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-    if ((err = timer_->tick(8, 3 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
+
     if (_srs_config->get_heartbeat_enabled()) {
         if ((err = timer_->tick(9, _srs_config->get_heartbeat_interval())) != srs_success) {
             return srs_error_wrap(err, "tick");

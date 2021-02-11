@@ -1,10 +1,11 @@
 /*
-g++ -g -O0 cost.cpp -o cost && ./cost | grep COST
+g++ -g -O0 cost.cpp ../../objs/st/libst.a -I../../objs/st -o cost && ./cost | grep COST
 */
 #include <stdio.h>
 #include <sys/time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <st.h>
 
 #define SRS_UTIME_MILLISECONDS 1000
 #define srsu2i(us) ((int)(us))
@@ -141,6 +142,18 @@ int main(int argc, char** argv)
             srsu2i(ts_read - ts_open),
             srsu2i(ts_read2 - ts_read)
         );
+    }
+
+    // The cost for ST timer.
+    st_set_eventsys(ST_EVENTSYS_ALT);
+    st_init();
+    for (;;) {
+        int64_t start = srs_update_system_time();
+        st_usleep(20 * 1000);
+        int64_t cost = srs_update_system_time() - start;
+        if (cost > (20 + 10) * 1000) {
+            printf("[COST] timer=%dms\n", (int)(cost / 1000));
+        }
     }
 
     return 0;
