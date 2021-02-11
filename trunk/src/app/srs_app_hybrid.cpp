@@ -102,6 +102,16 @@ SrsPps* _srs_pps_clock_320ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_1000ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_s = new SrsPps(_srs_clock);
 
+SrsPps* _srs_pps_timer_us = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_10ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_20ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_40ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_80ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_160ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_320ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_1000ms = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer_s = new SrsPps(_srs_clock);
+
 ISrsHybridServer::ISrsHybridServer()
 {
 }
@@ -266,9 +276,14 @@ srs_error_t SrsHybridServer::setup_ticks()
 {
     srs_error_t err = srs_success;
 
-    timer_ = new SrsHourGlass("hybrid", this, 1 * SRS_UTIME_SECONDS);
+    // Start timer for system global works.
+    timer_ = new SrsHourGlass("hybrid", this, 20 * SRS_UTIME_MILLISECONDS);
 
-    if ((err = timer_->tick(1, 5 * SRS_UTIME_SECONDS)) != srs_success) {
+    if ((err = timer_->tick(1, 20 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
+    if ((err = timer_->tick(2, 5 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "tick");
     }
 
@@ -282,6 +297,41 @@ srs_error_t SrsHybridServer::setup_ticks()
 srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
+
+    // Update system wall clock.
+    if (event == 1) {
+        static srs_utime_t clock = 0;
+
+        srs_utime_t now = srs_update_system_time();
+        if (!clock) {
+            clock = now;
+            return err;
+        }
+
+        srs_utime_t elapsed = now - clock;
+        clock = now;
+
+        if (elapsed < 1 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_us->sugar;
+        } else if (elapsed < 10 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_10ms->sugar;
+        } else if (elapsed < 20 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_20ms->sugar;
+        } else if (elapsed < 40 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_40ms->sugar;
+        } else if (elapsed < 80 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_80ms->sugar;
+        } else if (elapsed < 160 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_160ms->sugar;
+        } else if (elapsed < 320 * SRS_UTIME_MILLISECONDS) {
+            ++_srs_pps_timer_320ms->sugar;
+        } else if (elapsed < 1 * SRS_UTIME_SECONDS) {
+            ++_srs_pps_timer_1000ms->sugar;
+        } else {
+            ++_srs_pps_timer_s->sugar;
+        }
+        return err;
+    }
 
     // Show statistics for RTC server.
     SrsProcSelfStat* u = srs_get_self_proc_stat();
@@ -345,22 +395,34 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
         epoll_desc = buf;
     }
 
-    string clock_desc;
+    string sched_desc;
     _srs_pps_clock_us->update(_st_stat_clock_us); _srs_pps_clock_s->update(_st_stat_clock_s);
     _srs_pps_clock_10ms->update(_st_stat_clock_10ms); _srs_pps_clock_20ms->update(_st_stat_clock_20ms);
     _srs_pps_clock_40ms->update(_st_stat_clock_40ms); _srs_pps_clock_80ms->update(_st_stat_clock_80ms);
     _srs_pps_clock_160ms->update(_st_stat_clock_160ms); _srs_pps_clock_320ms->update(_st_stat_clock_320ms);
     _srs_pps_clock_1000ms->update(_st_stat_clock_1000ms);
     if (_srs_pps_clock_us->r10s() || _srs_pps_clock_s->r10s() || _srs_pps_clock_10ms->r10s() || _srs_pps_clock_20ms->r10s() || _srs_pps_clock_40ms->r10s() || _srs_pps_clock_80ms->r10s() || _srs_pps_clock_160ms->r10s() || _srs_pps_clock_320ms->r10s() || _srs_pps_clock_1000ms->r10s()) {
-        snprintf(buf, sizeof(buf), ", clock=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_clock_us->r10s(), _srs_pps_clock_10ms->r10s(), _srs_pps_clock_20ms->r10s(), _srs_pps_clock_40ms->r10s(), _srs_pps_clock_80ms->r10s(), _srs_pps_clock_160ms->r10s(), _srs_pps_clock_320ms->r10s(), _srs_pps_clock_1000ms->r10s(), _srs_pps_clock_s->r10s());
+        snprintf(buf, sizeof(buf), ", sched=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_clock_us->r10s(), _srs_pps_clock_10ms->r10s(), _srs_pps_clock_20ms->r10s(), _srs_pps_clock_40ms->r10s(), _srs_pps_clock_80ms->r10s(), _srs_pps_clock_160ms->r10s(), _srs_pps_clock_320ms->r10s(), _srs_pps_clock_1000ms->r10s(), _srs_pps_clock_s->r10s());
+        sched_desc = buf;
+    }
+
+    string clock_desc;
+    _srs_pps_timer_us->update(); _srs_pps_timer_10ms->update();
+    _srs_pps_timer_20ms->update(); _srs_pps_timer_40ms->update();
+    _srs_pps_timer_80ms->update(); _srs_pps_timer_160ms->update();
+    _srs_pps_timer_320ms->update(); _srs_pps_timer_1000ms->update();
+    _srs_pps_timer_s->update();
+    if (_srs_pps_timer_us->r10s() || _srs_pps_timer_s->r10s() || _srs_pps_timer_10ms->r10s() || _srs_pps_timer_20ms->r10s() || _srs_pps_timer_40ms->r10s() || _srs_pps_timer_80ms->r10s() || _srs_pps_timer_160ms->r10s() || _srs_pps_timer_320ms->r10s() || _srs_pps_timer_1000ms->r10s()) {
+        snprintf(buf, sizeof(buf), ", clock=%d,%d,%d,%d,%d,%d,%d,%d,%d", _srs_pps_timer_us->r10s(), _srs_pps_timer_10ms->r10s(), _srs_pps_timer_20ms->r10s(), _srs_pps_timer_40ms->r10s(), _srs_pps_timer_80ms->r10s(), _srs_pps_timer_160ms->r10s(), _srs_pps_timer_320ms->r10s(), _srs_pps_timer_1000ms->r10s(), _srs_pps_timer_s->r10s());
         clock_desc = buf;
     }
 
-    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s",
+    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s",
         u->percent * 100, memory,
-        cid_desc.c_str(), timer_desc.c_str(), free_desc.c_str(),
+        cid_desc.c_str(), timer_desc.c_str(),
         recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str(),
-        epoll_desc.c_str(), clock_desc.c_str()
+        epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
+        free_desc.c_str()
     );
 
     return err;
