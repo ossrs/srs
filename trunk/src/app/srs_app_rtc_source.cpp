@@ -1749,6 +1749,7 @@ void SrsRtcRecvTrack::update_rtt(int rtt)
 void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp)
 {
     last_sender_report_ntp = ntp;
+    // TODO: FIXME: Use system wall clock.
     last_sender_report_sys_time = srs_update_system_time();;
 }
 

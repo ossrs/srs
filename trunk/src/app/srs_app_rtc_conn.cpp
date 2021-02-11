@@ -2277,8 +2277,9 @@ srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t
 
     // For publisher to send NACK.
     if (type == SRS_TICKID_SEND_NACKS) {
+        // TODO: FIXME: Merge with hybrid system clock.
         srs_update_system_time();
-        
+
         std::map<std::string, SrsRtcPublishStream*>::iterator it;
         for (it = publishers_.begin(); it != publishers_.end(); it++) {
             SrsRtcPublishStream* publisher = it->second;
