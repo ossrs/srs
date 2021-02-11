@@ -138,6 +138,8 @@ public:
 class SrsUdpMuxSocket
 {
 private:
+    // For sender yield only.
+    uint32_t nn_msgs_for_yield_;
     std::map<uint32_t, std::string> cache_;
     SrsBuffer* cache_buffer_;
 private:

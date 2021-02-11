@@ -292,6 +292,7 @@ srs_error_t SrsTcpListener::cycle()
 
 SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 {
+    nn_msgs_for_yield_ = 0;
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     nread = 0;
@@ -359,7 +360,14 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
         }   
     
         return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
-    }   
+    }
+
+    // Yield to another coroutines.
+    // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777542162
+    if (++nn_msgs_for_yield_ > 20) {
+        nn_msgs_for_yield_ = 0;
+        srs_thread_yield();
+    }
 
     return err;
 }
