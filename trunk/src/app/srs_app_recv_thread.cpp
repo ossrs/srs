@@ -288,7 +288,8 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     
     _conn = conn;
     _source = source;
-    
+
+    nn_msgs_for_yield_ = 0;
     recv_error = srs_success;
     _nb_msgs = 0;
     video_frames = 0;
@@ -400,6 +401,13 @@ srs_error_t SrsPublishRecvThread::consume(SrsCommonMessage* msg)
     
     if (err != srs_success) {
         return srs_error_wrap(err, "handle publish message");
+    }
+
+    // Yield to another coroutines.
+    // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777463768
+    if (++nn_msgs_for_yield_ >= 15) {
+        nn_msgs_for_yield_ = 0;
+        srs_thread_yield();
     }
     
     return err;
