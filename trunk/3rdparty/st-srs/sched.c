@@ -497,21 +497,21 @@ void _st_vp_check_clock(void)
     _ST_LAST_CLOCK = now;
 
     #ifdef DEBUG
-    if (elapsed < 1000) {
+    if (elapsed <= 1000) {
         ++_st_stat_sched_us;
-    } else if (elapsed < 10000) {
+    } else if (elapsed <= 10000) {
         ++_st_stat_sched_10ms;
-    } else if (elapsed < 20000) {
+    } else if (elapsed <= 21000) {
         ++_st_stat_sched_20ms;
-    } else if (elapsed < 40000) {
+    } else if (elapsed <= 40000) {
         ++_st_stat_sched_40ms;
-    } else if (elapsed < 80000) {
+    } else if (elapsed <= 80000) {
         ++_st_stat_sched_80ms;
-    } else if (elapsed < 160000) {
+    } else if (elapsed <= 160000) {
         ++_st_stat_sched_160ms;
-    } else if (elapsed < 320000) {
+    } else if (elapsed <= 320000) {
         ++_st_stat_sched_320ms;
-    } else if (elapsed < 1000000) {
+    } else if (elapsed <= 1000000) {
         ++_st_stat_sched_1000ms;
     } else {
         ++_st_stat_sched_s;
