@@ -63,6 +63,9 @@ unsigned long long _st_stat_sched_160ms = 0;
 unsigned long long _st_stat_sched_320ms = 0;
 unsigned long long _st_stat_sched_1000ms = 0;
 unsigned long long _st_stat_sched_s = 0;
+
+unsigned long long _st_stat_thread_run = 0;
+unsigned long long _st_stat_thread_idle = 0;
 #endif
 
 
@@ -131,10 +134,18 @@ void _st_vp_schedule(void)
     _st_thread_t *thread;
     
     if (_ST_RUNQ.next != &_ST_RUNQ) {
+        #ifdef DEBUG
+        ++_st_stat_thread_run;
+        #endif
+
         /* Pull thread off of the run queue */
         thread = _ST_THREAD_PTR(_ST_RUNQ.next);
         _ST_DEL_RUNQ(thread);
     } else {
+        #ifdef DEBUG
+        ++_st_stat_thread_idle;
+        #endif
+
         /* If there are no threads to run, switch to the idle thread */
         thread = _st_this_vp.idle_thread;
     }

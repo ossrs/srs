@@ -112,6 +112,11 @@ SrsPps* _srs_pps_clock_80ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_clock_160ms = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_timer_s = new SrsPps(_srs_clock);
 
+extern unsigned long long _st_stat_thread_run;
+extern unsigned long long _st_stat_thread_idle;
+SrsPps* _srs_pps_thread_run = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_thread_idle = new SrsPps(_srs_clock);
+
 ISrsHybridServer::ISrsHybridServer()
 {
 }
@@ -248,7 +253,7 @@ srs_error_t SrsHybridServer::run()
     }
 
     // Wait for all server to quit.
-    srs_thread_exit(NULL);
+    srs_usleep(SRS_UTIME_NO_TIMEOUT);
 
     return err;
 }
@@ -417,11 +422,19 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
         clock_desc = buf;
     }
 
-    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s",
+    string thread_desc;
+    _srs_pps_thread_run->update(_st_stat_thread_run); _srs_pps_thread_idle->update(_st_stat_thread_idle);
+    if (_srs_pps_thread_run->r10s() || _srs_pps_thread_idle->r10s()) {
+        snprintf(buf, sizeof(buf), ", co=%d,%d", _srs_pps_thread_run->r10s(), _srs_pps_thread_idle->r10s());
+        thread_desc = buf;
+    }
+
+    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s%s",
         u->percent * 100, memory,
         cid_desc.c_str(), timer_desc.c_str(),
         recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str(),
         epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
+        thread_desc.c_str(),
         free_desc.c_str()
     );
 
