@@ -802,9 +802,6 @@ srs_error_t SrsServer::initialize(ISrsServerCycle* ch)
 {
     srs_error_t err = srs_success;
     
-    // ensure the time is ok.
-    srs_update_system_time();
-    
     // for the main objects(server, config, log, context),
     // never subscribe handler in constructor,
     // instead, subscribe handler in initialize method.
@@ -1273,9 +1270,6 @@ srs_error_t SrsServer::setup_ticks()
     srs_freep(timer_);
     timer_ = new SrsHourGlass("srs", this, 1 * SRS_UTIME_SECONDS);
 
-    if ((err = timer_->tick(1, 1 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
     if ((err = timer_->tick(2, 3 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "tick");
     }
@@ -1315,7 +1309,6 @@ srs_error_t SrsServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
     srs_error_t err = srs_success;
 
     switch (event) {
-        case 1: srs_update_system_time(); break;
         case 2: srs_update_system_rusage(); break;
         case 3: srs_update_proc_stat(); break;
         case 4: srs_update_disk_stat(); break;
