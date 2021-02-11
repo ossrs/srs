@@ -67,6 +67,7 @@ unsigned long long _st_stat_sched_s = 0;
 unsigned long long _st_stat_thread_run = 0;
 unsigned long long _st_stat_thread_idle = 0;
 unsigned long long _st_stat_thread_yield = 0;
+unsigned long long _st_stat_thread_yield2 = 0;
 #endif
 
 
@@ -559,17 +560,21 @@ void st_thread_yield()
 {
     _st_thread_t *me = _ST_CURRENT_THREAD();
 
-    // If not thread in RunQ to yield to, ignore and continue to run.
-    if (_ST_RUNQ.next == &_ST_RUNQ) {
-        return;
-    }
-
     #ifdef DEBUG
     ++_st_stat_thread_yield;
     #endif
 
     /* Check sleep queue for expired threads */
     _st_vp_check_clock();
+
+    // If not thread in RunQ to yield to, ignore and continue to run.
+    if (_ST_RUNQ.next == &_ST_RUNQ) {
+        return;
+    }
+
+    #ifdef DEBUG
+    ++_st_stat_thread_yield2;
+    #endif
 
     // Append thread to the tail of RunQ, we will back after all threads executed.
     me->state = _ST_ST_RUNNABLE;
