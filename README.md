@@ -155,6 +155,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-02-12, RTC: Support high performance timer about 25ms resolution. 4.0.72
 * v4.0, 2021-02-10, RTC: Refine performance about 700+ streams. 4.0.71
 * v4.0, 2021-02-08, RTC: Print stat for pli and timer every 5s. 4.0.70
 * v4.0, 2021-02-07, RTC: Parse PT fast and refine udp handler. 4.0.69
