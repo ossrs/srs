@@ -48,7 +48,7 @@
 #endif
 
 // Global stat.
-#ifdef DEBUG
+#if defined(DEBUG) && defined(DEBUG_STATS)
 unsigned long long _st_stat_epoll = 0;
 unsigned long long _st_stat_epoll_zero = 0;
 unsigned long long _st_stat_epoll_shake = 0;
@@ -1213,7 +1213,7 @@ ST_HIDDEN void _st_epoll_dispatch(void)
     int events, op;
     short revents;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_epoll;
     #endif
 
@@ -1225,12 +1225,12 @@ ST_HIDDEN void _st_epoll_dispatch(void)
 
         // At least wait 1ms when <1ms, to avoid epoll_wait spin loop.
         if (timeout == 0) {
-            #ifdef DEBUG
+            #if defined(DEBUG) && defined(DEBUG_STATS)
             ++_st_stat_epoll_zero;
             #endif
 
             if (min_timeout > 0) {
-                #ifdef DEBUG
+                #if defined(DEBUG) && defined(DEBUG_STATS)
                 ++_st_stat_epoll_shake;
                 #endif
 
@@ -1262,7 +1262,7 @@ ST_HIDDEN void _st_epoll_dispatch(void)
     /* Check for I/O operations */
     nfd = epoll_wait(_st_epoll_data->epfd, _st_epoll_data->evtlist, _st_epoll_data->evtlist_size, timeout);
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     if (nfd <= 0) {
         ++_st_stat_epoll_spin;
     }

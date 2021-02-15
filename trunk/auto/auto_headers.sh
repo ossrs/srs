@@ -193,6 +193,12 @@ else
     srs_undefine_macro "SRS_DEBUG" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_DEBUG_STATS = YES ]; then
+    srs_define_macro "SRS_DEBUG_STATS" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_DEBUG_STATS" $SRS_AUTO_HEADERS_H
+fi
+
 # prefix
 echo "" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H

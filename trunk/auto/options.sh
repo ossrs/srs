@@ -133,6 +133,7 @@ SRS_NASM=YES
 SRS_SRTP_ASM=YES
 SRS_SENDMMSG=NO
 SRS_DEBUG=NO
+SRS_DEBUG_STATS=NO
 
 #####################################################################################
 # menu
@@ -162,6 +163,7 @@ Features:
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --gcov=on|off             Whether enable the GCOV compiler options. Default: $(value2switch $SRS_GCOV)
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
+  --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
   --log-verbose             Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
   --log-info                Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
@@ -222,7 +224,8 @@ function parse_user_option() {
         --log-info)                     SRS_LOG_INFO=YES            ;;
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         --gcov)                         SRS_GCOV=YES                ;;
-        --debug)                        SRS_DEBUG=YES               ;;
+        --debug)                        if [[ $value == off ]]; then SRS_DEBUG=NO; else SRS_DEBUG=YES; fi    ;;
+        --debug-stats)                  if [[ $value == off ]]; then SRS_DEBUG_STATS=NO; else SRS_DEBUG_STATS=YES; fi    ;;
 
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
@@ -572,7 +575,8 @@ function regenerate_options() {
     if [ $SRS_LOG_INFO = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
     if [ $SRS_LOG_TRACE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     if [ $SRS_GCOV = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
-    if [ $SRS_DEBUG = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug"; fi
+    if [ $SRS_DEBUG = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=on"; else              SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=off"; fi
+    if [ $SRS_DEBUG_STATS = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=off"; fi
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi

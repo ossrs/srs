@@ -286,6 +286,9 @@ endif
 #
 # make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
+# or to enable stats for ST:
+#
+# make EXTRA_CFLAGS=-DDEBUG_STATS
 ##########################
 
 CFLAGS      += $(DEFINES) $(OTHER_FLAGS) $(EXTRA_CFLAGS)
