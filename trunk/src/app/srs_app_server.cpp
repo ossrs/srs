@@ -50,7 +50,6 @@ using namespace std;
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
-#include <srs_core_mem_watch.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_gb28181.hpp>
@@ -745,10 +744,6 @@ void SrsServer::dispose()
     _srs_sources->dispose();
     
     // @remark don't dispose all connections, for too slow.
-    
-#ifdef SRS_MEM_WATCH
-    srs_memory_report();
-#endif
 }
 
 void SrsServer::gracefully_dispose()
@@ -789,10 +784,6 @@ void SrsServer::gracefully_dispose()
     // dispose the source for hls and dvr.
     _srs_sources->dispose();
     srs_trace("source disposed");
-
-#ifdef SRS_MEM_WATCH
-    srs_memory_report();
-#endif
 
     srs_usleep(_srs_config->get_grace_final_wait());
     srs_trace("final wait for %dms", srsu2msi(_srs_config->get_grace_final_wait()));
@@ -1169,10 +1160,6 @@ void SrsServer::on_signal(int signo)
 #ifdef SRS_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally, signo=%d", signo);
         signal_gmc_stop = true;
-#else
-        #ifdef SRS_MEM_WATCH
-        srs_memory_report();
-        #endif
 #endif
     }
 

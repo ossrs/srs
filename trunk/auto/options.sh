@@ -76,9 +76,6 @@ SRS_LOG_TRACE=YES
 # donot compile ssl, use system ssl(-lssl) if required.
 # TODO: Use pkg-config to get the openssl path.
 SRS_USE_SYS_SSL=NO
-# enable memory watch, detect memory leak,
-# similar to gmc, should disable in release version for hurts performance.
-SRS_MEM_WATCH=NO
 # export the srs-librtmp to specified project, NO to disable it.
 SRS_EXPORT_LIBRTMP_PROJECT=NO
 # export the srs-librtmp to a single .h and .c, NO to disable it.
@@ -376,7 +373,6 @@ function parse_user_option() {
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
         --full)                         SRS_ENABLE_ALL=YES          ;;
-        --memory-watch)                 SRS_MEM_WATCH=YES           ;;
         --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
         --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
