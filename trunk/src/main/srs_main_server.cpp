@@ -355,11 +355,6 @@ void show_macro_features()
     srs_trace("system default latency(ms): mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
               srsu2msi(SRS_PERF_MW_SLEEP), possible_mr_latency, srsu2msi(SRS_PERF_PLAY_QUEUE));
     
-#ifdef SRS_MEM_WATCH
-#warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
-    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
-#endif
-    
 #if VERSION_MAJOR > VERSION_STABLE
     #warning "Current branch is not stable."
     srs_warn("%s/%s is not stable", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);

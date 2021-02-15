@@ -81,7 +81,6 @@
 		3C4AB9331B8C9148006627D3 /* srs_app_ng_exec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C4AB9311B8C9148006627D3 /* srs_app_ng_exec.cpp */; };
 		3C4D184C1E73F133008806F7 /* srs_app_fragment.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C4D184A1E73F133008806F7 /* srs_app_fragment.cpp */; };
 		3C4F97121B8B466D00FF0E46 /* srs_app_process.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C4F97101B8B466D00FF0E46 /* srs_app_process.cpp */; };
-		3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C5265B21B241BF0009CA186 /* srs_core_mem_watch.cpp */; };
 		3C663F0F1AB0155100286D8B /* srs_aac_raw_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */; };
 		3C663F101AB0155100286D8B /* srs_audio_raw_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F031AB0155100286D8B /* srs_audio_raw_publish.c */; };
 		3C6F2D751E8653BF003D0805 /* srs_main_mp4_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C6F2D741E8653BF003D0805 /* srs_main_mp4_parser.cpp */; };
@@ -343,7 +342,6 @@
 		3C4D184B1E73F133008806F7 /* srs_app_fragment.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_fragment.hpp; path = ../../../src/app/srs_app_fragment.hpp; sourceTree = "<group>"; };
 		3C4F97101B8B466D00FF0E46 /* srs_app_process.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_process.cpp; path = ../../../src/app/srs_app_process.cpp; sourceTree = "<group>"; };
 		3C4F97111B8B466D00FF0E46 /* srs_app_process.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_process.hpp; path = ../../../src/app/srs_app_process.hpp; sourceTree = "<group>"; };
-		3C5265B21B241BF0009CA186 /* srs_core_mem_watch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_core_mem_watch.cpp; path = ../../../src/core/srs_core_mem_watch.cpp; sourceTree = "<group>"; };
 		3C6673CF1DF7B93200A6DF57 /* readme.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = readme.txt; path = ../../../modules/readme.txt; sourceTree = "<group>"; };
 		3C6673D11DF7B95E00A6DF57 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/hls-ingester/config"; sourceTree = "<group>"; };
 		3C6F2D731E86536B003D0805 /* config */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = config; path = "../../../modules/mp4-parser/config"; sourceTree = "<group>"; };
@@ -473,8 +471,6 @@
 			children = (
 				3C1231F01AAE652C00CE8F6C /* srs_core_autofree.cpp */,
 				3C1231F11AAE652C00CE8F6C /* srs_core_autofree.hpp */,
-				3C5265B21B241BF0009CA186 /* srs_core_mem_watch.cpp */,
-				3C5265B31B241BF0009CA186 /* srs_core_mem_watch.hpp */,
 				3C1231F21AAE652C00CE8F6C /* srs_core_performance.cpp */,
 				3C1231F31AAE652C00CE8F6C /* srs_core_performance.hpp */,
 				3C1231F41AAE652D00CE8F6C /* srs_core.cpp */,
@@ -984,7 +980,6 @@
 				3C663F151AB0155100286D8B /* srs_h264_raw_publish.c in Sources */,
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
 				8C0652B12035B5BA000B0661 /* srs_app_coworkers.cpp in Sources */,
-				3C5265B41B241BF0009CA186 /* srs_core_mem_watch.cpp in Sources */,
 				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
 				3C82802C1BAFF8CC004A1794 /* srs_kafka_stack.cpp in Sources */,
 				3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */,
