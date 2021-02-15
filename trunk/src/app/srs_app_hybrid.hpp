@@ -31,6 +31,7 @@
 #include <srs_app_hourglass.hpp>
 
 class SrsServer;
+class SrsServerAdapter;
 
 // The hibrid server interfaces, we could register many servers.
 class ISrsHybridServer
@@ -45,22 +46,6 @@ public:
     virtual srs_error_t run() = 0;
     // Stop each server, should do cleanup, for example, kill processes forked by server.
     virtual void stop() = 0;
-};
-
-// The SRS server adapter, the master server.
-class SrsServerAdapter : public ISrsHybridServer
-{
-private:
-    SrsServer* srs;
-public:
-    SrsServerAdapter();
-    virtual ~SrsServerAdapter();
-public:
-    virtual srs_error_t initialize();
-    virtual srs_error_t run();
-    virtual void stop();
-public:
-    virtual SrsServer* instance();
 };
 
 // The hybrid server manager.

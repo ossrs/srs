@@ -39,6 +39,7 @@
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_app_hybrid.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -397,6 +398,22 @@ public:
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+};
+
+// The SRS server adapter, the master server.
+class SrsServerAdapter : public ISrsHybridServer
+{
+private:
+    SrsServer* srs;
+public:
+    SrsServerAdapter();
+    virtual ~SrsServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run();
+    virtual void stop();
+public:
+    virtual SrsServer* instance();
 };
 
 #endif
