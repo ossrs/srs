@@ -170,11 +170,7 @@ if [[ $SRS_SRT == YES ]]; then
 fi
 
 # the link options, always use static link
-SrsLinkOptions="-ldl";
-if [[ $SRS_SRT == YES || $SRS_RTC == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -lpthread";
-fi
-
+SrsLinkOptions="-ldl -lpthread";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
