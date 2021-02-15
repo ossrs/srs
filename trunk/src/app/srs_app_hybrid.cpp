@@ -282,9 +282,6 @@ SrsServerAdapter* SrsHybridServer::srs()
     return NULL;
 }
 
-extern void _srs_coroutine_switch_in();
-extern void _srs_coroutine_switch_out();
-
 srs_error_t SrsHybridServer::setup_ticks()
 {
     srs_error_t err = srs_success;
