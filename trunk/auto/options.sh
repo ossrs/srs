@@ -165,9 +165,9 @@ Features:
   --debug=on|off            Whether enable the debug code, may hurt performance. Default: $(value2switch $SRS_DEBUG)
   --debug-stats=on|off      Whether enable the debug stats, may hurt performance. Default: $(value2switch $SRS_DEBUG_STATS)
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
-  --log-verbose             Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
-  --log-info                Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
-  --log-trace               Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
+  --log-verbose=on|off      Whether enable the log verbose level. Default: $(value2switch $SRS_LOG_VERBOSE)
+  --log-info=on|off         Whether enable the log info level. Default: $(value2switch $SRS_LOG_INFO)
+  --log-trace=on|off        Whether enable the log trace level. Default: $(value2switch $SRS_LOG_TRACE)
 
 Performance:                @see https://blog.csdn.net/win_lin/article/details/53503869
   --valgrind=on|off         Whether build valgrind for memory check. Default: $(value2switch $SRS_VALGRIND)
@@ -183,7 +183,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --sendmmsg=on|off         Whether enable UDP sendmmsg. Default: $(value2switch $SRS_SENDMMSG). @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
-  --static                  Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
+  --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
   --cc=<CC>                 Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Use c++ compiler CXX. Default: $SRS_TOOL_CXX
   --ar=<AR>                 Use archive tool AR. Default: $SRS_TOOL_CXX
@@ -219,16 +219,8 @@ function parse_user_option() {
         
         --jobs)                         SRS_JOBS=${value}           ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
-        --static)                       SRS_STATIC=YES              ;;
-        --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
-        --log-info)                     SRS_LOG_INFO=YES            ;;
-        --log-trace)                    SRS_LOG_TRACE=YES           ;;
-        --gcov)                         SRS_GCOV=YES                ;;
-        --debug)                        if [[ $value == off ]]; then SRS_DEBUG=NO; else SRS_DEBUG=YES; fi    ;;
-        --debug-stats)                  if [[ $value == off ]]; then SRS_DEBUG_STATS=NO; else SRS_DEBUG_STATS=YES; fi    ;;
 
-        --arm)                          SRS_CROSS_BUILD=YES         ;;
-        --mips)                         SRS_CROSS_BUILD=YES         ;;
+        --static)                       if [[ $value == off ]]; then SRS_STATIC=NO; else SRS_STATIC=YES; fi    ;;
         --cc)                           SRS_TOOL_CC=${value}        ;;
         --cxx)                          SRS_TOOL_CXX=${value}       ;;
         --ar)                           SRS_TOOL_AR=${value}        ;;
@@ -240,20 +232,6 @@ function parse_user_option() {
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
-        --allow-osx)                    SRS_OSX=YES                 ;;
-        --pi)                           SRS_PI=YES                  ;;
-        --cubie)                        SRS_CUBIE=YES               ;;
-        --dev)                          SRS_DEV=YES                 ;;
-        --fast-dev)                     SRS_FAST_DEV=YES            ;;
-        --demo)                         SRS_DEMO=YES                ;;
-        --fast)                         SRS_FAST=YES                ;;
-        --disable-all)                  SRS_DISABLE_ALL=YES         ;;
-        --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
-        --full)                         SRS_ENABLE_ALL=YES          ;;
-
-        --memory-watch)                 SRS_MEM_WATCH=YES           ;;
-        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
-        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
 
         --sendmmsg)                     if [[ $value == off ]]; then SRS_SENDMMSG=NO; else SRS_SENDMMSG=YES; fi    ;;
 
@@ -275,14 +253,6 @@ function parse_user_option() {
         --without-hds)                  SRS_HDS=NO                  ;;
         --hds)                          if [[ $value == off ]]; then SRS_HDS=NO; else SRS_HDS=YES; fi    ;;
 
-        --with-nginx)                   SRS_NGINX=YES               ;;
-        --without-nginx)                SRS_NGINX=NO                ;;
-        --nginx)                        if [[ $value == off ]]; then SRS_NGINX=NO; else SRS_NGINX=YES; fi    ;;
-
-        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
-        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
-        --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
-
         --with-transcode)               SRS_TRANSCODE=YES           ;;
         --without-transcode)            echo "ignore option \"$option\"" ;;
         --transcode)                    if [[ $value == off ]]; then SRS_TRANSCODE=NO; else SRS_TRANSCODE=YES; fi    ;;
@@ -299,10 +269,6 @@ function parse_user_option() {
         --without-stream-caster)        echo "ignore option \"$option\"" ;;
         --stream-caster)                if [[ $value == off ]]; then SRS_STREAM_CASTER=NO; else SRS_STREAM_CASTER=YES; fi    ;;
 
-        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
-        --without-librtmp)              SRS_LIBRTMP=NO              ;;
-        --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
-
         --with-research)                SRS_RESEARCH=YES            ;;
         --without-research)             SRS_RESEARCH=NO             ;;
         --research)                     if [[ $value == off ]]; then SRS_RESEARCH=NO; else SRS_RESEARCH=YES; fi    ;;
@@ -311,6 +277,7 @@ function parse_user_option() {
         --without-utest)                SRS_UTEST=NO                ;;
         --utest)                        if [[ $value == off ]]; then SRS_UTEST=NO; else SRS_UTEST=YES; fi    ;;
         --cherrypy)                     if [[ $value == off ]]; then SRS_CHERRYPY=NO; else SRS_CHERRYPY=YES; fi    ;;
+        --gcov)                         if [[ $value == off ]]; then SRS_GCOV=NO; else SRS_GCOV=YES; fi    ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
@@ -320,6 +287,7 @@ function parse_user_option() {
         --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          if [[ $value == off ]]; then SRS_RTC=NO; else SRS_RTC=YES; fi    ;;
         --simulator)                    if [[ $value == off ]]; then SRS_SIMULATOR=NO; else SRS_SIMULATOR=YES; fi    ;;
+        --ffmpeg-fit)                   if [[ $value == off ]]; then SRS_FFMPEG_FIT=NO; else SRS_FFMPEG_FIT=YES; fi    ;;
 
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --without-gb28181)              SRS_GB28181=NO              ;;
@@ -327,7 +295,6 @@ function parse_user_option() {
 
         --cxx11)                        if [[ $value == off ]]; then SRS_CXX11=NO; else SRS_CXX11=YES; fi    ;;
         --cxx14)                        if [[ $value == off ]]; then SRS_CXX14=NO; else SRS_CXX14=YES; fi    ;;
-        --ffmpeg-fit)                   if [[ $value == off ]]; then SRS_FFMPEG_FIT=NO; else SRS_FFMPEG_FIT=YES; fi    ;;
 
         --with-clean)                   SRS_CLEAN=YES               ;;
         --without-clean)                SRS_CLEAN=NO                ;;
@@ -357,14 +324,6 @@ function parse_user_option() {
         --without-gprof)                SRS_GPROF=NO                ;;
         --gprof)                        if [[ $value == off ]]; then SRS_GPROF=NO; else SRS_GPROF=YES; fi    ;;
 
-        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
-        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
-        --arm-ubuntu12)                 if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
-
-        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
-        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
-        --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
-
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
         --without-ssl)                  echo "ignore option \"$option\"" ;;
         --sys-ssl)                      if [[ $value == off ]]; then SRS_USE_SYS_SSL=NO; else SRS_USE_SYS_SSL=YES; fi    ;;
@@ -379,25 +338,62 @@ function parse_user_option() {
         --without-valgrind)             SRS_VALGRIND=NO             ;;
         --valgrind)                     if [[ $value == off ]]; then SRS_VALGRIND=NO; else SRS_VALGRIND=YES; fi    ;;
 
-        --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
+        --with-http-callback)           echo "ignore option \"$option\"" ;;
         --without-http-callback)        echo "ignore option \"$option\"" ;;
-        --http-callback)                if [[ $value == off ]]; then SRS_HTTP_CALLBACK=NO; else SRS_HTTP_CALLBACK=YES; fi    ;;
+        --http-callback)                echo "ignore option \"$option\"" ;;
 
-        --with-http-api)                SRS_HTTP_API=YES            ;;
+        --with-http-api)                echo "ignore option \"$option\"" ;;
         --without-http-api)             echo "ignore option \"$option\"" ;;
-        --http-api)                     if [[ $value == off ]]; then SRS_HTTP_API=NO; else SRS_HTTP_API=YES; fi    ;;
+        --http-api)                     echo "ignore option \"$option\"" ;;
 
-        --with-http-server)             SRS_HTTP_SERVER=YES         ;;
+        --with-http-server)             echo "ignore option \"$option\"" ;;
         --without-http-server)          echo "ignore option \"$option\"" ;;
-        --http-server)                  if [[ $value == off ]]; then SRS_HTTP_SERVER=NO; else SRS_HTTP_SERVER=YES; fi    ;;
+        --http-server)                  echo "ignore option \"$option\"" ;;
 
-        --with-hls)                     SRS_HLS=YES                 ;;
+        --with-hls)                     echo "ignore option \"$option\"" ;;
         --without-hls)                  echo "ignore option \"$option\"" ;;
-        --hls)                          if [[ $value == off ]]; then SRS_HLS=NO; else SRS_HLS=YES; fi    ;;
+        --hls)                          echo "ignore option \"$option\"" ;;
 
-        --with-dvr)                     SRS_DVR=YES                 ;;
+        --with-dvr)                     echo "ignore option \"$option\"" ;;
         --without-dvr)                  echo "ignore option \"$option\"" ;;
-        --dvr)                          if [[ $value == off ]]; then SRS_DVR=NO; else SRS_DVR=YES; fi    ;;
+        --dvr)                          echo "ignore option \"$option\"" ;;
+
+        --log-verbose)                  if [[ $value == off ]]; then SRS_LOG_VERBOSE=NO; else SRS_LOG_VERBOSE=YES; fi    ;;
+        --log-info)                     if [[ $value == off ]]; then SRS_LOG_INFO=NO; else SRS_LOG_INFO=YES; fi    ;;
+        --log-trace)                    if [[ $value == off ]]; then SRS_LOG_TRACE=NO; else SRS_LOG_TRACE=YES; fi    ;;
+        --debug)                        if [[ $value == off ]]; then SRS_DEBUG=NO; else SRS_DEBUG=YES; fi    ;;
+        --debug-stats)                  if [[ $value == off ]]; then SRS_DEBUG_STATS=NO; else SRS_DEBUG_STATS=YES; fi    ;;
+
+        # Deprecated, might be removed in future.
+        --arm)                          SRS_CROSS_BUILD=YES         ;;
+        --mips)                         SRS_CROSS_BUILD=YES         ;;
+        --pi)                           SRS_PI=YES                  ;;
+        --cubie)                        SRS_CUBIE=YES               ;;
+        --dev)                          SRS_DEV=YES                 ;;
+        --fast-dev)                     SRS_FAST_DEV=YES            ;;
+        --demo)                         SRS_DEMO=YES                ;;
+        --fast)                         SRS_FAST=YES                ;;
+        --disable-all)                  SRS_DISABLE_ALL=YES         ;;
+        --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
+        --full)                         SRS_ENABLE_ALL=YES          ;;
+        --memory-watch)                 SRS_MEM_WATCH=YES           ;;
+        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
+        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
+        --with-nginx)                   SRS_NGINX=YES               ;;
+        --without-nginx)                SRS_NGINX=NO                ;;
+        --nginx)                        if [[ $value == off ]]; then SRS_NGINX=NO; else SRS_NGINX=YES; fi    ;;
+        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
+        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
+        --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
+        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
+        --without-librtmp)              SRS_LIBRTMP=NO              ;;
+        --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
+        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
+        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
+        --arm-ubuntu12)                 if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
+        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
+        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
+        --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -421,6 +417,16 @@ function value2switch() {
       echo on;
     elif [[ $1 == NO ]]; then
       echo off;
+    else
+      echo undefined;
+    fi
+}
+
+function switch2value() {
+    if [[ $1 == on ]]; then
+      echo YES;
+    elif [[ $1 == off ]]; then
+      echo NO;
     else
       echo undefined;
     fi
@@ -534,49 +540,49 @@ function regenerate_options() {
     SRS_AUTO_USER_CONFIGURE=`echo $opt`
     # regenerate the options for default values.
     SRS_AUTO_CONFIGURE="--prefix=${SRS_PREFIX}"
-    if [ $SRS_HLS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=off"; fi
-    if [ $SRS_HDS = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=off"; fi
-    if [ $SRS_DVR = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=off"; fi
-    if [ $SRS_SSL = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=off"; fi
-    if [ $SRS_HTTPS = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=off"; fi
-    if [ $SRS_SSL_1_0 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=off"; fi
-    if [ $SRS_SSL_LOCAL = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=off"; fi
-    if [ $SRS_USE_SYS_SSL = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=off"; fi
-    if [ $SRS_TRANSCODE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=off"; fi
-    if [ $SRS_INGEST = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=on"; else          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=off"; fi
-    if [ $SRS_STAT = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stat=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stat=off"; fi
-    if [ $SRS_HTTP_CALLBACK = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-callback=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-callback=off"; fi
-    if [ $SRS_HTTP_SERVER = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=on"; else     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=off"; fi
-    if [ $SRS_STREAM_CASTER = YES ]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=on"; else   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=off"; fi
-    if [ $SRS_HTTP_API = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=off"; fi
-    if [ $SRS_UTEST = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=off"; fi
-    if [ $SRS_CHERRYPY = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=off"; fi
-    if [ $SRS_SRT = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=off"; fi
-    if [ $SRS_RTC = YES ]; then             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=off"; fi
-    if [ $SRS_SIMULATOR = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=off"; fi
-    if [ $SRS_GB28181 = YES ]; then         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=on"; else         SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=off"; fi
-    if [ $SRS_CXX11 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=off"; fi
-    if [ $SRS_CXX14 = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=off"; fi
-    if [ $SRS_FFMPEG_FIT = YES ]; then      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=on"; else      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=off"; fi
-    if [ $SRS_NASM = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=on"; else            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=off"; fi
-    if [ $SRS_SRTP_ASM = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=on"; else       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=off"; fi
-    if [ $SRS_SENDMMSG = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=off"; fi
-    if [ $SRS_CLEAN = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=off"; fi
-    if [ $SRS_GPERF = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=off"; fi
-    if [ $SRS_GPERF_MC = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=off"; fi
-    if [ $SRS_GPERF_MD = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmd=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmd=off"; fi
-    if [ $SRS_GPERF_MP = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmp=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmp=off"; fi
-    if [ $SRS_GPERF_CP = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcp=on"; else             SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcp=off"; fi
-    if [ $SRS_GPROF = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gprof=on"; else           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gprof=off"; fi
-    if [ $SRS_STATIC = YES ]; then          SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static"; fi
-    if [ $SRS_SHARED_ST = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --use-shared-st"; fi
-    if [ $SRS_SHARED_SRT = YES ]; then      SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --use-shared-srt"; fi
-    if [ $SRS_LOG_VERBOSE = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
-    if [ $SRS_LOG_INFO = YES ]; then        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
-    if [ $SRS_LOG_TRACE = YES ]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
-    if [ $SRS_GCOV = YES ]; then            SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov"; fi
-    if [ $SRS_DEBUG = YES ]; then           SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=on"; else              SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=off"; fi
-    if [ $SRS_DEBUG_STATS = YES ]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=on"; else        SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=off"; fi
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=$(value2switch $SRS_HLS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=$(value2switch $SRS_HDS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=$(value2switch $SRS_DVR)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=$(value2switch $SRS_SSL)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=$(value2switch $SRS_HTTPS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=$(value2switch $SRS_SSL_1_0)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=$(value2switch $SRS_SSL_LOCAL)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=$(value2switch $SRS_USE_SYS_SSL)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=$(value2switch $SRS_TRANSCODE)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ingest=$(value2switch $SRS_INGEST)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stat=$(value2switch $SRS_STAT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-callback=$(value2switch $SRS_HTTP_CALLBACK)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-server=$(value2switch $SRS_HTTP_SERVER)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --stream-caster=$(value2switch $SRS_STREAM_CASTER)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --http-api=$(value2switch $SRS_HTTP_API)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=$(value2switch $SRS_NASM)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=$(value2switch $SRS_SRTP_ASM)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=$(value2switch $SRS_SENDMMSG)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=$(value2switch $SRS_CLEAN)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=$(value2switch $SRS_GPERF)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=$(value2switch $SRS_GPERF_MC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmd=$(value2switch $SRS_GPERF_MD)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmp=$(value2switch $SRS_GPERF_MP)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcp=$(value2switch $SRS_GPERF_CP)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gprof=$(value2switch $SRS_GPROF)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static=$(value2switch $SRS_STATIC)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --use-shared-st=$(value2switch $SRS_SHARED_ST)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --use-shared-srt=$(value2switch $SRS_SHARED_SRT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose=$(value2switch $SRS_LOG_VERBOSE)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info=$(value2switch $SRS_LOG_INFO)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace=$(value2switch $SRS_LOG_TRACE)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov=$(value2switch $SRS_GCOV)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
