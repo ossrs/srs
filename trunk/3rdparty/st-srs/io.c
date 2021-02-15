@@ -53,7 +53,7 @@
 #include "common.h"
 
 // Global stat.
-#ifdef DEBUG
+#if defined(DEBUG) && defined(DEBUG_STATS)
 unsigned long long _st_stat_recvfrom = 0;
 unsigned long long _st_stat_recvfrom_eagain = 0;
 unsigned long long _st_stat_sendto = 0;
@@ -457,7 +457,7 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
 {
     ssize_t n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_read;
     #endif
     
@@ -467,7 +467,7 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_read_eagain;
         #endif
 
@@ -499,7 +499,7 @@ ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_utim
 {
     ssize_t n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_readv;
     #endif
     
@@ -509,7 +509,7 @@ ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_utim
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_readv_eagain;
         #endif
 
@@ -610,7 +610,7 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_uti
     tmp_iov = (struct iovec *) iov;    /* we promise not to modify iov */
     iov_cnt = iov_size;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_writev;
     #endif
     
@@ -658,7 +658,7 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_uti
             }
         }
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_writev_eagain;
         #endif
 
@@ -680,7 +680,7 @@ int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size, st_utime
 {
     ssize_t n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_writev;
     #endif
     
@@ -710,7 +710,7 @@ int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size, st_utime
             (*iov)->iov_len -= n;
         }
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_writev_eagain;
         #endif
 
@@ -730,7 +730,7 @@ int st_recvfrom(_st_netfd_t *fd, void *buf, int len, struct sockaddr *from, int 
 {
     int n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_recvfrom;
     #endif
 
@@ -740,7 +740,7 @@ int st_recvfrom(_st_netfd_t *fd, void *buf, int len, struct sockaddr *from, int 
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_recvfrom_eagain;
         #endif
 
@@ -757,7 +757,7 @@ int st_sendto(_st_netfd_t *fd, const void *msg, int len, const struct sockaddr *
 {
     int n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_sendto;
     #endif
     
@@ -767,7 +767,7 @@ int st_sendto(_st_netfd_t *fd, const void *msg, int len, const struct sockaddr *
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_sendto_eagain;
         #endif
 
@@ -784,7 +784,7 @@ int st_recvmsg(_st_netfd_t *fd, struct msghdr *msg, int flags, st_utime_t timeou
 {
     int n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_recvmsg;
     #endif
     
@@ -794,7 +794,7 @@ int st_recvmsg(_st_netfd_t *fd, struct msghdr *msg, int flags, st_utime_t timeou
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_recvmsg_eagain;
         #endif
 
@@ -811,7 +811,7 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
 {
     int n;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_sendmsg;
     #endif
     
@@ -821,7 +821,7 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
         if (!_IO_NOT_READY_ERROR)
             return -1;
 
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_sendmsg_eagain;
         #endif
 
@@ -840,7 +840,7 @@ int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int
     int left;
     struct mmsghdr *p;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_sendmmsg;
     #endif
 
@@ -854,7 +854,7 @@ int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int
             if (!_IO_NOT_READY_ERROR)
                 break;
 
-            #ifdef DEBUG
+            #if defined(DEBUG) && defined(DEBUG_STATS)
             ++_st_stat_sendmmsg_eagain;
             #endif
 

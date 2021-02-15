@@ -53,7 +53,7 @@
 #endif
 
 // Global stat.
-#ifdef DEBUG
+#if defined(DEBUG) && defined(DEBUG_STATS)
 unsigned long long _st_stat_sched_15ms = 0;
 unsigned long long _st_stat_sched_20ms = 0;
 unsigned long long _st_stat_sched_25ms = 0;
@@ -136,7 +136,7 @@ void _st_vp_schedule(void)
     _st_thread_t *thread;
     
     if (_ST_RUNQ.next != &_ST_RUNQ) {
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_thread_run;
         #endif
 
@@ -144,7 +144,7 @@ void _st_vp_schedule(void)
         thread = _ST_THREAD_PTR(_ST_RUNQ.next);
         _ST_DEL_RUNQ(thread);
     } else {
-        #ifdef DEBUG
+        #if defined(DEBUG) && defined(DEBUG_STATS)
         ++_st_stat_thread_idle;
         #endif
 
@@ -509,7 +509,7 @@ void _st_vp_check_clock(void)
     elapsed = now < _ST_LAST_CLOCK? 0 : now - _ST_LAST_CLOCK; // Might step back.
     _ST_LAST_CLOCK = now;
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     if (elapsed <= 10000) {
         ++_st_stat_sched_15ms;
     } else if (elapsed <= 21000) {
@@ -560,7 +560,7 @@ void st_thread_yield()
 {
     _st_thread_t *me = _ST_CURRENT_THREAD();
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_thread_yield;
     #endif
 
@@ -572,7 +572,7 @@ void st_thread_yield()
         return;
     }
 
-    #ifdef DEBUG
+    #if defined(DEBUG) && defined(DEBUG_STATS)
     ++_st_stat_thread_yield2;
     #endif
 
