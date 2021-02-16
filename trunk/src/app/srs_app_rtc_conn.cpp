@@ -1172,13 +1172,6 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         }
     }
 
-    //TODO: ?? padding data, may be not unprotect
-    //B0(1011):pad+ext, A0(1010):pad
-    if ((data[0] & 0xFF) == 0xB0 || (data[0] & 0xFF) == 0xA0){
-        uint8_t padding_length = (uint8_t)(data[nb_data-1] & 0xFF);
-        nb_data = nb_data - padding_length;
-    }
-
     // Decrypt the cipher to plaintext RTP data.
     int nb_unprotected_buf = nb_data;
     if ((err = session_->transport_->unprotect_rtp(data, &nb_unprotected_buf)) != srs_success) {

@@ -321,7 +321,7 @@ size_t SrsRtpFrameBuffer::Length() const
 SrsRtpFrameBufferEnum SrsRtpFrameBuffer::InsertPacket(const VCMPacket& packet, const FrameData& frame_data)
 {
     if (packets_.size() == kMaxPacketsInSession) {
-        srs_warn("RtpJitterBuffer: Max number of packets per frame has been reached.");
+        srs_warn("RTP: jitbuffer Max number of packets per frame has been reached.");
         return kSizeError;
     }
 
@@ -332,7 +332,7 @@ SrsRtpFrameBufferEnum SrsRtpFrameBuffer::InsertPacket(const VCMPacket& packet, c
     uint32_t requiredSizeBytes = Length() + packet.sizeBytes;
 
     if (requiredSizeBytes == 0){
-        srs_warn("RtpJitterBuffer: requiredSizeBytes is zero ts:%u, seq:%u", packet.timestamp, packet.seqNum);
+        srs_warn("RTP: jitbuffer requiredSizeBytes is zero ts:%u, seq:%u", packet.timestamp, packet.seqNum);
         return kSizeError; 
     }
 
@@ -346,14 +346,14 @@ SrsRtpFrameBufferEnum SrsRtpFrameBuffer::InsertPacket(const VCMPacket& packet, c
                                  increments * kBufferIncStepSizeBytes;
 
         if (newSize > kMaxJBFrameSizeBytes) {
-            srs_error("RtpJitterBuffer: Failed to insert packet due to frame being too big.");
+            srs_error("RTP: jitbuffer Failed to insert packet due to frame being too big.");
             return kSizeError;
         }
 
         VerifyAndAllocate(newSize);
         UpdateDataPointers(prevBuffer, _buffer);
 
-        srs_trace("RtpJitterBuffer: VerifyAndAllocate:newSize:%d, prevBuffer:%d, _buffer:%d", newSize, prevBuffer, _buffer);
+        srs_trace("RTP: jitbuffer VerifyAndAllocate:newSize:%d, prevBuffer:%d, _buffer:%d", newSize, prevBuffer, _buffer);
     }
 
     // Find the position of this packet in the packet list in sequence number
@@ -414,7 +414,7 @@ SrsRtpFrameBufferEnum SrsRtpFrameBuffer::InsertPacket(const VCMPacket& packet, c
             last_packet_seq_num_ = packet.seqNum;
         }
     }else {
-        srs_warn("RtpJitterBuffer: no support codec type");
+        srs_warn("RTP: jitbuffer no support codec type");
         return kFlushIndicator;
     }
 
@@ -460,7 +460,7 @@ void SrsRtpFrameBuffer::VerifyAndAllocate(const uint32_t minimumSize)
             delete [] _buffer;
         }
 
-        srs_info("RtpJitterBuffer: VerifyAndAllocate oldbuffer=%d newbuffer=%d, minimumSize=%d, size=%d", 
+        srs_info("RTP: jitbuffer VerifyAndAllocate oldbuffer=%d newbuffer=%d, minimumSize=%d, size=%d", 
                      _buffer, newBuffer, minimumSize, _size);
 
         _buffer = newBuffer;
@@ -516,13 +516,13 @@ size_t SrsRtpFrameBuffer::InsertBuffer(uint8_t* frame_buffer,
             nalu_ptr += kLengthFieldLength + length;
             nalu_count++;
 
-            srs_trace("RtpJitterBuffer: H264 stap_a length:%d, nalu_count=%d", length, nalu_count);
+            srs_info("RTP: jitbuffer H264 stap_a length:%d, nalu_count=%d", length, nalu_count);
         }
 
         size_t total_len = required_length + nalu_count * (kLengthFieldLength) + kH264NALHeaderLengthInBytes;
 
         if (total_len > packet.sizeBytes) {
-            srs_error("RtpJitterBuffer: H264 required len %d is biger than packet len %d", total_len, packet.sizeBytes);
+            srs_error("RTP: jitbuffer H264 required len %d is biger than packet len %d", total_len, packet.sizeBytes);
             return -1;
         }
 
@@ -1290,6 +1290,17 @@ SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket2(const SrsRtpPacket2 &pkt
     int rtp_payload_size = pkt.shared_msg->size - rtp_header_size;  //rtp payload size;
 
     bool is_first_packet_in_frame = false;
+  
+    if (rtp_payload_size == 0){ 
+        //B0(1011):pad+ext, A0(1010):pad
+        if ((pkt.shared_msg->payload[0] & 0xFF) == 0xB0 || (pkt.shared_msg->payload[0] & 0xFF) == 0xA0){
+            uint8_t padding_length = (uint8_t)(pkt.shared_msg->payload[pkt.shared_msg->size-1] & 0xFF);
+            srs_info("RTP: jitbuffer padding packet ts:%u, seq:%u, payload size:%d, padding size:%d", 
+                pkt.header.get_timestamp(),pkt.header.get_sequence(),
+                rtp_payload_size, padding_length);
+        }
+        return kNoError;
+    }
     
     SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeReserved;
     FrameType frameType = kVideoFrameDelta;
@@ -1721,7 +1732,7 @@ bool SrsRtpJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32
 bool SrsRtpJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
 {
     if (decode_error_mode_ == kNoErrors) {
-        srs_warn("RTP SrsJitterBuffer::NextMaybeIncompleteTimestamp decode_error_mode_ %d", decode_error_mode_);
+        srs_warn("RTP jitbuffer NextMaybeIncompleteTimestamp decode_error_mode_ %d", decode_error_mode_);
         // No point to continue, as we are not decoding with errors.
         return false;
     }
@@ -1752,7 +1763,7 @@ bool SrsRtpJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
             int oldest_frame_hight_seq = oldest_frame->GetHighSeqNum();
             int next_frame_low_seq = next_frame->GetLowSeqNum();
 
-            srs_warn("RtpJitterBuffer: NextMaybeIncompleteTimestamp key(%s) incomplete oldest_frame (%u,%d)->(%u,%d)",
+            srs_warn("RTP: jitbuffer NextMaybeIncompleteTimestamp key(%s) incomplete oldest_frame (%u,%d)->(%u,%d)",
                     key_.c_str(), oldest_frame->GetTimeStamp(), oldest_frame_hight_seq, 
                     next_frame->GetTimeStamp(), next_frame_low_seq);
             return false;
@@ -1853,7 +1864,7 @@ bool SrsRtpJitterBuffer::GetFrame(char **buffer,  int &buf_len, int &size, bool 
         int resize = size + kBufferIncStepSizeBytes;
         *buffer = new char[resize];
 
-        srs_trace("RtpJitterBuffer: key=%s reallocate a frame buffer size(%d>%d) resize(%d)", 
+        srs_trace("RTP: jitbuffer key=%s reallocate a frame buffer size(%d>%d) resize(%d)", 
             key_.c_str(), size, buf_len, resize);
             
         buf_len = resize;
@@ -1906,13 +1917,13 @@ bool SrsRtpJitterBuffer::UpdateNackList(uint16_t sequence_number)
         }
 
         if (TooLargeNackList() && !HandleTooLargeNackList()) {
-            srs_warn("RtpJitterBuffer: key(%s) requesting key frame due to too large NACK list.",  key_.c_str());
+            srs_warn("RTP: jitbuffer key(%s) requesting key frame due to too large NACK list.",  key_.c_str());
             return false;
         }
 
         if (MissingTooOldPacket(sequence_number) &&
                 !HandleTooOldPackets(sequence_number)) {
-            srs_warn("RtpJitterBuffer: key(%s) requesting key frame due to missing too old packets",  key_.c_str());
+            srs_warn("RTP: jitbuffer key(%s) requesting key frame due to missing too old packets",  key_.c_str());
             return false;
         }
         
@@ -1932,7 +1943,7 @@ bool SrsRtpJitterBuffer::HandleTooLargeNackList()
 {
     // Recycle frames until the NACK list is small enough. It is likely cheaper to
     // request a key frame than to retransmit this many missing packets.
-    srs_warn("RtpJitterBuffer: NACK list has grown too large: %d > %d", 
+    srs_warn("RTP: jitbuffer NACK list has grown too large: %d > %d", 
                     missing_sequence_numbers_.size(), max_nack_list_size_);
     bool key_frame_found = false;
 
@@ -1961,7 +1972,7 @@ bool SrsRtpJitterBuffer::HandleTooOldPackets(uint16_t latest_sequence_number)
     bool key_frame_found = false;
     const uint16_t age_of_oldest_missing_packet = latest_sequence_number -
             *missing_sequence_numbers_.begin();
-    srs_warn("RtpJitterBuffer:  NACK list contains too old sequence numbers: %d > %d",
+    srs_warn("RTP: jitbuffer NACK list contains too old sequence numbers: %d > %d",
                       age_of_oldest_missing_packet,
                       max_packet_age_to_nack_);
 
