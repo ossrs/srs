@@ -536,6 +536,19 @@ public:
     virtual bool get_rtc_server_perf_stat();
     virtual bool get_rtc_server_black_hole();
     virtual std::string get_rtc_server_black_hole_addr();
+
+    virtual int get_rtc_server_rtmp_opus_payload_type();
+    virtual bool get_rtc_server_rtmp_enabled();
+    virtual std::string get_rtc_server_rtmp_output();
+    virtual bool get_rtc_server_rtmp_source_copy();
+    virtual std::string get_rtc_server_rtmp_audio_format();
+    virtual std::string get_rtc_server_rtmp_record_path();
+    virtual int get_rtc_server_rtmp_keyframe_interval_print();
+    virtual int get_rtc_server_rtmp_req_keyframe();
+    virtual bool get_rtc_server_rtmp_record_video();
+    virtual bool get_rtc_server_rtmp_record_audio();
+    virtual bool get_rtc_server_rtmp_audio_enabled();
+
 private:
     virtual int get_rtc_server_reuseport2();
 
