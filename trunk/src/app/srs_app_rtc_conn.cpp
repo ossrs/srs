@@ -1807,7 +1807,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
         }
     }
 
-    if (true){
+    if (_srs_config->get_vhost_is_edge(req->vhost)){
         SrsSource* rtmp_source = NULL;
         if ((err = _srs_sources->fetch_or_create(req, _srs_hybrid->srs()->instance(), &rtmp_source)) != srs_success) {
             return srs_error_wrap(err, "create rtmp source");
