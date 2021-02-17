@@ -542,17 +542,7 @@ srs_error_t SrsRtcPlayStream::cycle()
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
     }
 
-    if (!source->publish_stream()){
 
-        SrsSource* rtmp_source = NULL;
-        if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &rtmp_source)) != srs_success) {
-            return srs_error_wrap(err, "create rtmp source");
-        }
-        
-        if (rtmp_source){
-            rtmp_source->on_edge_play();
-        }
-    }
 
     realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
@@ -1814,6 +1804,17 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
             return srs_error_wrap(err, "before play");
+        }
+    }
+
+    if (true){
+        SrsSource* rtmp_source = NULL;
+        if ((err = _srs_sources->fetch_or_create(req, _srs_hybrid->srs()->instance(), &rtmp_source)) != srs_success) {
+            return srs_error_wrap(err, "create rtmp source");
+        }
+    
+        if (rtmp_source){
+            rtmp_source->on_edge_play();
         }
     }
 
