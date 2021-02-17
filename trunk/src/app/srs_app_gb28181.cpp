@@ -2152,6 +2152,9 @@ SrsGb28181StreamChannel::SrsGb28181StreamChannel(){
     rtp_peer_port = 0;
     rtp_peer_ip = "";
     rtmp_url = "";
+    flv_url = "";
+    hls_url = "";
+    webrtc_url = "";
     recv_time = 0;
     recv_time_str = "";
 }
@@ -2176,6 +2179,9 @@ void SrsGb28181StreamChannel::copy(const SrsGb28181StreamChannel *s){
     rtp_peer_port = s->get_rtp_peer_port();
 
     rtmp_url = s->get_rtmp_url();
+    flv_url = s->get_flv_url();
+    hls_url = s->get_hls_url();
+    webrtc_url = s->get_webrtc_url();
     
     recv_time_str = s->get_recv_time_str();
     recv_time = s->get_recv_time();
@@ -2190,6 +2196,9 @@ void SrsGb28181StreamChannel::dumps(SrsJsonObject* obj)
     obj->set("app", SrsJsonAny::str(app.c_str()));
     obj->set("stream", SrsJsonAny::str(stream.c_str()));
     obj->set("rtmp_url", SrsJsonAny::str(rtmp_url.c_str()));
+    obj->set("flv_url", SrsJsonAny::str(flv_url.c_str()));
+    obj->set("hls_url", SrsJsonAny::str(hls_url.c_str()));
+    obj->set("webrtc_url", SrsJsonAny::str(webrtc_url.c_str()));
    
     obj->set("ssrc", SrsJsonAny::integer(ssrc));
     obj->set("rtp_port", SrsJsonAny::integer(rtp_port));
@@ -2584,7 +2593,21 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
         channel->set_rtmp_port(rtmp_port);
         channel->set_ip(config->host);
         std::string play_url = srs_generate_rtmp_url(config->host, rtmp_port, "", "", app, stream_name, "");
+        
+        std::string flv_url = srs_string_replace(play_url, "rtmp://", "http://");
+        std::stringstream port;
+        port << ":" << rtmp_port;
+        flv_url = srs_string_replace(flv_url, port.str(), ":"+_srs_config->get_http_stream_listen());
+        std::string hls_url = flv_url + ".m3u8";
+        flv_url = flv_url + ".flv";
+     
+        std::string webrtc_url = srs_string_replace(play_url, "rtmp://", "webrtc://");
+        webrtc_url = srs_string_replace(webrtc_url, port.str(), ":"+_srs_config->get_http_api_listen());
+
         channel->set_rtmp_url(play_url);
+        channel->set_flv_url(flv_url);
+        channel->set_hls_url(hls_url);
+        channel->set_webrtc_url(webrtc_url);
 
         request.app = app;
         request.stream = stream_name;
