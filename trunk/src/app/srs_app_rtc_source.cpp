@@ -48,6 +48,17 @@
 #include <srs_app_rtc_codec.hpp>
 #endif
 
+#include <srs_protocol_kbps.hpp>
+
+// The NACK sent by us(SFU).
+SrsPps* _srs_pps_snack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_snack2 = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_sanack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_svnack = new SrsPps(_srs_clock);
+
+SrsPps* _srs_pps_rnack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rnack2 = new SrsPps(_srs_clock);
+
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
 const int kAudioChannel         = 2;
@@ -1831,7 +1842,17 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
-srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
+void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+{
+    // No payload, ignore.
+    if (buf->empty()) {
+        return;
+    }
+
+    *ppayload = new SrsRtpRawPayload();
+}
+
+srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
 {
     srs_error_t err = srs_success;
 
@@ -1847,7 +1868,7 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     }
 
     // For NACK to handle packet.
-    if ((err = on_nack(pkt)) != srs_success) {
+    if (nack_enabled && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
 
@@ -1857,6 +1878,8 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 srs_error_t SrsRtcAudioRecvTrack::check_send_nacks()
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_sanack->sugar;
 
     uint32_t timeout_nacks = 0;
     if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
@@ -1875,7 +1898,24 @@ SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
 }
 
-srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
+void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+{
+    // No payload, ignore.
+    if (buf->empty()) {
+        return;
+    }
+
+    uint8_t v = (uint8_t)pkt->nalu_type;
+    if (v == kStapA) {
+        *ppayload = new SrsRtpSTAPPayload();
+    } else if (v == kFuA) {
+        *ppayload = new SrsRtpFUAPayload2();
+    } else {
+        *ppayload = new SrsRtpRawPayload();
+    }
+}
+
+srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
 {
     srs_error_t err = srs_success;
 
@@ -1893,7 +1933,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     }
 
     // For NACK to handle packet.
-    if ((err = on_nack(pkt)) != srs_success) {
+    if (nack_enabled && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
 
@@ -1903,6 +1943,8 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 srs_error_t SrsRtcVideoRecvTrack::check_send_nacks()
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_svnack->sugar;
 
     uint32_t timeout_nacks = 0;
     if ((err = do_check_send_nacks(timeout_nacks)) != srs_success) {
@@ -1989,11 +2031,39 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-void SrsRtcSendTrack::on_recv_nack()
+srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info)
 {
+    srs_error_t err = srs_success;
+
+    ++_srs_pps_rnack2->sugar;
+
     SrsRtcTrackStatistic* statistic = statistic_;
 
     statistic->nacks++;
+
+    vector<SrsRtpPacket2*> resend_pkts;
+    for(int i = 0; i < (int)lost_seqs.size(); ++i) {
+        uint16_t seq = lost_seqs.at(i);
+        SrsRtpPacket2* pkt = fetch_rtp_packet(seq);
+        if (pkt == NULL) {
+            continue;
+        }
+        resend_pkts.push_back(pkt);
+
+        info.nn_bytes += pkt->nb_bytes();
+        uint32_t nn = 0;
+        if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
+            srs_trace("RTC NACK ARQ seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", pkt->header.get_sequence(),
+                pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
+        }
+    }
+
+    // By default, we send packets by sendmmsg.
+    if ((err = session_->do_send_packets(resend_pkts, info)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
+    }
+
+    return err;
 }
 
 SrsRtcAudioSendTrack::SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)

@@ -45,6 +45,30 @@ using namespace std;
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 
+extern SrsPps* _srs_pps_pkts;
+extern SrsPps* _srs_pps_addrs;
+extern SrsPps* _srs_pps_fast_addrs;
+
+extern SrsPps* _srs_pps_ids;
+extern SrsPps* _srs_pps_fids;
+extern SrsPps* _srs_pps_fids_level0;
+
+extern SrsPps* _srs_pps_pli;
+extern SrsPps* _srs_pps_twcc;
+extern SrsPps* _srs_pps_rr;
+
+extern SrsPps* _srs_pps_timer;
+extern SrsPps* _srs_pps_pub;
+extern SrsPps* _srs_pps_conn;
+
+extern SrsPps* _srs_pps_snack;
+extern SrsPps* _srs_pps_snack2;
+extern SrsPps* _srs_pps_sanack;
+extern SrsPps* _srs_pps_svnack;
+
+extern SrsPps* _srs_pps_rnack;
+extern SrsPps* _srs_pps_rnack2;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -217,7 +241,7 @@ SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
     hijacker = NULL;
-    timer = new SrsHourGlass(this, 1 * SRS_UTIME_SECONDS);
+    timer = new SrsHourGlass("server", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcServer::~SrsRtcServer()
@@ -300,27 +324,32 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 {
     srs_error_t err = srs_success;
 
-    string peer_id = skt->peer_id();
-    char* data = skt->data(); int size = skt->size();
-
     SrsRtcConnection* session = NULL;
-    if (true) {
-        ISrsResource* conn = _srs_rtc_manager->find_by_id(peer_id);
-        if (conn) {
-            // Switch to the session to write logs to the context.
-            session = dynamic_cast<SrsRtcConnection*>(conn);
-            session->switch_to_context();
-        }
+    char* data = skt->data(); int size = skt->size();
+    bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t*)data, size);
+    bool is_rtcp = srs_is_rtcp((uint8_t*)data, size);
+
+    uint64_t fast_id = skt->fast_id();
+    // Try fast id first, if not found, search by long peer id.
+    if (fast_id) {
+        session = (SrsRtcConnection*)_srs_rtc_manager->find_by_fast_id(fast_id);
+    }
+    if (!session) {
+        string peer_id = skt->peer_id();
+        session = (SrsRtcConnection*)_srs_rtc_manager->find_by_id(peer_id);
     }
 
-    // When got any packet, the session is alive now.
     if (session) {
+        // When got any packet, the session is alive now.
         session->alive();
     }
 
     // Notify hijack to handle the UDP packet.
-    if (hijacker) {
+    if (hijacker && is_rtp_or_rtcp && is_rtcp) {
         bool consumed = false;
+        if (session) {
+            session->switch_to_context();
+        }
         if ((err = hijacker->on_udp_packet(skt, session, &consumed)) != srs_success) {
             return srs_error_wrap(err, "hijack consumed=%u", consumed);
         }
@@ -331,27 +360,27 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     }
 
     // For STUN, the peer address may change.
-    if (srs_is_stun((uint8_t*)data, size)) {
+    if (!is_rtp_or_rtcp && srs_is_stun((uint8_t*)data, size)) {
+        string peer_id = skt->peer_id();
+
         SrsStunPacket ping;
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
         }
-        srs_info("recv stun packet from %s, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
-            peer_id.c_str(), ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
-
         if (!session) {
             session = find_session_by_username(ping.get_username());
-
-            // Switch to the session to write logs to the context.
-            if (session) {
-                session->switch_to_context();
-            }
         }
+        if (session) {
+            session->switch_to_context();
+        }
+
+        srs_info("recv stun packet from %s, fast=%" PRId64 ", use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
+            peer_id.c_str(), fast_id, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
         // TODO: FIXME: For ICE trickle, we may get STUN packets before SDP answer, so maybe should response it.
         if (!session) {
-            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s",
-                ping.get_username().c_str(), peer_id.c_str());
+            return srs_error_new(ERROR_RTC_STUN, "no session, stun username=%s, peer_id=%s, fast=%" PRId64,
+                ping.get_username().c_str(), peer_id.c_str(), fast_id);
         }
 
         return session->on_stun(skt, &ping);
@@ -359,18 +388,26 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For DTLS, RTCP or RTP, which does not support peer address changing.
     if (!session) {
-        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s", peer_id.c_str());
+        string peer_id = skt->peer_id();
+        return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s, fast=%" PRId64, peer_id.c_str(), fast_id);
     }
 
+    // Note that we don't(except error) switch to the context of session, for performance issue.
+    if (is_rtp_or_rtcp && !is_rtcp) {
+        err = session->on_rtp(data, size);
+        if (err != srs_success) {
+            session->switch_to_context();
+        }
+        return err;
+    }
+
+    session->switch_to_context();
+    if (is_rtp_or_rtcp && is_rtcp) {
+        return session->on_rtcp(data, size);
+    }
     if (srs_is_dtls((uint8_t*)data, size)) {
         return session->on_dtls(data, size);
-    } else if (srs_is_rtp_or_rtcp((uint8_t*)data, size)) {
-        if (srs_is_rtcp((uint8_t*)data, size)) {
-            return session->on_rtcp(data, size);
-        }
-        return session->on_rtp(data, size);
     }
-
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
 
@@ -469,8 +506,12 @@ srs_error_t SrsRtcServer::do_create_session(
 
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
-        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
-        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+        string host;
+        int port = _srs_config->get_rtc_server_listen();
+        srs_parse_hostport(mock_eip, host, port);
+
+        local_sdp.add_candidate(host, port, "host");
+        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", mock_eip.c_str(), host.c_str(), port);
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
@@ -534,8 +575,12 @@ srs_error_t SrsRtcServer::create_session2(SrsRequest* req, SrsSdp& local_sdp, co
 
     // We allows to mock the eip of server.
     if (!mock_eip.empty()) {
-        local_sdp.add_candidate(mock_eip, _srs_config->get_rtc_server_listen(), "host");
-        srs_trace("RTC: Use candidate mock_eip %s", mock_eip.c_str());
+        string host;
+        int port = _srs_config->get_rtc_server_listen();
+        srs_parse_hostport(mock_eip, host, port);
+
+        local_sdp.add_candidate(host, port, "host");
+        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", mock_eip.c_str(), host.c_str(), port);
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
@@ -574,11 +619,6 @@ srs_error_t SrsRtcServer::setup_session2(SrsRtcConnection* session, SrsRequest* 
     return err;
 }
 
-void SrsRtcServer::insert_into_id_sessions(const string& peer_id, SrsRtcConnection* session)
-{
-    _srs_rtc_manager->add_with_id(peer_id, session);
-}
-
 SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& username)
 {
     ISrsResource* conn = _srs_rtc_manager->find_by_name(username);
@@ -595,7 +635,13 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)_srs_rtc_manager->size(); i++) {
         SrsRtcConnection* session = dynamic_cast<SrsRtcConnection*>(_srs_rtc_manager->at(i));
-        if (!session || !session->is_alive() || session->disposing_) {
+        // Ignore not session, or already disposing.
+        if (!session || session->disposing_) {
+            continue;
+        }
+
+        // Update stat if session is alive.
+        if (session->is_alive()) {
             nn_rtc_conns++;
             continue;
         }
@@ -616,12 +662,23 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         return err;
     }
 
-    // Show statistics for RTC server.
-    SrsProcSelfStat* u = srs_get_self_proc_stat();
-    // Resident Set Size: number of pages the process has in real memory.
-    int memory = (int)(u->rss * 4 / 1024);
+    // Update the pps stat for UDP socket and adddresses.
+    _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+    _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update();
+    _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
+    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update();
+    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
+    _srs_pps_rnack->update(); _srs_pps_rnack2->update();
+
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, cpu=%.2f%%, rss=%dMB", nn_rtc_conns, u->percent * 100, memory);
+    srs_trace("RTC: Server conns=%u, pkts=%d, addrs=%d,%d, fid=%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d",
+        nn_rtc_conns,
+        _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
+        _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(),
+        _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s(),
+        _srs_pps_snack->r10s(), _srs_pps_snack2->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(),
+        _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s()
+    );
 
     return err;
 }

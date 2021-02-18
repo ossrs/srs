@@ -29,12 +29,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <map>
 #include <string>
 
 #include <srs_app_st.hpp>
 
 struct sockaddr;
 
+class SrsBuffer;
 class SrsUdpMuxSocket;
 
 // The udp packet handler.
@@ -136,14 +138,25 @@ public:
 class SrsUdpMuxSocket
 {
 private:
+    std::map<uint32_t, std::string> cache_;
+    SrsBuffer* cache_buffer_;
+private:
     char* buf;
     int nb_buf;
     int nread;
     srs_netfd_t lfd;
     sockaddr_storage from;
     int fromlen;
+private:
     std::string peer_ip;
     int peer_port;
+private:
+    // Cache for peer id.
+    std::string peer_id_;
+    // If the address changed, we should generate the peer_id.
+    bool address_changed_;
+    // For IPv4 client, we use 8 bytes int id to find it fastly.
+    uint64_t fast_id_;
 public:
     SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
@@ -158,6 +171,8 @@ public:
     std::string get_peer_ip() const;
     int get_peer_port() const;
     std::string peer_id();
+    uint64_t fast_id();
+    SrsBuffer* buffer();
     SrsUdpMuxSocket* copy_sendonly();
 };
 

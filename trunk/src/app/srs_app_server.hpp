@@ -38,6 +38,7 @@
 #include <srs_service_st.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
+#include <srs_app_hourglass.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -260,7 +261,9 @@ public:
 
 // TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler
+    , virtual public ISrsResourceManager, virtual public ISrsCoroutineHandler
+    , virtual public ISrsHourGlass
 {
 private:
     // TODO: FIXME: Extract an HttpApiServer.
@@ -269,6 +272,8 @@ private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsResourceManager* conn_manager;
+    SrsCoroutine* trd_;
+    SrsHourGlass* timer_;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -315,6 +320,9 @@ public:
     virtual srs_error_t register_signal();
     virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
+    virtual srs_error_t start();
+// interface ISrsCoroutineHandler
+public:
     virtual srs_error_t cycle();
 // server utilities.
 public:
@@ -337,6 +345,11 @@ private:
     // update the global static data, for instance, the current time,
     // the cpu/mem/network statistic.
     virtual srs_error_t do_cycle();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+private:
     // listen at specified protocol.
     virtual srs_error_t listen_rtmp();
     virtual srs_error_t listen_http_api();

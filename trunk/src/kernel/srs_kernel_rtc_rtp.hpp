@@ -57,6 +57,12 @@ class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
+class SrsRtpExtensionTypes;
+
+// Fast parse the SSRC from RTP packet. Return 0 if invalid.
+uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
+uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, SrsRtpExtensionTypes* types, uint16_t& twcc_sn);
 
 // The "distance" between two uint16 number, for example:
 //      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
@@ -86,8 +92,11 @@ enum SrsRtpExtensionType
 {
     kRtpExtensionNone,
     kRtpExtensionTransportSequenceNumber,
+    kRtpExtensionAudioLevel,
     kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
+
+const std::string kAudioLevelUri = "urn:ietf:params:rtp-hdrext:ssrc-audio-level";
 
 struct SrsExtensionInfo
 {
@@ -96,7 +105,8 @@ struct SrsExtensionInfo
 };
 
 const SrsExtensionInfo kExtensions[] = {
-    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")}
+    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")},
+    {kRtpExtensionAudioLevel, kAudioLevelUri},
 };
 
 class SrsRtpExtensionTypes
@@ -116,7 +126,8 @@ private:
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
-class SrsRtpExtensionTwcc : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionTwcc// : public ISrsCodec
 {
     bool has_twcc_;
     uint8_t id_;
@@ -138,12 +149,36 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpExtensions : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionOneByte// : public ISrsCodec
+{
+    bool has_ext_;
+    int id_;
+    uint8_t value_;
+public:
+    SrsRtpExtensionOneByte();
+    virtual ~SrsRtpExtensionOneByte() {}
+
+    bool exists() { return has_ext_; }
+    int get_id() { return id_; }
+    uint8_t get_value() { return value_; }
+    void set_id(int id);
+    void set_value(uint8_t value);
+public:
+    // ISrsCodec
+    virtual srs_error_t decode(SrsBuffer* buf);
+    virtual srs_error_t encode(SrsBuffer* buf);
+    virtual uint64_t nb_bytes() { return 2; };
+};
+
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensions// : public ISrsCodec
 {
 private:
     bool has_ext_;
     SrsRtpExtensionTypes types_;
     SrsRtpExtensionTwcc twcc_;
+    SrsRtpExtensionOneByte audio_level_;
 public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
@@ -152,6 +187,8 @@ public:
     void set_types_(const SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
+    srs_error_t get_audio_level(uint8_t& level);
+    srs_error_t set_audio_level(int id, uint8_t level);
 
 // ISrsCodec
 public:
@@ -163,7 +200,8 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpHeader : public ISrsCodec
+// Note that the header should never extends from any class, for performance.
+class SrsRtpHeader// : public ISrsCodec
 {
 private:
     uint8_t padding_length;
@@ -257,7 +295,7 @@ public:
     // Whether the packet is Audio packet.
     bool is_audio();
     // Copy the RTP packet.
-    SrsRtpPacket2* copy();
+    virtual SrsRtpPacket2* copy();
     // Set RTP header extensions for encoding or decoding header extension
     void set_extension_types(const SrsRtpExtensionTypes* v);
 // interface ISrsEncoder

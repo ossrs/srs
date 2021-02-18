@@ -30,6 +30,119 @@ using namespace std;
 #include <srs_app_config.hpp>
 
 #include <srs_app_st.hpp>
+#include <srs_service_conn.hpp>
+#include <srs_app_conn.hpp>
+
+class MockIDResource : public ISrsResource
+{
+public:
+    int id;
+    MockIDResource(int v) {
+        id = v;
+    }
+    virtual ~MockIDResource() {
+    }
+    virtual const SrsContextId& get_id() {
+        return _srs_context->get_id();
+    }
+    virtual std::string desc() {
+        return "";
+    }
+};
+
+VOID TEST(AppResourceManagerTest, FindByFastID)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsResourceManager m("test");
+        HELPER_EXPECT_SUCCESS(m.start());
+
+        m.add_with_fast_id(101, new MockIDResource(1));
+        m.add_with_fast_id(102, new MockIDResource(2));
+        m.add_with_fast_id(103, new MockIDResource(3));
+        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(102))->id);
+        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(103))->id);
+    }
+
+    if (true) {
+        SrsResourceManager m("test");
+        HELPER_EXPECT_SUCCESS(m.start());
+
+        MockIDResource* r1 = new MockIDResource(1);
+        MockIDResource* r2 = new MockIDResource(2);
+        MockIDResource* r3 = new MockIDResource(3);
+        m.add_with_fast_id(101, r1);
+        m.add_with_fast_id(102, r2);
+        m.add_with_fast_id(103, r3);
+        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(102))->id);
+        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(103))->id);
+
+        m.remove(r2); srs_usleep(0);
+        EXPECT_TRUE(m.find_by_fast_id(102) == NULL);
+    }
+
+    if (true) {
+        SrsResourceManager m("test");
+        HELPER_EXPECT_SUCCESS(m.start());
+
+        MockIDResource* r1 = new MockIDResource(1);
+        MockIDResource* r2 = new MockIDResource(2);
+        MockIDResource* r3 = new MockIDResource(3);
+        m.add_with_fast_id(1, r1);
+        m.add_with_fast_id(100001, r2);
+        m.add_with_fast_id(1000001, r3);
+        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(1))->id);
+        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(100001))->id);
+        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(1000001))->id);
+
+        m.remove(r2); srs_usleep(0);
+        EXPECT_TRUE(m.find_by_fast_id(100001) == NULL);
+
+        m.remove(r3); srs_usleep(0);
+        EXPECT_TRUE(m.find_by_fast_id(1000001) == NULL);
+
+        m.remove(r1); srs_usleep(0);
+        EXPECT_TRUE(m.find_by_fast_id(1) == NULL);
+    }
+
+    if (true) {
+        SrsResourceManager m("test");
+        HELPER_EXPECT_SUCCESS(m.start());
+
+        m.add_with_fast_id(101, new MockIDResource(1));
+        m.add_with_fast_id(10101, new MockIDResource(2));
+        m.add_with_fast_id(1010101, new MockIDResource(3));
+        m.add_with_fast_id(101010101, new MockIDResource(4));
+        m.add_with_fast_id(10101010101LL, new MockIDResource(5));
+        m.add_with_fast_id(1010101010101LL, new MockIDResource(6));
+        m.add_with_fast_id(101010101010101LL, new MockIDResource(7));
+        m.add_with_fast_id(10101010101010101LL, new MockIDResource(8));
+        m.add_with_fast_id(1010101010101010101ULL, new MockIDResource(9));
+        m.add_with_fast_id(11010101010101010101ULL, new MockIDResource(10));
+        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(2, ((MockIDResource*)m.find_by_fast_id(10101))->id);
+        EXPECT_EQ(3, ((MockIDResource*)m.find_by_fast_id(1010101))->id);
+        EXPECT_EQ(4, ((MockIDResource*)m.find_by_fast_id(101010101))->id);
+        EXPECT_EQ(5, ((MockIDResource*)m.find_by_fast_id(10101010101LL))->id);
+        EXPECT_EQ(6, ((MockIDResource*)m.find_by_fast_id(1010101010101LL))->id);
+        EXPECT_EQ(7, ((MockIDResource*)m.find_by_fast_id(101010101010101LL))->id);
+        EXPECT_EQ(8, ((MockIDResource*)m.find_by_fast_id(10101010101010101LL))->id);
+        EXPECT_EQ(9, ((MockIDResource*)m.find_by_fast_id(1010101010101010101ULL))->id);
+        EXPECT_EQ(10, ((MockIDResource*)m.find_by_fast_id(11010101010101010101ULL))->id);
+    }
+
+    if (true) {
+        SrsResourceManager m("test");
+        HELPER_EXPECT_SUCCESS(m.start());
+
+        m.add_with_fast_id(101, new MockIDResource(1));
+        m.add_with_fast_id(101, new MockIDResource(4));
+        EXPECT_EQ(1, ((MockIDResource*)m.find_by_fast_id(101))->id);
+    }
+}
 
 VOID TEST(AppCoroutineTest, Dummy)
 {

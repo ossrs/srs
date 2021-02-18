@@ -36,6 +36,7 @@
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_source.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -525,29 +526,33 @@ public:
 protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
-class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack
+class SrsRtcAudioRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcAudioRecvTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
+public:
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
     virtual srs_error_t check_send_nacks();
 };
 
-class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack
+class SrsRtcVideoRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
     virtual ~SrsRtcVideoRecvTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
+public:
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -577,7 +582,7 @@ public:
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;
-    virtual void on_recv_nack();
+    virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info);
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack

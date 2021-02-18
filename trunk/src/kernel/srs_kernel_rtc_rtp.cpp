@@ -23,6 +23,7 @@
 
 #include <srs_kernel_rtc_rtp.hpp>
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <sstream>
 using namespace std;
@@ -32,6 +33,106 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
+
+/* @see https://tools.ietf.org/html/rfc1889#section-5.1
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                           timestamp                           |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |           synchronization source (SSRC) identifier            |
+ +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+ |            contributing source (CSRC) identifiers             |
+ |                             ....                              |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
+{
+    if (size < 12) {
+        return 0;
+    }
+
+    uint32_t value = 0;
+    char* pp = (char*)&value;
+
+    char* p = buf + 8;
+    pp[3] = *p++;
+    pp[2] = *p++;
+    pp[1] = *p++;
+    pp[0] = *p++;
+    return value;
+}
+uint8_t srs_rtp_fast_parse_pt(char* buf, int size)
+{
+    if (size < 12) {
+        return 0;
+    }
+    return buf[1] & 0x7f;
+}
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, SrsRtpExtensionTypes* ext_types, uint16_t& twcc_sn)
+{
+    srs_error_t err = srs_success;
+
+    int need_size = 12 /*rtp head fix len*/ + 4 /* extension header len*/ + 3 /* twcc extension len*/;
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    uint8_t first = buf[0];
+    bool extension = (first & 0x10);
+    uint8_t cc = (first & 0x0F);
+
+    if(!extension) {
+        return srs_error_new(ERROR_RTC_RTP, "no extension in rtp");
+    }
+
+    need_size += cc * 4; // csrc size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+    buf += 12 + 4*cc;
+
+    uint16_t value = *((uint16_t*)buf);
+    value = ntohs(value);
+    if(0xBEDE != value) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "no support this type(0x%02x) extension", value);
+    }
+    buf += 2;
+    
+    uint16_t extension_length = ntohs(*((uint16_t*)buf));
+    buf += 2;
+    extension_length *= 4;
+    need_size += extension_length; // entension size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    while(extension_length > 0) {
+        uint8_t v = buf[0];
+        buf++;
+        extension_length--;
+        if(0 == v) {
+            continue;
+        }
+
+        uint8_t id = (v & 0xF0) >>4;
+        uint8_t len = (v & 0x0F) + 1;
+
+        SrsRtpExtensionType xtype = ext_types->get_type(id);
+        if(xtype == kRtpExtensionTransportSequenceNumber) {
+            twcc_sn = ntohs(*((uint16_t*)buf));
+            return err;
+        } else {
+            buf += len;
+            extension_length -= len;
+        }
+    }
+
+
+    return err;
+}
 
 // If value is newer than pre_value，return true; otherwise false
 bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
@@ -179,6 +280,58 @@ void SrsRtpExtensionTwcc::set_sn(uint16_t sn)
     has_twcc_ = true;
 }
 
+SrsRtpExtensionOneByte::SrsRtpExtensionOneByte() : has_ext_(false), id_(0), value_(0)
+{
+}
+
+void SrsRtpExtensionOneByte::set_id(int id)
+{
+    id_ = id;
+    has_ext_ = true;
+}
+
+void SrsRtpExtensionOneByte::set_value(uint8_t value)
+{
+    value_ = value;
+    has_ext_ = true;
+}
+
+srs_error_t SrsRtpExtensionOneByte::decode(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+    uint8_t v = buf->read_1bytes();
+
+    id_ = (v & 0xF0) >> 4;
+    uint8_t len = (v & 0x0F);
+    if(!id_ || len != 0) {
+        return srs_error_new(ERROR_RTC_RTP, "invalid rtp extension id=%d, len=%d", id_, len);
+    }
+
+    value_ = buf->read_1bytes();
+
+    has_ext_ = true;
+    return err;
+}
+
+srs_error_t SrsRtpExtensionOneByte::encode(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
+    }
+
+    uint8_t id_len = (id_ & 0x0F)<< 4 | 0x00;
+    buf->write_1bytes(id_len);
+    buf->write_1bytes(value_);
+
+    return err;
+}
+
 SrsRtpExtensions::SrsRtpExtensions() : has_ext_(false)
 {
 }
@@ -252,6 +405,11 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
                 return srs_error_wrap(err, "decode twcc extension");
             }
             has_ext_ = true;
+        } else if (xtype == kRtpExtensionAudioLevel) {
+            if((err = audio_level_.decode(buf)) != srs_success) {
+                return srs_error_wrap(err, "decode audio level extension");
+            }
+            has_ext_ = true;
         } else {
             buf->skip(1 + (len + 1));
         }
@@ -263,6 +421,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 uint64_t SrsRtpExtensions::nb_bytes()
 {
     int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    size += (audio_level_.exists() ? audio_level_.nb_bytes() : 0);
     // add padding
     size += (size % 4 == 0) ? 0 : (4 - size % 4);
     return size;
@@ -281,6 +440,10 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
         len += twcc_.nb_bytes();
     }
 
+    if (audio_level_.exists()) {
+        len += audio_level_.nb_bytes();
+    }
+
     int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
     len += padding_count;
 
@@ -290,6 +453,12 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     if (twcc_.has_twcc_ext()) {
         if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
+        }
+    }
+
+    if (audio_level_.exists()) {
+        if (srs_success != (err = audio_level_.encode(buf))) {
+            return srs_error_wrap(err, "encode audio level extension");
         }
     }
 
@@ -328,6 +497,23 @@ srs_error_t SrsRtpExtensions::set_twcc_sequence_number(uint8_t id, uint16_t sn)
     has_ext_ = true;
     twcc_.set_id(id);
     twcc_.set_sn(sn);
+    return srs_success;
+}
+
+srs_error_t SrsRtpExtensions::get_audio_level(uint8_t& level)
+{
+    if(audio_level_.exists()) {
+        level = audio_level_.get_value();
+        return srs_success;
+    }
+    return srs_error_new(ERROR_RTC_RTP_MUXER, "not find rtp extension audio level");
+}
+
+srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
+{
+    has_ext_ = true;
+    audio_level_.set_id(id);
+    audio_level_.set_value(level);
     return srs_success;
 }
 

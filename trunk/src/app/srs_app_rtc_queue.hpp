@@ -87,6 +87,9 @@ public:
     // TODO: FIXME: Refine it?
     void notify_nack_list_full();
     void notify_drop_seq(uint16_t seq);
+public:
+    void clear_histroy(uint16_t seq);
+    void clear_all_histroy();
 };
 
 struct SrsNackOption

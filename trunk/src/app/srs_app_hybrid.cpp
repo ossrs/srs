@@ -27,8 +27,17 @@
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_service_st.hpp>
+#include <srs_app_utility.hpp>
 
 using namespace std;
+
+extern SrsPps* _srs_pps_cids_get;
+extern SrsPps* _srs_pps_cids_set;
+
+extern SrsPps* _srs_pps_timer;
+extern SrsPps* _srs_pps_pub;
+extern SrsPps* _srs_pps_conn;
+extern SrsPps* _srs_pps_dispose;
 
 ISrsHybridServer::ISrsHybridServer()
 {
@@ -91,8 +100,8 @@ srs_error_t SrsServerAdapter::run()
         return srs_error_wrap(err, "ingest");
     }
 
-    if ((err = srs->cycle()) != srs_success) {
-        return srs_error_wrap(err, "main cycle");
+    if ((err = srs->start()) != srs_success) {
+        return srs_error_wrap(err, "start");
     }
 
     return err;
@@ -109,6 +118,7 @@ SrsServer* SrsServerAdapter::instance()
 
 SrsHybridServer::SrsHybridServer()
 {
+    timer_ = NULL;
 }
 
 SrsHybridServer::~SrsHybridServer()
@@ -135,6 +145,10 @@ srs_error_t SrsHybridServer::initialize()
         return srs_error_wrap(err, "initialize st failed");
     }
 
+    if ((err = setup_ticks()) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
@@ -151,29 +165,17 @@ srs_error_t SrsHybridServer::run()
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Identify master server directly.
-    // Run master server in this main thread.
-    SrsServerAdapter* master_server = NULL;
-
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
-
-        if (!master_server) {
-            master_server = dynamic_cast<SrsServerAdapter*>(server);
-            if (master_server) {
-                continue;
-            }
-        }
 
         if ((err = server->run()) != srs_success) {
             return srs_error_wrap(err, "run server");
         }
     }
 
-    if (master_server) {
-        return master_server->run();
-    }
+    // Wait for all server to quit.
+    srs_thread_exit(NULL);
 
     return err;
 }
@@ -195,6 +197,42 @@ SrsServerAdapter* SrsHybridServer::srs()
         }
     }
     return NULL;
+}
+
+srs_error_t SrsHybridServer::setup_ticks()
+{
+    srs_error_t err = srs_success;
+
+    timer_ = new SrsHourGlass("hybrid", this, 1 * SRS_UTIME_SECONDS);
+
+    if ((err = timer_->tick(1, 5 * SRS_UTIME_SECONDS)) != srs_success) {
+        return srs_error_wrap(err, "tick");
+    }
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    // Show statistics for RTC server.
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    // Resident Set Size: number of pages the process has in real memory.
+    int memory = (int)(u->rss * 4 / 1024);
+
+    _srs_pps_timer->update(); _srs_pps_pub->update(); _srs_pps_conn->update();
+
+    srs_trace("Hybrid cpu=%.2f%%,%dMB, timer=%d,%d,%d",
+        u->percent * 100, memory,
+        _srs_pps_timer->r10s(), _srs_pps_pub->r10s(), _srs_pps_conn->r10s()
+    );
+
+    return err;
 }
 
 SrsHybridServer* _srs_hybrid = new SrsHybridServer();
