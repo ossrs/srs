@@ -122,7 +122,7 @@
                   当前通道:<a id="gb28181ChannelId"></a>
                   <div>
                     <textarea class="span6" id="txt_rtmp_url" rows="2"></textarea>
-                    <button class="btn btn-primary" id="btn_play">RTMP播放</button>
+                    <button class="btn btn-primary" id="btn_play">FLV播放</button>
                      
                   </div>
                   <div>
@@ -141,187 +141,17 @@
       </div>
 
       <div id="main_content" class="hide">
-        <div id="link_modal" class="modal hide fade">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                <h3><a href="https://github.com/ossrs/srs">SRS Link Generator</a></h3>
-            </div>
-            <div class="modal-body">
-                <div class="form-horizontal">
-                    <div class="control-group">
-                        <label class="control-label" for="link_server">服务器地址</label>
-                        <div class="controls">
-                            <span id="link_server" class="span4 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_port">服务器端口</label>
-                        <div class="controls">
-                            <span id="link_port" class="span2 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_vhost">RTMP Vhost</label>
-                        <div class="controls">
-                            <span id="link_vhost" class="span4 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_app">RTMP App</label>
-                        <div class="controls">
-                            <span id="link_app" class="span4 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_stream">RTMP Stream</label>
-                        <div class="controls">
-                            <span id="link_stream" class="span4 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_rtmp">RTMP地址</label>
-                        <div class="controls">
-                            <span id="link_rtmp" class="span4 uneditable-input"></span>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <label class="control-label" for="link_url">播放链接地址</label>
-                        <div class="controls">
-                            <div style="margin-top:5px;"><a href="#" id="link_url" target="_blank">请右键拷贝此链接地址.</a></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer"></div>
-        </div>
-
         <div id="main_modal" class="modal hide fade">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                <h3><a href="https://github.com/ossrs/srs">SrsPlayer</a></h3>
+                <h3><a href="https://github.com/ossrs/srs">SrsFlvPlayer</a></h3>
             </div>
             <div class="modal-body">
-                <div id="player"></div>
-                <div class="progress progress-striped active" id="pb_buffer_bg">
-                    <div class="bar" style="width: 0%;" id="pb_buffer"></div>
+                <div>
+                    <video id="video_player" width="98%" autoplay controls></video>
                 </div>
             </div>
             <div class="modal-footer" id="my_modal_footer">
-                <div>
-                    <div class="btn-group dropup">
-                        <button class="btn dropdown-toggle" data-toggle="dropdown">
-                            全屏比例大小<span class="caret"></span>
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
-                            <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
-                            <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
-                            <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
-                            <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
-                            <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
-                        </ul>
-                    </div>
-                    <div class="btn-group dropup">
-                        <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
-                        <ul class="dropdown-menu">
-                            <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
-                            <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
-                            <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
-                            <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
-                            <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
-                        </ul>
-                    </div>
-                    <div class="btn-group dropup">
-                        <button class="btn dropdown-toggle" data-toggle="dropdown">缓冲区大小<span class="caret"></span></button>
-                        <ul class="dropdown-menu">
-                            <li><a id="btn_bt_0_1" href="#">0.1秒(实时)</a></li>
-                            <li><a id="btn_bt_0_2" href="#">0.2秒(实时)</a></li>
-                            <li><a id="btn_bt_0_3" href="#">0.3秒(实时)</a></li>
-                            <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
-                            <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
-                            <li><a id="btn_bt_1_0" href="#">1秒(低延迟)</a></li>
-                            <li><a id="btn_bt_2_0" href="#">2秒(较低延时)</a></li>
-                            <li><a id="btn_bt_3_0" href="#">3秒(流畅播放)</a></li>
-                            <li><a id="btn_bt_4_0" href="#">4秒(流畅播放)</a></li>
-                            <li><a id="btn_bt_5_0" href="#">5秒(网速较低)</a></li>
-                            <li><a id="btn_bt_6_0" href="#">6秒(网速较低)</a></li>
-                            <li><a id="btn_bt_8_0" href="#">8秒(网速较低)</a></li>
-                            <li><a id="btn_bt_10_0" href="#">10秒(无所谓延迟)</a></li>
-                            <li><a id="btn_bt_15_0" href="#">15秒(无所谓延迟)</a></li>
-                            <li><a id="btn_bt_20_0" href="#">20秒(无所谓延迟)</a></li>
-                            <li><a id="btn_bt_30_0" href="#">30秒(流畅第一)</a></li>
-                        </ul>
-                    </div>
-                    <div class="btn-group dropup">
-                        <button class="btn dropdown-toggle" data-toggle="dropdown">最大缓冲区<span class="caret"></span></button>
-                        <ul class="dropdown-menu">
-                            <li><a id="btn_mbt_0_6" href="#">0.6秒(实时)</a></li>
-                            <li><a id="btn_mbt_0_9" href="#">0.9秒(实时)</a></li>
-                            <li><a id="btn_mbt_1_2" href="#">1.2秒(实时)</a></li>
-                            <li><a id="btn_mbt_1_5" href="#">1.5秒(实时)</a></li>
-                            <li><a id="btn_mbt_2_4" href="#">2.4秒(会议)</a></li>
-                            <li><a id="btn_mbt_3_0" href="#">3秒(低延迟)</a></li>
-                            <li><a id="btn_mbt_6_0" href="#">6秒(较低延时)</a></li>
-                            <li><a id="btn_mbt_9_0" href="#">9秒(流畅播放)</a></li>
-                            <li><a id="btn_mbt_12_0" href="#">12秒(流畅播放)</a></li>
-                            <li><a id="btn_mbt_15_0" href="#">15秒(网速较低)</a></li>
-                            <li><a id="btn_mbt_18_0" href="#">18秒(网速较低)</a></li>
-                            <li><a id="btn_mbt_24_0" href="#">24秒(网速较低)</a></li>
-                            <li><a id="btn_mbt_30_0" href="#">30秒(无所谓延迟)</a></li>
-                            <li><a id="btn_mbt_45_0" href="#">45秒(无所谓延迟)</a></li>
-                            <li><a id="btn_mbt_60_0" href="#">60秒(无所谓延迟)</a></li>
-                            <li><a id="btn_mbt_90_0" href="#">90秒(流畅第一)</a></li>
-                        </ul>
-                    </div>
-                    <div class="btn-group dropup">
-                        <a id="btn_fullscreen" class="btn">全屏</a>
-                    </div>
-                    <div class="btn-group dropup">
-                        <button id="btn_pause" class="btn">暂停播放</button>
-                        <button id="btn_resume" class="btn hide">继续播放</button>
-                    </div>
-                    <div class="btn-group dropup">
-                        <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭播放器</button>
-                    </div>
-                </div>
-                <div class="hide" id="fullscreen_tips">
-                    请<font color="red">点击视频</font>进入全屏模式~<br/>
-                    由于安全原因，Flash全屏无法使用JS触发
-                </div>
-                <div>
-                    <div class="input-prepend div_play_time" title="BufferLength/BufferTime/MaxBufferTime">
-                        <span class="add-on">@B</span>
-                        <input class="span2" style="width:80px" id="txt_buffer" type="text" placeholder="0/0/0s">
-                    </div>
-                    <div class="input-prepend div_play_time" title="视频的播放流畅度">
-                        <span class="add-on">@F</span>
-                        <input class="span2" style="width:57px" id="txt_fluency" type="text" placeholder="100%">
-                    </div>
-                    <div class="input-prepend div_play_time" title="视频总共卡顿次数">
-                        <span class="add-on">@E</span>
-                        <input class="span2" style="width:45px" id="txt_empty_count" type="text" placeholder="0">
-                    </div>
-                    <div class="input-prepend div_play_time" title="视频当前的帧率FPS">
-                        <span class="add-on">@F</span>
-                        <input class="span2" style="width:55px" id="txt_fps" type="text" placeholder="fps">
-                    </div>
-                    <div class="input-prepend div_play_time" title="视频当前的码率(视频+音频)，单位：Kbps">
-                        <span class="add-on">@B</span>
-                        <input class="span2" style="width:55px" id="txt_bitrate" type="text" placeholder="kbps">
-                    </div>
-                    <div class="input-prepend div_play_time" title="播放时长，格式：天 时:分:秒">
-                        <span class="add-on">@T</span>
-                        <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
-                    </div>
-                </div>
-                <div style="margin-top:-12px;">
-                    <span id="debug_info"></span>
-                    URL: <a href="#" id="player_url"></a>
-                    <div class="input-prepend div_play_time" title="当前时间：年-月-日 时:分:秒">
-                        <span class="add-on">@N</span>
-                        <input class="span2" style="width:135px" id="player_clock" type="text" placeholder="年-月-日 时:分:秒">
-                    </div>
-                </div>
                 <div>
                     <div class="btn-group dropup">
                         <button class="btn btn-primary" id="btn_ptz_up"> 上↑ </button>
@@ -332,12 +162,7 @@
                         <button class="btn btn-primary" id="btn_ptz_zoomout"> 缩小－ </button>
                     </div>    
                     [注意] !!! 云台控制需要启用内部sip功能
-                    <div class="input-prepend" title="首播时间，点播放到开始播放的时间，秒">
-                        <span class="add-on">@PST</span>
-                        <input class="span1" style="width:60px" id="txt_pst" type="text" placeholder="N秒">
-                    </div>
                 </div>
-              
             </div>
         </div>
 
@@ -410,54 +235,17 @@
 </body>
 <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
 <script type="text/javascript" src="js/bootstrap.min.js"></script>
-<script type="text/javascript" src="js/swfobject.js"></script>
 <script type="text/javascript" src="js/json2.js"></script>
 <script type="text/javascript" src="js/srs.page.js"></script>
 <script type="text/javascript" src="js/srs.log.js"></script>
-<script type="text/javascript" src="js/srs.player.js"></script>
-<script type="text/javascript" src="js/srs.publisher.js"></script>
 <script type="text/javascript" src="js/srs.utility.js"></script>
 <script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript" src="js/flv-1.5.0.min.js"></script>
+<script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
 <script type="text/javascript">
-    var __on_flash_ready = null;
-
     $(function(){
-        // 探测Flash是否正常启用。
-        $('#main_flash_hdr').html(
-            '\
-            <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" width="100%" height="100%"> \
-                <param name="movie" value="srs_player/release/srs_player.swf"> \
-                <param name="quality" value="autohigh"> \
-                <param name="swliveconnect" value="true"> \
-                <param name="allowScriptAccess" value="always"> \
-                <param name="bgcolor" value="#0"> \
-                <param name="allowFullScreen" value="true"> \
-                <param name="wmode" value="opaque"> \
-                <param name="FlashVars" value="log=1"> \
-                <param name="flashvars" value="id=1&on_player_ready=__on_flash_ready"> \
-                <embed src="srs_player/release/srs_player.swf" width="100%" height="100%" \
-                    quality="autohigh" bgcolor="#0" align="middle" allowfullscreen="true" allowscriptaccess="always" \
-                    type="application/x-shockwave-flash" swliveconnect="true" wmode="opaque" \
-                    flashvars="id=1&on_player_ready=__on_flash_ready" \
-                    pluginspage="http://www.macromedia.com/go/getflashplayer"> \
-            </object> \
-            '
-        );
-        $('#main_flash_hdr').show();
-
-        var showFlashHdr = setTimeout(function(){
-            $('#main_flash_alert').show();
-        }, 300);
-
-        __on_flash_ready = function (id) {
-            clearTimeout(showFlashHdr);
-
-            $('#main_flash_alert').hide();
-            $('#main_flash_hdr').hide();
-            $('#main_content').show();
-
-            autoLoadPage();
-        };
+        $('#main_content').show();
+        autoLoadPage();
     });
 </script>
 <script type="text/javascript">
@@ -471,7 +259,6 @@
     } else {
         $("#txt_api_url").val("http://" + query.host + ":1985");
     }
-
     var __active_dar = null;
     function select_dar(dar_id, num, den) {
         srs_player.set_dar(num, den);
@@ -631,13 +418,13 @@
         $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
 
         if (ret.code == 0 && ret.data != undefined ) {
-            $("#txt_rtmp_url").val(ret.data.channels[0].rtmp_url);
+            $("#txt_rtmp_url").val(ret.data.channels[0].flv_url);
 
-            ret.data.channels[0].rtmp_url.split("//") 
+            ret.data.channels[0].flv_url.split("//") 
             
-            var urlObject = parse_rtmp_url(ret.data.channels[0].rtmp_url);
-            var werbrtc_url = "webrtc://"+ urlObject.server + "/" + urlObject.app + "/" + urlObject.stream;
-            $("#txt_rtc_url").val(werbrtc_url);
+            //var urlObject = parse_rtmp_url(ret.data.channels[0].rtmp_url);
+            //var werbrtc_url = "webrtc://"+ urlObject.server + "/" + urlObject.app + "/" + urlObject.stream;
+            $("#txt_rtc_url").val(ret.data.channels[0].webrtc_url);
         }
     } 
 
@@ -658,7 +445,293 @@
         //       $("#lab_chlist").text("("+sessionList.length+")");
     }
 
-   
+
+    // Async-await-promise based SRS RTC Player.
+    function SrsRtcPlayerAsync() {
+        var self = {};
+
+        // @see https://github.com/rtcdn/rtcdn-draft
+        // @url The WebRTC url to play with, for example:
+        //      webrtc://r.ossrs.net/live/livestream
+        // or specifies the API port:
+        //      webrtc://r.ossrs.net:11985/live/livestream
+        // or autostart the play:
+        //      webrtc://r.ossrs.net/live/livestream?autostart=true
+        // or change the app from live to myapp:
+        //      webrtc://r.ossrs.net:11985/myapp/livestream
+        // or change the stream from livestream to mystream:
+        //      webrtc://r.ossrs.net:11985/live/mystream
+        // or set the api server to myapi.domain.com:
+        //      webrtc://myapi.domain.com/live/livestream
+        // or set the candidate(ip) of answer:
+        //      webrtc://r.ossrs.net/live/livestream?eip=39.107.238.185
+        // or force to access https API:
+        //      webrtc://r.ossrs.net/live/livestream?schema=https
+        // or use plaintext, without SRTP:
+        //      webrtc://r.ossrs.net/live/livestream?encrypt=false
+        // or any other information, will pass-by in the query:
+        //      webrtc://r.ossrs.net/live/livestream?vhost=xxx
+        //      webrtc://r.ossrs.net/live/livestream?token=xxx
+        self.play = async function(url) {
+            var conf = self.__internal.prepareUrl(url);
+            self.pc.addTransceiver("audio", {direction: "recvonly"});
+            self.pc.addTransceiver("video", {direction: "recvonly"});
+
+            var offer = await self.pc.createOffer();
+            await self.pc.setLocalDescription(offer);
+            var session = await new Promise(function(resolve, reject) {
+                // @see https://github.com/rtcdn/rtcdn-draft
+                var data = {
+                    api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
+                };
+                console.log("Generated offer: ", data);
+
+                $.ajax({
+                    type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
+                    contentType:'application/json', dataType: 'json'
+                }).done(function(data) {
+                    console.log("Got answer: ", data);
+                    if (data.code) {
+                        reject(data); return;
+                    }
+
+                    resolve(data);
+                }).fail(function(reason){
+                    reject(reason);
+                });
+            });
+            await self.pc.setRemoteDescription(
+                new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+            );
+            return session;
+        };
+
+        // Close the publisher.
+        self.close = function() {
+            self.pc.close();
+        };
+
+        // The callback when got remote stream.
+        self.onaddstream = function (event) {};
+
+        // Internal APIs.
+        self.__internal = {
+            defaultPath: '/rtc/v1/play/',
+            prepareUrl: function (webrtcUrl) {
+                var urlObject = self.__internal.parse(webrtcUrl);
+
+                // If user specifies the schema, use it as API schema.
+                var schema = urlObject.user_query.schema;
+                schema = schema ? schema + ':' : window.location.protocol;
+
+                var port = urlObject.port || 1985;
+                if (schema === 'https:') {
+                    port = urlObject.port || 443;
+                }
+
+                // @see https://github.com/rtcdn/rtcdn-draft
+                var api = urlObject.user_query.play || self.__internal.defaultPath;
+                if (api.lastIndexOf('/') !== api.length - 1) {
+                    api += '/';
+                }
+
+                apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                for (var key in urlObject.user_query) {
+                    if (key !== 'api' && key !== 'play') {
+                        apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                    }
+                }
+                // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                var apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                var streamUrl = urlObject.url;
+
+                return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+            },
+            parse: function (url) {
+                // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
+                var a = document.createElement("a");
+                a.href = url.replace("rtmp://", "http://")
+                    .replace("webrtc://", "http://")
+                    .replace("rtc://", "http://");
+
+                var vhost = a.hostname;
+                var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
+                var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+
+                // parse the vhost in the params of app, that srs supports.
+                app = app.replace("...vhost...", "?vhost=");
+                if (app.indexOf("?") >= 0) {
+                    var params = app.substr(app.indexOf("?"));
+                    app = app.substr(0, app.indexOf("?"));
+
+                    if (params.indexOf("vhost=") > 0) {
+                        vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+                        if (vhost.indexOf("&") > 0) {
+                            vhost = vhost.substr(0, vhost.indexOf("&"));
+                        }
+                    }
+                }
+
+                // when vhost equals to server, and server is ip,
+                // the vhost is __defaultVhost__
+                if (a.hostname === vhost) {
+                    var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+                    if (re.test(a.hostname)) {
+                        vhost = "__defaultVhost__";
+                    }
+                }
+
+                // parse the schema
+                var schema = "rtmp";
+                if (url.indexOf("://") > 0) {
+                    schema = url.substr(0, url.indexOf("://"));
+                }
+
+                var port = a.port;
+                if (!port) {
+                    if (schema === 'http') {
+                        port = 80;
+                    } else if (schema === 'https') {
+                        port = 443;
+                    } else if (schema === 'rtmp') {
+                        port = 1935;
+                    }
+                }
+
+                var ret = {
+                    url: url,
+                    schema: schema,
+                    server: a.hostname, port: port,
+                    vhost: vhost, app: app, stream: stream
+                };
+                self.__internal.fill_query(a.search, ret);
+
+                // For webrtc API, we use 443 if page is https, or schema specified it.
+                if (!ret.port) {
+                    if (schema === 'webrtc' || schema === 'rtc') {
+                        if (ret.user_query.schema === 'https') {
+                            ret.port = 443;
+                        } else if (window.location.href.indexOf('https://') === 0) {
+                            ret.port = 443;
+                        } else {
+                            // For WebRTC, SRS use 1985 as default API port.
+                            ret.port = 1985;
+                        }
+                    }
+                }
+
+                return ret;
+            },
+            fill_query: function (query_string, obj) {
+                // pure user query object.
+                obj.user_query = {};
+
+                if (query_string.length === 0) {
+                    return;
+                }
+
+                // split again for angularjs.
+                if (query_string.indexOf("?") >= 0) {
+                    query_string = query_string.split("?")[1];
+                }
+
+                var queries = query_string.split("&");
+                for (var i = 0; i < queries.length; i++) {
+                    var elem = queries[i];
+
+                    var query = elem.split("=");
+                    obj[query[0]] = query[1];
+                    obj.user_query[query[0]] = query[1];
+                }
+
+                // alias domain for vhost.
+                if (obj.domain) {
+                    obj.vhost = obj.domain;
+                }
+            }
+        };
+
+        self.pc = new RTCPeerConnection(null);
+        self.pc.onaddstream = function (event) {
+            if (self.onaddstream) {
+                self.onaddstream(event);
+            }
+        };
+
+        return self;
+    }
+
+    var flvPlayer = null;
+    var hlsPlayer = null;
+
+    var stopPlayers = function () {
+        if (flvPlayer) {
+            flvPlayer.destroy();
+            flvPlayer = null;
+        }
+        if (hlsPlayer) {
+            hlsPlayer.destroy();
+            hlsPlayer = null;
+        }
+    };
+
+    var hide_for_error = function () {
+        $('#main_flash_alert').show();
+        $('#main_info').hide();
+        $('#main_tips').hide();
+        $('#video_player').hide();
+        //$('#btn_play').hide();
+
+        stopPlayers();
+    };
+
+    var show_for_ok = function () {
+        $('#main_flash_alert').hide();
+        $('#main_info').show();
+        $('#main_tips').show();
+        $('#video_player').show();
+        //$('#btn_play').show();
+    };
+
+    var start_play_live = function (r) {
+        stopPlayers();
+        if (!r) return;
+
+        // Start play HTTP-FLV.
+        if (r.stream.indexOf('.flv') > 0) {
+            if (!flvjs.isSupported()) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_ok();
+
+            flvPlayer = flvjs.createPlayer({type: 'flv', url: r.url});
+            flvPlayer.attachMediaElement(document.getElementById('video_player'));
+            flvPlayer.load();
+            flvPlayer.play();
+            return;
+        }
+
+        // Start play HLS.
+        if (r.stream.indexOf('.m3u8') > 0) {
+            if (!Hls.isSupported()) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_ok();
+
+            hlsPlayer = new Hls();
+            hlsPlayer.loadSource(r.url);
+            hlsPlayer.attachMedia(document.getElementById('video_player'));
+            return;
+        }
+
+        console.error('不支持的URL', r.url, r);
+        $('#video_player').hide();
+    };
 
 
     /****
@@ -692,155 +765,12 @@
 
         // the play startup time.
         var pst = new Date();
-
-        var pc = null; // Global handler to do cleanup when replaying.
-
+        
         $("#main_modal").on("show", function(){
-            if (srs_player) {
-                return;
-            }
-
-            $("#div_container").remove();
-            $("#debug_info").text("");
-
-            var div_container = $("<div/>");
-            $(div_container).attr("id", "div_container");
-            $("#player").append(div_container);
-
-            var player = $("<div/>");
-            $(player).attr("id", "player_id");
-            $(div_container).append(player);
-
-            srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
-            srs_player.on_player_ready = function() {
-                var buffer_time = 0.5;
-                if (url.indexOf('.m3u8') > 0) {
-                    buffer_time = 2;
-                }
-
-                if (query.buffer) {
-                    for (var i = 0; i < bts.length - 1; i++) {
-                        var cur = bts[i];
-                        var next = bts[i+1];
-                        if (Number(query.buffer) >= cur && Number(query.buffer) < next) {
-                            buffer_time = cur;
-                            break;
-                        }
-                    }
-                }
-
-                select_buffer(buffer_time);
-                this.play(url);
-
-                pst = new Date();
-            };
-            srs_player.on_player_status = function(code, desc) {
-                //console.log("[播放器状态] code=" + code + ", desc=" + desc);
-            };
-            srs_player.on_player_metadata = function(metadata) {
-                $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
-                if (metadata.ip && metadata.pid && metadata.cid) {
-                    $("#debug_info").text("ID:" + metadata.ip + '/' + metadata.pid + '/' + metadata.cid + '');
-                }
-                select_dar("#btn_dar_original", 0, 0);
-                select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-            };
-            srs_player.on_player_timer = function(time, buffer_length, kbps, fps, rtime) {
-                if (time > 0 && pst) {
-                    var diff = (new Date().getTime() - pst.getTime()) / 1000.0;
-                    $("#txt_pst").val(Number(diff).toFixed(2) + "秒");
-                    pst = null;
-                }
-
-                var buffer = buffer_length / this.max_buffer_time * 100;
-                $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
-
-                $("#pb_buffer_bg").attr("title",
-                    "缓冲区:" + buffer_length.toFixed(1) + "秒, 最大缓冲区:"
-                    + this.max_buffer_time.toFixed(1) + "秒, 当前:"
-                    + buffer.toFixed(1) + "%");
-
-                var bts = this.buffer_time >= 1? this.buffer_time.toFixed(0) : this.buffer_time.toFixed(1);
-                var mbts = this.buffer_time >= 1? this.max_buffer_time.toFixed(0) : this.max_buffer_time.toFixed(1);
-                $("#txt_buffer").val(buffer_length.toFixed(1) + "/" + bts + "/" + mbts + "s");
-
-                $("#txt_bitrate").val(kbps.toFixed(0) + "kbps");
-                $("#txt_fps").val(fps.toFixed(1) + "fps");
-                $("#txt_empty_count").val(srs_player.empty_count() + "次");
-                $("#txt_fluency").val(srs_player.fluency().toFixed(2) + "%");
-
-                var time_str = "";
-                // day
-                time_str = padding(parseInt(time / 24 / 3600), 2, '0') + " ";
-                // hour
-                time = time % (24 * 3600);
-                time_str += padding(parseInt(time / 3600), 2, '0') + ":";
-                // minute
-                time = time % (3600);
-                time_str += padding(parseInt(time / 60), 2, '0') + ":";
-                // seconds
-                time = time % (60);
-                time_str += padding(parseInt(time), 2, '0');
-                // show
-                $("#txt_time").val(time_str);
-
-                var clock = new Date().getTime() / 1000;
-                $("#player_clock").val(absolute_seconds_to_YYYYmmdd(clock) + " " + absolute_seconds_to_HHMMSS(clock));
-            };
-            srs_player.start();
         });
 
         $("#main_modal").on("hide", function(){
-            if (srs_player) {
-                // report the log to backend.
-                //console.log(srs_player.dump_log());
-
-                srs_player.stop();
-                srs_player = null;
-            }
-        });
-
-        var apply_url_change = function() {
-            var rtmp = parse_rtmp_url($("#txt_url").val());
-            var url = "http://" + query.host + query.pathname + "?"
-                + "app=" + rtmp.app + "&stream=" + rtmp.stream
-                + "&server=" + rtmp.server + "&port=" + rtmp.port
-                + "&autostart=true";
-            if (query.shp_identify) {
-                url += "&shp_identify=" + query.shp_identify;
-            }
-            if (rtmp.vhost == "__defaultVhost__") {
-                url += "&vhost=" + rtmp.server;
-            } else {
-                url += "&vhost=" + rtmp.vhost;
-            }
-            if (rtmp.schema == "http") {
-                url += "&schema=http";
-            }
-            if (query.buffer) {
-                url += "&buffer=" + query.buffer;
-            }
-            if (query.api_port) {
-                url += "&api_port=" + query.api_port;
-            }
-
-            var queries = user_extra_params(query);
-            if (queries && queries.length) {
-                url += '&' + queries.join('&');
-            }
-            $("#player_url").text($("#txt_url").val()).attr("href", url);
-
-            $("#link_server").text(rtmp.server);
-            $("#link_port").text(rtmp.port);
-            $("#link_vhost").text(rtmp.vhost);
-            $("#link_app").text(rtmp.app);
-            $("#link_stream").text(rtmp.stream);
-            $("#link_rtmp").text($("#txt_url").val());
-            $("#link_url").attr("href", url);
-        };
-
-        $("#txt_url").change(function(){
-            apply_url_change();
+           
         });
 
         $("#btn_generate_link").click(function(){
@@ -848,90 +778,10 @@
         });
 
         $("#btn_play").click(function(){
-            url = $("#txt_rtmp_url").val();
             $("#main_modal").modal({show:true, keyboard:true});
+            var r = parse_rtmp_url($("#txt_rtmp_url").val());
+            start_play_live(r);
         });
-
-        $("#btn_fullscreen").click(function(){
-            $("#fullscreen_tips").toggle();
-        });
-
-        $("#btn_pause").click(function() {
-            $("#btn_resume").toggle();
-            $("#btn_pause").toggle();
-            srs_player.pause();
-        });
-        $("#btn_resume").click(function(){
-            $("#btn_resume").toggle();
-            $("#btn_pause").toggle();
-            srs_player.resume();
-        });
-
-        if (true) {
-            $("#srs_publish").click(function () {
-                url = $("#srs_publish").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-            $("#srs_publish_ld").click(function () {
-                url = $("#srs_publish_ld").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-            $("#srs_publish_sd").click(function () {
-                url = $("#srs_publish_sd").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-            $("#srs_publish_fw").click(function () {
-                url = $("#srs_publish_fw").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-            $("#srs_publish_fw_ld").click(function () {
-                url = $("#srs_publish_fw_ld").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-            $("#srs_publish_fw_sd").click(function () {
-                url = $("#srs_publish_fw_sd").text();
-                $("#main_modal").modal({show: true, keyboard: false});
-            });
-        }
-
-        if (true) {
-            $("#btn_dar_original").click(function(){
-                select_dar("#btn_dar_original", 0, 0);
-            });
-            $("#btn_dar_21_9").click(function(){
-                select_dar("#btn_dar_21_9", 21, 9);
-            });
-            $("#btn_dar_16_9").click(function(){
-                select_dar("#btn_dar_16_9", 16, 9);
-            });
-            $("#btn_dar_4_3").click(function(){
-                select_dar("#btn_dar_4_3", 4, 3);
-            });
-            $("#btn_dar_fill").click(function(){
-                select_dar("#btn_dar_fill", -1, -1);
-            });
-        }
-
-        if (true) {
-            $("#btn_fs_size_video_100").click(function(){
-                select_fs_size("#btn_fs_size_video_100", "video", 100);
-            });
-            $("#btn_fs_size_video_75").click(function(){
-                select_fs_size("#btn_fs_size_video_75", "video", 75);
-            });
-            $("#btn_fs_size_video_50").click(function(){
-                select_fs_size("#btn_fs_size_video_50", "video", 50);
-            });
-            $("#btn_fs_size_screen_100").click(function(){
-                select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-            });
-            $("#btn_fs_size_screen_75").click(function(){
-                select_fs_size("#btn_fs_size_screen_75", "screen", 75);
-            });
-            $("#btn_fs_size_screen_50").click(function(){
-                select_fs_size("#btn_fs_size_screen_50", "screen", 50);
-            });
-        }
 
         if (true) {
             for (var i = 0; i < bts.length; i++) {
@@ -1159,93 +1009,51 @@
 
                 $("#create_channel_modal").modal('hide');
             });
-            
+
+            var sdk = null; // Global handler to do cleanup when replaying.
+            var startPlay = function() {
+                $('#rtc_media_player').show();
+
+                // Close PC when user replay.
+                if (sdk) {
+                    sdk.close();
+                }
+
+                sdk = new SrsRtcPlayerAsync();
+                sdk.onaddstream = function (event) {
+                    console.log('Start play, event: ', event);
+                    $('#rtc_media_player').prop('srcObject', event.stream);
+                };
+
+                // For example:
+                //      webrtc://r.ossrs.net/live/livestream
+                var url = $("#txt_rtc_url").val();
+                sdk.play(url).then(function(session){
+                    $('#sessionid').html(session.sessionid);
+                    $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+                }).catch(function (reason) {
+                    sdk.close();
+                    $('#rtc_media_player').hide();
+                    console.error(reason);
+                });
+            };
+
             $("#btn_rtc_play").click(function(){
                 $('#rtc_media_player').width(srs_get_player_width);
                 $('#rtc_media_player').height(srs_get_player_height);
                 $("#rtc_player_modal").modal({show: true, keyboard: false});
-
-                startPlay($("#txt_rtc_url").val());
+                
+                startPlay();
             });
 
 
             $("#rtc_player_modal").on("hide", function(){
-                if (pc) {
-                    pc.close();
-                 }
+                if (sdk) {
+                    sdk.close();
+                }
              });
 
-            var startPlay = function(url) {
-                    $('#rtc_media_player').show();
-                    var urlObject = parse_rtmp_url(url);
-                    var schema = window.location.protocol;
-
-                    // Close PC when user replay.
-                    if (pc) {
-                        pc.close();
-                    }
-
-                    pc = new RTCPeerConnection(null);
-                    pc.onaddstream = function (event) {
-                        console.debug(event.stream);
-                        $('#rtc_media_player').prop('srcObject', event.stream);
-                    };
-                    new Promise(function(resolve, reject) {
-                        pc.addTransceiver("audio", {direction: "recvonly"});
-                        pc.addTransceiver("video", {direction: "recvonly"});
-
-                        pc.createOffer(function(offer){
-                            resolve(offer);
-                        },function(reason){
-                            reject(reason);
-                        });
-                    }).then(function(offer) {
-                        return pc.setLocalDescription(offer).then(function(){ return offer; });
-                    }).then(function(offer) {
-                        return new Promise(function(resolve, reject) {
-                            // var port = urlObject.port || 1985;
-                            var port = 1985;
-
-                            // @see https://github.com/rtcdn/rtcdn-draft
-                            var api = urlObject.user_query.play || '/rtc/v1/play/';
-                            if (api.lastIndexOf('/') != api.length - 1) {
-                                api += '/';
-                            }
-
-                            var url = schema + '//' + urlObject.server + ':' + port + api;
-                            for (var key in urlObject.user_query) {
-                                if (key != 'api' && key != 'play') {
-                                    url += '&' + key + '=' + urlObject.user_query[key];
-                                }
-                            }
-                            // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
-                            url = url.replace(api + '&', api + '?');
-
-                            // @see https://github.com/rtcdn/rtcdn-draft
-                            var data = {
-                                api: url, streamurl: urlObject.url, clientip: null, sdp: offer.sdp
-                            };
-                            console.log("offer: " + JSON.stringify(data));
-
-                            $.ajax({
-                                type: "POST", url: url, data: JSON.stringify(data),
-                                contentType:'application/json', dataType: 'json'
-                            }).done(function(data) {
-                                console.log("answer: " + JSON.stringify(data));
-                                resolve(data.sdp);
-                            }).fail(function(reason){
-                                reject(reason);
-                            });
-                        });
-                    }).then(function(answer) {
-                        return pc.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: answer}));
-                    }).catch(function(reason) {
-                        throw reason;
-                    });
-                };
         }
-
-        apply_url_change();
     };
 </script>
 </html>

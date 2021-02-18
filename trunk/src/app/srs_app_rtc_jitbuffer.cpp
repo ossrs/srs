@@ -21,13 +21,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_gb28181_jitbuffer.hpp>
+#include <srs_app_rtc_jitbuffer.hpp>
 
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_file.hpp>
 
 
 using namespace std;
@@ -37,9 +38,9 @@ static const int64_t kDefaultRtt = 200;
 
 // Request a keyframe if no continuous frame has been received for this
 // number of milliseconds and NACKs are disabled.
-static const int64_t kMaxDiscontinuousFramesTime = 1000;
+//static const int64_t kMaxDiscontinuousFramesTime = 1000;
 
-typedef std::pair<uint32_t, SrsPsFrameBuffer*> FrameListPair;
+typedef std::pair<uint32_t, SrsRtpFrameBuffer*> FrameListPair;
 
 bool IsKeyFrame(FrameListPair pair)
 {
@@ -51,12 +52,12 @@ bool HasNonEmptyState(FrameListPair pair)
     return pair.second->GetState() != kStateEmpty;
 }
 
-void FrameList::InsertFrame(SrsPsFrameBuffer* frame)
+void FrameList::InsertFrame(SrsRtpFrameBuffer* frame)
 {
     insert(rbegin().base(), FrameListPair(frame->GetTimeStamp(), frame));
 }
 
-SrsPsFrameBuffer* FrameList::PopFrame(uint32_t timestamp)
+SrsRtpFrameBuffer* FrameList::PopFrame(uint32_t timestamp)
 {
     FrameList::iterator it = find(timestamp);
 
@@ -64,17 +65,17 @@ SrsPsFrameBuffer* FrameList::PopFrame(uint32_t timestamp)
         return NULL;
     }
 
-    SrsPsFrameBuffer* frame = it->second;
+    SrsRtpFrameBuffer* frame = it->second;
     erase(it);
     return frame;
 }
 
-SrsPsFrameBuffer* FrameList::Front() const
+SrsRtpFrameBuffer* FrameList::Front() const
 {
     return begin()->second;
 }
 
-SrsPsFrameBuffer* FrameList::FrontNext() const
+SrsRtpFrameBuffer* FrameList::FrontNext() const
 {
     FrameList::const_iterator it = begin();
     it++;
@@ -88,7 +89,7 @@ SrsPsFrameBuffer* FrameList::FrontNext() const
 }
 
 
-SrsPsFrameBuffer* FrameList::Back() const
+SrsRtpFrameBuffer* FrameList::Back() const
 {
     return rbegin()->second;
 }
@@ -116,10 +117,10 @@ int FrameList::RecycleFramesUntilKeyFrame(FrameList::iterator* key_frame_it,
     return drop_count;
 }
 
-void FrameList::CleanUpOldOrEmptyFrames(PsDecodingState* decoding_state, UnorderedFrameList* free_frames)
+void FrameList::CleanUpOldOrEmptyFrames(SrsRtpDecodingState* decoding_state, UnorderedFrameList* free_frames)
 {
     while (!empty()) {
-        SrsPsFrameBuffer* oldest_frame = Front();
+        SrsRtpFrameBuffer* oldest_frame = Front();
         bool remove_frame = false;
 
         if (oldest_frame->GetState() == kStateEmpty && size() > 1) {
@@ -159,9 +160,9 @@ VCMPacket::VCMPacket()
     sizeBytes(0),
     markerBit(false),
     frameType(kEmptyFrame),
-    //codec(kVideoCodecUnknown),
+    codec(kVideoCodecUnknown),
     isFirstPacket(false),
-    //completeNALU(kNaluUnset),
+    completeNALU(kNaluUnset),
     insertStartCode(false),
     width(0),
     height(0)
@@ -174,7 +175,12 @@ VCMPacket::VCMPacket(const uint8_t* ptr,
                      size_t size,
                      uint16_t seq,
                      uint32_t ts,
-                     bool mBit) :
+                     bool mBit,
+                     H264PacketizationTypes type,
+                     RtpVideoCodecTypes rtpType,
+                     bool singlenual,
+                     bool isfirst,
+                     FrameType ftype) :
     payloadType(0),
     timestamp(ts),
     ntp_time_ms_(0),
@@ -182,16 +188,18 @@ VCMPacket::VCMPacket(const uint8_t* ptr,
     dataPtr(ptr),
     sizeBytes(size),
     markerBit(mBit),
-
-    frameType(kVideoFrameDelta),
-    //codec(kVideoCodecUnknown),
+    frameType(ftype),
+    codec(kVideoCodecUnknown),
     isFirstPacket(false),
-    //completeNALU(kNaluComplete),
+    completeNALU(kNaluComplete),
     insertStartCode(false),
     width(0),
-    height(0)
+    height(0),
+    h264packetizationType(type)
     //codecSpecificHeader()
-{}
+{
+    CopyCodecSpecifics(rtpType, singlenual, isfirst);
+}
 
 void VCMPacket::Reset()
 {
@@ -203,17 +211,74 @@ void VCMPacket::Reset()
     sizeBytes = 0;
     markerBit = false;
     frameType = kEmptyFrame;
-    //codec = kVideoCodecUnknown;
+    codec = kVideoCodecUnknown;
     isFirstPacket = false;
-    //completeNALU = kNaluUnset;
+    completeNALU = kNaluUnset;
     insertStartCode = false;
     width = 0;
     height = 0;
     //memset(&codecSpecificHeader, 0, sizeof(RTPVideoHeader));
 }
 
+void VCMPacket::CopyCodecSpecifics(RtpVideoCodecTypes codecType, bool H264single_nalu, bool firstPacket)
+{
+    switch (codecType) {
+    case kRtpVideoVp8:
 
-SrsPsFrameBuffer::SrsPsFrameBuffer()
+        // Handle all packets within a frame as depending on the previous packet
+        // TODO(holmer): This should be changed to make fragments independent
+        // when the VP8 RTP receiver supports fragments.
+        if (isFirstPacket && markerBit) {
+            completeNALU = kNaluComplete;
+        } else if (isFirstPacket) {
+            completeNALU = kNaluStart;
+        } else if (markerBit) {
+            completeNALU = kNaluEnd;
+        } else {
+            completeNALU = kNaluIncomplete;
+        }
+
+        codec = kVideoCodecVP8;
+        return;
+
+    case kRtpVideoH264:
+        isFirstPacket = firstPacket;
+
+        if (isFirstPacket) {
+            insertStartCode = true;
+        }
+
+        if (H264single_nalu) {
+            completeNALU = kNaluComplete;
+        } else if (isFirstPacket) {
+            completeNALU = kNaluStart;
+        } else if (markerBit) {
+            completeNALU = kNaluEnd;
+        } else {
+            completeNALU = kNaluIncomplete;
+        }
+
+        codec = kVideoCodecH264;
+        return;
+    case kRtpVideoPS:
+        isFirstPacket = firstPacket;
+        codec = kVideoCodecH264PS;
+        return;
+
+    case kRtpVideoVp9:
+    case kRtpVideoGeneric:
+    case kRtpVideoNone:
+        codec = kVideoCodecUnknown;
+        return;
+    }
+}
+
+uint16_t BufferToUWord16(const uint8_t* dataBuffer)
+{
+    return (dataBuffer[0] << 8) | dataBuffer[1];
+}
+
+SrsRtpFrameBuffer::SrsRtpFrameBuffer()
 {
     empty_seq_num_low_ = 0;
     empty_seq_num_high_ = 0;
@@ -229,12 +294,12 @@ SrsPsFrameBuffer::SrsPsFrameBuffer()
     _buffer = NULL;
 }
 
-SrsPsFrameBuffer::~SrsPsFrameBuffer()
+SrsRtpFrameBuffer::~SrsRtpFrameBuffer()
 {
     srs_freepa(_buffer);
 }
 
-void SrsPsFrameBuffer::Reset()
+void SrsRtpFrameBuffer::Reset()
 {
     //session_nack_ = false;
     complete_ = false;
@@ -248,15 +313,15 @@ void SrsPsFrameBuffer::Reset()
     _length = 0;
 }
 
-size_t SrsPsFrameBuffer::Length() const
+size_t SrsRtpFrameBuffer::Length() const
 {
     return _length;
 }
 
-PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const FrameData& frame_data)
+SrsRtpFrameBufferEnum SrsRtpFrameBuffer::InsertPacket(const VCMPacket& packet, const FrameData& frame_data)
 {
     if (packets_.size() == kMaxPacketsInSession) {
-        srs_error("Max number of packets per frame has been reached.");
+        srs_warn("RTP: jitbuffer Max number of packets per frame has been reached.");
         return kSizeError;
     }
 
@@ -265,7 +330,12 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
     }
 
     uint32_t requiredSizeBytes = Length() + packet.sizeBytes;
-  
+
+    if (requiredSizeBytes == 0){
+        srs_warn("RTP: jitbuffer requiredSizeBytes is zero ts:%u, seq:%u", packet.timestamp, packet.seqNum);
+        return kSizeError; 
+    }
+
     if (requiredSizeBytes >= _size) {
         const uint8_t* prevBuffer = _buffer;
         const uint32_t increments = requiredSizeBytes /
@@ -276,22 +346,25 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
                                  increments * kBufferIncStepSizeBytes;
 
         if (newSize > kMaxJBFrameSizeBytes) {
-            srs_error("Failed to insert packet due to frame being too big.");
+            srs_error("RTP: jitbuffer Failed to insert packet due to frame being too big.");
             return kSizeError;
         }
 
         VerifyAndAllocate(newSize);
         UpdateDataPointers(prevBuffer, _buffer);
+
+        srs_trace("RTP: jitbuffer VerifyAndAllocate:newSize:%d, prevBuffer:%d, _buffer:%d", newSize, prevBuffer, _buffer);
     }
 
     // Find the position of this packet in the packet list in sequence number
     // order and insert it. Loop over the list in reverse order.
     ReversePacketIterator rit = packets_.rbegin();
 
-    for (; rit != packets_.rend(); ++rit)
+    for (; rit != packets_.rend(); ++rit){
         if (LatestSequenceNumber(packet.seqNum, (*rit).seqNum) == packet.seqNum) {
             break;
         }
+    }
 
     // Check for duplicate packets.
     if (rit != packets_.rend() &&
@@ -299,17 +372,50 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
         return kDuplicatePacket;
     }
 
-    if ((packets_.size() == 0)&&
-        (first_packet_seq_num_ == -1 ||
-        IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum))) {
-        first_packet_seq_num_ = packet.seqNum;
-    }
+    // if ((packets_.size() == 0)&&
+    //     (first_packet_seq_num_ == -1 ||
+    //     IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum))) {
+    //     first_packet_seq_num_ = packet.seqNum;
+    // }
     
-    //TODO: not check marker, check a complete frame with timestamp
-    if (packet.markerBit &&
-        (last_packet_seq_num_ == -1 ||
-        IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
-        last_packet_seq_num_ = packet.seqNum;
+    // //TODO: not check marker, check a complete frame with timestamp
+    // if (packet.markerBit &&
+    //     (last_packet_seq_num_ == -1 ||
+    //     IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
+    //     last_packet_seq_num_ = packet.seqNum;
+    // }
+
+    if (packet.codec == kVideoCodecH264) {
+        //   frame_type_ = packet.frameType;
+        if (packet.isFirstPacket &&
+                (first_packet_seq_num_ == -1 ||
+                 IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum))) {
+            first_packet_seq_num_ = packet.seqNum;
+            frame_type_ = packet.frameType;
+        }
+
+        if (packet.markerBit &&
+                (last_packet_seq_num_ == -1 ||
+                 IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
+            last_packet_seq_num_ = packet.seqNum;
+        }
+    } else if (packet.codec == kVideoCodecH264PS) {
+        if (packet.isFirstPacket &&
+                (first_packet_seq_num_ == -1 ||
+                IsNewerSequenceNumber(first_packet_seq_num_, packet.seqNum))) {
+            first_packet_seq_num_ = packet.seqNum;
+            frame_type_ = packet.frameType;
+        }
+    
+        //TODO: not check marker, check a complete frame with timestamp
+        if (packet.markerBit &&
+                (last_packet_seq_num_ == -1 ||
+                IsNewerSequenceNumber(packet.seqNum, last_packet_seq_num_))) {
+            last_packet_seq_num_ = packet.seqNum;
+        }
+    }else {
+        srs_warn("RTP: jitbuffer no support codec type");
+        return kFlushIndicator;
     }
 
     // The insert operation invalidates the iterator |rit|.
@@ -342,7 +448,7 @@ PsFrameBufferEnum SrsPsFrameBuffer::InsertPacket(const VCMPacket& packet, const 
     return kIncomplete;
 }
 
-void SrsPsFrameBuffer::VerifyAndAllocate(const uint32_t minimumSize)
+void SrsRtpFrameBuffer::VerifyAndAllocate(const uint32_t minimumSize)
 {
     if (minimumSize > _size) {
         // create buffer of sufficient size
@@ -354,7 +460,7 @@ void SrsPsFrameBuffer::VerifyAndAllocate(const uint32_t minimumSize)
             delete [] _buffer;
         }
 
-        srs_info("SrsPsFrameBuffer::VerifyAndAllocate oldbuffer=%d newbuffer=%d, minimumSize=%d, size=%d", 
+        srs_info("RTP: jitbuffer VerifyAndAllocate oldbuffer=%d newbuffer=%d, minimumSize=%d, size=%d", 
                      _buffer, newBuffer, minimumSize, _size);
 
         _buffer = newBuffer;
@@ -362,7 +468,7 @@ void SrsPsFrameBuffer::VerifyAndAllocate(const uint32_t minimumSize)
     }
 }
 
-void SrsPsFrameBuffer::UpdateDataPointers(const uint8_t* old_base_ptr,
+void SrsRtpFrameBuffer::UpdateDataPointers(const uint8_t* old_base_ptr,
                                         const uint8_t* new_base_ptr)
 {
     for (PacketIterator it = packets_.begin(); it != packets_.end(); ++it)
@@ -373,7 +479,7 @@ void SrsPsFrameBuffer::UpdateDataPointers(const uint8_t* old_base_ptr,
 }
 
 
-size_t SrsPsFrameBuffer::InsertBuffer(uint8_t* frame_buffer,
+size_t SrsRtpFrameBuffer::InsertBuffer(uint8_t* frame_buffer,
                                     PacketIterator packet_it)
 {
     VCMPacket& packet = *packet_it;
@@ -391,25 +497,92 @@ size_t SrsPsFrameBuffer::InsertBuffer(uint8_t* frame_buffer,
     const uint8_t* packet_buffer = packet.dataPtr;
     packet.dataPtr = frame_buffer + offset;
 
+    // We handle H.264 STAP-A packets in a special way as we need to remove the
+    // two length bytes between each NAL unit, and potentially add start codes.
+    const size_t kH264NALHeaderLengthInBytes = 1;
+    const size_t kLengthFieldLength = 2;
+
+    if (packet.codec == kVideoCodecH264 && 
+            packet.h264packetizationType == kH264StapA
+            /*packet.codecSpecificHeader.codecHeader.H264.stap_a*/) {
+
+        size_t required_length = 0;
+        size_t nalu_count = 0;
+        const uint8_t* nalu_ptr = packet_buffer + kH264NALHeaderLengthInBytes;
+
+        while (nalu_ptr < packet_buffer + packet.sizeBytes) {
+            size_t length = BufferToUWord16(nalu_ptr);
+            required_length += length;
+            nalu_ptr += kLengthFieldLength + length;
+            nalu_count++;
+
+            srs_info("RTP: jitbuffer H264 stap_a length:%d, nalu_count=%d", length, nalu_count);
+        }
+
+        size_t total_len = required_length + nalu_count * (kLengthFieldLength) + kH264NALHeaderLengthInBytes;
+
+        if (total_len > packet.sizeBytes) {
+            srs_error("RTP: jitbuffer H264 required len %d is biger than packet len %d", total_len, packet.sizeBytes);
+            return -1;
+        }
+
+        required_length += nalu_count * (packet.insertStartCode ? kH264StartCodeLengthBytes : 0);
+
+        ShiftSubsequentPackets(packet_it, required_length);
+        nalu_ptr = packet_buffer + kH264NALHeaderLengthInBytes;
+        uint8_t* frame_buffer_ptr = frame_buffer + offset;
+        required_length = 0;
+
+        while (nalu_ptr < packet_buffer + packet.sizeBytes) {
+            size_t length = BufferToUWord16(nalu_ptr);
+            nalu_ptr += kLengthFieldLength;
+            size_t naluLen = Insert(nalu_ptr,
+                                    length,
+                                    packet.insertStartCode,
+                                    const_cast<uint8_t*>(frame_buffer_ptr));
+            frame_buffer_ptr += naluLen;
+            nalu_ptr += length;
+            required_length += naluLen;
+        }
+
+        packet.sizeBytes = required_length;
+        return packet.sizeBytes;
+    }
+
     ShiftSubsequentPackets(
         packet_it,
-        packet.sizeBytes);
+        packet.sizeBytes +
+        (packet.insertStartCode ? kH264StartCodeLengthBytes : 0));
 
     packet.sizeBytes = Insert(packet_buffer,
                               packet.sizeBytes,
+                              packet.insertStartCode,
                               const_cast<uint8_t*>(packet.dataPtr));
     return packet.sizeBytes;
 }
 
-size_t SrsPsFrameBuffer::Insert(const uint8_t* buffer,
+
+
+size_t SrsRtpFrameBuffer::Insert(const uint8_t* buffer,
                               size_t length,
+                              bool insert_start_code,
                               uint8_t* frame_buffer)
 {
-    memcpy(frame_buffer, buffer, length);
+    if (insert_start_code) {
+        const unsigned char startCode[] = {0, 0, 0, 1};
+        memcpy(frame_buffer, startCode, kH264StartCodeLengthBytes);
+    }
+
+    memcpy(frame_buffer + (insert_start_code ? kH264StartCodeLengthBytes : 0),
+           buffer,
+           length);
+    length += (insert_start_code ? kH264StartCodeLengthBytes : 0);
+
     return length;
 }
 
-void SrsPsFrameBuffer::ShiftSubsequentPackets(PacketIterator it,
+
+void SrsRtpFrameBuffer::ShiftSubsequentPackets(PacketIterator it,
         int steps_to_shift)
 {
     ++it;
@@ -433,7 +606,7 @@ void SrsPsFrameBuffer::ShiftSubsequentPackets(PacketIterator it,
     memmove(first_packet_ptr + steps_to_shift, first_packet_ptr, shift_length);
 }
 
-void SrsPsFrameBuffer::UpdateCompleteSession()
+void SrsRtpFrameBuffer::UpdateCompleteSession()
 {
     if (HaveFirstPacket() && HaveLastPacket()) {
         // Do we have all the packets in this session?
@@ -455,17 +628,17 @@ void SrsPsFrameBuffer::UpdateCompleteSession()
     }
 }
 
-bool SrsPsFrameBuffer::HaveFirstPacket() const
+bool SrsRtpFrameBuffer::HaveFirstPacket() const
 {
     return !packets_.empty() && (first_packet_seq_num_ != -1);
 }
 
-bool SrsPsFrameBuffer::HaveLastPacket() const
+bool SrsRtpFrameBuffer::HaveLastPacket() const
 {
     return !packets_.empty() && (last_packet_seq_num_ != -1);
 }
 
-bool SrsPsFrameBuffer::InSequence(const PacketIterator& packet_it,
+bool SrsRtpFrameBuffer::InSequence(const PacketIterator& packet_it,
                                 const PacketIterator& prev_packet_it)
 {
     // If the two iterators are pointing to the same packet they are considered
@@ -475,7 +648,7 @@ bool SrsPsFrameBuffer::InSequence(const PacketIterator& packet_it,
              (*packet_it).seqNum));
 }
 
-void SrsPsFrameBuffer::UpdateDecodableSession(const FrameData& frame_data)
+void SrsRtpFrameBuffer::UpdateDecodableSession(const FrameData& frame_data)
 {
     // Irrelevant if session is already complete or decodable
     if (complete_ || decodable_) {
@@ -503,37 +676,37 @@ void SrsPsFrameBuffer::UpdateDecodableSession(const FrameData& frame_data)
     decodable_ = true;
 }
 
-bool SrsPsFrameBuffer::complete() const
+bool SrsRtpFrameBuffer::complete() const
 {
     return complete_;
 }
 
-bool SrsPsFrameBuffer::decodable() const
+bool SrsRtpFrameBuffer::decodable() const
 {
     return decodable_;
 }
 
-int SrsPsFrameBuffer::NumPackets() const
+int SrsRtpFrameBuffer::NumPackets() const
 {
     return packets_.size();
 }
 
-uint32_t SrsPsFrameBuffer::GetTimeStamp() const
+uint32_t SrsRtpFrameBuffer::GetTimeStamp() const
 {
     return timeStamp_;
 }
 
-FrameType SrsPsFrameBuffer::GetFrameType() const
+FrameType SrsRtpFrameBuffer::GetFrameType() const
 {
     return frame_type_;
 }
 
-PsFrameBufferStateEnum SrsPsFrameBuffer::GetState() const
+SrsRtpFrameBufferStateEnum SrsRtpFrameBuffer::GetState() const
 {
     return state_;
 }
 
-int32_t SrsPsFrameBuffer::GetHighSeqNum() const
+int32_t SrsRtpFrameBuffer::GetHighSeqNum() const
 {
     if (packets_.empty()) {
         return empty_seq_num_high_;
@@ -547,7 +720,7 @@ int32_t SrsPsFrameBuffer::GetHighSeqNum() const
 
 }
 
-int32_t SrsPsFrameBuffer::GetLowSeqNum() const
+int32_t SrsRtpFrameBuffer::GetLowSeqNum() const
 {
     if (packets_.empty()) {
         return empty_seq_num_low_;
@@ -556,13 +729,13 @@ int32_t SrsPsFrameBuffer::GetLowSeqNum() const
     return packets_.front().seqNum;
 }
 
-const uint8_t* SrsPsFrameBuffer::Buffer() const
+const uint8_t* SrsRtpFrameBuffer::Buffer() const
 {
     return _buffer;
 }
 
 
-void SrsPsFrameBuffer::InformOfEmptyPacket(uint16_t seq_num)
+void SrsRtpFrameBuffer::InformOfEmptyPacket(uint16_t seq_num)
 {
     // Empty packets may be FEC or filler packets. They are sequential and
     // follow the data packets, therefore, we should only keep track of the high
@@ -581,7 +754,7 @@ void SrsPsFrameBuffer::InformOfEmptyPacket(uint16_t seq_num)
 }
 
 
-size_t SrsPsFrameBuffer::DeletePacketData(PacketIterator start, PacketIterator end)
+size_t SrsRtpFrameBuffer::DeletePacketData(PacketIterator start, PacketIterator end)
 {
     size_t bytes_to_delete = 0;  // The number of bytes to delete.
     PacketIterator packet_after_end = end;
@@ -602,7 +775,7 @@ size_t SrsPsFrameBuffer::DeletePacketData(PacketIterator start, PacketIterator e
     return bytes_to_delete;
 }
 
-size_t SrsPsFrameBuffer::MakeDecodable()
+size_t SrsRtpFrameBuffer::MakeDecodable()
 {
     size_t return_length = 0;
 
@@ -617,7 +790,7 @@ size_t SrsPsFrameBuffer::MakeDecodable()
     return return_length;
 }
 
-void SrsPsFrameBuffer::PrepareForDecode(bool continuous)
+void SrsRtpFrameBuffer::PrepareForDecode(bool continuous)
 {
 
     size_t bytes_removed = MakeDecodable();
@@ -632,7 +805,7 @@ void SrsPsFrameBuffer::PrepareForDecode(bool continuous)
 
 
 
- bool SrsPsFrameBuffer::DeletePacket(int &count)
+ bool SrsRtpFrameBuffer::DeletePacket(int &count)
  {
     return true;
  }
@@ -640,7 +813,7 @@ void SrsPsFrameBuffer::PrepareForDecode(bool continuous)
 
 /////////////////////////////////////////////////////////////////////////////
 
-PsDecodingState::PsDecodingState()
+SrsRtpDecodingState::SrsRtpDecodingState()
     : sequence_num_(0),
       time_stamp_(0),
       //picture_id_(kNoPictureId),
@@ -650,9 +823,9 @@ PsDecodingState::PsDecodingState()
       in_initial_state_(true),
       m_firstPacket(false) {}
 
-PsDecodingState::~PsDecodingState() {}
+SrsRtpDecodingState::~SrsRtpDecodingState() {}
 
-void PsDecodingState::Reset()
+void SrsRtpDecodingState::Reset()
 {
     // TODO(mikhal): Verify - not always would want to reset the sync
     sequence_num_ = 0;
@@ -664,17 +837,17 @@ void PsDecodingState::Reset()
     in_initial_state_ = true;
 }
 
-uint32_t PsDecodingState::time_stamp() const
+uint32_t SrsRtpDecodingState::time_stamp() const
 {
     return time_stamp_;
 }
 
-uint16_t PsDecodingState::sequence_num() const
+uint16_t SrsRtpDecodingState::sequence_num() const
 {
     return sequence_num_;
 }
 
-bool PsDecodingState::IsOldFrame(const SrsPsFrameBuffer* frame) const
+bool SrsRtpDecodingState::IsOldFrame(const SrsRtpFrameBuffer* frame) const
 {
     //assert(frame != NULL);
     if (frame == NULL) {
@@ -688,7 +861,7 @@ bool PsDecodingState::IsOldFrame(const SrsPsFrameBuffer* frame) const
     return !IsNewerTimestamp(frame->GetTimeStamp(), time_stamp_);
 }
 
-bool PsDecodingState::IsOldPacket(const VCMPacket* packet)
+bool SrsRtpDecodingState::IsOldPacket(const VCMPacket* packet)
 {
     //assert(packet != NULL);
     if (packet == NULL) {
@@ -708,7 +881,7 @@ bool PsDecodingState::IsOldPacket(const VCMPacket* packet)
     return !IsNewerTimestamp(packet->timestamp, time_stamp_);
 }
 
-void PsDecodingState::SetState(const SrsPsFrameBuffer* frame)
+void SrsRtpDecodingState::SetState(const SrsRtpFrameBuffer* frame)
 {
     //assert(frame != NULL && frame->GetHighSeqNum() >= 0);
     UpdateSyncState(frame);
@@ -717,7 +890,7 @@ void PsDecodingState::SetState(const SrsPsFrameBuffer* frame)
     in_initial_state_ = false;
 }
 
-void PsDecodingState::CopyFrom(const PsDecodingState& state)
+void SrsRtpDecodingState::CopyFrom(const SrsRtpDecodingState& state)
 {
     sequence_num_ = state.sequence_num_;
     time_stamp_ = state.time_stamp_;
@@ -725,7 +898,7 @@ void PsDecodingState::CopyFrom(const PsDecodingState& state)
     in_initial_state_ = state.in_initial_state_;
 }
 
-bool PsDecodingState::UpdateEmptyFrame(const SrsPsFrameBuffer* frame)
+bool SrsRtpDecodingState::UpdateEmptyFrame(const SrsRtpFrameBuffer* frame)
 {
     bool empty_packet = frame->GetHighSeqNum() == frame->GetLowSeqNum();
 
@@ -746,7 +919,7 @@ bool PsDecodingState::UpdateEmptyFrame(const SrsPsFrameBuffer* frame)
     return false;
 }
 
-void PsDecodingState::UpdateOldPacket(const VCMPacket* packet)
+void SrsRtpDecodingState::UpdateOldPacket(const VCMPacket* packet)
 {
     //assert(packet != NULL);
     if (packet == NULL) {
@@ -760,29 +933,29 @@ void PsDecodingState::UpdateOldPacket(const VCMPacket* packet)
     }
 }
 
-void PsDecodingState::SetSeqNum(uint16_t new_seq_num)
+void SrsRtpDecodingState::SetSeqNum(uint16_t new_seq_num)
 {
     sequence_num_ = new_seq_num;
 }
 
-bool PsDecodingState::in_initial_state() const
+bool SrsRtpDecodingState::in_initial_state() const
 {
     return in_initial_state_;
 }
 
-bool PsDecodingState::full_sync() const
+bool SrsRtpDecodingState::full_sync() const
 {
     return full_sync_;
 }
 
-void PsDecodingState::UpdateSyncState(const SrsPsFrameBuffer* frame)
+void SrsRtpDecodingState::UpdateSyncState(const SrsRtpFrameBuffer* frame)
 {
     if (in_initial_state_) {
         return;
     }
 }
 
-bool PsDecodingState::ContinuousFrame(const SrsPsFrameBuffer* frame) const
+bool SrsRtpDecodingState::ContinuousFrame(const SrsRtpFrameBuffer* frame) const
 {
     // Check continuity based on the following hierarchy:
     // - Temporal layers (stop here if out of sync).
@@ -810,54 +983,102 @@ bool PsDecodingState::ContinuousFrame(const SrsPsFrameBuffer* frame) const
     return ContinuousSeqNum(static_cast<uint16_t>(frame->GetLowSeqNum()));
 }
 
-bool PsDecodingState::ContinuousSeqNum(uint16_t seq_num) const
+bool SrsRtpDecodingState::ContinuousSeqNum(uint16_t seq_num) const
 {
     return seq_num == static_cast<uint16_t>(sequence_num_ + 1);
 }
 
-SrsPsJitterBuffer::SrsPsJitterBuffer(std::string key):
-      running_(false),
-      max_number_of_frames_(kStartNumberOfFrames),
-      free_frames_(),
-      decodable_frames_(),
-      incomplete_frames_(),
-      last_decoded_state_(),
-      first_packet_since_reset_(true),
-      incoming_frame_rate_(0),
-      incoming_frame_count_(0),
-      time_last_incoming_frame_count_(0),
-      incoming_bit_count_(0),
-      incoming_bit_rate_(0),
-      num_consecutive_old_packets_(0),
-      num_packets_(0),
-      num_packets_free_(0),
-      num_duplicated_packets_(0),
-      num_discarded_packets_(0),
-      time_first_packet_ms_(0),
-      //jitter_estimate_(clock),
-      //inter_frame_delay_(clock_->TimeInMilliseconds()),
-      rtt_ms_(kDefaultRtt),
-      nack_mode_(kNoNack),
-      low_rtt_nack_threshold_ms_(-1),
-      high_rtt_nack_threshold_ms_(-1),
-      missing_sequence_numbers_(SequenceNumberLessThan()),
-      nack_seq_nums_(),
-      max_nack_list_size_(0),
-      max_packet_age_to_nack_(0),
-      max_incomplete_time_ms_(0),
-      decode_error_mode_(kNoErrors),
-      average_packets_per_frame_(0.0f),
-      frame_counter_(0),
-      key_(key)
+SrsRtpTimeJitter::SrsRtpTimeJitter()
+{
+    delta = 0;
+    previous_timestamp = 0;
+    pts = 0;
+}
+
+SrsRtpTimeJitter::~SrsRtpTimeJitter()
+{
+}
+
+int64_t SrsRtpTimeJitter::timestamp()
+{
+    return pts;
+}
+
+srs_error_t SrsRtpTimeJitter::correct(int64_t& ts)
+{
+    srs_error_t err = srs_success;
+    
+    if (previous_timestamp == 0) {
+        previous_timestamp = ts;
+    }
+    
+    delta = srs_max(0, (int)(ts - previous_timestamp));
+    if (delta > 90000) {
+        delta = 0;
+    }
+
+    previous_timestamp = ts;
+    
+    ts = pts + delta;
+    pts = ts;
+    
+    return err;
+}
+
+
+void SrsRtpTimeJitter::reset()
+{
+    delta = 0;
+    previous_timestamp = 0;
+    pts = 0;
+}
+
+SrsRtpJitterBuffer::SrsRtpJitterBuffer(std::string key):
+    key_(key),
+    running_(false),
+    max_number_of_frames_(kStartNumberOfFrames),
+    free_frames_(),
+    decodable_frames_(),
+    incomplete_frames_(),
+    last_decoded_state_(),
+    first_packet_since_reset_(true),
+    incoming_frame_rate_(0),
+    incoming_frame_count_(0),
+    time_last_incoming_frame_count_(0),
+    incoming_bit_count_(0),
+    incoming_bit_rate_(0),
+    num_consecutive_old_packets_(0),
+    num_packets_(0),
+    num_packets_free_(0),
+    num_duplicated_packets_(0),
+    num_discarded_packets_(0),
+    time_first_packet_ms_(0),
+    //jitter_estimate_(clock),
+    //inter_frame_delay_(clock_->TimeInMilliseconds()),
+    rtt_ms_(kDefaultRtt),
+    nack_mode_(kNoNack),
+    low_rtt_nack_threshold_ms_(-1),
+    high_rtt_nack_threshold_ms_(-1),
+    missing_sequence_numbers_(SequenceNumberLessThan()),
+    nack_seq_nums_(),
+    max_nack_list_size_(0),
+    max_packet_age_to_nack_(0),
+    max_incomplete_time_ms_(0),
+    decode_error_mode_(kNoErrors),
+    average_packets_per_frame_(0.0f),
+    frame_counter_(0),
+    last_received_timestamp_(0),
+    last_received_sequence_number_(0),
+    first_packet_(0)
 {
     for (int i = 0; i < kStartNumberOfFrames; i++) {
-        free_frames_.push_back(new SrsPsFrameBuffer());
+        free_frames_.push_back(new SrsRtpFrameBuffer());
     }
 
     wait_cond_t = srs_cond_new();
 }
 
-SrsPsJitterBuffer::~SrsPsJitterBuffer()
+SrsRtpJitterBuffer::~SrsRtpJitterBuffer()
 {
     for (UnorderedFrameList::iterator it = free_frames_.begin();
             it != free_frames_.end(); ++it) {
@@ -877,12 +1098,12 @@ SrsPsJitterBuffer::~SrsPsJitterBuffer()
     srs_cond_destroy(wait_cond_t);
 }
 
-void SrsPsJitterBuffer::SetDecodeErrorMode(PsDecodeErrorMode error_mode)
+void SrsRtpJitterBuffer::SetDecodeErrorMode(SrsRtpDecodeErrorMode error_mode)
 {
     decode_error_mode_ = error_mode;
 }
 
-void SrsPsJitterBuffer::Flush()
+void SrsRtpJitterBuffer::Flush()
 {
     //CriticalSectionScoped cs(crit_sect_);
     decodable_frames_.Reset(&free_frames_);
@@ -900,14 +1121,20 @@ void SrsPsJitterBuffer::Flush()
     missing_sequence_numbers_.clear();
 }
 
+void SrsRtpJitterBuffer::ResetJittter()
+{
+    Flush();
+}
 
 
-PsFrameBufferEnum SrsPsJitterBuffer::InsertPacket(const SrsPsRtpPacket &pkt, char *buf, int size,
+SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket(uint16_t seq, uint32_t ts, bool maker, char *buf, int size,
         bool* retransmitted)
 {
-    
+    bool isFirstPacketInFrame = IsFirstPacketInFrame(ts, seq);
+   
     const VCMPacket packet((const uint8_t*)buf, size,
-                pkt.sequence_number, pkt.timestamp, pkt.marker);
+        seq, ts, maker,
+        kH264SingleNalu, kRtpVideoPS, true, isFirstPacketInFrame, kVideoFrameDelta);
    
     ++num_packets_;
 
@@ -923,23 +1150,243 @@ PsFrameBufferEnum SrsPsJitterBuffer::InsertPacket(const SrsPsRtpPacket &pkt, cha
 
     //num_consecutive_old_packets_ = 0;
 
-    SrsPsFrameBuffer* frame;
+    SrsRtpFrameBuffer* frame;
     FrameList* frame_list;
 
-    const PsFrameBufferEnum error = GetFrame(packet, &frame, &frame_list);
+    const SrsRtpFrameBufferEnum error = GetFrameByRtpPacket(packet, &frame, &frame_list);
 
     if (error != kNoError) {
         return error;
     }
 
 
-    srs_utime_t now_ms =  srs_update_system_time();
+    //srs_utime_t now_ms =  srs_update_system_time();
 
     FrameData frame_data;
     frame_data.rtt_ms = 0; //rtt_ms_;
     frame_data.rolling_average_packets_per_frame = 25;//average_packets_per_frame_;
 
-    PsFrameBufferEnum buffer_state = frame->InsertPacket(packet, frame_data);
+    SrsRtpFrameBufferEnum buffer_state = frame->InsertPacket(packet, frame_data);
+    
+    if (buffer_state > 0) {
+        incoming_bit_count_ += packet.sizeBytes << 3;
+
+        if (first_packet_since_reset_) {
+            latest_received_sequence_number_ = packet.seqNum;
+            first_packet_since_reset_ = false;
+        } else {
+            // if (IsPacketRetransmitted(packet)) {
+            //     frame->IncrementNackCount();
+            // }
+
+            UpdateNackList(packet.seqNum);
+
+            latest_received_sequence_number_ = LatestSequenceNumber(
+                                                   latest_received_sequence_number_, packet.seqNum);
+        }
+    }
+
+    // Is the frame already in the decodable list?
+    bool continuous = IsContinuous(*frame);
+    
+    switch (buffer_state) {
+    case kGeneralError:
+    case kTimeStampError:
+    case kSizeError: {
+        free_frames_.push_back(frame);
+        break;
+    }
+
+    case kCompleteSession: {
+        //CountFrame(*frame);
+        // if (previous_state != kStateDecodable &&
+        //         previous_state != kStateComplete) {
+        //     /*CountFrame(*frame);*/ //????????????????????�?? by ylr
+        //     if (continuous) {
+        //         // Signal that we have a complete session.
+        //         frame_event_->Set();
+        //     }
+        // }
+    }
+
+    // Note: There is no break here - continuing to kDecodableSession.
+    case kDecodableSession: {
+        // *retransmitted = (frame->GetNackCount() > 0);
+
+        if (true || continuous) {
+            decodable_frames_.InsertFrame(frame);
+            FindAndInsertContinuousFrames(*frame);
+        } else {
+            incomplete_frames_.InsertFrame(frame);
+
+            // If NACKs are enabled, keyframes are triggered by |GetNackList|.
+            // if (nack_mode_ == kNoNack && NonContinuousOrIncompleteDuration() >
+            //         90 * kMaxDiscontinuousFramesTime) {
+            //     return kFlushIndicator;
+            // }
+        }
+
+        break;
+    }
+
+    case kIncomplete: {
+        if (frame->GetState() == kStateEmpty &&
+                last_decoded_state_.UpdateEmptyFrame(frame)) {
+            free_frames_.push_back(frame);
+            return kNoError;
+        } else {
+            incomplete_frames_.InsertFrame(frame);
+
+            // If NACKs are enabled, keyframes are triggered by |GetNackList|.
+            // if (nack_mode_ == kNoNack && NonContinuousOrIncompleteDuration() >
+            //         90 * kMaxDiscontinuousFramesTime) {
+            //     return kFlushIndicator;
+            // }
+        }
+
+        break;
+    }
+
+    case kNoError:
+    case kOutOfBoundsPacket:
+    case kDuplicatePacket: {
+        // Put back the frame where it came from.
+        if (frame_list != NULL) {
+            frame_list->InsertFrame(frame);
+        } else {
+            free_frames_.push_back(frame);
+        }
+
+        ++num_duplicated_packets_;
+        break;
+    }
+
+    case kFlushIndicator:{
+            free_frames_.push_back(frame);
+        }
+        return kFlushIndicator;
+
+    default:
+        assert(false);
+    }
+
+    return buffer_state;
+}
+
+
+SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket2(const SrsRtpPacket2 &pkt,
+        bool* retransmitted)
+{
+    bool singlenual = false;
+    H264PacketizationTypes packetyType = kH264SingleNalu;
+
+    //char *buf = pkt.shared_msg->payload; //rtp packet data
+    //int size = pkt.shared_msg->size; //rtp size
+
+    //rtp header: total size - rtp payload size
+    int rtp_header_size = pkt.shared_msg->size - pkt.payload->nb_bytes();
+   
+    char *rtp_payload_buf = pkt.shared_msg->payload + rtp_header_size;  //rtp payload data
+    int rtp_payload_size = pkt.shared_msg->size - rtp_header_size;  //rtp payload size;
+
+    bool is_first_packet_in_frame = false;
+  
+    if (rtp_payload_size == 0){ 
+        //B0(1011):pad+ext, A0(1010):pad
+        if ((pkt.shared_msg->payload[0] & 0xFF) == 0xB0 || (pkt.shared_msg->payload[0] & 0xFF) == 0xA0){
+            //uint8_t padding_length = (uint8_t)(pkt.shared_msg->payload[pkt.shared_msg->size-1] & 0xFF);
+            srs_info("RTP: jitbuffer padding packet ts:%u, seq:%u, payload size:%d, padding size:%d", 
+                pkt.header.get_timestamp(),pkt.header.get_sequence(),
+                rtp_payload_size, padding_length);
+        }
+        return kNoError;
+    }
+    
+    SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeReserved;
+    FrameType frameType = kVideoFrameDelta;
+
+    int8_t v = (uint8_t)pkt.nalu_type;
+    if (v == kStapA) {
+        singlenual = false;
+        packetyType = kH264StapA;
+
+        is_first_packet_in_frame = true;
+        
+        SrsRtpSTAPPayload *payload = (SrsRtpSTAPPayload*)pkt.payload;
+        if (payload->get_sps() != NULL){
+            nal_unit_type = SrsAvcNaluTypeSPS;
+            frameType = kVideoFrameKey;
+        }
+    } else if (v == kFuA) {
+        SrsRtpFUAPayload2 *payload = (SrsRtpFUAPayload2*)pkt.payload;
+        int8_t nalu_byte0 = ((int8_t)payload->nri & 0xE0) | ((int8_t)payload->nalu_type & 0x1F);
+        nal_unit_type = (SrsAvcNaluType)(nalu_byte0 & 0x1f);
+
+        if (nal_unit_type == SrsAvcNaluTypeIDR){
+            frameType = kVideoFrameKey;
+        }
+ 
+        if (payload->start){
+            //xx xx ....
+            //xx nalu ....
+            rtp_payload_buf[1] = nalu_byte0;
+
+            //nalu ....
+            rtp_payload_buf = rtp_payload_buf + 1;
+            rtp_payload_size = rtp_payload_size - 1;
+
+            is_first_packet_in_frame = true;
+        }else {
+            //xx xx ....
+            //....
+            rtp_payload_buf = rtp_payload_buf + 2;
+            rtp_payload_size = rtp_payload_size - 2;
+        }
+
+        singlenual = false;
+        packetyType = kH264FuA;
+
+    } else {
+        singlenual = true;
+        packetyType = kH264SingleNalu;
+        is_first_packet_in_frame = true;
+    }
+
+    const VCMPacket packet((const uint8_t*)rtp_payload_buf, rtp_payload_size,
+        pkt.header.get_sequence(), pkt.header.get_timestamp(), pkt.header.get_marker(), 
+        packetyType, kRtpVideoH264, singlenual, is_first_packet_in_frame, frameType);
+
+    ++num_packets_;
+
+    if (num_packets_ == 1) {
+        time_first_packet_ms_ =  srs_update_system_time();
+    }
+
+    //Does this packet belong to an old frame?
+    // if (last_decoded_state_.IsOldPacket(&packet)) {
+     
+    //     //return kOldPacket;
+    // }
+
+    //num_consecutive_old_packets_ = 0;
+
+    SrsRtpFrameBuffer* frame;
+    FrameList* frame_list;
+
+    const SrsRtpFrameBufferEnum error = GetFrameByRtpPacket(packet, &frame, &frame_list);
+
+    if (error != kNoError) {
+        return error;
+    }
+
+
+    //srs_utime_t now_ms =  srs_update_system_time();
+
+    FrameData frame_data;
+    frame_data.rtt_ms = 0; //rtt_ms_;
+    frame_data.rolling_average_packets_per_frame = 25;//average_packets_per_frame_;
+
+    SrsRtpFrameBufferEnum buffer_state = frame->InsertPacket(packet, frame_data);
     
     if (buffer_state > 0) {
         incoming_bit_count_ += packet.sizeBytes << 3;
@@ -1047,8 +1494,8 @@ PsFrameBufferEnum SrsPsJitterBuffer::InsertPacket(const SrsPsRtpPacket &pkt, cha
 }
 
 // Gets frame to use for this timestamp. If no match, get empty frame.
-PsFrameBufferEnum SrsPsJitterBuffer::GetFrame(const VCMPacket& packet,
-        SrsPsFrameBuffer** frame,
+SrsRtpFrameBufferEnum SrsRtpJitterBuffer::GetFrameByRtpPacket(const VCMPacket& packet,
+        SrsRtpFrameBuffer** frame,
         FrameList** frame_list)
 {
     *frame = incomplete_frames_.PopFrame(packet.timestamp);
@@ -1085,7 +1532,7 @@ PsFrameBufferEnum SrsPsJitterBuffer::GetFrame(const VCMPacket& packet,
     return kNoError;
 }
 
-SrsPsFrameBuffer* SrsPsJitterBuffer::GetEmptyFrame()
+SrsRtpFrameBuffer* SrsRtpJitterBuffer::GetEmptyFrame()
 {
     if (free_frames_.empty()) {
         if (!TryToIncreaseJitterBufferSize()) {
@@ -1093,25 +1540,25 @@ SrsPsFrameBuffer* SrsPsJitterBuffer::GetEmptyFrame()
         }
     }
 
-    SrsPsFrameBuffer* frame = free_frames_.front();
+    SrsRtpFrameBuffer* frame = free_frames_.front();
     free_frames_.pop_front();
     return frame;
 }
 
-bool SrsPsJitterBuffer::TryToIncreaseJitterBufferSize()
+bool SrsRtpJitterBuffer::TryToIncreaseJitterBufferSize()
 {
     if (max_number_of_frames_ >= kMaxNumberOfFrames) {
         return false;
     }
 
-    free_frames_.push_back(new SrsPsFrameBuffer());
+    free_frames_.push_back(new SrsRtpFrameBuffer());
     ++max_number_of_frames_;
     return true;
 }
 
 // Recycle oldest frames up to a key frame, used if jitter buffer is completely
 // full.
-bool SrsPsJitterBuffer::RecycleFramesUntilKeyFrame()
+bool SrsRtpJitterBuffer::RecycleFramesUntilKeyFrame()
 {
     // First release incomplete frames, and only release decodable frames if there
     // are no incomplete ones.
@@ -1144,8 +1591,8 @@ bool SrsPsJitterBuffer::RecycleFramesUntilKeyFrame()
     return key_frame_found;
 }
 
-bool SrsPsJitterBuffer::IsContinuousInState(const SrsPsFrameBuffer& frame,
-        const PsDecodingState& decoding_state) const
+bool SrsRtpJitterBuffer::IsContinuousInState(const SrsRtpFrameBuffer& frame,
+        const SrsRtpDecodingState& decoding_state) const
 {
     if (decode_error_mode_ == kWithErrors) {
          return true;
@@ -1160,18 +1607,18 @@ bool SrsPsJitterBuffer::IsContinuousInState(const SrsPsFrameBuffer& frame,
            decoding_state.ContinuousFrame(&frame);
 }
 
-bool SrsPsJitterBuffer::IsContinuous(const SrsPsFrameBuffer& frame) const
+bool SrsRtpJitterBuffer::IsContinuous(const SrsRtpFrameBuffer& frame) const
 {
     if (IsContinuousInState(frame, last_decoded_state_)) {
          return true;
     }
 
-    PsDecodingState decoding_state;
+    SrsRtpDecodingState decoding_state;
     decoding_state.CopyFrom(last_decoded_state_);
 
     for (FrameList::const_iterator it = decodable_frames_.begin();
             it != decodable_frames_.end(); ++it)  {
-        SrsPsFrameBuffer* decodable_frame = it->second;
+        SrsRtpFrameBuffer* decodable_frame = it->second;
 
         if (IsNewerTimestamp(decodable_frame->GetTimeStamp(), frame.GetTimeStamp())) {
             break;
@@ -1187,9 +1634,9 @@ bool SrsPsJitterBuffer::IsContinuous(const SrsPsFrameBuffer& frame) const
     return false;
 }
 
-void SrsPsJitterBuffer::FindAndInsertContinuousFrames(const SrsPsFrameBuffer& new_frame)
+void SrsRtpJitterBuffer::FindAndInsertContinuousFrames(const SrsRtpFrameBuffer& new_frame)
 {
-    PsDecodingState decoding_state;
+    SrsRtpDecodingState decoding_state;
     decoding_state.CopyFrom(last_decoded_state_);
     decoding_state.SetState(&new_frame);
 
@@ -1199,7 +1646,7 @@ void SrsPsJitterBuffer::FindAndInsertContinuousFrames(const SrsPsFrameBuffer& ne
     // 2. The end of the list was reached.
     for (FrameList::iterator it = incomplete_frames_.begin();
             it != incomplete_frames_.end();)  {
-        SrsPsFrameBuffer* frame = it->second;
+        SrsRtpFrameBuffer* frame = it->second;
 
         if (IsNewerTimestamp(new_frame.GetTimeStamp(), frame->GetTimeStamp())) {
             ++it;
@@ -1217,7 +1664,7 @@ void SrsPsJitterBuffer::FindAndInsertContinuousFrames(const SrsPsFrameBuffer& ne
 }
 
 // Must be called under the critical section |crit_sect_|.
-void SrsPsJitterBuffer::CleanUpOldOrEmptyFrames()
+void SrsRtpJitterBuffer::CleanUpOldOrEmptyFrames()
 {
     decodable_frames_.CleanUpOldOrEmptyFrames(&last_decoded_state_,
             &free_frames_);
@@ -1225,13 +1672,13 @@ void SrsPsJitterBuffer::CleanUpOldOrEmptyFrames()
             &free_frames_);
 
     if (!last_decoded_state_.in_initial_state()) {
-        //DropPacketsFromNackList(last_decoded_state_.sequence_num());
+        DropPacketsFromNackList(last_decoded_state_.sequence_num());
     }
 }
 
 // Returns immediately or a |max_wait_time_ms| ms event hang waiting for a
 // complete frame, |max_wait_time_ms| decided by caller.
-bool SrsPsJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_t* timestamp)
+bool SrsRtpJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_t* timestamp)
 {
     // crit_sect_->Enter();
 
@@ -1282,17 +1729,17 @@ bool SrsPsJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_
     return true;
 }
 
-bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
+bool SrsRtpJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
 {
     if (decode_error_mode_ == kNoErrors) {
-        srs_warn("gb28181 SrsJitterBuffer::NextMaybeIncompleteTimestamp decode_error_mode_ %d", decode_error_mode_);
+        srs_warn("RTP jitbuffer NextMaybeIncompleteTimestamp decode_error_mode_ %d", decode_error_mode_);
         // No point to continue, as we are not decoding with errors.
         return false;
     }
 
     CleanUpOldOrEmptyFrames();
 
-    SrsPsFrameBuffer* oldest_frame;
+    SrsRtpFrameBuffer* oldest_frame;
 
     if (decodable_frames_.empty()) {
         if (incomplete_frames_.size() <= 1) {
@@ -1300,9 +1747,9 @@ bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
         }
 
         oldest_frame = incomplete_frames_.Front();
-        PsFrameBufferStateEnum oldest_frame_state = oldest_frame->GetState();
+        SrsRtpFrameBufferStateEnum oldest_frame_state = oldest_frame->GetState();
 
-        SrsPsFrameBuffer* next_frame;
+        SrsRtpFrameBuffer* next_frame;
         next_frame = incomplete_frames_.FrontNext();
     
         if (oldest_frame_state !=  kStateComplete && next_frame &&
@@ -1316,7 +1763,7 @@ bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
             int oldest_frame_hight_seq = oldest_frame->GetHighSeqNum();
             int next_frame_low_seq = next_frame->GetLowSeqNum();
 
-            srs_warn("gb28181 SrsPsJitterBuffer::NextMaybeIncompleteTimestamp key(%s) incomplete oldest_frame (%u,%d)->(%u,%d)",
+            srs_warn("RTP: jitbuffer NextMaybeIncompleteTimestamp key(%s) incomplete oldest_frame (%u,%d)->(%u,%d)",
                     key_.c_str(), oldest_frame->GetTimeStamp(), oldest_frame_hight_seq, 
                     next_frame->GetTimeStamp(), next_frame_low_seq);
             return false;
@@ -1337,10 +1784,10 @@ bool SrsPsJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
     return true;
 }
 
-SrsPsFrameBuffer* SrsPsJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
+SrsRtpFrameBuffer* SrsRtpJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
 {
     // Extract the frame with the desired timestamp.
-    SrsPsFrameBuffer* frame = decodable_frames_.PopFrame(timestamp);
+    SrsRtpFrameBuffer* frame = decodable_frames_.PopFrame(timestamp);
     bool continuous = true;
 
     if (!frame) {
@@ -1371,7 +1818,7 @@ SrsPsFrameBuffer* SrsPsJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
 
 // Release frame when done with decoding. Should never be used to release
 // frames from within the jitter buffer.
-void SrsPsJitterBuffer::ReleaseFrame(SrsPsFrameBuffer* frame)
+void SrsRtpJitterBuffer::ReleaseFrame(SrsRtpFrameBuffer* frame)
 {
     //CriticalSectionScoped cs(crit_sect_);
     //VCMFrameBuffer* frame_buffer = static_cast<VCMFrameBuffer*>(frame);
@@ -1381,7 +1828,7 @@ void SrsPsJitterBuffer::ReleaseFrame(SrsPsFrameBuffer* frame)
     }
 }
 
-bool SrsPsJitterBuffer::FoundFrame(uint32_t& time_stamp)
+bool SrsRtpJitterBuffer::FoundFrame(uint32_t& time_stamp)
 {
     
     bool found_frame = NextCompleteTimestamp(0, &time_stamp);
@@ -1393,9 +1840,9 @@ bool SrsPsJitterBuffer::FoundFrame(uint32_t& time_stamp)
     return found_frame;
 }
 
-bool SrsPsJitterBuffer::GetPsFrame(char **buffer,  int &buf_len, int &size, const uint32_t time_stamp)
+bool SrsRtpJitterBuffer::GetFrame(char **buffer,  int &buf_len, int &size, bool &keyframe, const uint32_t time_stamp)
 {
-    SrsPsFrameBuffer* frame = ExtractAndSetDecode(time_stamp);
+    SrsRtpFrameBuffer* frame = ExtractAndSetDecode(time_stamp);
 
     if (frame == NULL) {
         return false;
@@ -1410,14 +1857,14 @@ bool SrsPsJitterBuffer::GetPsFrame(char **buffer,  int &buf_len, int &size, cons
         return false;
     }
    
-    //verify and allocate ps buffer
+    //verify and allocate a frame buffer, used to completed frame data
     if (buf_len < size || *buffer == NULL) {
         srs_freepa(*buffer);
 
-        int resize = size + 10240;
+        int resize = size + kBufferIncStepSizeBytes;
         *buffer = new char[resize];
 
-        srs_trace("gb28181: SrsPsJitterBuffer key=%s reallocate ps buffer size(%d>%d) resize(%d)", 
+        srs_trace("RTP: jitbuffer key=%s reallocate a frame buffer size(%d>%d) resize(%d)", 
             key_.c_str(), size, buf_len, resize);
             
         buf_len = resize;
@@ -1425,14 +1872,17 @@ bool SrsPsJitterBuffer::GetPsFrame(char **buffer,  int &buf_len, int &size, cons
 
     const uint8_t *frame_buffer = frame->Buffer();
     memcpy(*buffer, frame_buffer, size);
-    
+    if (frame->GetFrameType() == kVideoFrameKey){
+        keyframe = true;
+    }
+
     frame->PrepareForDecode(false);
     ReleaseFrame(frame);
     return true;
 }
 
 
-SrsPsFrameBuffer* SrsPsJitterBuffer::NextFrame() const
+SrsRtpFrameBuffer* SrsRtpJitterBuffer::NextFrame() const
 {
     if (!decodable_frames_.empty()) {
         return decodable_frames_.Front();
@@ -1445,7 +1895,7 @@ SrsPsFrameBuffer* SrsPsJitterBuffer::NextFrame() const
     return NULL;
 }
 
-bool SrsPsJitterBuffer::UpdateNackList(uint16_t sequence_number)
+bool SrsRtpJitterBuffer::UpdateNackList(uint16_t sequence_number)
 {
     if (nack_mode_ == kNoNack) {
         return true;
@@ -1466,18 +1916,17 @@ bool SrsPsJitterBuffer::UpdateNackList(uint16_t sequence_number)
             missing_sequence_numbers_.insert(missing_sequence_numbers_.end(), i);
         }
 
-        /*
         if (TooLargeNackList() && !HandleTooLargeNackList()) {
-            srs_warn("gb28181: SrsPsJitterBuffer key(%s) requesting key frame due to too large NACK list.",  key_.c_str());
+            srs_warn("RTP: jitbuffer key(%s) requesting key frame due to too large NACK list.",  key_.c_str());
             return false;
         }
 
         if (MissingTooOldPacket(sequence_number) &&
                 !HandleTooOldPackets(sequence_number)) {
-            srs_warn("gb28181: SrsPsJitterBuffer key(%s) requesting key frame due to missing too old packets",  key_.c_str());
+            srs_warn("RTP: jitbuffer key(%s) requesting key frame due to missing too old packets",  key_.c_str());
             return false;
         }
-        */
+        
     } else {
         missing_sequence_numbers_.erase(sequence_number);
     }
@@ -1485,16 +1934,16 @@ bool SrsPsJitterBuffer::UpdateNackList(uint16_t sequence_number)
     return true;
 }
 
-bool SrsPsJitterBuffer::TooLargeNackList() const
+bool SrsRtpJitterBuffer::TooLargeNackList() const
 {
     return missing_sequence_numbers_.size() > max_nack_list_size_;
 }
 
-bool SrsPsJitterBuffer::HandleTooLargeNackList()
+bool SrsRtpJitterBuffer::HandleTooLargeNackList()
 {
     // Recycle frames until the NACK list is small enough. It is likely cheaper to
     // request a key frame than to retransmit this many missing packets.
-    srs_warn("gb28181: SrsPsJitterBuffer NACK list has grown too large: %d > %d", 
+    srs_warn("RTP: jitbuffer NACK list has grown too large: %d > %d", 
                     missing_sequence_numbers_.size(), max_nack_list_size_);
     bool key_frame_found = false;
 
@@ -1505,7 +1954,7 @@ bool SrsPsJitterBuffer::HandleTooLargeNackList()
     return key_frame_found;
 }
 
-bool SrsPsJitterBuffer::MissingTooOldPacket(uint16_t latest_sequence_number) const
+bool SrsRtpJitterBuffer::MissingTooOldPacket(uint16_t latest_sequence_number) const
 {
     if (missing_sequence_numbers_.empty()) {
         return false;
@@ -1518,12 +1967,12 @@ bool SrsPsJitterBuffer::MissingTooOldPacket(uint16_t latest_sequence_number) con
     return age_of_oldest_missing_packet > max_packet_age_to_nack_;
 }
 
-bool SrsPsJitterBuffer::HandleTooOldPackets(uint16_t latest_sequence_number)
+bool SrsRtpJitterBuffer::HandleTooOldPackets(uint16_t latest_sequence_number)
 {
     bool key_frame_found = false;
     const uint16_t age_of_oldest_missing_packet = latest_sequence_number -
             *missing_sequence_numbers_.begin();
-    srs_warn("gb28181: SrsPsJitterBuffer  NACK list contains too old sequence numbers: %d > %d",
+    srs_warn("RTP: jitbuffer NACK list contains too old sequence numbers: %d > %d",
                       age_of_oldest_missing_packet,
                       max_packet_age_to_nack_);
 
@@ -1534,7 +1983,7 @@ bool SrsPsJitterBuffer::HandleTooOldPackets(uint16_t latest_sequence_number)
     return key_frame_found;
 }
 
-void SrsPsJitterBuffer::DropPacketsFromNackList(uint16_t last_decoded_sequence_number)
+void SrsRtpJitterBuffer::DropPacketsFromNackList(uint16_t last_decoded_sequence_number)
 {
     // Erase all sequence numbers from the NACK list which we won't need any
     // longer.
@@ -1543,7 +1992,7 @@ void SrsPsJitterBuffer::DropPacketsFromNackList(uint16_t last_decoded_sequence_n
                                         last_decoded_sequence_number));
 }
 
-void SrsPsJitterBuffer::SetNackMode(PsNackMode mode,
+void SrsRtpJitterBuffer::SetNackMode(SrsRtpNackMode mode,
                                   int64_t low_rtt_nack_threshold_ms,
                                   int64_t high_rtt_nack_threshold_ms)
 {
@@ -1571,7 +2020,7 @@ void SrsPsJitterBuffer::SetNackMode(PsNackMode mode,
     // }
 }
 
-void SrsPsJitterBuffer::SetNackSettings(size_t max_nack_list_size,
+void SrsRtpJitterBuffer::SetNackSettings(size_t max_nack_list_size,
                                       int max_packet_age_to_nack,
                                       int max_incomplete_time_ms)
 {
@@ -1583,13 +2032,13 @@ void SrsPsJitterBuffer::SetNackSettings(size_t max_nack_list_size,
     nack_seq_nums_.resize(max_nack_list_size_);
 }
 
-PsNackMode SrsPsJitterBuffer::nack_mode() const
+SrsRtpNackMode SrsRtpJitterBuffer::nack_mode() const
 {
     return nack_mode_;
 }
 
 
-int SrsPsJitterBuffer::NonContinuousOrIncompleteDuration()
+int SrsRtpJitterBuffer::NonContinuousOrIncompleteDuration()
 {
     if (incomplete_frames_.empty()) {
         return 0;
@@ -1604,7 +2053,7 @@ int SrsPsJitterBuffer::NonContinuousOrIncompleteDuration()
     return incomplete_frames_.Back()->GetTimeStamp() - start_timestamp;
 }
 
-uint16_t SrsPsJitterBuffer::EstimatedLowSequenceNumber(const SrsPsFrameBuffer& frame) const
+uint16_t SrsRtpJitterBuffer::EstimatedLowSequenceNumber(const SrsRtpFrameBuffer& frame) const
 {
     assert(frame.GetLowSeqNum() >= 0);
 
@@ -1617,7 +2066,7 @@ uint16_t SrsPsJitterBuffer::EstimatedLowSequenceNumber(const SrsPsFrameBuffer& f
     return frame.GetLowSeqNum() - 1;
 }
 
-uint16_t* SrsPsJitterBuffer::GetNackList(uint16_t* nack_list_size,
+uint16_t* SrsRtpJitterBuffer::GetNackList(uint16_t* nack_list_size,
                                        bool* request_key_frame)
 {
     //CriticalSectionScoped cs(crit_sect_);
@@ -1629,9 +2078,9 @@ uint16_t* SrsPsJitterBuffer::GetNackList(uint16_t* nack_list_size,
     }
 
     if (last_decoded_state_.in_initial_state()) {
-        SrsPsFrameBuffer* next_frame = NextFrame();
+        SrsRtpFrameBuffer* next_frame = NextFrame();
         const bool first_frame_is_key = next_frame &&
-                                        //next_frame->FrameType() == kVideoFrameKey &&
+                                        next_frame->GetFrameType() == kVideoFrameKey &&
                                         next_frame->HaveFirstPacket();
 
         if (!first_frame_is_key) {
@@ -1697,7 +2146,7 @@ uint16_t* SrsPsJitterBuffer::GetNackList(uint16_t* nack_list_size,
     return &nack_seq_nums_[0];
 }
 
-bool SrsPsJitterBuffer::WaitForRetransmissions()
+bool SrsRtpJitterBuffer::WaitForRetransmissions()
 {
     if (nack_mode_ == kNoNack) {
         // NACK disabled -> don't wait for retransmissions.
@@ -1712,4 +2161,43 @@ bool SrsPsJitterBuffer::WaitForRetransmissions()
     }
 
     return true;
+}
+
+bool SrsRtpJitterBuffer::IsPacketInOrder(uint16_t sequence_number)
+{
+    if (!first_packet_) {
+        return true;
+    }
+
+    if (IsNewerSequenceNumber(sequence_number, last_received_sequence_number_)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool SrsRtpJitterBuffer::IsFirstPacketInFrame(uint32_t ts, uint16_t seq)
+{
+    bool is_first_packet_in_frame = false;
+    bool in_order = IsPacketInOrder(seq);
+
+    if (first_packet_){
+        is_first_packet_in_frame =
+            last_received_sequence_number_ + 1 == seq &&
+            last_received_timestamp_ != ts;
+    }else{
+        is_first_packet_in_frame = true;
+    }
+
+    if (in_order) {
+        first_packet_ = true;
+
+        if (last_received_timestamp_ != ts) {
+            last_received_timestamp_ = ts;
+        }
+
+        last_received_sequence_number_ = seq;
+    }
+
+    return is_first_packet_in_frame;
 }
