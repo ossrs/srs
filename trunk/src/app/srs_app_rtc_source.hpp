@@ -115,10 +115,13 @@ public:
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcStream** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
     virtual SrsRtcStream* fetch(SrsRequest* r);
+
+    size_t get_source_size();
+    srs_error_t remove_idle_source();
 };
 
 // Global singleton instance.
@@ -162,6 +165,7 @@ private:
     ISrsRtcPublishStream* publish_stream_;
     // Transmux RTMP to RTC.
     SrsRtcDummyBridger* bridger_;
+    SrsSource *rtmp_source_;
     // Steam description for this steam.
     SrsRtcStreamDescription* stream_desc_;
 private:
@@ -173,6 +177,8 @@ private:
     bool is_delivering_packets_;
     // Notify stream event to event handler
     std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
+
+    srs_utime_t last_update_time_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -187,6 +193,7 @@ public:
     virtual SrsContextId pre_source_id();
     // Get the bridger.
     ISrsSourceBridger* bridger();
+    virtual void set_rtmp_source(SrsSource* source);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -206,6 +213,13 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+    
+    virtual bool  is_rtc_consumers_empty();
+    virtual srs_utime_t is_alive();
+    virtual void alive();
+
+    virtual void request_publish_stream_keyframe();
+
 public:
     // For event handler
     void subscribe(ISrsRtcStreamEventHandler* h);

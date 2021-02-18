@@ -597,6 +597,8 @@ public:
     //         for when reload the request of client maybe invalid.
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
+    virtual srs_error_t on_edge_play();
+    virtual void on_edge_play_stop();
 public:
     // Create consumer
     // @param consumer, output the create consumer.

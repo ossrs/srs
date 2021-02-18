@@ -232,6 +232,14 @@ SrsRtcStreamManager::SrsRtcStreamManager()
 
 SrsRtcStreamManager::~SrsRtcStreamManager()
 {
+    // Cleanup rtc source.
+    for(std::map<std::string, SrsRtcStream*> ::iterator it = pool.begin(); it != pool.end(); ++it) {
+        SrsRtcStream* source = it->second;
+        srs_freep(source);
+    }
+
+    pool.clear();
+
     srs_mutex_destroy(lock);
 }
 
@@ -293,6 +301,39 @@ SrsRtcStream* SrsRtcStreamManager::fetch(SrsRequest* r)
     return source;
 }
 
+size_t SrsRtcStreamManager::get_source_size()
+{
+    return pool.size();
+}
+
+srs_error_t SrsRtcStreamManager::remove_idle_source()
+{
+    srs_error_t err = srs_success;
+    if (!lock){
+        return err;
+    }
+
+    SrsLocker(lock);
+    
+    for(std::map<std::string, SrsRtcStream*> ::iterator it = pool.begin(); it != pool.end();) {
+        SrsRtcStream* source = it->second;
+        
+        if (!source->is_alive())
+        {
+            SrsContextId cid = source->pre_source_id();
+            srs_trace("RTC: remove rtc source %s", cid.c_str());
+            srs_freep(source);
+            pool.erase(it++);
+        }else{
+            ++it;
+        }
+    }
+
+    return err;
+}
+
+
+
 SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
@@ -319,7 +360,9 @@ SrsRtcStream::SrsRtcStream()
     publish_stream_ = NULL;
     stream_desc_ = NULL;
 
+    rtmp_source_ = NULL;
     req = NULL;
+    last_update_time_ = srs_get_system_time();
     bridger_ = new SrsRtcDummyBridger(this);
 }
 
@@ -386,12 +429,19 @@ ISrsSourceBridger* SrsRtcStream::bridger()
     return bridger_;
 }
 
+void SrsRtcStream::set_rtmp_source(SrsSource* source)
+{
+    rtmp_source_ = source;
+}
+
 srs_error_t SrsRtcStream::create_consumer(SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
 
     consumer = new SrsRtcConsumer(this);
     consumers.push_back(consumer);
+
+    srs_trace("RTC create_consumer: %d", rtmp_source_);
 
     // TODO: FIXME: Implements edge cluster.
 
@@ -423,6 +473,38 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
             h->on_consumers_finished();
         }
     }
+
+    if (rtmp_source_ && consumers.empty()){
+        rtmp_source_->on_edge_play_stop();
+    }
+}
+
+bool  SrsRtcStream::is_rtc_consumers_empty()
+{
+    return consumers.empty();
+}
+
+srs_utime_t SrsRtcStream::is_alive()
+{
+    //has consumers use source
+    if (!is_rtc_consumers_empty())
+        return true;
+    
+    //source is on_publish success
+    if (is_created_ && is_delivering_packets_)
+        return true;
+
+    srs_utime_t diff = srs_get_system_time() - last_update_time_;
+    if (diff < 30 * SRS_UTIME_SECONDS){
+        return true;
+    }
+
+    return false;
+}
+
+void SrsRtcStream::alive()
+{
+    last_update_time_ = srs_get_system_time();
 }
 
 bool SrsRtcStream::can_publish()
@@ -528,9 +610,22 @@ void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
     publish_stream_ = v;
 }
 
+void SrsRtcStream::request_publish_stream_keyframe()
+{
+    if (!publish_stream_)
+        return;
+
+    std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
+    while (it != stream_desc_->video_track_descs_.end() ){
+        publish_stream_->request_keyframe((*it)->ssrc_);
+        ++it;
+    }
+}
+
 srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
+    alive();
 
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
