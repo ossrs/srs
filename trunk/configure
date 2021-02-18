@@ -169,6 +169,11 @@ if [[ $SRS_SRT == YES ]]; then
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
 fi
 
+# For iconv on macOS only, CentOS seems ok.
+if [[ $SRS_GB28181 == YES && $SRS_OSX == YES ]]; then
+    LibIconvRoot="/usr/local/opt/libiconv/include"; LibIconvfile="/usr/local/opt/libiconv/lib/libiconv.a"
+fi
+
 # the link options, always use static link
 SrsLinkOptions="-ldl -lpthread";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
@@ -231,9 +236,6 @@ if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_rtc_stun_stack")
     ModuleLibIncs+=(${LibSrtpRoot})
 fi
-if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_sip_stack")
-fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
@@ -283,8 +285,16 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_codec")
 fi
 if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip" "srs_app_gb28181_jitbuffer")
+    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")
 fi
+if [[ $SRS_GB28181 == YES || $SRS_RTC == YES ]]; then
+    MODULE_FILES+=("srs_app_rtc_jitbuffer")
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    MODULE_FILES+=("srs_app_sip")
+    ModuleLibIncs+=(${LibIconvRoot})
+fi
+
 DEFINES=""
 # add each modules for app
 for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -357,6 +367,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibFiles+=("${LibSRTfile[*]}")
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    ModuleLibFiles+=("${LibIconvfile[*]}")
 fi
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"

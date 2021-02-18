@@ -31,7 +31,7 @@
 #include <map>
 
 #include <srs_app_log.hpp>
-#include <srs_sip_stack.hpp>
+#include <srs_app_sip.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_service_conn.hpp>

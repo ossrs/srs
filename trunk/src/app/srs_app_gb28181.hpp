@@ -34,13 +34,12 @@
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
-#include <srs_rtsp_stack.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_app_log.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_gb28181_sip.hpp>
-#include <srs_app_gb28181_jitbuffer.hpp>
+#include <srs_app_rtc_jitbuffer.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
 #include <srs_service_conn.hpp>
@@ -90,7 +89,7 @@ class SrsPithyPrint;
 class SrsSimpleRtmpClient;
 class SrsSipStack;
 class SrsGb28181Manger;
-class SrsRtspJitter;
+class SrsRtpTimeJitter;
 class SrsSipRequest;
 class SrsGb28181RtmpMuxer;
 class SrsGb28181Config;
@@ -99,7 +98,7 @@ class SrsGb28181TcpPsRtpProcessor;
 class SrsGb28181SipService;
 class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
-class SrsPsJitterBuffer;
+class SrsRtpJitterBuffer;
 class SrsServer;
 class SrsSource;
 class SrsRequest;
@@ -316,8 +315,8 @@ private:
     srs_cond_t wait_ps_queue;
 
     SrsSimpleRtmpClient* sdk;
-    SrsRtspJitter* vjitter;
-    SrsRtspJitter* ajitter;
+    SrsRtpTimeJitter* vjitter;
+    SrsRtpTimeJitter* ajitter;
 
     SrsRawH264Stream* avc;
     std::string h264_sps;
@@ -330,8 +329,8 @@ private:
     SrsSource* source;
     SrsServer* server;
 
-    SrsPsJitterBuffer *jitter_buffer;
-    SrsPsJitterBuffer *jitter_buffer_audio;
+    SrsRtpJitterBuffer *jitter_buffer;
+    SrsRtpJitterBuffer *jitter_buffer_audio;
 
     char *ps_buffer;
     char *ps_buffer_audio;
@@ -340,7 +339,6 @@ private:
     int ps_buflen_auido;
 
     uint32_t ps_rtp_video_ts;
-    uint32_t ps_rtp_audio_ts;
 
     bool source_publish; 
 
@@ -444,6 +442,9 @@ private:
     std::string app;
     std::string stream;
     std::string rtmp_url;
+    std::string flv_url;
+    std::string hls_url;
+    std::string webrtc_url;
     
     std::string ip;
     int rtp_port;
@@ -472,6 +473,9 @@ public:
     uint32_t get_rtp_peer_port() const { return rtp_peer_port; }
     std::string get_rtp_peer_ip() const { return rtp_peer_ip; }
     std::string get_rtmp_url() const { return rtmp_url; }
+    std::string get_flv_url() const { return flv_url; }
+    std::string get_hls_url() const { return hls_url; }
+    std::string get_webrtc_url() const { return webrtc_url; }
     srs_utime_t get_recv_time() const { return recv_time; }
     std::string get_recv_time_str() const { return recv_time_str; }
 
@@ -486,6 +490,9 @@ public:
     void set_rtp_peer_ip( const std::string &p) { rtp_peer_ip = p; }
     void set_rtp_peer_port( const int &s) { rtp_peer_port = s;}
     void set_rtmp_url( const std::string &u) { rtmp_url = u; }
+    void set_flv_url( const std::string &u) { flv_url = u; }
+    void set_hls_url( const std::string &u) { hls_url = u; }
+    void set_webrtc_url( const std::string &u) { webrtc_url = u; }
     void set_recv_time( const srs_utime_t &u) { recv_time = u; }
     void set_recv_time_str( const std::string &u) { recv_time_str = u; }
 

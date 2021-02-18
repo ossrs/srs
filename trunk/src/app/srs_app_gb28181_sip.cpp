@@ -43,7 +43,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_app_pithy_print.hpp>
-#include <srs_sip_stack.hpp>
+#include <srs_app_sip.hpp>
 #include <srs_app_gb28181.hpp>
 
 
