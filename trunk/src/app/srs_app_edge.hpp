@@ -45,6 +45,10 @@ class SrsLbRoundRobin;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
 class SrsPacket;
+class SrsHttpClient;
+class ISrsHttpMessage;
+class SrsHttpFileReader;
+class SrsFlvDecoder;
 
 // The state of edge, auto machine
 enum SrsEdgeState
@@ -102,6 +106,33 @@ public:
     // @param rediect, override the server. ignore if empty.
     SrsEdgeRtmpUpstream(std::string r);
     virtual ~SrsEdgeRtmpUpstream();
+public:
+    virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
+    virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
+    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual void close();
+public:
+    virtual void selected(std::string& server, int& port);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual void kbps_sample(const char* label, int64_t age);
+};
+
+class SrsEdgeFlvUpstream : public SrsEdgeUpstream
+{
+private:
+    std::string schema_;
+    SrsHttpClient* sdk_;
+    ISrsHttpMessage* hr_;
+private:
+    SrsHttpFileReader* reader_;
+    SrsFlvDecoder* decoder_;
+private:
+    // Current selected server, the ip:port.
+    std::string selected_ip;
+    int selected_port;
+public:
+    SrsEdgeFlvUpstream(std::string schema);
+    virtual ~SrsEdgeFlvUpstream();
 public:
     virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
