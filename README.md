@@ -17,7 +17,8 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 
 ```
 git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && git pull
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && 
+git checkout 4.0release && git pull
 ```
 
 > Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
