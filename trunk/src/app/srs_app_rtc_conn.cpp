@@ -874,7 +874,7 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass("publish", this, 20 * SRS_UTIME_MILLISECONDS);
+    timer_ = new SrsHourGlass("publish", this, 100 * SRS_UTIME_MILLISECONDS);
 
     cid_ = cid;
     is_started = false;
@@ -985,11 +985,11 @@ srs_error_t SrsRtcPublishStream::start()
         return err;
     }
 
-    if ((err = timer_->tick(SRS_TICKID_TWCC, 40 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+    if ((err = timer_->tick(SRS_TICKID_TWCC, 100 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "twcc tick");
     }
 
-    if ((err = timer_->tick(SRS_TICKID_RTCP, 200 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+    if ((err = timer_->tick(SRS_TICKID_RTCP, 1000 * SRS_UTIME_MILLISECONDS)) != srs_success) {
         return srs_error_wrap(err, "rtcp tick");
     }
 
@@ -1282,7 +1282,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
     if (last_time_send_twcc_) {
         uint32_t nn = 0;
         srs_utime_t duration = srs_duration(last_time_send_twcc_, srs_get_system_time());
-        if (duration > 100 * SRS_UTIME_MILLISECONDS && twcc_epp_->can_print(0, &nn)) {
+        if (duration > 130 * SRS_UTIME_MILLISECONDS && twcc_epp_->can_print(0, &nn)) {
             srs_warn2(TAG_LARGE_TIMER, "twcc delay %dms > 100ms, count=%u/%u",
                 srsu2msi(duration), nn, twcc_epp_->nn_count);
         }
