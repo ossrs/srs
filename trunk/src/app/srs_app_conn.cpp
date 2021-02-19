@@ -41,6 +41,7 @@ using namespace std;
 SrsPps* _srs_pps_ids = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fids = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fids_level0 = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_dispose = new SrsPps(_srs_clock);
 
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
@@ -342,6 +343,8 @@ void SrsResourceManager::do_clear()
             srs_trace("%s: disposing #%d resource(%s)(%p), conns=%d, disposing=%d, zombies=%d", label_.c_str(),
                 i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
         }
+
+        ++_srs_pps_dispose->sugar;
 
         dispose(conn);
     }
