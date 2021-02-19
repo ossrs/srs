@@ -1434,11 +1434,15 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
 {
     srs_error_t err = srs_success;
 
+    ++_srs_pps_pub->sugar;
+
     if (!is_started) {
         return err;
     }
 
     if (type == SRS_TICKID_RTCP) {
+        ++_srs_pps_rr->sugar;
+
         if ((err = send_rtcp_rr()) != srs_success) {
             srs_warn("RR err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1451,6 +1455,8 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
     }
 
     if (twcc_enabled_ && type == SRS_TICKID_TWCC) {
+        ++_srs_pps_twcc->sugar;
+
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
         if ((err = send_periodic_twcc()) != srs_success) {
