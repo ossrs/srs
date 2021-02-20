@@ -542,8 +542,6 @@ srs_error_t SrsRtcPlayStream::cycle()
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
     }
 
-
-
     realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
 
@@ -898,7 +896,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     
     pli_worker_ = new SrsRtcPLIWorker(this);
     last_time_send_twcc_ = 0;
-    rtmpmuxer = NULL;
+    rtmp_muxer_ = NULL;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -934,7 +932,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(twcc_epp_);
     srs_freep(pli_epp);
     srs_freep(req);
-    srs_freep(rtmpmuxer);
+    srs_freep(rtmp_muxer_);
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescription* stream_desc)
@@ -979,11 +977,11 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     }
     source->set_publish_stream(this);
 
-    if (rtmpmuxer == NULL && _srs_config->get_rtc_server_rtmp_enabled()){
-        rtmpmuxer = new SrsRtcRtmpMuxer(session_, this, _srs_context->get_id());
-        if ((err = rtmpmuxer->initialize(req)) != srs_success) {
-            srs_freep(rtmpmuxer);
-            return srs_error_wrap(err, "rtmpmuxer init");
+    if (rtmp_muxer_ == NULL && _srs_config->get_rtc_server_rtmp_enabled()){
+        rtmp_muxer_ = new SrsRtcRtmpMuxer(session_, this, _srs_context->get_id());
+        if ((err = rtmp_muxer_->initialize(req)) != srs_success) {
+            srs_freep(rtmp_muxer_);
+            return srs_error_wrap(err, "rtmp muxer init");
         }
     }
 
@@ -1026,8 +1024,10 @@ srs_error_t SrsRtcPublishStream::start()
 
     is_started = true;
 
-    if (NULL != rtmpmuxer){
-        rtmpmuxer->start();
+    if (NULL != rtmp_muxer_){
+        if ((err = rtmp_muxer_->start()) != srs_success) {
+            return srs_error_wrap(err, "rtmp muxer start");
+        }
     }
 
     return err;
@@ -1813,8 +1813,8 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
             return srs_error_wrap(err, "create rtmp source");
         }
     
-        if (rtmp_source){
-            rtmp_source->on_edge_play();
+        if (rtmp_source && (err = rtmp_source->on_edge_play()) != srs_success){
+            return srs_error_wrap(err, "rtmp source play");
         }
     }
 

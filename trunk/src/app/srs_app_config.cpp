@@ -3651,11 +3651,11 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
-                && n != "ip_family" &&  n != "rtmp") {
+                && n != "ip_family" &&  n != "to_rtmp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
 
-            if (n == "rtmp") {
+            if (n == "to_rtmp") {
                 SrsConfDirective* obj =  conf->at(i);
                 
                 for (int j = 0; j < (int)obj->directives.size(); j++) {
@@ -3663,7 +3663,7 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled"  && m != "output" && m != "audio_foramt" && m != "source_copy"
                         && m != "record_path" && m != "record_video" && m != "record_audio" && m != "opus_payload_type"
                         && m != "keyframe_interval_print" && m != "req_keyframe" && m != "audio_enabled") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtmp.%s", m.c_str());
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal to_rtmp.%s", m.c_str());
                     }
                 }
             }
@@ -3954,7 +3954,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" ) {
+                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4968,7 +4968,7 @@ int SrsConfig::get_rtc_server_rtmp_opus_payload_type()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -4990,7 +4990,7 @@ bool SrsConfig::get_rtc_server_rtmp_enabled()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5012,7 +5012,7 @@ std::string SrsConfig::get_rtc_server_rtmp_output()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5034,7 +5034,7 @@ bool SrsConfig::get_rtc_server_rtmp_source_copy()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5056,7 +5056,7 @@ std::string SrsConfig::get_rtc_server_rtmp_audio_format()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5078,7 +5078,7 @@ std::string SrsConfig::get_rtc_server_rtmp_record_path()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5100,7 +5100,7 @@ int SrsConfig::get_rtc_server_rtmp_keyframe_interval_print()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5122,7 +5122,7 @@ int SrsConfig::get_rtc_server_rtmp_req_keyframe()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5144,7 +5144,7 @@ bool SrsConfig::get_rtc_server_rtmp_record_video()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5166,7 +5166,7 @@ bool SrsConfig::get_rtc_server_rtmp_record_audio()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5188,7 +5188,7 @@ bool SrsConfig::get_rtc_server_rtmp_audio_enabled()
         return DEFAULT;
     }
 
-    conf = conf->get("rtmp");
+    conf = conf->get("to_rtmp");
     if (!conf) {
         return DEFAULT;
     }
@@ -5200,7 +5200,6 @@ bool SrsConfig::get_rtc_server_rtmp_audio_enabled()
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
-
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
 {

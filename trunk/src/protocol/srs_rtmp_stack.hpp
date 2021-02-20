@@ -470,7 +470,6 @@ public:
     // used for edge traverse to origin authentication,
     // @see https://github.com/ossrs/srs/issues/104
     SrsAmf0Object* args;
-
 public:
     SrsRequest();
     virtual ~SrsRequest();

@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_server.hpp>
 
 SrsRtcRtmpRecv::SrsRtcRtmpRecv(SrsRtcConnection* s, SrsRtcRtmpMuxer* m, const SrsContextId& cid)
 {
@@ -393,7 +394,6 @@ srs_error_t SrsRtcRtmpMuxer::cycle()
     SrsAutoFree(SrsPithyPrint, pprint);
 
     bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
-    SrsStatistic* stat = SrsStatistic::instance();
 
     vector<SrsRtpPacket2*> pkts;
     uint64_t total_pkts = 0;
@@ -508,39 +508,10 @@ srs_error_t SrsRtcRtmpMuxer::cycle()
             pkts.clear();
         }
 
-#ifdef USE_QUEUE_CACHE 
-        int count = 0;
-        if ((err = queue->dump_packets(msgs.max, msgs.msgs, count)) != srs_success) {
-            return srs_error_wrap(err, "dump packets");
-        }
-
-        // ignore when no messages.
-        if (count <= 0) {
-            continue;
-        }
-        
-        // sendout messages, all messages are freed by send_and_free_messages().
-        if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
-            rtmp_close();
-            srs_warn("send messages err:%s",srs_error_desc(err).c_str());
-            srs_freep(err);
-        }
-#endif
-
         // Stat for performance analysis.
         if (!stat_enabled) {
             continue;
         }
-
-        // Stat the original RAW AV frame, maybe h264+aac.
-        // stat->perf_on_msgs(msg_count);
-        // // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
-        // int nn_rtc_packets = srs_max(info.nn_audios, info.nn_extras) + info.nn_videos;
-        // stat->perf_on_rtc_packets(nn_rtc_packets);
-        // // Stat the RAW RTP packets, which maybe group by GSO.
-        // stat->perf_on_rtp_packets(msg_count);
-        // // Stat the bytes and paddings.
-        // stat->perf_on_rtc_bytes(info.nn_bytes, info.nn_rtp_bytes, info.nn_padding_bytes);
 
         pprint->elapse();
         if (pprint->can_print()) {
@@ -750,7 +721,7 @@ srs_error_t SrsRtcRtmpMuxer::mux_opusflv_rtp(SrsRtpPacket2* pkt, char** flv, int
     // |rtmp header | FF+00+(opus rtp packet)|  
     
     // |rtp header | rtp ext header | rtp payload |
-    int head_size = pkt->header.nb_bytes(); //rtp header size
+    int head_size = (int)pkt->header.nb_bytes(); //rtp header size
     int head_ext_size = pkt->shared_msg->size - pkt->payload->nb_bytes(); //rtp header + ext head size
     int payload_size = pkt->payload->nb_bytes(); //rtp payload size
 
@@ -801,7 +772,7 @@ srs_error_t SrsRtcRtmpMuxer::mux_opusflv(SrsRtpPacket2* pkt, char** flv, int* nb
     // |rtmp header | SoundFormat|SoundRate|SoundSize|SoundType|+00+(opus payload)|  
     
     // |rtp header | rtp ext header | rtp payload |
-    int head_size = pkt->header.nb_bytes(); //rtp header size
+    //int head_size = pkt->header.nb_bytes(); //rtp header size
     int head_ext_size = pkt->shared_msg->size - pkt->payload->nb_bytes(); //rtp header + ext head size
     int payload_size = pkt->payload->nb_bytes(); //rtp payload size
 
@@ -1121,16 +1092,10 @@ srs_error_t SrsRtcRtmpMuxer::rtmp_write_packet(char type, uint32_t timestamp, ch
     }
     srs_assert(msg);
 
-#ifdef USE_QUEUE_CACHE    
-     if ((err = queue->enqueue(msg)) != srs_success) {
-         return srs_error_wrap(err, "enqueue metadata");
-     }
-#else
     if ((err = sdk->send_and_free_message(msg)) != srs_success) {
         rtmp_close();
         return srs_error_wrap(err, "write message");
     }
-#endif 
 
     return err;
 }

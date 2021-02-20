@@ -59,8 +59,6 @@ class SrsRtcRtmpMuxer;
 class SrsRtcRtmpRecv;
 class SrsRtcPublishStream;
 
-//#define USE_QUEUE_CACHE
-
 //It is used for RTMP client in RTC rtmpmuxer to receive RTMP stream
 class SrsRtcRtmpRecv : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
 {
@@ -69,7 +67,6 @@ private:
     SrsCoroutine* trd;
     SrsRtcConnection* session_;
     SrsRtcRtmpMuxer* muxer_;
-    SrsRequest *req_;
     srs_mutex_t locker_;
 private:
     SrsSimpleRtmpClient* sdk;
@@ -196,8 +193,6 @@ private:
     //srs_error_t kickoff_audio_cache(SrsRtpPacket2* pkt, int64_t dts);
 private:
     srs_error_t rtmp_connect();
-   
-
     srs_error_t replace_startcode_with_nalulen(char *video_data, int &size, uint32_t pts, uint32_t dts);
     srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
     srs_error_t decode_h264_sps_pps(char *frame, int frame_size, uint32_t pts, uint32_t dts);

@@ -233,7 +233,7 @@ SrsRtcStreamManager::SrsRtcStreamManager()
 SrsRtcStreamManager::~SrsRtcStreamManager()
 {
     // Cleanup rtc source.
-    for(std::map<std::string, SrsRtcStream*> ::iterator it = pool.begin(); it != pool.end(); ++it) {
+    for (std::map<std::string, SrsRtcStream*> ::iterator it = pool.begin(); it != pool.end(); ++it) {
         SrsRtcStream* source = it->second;
         srs_freep(source);
     }
@@ -309,30 +309,28 @@ size_t SrsRtcStreamManager::get_source_size()
 srs_error_t SrsRtcStreamManager::remove_idle_source()
 {
     srs_error_t err = srs_success;
-    if (!lock){
+
+    if (!lock) {
         return err;
     }
 
     SrsLocker(lock);
     
-    for(std::map<std::string, SrsRtcStream*> ::iterator it = pool.begin(); it != pool.end();) {
+    for (std::map<std::string, SrsRtcStream*>::iterator it = pool.begin(); it != pool.end();) {
         SrsRtcStream* source = it->second;
         
-        if (!source->is_alive())
-        {
+        if (!source->is_alive()) {
             SrsContextId cid = source->pre_source_id();
             srs_trace("RTC: remove rtc source %s", cid.c_str());
             srs_freep(source);
             pool.erase(it++);
-        }else{
+        } else {
             ++it;
         }
     }
 
     return err;
 }
-
-
 
 SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
 
@@ -487,15 +485,17 @@ bool  SrsRtcStream::is_rtc_consumers_empty()
 srs_utime_t SrsRtcStream::is_alive()
 {
     //has consumers use source
-    if (!is_rtc_consumers_empty())
+    if (!is_rtc_consumers_empty()) {
         return true;
+    }
     
     //source is on_publish success
-    if (is_created_ && is_delivering_packets_)
+    if (is_created_ && is_delivering_packets_) {
         return true;
+    }
 
     srs_utime_t diff = srs_get_system_time() - last_update_time_;
-    if (diff < 30 * SRS_UTIME_SECONDS){
+    if (diff < 30 * SRS_UTIME_SECONDS) {
         return true;
     }
 
@@ -612,8 +612,9 @@ void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
 
 void SrsRtcStream::request_publish_stream_keyframe()
 {
-    if (!publish_stream_)
+    if (!publish_stream_) {
         return;
+    }
 
     std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
     while (it != stream_desc_->video_track_descs_.end() ){

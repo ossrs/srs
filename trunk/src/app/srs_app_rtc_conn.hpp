@@ -337,7 +337,7 @@ private:
     std::vector<SrsRtcAudioRecvTrack*> audio_tracks_;
     std::vector<SrsRtcVideoRecvTrack*> video_tracks_;
 private:
-    SrsRtcRtmpMuxer *rtmpmuxer;
+    SrsRtcRtmpMuxer* rtmp_muxer_;
 private:
     int twcc_id_;
     uint8_t twcc_fb_count_;
