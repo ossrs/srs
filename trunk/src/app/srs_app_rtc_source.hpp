@@ -208,11 +208,8 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
-    
-    virtual bool  is_rtc_consumers_empty();
-
+    // For RTC to RTMP, PLI from publisher.
     virtual void request_publish_stream_keyframe();
-
 public:
     // For event handler
     void subscribe(ISrsRtcStreamEventHandler* h);

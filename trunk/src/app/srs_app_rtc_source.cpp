@@ -429,15 +429,6 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
             h->on_consumers_finished();
         }
     }
-
-    if (rtmp_source_ && consumers.empty()){
-        rtmp_source_->on_edge_play_stop();
-    }
-}
-
-bool  SrsRtcStream::is_rtc_consumers_empty()
-{
-    return consumers.empty();
 }
 
 bool SrsRtcStream::can_publish()
