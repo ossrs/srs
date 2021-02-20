@@ -119,9 +119,6 @@ public:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
     virtual SrsRtcStream* fetch(SrsRequest* r);
-
-    size_t get_source_size();
-    srs_error_t remove_idle_source();
 };
 
 // Global singleton instance.
@@ -177,8 +174,6 @@ private:
     bool is_delivering_packets_;
     // Notify stream event to event handler
     std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
-
-    srs_utime_t last_update_time_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -215,8 +210,6 @@ public:
     virtual void on_unpublish();
     
     virtual bool  is_rtc_consumers_empty();
-    virtual srs_utime_t is_alive();
-    virtual void alive();
 
     virtual void request_publish_stream_keyframe();
 
