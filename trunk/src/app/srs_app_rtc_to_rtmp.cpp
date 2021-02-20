@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_rtc_rtp_rtmp.hpp>
+#include <srs_app_rtc_to_rtmp.hpp>
 using namespace std;
 
 #include <sys/socket.h>

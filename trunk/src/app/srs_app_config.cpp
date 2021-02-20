@@ -3654,19 +3654,6 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "ip_family" &&  n != "to_rtmp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
-
-            if (n == "to_rtmp") {
-                SrsConfDirective* obj =  conf->at(i);
-                
-                for (int j = 0; j < (int)obj->directives.size(); j++) {
-                    string m = obj->at(j)->name;
-                    if (m != "enabled"  && m != "output" && m != "audio_foramt" && m != "source_copy"
-                        && m != "record_path" && m != "record_video" && m != "record_audio" && m != "opus_payload_type"
-                        && m != "keyframe_interval_print" && m != "req_keyframe" && m != "audio_enabled") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal to_rtmp.%s", m.c_str());
-                    }
-                }
-            }
         }
     }
     

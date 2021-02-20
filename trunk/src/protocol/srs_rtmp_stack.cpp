@@ -1625,7 +1625,7 @@ void SrsRequest::update_auth(SrsRequest* req)
     param = req->param;
     schema = req->schema;
     duration = req->duration;
-
+    
     if (args) {
         srs_freep(args);
     }

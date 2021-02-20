@@ -42,7 +42,7 @@
 #include <srs_app_conn.hpp>
 #include <srs_app_rtc_jitbuffer.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_app_rtc_rtp_rtmp.hpp>
+#include <srs_app_rtc_to_rtmp.hpp>
 
 #include <string>
 #include <map>

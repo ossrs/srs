@@ -2674,7 +2674,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
         consumers.erase(it);
     }
     
-    if (consumers.empty()){
+    if (consumers.empty()) {
         play_edge->on_all_client_stop();
         die_at = srs_get_system_time();
     }
