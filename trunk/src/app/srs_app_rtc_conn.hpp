@@ -40,6 +40,9 @@
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_rtc_jitbuffer.hpp>
+#include <srs_kernel_file.hpp>
+#include <srs_app_rtc_to_rtmp.hpp>
 
 #include <string>
 #include <map>
@@ -64,6 +67,7 @@ class SrsRtcVideoSendTrack;
 class SrsErrorPithyPrint;
 class SrsPithyPrint;
 class SrsStatistic;
+class SrsRtcRtmpMuxer;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -302,6 +306,8 @@ private:
     // track vector
     std::vector<SrsRtcAudioRecvTrack*> audio_tracks_;
     std::vector<SrsRtcVideoRecvTrack*> video_tracks_;
+private:
+    SrsRtcRtmpMuxer* rtmp_muxer_;
 private:
     int twcc_id_;
     uint8_t twcc_fb_count_;

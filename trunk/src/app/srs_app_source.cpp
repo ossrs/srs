@@ -1751,9 +1751,10 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
 
 #ifdef SRS_RTC
     // If rtc enabled, bridge RTMP source to RTC,
-    // all RTMP packets will be forwarded to RTC source.
-    if (source && rtc) {
+    // all RTMP packets will be forwarded to RTC source, except rtc to rtmp
+    if (source && rtc && !rtc->publish_stream()) {
         source->bridge_to(rtc->bridger());
+        rtc->set_rtmp_source(source);
     }
 #endif
     
@@ -2598,6 +2599,18 @@ srs_error_t SrsSource::create_consumer(SrsConsumer*& consumer)
     
     consumer = new SrsConsumer(this);
     consumers.push_back(consumer);
+
+#ifdef SRS_RTC
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
+
+    // Get the RTC source and bridger.
+    SrsRtcStream* rtc = _srs_rtc_sources->fetch(req);
+    if (rtc_server_enabled && rtc_enabled && rtc) {
+        rtc->request_publish_stream_keyframe();
+    }
+#endif
+
     
     // for edge, when play edge stream, check the state
     if (_srs_config->get_vhost_is_edge(req->vhost)) {

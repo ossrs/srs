@@ -115,7 +115,7 @@ public:
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcStream** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
     virtual SrsRtcStream* fetch(SrsRequest* r);
@@ -162,6 +162,7 @@ private:
     ISrsRtcPublishStream* publish_stream_;
     // Transmux RTMP to RTC.
     SrsRtcDummyBridger* bridger_;
+    SrsSource *rtmp_source_;
     // Steam description for this steam.
     SrsRtcStreamDescription* stream_desc_;
 private:
@@ -187,6 +188,7 @@ public:
     virtual SrsContextId pre_source_id();
     // Get the bridger.
     ISrsSourceBridger* bridger();
+    virtual void set_rtmp_source(SrsSource* source);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -206,6 +208,8 @@ public:
     virtual srs_error_t on_publish();
     // When stop publish stream.
     virtual void on_unpublish();
+    // For RTC to RTMP, PLI from publisher.
+    virtual void request_publish_stream_keyframe();
 public:
     // For event handler
     void subscribe(ISrsRtcStreamEventHandler* h);

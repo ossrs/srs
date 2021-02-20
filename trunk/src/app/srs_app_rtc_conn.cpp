@@ -57,6 +57,7 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_rtmp_conn.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
@@ -872,6 +873,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     
     pli_worker_ = new SrsRtcPLIWorker(this);
     last_time_send_twcc_ = 0;
+    rtmp_muxer_ = NULL;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -907,6 +909,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(twcc_epp_);
     srs_freep(pli_epp);
     srs_freep(req);
+    srs_freep(rtmp_muxer_);
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescription* stream_desc)
@@ -969,6 +972,14 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     }
     source->set_publish_stream(this);
 
+    if (rtmp_muxer_ == NULL && _srs_config->get_rtc_server_rtmp_enabled()){
+        rtmp_muxer_ = new SrsRtcRtmpMuxer(session_, this, _srs_context->get_id());
+        if ((err = rtmp_muxer_->initialize(req)) != srs_success) {
+            srs_freep(rtmp_muxer_);
+            return srs_error_wrap(err, "rtmp muxer init");
+        }
+    }
+
     return err;
 }
 
@@ -1007,6 +1018,12 @@ srs_error_t SrsRtcPublishStream::start()
     }
 
     is_started = true;
+
+    if (NULL != rtmp_muxer_){
+        if ((err = rtmp_muxer_->start()) != srs_success) {
+            return srs_error_wrap(err, "rtmp muxer start");
+        }
+    }
 
     return err;
 }

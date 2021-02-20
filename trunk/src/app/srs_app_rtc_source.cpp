@@ -325,6 +325,7 @@ SrsRtcStream::SrsRtcStream()
     publish_stream_ = NULL;
     stream_desc_ = NULL;
 
+    rtmp_source_ = NULL;
     req = NULL;
     bridger_ = new SrsRtcDummyBridger(this);
 }
@@ -390,6 +391,11 @@ SrsContextId SrsRtcStream::pre_source_id()
 ISrsSourceBridger* SrsRtcStream::bridger()
 {
     return bridger_;
+}
+
+void SrsRtcStream::set_rtmp_source(SrsSource* source)
+{
+    rtmp_source_ = source;
 }
 
 srs_error_t SrsRtcStream::create_consumer(SrsRtcConsumer*& consumer)
@@ -532,6 +538,19 @@ ISrsRtcPublishStream* SrsRtcStream::publish_stream()
 void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
 {
     publish_stream_ = v;
+}
+
+void SrsRtcStream::request_publish_stream_keyframe()
+{
+    if (!publish_stream_) {
+        return;
+    }
+
+    std::vector<SrsRtcTrackDescription*>::iterator it = stream_desc_->video_track_descs_.begin();
+    while (it != stream_desc_->video_track_descs_.end() ){
+        publish_stream_->request_keyframe((*it)->ssrc_);
+        ++it;
+    }
 }
 
 srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)

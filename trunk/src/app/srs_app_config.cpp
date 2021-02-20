@@ -3651,7 +3651,8 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
-                && n != "ip_family" && n != "rtp_cache" && n != "rtp_msg_cache") {
+                && n != "ip_family" && n != "rtp_cache" && n != "rtp_msg_cache"
+                &&  n != "to_rtmp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -5076,6 +5077,248 @@ std::string SrsConfig::get_rtc_server_black_hole_addr()
     }
 
     return conf->arg0();
+}
+
+int SrsConfig::get_rtc_server_rtmp_opus_payload_type()
+{
+    static int DEFAULT = 0;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("opus_payload_type");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_rtc_server_rtmp_enabled()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+std::string SrsConfig::get_rtc_server_rtmp_output()
+{
+    static std::string DEFAULT = "";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("output");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0().c_str();
+}
+
+bool SrsConfig::get_rtc_server_rtmp_source_copy()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("source_copy");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+std::string SrsConfig::get_rtc_server_rtmp_audio_format()
+{
+   static std::string DEFAULT = "rtp";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("audio_format");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0().c_str();
+}
+
+std::string SrsConfig::get_rtc_server_rtmp_record_path()
+{
+    static std::string DEFAULT = "record";
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("record_path");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0().c_str();
+}
+
+int SrsConfig::get_rtc_server_rtmp_keyframe_interval_print()
+{
+    static int DEFAULT = 10;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keyframe_interval_print");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_rtc_server_rtmp_req_keyframe()
+{
+    static int DEFAULT = 0;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("req_keyframe");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_rtc_server_rtmp_record_video()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("record_video");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_rtmp_record_audio()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("record_audio");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_server_rtmp_audio_enabled()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("to_rtmp");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("audio_enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_rtc(string vhost)
