@@ -1821,6 +1821,17 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
         }
     }
 
+    if (_srs_config->get_vhost_is_edge(req->vhost)){
+        SrsSource* rtmp_source = NULL;
+        if ((err = _srs_sources->fetch_or_create(req, _srs_hybrid->srs()->instance(), &rtmp_source)) != srs_success) {
+            return srs_error_wrap(err, "create rtmp source");
+        }
+
+        if (rtmp_source && (err = rtmp_source->on_edge_play()) != srs_success){
+            return srs_error_wrap(err, "rtmp source play");
+        }
+    }
+    
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
     if ((err = negotiate_play_capability(req, remote_sdp, play_sub_relations)) != srs_success) {
         return srs_error_wrap(err, "play negotiate");

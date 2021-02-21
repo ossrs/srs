@@ -325,6 +325,7 @@ SrsRtcStream::SrsRtcStream()
     publish_stream_ = NULL;
     stream_desc_ = NULL;
 
+    rtmp_source_ = NULL;
     req = NULL;
     bridger_ = new SrsRtcDummyBridger(this);
 }
@@ -392,6 +393,11 @@ ISrsSourceBridger* SrsRtcStream::bridger()
     return bridger_;
 }
 
+void SrsRtcStream::set_rtmp_source(SrsSource* source)
+{
+    rtmp_source_ = source;
+}
+
 srs_error_t SrsRtcStream::create_consumer(SrsRtcConsumer*& consumer)
 {
     srs_error_t err = srs_success;
@@ -429,6 +435,15 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
             h->on_consumers_finished();
         }
     }
+
+    if (rtmp_source_ && consumers.empty()){
+        rtmp_source_->on_edge_play_stop();
+    }
+}
+
+bool  SrsRtcStream::is_rtc_consumers_empty()
+{
+    return consumers.empty();
 }
 
 bool SrsRtcStream::can_publish()

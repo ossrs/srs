@@ -1752,8 +1752,9 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
 #ifdef SRS_RTC
     // If rtc enabled, bridge RTMP source to RTC,
     // all RTMP packets will be forwarded to RTC source.
-    if (source && rtc) {
+    if (source && rtc && !rtc->publish_stream()) {
         source->bridge_to(rtc->bridger());
+        rtc->set_rtmp_source(source);
     }
 #endif
     
@@ -2592,6 +2593,42 @@ void SrsSource::on_unpublish()
     }
 }
 
+srs_error_t SrsSource::on_edge_play()
+{
+    srs_error_t err = srs_success;
+    // for edge, when play edge stream, check the state
+    if (_srs_config->get_vhost_is_edge(req->vhost)) {
+        // notice edge to start for the first client.
+        srs_trace("play edge %s", req->get_stream_url().c_str());
+        if ((err = play_edge->on_client_play()) != srs_success) {
+            return srs_error_wrap(err, "play edge");
+        }
+    }
+
+    return err;
+}
+
+void SrsSource::on_edge_play_stop()
+{
+    bool rtc_consumers_empty = true;
+
+#ifdef SRS_RTC
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
+
+    // Get the RTC source and bridger.
+    SrsRtcStream* rtc = _srs_rtc_sources->fetch(req);
+    if (rtc_server_enabled && rtc_enabled && rtc) {
+        rtc_consumers_empty = rtc->is_rtc_consumers_empty();
+    }
+#endif
+
+    if (consumers.empty() && rtc_consumers_empty){
+        play_edge->on_all_client_stop();
+        die_at = srs_get_system_time();
+    }
+}
+
 srs_error_t SrsSource::create_consumer(SrsConsumer*& consumer)
 {
     srs_error_t err = srs_success;
@@ -2661,10 +2698,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
         consumers.erase(it);
     }
     
-    if (consumers.empty()) {
-        play_edge->on_all_client_stop();
-        die_at = srs_get_system_time();
-    }
+    on_edge_play_stop();
 }
 
 void SrsSource::set_cache(bool enabled)
