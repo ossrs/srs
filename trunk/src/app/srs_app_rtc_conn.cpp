@@ -60,6 +60,11 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
+SrsPps* _srs_pps_sstuns = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_stwcc = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_srtcps = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_srtps = new SrsPps(_srs_clock);
+
 SrsPps* _srs_pps_pli = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_twcc = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_rr = new SrsPps(_srs_clock);
@@ -117,6 +122,8 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void* data, int size)
     if (!size) {
         return err;
     }
+
+    ++_srs_pps_sstuns->sugar;
 
     if ((err = session_->sendonly_skt->sendto(data, size, 0)) != srs_success) {
         return srs_error_wrap(err, "send dtls packet");
@@ -1293,6 +1300,8 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return err;
     }
 
+    ++_srs_pps_stwcc->sugar;
+
     char pkt[kRtcpPacketSize];
     SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
     SrsAutoFree(SrsBuffer, buffer);
@@ -2298,6 +2307,8 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+    ++_srs_pps_srtcps->sugar;
+
     int  nb_buf = nb_data;
     if ((err = transport_->protect_rtcp(data, &nb_buf)) != srs_success) {
         return srs_error_wrap(err, "protect rtcp");
@@ -2324,6 +2335,7 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     }
 
     ++_srs_pps_snack2->sugar;
+    ++_srs_pps_srtcps->sugar;
 
     char buf[kRtcpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2342,6 +2354,8 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_srtcps->sugar;
 
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
     char buf[kRtpPacketSize];
@@ -2387,6 +2401,8 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_srtcps->sugar;
 
     /*
      @see: http://www.rfc-editor.org/rfc/rfc3611.html#section-2
@@ -2439,6 +2455,8 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_srtcps->sugar;
 
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2532,6 +2550,8 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
             continue;
         }
 
+        ++_srs_pps_srtps->sugar;
+
         // TODO: FIXME: Handle error.
         sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
 
@@ -2577,6 +2597,8 @@ void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_pub
 srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket* r)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_sstuns->sugar;
 
     bool strict_check = _srs_config->get_rtc_stun_strict_check(req->vhost);
     if (strict_check && r->get_ice_controlled()) {
