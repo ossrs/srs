@@ -61,7 +61,6 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 
 SrsPps* _srs_pps_sstuns = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_stwcc = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_srtcps = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_srtps = new SrsPps(_srs_clock);
 
@@ -1300,7 +1299,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return err;
     }
 
-    ++_srs_pps_stwcc->sugar;
+    ++_srs_pps_srtcps->sugar;
 
     char pkt[kRtcpPacketSize];
     SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));

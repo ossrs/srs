@@ -58,6 +58,8 @@ SrsPps* _srs_pps_svnack = new SrsPps(_srs_clock);
 
 SrsPps* _srs_pps_rnack = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_rnack2 = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rhnack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rmnack = new SrsPps(_srs_clock);
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
@@ -2002,8 +2004,10 @@ SrsRtpPacket2* SrsRtcSendTrack::fetch_rtp_packet(uint16_t seq)
     // For NACK, it sequence must match exactly, or it cause SRTP fail.
     // Return packet only when sequence is equal.
     if (pkt->header.get_sequence() == seq) {
+        ++_srs_pps_rhnack->sugar;
         return pkt;
     }
+    ++_srs_pps_rmnack->sugar;
 
     // Ignore if sequence not match.
     uint32_t nn = 0;
