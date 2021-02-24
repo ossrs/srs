@@ -45,7 +45,10 @@ using namespace std;
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 
-extern SrsPps* _srs_pps_pkts;
+extern SrsPps* _srs_pps_rpkts;
+SrsPps* _srs_pps_rstuns = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rrtps = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rrtcps = new SrsPps(_srs_clock);
 extern SrsPps* _srs_pps_addrs;
 extern SrsPps* _srs_pps_fast_addrs;
 
@@ -357,6 +360,7 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // For STUN, the peer address may change.
     if (!is_rtp_or_rtcp && srs_is_stun((uint8_t*)data, size)) {
+        ++_srs_pps_rstuns->sugar;
         string peer_id = skt->peer_id();
 
         SrsStunPacket ping;
@@ -390,6 +394,8 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     // Note that we don't(except error) switch to the context of session, for performance issue.
     if (is_rtp_or_rtcp && !is_rtcp) {
+        ++_srs_pps_rrtps->sugar;
+
         err = session->on_rtp(data, size);
         if (err != srs_success) {
             session->switch_to_context();
@@ -399,9 +405,13 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
 
     session->switch_to_context();
     if (is_rtp_or_rtcp && is_rtcp) {
+        ++_srs_pps_rrtcps->sugar;
+
         return session->on_rtcp(data, size);
     }
     if (srs_is_dtls((uint8_t*)data, size)) {
+        ++_srs_pps_rstuns->sugar;
+
         return session->on_dtls(data, size);
     }
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
@@ -659,16 +669,16 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     }
 
     // Update the pps stat for UDP socket and adddresses.
-    _srs_pps_pkts->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+    _srs_pps_rpkts->update(); _srs_pps_rstuns->update(); _srs_pps_rrtps->update(); _srs_pps_rrtcps->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update();
     _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
     _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
     _srs_pps_rnack->update(); _srs_pps_rnack2->update();
 
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, pkts=%d,%d,%d, fid=%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d",
+    srs_trace("RTC: Server conns=%u, rpkts=%d,%d,%d,%d,%d,%d, fid=%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d",
         nn_rtc_conns,
-        _srs_pps_pkts->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
+        _srs_pps_rpkts->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rrtcps->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s(),
         _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(),
         _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s(),
         _srs_pps_snack->r10s(), _srs_pps_snack2->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(),
