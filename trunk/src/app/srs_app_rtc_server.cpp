@@ -675,6 +675,9 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         return err;
     }
 
+    // Show udp snmp statistic for RTC server.
+    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
+
     // Update the pps stat for UDP socket and adddresses.
     _srs_pps_rpkts->update(); _srs_pps_rrtps->update(); _srs_pps_rstuns->update(); _srs_pps_rrtcps->update();
     _srs_pps_spkts->update(); _srs_pps_srtps->update(); _srs_pps_sstuns->update(); _srs_pps_srtcps->update();
@@ -684,13 +687,14 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
 
     // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, rpkts=%d,%d,%d,%d, spkts=%d,%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d,%d,%d, fid=%d,%d,%d,%d,%d",
+    srs_trace("RTC: Server conns=%u, rpkts=%d,%d,%d,%d, spkts=%d,%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d,%d,%d, drop=%d,%d, fid=%d,%d,%d,%d,%d",
         nn_rtc_conns,
         _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s(),
         _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s(),
         _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s(),
         _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s(),
         _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s(),
+        s->rcv_buf_errors_delta, s->snd_buf_errors_delta,
         _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()
     );
 

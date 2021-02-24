@@ -547,6 +547,48 @@ extern SrsPlatformInfo* srs_get_platform_info();
 // The daemon st-thread will update it.
 extern void srs_update_platform_info();
 
+class SrsSnmpUdpStat
+{
+public:
+    // Whether the data is ok.
+    bool ok;
+    // send and recv buffer error delta
+    int rcv_buf_errors_delta;
+    int snd_buf_errors_delta;
+
+public:
+    // @see: cat /proc/uptimecat /proc/net/snmp|grep 'Udp:'
+    // @see: https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/#procnetsnmp
+    // InDatagrams: incremented when recvmsg was used by a userland program to read datagram.
+    // also incremented when a UDP packet is encapsulated and sent back for processing.
+    unsigned long long in_datagrams;
+    // NoPorts: incremented when UDP packets arrive destined for a port where no program is listening.
+    unsigned long long no_ports;
+    // InErrors: incremented in several cases: no memory in the receive queue, when a bad checksum is seen,
+    // and if sk_add_backlog fails to add the datagram.
+    unsigned long long in_errors;
+    // OutDatagrams: incremented when a UDP packet is handed down without error to the IP protocol layer to be sent.
+    unsigned long long out_datagrams;
+    // RcvbufErrors: incremented when sock_queue_rcv_skb reports that no memory is available;
+    // this happens if sk->sk_rmem_alloc is greater than or equal to sk->sk_rcvbuf.
+    unsigned long long rcv_buf_errors;
+    // SndbufErrors: incremented if the IP protocol layer reported an error when trying to send the packet
+    // and no error queue has been setup. also incremented if no send queue space or kernel memory are available.
+    unsigned long long snd_buf_errors;
+    // InCsumErrors: incremented when a UDP checksum failure is detected.
+    // Note that in all cases I could find, InCsumErrors is incremented at the same time as InErrors.
+    // Thus, InErrors - InCsumErros should yield the count of memory related errors on the receive side.
+    unsigned long long in_csum_errors;
+public:
+    SrsSnmpUdpStat();
+    ~SrsSnmpUdpStat();
+};
+
+// Get SNMP udp statistic, use cache to avoid performance problem.
+extern SrsSnmpUdpStat* srs_get_udp_snmp_stat();
+// The daemon st-thread will update it.
+void srs_update_udp_snmp_statistic();
+
 // The network device summary for each network device, for example, eth0, eth1, ethN
 class SrsNetworkDevices
 {
