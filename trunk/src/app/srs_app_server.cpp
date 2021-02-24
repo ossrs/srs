@@ -1280,6 +1280,10 @@ srs_error_t SrsServer::setup_ticks()
         if ((err = timer_->tick(8, 3 * SRS_UTIME_SECONDS)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
+
+        if ((err = timer_->tick(10, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+            return srs_error_wrap(err, "tick");
+        }
     }
 
     if (_srs_config->get_heartbeat_enabled()) {
@@ -1308,6 +1312,7 @@ srs_error_t SrsServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
         case 7: srs_update_network_devices(); break;
         case 8: resample_kbps(); break;
         case 9: http_heartbeat->heartbeat(); break;
+        case 10: srs_update_udp_snmp_statistic(); break;
     }
 
     return err;
