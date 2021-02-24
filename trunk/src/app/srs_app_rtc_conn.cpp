@@ -768,7 +768,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     // If NACK disabled, print a log.
     if (!nack_enabled_) {
         vector<uint16_t> sns = rtcp->get_lost_sns();
-        srs_trace("RTC NACK ssrc=%u, seq=%s, ignored", ssrc, srs_join_vector_string(sns, ",").c_str());
+        srs_trace("RTC: NACK ssrc=%u, seq=%s, ignored", ssrc, srs_join_vector_string(sns, ",").c_str());
         return err;
     }
 
@@ -1475,7 +1475,7 @@ void SrsRtcPublishStream::simulate_nack_drop(int nn)
 
 void SrsRtcPublishStream::simulate_drop_packet(SrsRtpHeader* h, int nn_bytes)
 {
-    srs_warn("RTC NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
+    srs_warn("RTC: NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop,
         h->get_sequence(), h->get_ssrc(), (get_video_track(h->get_ssrc())? "Video":"Audio"), h->get_timestamp(),
         nn_bytes);
 
@@ -2478,7 +2478,7 @@ void SrsRtcConnection::simulate_nack_drop(int nn)
 
 void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes)
 {
-    srs_warn("RTC NACK simulator #%d player drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_player_nack_drop,
+    srs_warn("RTC: NACK simulator #%d player drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_player_nack_drop,
         h->get_sequence(), h->get_ssrc(), h->get_timestamp(),
         nn_bytes);
 
