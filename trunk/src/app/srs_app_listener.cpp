@@ -49,6 +49,8 @@ SrsPps* _srs_pps_rpkts = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_addrs = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fast_addrs = new SrsPps(_srs_clock);
 
+SrsPps* _srs_pps_spkts = new SrsPps(_srs_clock);
+
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
@@ -351,6 +353,8 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_spkts->sugar;
 
     int nb_write = srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
 
