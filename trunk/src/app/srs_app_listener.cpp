@@ -45,7 +45,7 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_pkts = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rpkts = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_addrs = new SrsPps(_srs_clock);
 SrsPps* _srs_pps_fast_addrs = new SrsPps(_srs_clock);
 
@@ -343,7 +343,7 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     address_changed_ = true;
 
     // Update the stat.
-    ++_srs_pps_pkts->sugar;
+    ++_srs_pps_rpkts->sugar;
 
     return nread;
 }
