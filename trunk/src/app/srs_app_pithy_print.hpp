@@ -111,6 +111,7 @@ class SrsPithyPrint
 {
 private:
     int client_id;
+    SrsStageInfo* cache_;
     int stage_id;
     srs_utime_t _age;
     srs_utime_t previous_tick;
