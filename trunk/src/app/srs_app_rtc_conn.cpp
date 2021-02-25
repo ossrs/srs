@@ -1164,14 +1164,9 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
         return err;
     }
-    srs_assert(nb_plaintext > 0);
-
-    if (_srs_blackhole->blackhole) {
-        _srs_blackhole->sendto(plaintext, nb_plaintext);
-    }
 
     // Handle the plaintext RTP packet.
-    if ((err = do_on_rtp(plaintext, nb_plaintext)) != srs_success) {
+    if ((err = on_rtp_plaintext(plaintext, nb_plaintext)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
@@ -1186,13 +1181,13 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
+srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaintext)
 {
     srs_error_t err = srs_success;
 
-    char* buf = new char[nb_plaintext];
-    int nb_buf = nb_plaintext;
-    memcpy(buf, plaintext, nb_plaintext);
+    if (_srs_blackhole->blackhole) {
+        _srs_blackhole->sendto(plaintext, nb_plaintext);
+    }
 
     // Decode the RTP packet from buffer.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
@@ -1202,9 +1197,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
         pkt->set_decode_handler(this);
         pkt->set_extension_types(&extension_types_);
         pkt->shared_msg = new SrsSharedPtrMessage();
-        pkt->shared_msg->wrap(buf, nb_buf);
 
-        SrsBuffer b(buf, nb_buf);
+        char* buf = new char[nb_plaintext];
+        memcpy(buf, plaintext, nb_plaintext);
+        pkt->shared_msg->wrap(buf, nb_plaintext);
+
+        SrsBuffer b(buf, nb_plaintext);
         if ((err = pkt->decode(&b)) != srs_success) {
             return srs_error_wrap(err, "decode rtp packet");
         }

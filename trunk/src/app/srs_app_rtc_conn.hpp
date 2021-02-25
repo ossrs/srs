@@ -354,7 +354,7 @@ private:
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
 private:
-    srs_error_t do_on_rtp(char* plaintext, int nb_plaintext);
+    srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
 public:
     srs_error_t check_send_nacks();
 public:
