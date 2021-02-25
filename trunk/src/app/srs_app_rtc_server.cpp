@@ -76,6 +76,8 @@ extern SrsPps* _srs_pps_rhnack;
 extern SrsPps* _srs_pps_rmnack;
 
 extern SrsPps* _srs_pps_objs_rtps;
+extern SrsPps* _srs_pps_objs_rraw;
+extern SrsPps* _srs_pps_objs_rfua;
 
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
@@ -679,9 +681,9 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     static char buf[128];
 
     string objs_desc;
-    _srs_pps_objs_rtps->update();
-    if (_srs_pps_objs_rtps->r10s()) {
-        snprintf(buf, sizeof(buf), ", objs=%d", _srs_pps_objs_rtps->r10s());
+    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update();
+    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s()) {
+        snprintf(buf, sizeof(buf), ", objs=%d,%d,%d", _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s());
         objs_desc = buf;
     }
 
