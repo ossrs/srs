@@ -99,7 +99,9 @@ srs_error_t SrsPsRtpPacket::decode(SrsBuffer* stream)
         }
         // append left bytes to payload.
         payload->append(stream->data() + stream->pos() , stream->size()-stream->pos());
-    } 
+    } else {
+        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "unknown payload data");
+    }
     return err;
 }
 
