@@ -1152,8 +1152,9 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
     }
 
     // Decrypt the cipher to plaintext RTP data.
-    int nb_unprotected_buf = nb_data;
-    if ((err = session_->transport_->unprotect_rtp(data, &nb_unprotected_buf)) != srs_success) {
+    char* plaintext = data;
+    int nb_plaintext = nb_data;
+    if ((err = session_->transport_->unprotect_rtp(plaintext, &nb_plaintext)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
@@ -1163,17 +1164,14 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 
         return err;
     }
-
-    srs_assert(nb_unprotected_buf > 0);
-    char* unprotected_buf = new char[nb_unprotected_buf];
-    memcpy(unprotected_buf, data, nb_unprotected_buf);
+    srs_assert(nb_plaintext > 0);
 
     if (_srs_blackhole->blackhole) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
+        _srs_blackhole->sendto(plaintext, nb_plaintext);
     }
 
     // Handle the plaintext RTP packet.
-    if ((err = do_on_rtp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
+    if ((err = do_on_rtp(plaintext, nb_plaintext)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
         SrsBuffer b(data, nb_data); SrsRtpHeader h; h.ignore_padding(true);
         srs_error_t r0 = h.decode(&b); srs_freep(r0); // Ignore any error for header decoding.
@@ -1181,7 +1179,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         int nb_header = h.nb_bytes();
         const char* body = data + nb_header;
         int nb_body = nb_data - nb_header;
-        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=[%s]", nb_data, nb_unprotected_buf,
+        return srs_error_wrap(err, "cipher=%u, plaintext=%u, body=[%s]", nb_data, nb_plaintext,
             srs_string_dumps_hex(body, nb_body, 8).c_str());
     }
 
@@ -1192,8 +1190,9 @@ srs_error_t SrsRtcPublishStream::do_on_rtp(char* plaintext, int nb_plaintext)
 {
     srs_error_t err = srs_success;
 
-    char* buf = plaintext;
+    char* buf = new char[nb_plaintext];
     int nb_buf = nb_plaintext;
+    memcpy(buf, plaintext, nb_plaintext);
 
     // Decode the RTP packet from buffer.
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
