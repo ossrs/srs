@@ -46,9 +46,9 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 extern SrsPps* _srs_pps_rpkts;
-SrsPps* _srs_pps_rstuns = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_rrtps = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_rrtcps = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rstuns = new SrsPps();
+SrsPps* _srs_pps_rrtps = new SrsPps();
+SrsPps* _srs_pps_rrtcps = new SrsPps();
 extern SrsPps* _srs_pps_addrs;
 extern SrsPps* _srs_pps_fast_addrs;
 

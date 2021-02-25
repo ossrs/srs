@@ -30,7 +30,7 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_timer = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_timer = new SrsPps();
 
 ISrsHourGlass::ISrsHourGlass()
 {

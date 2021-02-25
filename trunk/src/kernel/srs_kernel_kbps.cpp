@@ -59,14 +59,19 @@ void srs_pps_update(SrsRateSample& sample, int64_t nn, srs_utime_t now)
     sample.update(nn, now, pps);
 }
 
-SrsPps::SrsPps(SrsWallClock* c)
+SrsPps::SrsPps()
 {
-    clk_ = c;
+    clk_ = NULL;
     sugar = 0;
 }
 
 SrsPps::~SrsPps()
 {
+}
+
+void SrsPps::set_clock(SrsWallClock* clk)
+{
+    clk_ = clk;
 }
 
 void SrsPps::update()
@@ -76,6 +81,11 @@ void SrsPps::update()
 
 void SrsPps::update(int64_t nn)
 {
+    // Lazy setup the clock.
+    if (!clk_) {
+        clk_ = _srs_clock;
+    }
+
     srs_utime_t now = clk_->now();
 
     srs_pps_init(sample_10s_, nn, now);

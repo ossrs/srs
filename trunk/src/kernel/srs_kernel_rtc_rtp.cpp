@@ -36,7 +36,7 @@ using namespace std;
 
 #include <srs_kernel_kbps.hpp>
 
-SrsPps* _srs_pps_objs_rtps = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_objs_rtps = new SrsPps();
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3

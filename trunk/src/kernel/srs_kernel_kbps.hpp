@@ -61,9 +61,11 @@ public:
     // Sugar for target to stat.
     int64_t sugar;
 public:
-    SrsPps(SrsWallClock* clk);
+    SrsPps();
     virtual ~SrsPps();
 public:
+    // Setup the clock, use global clock if not set.
+    void set_clock(SrsWallClock* clk);
     // Update with the nn which is target.
     void update();
     // Update with the nn.
