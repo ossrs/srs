@@ -432,6 +432,9 @@ private:
     ISrsRtcTransport* transport_;
     SrsHourGlass* timer_;
 private:
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
+private:
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
     //key: player track's ssrc

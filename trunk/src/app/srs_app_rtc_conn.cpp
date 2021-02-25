@@ -1605,6 +1605,11 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     server_ = s;
     transport_ = new SrsSecurityTransport(this);
 
+    cache_iov_ = new iovec();
+    cache_iov_->iov_base = new char[kRtpPacketSize];
+    cache_iov_->iov_len = kRtpPacketSize;
+    cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
+
     state_ = INIT;
     last_stun_time = 0;
     session_timeout = 0;
@@ -1647,6 +1652,9 @@ SrsRtcConnection::~SrsRtcConnection()
         SrsUdpMuxSocket* addr = it->second;
         srs_freep(addr);
     }
+
+    srs_freep(cache_iov_);
+    srs_freep(cache_buffer_);
 
     srs_freep(transport_);
     srs_freep(req);
@@ -2510,22 +2518,16 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
         SrsRtpPacket2* pkt = pkts.at(i);
 
         // For this message, select the first iovec.
-        iovec* iov = new iovec();
-        SrsAutoFree(iovec, iov);
-
-        char* iov_base = new char[kRtpPacketSize];
-        SrsAutoFreeA(char, iov_base);
-
-        iov->iov_base = iov_base;
+        iovec* iov = cache_iov_;
         iov->iov_len = kRtpPacketSize;
+        cache_buffer_->skip(-1 * cache_buffer_->pos());
 
         // Marshal packet to bytes in iovec.
         if (true) {
-            SrsBuffer stream((char*)iov->iov_base, iov->iov_len);
-            if ((err = pkt->encode(&stream)) != srs_success) {
+            if ((err = pkt->encode(cache_buffer_)) != srs_success) {
                 return srs_error_wrap(err, "encode packet");
             }
-            iov->iov_len = stream.pos();
+            iov->iov_len = cache_buffer_->pos();
         }
 
         // Cipher RTP to SRTP packet.
