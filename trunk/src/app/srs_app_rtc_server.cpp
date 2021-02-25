@@ -674,28 +674,60 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     if (!nn_rtc_conns) {
         return err;
     }
+    static char buf[128];
 
-    // Show udp snmp statistic for RTC server.
-    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
-
-    // Update the pps stat for UDP socket and adddresses.
+    string rpkts_desc;
     _srs_pps_rpkts->update(); _srs_pps_rrtps->update(); _srs_pps_rstuns->update(); _srs_pps_rrtcps->update();
-    _srs_pps_spkts->update(); _srs_pps_srtps->update(); _srs_pps_sstuns->update(); _srs_pps_srtcps->update();
-    _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
-    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
-    _srs_pps_rnack->update(); _srs_pps_rnack2->update(); _srs_pps_rhnack->update(); _srs_pps_rmnack->update();
-    _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+    if (_srs_pps_rpkts->r10s() || _srs_pps_rrtps->r10s() || _srs_pps_rstuns->r10s() || _srs_pps_rrtcps->r10s()) {
+        snprintf(buf, sizeof(buf), ", rpkts=%d,%d,%d,%d", _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s());
+        rpkts_desc = buf;
+    }
 
-    // TODO: FIXME: Show more data for RTC server.
-    srs_trace("RTC: Server conns=%u, rpkts=%d,%d,%d,%d, spkts=%d,%d,%d,%d, rtcp=%d,%d,%d, snk=%d,%d,%d,%d, rnk=%d,%d,%d,%d, drop=%d,%d, fid=%d,%d,%d,%d,%d",
+    string spkts_desc;
+    _srs_pps_spkts->update(); _srs_pps_srtps->update(); _srs_pps_sstuns->update(); _srs_pps_srtcps->update();
+    if (_srs_pps_spkts->r10s() || _srs_pps_srtps->r10s() || _srs_pps_sstuns->r10s() || _srs_pps_srtcps->r10s()) {
+        snprintf(buf, sizeof(buf), ", spkts=%d,%d,%d,%d", _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s());
+        spkts_desc = buf;
+    }
+
+    string rtcp_desc;
+    _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
+    if (_srs_pps_pli->r10s() || _srs_pps_twcc->r10s() || _srs_pps_rr->r10s()) {
+        snprintf(buf, sizeof(buf), ", rtcp=%d,%d,%d", _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s());
+        rtcp_desc = buf;
+    }
+
+    string snk_desc;
+    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
+    if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s()) {
+        snprintf(buf, sizeof(buf), ", snk=%d,%d,%d,%d", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s());
+        snk_desc = buf;
+    }
+
+    string rnk_desc;
+    _srs_pps_rnack->update(); _srs_pps_rnack2->update(); _srs_pps_rhnack->update(); _srs_pps_rmnack->update();
+    if (_srs_pps_rnack->r10s() || _srs_pps_rnack2->r10s() || _srs_pps_rhnack->r10s() || _srs_pps_rmnack->r10s()) {
+        snprintf(buf, sizeof(buf), ", rnk=%d,%d,%d,%d", _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s());
+        rnk_desc = buf;
+    }
+
+    string drop_desc;
+    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
+    if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
+        snprintf(buf, sizeof(buf), ", drop=%d,%d", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+        drop_desc = buf;
+    }
+
+    string fid_desc;
+    _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
+    if (_srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()) {
+        snprintf(buf, sizeof(buf), ", fid=%d,%d,%d,%d,%d", _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s());
+        fid_desc = buf;
+    }
+
+    srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
         nn_rtc_conns,
-        _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s(),
-        _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s(),
-        _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s(),
-        _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s(),
-        _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s(),
-        s->rcv_buf_errors_delta, s->snd_buf_errors_delta,
-        _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()
+        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), drop_desc.c_str(), fid_desc.c_str()
     );
 
     return err;
