@@ -38,10 +38,10 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_ids = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_fids = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_fids_level0 = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_dispose = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_ids = new SrsPps();
+SrsPps* _srs_pps_fids = new SrsPps();
+SrsPps* _srs_pps_fids_level0 = new SrsPps();
+SrsPps* _srs_pps_dispose = new SrsPps();
 
 ISrsDisposingHandler::ISrsDisposingHandler()
 {

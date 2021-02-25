@@ -51,15 +51,15 @@
 #include <srs_protocol_kbps.hpp>
 
 // The NACK sent by us(SFU).
-SrsPps* _srs_pps_snack = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_snack2 = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_sanack = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_svnack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_snack = new SrsPps();
+SrsPps* _srs_pps_snack2 = new SrsPps();
+SrsPps* _srs_pps_sanack = new SrsPps();
+SrsPps* _srs_pps_svnack = new SrsPps();
 
-SrsPps* _srs_pps_rnack = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_rnack2 = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_rhnack = new SrsPps(_srs_clock);
-SrsPps* _srs_pps_rmnack = new SrsPps(_srs_clock);
+SrsPps* _srs_pps_rnack = new SrsPps();
+SrsPps* _srs_pps_rnack2 = new SrsPps();
+SrsPps* _srs_pps_rhnack = new SrsPps();
+SrsPps* _srs_pps_rmnack = new SrsPps();
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
