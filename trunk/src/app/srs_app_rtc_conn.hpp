@@ -354,6 +354,7 @@ private:
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
 private:
+    // @remark We copy the plaintext, user should free it.
     srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
 public:
     srs_error_t check_send_nacks();
