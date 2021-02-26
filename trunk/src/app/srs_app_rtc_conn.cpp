@@ -1193,19 +1193,11 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     SrsRtpPacket2* pkt = new SrsRtpPacket2();
     SrsAutoFree(SrsRtpPacket2, pkt);
 
-    if (true) {
-        pkt->set_decode_handler(this);
-        pkt->set_extension_types(&extension_types_);
-        pkt->shared_msg = new SrsSharedPtrMessage();
-
-        char* buf = new char[nb_plaintext];
-        memcpy(buf, plaintext, nb_plaintext);
-        pkt->shared_msg->wrap(buf, nb_plaintext);
-
-        SrsBuffer b(buf, nb_plaintext);
-        if ((err = pkt->decode(&b)) != srs_success) {
-            return srs_error_wrap(err, "decode rtp packet");
-        }
+    pkt->set_decode_handler(this);
+    pkt->set_extension_types(&extension_types_);
+    pkt->wrap(plaintext, nb_plaintext);
+    if ((err = pkt->decode(pkt->cache_buffer())) != srs_success) {
+        return srs_error_wrap(err, "decode rtp packet");
     }
 
     // For source to consume packet.
