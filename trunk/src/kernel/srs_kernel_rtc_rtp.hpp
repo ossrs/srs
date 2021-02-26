@@ -268,13 +268,15 @@ class SrsRtpPacket2
 public:
     SrsRtpHeader header;
     ISrsRtpPayloader* payload;
+private:
+    // The buffer bind to the shared message.
     SrsBuffer* cache_buffer_;
+    // The original shared message, all RTP packets can refer to its data.
+    SrsSharedPtrMessage* shared_msg;
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The original shared message, all RTP packets can refer to its data.
-    SrsSharedPtrMessage* shared_msg;
     // The frame type, for RTMP bridger or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
@@ -288,8 +290,12 @@ public:
     virtual ~SrsRtpPacket2();
 public:
     // Wrap buffer to shared_message, which is managed by us.
-    void wrap(char* data, int size);
-    SrsBuffer* cache_buffer();
+    char* wrap(int size);
+    char* wrap(char* data, int size);
+    // Wrap the shared message, we copy it.
+    char* wrap(SrsSharedPtrMessage* msg);
+    // Get the cache buffer which binds to the shared message.
+    SrsBuffer* cache_buffer() const;
 public:
     // Set the padding of RTP packet.
     void set_padding(int size);
