@@ -40,6 +40,7 @@ SrsPps* _srs_pps_objs_rtps = new SrsPps();
 SrsPps* _srs_pps_objs_rraw = new SrsPps();
 SrsPps* _srs_pps_objs_rfua = new SrsPps();
 SrsPps* _srs_pps_objs_rbuf = new SrsPps();
+SrsPps* _srs_pps_objs_rothers = new SrsPps();
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3
@@ -819,26 +820,11 @@ SrsRtpPacket2::SrsRtpPacket2()
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    srs_freep(payload);
-
-    // Recyle the real owner of message, no other reference object.
-    if (shared_msg && shared_msg->count() == 0) {
-        _srs_rtp_msg_cache->recycle(shared_msg);
-        shared_msg = NULL;
-    } else {
-        srs_freep(shared_msg);
-    }
+    reuse();
 }
 
-bool SrsRtpPacket2::reset()
+void SrsRtpPacket2::reuse()
 {
-    nalu_type = SrsAvcNaluTypeReserved;
-    frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
-    decode_handler = NULL;
-
-    header.reset();
-
     // Only recycle some common payloads.
     SrsRtpRawPayload* raw_payload;
     SrsRtpFUAPayload2* fua_payload;
@@ -853,13 +839,27 @@ bool SrsRtpPacket2::reset()
         srs_freep(payload);
     }
 
-    // Recyle the real owner of message, no other reference object.
-    if (shared_msg && shared_msg->count() == 0) {
+    // Recycle the real owner of message, clear the reference.
+    if (shared_msg) {
+        if (shared_msg->count() > 0) {
+            shared_msg->unwrap();
+        }
         _srs_rtp_msg_cache->recycle(shared_msg);
         shared_msg = NULL;
-    } else {
-        srs_freep(shared_msg);
     }
+}
+
+bool SrsRtpPacket2::reset()
+{
+    nalu_type = SrsAvcNaluTypeReserved;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
+    decode_handler = NULL;
+
+    header.reset();
+
+    // Reset and reuse the payload and shared message.
+    reuse();
 
     return true;
 }
@@ -1095,6 +1095,8 @@ SrsRtpRawNALUs::SrsRtpRawNALUs()
 {
     cursor = 0;
     nn_bytes = 0;
+
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpRawNALUs::~SrsRtpRawNALUs()
@@ -1232,6 +1234,8 @@ ISrsRtpPayloader* SrsRtpRawNALUs::copy()
 SrsRtpSTAPPayload::SrsRtpSTAPPayload()
 {
     nri = (SrsAvcNaluType)0;
+
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpSTAPPayload::~SrsRtpSTAPPayload()
@@ -1381,7 +1385,7 @@ SrsRtpFUAPayload::SrsRtpFUAPayload()
     start = end = false;
     nri = nalu_type = (SrsAvcNaluType)0;
 
-    ++_srs_pps_objs_rfua->sugar;
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpFUAPayload::~SrsRtpFUAPayload()

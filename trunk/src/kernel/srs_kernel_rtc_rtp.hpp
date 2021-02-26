@@ -302,6 +302,8 @@ private:
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
+private:
+    void reuse();
 public:
     // Reset the object to reuse it.
     virtual bool reset();
@@ -355,6 +357,9 @@ public:
     }
     bool enabled() {
         return enabled_;
+    }
+    int size() {
+        return (int)cache_objs_.size();
     }
     // Try to allocate from cache, create new object if no cache.
     T* allocate() {
