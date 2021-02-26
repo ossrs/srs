@@ -534,8 +534,19 @@ public:
     virtual int get_rtc_server_reuseport();
     virtual bool get_rtc_server_merge_nalus();
     virtual bool get_rtc_server_perf_stat();
-    virtual bool get_rtc_server_rtp_cache();
-    virtual bool get_rtc_server_rtp_msg_cache();
+private:
+    SrsConfDirective* get_rtc_server_rtp_cache();
+public:
+    virtual bool get_rtc_server_rtp_cache_enabled();
+    virtual uint64_t get_rtc_server_rtp_cache_pkt_size();
+    virtual uint64_t get_rtc_server_rtp_cache_payload_size();
+private:
+    virtual SrsConfDirective* get_rtc_server_rtp_msg_cache();
+public:
+    virtual bool get_rtc_server_rtp_msg_cache_enabled();
+    virtual uint64_t get_rtc_server_rtp_msg_cache_msg_size();
+    virtual uint64_t get_rtc_server_rtp_msg_cache_buffer_size();
+public:
     virtual bool get_rtc_server_black_hole();
     virtual std::string get_rtc_server_black_hole_addr();
 private:

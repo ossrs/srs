@@ -385,15 +385,19 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
 #endif
 
     string objs_desc;
-    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update(); _srs_pps_objs_rothers->update();
-    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s() || _srs_pps_objs_rothers->r10s()) {
-        snprintf(buf, sizeof(buf), ", objs=%d,%d,%d,%d,%d,%d", _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s(), _srs_pps_objs_msgs->r10s(), _srs_pps_objs_rothers->r10s(), _srs_pps_objs_rbuf->r10s());
+    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update(); _srs_pps_objs_rothers->update(); _srs_pps_objs_drop->update();
+    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s() || _srs_pps_objs_rothers->r10s() || _srs_pps_objs_drop->r10s()) {
+        snprintf(buf, sizeof(buf), ", objs=(pkt:%d,raw:%d,fua:%d,msg:%d,oth:%d,buf:%d,drop:%d)",
+            _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s(),
+            _srs_pps_objs_msgs->r10s(), _srs_pps_objs_rothers->r10s(), _srs_pps_objs_rbuf->r10s(), _srs_pps_objs_drop->r10s());
         objs_desc = buf;
     }
 
     string cache_desc;
-    if (true) {
-        snprintf(buf, sizeof(buf), ", cache=%d,%d,%d,%d,%d", _srs_rtp_cache->size(), _srs_rtp_raw_cache->size(), _srs_rtp_fua_cache->size(), _srs_rtp_msg_cache->size(), _srs_rtp_msg_cache2->size());
+    if (_srs_rtp_cache->size() || _srs_rtp_raw_cache->size() || _srs_rtp_fua_cache->size() || _srs_rtp_msg_cache_buffers->size() || _srs_rtp_msg_cache_objs->size()) {
+        snprintf(buf, sizeof(buf), ", cache=(pkt:%d-%dw,raw:%d-%dw,fua:%d-%dw,msg:%d-%dw,buf:%d-%dw)",
+            _srs_rtp_cache->size(), _srs_rtp_cache->capacity()/10000, _srs_rtp_raw_cache->size(), _srs_rtp_raw_cache->capacity()/10000,
+            _srs_rtp_fua_cache->size(), _srs_rtp_fua_cache->capacity()/10000, _srs_rtp_msg_cache_buffers->size(), _srs_rtp_msg_cache_buffers->capacity()/10000, _srs_rtp_msg_cache_objs->size(), _srs_rtp_msg_cache_objs->capacity()/10000);
         cache_desc = buf;
     }
 
