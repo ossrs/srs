@@ -784,11 +784,19 @@ SrsRtpPacket2::~SrsRtpPacket2()
 
 char* SrsRtpPacket2::wrap(int size)
 {
+    // If the buffer is large enough, reuse it.
+    if (shared_msg && shared_msg->size >= size) {
+        return shared_msg->payload;
+    }
+
+    // Create buffer if empty or not large enough.
     srs_freep(shared_msg);
     shared_msg = new SrsSharedPtrMessage();
 
-    char* buf = new char[size];
-    shared_msg->wrap(buf, size);
+    // For RTC, we use larger under-layer buffer for each packet.
+    int nb_buffer = srs_max(size, kRtpPacketSize);
+    char* buf = new char[nb_buffer];
+    shared_msg->wrap(buf, nb_buffer);
 
     srs_freep(cache_buffer_);
     cache_buffer_ = new SrsBuffer(buf, size);
