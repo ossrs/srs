@@ -109,6 +109,8 @@ public:
     SrsBuffer(char* b, int nn);
     ~SrsBuffer();
 public:
+    // Copy the object, keep position of buffer.
+    SrsBuffer* copy();
     // Get the data and head of buffer.
     //      current-bytes = head() = data() + pos()
     char* data();

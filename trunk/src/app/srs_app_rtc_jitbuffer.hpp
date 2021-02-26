@@ -413,7 +413,6 @@ public:
 public:
     srs_error_t start();
     void Reset();
-    SrsRtpFrameBufferEnum InsertPacket2(const SrsRtpPacket2 &pkt, bool* retransmitted);
     SrsRtpFrameBufferEnum InsertPacket(uint16_t seq, uint32_t ts, bool maker, char *buf, int size,
         bool* retransmitted);
     void ReleaseFrame(SrsRtpFrameBuffer* frame);

@@ -49,13 +49,17 @@ SrsBuffer::SrsBuffer(char* b, int nn)
 {
     p = bytes = b;
     nb_bytes = nn;
-    
-    // TODO: support both little and big endian.
-    srs_assert(srs_is_little_endian());
 }
 
 SrsBuffer::~SrsBuffer()
 {
+}
+
+SrsBuffer* SrsBuffer::copy()
+{
+    SrsBuffer* cp = new SrsBuffer(bytes, nb_bytes);
+    cp->p = p;
+    return cp;
 }
 
 char* SrsBuffer::data()

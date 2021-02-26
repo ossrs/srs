@@ -782,20 +782,39 @@ SrsRtpPacket2::~SrsRtpPacket2()
     srs_freep(cache_buffer_);
 }
 
-void SrsRtpPacket2::wrap(char* data, int size)
+char* SrsRtpPacket2::wrap(int size)
 {
     srs_freep(shared_msg);
     shared_msg = new SrsSharedPtrMessage();
 
     char* buf = new char[size];
-    memcpy(buf, data, size);
     shared_msg->wrap(buf, size);
 
     srs_freep(cache_buffer_);
     cache_buffer_ = new SrsBuffer(buf, size);
+
+    return buf;
 }
 
-SrsBuffer* SrsRtpPacket2::cache_buffer()
+char* SrsRtpPacket2::wrap(char* data, int size)
+{
+    char* buf = wrap(size);
+    memcpy(buf, data, size);
+    return buf;
+}
+
+char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
+{
+    srs_freep(shared_msg);
+    shared_msg = msg->copy();
+
+    srs_freep(cache_buffer_);
+    cache_buffer_ = new SrsBuffer(msg->payload, msg->size);
+
+    return msg->payload;
+}
+
+SrsBuffer* SrsRtpPacket2::cache_buffer() const
 {
     return cache_buffer_;
 }
@@ -835,6 +854,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 
     cp->nalu_type = nalu_type;
     cp->shared_msg = shared_msg? shared_msg->copy():NULL;
+    cp->cache_buffer_ = cache_buffer_? cache_buffer_->copy():NULL;
     cp->frame_type = frame_type;
 
     cp->cached_payload_size = cached_payload_size;
