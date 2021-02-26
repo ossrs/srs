@@ -606,7 +606,7 @@ srs_error_t SrsRtcPlayStream::cycle()
 
             for (int i = 0; i < msg_count; i++) {
                 SrsRtpPacket2* pkt = pkts[i];
-                srs_freep(pkt);
+                _srs_rtp_cache->recycle(pkt);
             }
             pkts.clear();
         }
@@ -1189,13 +1189,29 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
         _srs_blackhole->sendto(plaintext, nb_plaintext);
     }
 
-    // Decode the RTP packet from buffer.
-    SrsRtpPacket2* pkt = new SrsRtpPacket2();
-    SrsAutoFree(SrsRtpPacket2, pkt);
+    // Allocate packet form cache.
+    SrsRtpPacket2* pkt = _srs_rtp_cache->allocate();
+
+    // Copy the packet body.
+    pkt->wrap(plaintext, nb_plaintext);
+    srs_assert(pkt->cache_buffer()->pos() == 0);
+
+    // Handle the packet.
+    err = do_on_rtp_plaintext(pkt);
+
+    // Release the packet to cache.
+    _srs_rtp_cache->recycle(pkt);
+
+    return err;
+}
+
+srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
 
     pkt->set_decode_handler(this);
     pkt->set_extension_types(&extension_types_);
-    pkt->wrap(plaintext, nb_plaintext);
+
     if ((err = pkt->decode(pkt->cache_buffer())) != srs_success) {
         return srs_error_wrap(err, "decode rtp packet");
     }
