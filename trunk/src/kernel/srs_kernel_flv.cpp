@@ -40,6 +40,10 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
 
+#include <srs_kernel_kbps.hpp>
+
+SrsPps* _srs_pps_objs_msgs = new SrsPps();
+
 SrsMessageHeader::SrsMessageHeader()
 {
     message_type = 0;
@@ -209,6 +213,8 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
+
+    ++ _srs_pps_objs_msgs->sugar;
 }
 
 SrsSharedPtrMessage::~SrsSharedPtrMessage()
