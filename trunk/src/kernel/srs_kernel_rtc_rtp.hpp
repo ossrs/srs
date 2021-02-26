@@ -285,8 +285,6 @@ public:
     SrsRtpHeader header;
     ISrsRtpPayloader* payload;
 private:
-    // The buffer bind to the shared message.
-    SrsBuffer* cache_buffer_;
     // The original shared message, all RTP packets can refer to its data.
     SrsSharedPtrMessage* shared_msg;
 // Helper fields.
@@ -306,17 +304,12 @@ public:
     virtual ~SrsRtpPacket2();
 public:
     // Reset the object to reuse it.
-    void reset();
+    virtual bool reset();
     // Wrap buffer to shared_message, which is managed by us.
     char* wrap(int size);
     char* wrap(char* data, int size);
     // Wrap the shared message, we copy it.
     char* wrap(SrsSharedPtrMessage* msg);
-    // Get the cache buffer which binds to the shared message.
-    SrsBuffer* cache_buffer() const;
-    // Try to start recycle, return whether it's reusable.
-    // @remark If not reusable, user should free it directly.
-    bool try_recycle();
 public:
     // Set the padding of RTP packet.
     void set_padding(int size);
@@ -337,27 +330,75 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
 };
 
-// The RTP packet cache manager.
-class SrsRtpPacketCacheManager
+// The RTP packet or message cache manager.
+template<typename T>
+class SrsRtpObjectCacheManager
 {
 private:
     bool enabled_;
-    std::list<SrsRtpPacket2*> cache_pkts_;
+    std::list<T*> cache_objs_;
 public:
-    SrsRtpPacketCacheManager();
-    virtual ~SrsRtpPacketCacheManager();
+    SrsRtpObjectCacheManager() {
+        enabled_ = false;
+    }
+    virtual ~SrsRtpObjectCacheManager() {
+        typedef typename std::list<T*>::iterator iterator;
+        for (iterator it = cache_objs_.begin(); it != cache_objs_.end(); ++it) {
+            T* obj = *it;
+            srs_freep(obj);
+        }
+    }
 public:
     // Enable or disable cache.
-    void set_enabled(bool v);
-    bool enabled();
-    // Try to allocate from cache, create new packet if no cache.
-    SrsRtpPacket2* allocate();
-    // Recycle the packet to cache.
+    void set_enabled(bool v) {
+        enabled_ = v;
+    }
+    bool enabled() {
+        return enabled_;
+    }
+    // Try to allocate from cache, create new object if no cache.
+    T* allocate() {
+        while (true) {
+            if (!enabled_ || cache_objs_.empty()) {
+                return new T();
+            }
+
+            T* obj = cache_objs_.back();
+            cache_objs_.pop_back();
+
+            // If reset the object fail, drop the cached object.
+            if (!obj->reset()) {
+                srs_freep(obj);
+                continue;
+            }
+
+            return obj;
+        }
+    }
+    // Recycle the object to cache.
     // @remark User can directly free the packet.
-    void recycle(SrsRtpPacket2* p);
+    void recycle(T* p) {
+        // The p may be NULL, because srs_freep(NULL) is ok.
+        if (!p) {
+            return;
+        }
+
+        // TODO: FIXME: Directly free to keep low memory?
+        if (!enabled_) {
+            srs_freep(p);
+            return;
+        }
+
+        // Recycle it.
+        cache_objs_.push_back(p);
+    }
 };
 
-extern SrsRtpPacketCacheManager* _srs_rtp_cache;
+// For RTP packets cache.
+extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
+
+// For RTP packet shared messages cache.
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache;
 
 // Single payload data.
 class SrsRtpRawPayload : public ISrsRtpPayloader

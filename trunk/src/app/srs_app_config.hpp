@@ -535,6 +535,7 @@ public:
     virtual bool get_rtc_server_merge_nalus();
     virtual bool get_rtc_server_perf_stat();
     virtual bool get_rtc_server_rtp_cache();
+    virtual bool get_rtc_server_rtp_msg_cache();
     virtual bool get_rtc_server_black_hole();
     virtual std::string get_rtc_server_black_hole_addr();
 private:

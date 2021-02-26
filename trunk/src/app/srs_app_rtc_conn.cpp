@@ -1193,11 +1193,11 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     SrsRtpPacket2* pkt = _srs_rtp_cache->allocate();
 
     // Copy the packet body.
-    pkt->wrap(plaintext, nb_plaintext);
-    srs_assert(pkt->cache_buffer()->pos() == 0);
+    char* p = pkt->wrap(plaintext, nb_plaintext);
 
     // Handle the packet.
-    err = do_on_rtp_plaintext(pkt);
+    SrsBuffer buf(p, nb_plaintext);
+    err = do_on_rtp_plaintext(pkt, &buf);
 
     // Release the packet to cache.
     _srs_rtp_cache->recycle(pkt);
@@ -1205,14 +1205,14 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt, SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
     pkt->set_decode_handler(this);
     pkt->set_extension_types(&extension_types_);
 
-    if ((err = pkt->decode(pkt->cache_buffer())) != srs_success) {
+    if ((err = pkt->decode(buf)) != srs_success) {
         return srs_error_wrap(err, "decode rtp packet");
     }
 

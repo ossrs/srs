@@ -811,7 +811,6 @@ SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
     shared_msg = NULL;
-    cache_buffer_ = NULL;
 
     reset();
 
@@ -821,11 +820,17 @@ SrsRtpPacket2::SrsRtpPacket2()
 SrsRtpPacket2::~SrsRtpPacket2()
 {
     srs_freep(payload);
-    srs_freep(shared_msg);
-    srs_freep(cache_buffer_);
+
+    // Recyle the real owner of message, no other reference object.
+    if (shared_msg && shared_msg->count() == 0) {
+        _srs_rtp_msg_cache->recycle(shared_msg);
+        shared_msg = NULL;
+    } else {
+        srs_freep(shared_msg);
+    }
 }
 
-void SrsRtpPacket2::reset()
+bool SrsRtpPacket2::reset()
 {
     nalu_type = SrsAvcNaluTypeReserved;
     frame_type = SrsFrameTypeReserved;
@@ -839,38 +844,49 @@ void SrsRtpPacket2::reset()
     // and it's different for each packet.
     srs_freep(payload);
 
-    // We should reset the cached buffer.
-    if (cache_buffer_) {
-        cache_buffer_->skip(-1 * cache_buffer_->pos());
+    // Recyle the real owner of message, no other reference object.
+    if (shared_msg && shared_msg->count() == 0) {
+        _srs_rtp_msg_cache->recycle(shared_msg);
+        shared_msg = NULL;
+    } else {
+        srs_freep(shared_msg);
     }
+
+    return true;
 }
 
 char* SrsRtpPacket2::wrap(int size)
 {
     // If the buffer is large enough, reuse it.
     if (shared_msg && shared_msg->size >= size) {
-        // The size maybe changed, so we MUST reset it.
-        cache_buffer_->set_size(size);
-
         return shared_msg->payload;
     }
 
-    // Create buffer if empty or not large enough.
-    srs_freep(shared_msg);
-    shared_msg = new SrsSharedPtrMessage();
+    // Create a large enough message, with under-layer buffer.
+    while (true) {
+        srs_freep(shared_msg);
+        shared_msg = _srs_rtp_msg_cache->allocate();
 
-    // For RTC, we use larger under-layer buffer for each packet.
-    int nb_buffer = srs_max(size, kRtpPacketSize);
-    char* buf = new char[nb_buffer];
-    shared_msg->wrap(buf, nb_buffer);
+        // If got a cached message(which has payload), but it's too small,
+        // we free it and allocate a larger one.
+        if (shared_msg->payload && shared_msg->size < size) {
+            continue;
+        }
 
-    // The size of buffer must equal to the actual size.
-    srs_freep(cache_buffer_);
-    cache_buffer_ = new SrsBuffer(buf, size);
+        // Create under-layer buffer for new message
+        if (!shared_msg->payload) {
+            // For RTC, we use larger under-layer buffer for each packet.
+            int nb_buffer = srs_max(size, kRtpPacketSize);
+            char* buf = new char[nb_buffer];
+            shared_msg->wrap(buf, nb_buffer);
 
-    ++_srs_pps_objs_rbuf->sugar;
+            ++_srs_pps_objs_rbuf->sugar;
+        }
 
-    return buf;
+        break;
+    }
+
+    return shared_msg->payload;
 }
 
 char* SrsRtpPacket2::wrap(char* data, int size)
@@ -885,27 +901,7 @@ char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
     srs_freep(shared_msg);
     shared_msg = msg->copy();
 
-    srs_freep(cache_buffer_);
-    cache_buffer_ = new SrsBuffer(msg->payload, msg->size);
-
     return msg->payload;
-}
-
-SrsBuffer* SrsRtpPacket2::cache_buffer() const
-{
-    return cache_buffer_;
-}
-
-bool SrsRtpPacket2::try_recycle()
-{
-    // When recycling, and there is references about he shared buffer, we must free
-    // the shared message(may not free the buffer) to stop reuse the shared message.
-    if (shared_msg && shared_msg->count() > 0) {
-        srs_freep(shared_msg);
-    }
-
-    // OK, allow to recycle this object.
-    return true;
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -1026,70 +1022,9 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     return err;
 }
 
-SrsRtpPacketCacheManager::SrsRtpPacketCacheManager()
-{
-    enabled_ = false;
-}
+SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>();
 
-SrsRtpPacketCacheManager::~SrsRtpPacketCacheManager()
-{
-    list<SrsRtpPacket2*>::iterator it;
-    for (it = cache_pkts_.begin(); it != cache_pkts_.end(); ++it) {
-        SrsRtpPacket2* pkt = *it;
-        srs_freep(pkt);
-    }
-}
-
-void SrsRtpPacketCacheManager::set_enabled(bool v)
-{
-    enabled_ = v;
-}
-
-bool SrsRtpPacketCacheManager::enabled()
-{
-    return enabled_;
-}
-
-SrsRtpPacket2* SrsRtpPacketCacheManager::allocate()
-{
-    if (!enabled_ || cache_pkts_.empty()) {
-        return new SrsRtpPacket2();
-    }
-
-    SrsRtpPacket2* pkt = cache_pkts_.back();
-    cache_pkts_.pop_back();
-
-    // We MUST reset it to reuse it.
-    pkt->reset();
-
-    return pkt;
-}
-
-void SrsRtpPacketCacheManager::recycle(SrsRtpPacket2* p)
-{
-    // The p may be NULL, because srs_freep(NULL) is ok.
-    if (!p) {
-        return;
-    }
-
-    // TODO: FIXME: Directly free to keep low memory?
-    if (!enabled_) {
-        srs_freep(p);
-        return;
-    }
-
-    // If there is any reference about the message, we should free the
-    // shared message then recycle it(or free it).
-    if (!p->try_recycle()) {
-        srs_freep(p);
-        return;
-    }
-
-    // Recycle it.
-    cache_pkts_.push_back(p);
-}
-
-SrsRtpPacketCacheManager* _srs_rtp_cache = new SrsRtpPacketCacheManager();
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
