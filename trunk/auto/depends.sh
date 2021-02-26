@@ -348,14 +348,6 @@ fi
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
-# For UDP sendmmsg, disable it if not suppported.
-if [[ $SRS_SENDMMSG == YES ]]; then
-    echo "Build ST with UDP sendmmsg support."
-    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
-else
-    echo "Build ST without UDP sendmmsg support."
-    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -UMD_HAVE_SENDMMSG -U_GNU_SOURCE"
-fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
