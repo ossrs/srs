@@ -128,7 +128,6 @@ SRS_EXTRA_FLAGS=
 # Performance optimize.
 SRS_NASM=YES
 SRS_SRTP_ASM=YES
-SRS_SENDMMSG=NO
 SRS_DEBUG=NO
 SRS_DEBUG_STATS=NO
 
@@ -177,7 +176,6 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
-  --sendmmsg=on|off         Whether enable UDP sendmmsg. Default: $(value2switch $SRS_SENDMMSG). @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
@@ -229,8 +227,6 @@ function parse_user_option() {
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --x86-64)                       SRS_X86_X64=YES             ;;
         --osx)                          SRS_OSX=YES                 ;;
-
-        --sendmmsg)                     if [[ $value == off ]]; then SRS_SENDMMSG=NO; else SRS_SENDMMSG=YES; fi    ;;
 
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
         --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
@@ -523,11 +519,6 @@ function apply_detail_options() {
         echo "Use openssl-1.0 for SRTP-ASM."
         SRS_SSL_1_0=YES
     fi
-
-    if [[ $SRS_OSX == YES && $SRS_SENDMMSG == YES ]]; then
-        echo "Disable sendmmsg for OSX"
-        SRS_SENDMMSG=NO
-    fi
 }
 apply_detail_options
 
@@ -562,7 +553,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=$(value2switch $SRS_NASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=$(value2switch $SRS_SRTP_ASM)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sendmmsg=$(value2switch $SRS_SENDMMSG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --clean=$(value2switch $SRS_CLEAN)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gperf=$(value2switch $SRS_GPERF)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gmc=$(value2switch $SRS_GPERF_MC)"

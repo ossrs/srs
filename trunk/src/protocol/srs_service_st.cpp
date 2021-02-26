@@ -446,11 +446,6 @@ int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime
     return st_sendmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
 }
 
-int srs_sendmmsg(srs_netfd_t stfd, struct srs_mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
-{
-    return st_sendmmsg((st_netfd_t)stfd, (struct st_mmsghdr*)msgvec, vlen, flags, (st_utime_t)timeout);
-}
-
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)
 {
     return (srs_netfd_t)st_accept((st_netfd_t)stfd, addr, addrlen, (st_utime_t)timeout);

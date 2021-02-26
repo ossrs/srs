@@ -66,14 +66,10 @@ extern unsigned long long _st_stat_recvmsg;
 extern unsigned long long _st_stat_recvmsg_eagain;
 extern unsigned long long _st_stat_sendmsg;
 extern unsigned long long _st_stat_sendmsg_eagain;
-extern unsigned long long _st_stat_sendmmsg;
-extern unsigned long long _st_stat_sendmmsg_eagain;
 SrsPps* _srs_pps_recvmsg = new SrsPps();
 SrsPps* _srs_pps_recvmsg_eagain = new SrsPps();
 SrsPps* _srs_pps_sendmsg = new SrsPps();
 SrsPps* _srs_pps_sendmsg_eagain = new SrsPps();
-SrsPps* _srs_pps_sendmmsg = new SrsPps();
-SrsPps* _srs_pps_sendmmsg_eagain = new SrsPps();
 
 extern unsigned long long _st_stat_epoll;
 extern unsigned long long _st_stat_epoll_zero;
@@ -331,9 +327,8 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_recvmsg->update(_st_stat_recvmsg); _srs_pps_recvmsg_eagain->update(_st_stat_recvmsg_eagain);
     _srs_pps_sendmsg->update(_st_stat_sendmsg); _srs_pps_sendmsg_eagain->update(_st_stat_sendmsg_eagain);
-    _srs_pps_sendmmsg->update(_st_stat_sendmmsg); _srs_pps_sendmmsg_eagain->update(_st_stat_sendmmsg_eagain);
-    if (_srs_pps_recvmsg->r10s() || _srs_pps_recvmsg_eagain->r10s() || _srs_pps_sendmsg->r10s() || _srs_pps_sendmsg_eagain->r10s() || _srs_pps_sendmmsg->r10s() || _srs_pps_sendmmsg_eagain->r10s()) {
-        snprintf(buf, sizeof(buf), ", msg=%d,%d,%d,%d,%d,%d", _srs_pps_recvmsg->r10s(), _srs_pps_recvmsg_eagain->r10s(), _srs_pps_sendmsg->r10s(), _srs_pps_sendmsg_eagain->r10s(), _srs_pps_sendmmsg->r10s(), _srs_pps_sendmmsg_eagain->r10s());
+    if (_srs_pps_recvmsg->r10s() || _srs_pps_recvmsg_eagain->r10s() || _srs_pps_sendmsg->r10s() || _srs_pps_sendmsg_eagain->r10s()) {
+        snprintf(buf, sizeof(buf), ", msg=%d,%d,%d,%d", _srs_pps_recvmsg->r10s(), _srs_pps_recvmsg_eagain->r10s(), _srs_pps_sendmsg->r10s(), _srs_pps_sendmsg_eagain->r10s());
         msg_desc = buf;
     }
 #endif

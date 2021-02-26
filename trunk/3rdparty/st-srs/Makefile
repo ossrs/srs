@@ -282,10 +282,6 @@ endif
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
-# or to enable sendmmsg(2) support:
-#
-# make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
-#
 # or to enable stats for ST:
 #
 # make EXTRA_CFLAGS=-DDEBUG_STATS
