@@ -39,6 +39,7 @@ using namespace std;
 SrsPps* _srs_pps_objs_rtps = new SrsPps();
 SrsPps* _srs_pps_objs_rraw = new SrsPps();
 SrsPps* _srs_pps_objs_rfua = new SrsPps();
+SrsPps* _srs_pps_objs_rbuf = new SrsPps();
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3
@@ -866,6 +867,8 @@ char* SrsRtpPacket2::wrap(int size)
     // The size of buffer must equal to the actual size.
     srs_freep(cache_buffer_);
     cache_buffer_ = new SrsBuffer(buf, size);
+
+    ++_srs_pps_objs_rbuf->sugar;
 
     return buf;
 }
