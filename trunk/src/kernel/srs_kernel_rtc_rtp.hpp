@@ -268,6 +268,7 @@ class SrsRtpPacket2
 public:
     SrsRtpHeader header;
     ISrsRtpPayloader* payload;
+    SrsBuffer* cache_buffer_;
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
@@ -285,6 +286,10 @@ private:
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
+public:
+    // Wrap buffer to shared_message, which is managed by us.
+    void wrap(char* data, int size);
+    SrsBuffer* cache_buffer();
 public:
     // Set the padding of RTP packet.
     void set_padding(int size);

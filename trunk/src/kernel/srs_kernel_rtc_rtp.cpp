@@ -768,6 +768,7 @@ SrsRtpPacket2::SrsRtpPacket2()
 
     nalu_type = SrsAvcNaluTypeReserved;
     shared_msg = NULL;
+    cache_buffer_ = NULL;
     frame_type = SrsFrameTypeReserved;
     cached_payload_size = 0;
 
@@ -778,6 +779,25 @@ SrsRtpPacket2::~SrsRtpPacket2()
 {
     srs_freep(payload);
     srs_freep(shared_msg);
+    srs_freep(cache_buffer_);
+}
+
+void SrsRtpPacket2::wrap(char* data, int size)
+{
+    srs_freep(shared_msg);
+    shared_msg = new SrsSharedPtrMessage();
+
+    char* buf = new char[size];
+    memcpy(buf, data, size);
+    shared_msg->wrap(buf, size);
+
+    srs_freep(cache_buffer_);
+    cache_buffer_ = new SrsBuffer(buf, size);
+}
+
+SrsBuffer* SrsRtpPacket2::cache_buffer()
+{
+    return cache_buffer_;
 }
 
 void SrsRtpPacket2::set_padding(int size)
