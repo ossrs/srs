@@ -462,7 +462,7 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
 
     string cache_desc;
     if (true) {
-        snprintf(buf, sizeof(buf), ", cache=%d,%d,%d,%d", _srs_rtp_cache->size(), _srs_rtp_raw_cache->size(), _srs_rtp_fua_cache->size(), _srs_rtp_msg_cache->size());
+        snprintf(buf, sizeof(buf), ", cache=%d,%d,%d,%d,%d", _srs_rtp_cache->size(), _srs_rtp_raw_cache->size(), _srs_rtp_fua_cache->size(), _srs_rtp_msg_cache->size(), _srs_rtp_msg_cache2->size());
         cache_desc = buf;
     }
 

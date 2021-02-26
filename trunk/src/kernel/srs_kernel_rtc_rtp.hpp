@@ -304,6 +304,7 @@ public:
     virtual ~SrsRtpPacket2();
 private:
     void reuse();
+    void reuse_shared_msg();
 public:
     // Reset the object to reuse it.
     virtual bool reset();
@@ -527,5 +528,6 @@ extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
 
 // For RTP packet shared messages cache.
 extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache;
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache2;
 
 #endif

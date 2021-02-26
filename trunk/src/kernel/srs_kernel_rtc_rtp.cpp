@@ -840,13 +840,24 @@ void SrsRtpPacket2::reuse()
     }
 
     // Recycle the real owner of message, clear the reference.
-    if (shared_msg) {
-        if (shared_msg->count() > 0) {
-            shared_msg->unwrap();
-        }
-        _srs_rtp_msg_cache->recycle(shared_msg);
-        shared_msg = NULL;
+    reuse_shared_msg();
+}
+
+void SrsRtpPacket2::reuse_shared_msg()
+{
+    if (!shared_msg) {
+        return;
     }
+
+    // We only recycle the RTC UDP packet messages.
+    if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
+        _srs_rtp_msg_cache->recycle(shared_msg);
+    } else {
+        shared_msg->unwrap();
+        _srs_rtp_msg_cache2->recycle(shared_msg);
+    }
+
+    shared_msg = NULL;
 }
 
 bool SrsRtpPacket2::reset()
@@ -879,6 +890,7 @@ char* SrsRtpPacket2::wrap(int size)
         // If got a cached message(which has payload), but it's too small,
         // we free it and allocate a larger one.
         if (shared_msg->payload && shared_msg->size < size) {
+            ++_srs_pps_objs_rothers->sugar;
             continue;
         }
 
@@ -907,7 +919,10 @@ char* SrsRtpPacket2::wrap(char* data, int size)
 
 char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
 {
-    srs_freep(shared_msg);
+    // Recycle the shared message.
+    reuse_shared_msg();
+
+    // Copy from the new message.
     shared_msg = msg->copy();
 
     return msg->payload;
@@ -1036,6 +1051,7 @@ SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjec
 SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>();
 
 SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache2 = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
