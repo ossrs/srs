@@ -394,12 +394,6 @@ public:
     }
 };
 
-// For RTP packets cache.
-extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
-
-// For RTP packet shared messages cache.
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache;
-
 // Single payload data.
 class SrsRtpRawPayload : public ISrsRtpPayloader
 {
@@ -411,6 +405,8 @@ public:
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
+public:
+    bool reset() { return true; }
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -509,6 +505,8 @@ public:
 public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
+public:
+    bool reset() { return true; }
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -516,5 +514,13 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
 };
+
+// For RTP packets cache.
+extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
+extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
+extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
+
+// For RTP packet shared messages cache.
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache;
 
 #endif

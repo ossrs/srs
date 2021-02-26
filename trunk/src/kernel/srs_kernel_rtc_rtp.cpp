@@ -839,10 +839,19 @@ bool SrsRtpPacket2::reset()
 
     header.reset();
 
-    // We do not cache the payload, it will be created even
-    // we cache it, because it only stores pointers to the shared message,
-    // and it's different for each packet.
-    srs_freep(payload);
+    // Only recycle some common payloads.
+    SrsRtpRawPayload* raw_payload;
+    SrsRtpFUAPayload2* fua_payload;
+
+    if ((raw_payload = dynamic_cast<SrsRtpRawPayload*>(payload)) != NULL) {
+        _srs_rtp_raw_cache->recycle(raw_payload);
+        payload = NULL;
+    } else if ((fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload)) != NULL) {
+        _srs_rtp_fua_cache->recycle(fua_payload);
+        payload = NULL;
+    } else {
+        srs_freep(payload);
+    }
 
     // Recyle the real owner of message, no other reference object.
     if (shared_msg && shared_msg->count() == 0) {
@@ -1012,7 +1021,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // By default, we always use the RAW payload.
     if (!payload) {
-        payload = new SrsRtpRawPayload();
+        payload = _srs_rtp_raw_cache->allocate();
     }
 
     if ((err = payload->decode(buf)) != srs_success) {
@@ -1023,6 +1032,8 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 }
 
 SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>();
+SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>();
+SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>();
 
 SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
 
@@ -1072,7 +1083,7 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpRawPayload::copy()
 {
-    SrsRtpRawPayload* cp = new SrsRtpRawPayload();
+    SrsRtpRawPayload* cp = _srs_rtp_raw_cache->allocate();
 
     cp->payload = payload;
     cp->nn_payload = nn_payload;
@@ -1561,7 +1572,7 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
 {
-    SrsRtpFUAPayload2* cp = new SrsRtpFUAPayload2();
+    SrsRtpFUAPayload2* cp = _srs_rtp_fua_cache->allocate();
 
     cp->nri = nri;
     cp->start = start;
