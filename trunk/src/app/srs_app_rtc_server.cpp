@@ -279,16 +279,24 @@ srs_error_t SrsRtcServer::initialize()
         return srs_error_wrap(err, "black hole");
     }
 
-    bool rtp_cache = _srs_config->get_rtc_server_rtp_cache();
-    _srs_rtp_cache->set_enabled(rtp_cache);
-    _srs_rtp_raw_cache->set_enabled(rtp_cache);
-    _srs_rtp_fua_cache->set_enabled(rtp_cache);
+    bool rtp_cache_enabled = _srs_config->get_rtc_server_rtp_cache_enabled();
+    uint64_t rtp_cache_pkt_size = _srs_config->get_rtc_server_rtp_cache_pkt_size();
+    uint64_t rtp_cache_payload_size = _srs_config->get_rtc_server_rtp_cache_payload_size();
+    _srs_rtp_cache->set_enabled(rtp_cache_enabled, rtp_cache_pkt_size);
+    _srs_rtp_raw_cache->set_enabled(rtp_cache_enabled, rtp_cache_payload_size);
+    _srs_rtp_fua_cache->set_enabled(rtp_cache_enabled, rtp_cache_payload_size);
 
-    bool rtp_msg_cache = _srs_config->get_rtc_server_rtp_msg_cache();
-    _srs_rtp_msg_cache->set_enabled(rtp_msg_cache);
-    _srs_rtp_msg_cache2->set_enabled(rtp_msg_cache);
+    bool rtp_msg_cache_enabled = _srs_config->get_rtc_server_rtp_msg_cache_enabled();
+    uint64_t rtp_msg_cache_msg_size = _srs_config->get_rtc_server_rtp_msg_cache_msg_size();
+    uint64_t rtp_msg_cache_buffer_size = _srs_config->get_rtc_server_rtp_msg_cache_buffer_size();
+    _srs_rtp_msg_cache_buffers->set_enabled(rtp_msg_cache_enabled, rtp_msg_cache_msg_size);
+    _srs_rtp_msg_cache_objs->set_enabled(rtp_msg_cache_enabled, rtp_msg_cache_buffer_size);
 
-    srs_trace("RTC server init ok, rc=%d, rmc=%d", rtp_cache, rtp_msg_cache);
+    srs_trace("RTC server init ok, rtp-cache=(enabled:%d,pkt:%dm-%dw,payload:%dm-%dw-%dw), msg-cache=(enabled:%d,obj:%dm-%dw,buf:%dm-%dw)",
+        rtp_cache_enabled, (int)(rtp_cache_pkt_size/1024/1024), _srs_rtp_cache->capacity()/10000,
+        (int)(rtp_cache_payload_size/1024/1024), _srs_rtp_raw_cache->capacity()/10000, _srs_rtp_fua_cache->capacity()/10000,
+        rtp_msg_cache_enabled, (int)(rtp_msg_cache_msg_size/1024/1024), _srs_rtp_msg_cache_objs->capacity()/10000,
+        (int)(rtp_msg_cache_buffer_size/1024/1024), _srs_rtp_msg_cache_buffers->capacity()/10000);
 
     return err;
 }
@@ -688,49 +696,49 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     string rpkts_desc;
     _srs_pps_rpkts->update(); _srs_pps_rrtps->update(); _srs_pps_rstuns->update(); _srs_pps_rrtcps->update();
     if (_srs_pps_rpkts->r10s() || _srs_pps_rrtps->r10s() || _srs_pps_rstuns->r10s() || _srs_pps_rrtcps->r10s()) {
-        snprintf(buf, sizeof(buf), ", rpkts=%d,%d,%d,%d", _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s());
+        snprintf(buf, sizeof(buf), ", rpkts=(%d,rtp:%d,stun:%d,rtcp:%d)", _srs_pps_rpkts->r10s(), _srs_pps_rrtps->r10s(), _srs_pps_rstuns->r10s(), _srs_pps_rrtcps->r10s());
         rpkts_desc = buf;
     }
 
     string spkts_desc;
     _srs_pps_spkts->update(); _srs_pps_srtps->update(); _srs_pps_sstuns->update(); _srs_pps_srtcps->update();
     if (_srs_pps_spkts->r10s() || _srs_pps_srtps->r10s() || _srs_pps_sstuns->r10s() || _srs_pps_srtcps->r10s()) {
-        snprintf(buf, sizeof(buf), ", spkts=%d,%d,%d,%d", _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s());
+        snprintf(buf, sizeof(buf), ", spkts=(%d,rtp:%d,stun:%d,rtcp:%d)", _srs_pps_spkts->r10s(), _srs_pps_srtps->r10s(), _srs_pps_sstuns->r10s(), _srs_pps_srtcps->r10s());
         spkts_desc = buf;
     }
 
     string rtcp_desc;
     _srs_pps_pli->update(); _srs_pps_twcc->update(); _srs_pps_rr->update();
     if (_srs_pps_pli->r10s() || _srs_pps_twcc->r10s() || _srs_pps_rr->r10s()) {
-        snprintf(buf, sizeof(buf), ", rtcp=%d,%d,%d", _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s());
+        snprintf(buf, sizeof(buf), ", rtcp=(pli:%d,twcc:%d,rr:%d)", _srs_pps_pli->r10s(), _srs_pps_twcc->r10s(), _srs_pps_rr->r10s());
         rtcp_desc = buf;
     }
 
     string snk_desc;
     _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
     if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s()) {
-        snprintf(buf, sizeof(buf), ", snk=%d,%d,%d,%d", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s());
+        snprintf(buf, sizeof(buf), ", snk=(%d,a:%d,v:%d,h:%d)", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s());
         snk_desc = buf;
     }
 
     string rnk_desc;
     _srs_pps_rnack->update(); _srs_pps_rnack2->update(); _srs_pps_rhnack->update(); _srs_pps_rmnack->update();
     if (_srs_pps_rnack->r10s() || _srs_pps_rnack2->r10s() || _srs_pps_rhnack->r10s() || _srs_pps_rmnack->r10s()) {
-        snprintf(buf, sizeof(buf), ", rnk=%d,%d,%d,%d", _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s());
+        snprintf(buf, sizeof(buf), ", rnk=(%d,%d,h:%d,m:%d)", _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s());
         rnk_desc = buf;
     }
 
     string drop_desc;
     SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
     if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
-        snprintf(buf, sizeof(buf), ", drop=%d,%d", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+        snprintf(buf, sizeof(buf), ", drop=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
         drop_desc = buf;
     }
 
     string fid_desc;
     _srs_pps_ids->update(); _srs_pps_fids->update(); _srs_pps_fids_level0->update(); _srs_pps_addrs->update(); _srs_pps_fast_addrs->update();
     if (_srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()) {
-        snprintf(buf, sizeof(buf), ", fid=%d,%d,%d,%d,%d", _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s());
+        snprintf(buf, sizeof(buf), ", fid=(id:%d,fid:%d,ffid:%d,addr:%d,faddr:%d)", _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s());
         fid_desc = buf;
     }
 

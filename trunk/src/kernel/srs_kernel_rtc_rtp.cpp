@@ -41,6 +41,7 @@ SrsPps* _srs_pps_objs_rraw = new SrsPps();
 SrsPps* _srs_pps_objs_rfua = new SrsPps();
 SrsPps* _srs_pps_objs_rbuf = new SrsPps();
 SrsPps* _srs_pps_objs_rothers = new SrsPps();
+SrsPps* _srs_pps_objs_drop = new SrsPps();
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3
@@ -851,10 +852,10 @@ void SrsRtpPacket2::reuse_shared_msg()
 
     // We only recycle the RTC UDP packet messages.
     if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
-        _srs_rtp_msg_cache->recycle(shared_msg);
+        _srs_rtp_msg_cache_buffers->recycle(shared_msg);
     } else {
         shared_msg->unwrap();
-        _srs_rtp_msg_cache2->recycle(shared_msg);
+        _srs_rtp_msg_cache_objs->recycle(shared_msg);
     }
 
     shared_msg = NULL;
@@ -885,7 +886,7 @@ char* SrsRtpPacket2::wrap(int size)
     // Create a large enough message, with under-layer buffer.
     while (true) {
         srs_freep(shared_msg);
-        shared_msg = _srs_rtp_msg_cache->allocate();
+        shared_msg = _srs_rtp_msg_cache_buffers->allocate();
 
         // If got a cached message(which has payload), but it's too small,
         // we free it and allocate a larger one.
@@ -1050,8 +1051,8 @@ SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheM
 SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>();
 SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>();
 
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache2 = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {

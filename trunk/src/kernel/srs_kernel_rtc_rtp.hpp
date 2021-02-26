@@ -333,6 +333,10 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
 };
 
+// For object cache manager to stat the object dropped.
+#include <srs_kernel_kbps.hpp>
+extern SrsPps* _srs_pps_objs_drop;
+
 // The RTP packet or message cache manager.
 template<typename T>
 class SrsRtpObjectCacheManager
@@ -340,9 +344,11 @@ class SrsRtpObjectCacheManager
 private:
     bool enabled_;
     std::list<T*> cache_objs_;
+    size_t capacity_;
 public:
     SrsRtpObjectCacheManager() {
         enabled_ = false;
+        capacity_ = 0;
     }
     virtual ~SrsRtpObjectCacheManager() {
         typedef typename std::list<T*>::iterator iterator;
@@ -353,14 +359,18 @@ public:
     }
 public:
     // Enable or disable cache.
-    void set_enabled(bool v) {
+    void set_enabled(bool v, uint64_t memory) {
         enabled_ = v;
+        capacity_ = (size_t)(memory / sizeof(T));
     }
     bool enabled() {
         return enabled_;
     }
     int size() {
         return (int)cache_objs_.size();
+    }
+    int capacity() {
+        return (int)capacity_;
     }
     // Try to allocate from cache, create new object if no cache.
     T* allocate() {
@@ -389,8 +399,16 @@ public:
             return;
         }
 
-        // TODO: FIXME: Directly free to keep low memory?
+        // If disabled, drop the object.
         if (!enabled_) {
+            srs_freep(p);
+            return;
+        }
+
+        // If exceed the capacity, drop the object.
+        if (cache_objs_.size() > capacity_) {
+            ++_srs_pps_objs_drop->sugar;
+
             srs_freep(p);
             return;
         }
@@ -527,7 +545,7 @@ extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
 extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
 
 // For RTP packet shared messages cache.
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache;
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache2;
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
 
 #endif
