@@ -286,6 +286,8 @@ srs_error_t SrsRtcServer::initialize()
 
     bool rtp_cache = _srs_config->get_rtc_server_rtp_cache();
     _srs_rtp_cache->set_enabled(rtp_cache);
+    _srs_rtp_raw_cache->set_enabled(rtp_cache);
+    _srs_rtp_fua_cache->set_enabled(rtp_cache);
 
     bool rtp_msg_cache = _srs_config->get_rtc_server_rtp_msg_cache();
     _srs_rtp_msg_cache->set_enabled(rtp_msg_cache);

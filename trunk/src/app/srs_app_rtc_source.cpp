@@ -825,7 +825,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     // TODO: FIXME: Why 960? Need Refactoring?
     audio_timestamp += 960;
 
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    SrsRtpRawPayload* raw = _srs_rtp_raw_cache->allocate();
     pkt->payload = raw;
 
     raw->payload = pkt->wrap(data, size);
@@ -1107,7 +1107,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     pkt->header.set_sequence(video_sequence++);
     pkt->header.set_timestamp(msg->timestamp * 90);
 
-    SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+    SrsRtpRawPayload* raw = _srs_rtp_raw_cache->allocate();
     pkt->payload = raw;
 
     raw->payload = sample->bytes;
@@ -1141,7 +1141,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
 
-        SrsRtpFUAPayload2* fua = new SrsRtpFUAPayload2();
+        SrsRtpFUAPayload2* fua = _srs_rtp_fua_cache->allocate();
         pkt->payload = fua;
 
         fua->nri = (SrsAvcNaluType)header;
@@ -1861,7 +1861,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
         return;
     }
 
-    *ppayload = new SrsRtpRawPayload();
+    *ppayload = _srs_rtp_raw_cache->allocate();
 }
 
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
@@ -1921,9 +1921,9 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     if (v == kStapA) {
         *ppayload = new SrsRtpSTAPPayload();
     } else if (v == kFuA) {
-        *ppayload = new SrsRtpFUAPayload2();
+        *ppayload = _srs_rtp_fua_cache->allocate();
     } else {
-        *ppayload = new SrsRtpRawPayload();
+        *ppayload = _srs_rtp_raw_cache->allocate();
     }
 }
 
