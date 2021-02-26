@@ -30,6 +30,7 @@
 #include <srs_kernel_codec.hpp>
 
 #include <string>
+#include <list>
 
 class SrsRtpPacket2;
 
@@ -120,6 +121,9 @@ public:
 public:
     SrsRtpExtensionTypes();
     virtual ~SrsRtpExtensionTypes();
+public:
+    // Reset the object to reuse it.
+    void reset();
 private:
     bool register_id(int id, SrsRtpExtensionType type, std::string uri);
 private:
@@ -135,6 +139,9 @@ class SrsRtpExtensionTwcc// : public ISrsCodec
 public:
     SrsRtpExtensionTwcc();
     virtual ~SrsRtpExtensionTwcc();
+public:
+    // Reset the object to reuse it.
+    void reset();
 
     bool has_twcc_ext();
     uint8_t get_id();
@@ -157,7 +164,10 @@ class SrsRtpExtensionOneByte// : public ISrsCodec
     uint8_t value_;
 public:
     SrsRtpExtensionOneByte();
-    virtual ~SrsRtpExtensionOneByte() {}
+    virtual ~SrsRtpExtensionOneByte();
+public:
+    // Reset the object to reuse it.
+    void reset();
 
     bool exists() { return has_ext_; }
     int get_id() { return id_; }
@@ -182,14 +192,16 @@ private:
 public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
-
+public:
+    // Reset the object to reuse it.
+    void reset();
+public:
     bool exists();
     void set_types_(const SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
     srs_error_t get_audio_level(uint8_t& level);
     srs_error_t set_audio_level(int id, uint8_t level);
-
 // ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
@@ -217,6 +229,9 @@ private:
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
+public:
+    // Reset the object to reuse it.
+    void reset();
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
 private:
@@ -262,6 +277,7 @@ public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload) = 0;
 };
 
+// The RTP packet with cached shared message.
 class SrsRtpPacket2
 {
 // RTP packet fields.
@@ -289,6 +305,8 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
+    // Reset the object to reuse it.
+    void reset();
     // Wrap buffer to shared_message, which is managed by us.
     char* wrap(int size);
     char* wrap(char* data, int size);
@@ -296,6 +314,9 @@ public:
     char* wrap(SrsSharedPtrMessage* msg);
     // Get the cache buffer which binds to the shared message.
     SrsBuffer* cache_buffer() const;
+    // Try to start recycle, return whether it's reusable.
+    // @remark If not reusable, user should free it directly.
+    bool try_recycle();
 public:
     // Set the padding of RTP packet.
     void set_padding(int size);
@@ -315,6 +336,28 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
 };
+
+// The RTP packet cache manager.
+class SrsRtpPacketCacheManager
+{
+private:
+    bool enabled_;
+    std::list<SrsRtpPacket2*> cache_pkts_;
+public:
+    SrsRtpPacketCacheManager();
+    virtual ~SrsRtpPacketCacheManager();
+public:
+    // Enable or disable cache.
+    void set_enabled(bool v);
+    bool enabled();
+    // Try to allocate from cache, create new packet if no cache.
+    SrsRtpPacket2* allocate();
+    // Recycle the packet to cache.
+    // @remark User can directly free the packet.
+    void recycle(SrsRtpPacket2* p);
+};
+
+extern SrsRtpPacketCacheManager* _srs_rtp_cache;
 
 // Single payload data.
 class SrsRtpRawPayload : public ISrsRtpPayloader

@@ -162,11 +162,16 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
-    memset(ids_, kRtpExtensionNone, sizeof(ids_));
+    reset();
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 {
+}
+
+void SrsRtpExtensionTypes::reset()
+{
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
@@ -201,12 +206,20 @@ SrsRtpExtensionType SrsRtpExtensionTypes::get_type(int id) const
 
 
 
-SrsRtpExtensionTwcc::SrsRtpExtensionTwcc(): has_twcc_(false), id_(0), sn_(0)
+SrsRtpExtensionTwcc::SrsRtpExtensionTwcc()
 {
+    reset();
 }
 
 SrsRtpExtensionTwcc::~SrsRtpExtensionTwcc()
 {
+}
+
+void SrsRtpExtensionTwcc::reset()
+{
+    has_twcc_ = false;
+    id_ = 0;
+    sn_ = 0;
 }
 
 bool SrsRtpExtensionTwcc::has_twcc_ext()
@@ -286,8 +299,20 @@ void SrsRtpExtensionTwcc::set_sn(uint16_t sn)
     has_twcc_ = true;
 }
 
-SrsRtpExtensionOneByte::SrsRtpExtensionOneByte() : has_ext_(false), id_(0), value_(0)
+SrsRtpExtensionOneByte::SrsRtpExtensionOneByte()
 {
+    reset();
+}
+
+SrsRtpExtensionOneByte::~SrsRtpExtensionOneByte()
+{
+}
+
+void SrsRtpExtensionOneByte::reset()
+{
+    has_ext_ = false;
+    id_ = 0;
+    value_ = 0;
 }
 
 void SrsRtpExtensionOneByte::set_id(int id)
@@ -338,12 +363,24 @@ srs_error_t SrsRtpExtensionOneByte::encode(SrsBuffer* buf)
     return err;
 }
 
-SrsRtpExtensions::SrsRtpExtensions() : has_ext_(false)
+SrsRtpExtensions::SrsRtpExtensions()
 {
+    reset();
 }
 
 SrsRtpExtensions::~SrsRtpExtensions()
 {
+}
+
+void SrsRtpExtensions::reset()
+{
+    if (has_ext_) {
+        types_.reset();
+        twcc_.reset();
+        audio_level_.reset();
+    }
+
+    has_ext_ = false;
 }
 
 srs_error_t SrsRtpExtensions::decode(SrsBuffer* buf)
@@ -525,6 +562,15 @@ srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
 
 SrsRtpHeader::SrsRtpHeader()
 {
+    reset();
+}
+
+SrsRtpHeader::~SrsRtpHeader()
+{
+}
+
+void SrsRtpHeader::reset()
+{
     padding_length   = 0;
     cc               = 0;
     marker           = false;
@@ -532,11 +578,10 @@ SrsRtpHeader::SrsRtpHeader()
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
+    memset(csrc, 0, sizeof(csrc));
     ignore_padding_  = false;
-}
 
-SrsRtpHeader::~SrsRtpHeader()
-{
+    extensions_.reset();
 }
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
@@ -764,13 +809,10 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 SrsRtpPacket2::SrsRtpPacket2()
 {
     payload = NULL;
-    decode_handler = NULL;
-
-    nalu_type = SrsAvcNaluTypeReserved;
     shared_msg = NULL;
     cache_buffer_ = NULL;
-    frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
+
+    reset();
 
     ++_srs_pps_objs_rtps->sugar;
 }
@@ -782,10 +824,33 @@ SrsRtpPacket2::~SrsRtpPacket2()
     srs_freep(cache_buffer_);
 }
 
+void SrsRtpPacket2::reset()
+{
+    nalu_type = SrsAvcNaluTypeReserved;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
+    decode_handler = NULL;
+
+    header.reset();
+
+    // We do not cache the payload, it will be created even
+    // we cache it, because it only stores pointers to the shared message,
+    // and it's different for each packet.
+    srs_freep(payload);
+
+    // We should reset the cached buffer.
+    if (cache_buffer_) {
+        cache_buffer_->skip(-1 * cache_buffer_->pos());
+    }
+}
+
 char* SrsRtpPacket2::wrap(int size)
 {
     // If the buffer is large enough, reuse it.
     if (shared_msg && shared_msg->size >= size) {
+        // The size maybe changed, so we MUST reset it.
+        cache_buffer_->set_size(size);
+
         return shared_msg->payload;
     }
 
@@ -798,6 +863,7 @@ char* SrsRtpPacket2::wrap(int size)
     char* buf = new char[nb_buffer];
     shared_msg->wrap(buf, nb_buffer);
 
+    // The size of buffer must equal to the actual size.
     srs_freep(cache_buffer_);
     cache_buffer_ = new SrsBuffer(buf, size);
 
@@ -825,6 +891,18 @@ char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
 SrsBuffer* SrsRtpPacket2::cache_buffer() const
 {
     return cache_buffer_;
+}
+
+bool SrsRtpPacket2::try_recycle()
+{
+    // When recycling, and there is references about he shared buffer, we must free
+    // the shared message(may not free the buffer) to stop reuse the shared message.
+    if (shared_msg && shared_msg->count() > 0) {
+        srs_freep(shared_msg);
+    }
+
+    // OK, allow to recycle this object.
+    return true;
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -855,14 +933,13 @@ bool SrsRtpPacket2::is_audio()
 
 SrsRtpPacket2* SrsRtpPacket2::copy()
 {
-    SrsRtpPacket2* cp = new SrsRtpPacket2();
+    SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
 
     cp->header = header;
     cp->payload = payload? payload->copy():NULL;
 
     cp->nalu_type = nalu_type;
-    cp->shared_msg = shared_msg? shared_msg->copy():NULL;
-    cp->cache_buffer_ = cache_buffer_? cache_buffer_->copy():NULL;
+    cp->wrap(shared_msg); // Wrap the shared message and buffer.
     cp->frame_type = frame_type;
 
     cp->cached_payload_size = cached_payload_size;
@@ -945,6 +1022,71 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     return err;
 }
+
+SrsRtpPacketCacheManager::SrsRtpPacketCacheManager()
+{
+    enabled_ = false;
+}
+
+SrsRtpPacketCacheManager::~SrsRtpPacketCacheManager()
+{
+    list<SrsRtpPacket2*>::iterator it;
+    for (it = cache_pkts_.begin(); it != cache_pkts_.end(); ++it) {
+        SrsRtpPacket2* pkt = *it;
+        srs_freep(pkt);
+    }
+}
+
+void SrsRtpPacketCacheManager::set_enabled(bool v)
+{
+    enabled_ = v;
+}
+
+bool SrsRtpPacketCacheManager::enabled()
+{
+    return enabled_;
+}
+
+SrsRtpPacket2* SrsRtpPacketCacheManager::allocate()
+{
+    if (!enabled_ || cache_pkts_.empty()) {
+        return new SrsRtpPacket2();
+    }
+
+    SrsRtpPacket2* pkt = cache_pkts_.back();
+    cache_pkts_.pop_back();
+
+    // We MUST reset it to reuse it.
+    pkt->reset();
+
+    return pkt;
+}
+
+void SrsRtpPacketCacheManager::recycle(SrsRtpPacket2* p)
+{
+    // The p may be NULL, because srs_freep(NULL) is ok.
+    if (!p) {
+        return;
+    }
+
+    // TODO: FIXME: Directly free to keep low memory?
+    if (!enabled_) {
+        srs_freep(p);
+        return;
+    }
+
+    // If there is any reference about the message, we should free the
+    // shared message then recycle it(or free it).
+    if (!p->try_recycle()) {
+        srs_freep(p);
+        return;
+    }
+
+    // Recycle it.
+    cache_pkts_.push_back(p);
+}
+
+SrsRtpPacketCacheManager* _srs_rtp_cache = new SrsRtpPacketCacheManager();
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
