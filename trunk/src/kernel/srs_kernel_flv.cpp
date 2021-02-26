@@ -361,8 +361,12 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     srs_assert(ptr);
     
-    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache->allocate();
-    
+    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache2->allocate();
+
+    // We got an object from cache, the ptr might exists, so unwrap it.
+    copy->unwrap();
+
+    // Reference to this message instead.
     copy->ptr = ptr;
     ptr->shared_count++;
     
