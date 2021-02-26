@@ -283,7 +283,10 @@ srs_error_t SrsRtcServer::initialize()
         return srs_error_wrap(err, "black hole");
     }
 
-    srs_trace("RTC server init ok");
+    bool rtp_cache = _srs_config->get_rtc_server_rtp_cache();
+    _srs_rtp_cache->set_enabled(rtp_cache);
+
+    srs_trace("RTC server init ok, rtp_cache=%d", rtp_cache);
 
     return err;
 }
