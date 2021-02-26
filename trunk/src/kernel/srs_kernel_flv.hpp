@@ -328,6 +328,8 @@ public:
     // Create shared ptr message from RAW payload.
     // @remark Note that the header is set to zero.
     virtual void wrap(char* payload, int size);
+    // Decrease the reference, if the last one, free it.
+    void unwrap();
     // Get current reference count.
     // when this object created, count set to 0.
     // if copy() this object, count increase 1.

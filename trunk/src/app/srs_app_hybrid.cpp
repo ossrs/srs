@@ -122,6 +122,13 @@ SrsPps* _srs_pps_thread_yield = new SrsPps();
 SrsPps* _srs_pps_thread_yield2 = new SrsPps();
 #endif
 
+extern SrsPps* _srs_pps_objs_rtps;
+extern SrsPps* _srs_pps_objs_rraw;
+extern SrsPps* _srs_pps_objs_rfua;
+extern SrsPps* _srs_pps_objs_rbuf;
+extern SrsPps* _srs_pps_objs_msgs;
+extern SrsPps* _srs_pps_objs_rothers;
+
 ISrsHybridServer::ISrsHybridServer()
 {
 }
@@ -377,13 +384,25 @@ srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t
     }
 #endif
 
-    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s%s",
+    string objs_desc;
+    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update(); _srs_pps_objs_rothers->update();
+    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s() || _srs_pps_objs_rothers->r10s()) {
+        snprintf(buf, sizeof(buf), ", objs=%d,%d,%d,%d,%d,%d", _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s(), _srs_pps_objs_msgs->r10s(), _srs_pps_objs_rothers->r10s(), _srs_pps_objs_rbuf->r10s());
+        objs_desc = buf;
+    }
+
+    string cache_desc;
+    if (true) {
+        snprintf(buf, sizeof(buf), ", cache=%d,%d,%d,%d", _srs_rtp_cache->size(), _srs_rtp_raw_cache->size(), _srs_rtp_fua_cache->size(), _srs_rtp_msg_cache->size());
+        cache_desc = buf;
+    }
+
+    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s%s%s%s",
         u->percent * 100, memory,
         cid_desc.c_str(), timer_desc.c_str(),
         recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str(),
         epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
-        thread_desc.c_str(),
-        free_desc.c_str()
+        thread_desc.c_str(), free_desc.c_str(), objs_desc.c_str(), cache_desc.c_str()
     );
 
     return err;

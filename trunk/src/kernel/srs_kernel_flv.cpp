@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 #include <srs_kernel_kbps.hpp>
 
@@ -286,10 +287,24 @@ void SrsSharedPtrMessage::wrap(char* payload, int size)
     this->size = ptr->size;
 }
 
+void SrsSharedPtrMessage::unwrap()
+{
+    if (ptr) {
+        if (ptr->shared_count == 0) {
+            srs_freep(ptr);
+        } else {
+            ptr->shared_count--;
+            ptr = NULL;
+        }
+    }
+
+    payload = NULL;
+    size = 0;
+}
+
 int SrsSharedPtrMessage::count()
 {
-    srs_assert(ptr);
-    return ptr->shared_count;
+    return ptr? ptr->shared_count : 0;
 }
 
 bool SrsSharedPtrMessage::check(int stream_id)
@@ -346,7 +361,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     srs_assert(ptr);
     
-    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
+    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache->allocate();
     
     copy->ptr = ptr;
     ptr->shared_count++;

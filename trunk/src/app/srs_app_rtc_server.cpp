@@ -75,12 +75,6 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_rhnack;
 extern SrsPps* _srs_pps_rmnack;
 
-extern SrsPps* _srs_pps_objs_rtps;
-extern SrsPps* _srs_pps_objs_rraw;
-extern SrsPps* _srs_pps_objs_rfua;
-extern SrsPps* _srs_pps_objs_rbuf;
-extern SrsPps* _srs_pps_objs_msgs;
-
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -690,13 +684,6 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     }
     static char buf[128];
 
-    string objs_desc;
-    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update();
-    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s()) {
-        snprintf(buf, sizeof(buf), ", objs=%d,%d,%d,%d,%d", _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s(), _srs_pps_objs_rbuf->r10s(), _srs_pps_objs_msgs->r10s());
-        objs_desc = buf;
-    }
-
     string rpkts_desc;
     _srs_pps_rpkts->update(); _srs_pps_rrtps->update(); _srs_pps_rstuns->update(); _srs_pps_rrtcps->update();
     if (_srs_pps_rpkts->r10s() || _srs_pps_rrtps->r10s() || _srs_pps_rstuns->r10s() || _srs_pps_rrtcps->r10s()) {
@@ -746,9 +733,9 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         fid_desc = buf;
     }
 
-    srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s%s",
+    srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
         nn_rtc_conns,
-        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), drop_desc.c_str(), fid_desc.c_str(), objs_desc.c_str()
+        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), drop_desc.c_str(), fid_desc.c_str()
     );
 
     return err;
