@@ -85,7 +85,7 @@ public:
 };
 
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsReloadHandler
 {
 private:
     SrsHourGlass* timer;
@@ -97,6 +97,9 @@ public:
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+// interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_rtc_server();
 public:
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);
