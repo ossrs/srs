@@ -55,7 +55,6 @@ class SrsRtcConnection;
 class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
-class SrsRtcPlayStreamStatistic;
 class SrsErrorPithyPrint;
 class SrsRtcDummyBridger;
 

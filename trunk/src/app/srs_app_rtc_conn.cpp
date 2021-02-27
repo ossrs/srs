@@ -366,19 +366,6 @@ srs_error_t SrsRtcPLIWorker::cycle()
     return err;
 }
 
-SrsRtcPlayStreamStatistic::SrsRtcPlayStreamStatistic()
-{
-    nn_rtp_pkts = 0;
-    nn_audios = nn_extras = 0;
-    nn_videos = nn_samples = 0;
-    nn_bytes = nn_rtp_bytes = 0;
-    nn_padding_bytes = nn_paddings = 0;
-}
-
-SrsRtcPlayStreamStatistic::~SrsRtcPlayStreamStatistic()
-{
-}
-
 SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 {
     cid_ = cid;
@@ -591,47 +578,6 @@ srs_error_t SrsRtcPlayStream::cycle()
 
         _srs_rtp_cache->recycle(pkt);
     }
-}
-
-srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info)
-{
-    srs_error_t err = srs_success;
-
-    // Covert kernel messages to RTP packets.
-    for (int i = 0; i < (int)pkts.size(); i++) {
-        SrsRtpPacket2* pkt = pkts[i];
-
-        // TODO: FIXME: Maybe refine for performance issue.
-        if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
-            srs_warn("ssrc %u not found", pkt->header.get_ssrc());
-            continue;
-        }
-        
-        // For audio, we transcoded AAC to opus in extra payloads.
-        if (pkt->is_audio()) {
-            // TODO: FIXME: Any simple solution?
-            SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
-
-            if ((err = audio_track->on_rtp(pkt)) != srs_success) {
-                return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-            }
-
-            // TODO: FIXME: Padding audio to the max payload in RTP packets.
-        } else {
-            // TODO: FIXME: Any simple solution?
-            SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
-
-            if ((err = video_track->on_rtp(pkt)) != srs_success) {
-                return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-            }
-        }
-
-        // Detail log, should disable it in release version.
-        srs_info("RTC: Update PT=%u, SSRC=%#x, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
-            pkt->header.get_timestamp(), pkt->nb_bytes());
-    }
-
-    return err;
 }
 
 srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2* pkt)
@@ -2506,60 +2452,6 @@ void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes
         nn_bytes);
 
     nn_simulate_player_nack_drop--;
-}
-
-srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info)
-{
-    srs_error_t err = srs_success;
-
-    for (int i = 0; i < (int)pkts.size(); i++) {
-        SrsRtpPacket2* pkt = pkts.at(i);
-
-        // For this message, select the first iovec.
-        iovec* iov = cache_iov_;
-        iov->iov_len = kRtpPacketSize;
-        cache_buffer_->skip(-1 * cache_buffer_->pos());
-
-        // Marshal packet to bytes in iovec.
-        if (true) {
-            if ((err = pkt->encode(cache_buffer_)) != srs_success) {
-                return srs_error_wrap(err, "encode packet");
-            }
-            iov->iov_len = cache_buffer_->pos();
-        }
-
-        // Cipher RTP to SRTP packet.
-        if (true) {
-            int nn_encrypt = (int)iov->iov_len;
-            if ((err = transport_->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
-                return srs_error_wrap(err, "srtp protect");
-            }
-            iov->iov_len = (size_t)nn_encrypt;
-        }
-
-        info.nn_rtp_bytes += (int)iov->iov_len;
-
-        // When we send out a packet, increase the stat counter.
-        info.nn_rtp_pkts++;
-
-        // For NACK simulator, drop packet.
-        if (nn_simulate_player_nack_drop) {
-            simulate_player_drop_packet(&pkt->header, (int)iov->iov_len);
-            iov->iov_len = 0;
-            continue;
-        }
-
-        ++_srs_pps_srtps->sugar;
-
-        // TODO: FIXME: Handle error.
-        sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
-
-        // Detail log, should disable it in release version.
-        srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
-            pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
-    }
-
-    return err;
 }
 
 srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket2* pkt)
