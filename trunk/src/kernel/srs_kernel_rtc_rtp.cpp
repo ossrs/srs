@@ -778,11 +778,6 @@ void SrsRtpHeader::set_ssrc(uint32_t v)
     ssrc = v;
 }
 
-uint32_t SrsRtpHeader::get_ssrc() const
-{
-    return ssrc;
-}
-
 void SrsRtpHeader::set_padding(uint8_t v)
 {
     padding_length = v;
@@ -835,21 +830,21 @@ void SrsRtpPacket2::recycle_payload()
         return;
     }
 
-    if (_srs_rtp_raw_cache->enabled() || _srs_rtp_fua_cache->enabled()) {
-        // Only recycle some common payloads.
-        if (payload_type_ == SrsRtpPacketPayloadTypeRaw) {
-            _srs_rtp_raw_cache->recycle((SrsRtpRawPayload*)payload_);
-        } else if (payload_type_ == SrsRtpPacketPayloadTypeFUA2) {
-            _srs_rtp_fua_cache->recycle((SrsRtpFUAPayload2*)payload_);
-        } else {
-            srs_freep(payload_);
-        }
-    } else {
-        srs_freep(payload_);
+    if (payload_type_ == SrsRtpPacketPayloadTypeRaw && _srs_rtp_raw_cache->enabled()) {
+        _srs_rtp_raw_cache->recycle((SrsRtpRawPayload*)payload_);
+        payload_ = NULL;
+        goto cleanup;
     }
 
-    // Reset the payload and its type.
-    payload_ = NULL;
+    if (payload_type_ == SrsRtpPacketPayloadTypeFUA2 && _srs_rtp_fua_cache->enabled()) {
+        _srs_rtp_fua_cache->recycle((SrsRtpFUAPayload2*)payload_);
+        payload_ = NULL;
+        goto cleanup;
+    }
+
+    srs_freep(payload_);
+
+cleanup:
     payload_type_ = SrsRtpPacketPayloadTypeUnknown;
 }
 
@@ -859,20 +854,22 @@ void SrsRtpPacket2::recycle_shared_msg()
         return;
     }
 
-    // Recycle the real owner of message, clear the reference.
-    if (_srs_rtp_msg_cache_buffers->enabled() || _srs_rtp_msg_cache_objs->enabled()) {
-        // We only recycle the RTC UDP packet messages.
-        if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
-            _srs_rtp_msg_cache_buffers->recycle(shared_msg);
-        } else {
-            shared_msg->unwrap();
-            _srs_rtp_msg_cache_objs->recycle(shared_msg);
-        }
-
-        shared_msg = NULL;
-    } else {
-        srs_freep(shared_msg);
+    if (!shared_msg->payload || shared_msg->size != kRtpPacketSize || shared_msg->count() > 0) {
+        shared_msg->unwrap();
+        _srs_rtp_msg_cache_objs->recycle(shared_msg);
+        goto cleanup;
     }
+
+    if (_srs_rtp_msg_cache_buffers->enabled()) {
+        _srs_rtp_msg_cache_buffers->recycle(shared_msg);
+        goto cleanup;
+    }
+
+    srs_freep(shared_msg);
+    return;
+
+cleanup:
+    shared_msg = NULL;
 }
 
 bool SrsRtpPacket2::recycle()
@@ -948,8 +945,12 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
 
     // We got packet from cache, so we must recycle it.
-    cp->recycle_payload();
-    cp->recycle_shared_msg();
+    if (cp->payload_) {
+        cp->recycle_payload();
+    }
+    if (cp->shared_msg) {
+        cp->recycle_shared_msg();
+    }
 
     cp->header = header;
     cp->payload_ = payload_? payload_->copy():NULL;
