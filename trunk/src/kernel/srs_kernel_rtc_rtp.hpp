@@ -315,10 +315,7 @@ public:
     SrsAvcNaluType nalu_type;
     // The frame type, for RTMP bridger or SFU source.
     SrsFrameType frame_type;
-// Fast cache for performance.
 private:
-    // The cached payload size for packet.
-    int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
     ISrsRtpPacketDecodeHandler* decode_handler;
 public:

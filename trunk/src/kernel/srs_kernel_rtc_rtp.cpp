@@ -854,7 +854,6 @@ SrsRtpPacket2::SrsRtpPacket2()
 
     nalu_type = SrsAvcNaluTypeReserved;
     frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
     decode_handler = NULL;
 
     ++_srs_pps_objs_rtps->sugar;
@@ -870,7 +869,6 @@ void SrsRtpPacket2::reset()
 {
     nalu_type = SrsAvcNaluTypeReserved;
     frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
     decode_handler = NULL;
 
     // It's important to reset the header.
@@ -931,8 +929,6 @@ cleanup:
 
 bool SrsRtpPacket2::recycle()
 {
-    // Clear the cache size, it may change when reuse it.
-    cached_payload_size = 0;
     // Reset the handler, for decode only.
     decode_handler = NULL;
 
@@ -1015,7 +1011,6 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->frame_type = frame_type;
 
     // For performance issue, do not copy the unused field.
-    //cp->cached_payload_size = cached_payload_size;
     //cp->decode_handler = decode_handler;
 
     return cp;
@@ -1024,17 +1019,11 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 void SrsRtpPacket2::set_padding(int size)
 {
     header.set_padding(size);
-    if (cached_payload_size) {
-        cached_payload_size += size - header.get_padding();
-    }
 }
 
 void SrsRtpPacket2::add_padding(int size)
 {
     header.set_padding(header.get_padding() + size);
-    if (cached_payload_size) {
-        cached_payload_size += size;
-    }
 }
 
 void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
@@ -1054,11 +1043,8 @@ void SrsRtpPacket2::set_extension_types(SrsRtpExtensionTypes* v)
 
 uint64_t SrsRtpPacket2::nb_bytes()
 {
-    if (!cached_payload_size) {
-        int nn_payload = (payload_? payload_->nb_bytes():0);
-        cached_payload_size = header.nb_bytes() + nn_payload + header.get_padding();
-    }
-    return cached_payload_size;
+    int nn_payload = (payload_? payload_->nb_bytes():0);
+    return header.nb_bytes() + nn_payload + header.get_padding();
 }
 
 srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
