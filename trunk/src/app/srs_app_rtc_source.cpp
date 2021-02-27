@@ -589,6 +589,9 @@ std::vector<SrsRtcTrackDescription*> SrsRtcStream::get_track_desc(std::string ty
 SrsRtpPacketCacheHelper::SrsRtpPacketCacheHelper()
 {
     pkt = _srs_rtp_cache->allocate();
+
+    // We MUST reset the packet, when got from cache.
+    pkt->reset();
 }
 
 SrsRtpPacketCacheHelper::~SrsRtpPacketCacheHelper()

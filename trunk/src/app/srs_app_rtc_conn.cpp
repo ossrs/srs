@@ -1130,6 +1130,9 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     // Allocate packet form cache.
     SrsRtpPacket2* pkt = _srs_rtp_cache->allocate();
 
+    // It's better to reset it before decode it.
+    pkt->reset();
+
     // Copy the packet body.
     char* p = pkt->wrap(plaintext, nb_plaintext);
 

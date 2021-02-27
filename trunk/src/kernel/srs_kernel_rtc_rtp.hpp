@@ -324,6 +324,10 @@ private:
 public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
+public:
+    // User MUST reset the packet if got from cache,
+    // except copy(we will assign the header and copy payload).
+    void reset();
 private:
     void recycle_payload();
     void recycle_shared_msg();
