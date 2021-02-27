@@ -1268,7 +1268,7 @@ srs_error_t SrsRtcPublishStream::check_send_nacks()
     return err;
 }
 
-void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -1280,9 +1280,9 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
 
     if (audio_track) {
-        audio_track->on_before_decode_payload(pkt, buf, ppayload);
+        audio_track->on_before_decode_payload(pkt, buf, ppayload, ppt);
     } else if (video_track) {
-        video_track->on_before_decode_payload(pkt, buf, ppayload);
+        video_track->on_before_decode_payload(pkt, buf, ppayload, ppt);
     }
 }
 

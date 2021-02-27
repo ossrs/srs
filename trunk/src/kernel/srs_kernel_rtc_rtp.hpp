@@ -258,6 +258,7 @@ public:
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
 };
 
+// The common payload interface for RTP packet.
 class ISrsRtpPayloader : public ISrsCodec
 {
 public:
@@ -267,6 +268,17 @@ public:
     virtual ISrsRtpPayloader* copy() = 0;
 };
 
+// The payload type, for performance to avoid dynamic cast.
+enum SrsRtpPacketPayloadType
+{
+    SrsRtpPacketPayloadTypeRaw,
+    SrsRtpPacketPayloadTypeFUA2,
+    SrsRtpPacketPayloadTypeFUA,
+    SrsRtpPacketPayloadTypeNALU,
+    SrsRtpPacketPayloadTypeSTAP,
+    SrsRtpPacketPayloadTypeUnknown,
+};
+
 class ISrsRtpPacketDecodeHandler
 {
 public:
@@ -274,7 +286,7 @@ public:
     virtual ~ISrsRtpPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload) = 0;
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
 };
 
 // The RTP packet with cached shared message.
@@ -283,7 +295,9 @@ class SrsRtpPacket2
 // RTP packet fields.
 public:
     SrsRtpHeader header;
-    ISrsRtpPayloader* payload;
+private:
+    ISrsRtpPayloader* payload_;
+    SrsRtpPacketPayloadType payload_type_;
 private:
     // The original shared message, all RTP packets can refer to its data.
     SrsSharedPtrMessage* shared_msg;
@@ -303,7 +317,7 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 private:
-    void reuse();
+    void reuse_payload();
     void reuse_shared_msg();
 public:
     // Reset the object to reuse it.
@@ -314,6 +328,9 @@ public:
     // Wrap the shared message, we copy it.
     char* wrap(SrsSharedPtrMessage* msg);
 public:
+    // Get and set the payload of packet.
+    void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
+    ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
     void set_padding(int size);
     // Increase the padding of RTP packet.

@@ -826,7 +826,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     audio_timestamp += 960;
 
     SrsRtpRawPayload* raw = _srs_rtp_raw_cache->allocate();
-    pkt->payload = raw;
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     raw->payload = pkt->wrap(data, size);
     raw->nn_payload = size;
@@ -961,7 +961,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_stap_a(SrsRtcStream* source, SrsShare
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpSTAPPayload* stap = new SrsRtpSTAPPayload();
-    pkt->payload = stap;
+    pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
 
     uint8_t header = sps[0];
     stap->nri = (SrsAvcNaluType)header;
@@ -1041,7 +1041,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
         pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
         pkt->header.set_sequence(video_sequence++);
         pkt->header.set_timestamp(msg->timestamp * 90);
-        pkt->payload = raw;
+        pkt->set_payload(raw, SrsRtpPacketPayloadTypeNALU);
         pkt->wrap(msg);
     } else {
         // We must free it, should never use RTP packets to free it,
@@ -1082,7 +1082,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_nalus(SrsSharedPtrMessage* msg, const
             fua->start = bool(i == 0);
             fua->end = bool(i == num_of_packet - 1);
 
-            pkt->payload = fua;
+            pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA);
             pkt->wrap(msg);
 
             nb_left -= packet_size;
@@ -1108,7 +1108,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_single_nalu(SrsSharedPtrMessage* msg,
     pkt->header.set_timestamp(msg->timestamp * 90);
 
     SrsRtpRawPayload* raw = _srs_rtp_raw_cache->allocate();
-    pkt->payload = raw;
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     raw->payload = sample->bytes;
     raw->nn_payload = sample->size;
@@ -1142,7 +1142,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
         pkt->header.set_timestamp(msg->timestamp * 90);
 
         SrsRtpFUAPayload2* fua = _srs_rtp_fua_cache->allocate();
-        pkt->payload = fua;
+        pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA2);
 
         fua->nri = (SrsAvcNaluType)header;
         fua->nalu_type = (SrsAvcNaluType)nal_type;
@@ -1854,7 +1854,7 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
-void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -1862,6 +1862,7 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     }
 
     *ppayload = _srs_rtp_raw_cache->allocate();
+    *ppt = SrsRtpPacketPayloadTypeRaw;
 }
 
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled)
@@ -1910,7 +1911,7 @@ SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
 }
 
-void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload)
+void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -1920,10 +1921,13 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     uint8_t v = (uint8_t)pkt->nalu_type;
     if (v == kStapA) {
         *ppayload = new SrsRtpSTAPPayload();
+        *ppt = SrsRtpPacketPayloadTypeUnknown;
     } else if (v == kFuA) {
         *ppayload = _srs_rtp_fua_cache->allocate();
+        *ppt = SrsRtpPacketPayloadTypeFUA2;
     } else {
         *ppayload = _srs_rtp_raw_cache->allocate();
+        *ppt = SrsRtpPacketPayloadTypeRaw;
     }
 }
 
