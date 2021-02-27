@@ -31,6 +31,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 
 class SrsRtpPacket2;
 
@@ -360,7 +361,7 @@ class SrsRtpObjectCacheManager
 {
 private:
     bool enabled_;
-    std::list<T*> cache_objs_;
+    std::vector<T*> cache_objs_;
     size_t capacity_;
     size_t object_size_;
 public:
@@ -370,7 +371,7 @@ public:
         object_size_ = size_of_object;
     }
     virtual ~SrsRtpObjectCacheManager() {
-        typedef typename std::list<T*>::iterator iterator;
+        typedef typename std::vector<T*>::iterator iterator;
         for (iterator it = cache_objs_.begin(); it != cache_objs_.end(); ++it) {
             T* obj = *it;
             srs_freep(obj);
