@@ -97,6 +97,7 @@ public:
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+public:
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);
     void set_hijacker(ISrsRtcServerHijacker* h);
