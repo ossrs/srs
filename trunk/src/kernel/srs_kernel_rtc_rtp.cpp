@@ -942,6 +942,28 @@ char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
     return msg->payload;
 }
 
+SrsRtpPacket2* SrsRtpPacket2::copy()
+{
+    SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
+
+    // We got packet from cache, so we must recycle it.
+    cp->recycle_payload();
+    cp->recycle_shared_msg();
+
+    cp->header = header;
+    cp->payload_ = payload_? payload_->copy():NULL;
+    cp->payload_type_ = payload_type_;
+
+    cp->nalu_type = nalu_type;
+    cp->shared_msg = shared_msg->copy();
+    cp->frame_type = frame_type;
+
+    cp->cached_payload_size = cached_payload_size;
+    cp->decode_handler = decode_handler;
+
+    return cp;
+}
+
 void SrsRtpPacket2::set_padding(int size)
 {
     header.set_padding(size);
@@ -966,28 +988,6 @@ void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
 bool SrsRtpPacket2::is_audio()
 {
     return frame_type == SrsFrameTypeAudio;
-}
-
-SrsRtpPacket2* SrsRtpPacket2::copy()
-{
-    SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
-
-    // We got packet from cache, so we must recycle it.
-    cp->recycle_payload();
-    cp->recycle_shared_msg();
-
-    cp->header = header;
-    cp->payload_ = payload_? payload_->copy():NULL;
-    cp->payload_type_ = payload_type_;
-
-    cp->nalu_type = nalu_type;
-    cp->shared_msg = shared_msg->copy();
-    cp->frame_type = frame_type;
-
-    cp->cached_payload_size = cached_payload_size;
-    cp->decode_handler = decode_handler;
-
-    return cp;
 }
 
 void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
