@@ -1203,6 +1203,7 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt, SrsBuff
 
     pkt->set_decode_handler(this);
     pkt->set_extension_types(&extension_types_);
+    pkt->ignore_padding(false);
 
     if ((err = pkt->decode(buf)) != srs_success) {
         return srs_error_wrap(err, "decode rtp packet");
