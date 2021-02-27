@@ -321,7 +321,7 @@ private:
     void reuse_payload();
     void reuse_shared_msg();
 public:
-    // Reset the object to reuse it.
+    // Recycle the object to reuse it.
     virtual bool reset();
     // Wrap buffer to shared_message, which is managed by us.
     char* wrap(int size);
@@ -365,11 +365,13 @@ private:
     size_t capacity_;
     size_t object_size_;
 public:
+    // SrsRtpObjectCacheManager::SrsRtpObjectCacheManager
     SrsRtpObjectCacheManager(size_t size_of_object) {
         enabled_ = false;
         capacity_ = 0;
         object_size_ = size_of_object;
     }
+    // SrsRtpObjectCacheManager::~SrsRtpObjectCacheManager
     virtual ~SrsRtpObjectCacheManager() {
         typedef typename std::vector<T*>::iterator iterator;
         for (iterator it = cache_objs_.begin(); it != cache_objs_.end(); ++it) {
@@ -379,6 +381,7 @@ public:
     }
 public:
     // Setup the object cache, shrink if capacity changed.
+    // SrsRtpObjectCacheManager::setup
     void setup(bool v, uint64_t memory) {
         enabled_ = v;
         capacity_ = (size_t)(memory / object_size_);
@@ -396,16 +399,20 @@ public:
         }
     }
     // Get the status of object cache.
+    // SrsRtpObjectCacheManager::enabled
     bool enabled() {
         return enabled_;
     }
+    // SrsRtpObjectCacheManager::size
     int size() {
         return (int)cache_objs_.size();
     }
+    // SrsRtpObjectCacheManager::capacity
     int capacity() {
         return (int)capacity_;
     }
     // Try to allocate from cache, create new object if no cache.
+    // SrsRtpObjectCacheManager::allocate
     T* allocate() {
         while (true) {
             if (!enabled_ || cache_objs_.empty()) {
@@ -426,6 +433,7 @@ public:
     }
     // Recycle the object to cache.
     // @remark User can directly free the packet.
+    // SrsRtpObjectCacheManager::recycle
     void recycle(T* p) {
         // The p may be NULL, because srs_freep(NULL) is ok.
         if (!p) {
