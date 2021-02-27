@@ -811,7 +811,7 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    payload = NULL;
+    payload_ = NULL; payload_type_ = SrsRtpPacketPayloadTypeUnknown;
     shared_msg = NULL;
 
     reset();
@@ -821,31 +821,31 @@ SrsRtpPacket2::SrsRtpPacket2()
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    reuse();
+    reuse_payload();
+    reuse_shared_msg();
 }
 
-void SrsRtpPacket2::reuse()
+void SrsRtpPacket2::reuse_payload()
 {
-    if (_srs_rtp_raw_cache->enabled() || _srs_rtp_fua_cache->enabled()) {
-        // Only recycle some common payloads.
-        SrsRtpRawPayload* raw_payload;
-        SrsRtpFUAPayload2* fua_payload;
-
-        if ((raw_payload = dynamic_cast<SrsRtpRawPayload*>(payload)) != NULL) {
-            _srs_rtp_raw_cache->recycle(raw_payload);
-            payload = NULL;
-        } else if ((fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload)) != NULL) {
-            _srs_rtp_fua_cache->recycle(fua_payload);
-            payload = NULL;
-        } else {
-            srs_freep(payload);
-        }
-    } else {
-        srs_freep(payload);
+    if (!payload_) {
+        return;
     }
 
-    // Recycle the real owner of message, clear the reference.
-    reuse_shared_msg();
+    if (_srs_rtp_raw_cache->enabled() || _srs_rtp_fua_cache->enabled()) {
+        // Only recycle some common payloads.
+        if (payload_type_ == SrsRtpPacketPayloadTypeRaw) {
+            _srs_rtp_raw_cache->recycle((SrsRtpRawPayload*)payload_);
+        } else if (payload_type_ == SrsRtpPacketPayloadTypeFUA2) {
+            _srs_rtp_fua_cache->recycle((SrsRtpFUAPayload2*)payload_);
+        } else {
+            srs_freep(payload_);
+        }
+    } else {
+        srs_freep(payload_);
+    }
+
+    // Reset the payload and its type.
+    payload_ = NULL; payload_type_ = SrsRtpPacketPayloadTypeUnknown;
 }
 
 void SrsRtpPacket2::reuse_shared_msg()
@@ -854,6 +854,7 @@ void SrsRtpPacket2::reuse_shared_msg()
         return;
     }
 
+    // Recycle the real owner of message, clear the reference.
     if (_srs_rtp_msg_cache_buffers->enabled() || _srs_rtp_msg_cache_objs->enabled()) {
         // We only recycle the RTC UDP packet messages.
         if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
@@ -877,9 +878,8 @@ bool SrsRtpPacket2::reset()
     decode_handler = NULL;
 
     header.reset();
-
-    // Reset and reuse the payload and shared message.
-    reuse();
+    reuse_payload();
+    reuse_shared_msg();
 
     return true;
 }
@@ -967,11 +967,16 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 {
     SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
 
+    // We got packet from cache, so we must recycle it.
+    cp->reuse_payload();
+    cp->reuse_shared_msg();
+
     cp->header = header;
-    cp->payload = payload? payload->copy():NULL;
+    cp->payload_ = payload_? payload_->copy():NULL;
+    cp->payload_type_ = payload_type_;
 
     cp->nalu_type = nalu_type;
-    cp->wrap(shared_msg); // Wrap the shared message and buffer.
+    cp->shared_msg = shared_msg->copy();
     cp->frame_type = frame_type;
 
     cp->cached_payload_size = cached_payload_size;
@@ -988,7 +993,7 @@ void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
 uint64_t SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
-        int nn_payload = (payload? payload->nb_bytes():0);
+        int nn_payload = (payload_? payload_->nb_bytes():0);
         cached_payload_size = header.nb_bytes() + nn_payload + header.get_padding();
     }
     return cached_payload_size;
@@ -1002,7 +1007,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "rtp header");
     }
 
-    if (payload && (err = payload->encode(buf)) != srs_success) {
+    if (payload_ && (err = payload_->encode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp payload");
     }
 
@@ -1040,15 +1045,16 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // If user set the decode handler, call it to set the payload.
     if (decode_handler) {
-        decode_handler->on_before_decode_payload(this, buf, &payload);
+        decode_handler->on_before_decode_payload(this, buf, &payload_, &payload_type_);
     }
 
     // By default, we always use the RAW payload.
-    if (!payload) {
-        payload = _srs_rtp_raw_cache->allocate();
+    if (!payload_) {
+        payload_ = _srs_rtp_raw_cache->allocate();
+        payload_type_ = SrsRtpPacketPayloadTypeRaw;
     }
 
-    if ((err = payload->decode(buf)) != srs_success) {
+    if ((err = payload_->decode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp payload");
     }
 
