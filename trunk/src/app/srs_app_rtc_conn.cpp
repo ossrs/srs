@@ -924,15 +924,6 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled_, twcc_id);
 
-    for (vector<SrsRtcAudioRecvTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-        SrsRtcAudioRecvTrack* track = *it;
-        track->set_nack_enabled(nack_enabled_);
-    }
-    for (vector<SrsRtcVideoRecvTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-        SrsRtcVideoRecvTrack* track = *it;
-        track->set_nack_enabled(nack_enabled_);
-    }
-
     // Update stat for session.
     session_->stat_->nn_publishers++;
 
@@ -1162,6 +1153,8 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
 
     // Handle the packet.
     SrsBuffer buf(p, nb_plaintext);
+
+    // @remark Note that the pkt might be set to NULL.
     err = do_on_rtp_plaintext(pkt, &buf);
 
     // Release the packet to cache.
@@ -1170,7 +1163,7 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt, SrsBuffer* buf)
+srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
@@ -1203,6 +1196,20 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt, SrsBuff
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt)) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
+        }
+    }
+
+    // For NACK to handle packet.
+    // @remark Note that the pkt might be set to NULL.
+    if (nack_enabled_) {
+        if (audio_track) {
+            if ((err = audio_track->on_nack(&pkt)) != srs_success) {
+                return srs_error_wrap(err, "on nack");
+            }
+        } else if (video_track) {
+            if ((err = video_track->on_nack(&pkt)) != srs_success) {
+                return srs_error_wrap(err, "on nack");
+            }
         }
     }
 
