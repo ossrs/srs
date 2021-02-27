@@ -345,10 +345,12 @@ private:
     bool enabled_;
     std::list<T*> cache_objs_;
     size_t capacity_;
+    size_t object_size_;
 public:
-    SrsRtpObjectCacheManager() {
+    SrsRtpObjectCacheManager(size_t size_of_object) {
         enabled_ = false;
         capacity_ = 0;
+        object_size_ = size_of_object;
     }
     virtual ~SrsRtpObjectCacheManager() {
         typedef typename std::list<T*>::iterator iterator;
@@ -358,11 +360,24 @@ public:
         }
     }
 public:
-    // Enable or disable cache.
-    void set_enabled(bool v, uint64_t memory) {
+    // Setup the object cache, shrink if capacity changed.
+    void setup(bool v, uint64_t memory) {
         enabled_ = v;
-        capacity_ = (size_t)(memory / sizeof(T));
+        capacity_ = (size_t)(memory / object_size_);
+
+
+        if (!enabled_) {
+            capacity_ = 0;
+        }
+
+        // Shrink the cache.
+        while (cache_objs_.size() > capacity_) {
+            T* obj = cache_objs_.back();
+            cache_objs_.pop_back();
+            srs_freep(obj);
+        }
     }
+    // Get the status of object cache.
     bool enabled() {
         return enabled_;
     }

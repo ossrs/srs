@@ -826,16 +826,20 @@ SrsRtpPacket2::~SrsRtpPacket2()
 
 void SrsRtpPacket2::reuse()
 {
-    // Only recycle some common payloads.
-    SrsRtpRawPayload* raw_payload;
-    SrsRtpFUAPayload2* fua_payload;
+    if (_srs_rtp_raw_cache->enabled() || _srs_rtp_fua_cache->enabled()) {
+        // Only recycle some common payloads.
+        SrsRtpRawPayload* raw_payload;
+        SrsRtpFUAPayload2* fua_payload;
 
-    if ((raw_payload = dynamic_cast<SrsRtpRawPayload*>(payload)) != NULL) {
-        _srs_rtp_raw_cache->recycle(raw_payload);
-        payload = NULL;
-    } else if ((fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload)) != NULL) {
-        _srs_rtp_fua_cache->recycle(fua_payload);
-        payload = NULL;
+        if ((raw_payload = dynamic_cast<SrsRtpRawPayload*>(payload)) != NULL) {
+            _srs_rtp_raw_cache->recycle(raw_payload);
+            payload = NULL;
+        } else if ((fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload)) != NULL) {
+            _srs_rtp_fua_cache->recycle(fua_payload);
+            payload = NULL;
+        } else {
+            srs_freep(payload);
+        }
     } else {
         srs_freep(payload);
     }
@@ -850,15 +854,19 @@ void SrsRtpPacket2::reuse_shared_msg()
         return;
     }
 
-    // We only recycle the RTC UDP packet messages.
-    if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
-        _srs_rtp_msg_cache_buffers->recycle(shared_msg);
-    } else {
-        shared_msg->unwrap();
-        _srs_rtp_msg_cache_objs->recycle(shared_msg);
-    }
+    if (_srs_rtp_msg_cache_buffers->enabled() || _srs_rtp_msg_cache_objs->enabled()) {
+        // We only recycle the RTC UDP packet messages.
+        if (shared_msg->payload && shared_msg->size == kRtpPacketSize && shared_msg->count() == 0) {
+            _srs_rtp_msg_cache_buffers->recycle(shared_msg);
+        } else {
+            shared_msg->unwrap();
+            _srs_rtp_msg_cache_objs->recycle(shared_msg);
+        }
 
-    shared_msg = NULL;
+        shared_msg = NULL;
+    } else {
+        srs_freep(shared_msg);
+    }
 }
 
 bool SrsRtpPacket2::reset()
@@ -1047,12 +1055,12 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     return err;
 }
 
-SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>();
-SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>();
-SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>();
+SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
+SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
+SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
 
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>();
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {

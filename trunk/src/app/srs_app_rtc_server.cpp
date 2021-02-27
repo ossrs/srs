@@ -282,17 +282,17 @@ srs_error_t SrsRtcServer::initialize()
     bool rtp_cache_enabled = _srs_config->get_rtc_server_rtp_cache_enabled();
     uint64_t rtp_cache_pkt_size = _srs_config->get_rtc_server_rtp_cache_pkt_size();
     uint64_t rtp_cache_payload_size = _srs_config->get_rtc_server_rtp_cache_payload_size();
-    _srs_rtp_cache->set_enabled(rtp_cache_enabled, rtp_cache_pkt_size);
-    _srs_rtp_raw_cache->set_enabled(rtp_cache_enabled, rtp_cache_payload_size);
-    _srs_rtp_fua_cache->set_enabled(rtp_cache_enabled, rtp_cache_payload_size);
+    _srs_rtp_cache->setup(rtp_cache_enabled, rtp_cache_pkt_size);
+    _srs_rtp_raw_cache->setup(rtp_cache_enabled, rtp_cache_payload_size);
+    _srs_rtp_fua_cache->setup(rtp_cache_enabled, rtp_cache_payload_size);
 
     bool rtp_msg_cache_enabled = _srs_config->get_rtc_server_rtp_msg_cache_enabled();
     uint64_t rtp_msg_cache_msg_size = _srs_config->get_rtc_server_rtp_msg_cache_msg_size();
     uint64_t rtp_msg_cache_buffer_size = _srs_config->get_rtc_server_rtp_msg_cache_buffer_size();
-    _srs_rtp_msg_cache_buffers->set_enabled(rtp_msg_cache_enabled, rtp_msg_cache_msg_size);
-    _srs_rtp_msg_cache_objs->set_enabled(rtp_msg_cache_enabled, rtp_msg_cache_buffer_size);
+    _srs_rtp_msg_cache_buffers->setup(rtp_msg_cache_enabled, rtp_msg_cache_buffer_size);
+    _srs_rtp_msg_cache_objs->setup(rtp_msg_cache_enabled, rtp_msg_cache_msg_size);
 
-    srs_trace("RTC server init ok, rtp-cache=(enabled:%d,pkt:%dm-%dw,payload:%dm-%dw-%dw), msg-cache=(enabled:%d,obj:%dm-%dw,buf:%dm-%dw)",
+    srs_trace("RTC: Object cache init, rtp-cache=(enabled:%d,pkt:%dm-%dw,payload:%dm-%dw-%dw), msg-cache=(enabled:%d,obj:%dm-%dw,buf:%dm-%dw)",
         rtp_cache_enabled, (int)(rtp_cache_pkt_size/1024/1024), _srs_rtp_cache->capacity()/10000,
         (int)(rtp_cache_payload_size/1024/1024), _srs_rtp_raw_cache->capacity()/10000, _srs_rtp_fua_cache->capacity()/10000,
         rtp_msg_cache_enabled, (int)(rtp_msg_cache_msg_size/1024/1024), _srs_rtp_msg_cache_objs->capacity()/10000,

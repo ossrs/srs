@@ -4936,7 +4936,7 @@ bool SrsConfig::get_rtc_server_rtp_cache_enabled()
 
 uint64_t SrsConfig::get_rtc_server_rtp_cache_pkt_size()
 {
-    int DEFAULT = 128 * 1024 * 1024;
+    int DEFAULT = 64 * 1024 * 1024;
 
     SrsConfDirective* conf = get_rtc_server_rtp_cache();
     if (!conf) {
@@ -4948,12 +4948,12 @@ uint64_t SrsConfig::get_rtc_server_rtp_cache_pkt_size()
         return DEFAULT;
     }
 
-    return (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
+    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
 }
 
 uint64_t SrsConfig::get_rtc_server_rtp_cache_payload_size()
 {
-    int DEFAULT = 32 * 1024 * 1024;
+    int DEFAULT = 16 * 1024 * 1024;
 
     SrsConfDirective* conf = get_rtc_server_rtp_cache();
     if (!conf) {
@@ -4965,7 +4965,7 @@ uint64_t SrsConfig::get_rtc_server_rtp_cache_payload_size()
         return DEFAULT;
     }
 
-    return (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
+    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
 }
 
 SrsConfDirective* SrsConfig::get_rtc_server_rtp_msg_cache()
@@ -5002,7 +5002,7 @@ bool SrsConfig::get_rtc_server_rtp_msg_cache_enabled()
 
 uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_msg_size()
 {
-    int DEFAULT = 32 * 1024 * 1024;
+    int DEFAULT = 16 * 1024 * 1024;
 
     SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
     if (!conf) {
@@ -5014,12 +5014,12 @@ uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_msg_size()
         return DEFAULT;
     }
 
-    return (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
+    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
 }
 
 uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_buffer_size()
 {
-    int DEFAULT = 1024 * 1024 * 1024;
+    int DEFAULT = 512 * 1024 * 1024;
 
     SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
     if (!conf) {
@@ -5031,7 +5031,7 @@ uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_buffer_size()
         return DEFAULT;
     }
 
-    return (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
+    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
 }
 
 bool SrsConfig::get_rtc_server_black_hole()
