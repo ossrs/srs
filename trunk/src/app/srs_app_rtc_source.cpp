@@ -1962,7 +1962,7 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
     }
 
     // For NACK to handle packet.
-    if ((err = on_nack(pkt)) != srs_success) {
+    if (nack_enabled_ && (err = on_nack(pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
 
