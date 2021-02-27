@@ -122,9 +122,6 @@ public:
 public:
     SrsRtpExtensionTypes();
     virtual ~SrsRtpExtensionTypes();
-public:
-    // Reset the object to reuse it.
-    void reset();
 private:
     bool register_id(int id, SrsRtpExtensionType type, std::string uri);
 private:
@@ -187,7 +184,11 @@ class SrsRtpExtensions// : public ISrsCodec
 {
 private:
     bool has_ext_;
-    SrsRtpExtensionTypes types_;
+private:
+    // The extension types is used to decode the packet, which is reference to
+    // the types in publish stream.
+    SrsRtpExtensionTypes* types_;
+private:
     SrsRtpExtensionTwcc twcc_;
     SrsRtpExtensionOneByte audio_level_;
 public:
@@ -198,7 +199,7 @@ public:
     void reset();
 public:
     bool exists();
-    void set_types_(const SrsRtpExtensionTypes* types);
+    void set_types_(SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
     srs_error_t get_audio_level(uint8_t& level);
@@ -256,7 +257,7 @@ public:
     }
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
-    void set_extensions(const SrsRtpExtensionTypes* extmap);
+    void set_extensions(SrsRtpExtensionTypes* extmap);
     void ignore_padding(bool v);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
@@ -346,7 +347,7 @@ public:
     // Whether the packet is Audio packet.
     bool is_audio();
     // Set RTP header extensions for encoding or decoding header extension
-    void set_extension_types(const SrsRtpExtensionTypes* v);
+    void set_extension_types(SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
 public:
     virtual uint64_t nb_bytes();
