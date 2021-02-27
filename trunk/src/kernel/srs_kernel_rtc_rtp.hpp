@@ -328,6 +328,8 @@ public:
     char* wrap(char* data, int size);
     // Wrap the shared message, we copy it.
     char* wrap(SrsSharedPtrMessage* msg);
+    // Copy the RTP packet.
+    virtual SrsRtpPacket2* copy();
 public:
     // Get and set the payload of packet.
     void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
@@ -340,8 +342,6 @@ public:
     void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.
     bool is_audio();
-    // Copy the RTP packet.
-    virtual SrsRtpPacket2* copy();
     // Set RTP header extensions for encoding or decoding header extension
     void set_extension_types(const SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
