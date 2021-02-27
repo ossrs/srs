@@ -361,19 +361,26 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     srs_assert(ptr);
     
-    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache_objs->allocate();
-
-    // We got an object from cache, the ptr might exists, so unwrap it.
-    copy->unwrap();
-
-    // Reference to this message instead.
-    copy->ptr = ptr;
-    ptr->shared_count++;
+    SrsSharedPtrMessage* copy = copy2();
     
     copy->timestamp = timestamp;
     copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
+
+    return copy;
+}
+
+SrsSharedPtrMessage* SrsSharedPtrMessage::copy2()
+{
+    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache_objs->allocate();
+
+    // We got an object from cache, the ptr might exists, so unwrap it.
+    //srs_assert(!copy->ptr);
+
+    // Reference to this message instead.
+    copy->ptr = ptr;
+    ptr->shared_count++;
 
     return copy;
 }
