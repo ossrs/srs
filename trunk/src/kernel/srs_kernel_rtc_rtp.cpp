@@ -165,16 +165,11 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 
 SrsRtpExtensionTypes::SrsRtpExtensionTypes()
 {
-    reset();
+    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 SrsRtpExtensionTypes::~SrsRtpExtensionTypes()
 {
-}
-
-void SrsRtpExtensionTypes::reset()
-{
-    memset(ids_, kRtpExtensionNone, sizeof(ids_));
 }
 
 bool SrsRtpExtensionTypes::register_by_uri(int id, std::string uri)
@@ -377,13 +372,10 @@ SrsRtpExtensions::~SrsRtpExtensions()
 
 void SrsRtpExtensions::reset()
 {
-    if (has_ext_) {
-        types_.reset();
-        twcc_.reset();
-        audio_level_.reset();
-    }
-
     has_ext_ = false;
+    types_ = NULL;
+    twcc_.reset();
+    audio_level_.reset();
 }
 
 srs_error_t SrsRtpExtensions::decode(SrsBuffer* buf)
@@ -445,7 +437,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
         uint8_t id = (v & 0xF0) >> 4;
         uint8_t len = (v & 0x0F);
 
-        SrsRtpExtensionType xtype = types_.get_type(id);
+        SrsRtpExtensionType xtype = types_? types_->get_type(id) : kRtpExtensionNone;
         if (xtype == kRtpExtensionTransportSequenceNumber) {
             if ((err = twcc_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode twcc extension");
@@ -522,11 +514,9 @@ bool SrsRtpExtensions::exists()
     return has_ext_;
 }
 
-void SrsRtpExtensions::set_types_(const SrsRtpExtensionTypes* types)
+void SrsRtpExtensions::set_types_(SrsRtpExtensionTypes* types)
 {
-    if(types) {
-        types_ = *types;
-    }
+    types_ = types;
 }
 
 srs_error_t SrsRtpExtensions::get_twcc_sequence_number(uint16_t& twcc_sn)
@@ -703,7 +693,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     return err;
 }
-void SrsRtpHeader::set_extensions(const SrsRtpExtensionTypes* extmap)
+void SrsRtpHeader::set_extensions(SrsRtpExtensionTypes* extmap)
 {
     if (extmap) {
         extensions_.set_types_(extmap);
@@ -992,7 +982,7 @@ bool SrsRtpPacket2::is_audio()
     return frame_type == SrsFrameTypeAudio;
 }
 
-void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
+void SrsRtpPacket2::set_extension_types(SrsRtpExtensionTypes* v)
 {
     return header.set_extensions(v);
 }
