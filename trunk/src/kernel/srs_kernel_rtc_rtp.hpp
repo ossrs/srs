@@ -140,14 +140,14 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-
+    void assign(const SrsRtpExtensionTwcc& h);
+public:
     bool has_twcc_ext();
     uint8_t get_id();
     void set_id(uint8_t id);
     uint16_t get_sn();
     void set_sn(uint16_t sn);
-
-public:  
+public:
     // ISrsCodec
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
@@ -166,7 +166,8 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-
+    void assign(const SrsRtpExtensionOneByte& h);
+public:
     bool exists() { return has_ext_; }
     int get_id() { return id_; }
     uint8_t get_value() { return value_; }
@@ -197,6 +198,7 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
+    void assign(const SrsRtpExtensions& h);
 public:
     bool exists();
     void set_types_(SrsRtpExtensionTypes* types);
@@ -234,6 +236,7 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
+    void assign(const SrsRtpHeader& h);
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
 private:
