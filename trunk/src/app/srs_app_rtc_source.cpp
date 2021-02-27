@@ -197,7 +197,7 @@ srs_error_t SrsRtcConsumer::enqueue(SrsRtpPacket2* pkt)
     return err;
 }
 
-srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
+srs_error_t SrsRtcConsumer::dump_packet(SrsRtpPacket2** ppkt)
 {
     srs_error_t err = srs_success;
 
@@ -206,7 +206,11 @@ srs_error_t SrsRtcConsumer::dump_packets(std::vector<SrsRtpPacket2*>& pkts)
         should_update_source_id = false;
     }
 
-    queue.swap(pkts);
+    // TODO: FIXME: Refine performance by ring buffer.
+    if (!queue.empty()) {
+        *ppkt = queue.front();
+        queue.erase(queue.begin());
+    }
 
     return err;
 }
@@ -2049,7 +2053,7 @@ std::string SrsRtcSendTrack::get_track_id()
     return track_desc_->id_;
 }
 
-srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info)
+srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs)
 {
     srs_error_t err = srs_success;
 
@@ -2066,18 +2070,14 @@ srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs, Srs
             continue;
         }
 
-        info.nn_bytes += pkt->nb_bytes();
         uint32_t nn = 0;
         if (nack_epp->can_print(pkt->header.get_ssrc(), &nn)) {
             srs_trace("RTC: NACK ARQ seq=%u, ssrc=%u, ts=%u, count=%u/%u, %d bytes", pkt->header.get_sequence(),
                 pkt->header.get_ssrc(), pkt->header.get_timestamp(), nn, nack_epp->nn_count, pkt->nb_bytes());
         }
 
-        vector<SrsRtpPacket2*> resend_pkts;
-        resend_pkts.push_back(pkt);
-
         // By default, we send packets by sendmmsg.
-        if ((err = session_->do_send_packets(resend_pkts, info)) != srs_success) {
+        if ((err = session_->do_send_packet(pkt)) != srs_success) {
             return srs_error_wrap(err, "raw send");
         }
     }
@@ -2094,7 +2094,7 @@ SrsRtcAudioSendTrack::~SrsRtcAudioSendTrack()
 {
 }
 
-srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info)
+srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -2122,8 +2122,6 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     }
 
     // Update stats.
-    info.nn_bytes += pkt->nb_bytes();
-    info.nn_audios++;
     session_->stat_->nn_out_audios++;
 
     // track level statistic
@@ -2131,13 +2129,8 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     statistic_->packets++;
     statistic_->bytes += pkt->nb_bytes();
 
-    if (true) {
-        std::vector<SrsRtpPacket2*> pkts;
-        pkts.push_back(pkt);
-
-        if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
-            return srs_error_wrap(err, "raw send");
-        }
+    if ((err = session_->do_send_packet(pkt)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
     }
 
     return err;
@@ -2159,7 +2152,7 @@ SrsRtcVideoSendTrack::~SrsRtcVideoSendTrack()
 {
 }
 
-srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info)
+srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
 
@@ -2189,8 +2182,6 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     }
 
     // Update stats.
-    info.nn_bytes += pkt->nb_bytes();
-    info.nn_videos++;
     session_->stat_->nn_out_videos++;
 
     // track level statistic
@@ -2198,15 +2189,10 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamSta
     statistic->packets++;
     statistic->bytes += pkt->nb_bytes();
 
-    if (true) {
-        std::vector<SrsRtpPacket2*> pkts;
-        pkts.push_back(pkt);
-
-        if ((err = session_->do_send_packets(pkts, info)) != srs_success) {
-            return srs_error_wrap(err, "raw send");
-        }
+    if ((err = session_->do_send_packet(pkt)) != srs_success) {
+        return srs_error_wrap(err, "raw send");
     }
-    
+
     return err;
 }
 

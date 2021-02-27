@@ -97,8 +97,8 @@ public:
     // Put RTP packet into queue.
     // @note We do not drop packet here, but drop it in sender.
     srs_error_t enqueue(SrsRtpPacket2* pkt);
-    // Get all RTP packets from queue.
-    virtual srs_error_t dump_packets(std::vector<SrsRtpPacket2*>& pkts);
+    // For RTC, we only got one packet, because there is not many packets in queue.
+    virtual srs_error_t dump_packet(SrsRtpPacket2** ppkt);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
 };
@@ -591,9 +591,9 @@ public:
     bool get_track_status();
     std::string get_track_id();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info) = 0;
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;
-    virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs, SrsRtcPlayStreamStatistic& info);
+    virtual srs_error_t on_recv_nack(const std::vector<uint16_t>& lost_seqs);
 };
 
 class SrsRtcAudioSendTrack : public SrsRtcSendTrack
@@ -602,7 +602,7 @@ public:
     SrsRtcAudioSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcAudioSendTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
 };
 
@@ -612,7 +612,7 @@ public:
     SrsRtcVideoSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
     virtual ~SrsRtcVideoSendTrack();
 public:
-    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt, SrsRtcPlayStreamStatistic& info);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt);
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt);
 };
 

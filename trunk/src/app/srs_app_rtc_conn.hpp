@@ -62,6 +62,8 @@ class SrsRtcConsumer;
 class SrsRtcAudioSendTrack;
 class SrsRtcVideoSendTrack;
 class SrsErrorPithyPrint;
+class SrsPithyPrint;
+class SrsStatistic;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -245,7 +247,7 @@ class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISr
 {
 private:
     SrsContextId cid_;
-    SrsCoroutine* trd;
+    SrsFastCoroutine* trd_;
     SrsRtcConnection* session_;
     SrsRtcPLIWorker* pli_worker_;
 private:
@@ -285,6 +287,7 @@ public:
     virtual srs_error_t cycle();
 private:
     srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
+    srs_error_t send_packet(SrsRtpPacket2* pkt);
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
@@ -549,6 +552,7 @@ public:
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
     srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
+    srs_error_t do_send_packet(SrsRtpPacket2* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 private:
