@@ -202,8 +202,6 @@ SrsRtpExtensionType SrsRtpExtensionTypes::get_type(int id) const
     return kInvalidType;
 }
 
-
-
 SrsRtpExtensionTwcc::SrsRtpExtensionTwcc()
 {
     reset();
@@ -556,6 +554,8 @@ srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
 SrsRtpHeader::SrsRtpHeader()
 {
     reset();
+
+    memset(csrc, 0, sizeof(csrc));
 }
 
 SrsRtpHeader::~SrsRtpHeader()
@@ -564,17 +564,23 @@ SrsRtpHeader::~SrsRtpHeader()
 
 void SrsRtpHeader::reset()
 {
-    padding_length   = 0;
+    // Reset the fields in protocol.
     cc               = 0;
     marker           = false;
     payload_type     = 0;
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
-    memset(csrc, 0, sizeof(csrc));
+
+    // Reset the parsed fields.
+    padding_length   = 0;
+    extensions_.reset();
+
+    // Reset other fields.
     ignore_padding_  = false;
 
-    extensions_.reset();
+    // The CSRC is not used yet, so we never reset it.
+    //memset(csrc, 0, sizeof(csrc));
 }
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
