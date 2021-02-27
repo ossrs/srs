@@ -510,9 +510,6 @@ public:
 class SrsRtcRecvTrack
 {
 protected:
-    // Whether enabled nack.
-    bool nack_enabled_;
-
     SrsRtcTrackDescription* track_desc_;
     SrsRtcTrackStatistic* statistic_;
 
@@ -527,7 +524,6 @@ public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
 public:
-    void set_nack_enabled(bool v);
     bool has_ssrc(uint32_t ssrc);
     uint32_t get_ssrc();
     void update_rtt(int rtt);
@@ -537,8 +533,10 @@ public:
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
-protected:
-    srs_error_t on_nack(SrsRtpPacket2* pkt);
+public:
+    // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and
+    // set to NULL, nack nerver copy it but set the pkt to NULL.
+    srs_error_t on_nack(SrsRtpPacket2** ppkt);
 public:
     virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;

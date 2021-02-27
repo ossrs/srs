@@ -1729,7 +1729,6 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     session_ = session;
     track_desc_ = track_desc->copy();
     statistic_ = new SrsRtcTrackStatistic();
-    nack_enabled_ = false;
 
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
@@ -1748,11 +1747,6 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
     srs_freep(nack_receiver_);
     srs_freep(track_desc_);
     srs_freep(statistic_);
-}
-
-void SrsRtcRecvTrack::set_nack_enabled(bool v)
-{
-    nack_enabled_ = v;
 }
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
@@ -1818,10 +1812,11 @@ std::string SrsRtcRecvTrack::get_track_id()
     return track_desc_->id_;
 }
 
-srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2** ppkt)
 {
     srs_error_t err = srs_success;
 
+    SrsRtpPacket2* pkt = *ppkt;
     uint16_t seq = pkt->header.get_sequence();
     SrsRtpNackInfo* nack_info = nack_receiver_->find(seq);
     if (nack_info) {
@@ -1842,7 +1837,9 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2* pkt)
     }
 
     // insert into video_queue and audio_queue
-    rtp_queue_->set(seq, pkt->copy());
+    // We directly use the pkt, never copy it, so we should set the pkt to NULL.
+    rtp_queue_->set(seq, pkt);
+    *ppkt = NULL;
 
     return err;
 }
@@ -1891,11 +1888,6 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");
-    }
-
-    // For NACK to handle packet.
-    if (nack_enabled_ && (err = on_nack(pkt)) != srs_success) {
-        return srs_error_wrap(err, "on nack");
     }
 
     return err;
@@ -1959,11 +1951,6 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");
-    }
-
-    // For NACK to handle packet.
-    if (nack_enabled_ && (err = on_nack(pkt)) != srs_success) {
-        return srs_error_wrap(err, "on nack");
     }
 
     return err;
