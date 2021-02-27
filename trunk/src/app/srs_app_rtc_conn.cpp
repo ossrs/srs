@@ -432,11 +432,13 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
         std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin();
         while (it != sub_relations.end()) {
             if (it->second->type_ == "audio") {
-                audio_tracks_.insert(make_pair(it->first, new SrsRtcAudioSendTrack(session_, it->second)));
+                SrsRtcAudioSendTrack* track = new SrsRtcAudioSendTrack(session_, it->second);
+                audio_tracks_.insert(make_pair(it->first, track));
             }
 
             if (it->second->type_ == "video") {
-                video_tracks_.insert(make_pair(it->first, new SrsRtcVideoSendTrack(session_, it->second)));
+                SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(session_, it->second);
+                video_tracks_.insert(make_pair(it->first, track));
             }
             ++it;
         }
@@ -446,6 +448,18 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
     srs_trace("RTC player nack=%d", nack_enabled_);
 
+    // Apply configs for all tracks.
+    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioSendTrack* track = it->second;
+        track->set_nack_enabled(nack_enabled_);
+    }
+
+    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+        SrsRtcVideoSendTrack* track = it->second;
+        track->set_nack_enabled(nack_enabled_);
+    }
+
+    // Update stat for session.
     session_->stat_->nn_subscribers++;
 
     return err;
@@ -910,6 +924,16 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled_, twcc_id);
 
+    for (vector<SrsRtcAudioRecvTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioRecvTrack* track = *it;
+        track->set_nack_enabled(nack_enabled_);
+    }
+    for (vector<SrsRtcVideoRecvTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+        SrsRtcVideoRecvTrack* track = *it;
+        track->set_nack_enabled(nack_enabled_);
+    }
+
+    // Update stat for session.
     session_->stat_->nn_publishers++;
 
     // Setup the publish stream in source to enable PLI as such.
@@ -1164,12 +1188,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2* pkt, SrsBuff
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (audio_track) {
         pkt->frame_type = SrsFrameTypeAudio;
-        if ((err = audio_track->on_rtp(source, pkt, nack_enabled_)) != srs_success) {
+        if ((err = audio_track->on_rtp(source, pkt)) != srs_success) {
             return srs_error_wrap(err, "on audio");
         }
     } else if (video_track) {
         pkt->frame_type = SrsFrameTypeVideo;
-        if ((err = video_track->on_rtp(source, pkt, nack_enabled_)) != srs_success) {
+        if ((err = video_track->on_rtp(source, pkt)) != srs_success) {
             return srs_error_wrap(err, "on video");
         }
     } else {

@@ -510,6 +510,9 @@ public:
 class SrsRtcRecvTrack
 {
 protected:
+    // Whether enabled nack.
+    bool nack_enabled_;
+
     SrsRtcTrackDescription* track_desc_;
     SrsRtcTrackStatistic* statistic_;
 
@@ -524,6 +527,7 @@ public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
 public:
+    void set_nack_enabled(bool v);
     bool has_ssrc(uint32_t ssrc);
     uint32_t get_ssrc();
     void update_rtt(int rtt);
@@ -536,7 +540,7 @@ public:
 protected:
     srs_error_t on_nack(SrsRtpPacket2* pkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled) = 0;
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
@@ -550,7 +554,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -562,7 +566,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt, bool nack_enabled);
+    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -577,6 +581,8 @@ protected:
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
+    // Whether enabled nack.
+    bool nack_enabled_;
 private:
     // The pithy print for special stage.
     SrsErrorPithyPrint* nack_epp;
@@ -584,6 +590,7 @@ public:
     SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();
 public:
+    void set_nack_enabled(bool v);
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
     bool set_track_status(bool active);
