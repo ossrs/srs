@@ -550,19 +550,19 @@ srs_error_t SrsRtcPlayStream::cycle()
     realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
 
+    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
+    SrsStatistic* stat = SrsStatistic::instance();
+
     // TODO: FIXME: Add cost in ms.
     SrsContextId cid = source->source_id();
-    srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
-        cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs);
+    srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d, stat=%d", req_->get_stream_url().c_str(),
+        cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs, stat_enabled);
 
     SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
     SrsAutoFree(SrsErrorPithyPrint, epp);
 
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
     SrsAutoFree(SrsPithyPrint, pprint);
-
-    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
-    SrsStatistic* stat = SrsStatistic::instance();
 
     // TODO: FIXME: Use cache for performance?
     vector<SrsRtpPacket2*> pkts;
