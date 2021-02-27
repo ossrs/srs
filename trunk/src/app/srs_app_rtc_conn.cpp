@@ -382,7 +382,7 @@ SrsRtcPlayStreamStatistic::~SrsRtcPlayStreamStatistic()
 SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 {
     cid_ = cid;
-    trd = new SrsDummyCoroutine();
+    trd_ = NULL;
 
     req_ = NULL;
     source_ = NULL;
@@ -412,7 +412,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
-    srs_freep(trd);
+    srs_freep(trd_);
     srs_freep(timer_);
     srs_freep(req_);
 
@@ -499,10 +499,10 @@ srs_error_t SrsRtcPlayStream::start()
         return err;
     }
 
-    srs_freep(trd);
-    trd = new SrsSTCoroutine("rtc_sender", this, cid_);
+    srs_freep(trd_);
+    trd_ = new SrsFastCoroutine("rtc_sender", this, cid_);
 
-    if ((err = trd->start()) != srs_success) {
+    if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "rtc_sender");
     }
 
@@ -527,7 +527,9 @@ srs_error_t SrsRtcPlayStream::start()
 
 void SrsRtcPlayStream::stop()
 {
-    trd->stop();
+    if (trd_) {
+        trd_->stop();
+    }
 }
 
 srs_error_t SrsRtcPlayStream::cycle()
@@ -550,23 +552,13 @@ srs_error_t SrsRtcPlayStream::cycle()
     realtime = _srs_config->get_realtime_enabled(req_->vhost, true);
     mw_msgs = _srs_config->get_mw_msgs(req_->vhost, realtime, true);
 
-    bool stat_enabled = _srs_config->get_rtc_server_perf_stat();
-    SrsStatistic* stat = SrsStatistic::instance();
-
     // TODO: FIXME: Add cost in ms.
     SrsContextId cid = source->source_id();
-    srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d, stat=%d", req_->get_stream_url().c_str(),
-        cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs, stat_enabled);
+    srs_trace("RTC: start play url=%s, source_id=%s/%s, realtime=%d, mw_msgs=%d", req_->get_stream_url().c_str(),
+        cid.c_str(), source->pre_source_id().c_str(), realtime, mw_msgs);
 
     SrsErrorPithyPrint* epp = new SrsErrorPithyPrint();
     SrsAutoFree(SrsErrorPithyPrint, epp);
-
-    SrsPithyPrint* pprint = SrsPithyPrint::create_rtc_play();
-    SrsAutoFree(SrsPithyPrint, pprint);
-
-    // TODO: FIXME: Use cache for performance?
-    vector<SrsRtpPacket2*> pkts;
-    uint64_t total_pkts = 0;
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_start_consume(session_, this, req_, consumer)) != srs_success) {
@@ -575,64 +567,30 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 
     while (true) {
-        if ((err = trd->pull()) != srs_success) {
+        if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
         }
 
         // Wait for amount of packets.
-        consumer->wait(mw_msgs);
-
-        // TODO: FIXME: Handle error.
-        consumer->dump_packets(pkts);
-
-        int msg_count = (int)pkts.size();
-        if (!msg_count) {
-            continue;
+try_dump_again:
+        SrsRtpPacket2* pkt = NULL;
+        consumer->dump_packet(&pkt);
+        if (!pkt) {
+            // TODO: FIXME: We should check the quit event.
+            consumer->wait(mw_msgs);
+            goto try_dump_again;
         }
 
-        // Update stats for session.
-        session_->stat_->nn_out_rtp += msg_count;
-        total_pkts += msg_count;
-
-        // Send-out all RTP packets and do cleanup
-        if (true) {
-            if ((err = send_packets(source, pkts, info)) != srs_success) {
-                uint32_t nn = 0;
-                if (epp->can_print(err, &nn)) {
-                    srs_warn("play send packets=%u, nn=%u/%u, err: %s", pkts.size(), epp->nn_count, nn, srs_error_desc(err).c_str());
-                }
-                srs_freep(err);
+        // Send-out the RTP packet and do cleanup
+        if ((err = send_packet(pkt)) != srs_success) {
+            uint32_t nn = 0;
+            if (epp->can_print(err, &nn)) {
+                srs_warn("play send packets=%u, nn=%u/%u, err: %s", 1, epp->nn_count, nn, srs_error_desc(err).c_str());
             }
-
-            for (int i = 0; i < msg_count; i++) {
-                SrsRtpPacket2* pkt = pkts[i];
-                _srs_rtp_cache->recycle(pkt);
-            }
-            pkts.clear();
+            srs_freep(err);
         }
 
-        // Stat for performance analysis.
-        if (!stat_enabled) {
-            continue;
-        }
-
-        // Stat the original RAW AV frame, maybe h264+aac.
-        stat->perf_on_msgs(msg_count);
-        // Stat the RTC packets, RAW AV frame, maybe h.264+opus.
-        int nn_rtc_packets = srs_max(info.nn_audios, info.nn_extras) + info.nn_videos;
-        stat->perf_on_rtc_packets(nn_rtc_packets);
-        // Stat the RAW RTP packets, which maybe group by GSO.
-        stat->perf_on_rtp_packets(msg_count);
-        // Stat the bytes and paddings.
-        stat->perf_on_rtc_bytes(info.nn_bytes, info.nn_rtp_bytes, info.nn_padding_bytes);
-
-        pprint->elapse();
-        if (pprint->can_print()) {
-            // TODO: FIXME: Print stat like frame/s, packet/s, loss_packets.
-            srs_trace("-> RTC PLAY %d msgs, %d/%d packets, %d audios, %d extras, %d videos, %d samples, %d/%d/%d bytes, %d pad, %d/%d cache",
-                total_pkts, msg_count, info.nn_rtp_pkts, info.nn_audios, info.nn_extras, info.nn_videos, info.nn_samples, info.nn_bytes,
-                info.nn_rtp_bytes, info.nn_padding_bytes, info.nn_paddings, msg_count, msg_count);
-        }
+        _srs_rtp_cache->recycle(pkt);
     }
 }
 
@@ -640,7 +598,6 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
 {
     srs_error_t err = srs_success;
 
-    vector<SrsRtpPacket2*> send_pkts;
     // Covert kernel messages to RTP packets.
     for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket2* pkt = pkts[i];
@@ -656,7 +613,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
 
-            if ((err = audio_track->on_rtp(pkt, info)) != srs_success) {
+            if ((err = audio_track->on_rtp(pkt)) != srs_success) {
                 return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
 
@@ -665,7 +622,7 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
             // TODO: FIXME: Any simple solution?
             SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
 
-            if ((err = video_track->on_rtp(pkt, info)) != srs_success) {
+            if ((err = video_track->on_rtp(pkt)) != srs_success) {
                 return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
             }
         }
@@ -674,6 +631,42 @@ srs_error_t SrsRtcPlayStream::send_packets(SrsRtcStream* source, const vector<Sr
         srs_info("RTC: Update PT=%u, SSRC=%#x, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
             pkt->header.get_timestamp(), pkt->nb_bytes());
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
+
+    // TODO: FIXME: Maybe refine for performance issue.
+    if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
+        srs_warn("ssrc %u not found", pkt->header.get_ssrc());
+        return err;
+    }
+
+    // For audio, we transcoded AAC to opus in extra payloads.
+    if (pkt->is_audio()) {
+        // TODO: FIXME: Any simple solution?
+        SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
+
+        if ((err = audio_track->on_rtp(pkt)) != srs_success) {
+            return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
+        }
+
+        // TODO: FIXME: Padding audio to the max payload in RTP packets.
+    } else {
+        // TODO: FIXME: Any simple solution?
+        SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
+
+        if ((err = video_track->on_rtp(pkt)) != srs_success) {
+            return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
+        }
+    }
+
+    // Detail log, should disable it in release version.
+    srs_info("RTC: Update PT=%u, SSRC=%#x, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
+        pkt->header.get_timestamp(), pkt->nb_bytes());
 
     return err;
 }
@@ -805,7 +798,7 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
     }
 
     vector<uint16_t> seqs = rtcp->get_lost_sns();
-    if((err = target->on_recv_nack(seqs, info)) != srs_success) {
+    if((err = target->on_recv_nack(seqs)) != srs_success) {
         return srs_error_wrap(err, "track response nack. id:%s, ssrc=%u", target->get_track_id().c_str(), ssrc);
     }
 
@@ -2565,6 +2558,51 @@ srs_error_t SrsRtcConnection::do_send_packets(const std::vector<SrsRtpPacket2*>&
         srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
             pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket2* pkt)
+{
+    srs_error_t err = srs_success;
+
+    // For this message, select the first iovec.
+    iovec* iov = cache_iov_;
+    iov->iov_len = kRtpPacketSize;
+    cache_buffer_->skip(-1 * cache_buffer_->pos());
+
+    // Marshal packet to bytes in iovec.
+    if (true) {
+        if ((err = pkt->encode(cache_buffer_)) != srs_success) {
+            return srs_error_wrap(err, "encode packet");
+        }
+        iov->iov_len = cache_buffer_->pos();
+    }
+
+    // Cipher RTP to SRTP packet.
+    if (true) {
+        int nn_encrypt = (int)iov->iov_len;
+        if ((err = transport_->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
+            return srs_error_wrap(err, "srtp protect");
+        }
+        iov->iov_len = (size_t)nn_encrypt;
+    }
+
+    // For NACK simulator, drop packet.
+    if (nn_simulate_player_nack_drop) {
+        simulate_player_drop_packet(&pkt->header, (int)iov->iov_len);
+        iov->iov_len = 0;
+        return err;
+    }
+
+    ++_srs_pps_srtps->sugar;
+
+    // TODO: FIXME: Handle error.
+    sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
+
+    // Detail log, should disable it in release version.
+    srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
+        pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
 
     return err;
 }

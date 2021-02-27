@@ -29,8 +29,11 @@
 #include <string>
 
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_service_st.hpp>
 #include <srs_protocol_io.hpp>
+
+class SrsFastCoroutine;
 
 // Each ST-coroutine must implements this interface,
 // to do the cycle job and handle some events.
@@ -108,10 +111,6 @@ public:
     virtual const SrsContextId& cid();
 };
 
-// For utest to mock the thread create.
-typedef void* (*_ST_THREAD_CREATE_PFN)(void *(*start)(void *arg), void *arg, int joinable, int stack_size);
-extern _ST_THREAD_CREATE_PFN _pfn_st_thread_create;
-
 // A ST-coroutine is a lightweight thread, just like the goroutine.
 // But the goroutine maybe run on different thread, while ST-coroutine only
 // run in single thread, because it use setjmp and longjmp, so it may cause
@@ -127,19 +126,7 @@ extern _ST_THREAD_CREATE_PFN _pfn_st_thread_create;
 class SrsSTCoroutine : public SrsCoroutine
 {
 private:
-    std::string name;
-    int stack_size;
-    ISrsCoroutineHandler* handler;
-private:
-    srs_thread_t trd;
-    SrsContextId cid_;
-    srs_error_t trd_err;
-private:
-    bool started;
-    bool interrupted;
-    bool disposed;
-    // Cycle done, no need to interrupt it.
-    bool cycle_done;
+    SrsFastCoroutine* impl_;
 public:
     // Create a thread with name n and handler h.
     // @remark User can specify a cid for thread to use, or we will allocate a new one.
@@ -170,8 +157,48 @@ public:
     virtual srs_error_t pull();
     // Get the context id of thread.
     virtual const SrsContextId& cid();
+};
+
+// For utest to mock the thread create.
+typedef void* (*_ST_THREAD_CREATE_PFN)(void *(*start)(void *arg), void *arg, int joinable, int stack_size);
+extern _ST_THREAD_CREATE_PFN _pfn_st_thread_create;
+
+// High performance coroutine.
+class SrsFastCoroutine
+{
 private:
-    virtual srs_error_t cycle();
+    std::string name;
+    int stack_size;
+    ISrsCoroutineHandler* handler;
+private:
+    srs_thread_t trd;
+    SrsContextId cid_;
+    srs_error_t trd_err;
+private:
+    bool started;
+    bool interrupted;
+    bool disposed;
+    // Cycle done, no need to interrupt it.
+    bool cycle_done;
+public:
+    SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h);
+    SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
+    ~SrsFastCoroutine();
+public:
+    void set_stack_size(int v);
+public:
+    srs_error_t start();
+    void stop();
+    void interrupt();
+    inline srs_error_t pull() {
+        if (trd_err == srs_success) {
+            return srs_success;
+        }
+        return srs_error_copy(trd_err);
+    }
+    const SrsContextId& cid();
+private:
+    srs_error_t cycle();
     static void* pfn(void* arg);
 };
 
