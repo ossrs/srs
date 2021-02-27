@@ -351,6 +351,8 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
+    // Only copy the buffer, without header fields.
+    virtual SrsSharedPtrMessage* copy2();
 };
 
 // Transmux RTMP packets to FLV stream.

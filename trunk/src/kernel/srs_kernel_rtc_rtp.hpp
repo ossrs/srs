@@ -591,8 +591,10 @@ extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
 extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
 extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
 
-// For RTP packet shared messages cache.
+// For shared message cache, with payload.
 extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
+// For shared message cache, without payload.
+// Note that user must unwrap the shared message, before recycle it.
 extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
 
 #endif

@@ -910,6 +910,8 @@ void SrsRtpPacket2::recycle_shared_msg()
     }
 
     if (!shared_msg->payload || shared_msg->size != kRtpPacketSize || shared_msg->count() > 0) {
+        // Note that we must unwrap the shared message, because this object pool only cache the
+        // shared message itself without payload.
         shared_msg->unwrap();
         _srs_rtp_msg_cache_objs->recycle(shared_msg);
         goto cleanup;
@@ -1007,7 +1009,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->payload_type_ = payload_type_;
 
     cp->nalu_type = nalu_type;
-    cp->shared_msg = shared_msg->copy();
+    cp->shared_msg = shared_msg->copy2();
     cp->frame_type = frame_type;
 
     // For performance issue, do not copy the unused field.
