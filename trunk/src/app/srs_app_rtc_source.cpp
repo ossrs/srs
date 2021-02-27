@@ -1921,7 +1921,7 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
     uint8_t v = (uint8_t)pkt->nalu_type;
     if (v == kStapA) {
         *ppayload = new SrsRtpSTAPPayload();
-        *ppt = SrsRtpPacketPayloadTypeUnknown;
+        *ppt = SrsRtpPacketPayloadTypeSTAP;
     } else if (v == kFuA) {
         *ppayload = _srs_rtp_fua_cache->allocate();
         *ppt = SrsRtpPacketPayloadTypeFUA2;

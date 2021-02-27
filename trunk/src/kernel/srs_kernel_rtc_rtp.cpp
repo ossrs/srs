@@ -849,7 +849,8 @@ void SrsRtpPacket2::recycle_payload()
     }
 
     // Reset the payload and its type.
-    payload_ = NULL; payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+    payload_ = NULL;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
 }
 
 void SrsRtpPacket2::recycle_shared_msg()
