@@ -931,10 +931,16 @@ cleanup:
 
 bool SrsRtpPacket2::recycle()
 {
+    // Clear the cache size, it may change when reuse it.
+    cached_payload_size = 0;
+    // Reset the handler, for decode only.
+    decode_handler = NULL;
+
     // We only recycle the payload and shared messages,
     // for header and fields, user will reset or copy it.
     recycle_payload();
     recycle_shared_msg();
+
     return true;
 }
 
@@ -995,13 +1001,10 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
 {
     SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
 
-    // We got packet from cache, so we must recycle it.
-    if (cp->payload_) {
-        cp->recycle_payload();
-    }
-    if (cp->shared_msg) {
-        cp->recycle_shared_msg();
-    }
+    // We got packet from cache, the payload and message MUST be NULL,
+    // because we had clear it in recycle.
+    //srs_assert(!cp->payload_);
+    //srs_assert(!cp->shared_msg);
 
     cp->header.assign(header);
     cp->payload_ = payload_? payload_->copy():NULL;
@@ -1011,8 +1014,9 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->shared_msg = shared_msg->copy();
     cp->frame_type = frame_type;
 
-    cp->cached_payload_size = cached_payload_size;
-    cp->decode_handler = decode_handler;
+    // For performance issue, do not copy the unused field.
+    //cp->cached_payload_size = cached_payload_size;
+    //cp->decode_handler = decode_handler;
 
     return cp;
 }
