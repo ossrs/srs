@@ -4887,7 +4887,7 @@ bool SrsConfig::get_rtc_server_merge_nalus()
 
 bool SrsConfig::get_rtc_server_perf_stat()
 {
-    static bool DEFAULT = true;
+    static bool DEFAULT = false;
 
     SrsConfDirective* conf = root->get("rtc_server");
     if (!conf) {
@@ -4899,7 +4899,7 @@ bool SrsConfig::get_rtc_server_perf_stat()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_rtc_server_rtp_cache()
