@@ -866,6 +866,21 @@ SrsRtpPacket2::~SrsRtpPacket2()
     recycle_shared_msg();
 }
 
+void SrsRtpPacket2::reset()
+{
+    nalu_type = SrsAvcNaluTypeReserved;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
+    decode_handler = NULL;
+
+    // It's important to reset the header.
+    header.reset();
+
+    // Recyle the payload again, to ensure the packet is new one.
+    recycle_payload();
+    recycle_shared_msg();
+}
+
 void SrsRtpPacket2::recycle_payload()
 {
     if (!payload_) {
@@ -916,16 +931,10 @@ cleanup:
 
 bool SrsRtpPacket2::recycle()
 {
-    nalu_type = SrsAvcNaluTypeReserved;
-    frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
-    decode_handler = NULL;
-
-    header.reset();
-
+    // We only recycle the payload and shared messages,
+    // for header and fields, user will reset or copy it.
     recycle_payload();
     recycle_shared_msg();
-
     return true;
 }
 
