@@ -811,21 +811,25 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    payload_ = NULL; payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+    payload_ = NULL;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
     shared_msg = NULL;
 
-    reset();
+    nalu_type = SrsAvcNaluTypeReserved;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
+    decode_handler = NULL;
 
     ++_srs_pps_objs_rtps->sugar;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    reuse_payload();
-    reuse_shared_msg();
+    recycle_payload();
+    recycle_shared_msg();
 }
 
-void SrsRtpPacket2::reuse_payload()
+void SrsRtpPacket2::recycle_payload()
 {
     if (!payload_) {
         return;
@@ -848,7 +852,7 @@ void SrsRtpPacket2::reuse_payload()
     payload_ = NULL; payload_type_ = SrsRtpPacketPayloadTypeUnknown;
 }
 
-void SrsRtpPacket2::reuse_shared_msg()
+void SrsRtpPacket2::recycle_shared_msg()
 {
     if (!shared_msg) {
         return;
@@ -870,7 +874,7 @@ void SrsRtpPacket2::reuse_shared_msg()
     }
 }
 
-bool SrsRtpPacket2::reset()
+bool SrsRtpPacket2::recycle()
 {
     nalu_type = SrsAvcNaluTypeReserved;
     frame_type = SrsFrameTypeReserved;
@@ -878,8 +882,9 @@ bool SrsRtpPacket2::reset()
     decode_handler = NULL;
 
     header.reset();
-    reuse_payload();
-    reuse_shared_msg();
+
+    recycle_payload();
+    recycle_shared_msg();
 
     return true;
 }
@@ -929,7 +934,7 @@ char* SrsRtpPacket2::wrap(char* data, int size)
 char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
 {
     // Recycle the shared message.
-    reuse_shared_msg();
+    recycle_shared_msg();
 
     // Copy from the new message.
     shared_msg = msg->copy();
@@ -968,8 +973,8 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
 
     // We got packet from cache, so we must recycle it.
-    cp->reuse_payload();
-    cp->reuse_shared_msg();
+    cp->recycle_payload();
+    cp->recycle_shared_msg();
 
     cp->header = header;
     cp->payload_ = payload_? payload_->copy():NULL;

@@ -318,11 +318,11 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 private:
-    void reuse_payload();
-    void reuse_shared_msg();
+    void recycle_payload();
+    void recycle_shared_msg();
 public:
     // Recycle the object to reuse it.
-    virtual bool reset();
+    virtual bool recycle();
     // Wrap buffer to shared_message, which is managed by us.
     char* wrap(int size);
     char* wrap(char* data, int size);
@@ -414,22 +414,14 @@ public:
     // Try to allocate from cache, create new object if no cache.
     // SrsRtpObjectCacheManager::allocate
     T* allocate() {
-        while (true) {
-            if (!enabled_ || cache_objs_.empty()) {
-                return new T();
-            }
-
-            T* obj = cache_objs_.back();
-            cache_objs_.pop_back();
-
-            // If reset the object fail, drop the cached object.
-            if (!obj->reset()) {
-                srs_freep(obj);
-                continue;
-            }
-
-            return obj;
+        if (!enabled_ || cache_objs_.empty()) {
+            return new T();
         }
+
+        T* obj = cache_objs_.back();
+        cache_objs_.pop_back();
+
+        return obj;
     }
     // Recycle the object to cache.
     // @remark User can directly free the packet.
@@ -442,6 +434,12 @@ public:
 
         // If disabled, drop the object.
         if (!enabled_) {
+            srs_freep(p);
+            return;
+        }
+
+        // If recycle the object fail, drop the cached object.
+        if (!p->recycle()) {
             srs_freep(p);
             return;
         }
@@ -471,7 +469,7 @@ public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
 public:
-    bool reset() { return true; }
+    bool recycle() { return true; }
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -571,7 +569,7 @@ public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
 public:
-    bool reset() { return true; }
+    bool recycle() { return true; }
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
