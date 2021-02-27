@@ -209,38 +209,6 @@ public:
     virtual srs_error_t cycle();
 };
 
-// A group of RTP packets for outgoing(send to players).
-class SrsRtcPlayStreamStatistic
-{
-public:
-    // The total bytes of AVFrame packets.
-    int nn_bytes;
-    // The total bytes of RTP packets.
-    int nn_rtp_bytes;
-    // The total padded bytes.
-    int nn_padding_bytes;
-public:
-    // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
-    // one msghdr by GSO, it's only one RTP packet, because we only send once.
-    int nn_rtp_pkts;
-    // For video, the samples or NALUs.
-    // TODO: FIXME: Remove it because we may don't know.
-    int nn_samples;
-    // For audio, the generated extra audio packets.
-    // For example, when transcoding AAC to opus, may many extra payloads for a audio.
-    // TODO: FIXME: Remove it because we may don't know.
-    int nn_extras;
-    // The original audio messages.
-    int nn_audios;
-    // The original video messages.
-    int nn_videos;
-    // The number of padded packet.
-    int nn_paddings;
-public:
-    SrsRtcPlayStreamStatistic();
-    virtual ~SrsRtcPlayStreamStatistic();
-};
-
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
     , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler
@@ -268,8 +236,6 @@ private:
 private:
     // Whether palyer started.
     bool is_started;
-    // The statistic for consumer to send packets to player.
-    SrsRtcPlayStreamStatistic info;
 public:
     SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid);
     virtual ~SrsRtcPlayStream();
@@ -286,7 +252,6 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     srs_error_t send_packet(SrsRtpPacket2* pkt);
 public:
     // Directly set the status of track, generally for init to set the default value.
@@ -551,7 +516,6 @@ public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
-    srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
     srs_error_t do_send_packet(SrsRtpPacket2* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
