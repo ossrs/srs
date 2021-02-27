@@ -290,11 +290,11 @@ void SrsSharedPtrMessage::wrap(char* payload, int size)
 void SrsSharedPtrMessage::unwrap()
 {
     if (ptr) {
-        if (ptr->shared_count == 0) {
-            srs_freep(ptr);
-        } else {
+        if (ptr->shared_count > 0) {
             ptr->shared_count--;
             ptr = NULL;
+        } else {
+            srs_freep(ptr);
         }
     }
 

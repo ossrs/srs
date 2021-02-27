@@ -250,7 +250,10 @@ public:
     void set_timestamp(uint32_t v);
     uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
-    uint32_t get_ssrc() const;
+    // SrsRtpHeader::get_ssrc
+    inline uint32_t get_ssrc() const {
+        return ssrc;
+    }
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
     void set_extensions(const SrsRtpExtensionTypes* extmap);
@@ -400,7 +403,7 @@ public:
     }
     // Get the status of object cache.
     // SrsRtpObjectCacheManager::enabled
-    bool enabled() {
+    inline bool enabled() {
         return enabled_;
     }
     // SrsRtpObjectCacheManager::size
