@@ -572,13 +572,12 @@ srs_error_t SrsRtcPlayStream::cycle()
         }
 
         // Wait for amount of packets.
-try_dump_again:
         SrsRtpPacket2* pkt = NULL;
         consumer->dump_packet(&pkt);
         if (!pkt) {
             // TODO: FIXME: We should check the quit event.
             consumer->wait(mw_msgs);
-            goto try_dump_again;
+            continue;
         }
 
         // Send-out the RTP packet and do cleanup
