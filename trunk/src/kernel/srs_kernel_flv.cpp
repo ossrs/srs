@@ -229,6 +229,19 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
     }
 }
 
+bool SrsSharedPtrMessage::recycle()
+{
+    // When recycle, unwrap if not the last reference.
+    if (ptr && ptr->shared_count > 0) {
+        ptr->shared_count--;
+        ptr = NULL;
+        payload = NULL;
+        size = 0;
+    }
+
+    return true;
+}
+
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -285,21 +298,6 @@ void SrsSharedPtrMessage::wrap(char* payload, int size)
 
     this->payload = ptr->payload;
     this->size = ptr->size;
-}
-
-void SrsSharedPtrMessage::unwrap()
-{
-    if (ptr) {
-        if (ptr->shared_count > 0) {
-            ptr->shared_count--;
-            ptr = NULL;
-        } else {
-            srs_freep(ptr);
-        }
-    }
-
-    payload = NULL;
-    size = 0;
 }
 
 int SrsSharedPtrMessage::count()
@@ -365,8 +363,6 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     
     copy->timestamp = timestamp;
     copy->stream_id = stream_id;
-    copy->payload = ptr->payload;
-    copy->size = ptr->size;
 
     return copy;
 }
@@ -381,6 +377,9 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy2()
     // Reference to this message instead.
     copy->ptr = ptr;
     ptr->shared_count++;
+
+    copy->payload = ptr->payload;
+    copy->size = ptr->size;
 
     return copy;
 }

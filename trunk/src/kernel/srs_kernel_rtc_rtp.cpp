@@ -827,17 +827,19 @@ void SrsRtpPacket2::recycle_shared_msg()
         return;
     }
 
-    if (!shared_msg->payload || shared_msg->size != kRtpPacketSize || shared_msg->count() > 0) {
-        // Note that we must unwrap the shared message, because this object pool only cache the
-        // shared message itself without payload.
-        shared_msg->unwrap();
-        _srs_rtp_msg_cache_objs->recycle(shared_msg);
-        goto cleanup;
-    }
+    // Only recycle the message for UDP packets.
+    if (shared_msg->payload && shared_msg->size == kRtpPacketSize) {
+        if (_srs_rtp_msg_cache_objs->enabled() && shared_msg->count() > 0) {
+            // Recycle the small shared message objects.
+            _srs_rtp_msg_cache_objs->recycle(shared_msg);
+            goto cleanup;
+        }
 
-    if (_srs_rtp_msg_cache_buffers->enabled()) {
-        _srs_rtp_msg_cache_buffers->recycle(shared_msg);
-        goto cleanup;
+        if (_srs_rtp_msg_cache_buffers->enabled() && shared_msg->count() == 0) {
+            // Recycle the UDP large buffer.
+            _srs_rtp_msg_cache_buffers->recycle(shared_msg);
+            goto cleanup;
+        }
     }
 
     srs_freep(shared_msg);

@@ -313,7 +313,7 @@ public:
     virtual ~SrsSharedPtrMessage();
 public:
     // For object cache to reset and reuse it.
-    bool recycle() { return true; }
+    bool recycle();
     // Create shared ptr message,
     // copy header, manage the payload of msg,
     // set the payload to NULL to prevent double free.
@@ -328,8 +328,6 @@ public:
     // Create shared ptr message from RAW payload.
     // @remark Note that the header is set to zero.
     virtual void wrap(char* payload, int size);
-    // Decrease the reference, if the last one, free it.
-    void unwrap();
     // Get current reference count.
     // when this object created, count set to 0.
     // if copy() this object, count increase 1.
