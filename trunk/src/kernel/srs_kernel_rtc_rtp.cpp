@@ -938,7 +938,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     cp->payload_type_ = payload_type_;
 
     cp->nalu_type = nalu_type;
-    cp->shared_buffer_ = shared_buffer_->copy2();
+    cp->shared_buffer_ = shared_buffer_? shared_buffer_->copy2() : NULL;
     cp->actual_buffer_size_ = actual_buffer_size_;
     cp->frame_type = frame_type;
 
