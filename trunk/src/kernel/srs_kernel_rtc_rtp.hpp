@@ -290,7 +290,7 @@ private:
 private:
     // The original shared message, all RTP packets can refer to its data.
     // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
-    SrsSharedPtrMessage* shared_buffer;
+    SrsSharedPtrMessage* shared_buffer_;
     // The size of original packet.
     int actual_buffer_size_;
 // Helper fields.
