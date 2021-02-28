@@ -142,7 +142,7 @@ public:
     void reset();
     void assign(const SrsRtpExtensionTwcc& h);
 public:
-    bool has_twcc_ext();
+    inline bool exists() { return has_twcc_; } // SrsRtpExtensionTwcc::exists
     uint8_t get_id();
     void set_id(uint8_t id);
     uint16_t get_sn();
@@ -168,7 +168,7 @@ public:
     void reset();
     void assign(const SrsRtpExtensionOneByte& h);
 public:
-    bool exists() { return has_ext_; }
+    inline bool exists() { return has_ext_; } // SrsRtpExtensionOneByte::exists
     int get_id() { return id_; }
     uint8_t get_value() { return value_; }
     void set_id(int id);
@@ -200,7 +200,7 @@ public:
     void reset();
     void assign(const SrsRtpExtensions& h);
 public:
-    bool exists();
+    inline bool exists() { return has_ext_; } // SrsRtpExtensions::exists
     void set_types_(SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
@@ -254,10 +254,7 @@ public:
     void set_timestamp(uint32_t v);
     uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
-    // SrsRtpHeader::get_ssrc
-    inline uint32_t get_ssrc() const {
-        return ssrc;
-    }
+    inline uint32_t get_ssrc() const { return ssrc; } // SrsRtpHeader::get_ssrc
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
     void set_extensions(SrsRtpExtensionTypes* extmap);

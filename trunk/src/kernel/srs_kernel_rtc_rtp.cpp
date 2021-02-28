@@ -225,11 +225,6 @@ void SrsRtpExtensionTwcc::assign(const SrsRtpExtensionTwcc& h)
     sn_ = h.sn_;
 }
 
-bool SrsRtpExtensionTwcc::has_twcc_ext()
-{
-    return has_twcc_;
-}
-
 srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
@@ -481,7 +476,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
 uint64_t SrsRtpExtensions::nb_bytes()
 {
-    int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    int size =  4 + (twcc_.exists() ? twcc_.nb_bytes() : 0);
     size += (audio_level_.exists() ? audio_level_.nb_bytes() : 0);
     // add padding
     size += (size % 4 == 0) ? 0 : (4 - size % 4);
@@ -497,7 +492,7 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     // Write length.
     int len = 0;
 
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         len += twcc_.nb_bytes();
     }
 
@@ -508,10 +503,14 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
     len += padding_count;
 
+    if (!buf->require(len)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", len);
+    }
+
     buf->write_2bytes(len / 4);
 
     // Write extensions.
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
@@ -524,17 +523,12 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     }
 
     // add padding
-    while(padding_count > 0) {
-        buf->write_1bytes(0);
-        padding_count--;
+    if (padding_count) {
+        memset(buf->head(), 0, padding_count);
+        buf->skip(padding_count);
     }
 
     return err;
-}
-
-bool SrsRtpExtensions::exists()
-{
-    return has_ext_;
 }
 
 void SrsRtpExtensions::set_types_(SrsRtpExtensionTypes* types)
@@ -544,7 +538,7 @@ void SrsRtpExtensions::set_types_(SrsRtpExtensionTypes* types)
 
 srs_error_t SrsRtpExtensions::get_twcc_sequence_number(uint16_t& twcc_sn)
 {
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         twcc_sn = twcc_.get_sn();
         return srs_success;
     }
@@ -1080,7 +1074,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
-        memset(buf->data() + buf->pos(), padding, padding);
+        memset(buf->head(), padding, padding);
         buf->skip(padding);
     }
 
