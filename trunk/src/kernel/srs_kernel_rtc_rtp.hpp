@@ -138,9 +138,6 @@ public:
     SrsRtpExtensionTwcc();
     virtual ~SrsRtpExtensionTwcc();
 public:
-    // Reset the object to reuse it.
-    void reset();
-public:
     inline bool exists() { return has_twcc_; } // SrsRtpExtensionTwcc::exists
     uint8_t get_id();
     void set_id(uint8_t id);
@@ -162,9 +159,6 @@ class SrsRtpExtensionOneByte// : public ISrsCodec
 public:
     SrsRtpExtensionOneByte();
     virtual ~SrsRtpExtensionOneByte();
-public:
-    // Reset the object to reuse it.
-    void reset();
 public:
     inline bool exists() { return has_ext_; } // SrsRtpExtensionOneByte::exists
     int get_id() { return id_; }
@@ -193,9 +187,6 @@ private:
 public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
-public:
-    // Reset the object to reuse it.
-    void reset();
 public:
     inline bool exists() { return has_ext_; } // SrsRtpExtensions::exists
     void set_types_(SrsRtpExtensionTypes* types);
@@ -230,9 +221,6 @@ private:
 public:
     SrsRtpHeader();
     virtual ~SrsRtpHeader();
-public:
-    // Reset the object to reuse it.
-    void reset();
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
 private:
