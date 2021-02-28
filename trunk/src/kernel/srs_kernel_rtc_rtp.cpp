@@ -204,18 +204,13 @@ SrsRtpExtensionType SrsRtpExtensionTypes::get_type(int id) const
 
 SrsRtpExtensionTwcc::SrsRtpExtensionTwcc()
 {
-    reset();
+    has_twcc_ = false;
+    id_ = 0;
+    sn_ = 0;
 }
 
 SrsRtpExtensionTwcc::~SrsRtpExtensionTwcc()
 {
-}
-
-void SrsRtpExtensionTwcc::reset()
-{
-    has_twcc_ = false;
-    id_ = 0;
-    sn_ = 0;
 }
 
 srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
@@ -292,18 +287,13 @@ void SrsRtpExtensionTwcc::set_sn(uint16_t sn)
 
 SrsRtpExtensionOneByte::SrsRtpExtensionOneByte()
 {
-    reset();
+    has_ext_ = false;
+    id_ = 0;
+    value_ = 0;
 }
 
 SrsRtpExtensionOneByte::~SrsRtpExtensionOneByte()
 {
-}
-
-void SrsRtpExtensionOneByte::reset()
-{
-    has_ext_ = false;
-    id_ = 0;
-    value_ = 0;
 }
 
 void SrsRtpExtensionOneByte::set_id(int id)
@@ -356,19 +346,12 @@ srs_error_t SrsRtpExtensionOneByte::encode(SrsBuffer* buf)
 
 SrsRtpExtensions::SrsRtpExtensions()
 {
-    reset();
+    types_ = NULL;
+    has_ext_ = false;
 }
 
 SrsRtpExtensions::~SrsRtpExtensions()
 {
-}
-
-void SrsRtpExtensions::reset()
-{
-    types_ = NULL;
-    twcc_.reset();
-    audio_level_.reset();
-    has_ext_ = false;
 }
 
 srs_error_t SrsRtpExtensions::decode(SrsBuffer* buf)
@@ -547,34 +530,19 @@ srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
 
 SrsRtpHeader::SrsRtpHeader()
 {
-    reset();
-
-    memset(csrc, 0, sizeof(csrc));
-}
-
-SrsRtpHeader::~SrsRtpHeader()
-{
-}
-
-void SrsRtpHeader::reset()
-{
-    // Reset the fields in protocol.
     cc               = 0;
     marker           = false;
     payload_type     = 0;
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
-
-    // Reset the parsed fields.
     padding_length   = 0;
-    extensions_.reset();
-
-    // Reset other fields.
     ignore_padding_  = false;
+    memset(csrc, 0, sizeof(csrc));
+}
 
-    // The CSRC is not used yet, so we never reset it.
-    //memset(csrc, 0, sizeof(csrc));
+SrsRtpHeader::~SrsRtpHeader()
+{
 }
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
@@ -822,7 +790,7 @@ void SrsRtpPacket2::reset()
     decode_handler = NULL;
 
     // It's important to reset the header.
-    header.reset();
+    header = SrsRtpHeader();
 
     // Recyle the payload again, to ensure the packet is new one.
     recycle_payload();
