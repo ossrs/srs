@@ -866,6 +866,9 @@ bool SrsRtpPacket2::recycle()
 
 char* SrsRtpPacket2::wrap(int size)
 {
+    // The buffer size is larger or equals to the size of packet.
+    actual_buffer_size_ = size;
+
     // If the buffer is large enough, reuse it.
     if (shared_buffer && shared_buffer->size >= size) {
         return shared_buffer->payload;
@@ -875,8 +878,6 @@ char* SrsRtpPacket2::wrap(int size)
     while (true) {
         srs_freep(shared_buffer);
         shared_buffer = _srs_rtp_msg_cache_buffers->allocate();
-        // The buffer size is larger or equals to the size of packet.
-        actual_buffer_size_ = size;
 
         // If got a cached message(which has payload), but it's too small,
         // we free it and allocate a larger one.
