@@ -290,7 +290,7 @@ public:
     //       video/audio packet use raw bytes, no video/audio packet.
     char* payload;
 
-public:
+private:
     class SrsSharedPtrPayload
     {
     public:
