@@ -512,11 +512,14 @@ class SrsRtcRecvTrack
 protected:
     SrsRtcTrackDescription* track_desc_;
     SrsRtcTrackStatistic* statistic_;
-
+protected:
     SrsRtcConnection* session_;
     SrsRtpRingBuffer* rtp_queue_;
     SrsRtpNackForReceiver* nack_receiver_;
-
+private:
+    // By config, whether no copy.
+    bool nack_no_copy_;
+protected:
     // send report ntp and received time.
     SrsNtp last_sender_report_ntp;
     uint64_t last_sender_report_sys_time;
@@ -524,6 +527,8 @@ public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
 public:
+    // SrsRtcSendTrack::set_nack_no_copy
+    void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
     uint32_t get_ssrc();
     void update_rtt(int rtt);
@@ -580,12 +585,16 @@ protected:
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
 private:
+    // By config, whether no copy.
+    bool nack_no_copy_;
     // The pithy print for special stage.
     SrsErrorPithyPrint* nack_epp;
 public:
     SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();
 public:
+    // SrsRtcSendTrack::set_nack_no_copy
+    void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
     bool set_track_status(bool active);
