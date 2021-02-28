@@ -156,7 +156,7 @@ For previous versions, please read:
 
 ## V4 changes
 
-* v4.0, 2021-02-28, RTC: Support high performance [NO-COPY-NACK](https://github.com/ossrs/srs/commit/36ea67359e55c94ab044cee4b6a4ec901a83a287#commitcomment-47654868). 4.0.76
+* v4.0, 2021-02-28, RTC: Support high performance [Zero Copy NACK](https://github.com/ossrs/srs/commit/36ea67359e55c94ab044cee4b6a4ec901a83a287#commitcomment-47654868). 4.0.76
 * v4.0, 2021-02-27, RTC: Support [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008) for performance. 4.0.75
 * v4.0, 2021-02-12, RTC: Support [High Resolution(about 25ms) Timer](https://github.com/ossrs/srs/commit/c5d2027f9af77fc2d34a6b6ca941c0f0fbdd10c4#commitcomment-47655747). 4.0.72
 * v4.0, 2021-02-10, RTC: [Improve performance about 700+](https://github.com/ossrs/srs/commit/b431ad738c39f34a5a0a39e81beb7854223db761#commitcomment-47655935) streams. 4.0.71
