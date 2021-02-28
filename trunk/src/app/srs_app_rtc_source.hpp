@@ -579,8 +579,6 @@ protected:
     SrsRtcConnection* session_;
     // NACK ARQ ring buffer.
     SrsRtpRingBuffer* rtp_queue_;
-    // Whether enabled nack.
-    bool nack_enabled_;
 private:
     // The pithy print for special stage.
     SrsErrorPithyPrint* nack_epp;
@@ -588,12 +586,15 @@ public:
     SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio);
     virtual ~SrsRtcSendTrack();
 public:
-    void set_nack_enabled(bool v);
     bool has_ssrc(uint32_t ssrc);
     SrsRtpPacket2* fetch_rtp_packet(uint16_t seq);
     bool set_track_status(bool active);
     bool get_track_status();
     std::string get_track_id();
+public:
+    // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and
+    // set to NULL, nack nerver copy it but set the pkt to NULL.
+    srs_error_t on_nack(SrsRtpPacket2** ppkt);
 public:
     virtual srs_error_t on_rtp(SrsRtpPacket2* pkt) = 0;
     virtual srs_error_t on_rtcp(SrsRtpPacket2* pkt) = 0;

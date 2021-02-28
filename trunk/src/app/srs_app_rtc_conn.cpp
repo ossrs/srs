@@ -448,17 +448,6 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
     srs_trace("RTC player nack=%d", nack_enabled_);
 
-    // Apply configs for all tracks.
-    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
-        SrsRtcAudioSendTrack* track = it->second;
-        track->set_nack_enabled(nack_enabled_);
-    }
-
-    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
-        SrsRtcVideoSendTrack* track = it->second;
-        track->set_nack_enabled(nack_enabled_);
-    }
-
     // Update stat for session.
     session_->stat_->nn_subscribers++;
 
@@ -582,6 +571,7 @@ srs_error_t SrsRtcPlayStream::cycle()
         }
 
         // Send-out the RTP packet and do cleanup
+        // @remark Note that the pkt might be set to NULL.
         if ((err = send_packet(pkt)) != srs_success) {
             uint32_t nn = 0;
             if (epp->can_print(err, &nn)) {
@@ -590,11 +580,13 @@ srs_error_t SrsRtcPlayStream::cycle()
             srs_freep(err);
         }
 
+        // Release the packet to cache.
+        // @remark Note that the pkt might be set to NULL.
         _srs_rtp_cache->recycle(pkt);
     }
 }
 
-srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
 {
     srs_error_t err = srs_success;
 
@@ -605,9 +597,11 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2* pkt)
     }
 
     // For audio, we transcoded AAC to opus in extra payloads.
+    SrsRtcAudioSendTrack* audio_track = NULL;
+    SrsRtcVideoSendTrack* video_track = NULL;
     if (pkt->is_audio()) {
         // TODO: FIXME: Any simple solution?
-        SrsRtcAudioSendTrack* audio_track = audio_tracks_[pkt->header.get_ssrc()];
+        audio_track = audio_tracks_[pkt->header.get_ssrc()];
 
         if ((err = audio_track->on_rtp(pkt)) != srs_success) {
             return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
@@ -616,16 +610,26 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2* pkt)
         // TODO: FIXME: Padding audio to the max payload in RTP packets.
     } else {
         // TODO: FIXME: Any simple solution?
-        SrsRtcVideoSendTrack* video_track = video_tracks_[pkt->header.get_ssrc()];
+        video_track = video_tracks_[pkt->header.get_ssrc()];
 
         if ((err = video_track->on_rtp(pkt)) != srs_success) {
             return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
         }
     }
 
-    // Detail log, should disable it in release version.
-    srs_info("RTC: Update PT=%u, SSRC=%#x, Time=%u, %u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
-        pkt->header.get_timestamp(), pkt->nb_bytes());
+    // For NACK to handle packet.
+    // @remark Note that the pkt might be set to NULL.
+    if (nack_enabled_) {
+        if (audio_track) {
+            if ((err = audio_track->on_nack(&pkt)) != srs_success) {
+                return srs_error_wrap(err, "on nack");
+            }
+        } else if (video_track) {
+            if ((err = video_track->on_nack(&pkt)) != srs_success) {
+                return srs_error_wrap(err, "on nack");
+            }
+        }
+    }
 
     return err;
 }
@@ -1158,6 +1162,7 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     err = do_on_rtp_plaintext(pkt, &buf);
 
     // Release the packet to cache.
+    // @remark Note that the pkt might be set to NULL.
     _srs_rtp_cache->recycle(pkt);
 
     return err;

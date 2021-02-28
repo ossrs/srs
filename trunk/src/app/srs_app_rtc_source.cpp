@@ -1983,7 +1983,6 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     session_ = session;
     track_desc_ = track_desc->copy();
     statistic_ = new SrsRtcTrackStatistic();
-    nack_enabled_ = false;
 
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
@@ -2000,11 +1999,6 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(track_desc_);
     srs_freep(statistic_);
     srs_freep(nack_epp);
-}
-
-void SrsRtcSendTrack::set_nack_enabled(bool v)
-{
-    nack_enabled_ = v;
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -2053,6 +2047,21 @@ bool SrsRtcSendTrack::get_track_status()
 std::string SrsRtcSendTrack::get_track_id()
 {
     return track_desc_->id_;
+}
+
+srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket2** ppkt)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpPacket2* pkt = *ppkt;
+    uint16_t seq = pkt->header.get_sequence();
+
+    // insert into video_queue and audio_queue
+    // We directly use the pkt, never copy it, so we should set the pkt to NULL.
+    rtp_queue_->set(seq, pkt);
+    *ppkt = NULL;
+
+    return err;
 }
 
 srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs)
@@ -2117,12 +2126,6 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt)
         // TODO: FIXME: Should update PT for RTX.
     }
 
-    // Put rtp packet to NACK/ARQ queue
-    if (nack_enabled_) {
-        SrsRtpPacket2* nack = pkt->copy();
-        rtp_queue_->set(nack->header.get_sequence(), nack);
-    }
-
     // Update stats.
     session_->stat_->nn_out_audios++;
 
@@ -2175,12 +2178,6 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt)
         pkt->header.set_payload_type(track_desc_->red_->pt_);
     } else {
         // TODO: FIXME: Should update PT for RTX.
-    }
-
-    // Put rtp packet to NACK/ARQ queue
-    if (nack_enabled_) {
-        SrsRtpPacket2* nack = pkt->copy();
-        rtp_queue_->set(nack->header.get_sequence(), nack);
     }
 
     // Update stats.

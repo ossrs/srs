@@ -252,7 +252,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_packet(SrsRtpPacket2* pkt);
+    srs_error_t send_packet(SrsRtpPacket2*& pkt);
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
