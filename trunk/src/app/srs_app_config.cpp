@@ -5249,6 +5249,28 @@ bool SrsConfig::get_rtc_nack_enabled(string vhost)
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
+bool SrsConfig::get_rtc_nack_no_copy(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("nack");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("no_copy");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
 bool SrsConfig::get_rtc_twcc_enabled(string vhost)
 {
     static bool DEFAULT = true;

@@ -381,6 +381,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     realtime = true;
 
     nack_enabled_ = false;
+    nack_no_copy_ = false;
 
     _srs_config->subscribe(this);
     timer_ = new SrsHourGlass("play", this, 1000 * SRS_UTIME_MILLISECONDS);
@@ -446,7 +447,19 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 
     // TODO: FIXME: Support reload.
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
-    srs_trace("RTC player nack=%d", nack_enabled_);
+    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost);
+    srs_trace("RTC player nack=%d, nnc=%d", nack_enabled_, nack_no_copy_);
+
+    // Setup tracks.
+    for (map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioSendTrack* track = it->second;
+        track->set_nack_no_copy(nack_no_copy_);
+    }
+
+    for (map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+        SrsRtcVideoSendTrack* track = it->second;
+        track->set_nack_no_copy(nack_no_copy_);
+    }
 
     // Update stat for session.
     session_->stat_->nn_subscribers++;
@@ -849,6 +862,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     source = NULL;
     nn_simulate_nack_drop = 0;
     nack_enabled_ = false;
+    nack_no_copy_ = false;
     pt_to_drop_ = 0;
 
     nn_audio_frames = 0;
@@ -923,10 +937,22 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     }
 
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
+    nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost);
     pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req->vhost);
     twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req->vhost);
 
-    srs_trace("RTC publisher nack=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, pt_to_drop_, twcc_enabled_, twcc_id);
+    srs_trace("RTC publisher nack=%d, nnc=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, nack_no_copy_, pt_to_drop_, twcc_enabled_, twcc_id);
+
+    // Setup tracks.
+    for (int i = 0; i < (int)audio_tracks_.size(); i++) {
+        SrsRtcAudioRecvTrack* track = audio_tracks_.at(i);
+        track->set_nack_no_copy(nack_no_copy_);
+    }
+
+    for (int i = 0; i < (int)video_tracks_.size(); i++) {
+        SrsRtcVideoRecvTrack* track = video_tracks_.at(i);
+        track->set_nack_no_copy(nack_no_copy_);
+    }
 
     // Update stat for session.
     session_->stat_->nn_publishers++;

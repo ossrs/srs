@@ -563,6 +563,7 @@ public:
     std::string get_rtc_dtls_version(std::string vhost);
     int get_rtc_drop_for_pt(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
+    bool get_rtc_nack_no_copy(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
 
 // vhost specified section

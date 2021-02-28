@@ -1729,6 +1729,7 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     session_ = session;
     track_desc_ = track_desc->copy();
     statistic_ = new SrsRtcTrackStatistic();
+    nack_no_copy_ = false;
 
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
@@ -1838,8 +1839,12 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket2** ppkt)
 
     // insert into video_queue and audio_queue
     // We directly use the pkt, never copy it, so we should set the pkt to NULL.
-    rtp_queue_->set(seq, pkt);
-    *ppkt = NULL;
+    if (nack_no_copy_) {
+        rtp_queue_->set(seq, pkt);
+        *ppkt = NULL;
+    } else {
+        rtp_queue_->set(seq, pkt->copy());
+    }
 
     return err;
 }
@@ -1983,6 +1988,7 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
     session_ = session;
     track_desc_ = track_desc->copy();
     statistic_ = new SrsRtcTrackStatistic();
+    nack_no_copy_ = false;
 
     if (is_audio) {
         rtp_queue_ = new SrsRtpRingBuffer(100);
@@ -2058,8 +2064,12 @@ srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket2** ppkt)
 
     // insert into video_queue and audio_queue
     // We directly use the pkt, never copy it, so we should set the pkt to NULL.
-    rtp_queue_->set(seq, pkt);
-    *ppkt = NULL;
+    if (nack_no_copy_) {
+        rtp_queue_->set(seq, pkt);
+        *ppkt = NULL;
+    } else {
+        rtp_queue_->set(seq, pkt->copy());
+    }
 
     return err;
 }
