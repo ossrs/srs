@@ -140,7 +140,6 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-    void assign(const SrsRtpExtensionTwcc& h);
 public:
     inline bool exists() { return has_twcc_; } // SrsRtpExtensionTwcc::exists
     uint8_t get_id();
@@ -166,7 +165,6 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-    void assign(const SrsRtpExtensionOneByte& h);
 public:
     inline bool exists() { return has_ext_; } // SrsRtpExtensionOneByte::exists
     int get_id() { return id_; }
@@ -198,7 +196,6 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-    void assign(const SrsRtpExtensions& h);
 public:
     inline bool exists() { return has_ext_; } // SrsRtpExtensions::exists
     void set_types_(SrsRtpExtensionTypes* types);
@@ -236,7 +233,6 @@ public:
 public:
     // Reset the object to reuse it.
     void reset();
-    void assign(const SrsRtpHeader& h);
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
 private:

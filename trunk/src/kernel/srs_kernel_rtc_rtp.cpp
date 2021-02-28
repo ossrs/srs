@@ -218,13 +218,6 @@ void SrsRtpExtensionTwcc::reset()
     sn_ = 0;
 }
 
-void SrsRtpExtensionTwcc::assign(const SrsRtpExtensionTwcc& h)
-{
-    has_twcc_ = h.has_twcc_;
-    id_ = h.id_;
-    sn_ = h.sn_;
-}
-
 srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
@@ -313,13 +306,6 @@ void SrsRtpExtensionOneByte::reset()
     value_ = 0;
 }
 
-void SrsRtpExtensionOneByte::assign(const SrsRtpExtensionOneByte& h)
-{
-    has_ext_ = h.has_ext_;
-    id_ = h.id_;
-    value_ = h.value_;
-}
-
 void SrsRtpExtensionOneByte::set_id(int id)
 {
     id_ = id;
@@ -383,17 +369,6 @@ void SrsRtpExtensions::reset()
     twcc_.reset();
     audio_level_.reset();
     has_ext_ = false;
-}
-
-void SrsRtpExtensions::assign(const SrsRtpExtensions& h)
-{
-    has_ext_ = h.has_ext_;
-    types_ = h.types_;
-
-    if (has_ext_) {
-        twcc_.assign(h.twcc_);
-        audio_level_.assign(h.audio_level_);
-    }
 }
 
 srs_error_t SrsRtpExtensions::decode(SrsBuffer* buf)
@@ -600,27 +575,6 @@ void SrsRtpHeader::reset()
 
     // The CSRC is not used yet, so we never reset it.
     //memset(csrc, 0, sizeof(csrc));
-}
-
-void SrsRtpHeader::assign(const SrsRtpHeader& h)
-{
-    // Reset the fields in protocol.
-    cc               = h.cc;
-    marker           = h.marker;
-    payload_type     = h.payload_type;
-    sequence         = h.sequence;
-    timestamp        = h.timestamp;
-    ssrc             = h.ssrc;
-
-    // Reset the parsed fields.
-    padding_length   = h.padding_length;
-    extensions_.assign(h.extensions_);
-
-    // Reset other fields.
-    ignore_padding_  = h.ignore_padding_;
-
-    // The CSRC is not used yet, so we never reset it.
-    //memcpy(csrc, h.csrc, sizeof(csrc));
 }
 
 srs_error_t SrsRtpHeader::decode(SrsBuffer* buf)
@@ -1002,7 +956,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     //srs_assert(!cp->payload_);
     //srs_assert(!cp->shared_msg);
 
-    cp->header.assign(header);
+    cp->header = header;
     cp->payload_ = payload_? payload_->copy():NULL;
     cp->payload_type_ = payload_type_;
 
