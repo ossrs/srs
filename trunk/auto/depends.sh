@@ -631,25 +631,10 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit &&
             # Create a hidden directory .src
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
-            # Link source files under .src
-            _srs_link_file .src/ ./ ./ &&
-            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
-                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../ &&
-                for dir2 in `(cd .src/$dir && find . -maxdepth 1 -type d|grep '\./')`; do
-                    dir2=`basename $dir2` && mkdir -p $dir/$dir2 && _srs_link_file .src/$dir/$dir2/ $dir/$dir2/ ../../ &&
-                    for dir3 in `(cd .src/$dir/$dir2 && find . -maxdepth 1 -type d|grep '\./')`; do
-                        dir3=`basename $dir3` && mkdir -p $dir/$dir2/$dir3 && _srs_link_file .src/$dir/$dir2/$dir3/ $dir/$dir2/$dir3/ ../../../;
-                    done
-                done
-            done &&
-            # We should remove some files(in .gitignore) to keep them in local generated.
-            (cd ffbuild && rm -f config.fate config.log config.mak config.sh .config) &&
-            (cd libavutil && rm -f lib.version libavutil.version ffversion.h avconfig.h) &&
-            (rm -rf doc && rm -f config.asm config.h libavcodec/libavcodec.version libswresample/libswresample.version) &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && cp -R ../../../3rdparty/ffmpeg-4.2-fit/* . &&
             # Build source code.
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
-              --prefix=`pwd`/${SRS_PLATFORM}/_release \
+              --prefix=`pwd`/_release \
               --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
@@ -660,13 +645,13 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
               --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
               --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
             make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/_release ffmpeg
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/_release ffmpeg)
     if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
 fi
 
