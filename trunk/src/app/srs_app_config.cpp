@@ -4919,7 +4919,7 @@ SrsConfDirective* SrsConfig::get_rtc_server_rtp_cache()
 
 bool SrsConfig::get_rtc_server_rtp_cache_enabled()
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc_server_rtp_cache();
     if (!conf) {
@@ -4931,7 +4931,7 @@ bool SrsConfig::get_rtc_server_rtp_cache_enabled()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 uint64_t SrsConfig::get_rtc_server_rtp_cache_pkt_size()
@@ -4985,7 +4985,7 @@ SrsConfDirective* SrsConfig::get_rtc_server_rtp_msg_cache()
 
 bool SrsConfig::get_rtc_server_rtp_msg_cache_enabled()
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
     if (!conf) {
@@ -4997,7 +4997,7 @@ bool SrsConfig::get_rtc_server_rtp_msg_cache_enabled()
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_msg_size()
@@ -5251,7 +5251,7 @@ bool SrsConfig::get_rtc_nack_enabled(string vhost)
 
 bool SrsConfig::get_rtc_nack_no_copy(string vhost)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -5268,7 +5268,7 @@ bool SrsConfig::get_rtc_nack_no_copy(string vhost)
         return DEFAULT;
     }
 
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_twcc_enabled(string vhost)
