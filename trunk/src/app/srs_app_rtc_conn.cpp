@@ -2026,7 +2026,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
         return srs_error_wrap(err, "play negotiate");
     }
 
-    if (!play_sub_relations.size()) {
+    if (play_sub_relations.empty()) {
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no play relations");
     }
 
