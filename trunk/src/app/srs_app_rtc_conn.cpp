@@ -866,6 +866,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     pt_to_drop_ = 0;
 
     nn_audio_frames = 0;
+    twcc_enabled_ = false;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
     
@@ -930,7 +931,7 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
         media_ssrc = desc->ssrc_;
         break;
     }
-    if (twcc_id != -1) {
+    if (twcc_id > 0) {
         twcc_id_ = twcc_id;
         extension_types_.register_by_uri(twcc_id_, kTWCCExt);
         rtcp_twcc_.set_media_ssrc(media_ssrc);
@@ -940,6 +941,11 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost);
     pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req->vhost);
     twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req->vhost);
+
+    // No TWCC when negotiate, disable it.
+    if (twcc_id <= 0) {
+        twcc_enabled_ = false;
+    }
 
     srs_trace("RTC publisher nack=%d, nnc=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, nack_no_copy_, pt_to_drop_, twcc_enabled_, twcc_id);
 
@@ -3116,6 +3122,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     //negotiate audio media
     if(NULL != req_stream_desc->audio_track_desc_) {
         SrsRtcTrackDescription* req_audio_track = req_stream_desc->audio_track_desc_;
+        int remote_twcc_id = req_audio_track->get_rtp_extension_id(kTWCCExt);
 
         src_track_descs = source->get_track_desc("audio", "opus");
         if (src_track_descs.size() > 0) {
@@ -3131,6 +3138,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
                 track->red_->pt_ = req_audio_track->red_->pt_;
             }
 
+            track->del_rtp_extension_desc(kTWCCExt);
+            if (remote_twcc_id > 0) {
+                track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
+            }
+
             track->mid_ = req_audio_track->mid_;
             sub_relations.insert(make_pair(track->ssrc_, track));
             track->set_direction("sendonly");
@@ -3143,6 +3155,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     src_track_descs = source->get_track_desc("video", "h264");
     for(int i = 0; i < (int)req_video_tracks.size(); ++i) {
         SrsRtcTrackDescription* req_video = req_video_tracks.at(i);
+        int remote_twcc_id = req_video->get_rtp_extension_id(kTWCCExt);
+
         for(int j = 0; j < (int)src_track_descs.size(); ++j) {
             SrsRtcTrackDescription* src_video = src_track_descs.at(j);
             if(req_video->id_ == src_video->id_) {
@@ -3156,6 +3170,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
                 if (req_video->red_ && track->red_) {
                     track->red_->pt_of_publisher_ = track->red_->pt_;
                     track->red_->pt_ = req_video->red_->pt_;
+                }
+
+                track->del_rtp_extension_desc(kTWCCExt);
+                if (remote_twcc_id > 0) {
+                    track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
                 }
 
                 track->mid_ = req_video->mid_;
