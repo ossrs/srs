@@ -507,11 +507,22 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_OSX == YES ]]; then
         export KERNEL_BITS=64;
     fi
-    # Default to openssl 1.1, use 1.0 if required.
-    OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
+    # Use 1.0 if required.
     if [[ $SRS_SSL_1_0 == YES ]]; then
+        OPENSSL_AR="$SRS_TOOL_AR -r" # For openssl 1.0, MUST specifies the args for ar or build faild.
         OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
+    else
+        OPENSSL_AR="$SRS_TOOL_AR"
+        OPENSSL_CANDIDATE="openssl-1.1-fit" && OPENSSL_UNZIP="cp -R ../../3rdparty/$OPENSSL_CANDIDATE ."
     fi
+    #
+    # https://wiki.openssl.org/index.php/Compilation_and_Installation#Configure_Options
+    # Already defined: -no-shared -no-threads -no-asm
+    # Should enable:  -no-dtls -no-dtls1 -no-ssl3
+    # Might able to disable: -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers
+    # Note that we do not disable more features, because no file could be removed.
+    #OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers"
+    #
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         echo "The $OPENSSL_CANDIDATE is ok.";
@@ -520,7 +531,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
-            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
+            make CC=${SRS_TOOL_CC} AR="${OPENSSL_AR}" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl
         )
     fi

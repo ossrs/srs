@@ -156,6 +156,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-03-01, Upgrade openssl from 1.1.0e to 1.1.1b, with source code. 4.0.78
 * v4.0, 2021-03-01, Enable Object Cache and Zero Copy Nack by default. 4.0.77
 * v4.0, 2021-02-28, RTC: Support high performance [Zero Copy NACK](https://github.com/ossrs/srs/commit/36ea67359e55c94ab044cee4b6a4ec901a83a287#commitcomment-47654868). 4.0.76
 * v4.0, 2021-02-27, RTC: Support [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008) for performance. 4.0.75
