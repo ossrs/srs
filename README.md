@@ -156,6 +156,7 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-03-02, Refine build script for FFmpeg and SRTP. 4.0.80
 * v4.0, 2021-03-02, Upgrade libsrtp from 2.0.0 to 2.3.0, with source code. 4.0.79
 * v4.0, 2021-03-01, Upgrade openssl from 1.1.0e to 1.1.1b, with source code. 4.0.78
 * v4.0, 2021-03-01, Enable Object Cache and Zero Copy Nack by default. 4.0.77
