@@ -3,7 +3,8 @@ http-parser-2.1.zip
 
 nginx-1.5.7.zip
     for srs to support hls streaming.
-    
+
+openssl-1.1.1b.tar.gz    
 openssl-1.1.0e.zip
 openssl-OpenSSL_1_0_2u.tar.gz
     openssl for SRS(with-ssl) RTMP complex handshake to delivery h264+aac stream.
