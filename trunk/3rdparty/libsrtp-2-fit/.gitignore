@@ -1,0 +1,49 @@
+# Misc crap
+*~
+old
+old?
+*.pc
+
+# Object files
+*.o
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# srtp things
+build
+Debug
+Makefile
+Root
+autom4te.cache
+config.log
+config.status
+crypto/include/config.h
+crypto/test/aes_calc
+crypto/test/cipher_driver
+crypto/test/datatypes_driver
+crypto/test/env
+crypto/test/kernel_driver
+crypto/test/sha1_driver
+crypto/test/stat_driver
+tables/aes_tables
+test/dtls_srtp_driver
+test/rdbx_driver
+test/replay_driver
+test/roc_driver
+test/rtp_decoder
+test/rtpw
+test/srtp_driver
+test/test_srtp
