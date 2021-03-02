@@ -632,10 +632,12 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit &&
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && cp -R ../../../3rdparty/ffmpeg-4.2-fit/* . &&
+            # For libopus and other codecs.
+            ABS_OBJS=$(cd .. && pwd) &&
             # Build source code.
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
               --prefix=`pwd`/_release \
-              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
+              --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
