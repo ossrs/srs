@@ -11,7 +11,7 @@ jobs:
       - image: ossrs/srs:dev
     steps:
       - checkout
-      - run: cd trunk && ./configure --nasm=off --srtp-nasm=off && make &&
+      - run: cd trunk && ./configure --nasm=off --srtp-nasm=off && make
   build-centos7-gb28181:
     docker:
       - image: ossrs/srs:dev
