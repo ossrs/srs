@@ -9,12 +9,6 @@ jobs:
           cd trunk && ./configure && make &&
           ./configure --nasm=off --srtp-nasm=off && make clean && make &&
           ./configure --gb28181=on && make clean && make
-  build-ubuntu20:
-    docker:
-      - image: ossrs/srs:ubuntu20
-    steps:
-      - checkout
-      - run: cd trunk && ./configure && make
   test:
     docker:
       - image: ossrs/srs:dev
@@ -29,5 +23,4 @@ workflows:
   build_and_test:
     jobs:
       - build-centos7
-      - build-ubuntu20
       - test
