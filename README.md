@@ -1477,6 +1477,10 @@ Winlin
 [v3_EN_NgExec]:https://github.com/ossrs/srs/wiki/v3_EN_NgExec
 [v3_CN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_CN_ReusePort
 [v3_EN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_EN_ReusePort
+[v4_CN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_CN_SampleSRT
+[v4_EN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_EN_SampleSRT
+[v3_CN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_CN_SampleDASH
+[v3_EN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_EN_SampleDASH
 
 [bug #213]: https://github.com/ossrs/srs/issues/213
 [bug #194]: https://github.com/ossrs/srs/issues/194
