@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build-centos7-baseline:
+  build-c7-baseline:
     docker:
       - image: ossrs/srs:dev
     steps:
@@ -8,7 +8,7 @@ jobs:
       - run: |
           echo "Build and run SRS baseline" &&
           cd trunk && ./configure && make
-  build-centos7-noasm:
+  build-c7-noasm:
     docker:
       - image: ossrs/srs:dev
     steps:
@@ -16,7 +16,7 @@ jobs:
       - run: |
           echo "Build and run SRS without NASM or SRTP-NASM" &&
           cd trunk && ./configure --nasm=off --srtp-nasm=off && make
-  build-centos7-gb28181:
+  build-c7-gb28181:
     docker:
       - image: ossrs/srs:dev
     steps:
@@ -24,7 +24,7 @@ jobs:
       - run: |
           echo "Build and run SRS with GB28181" &&
           cd trunk && ./configure --gb28181=on && make
-  build-centos8-baseline:
+  build-c8-baseline:
     docker:
       - image: ossrs/srs:dev8
     steps:
@@ -32,7 +32,7 @@ jobs:
       - run: |
           echo "Build and run SRS for CentOS8" &&
           cd trunk && ./configure && make
-  build-ubuntu20-baseline:
+  build-u20-baseline:
     docker:
       - image: ossrs/srs:dev8
     steps:
@@ -59,14 +59,23 @@ jobs:
           cd trunk && ./configure && make && ./objs/srs -c conf/regression-test.conf &&
           echo "Run srs-bench regression test" &&
           cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v
+  build-c7-ansi-noff:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS C++98(ANSI), no FFmpeg-fit" &&
+          cd trunk && ./configure --cxx11=off --cxx14=off --ffmpeg-fit=off && make
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - build-centos7-baseline
+      - build-c7-baseline
       - run-utest
       - run-regression-test
-      - build-centos7-noasm
-      - build-centos7-gb28181
-      - build-centos8-baseline
-      - build-ubuntu20-baseline
+      - build-c7-noasm
+      - build-c7-gb28181
+      - build-c8-baseline
+      - build-u20-baseline
+      - build-c7-ansi-noff
