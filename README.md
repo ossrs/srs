@@ -1258,7 +1258,7 @@ Winlin
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
-[docker-srs3]: https://github.com/ossrs/srs-docker#srs3
+[docker-srs3]: https://github.com/ossrs/srs-docker/tree/v3#usage
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
