@@ -28,7 +28,8 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
 ```
 
-Please open [http://localhost:8080/](http://localhost:8080/) if success, then publish stream by:
+Please open [http://localhost:8080/](http://localhost:8080/) if success, then publish 
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
 ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
