@@ -113,7 +113,7 @@ fi
 然后运行回归测试用例，如果只跑一次，可以直接运行：
 
 ```bash
-go test ./srs -v
+go test ./srs -mod=vendor -v
 ```
 
 也可以用make编译出重复使用的二进制：
@@ -125,7 +125,7 @@ make test && ./objs/srs_test -test.v
 可以给回归测试传参数，这样可以测试不同的序列，比如：
 
 ```bash
-go test ./srs -v -srs-server=127.0.0.1
+go test ./srs -mod=vendor -v -srs-server=127.0.0.1
 # Or
 make test && ./objs/srs_test -test.v -srs-server=127.0.0.1
 ```

@@ -17,7 +17,7 @@ bench: ./objs/srs_bench
 test: ./objs/srs_test
 
 ./objs/srs_test: .format.txt *.go rtc/*.go srs/*.go Makefile
-	go test ./srs -c -o ./objs/srs_test
+	go test ./srs -mod=vendor -c -o ./objs/srs_test
 
 help:
 	@echo "Usage: make [bench|test]"
