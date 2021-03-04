@@ -6,6 +6,7 @@ jobs:
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS baseline" &&
           cd trunk && ./configure && make
   build-centos7-noasm:
     docker:
@@ -13,6 +14,7 @@ jobs:
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS without NASM or SRTP-NASM" &&
           cd trunk && ./configure --nasm=off --srtp-nasm=off && make
   build-centos7-gb28181:
     docker:
@@ -20,6 +22,7 @@ jobs:
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS with GB28181" &&
           cd trunk && ./configure --gb28181=on && make
   build-centos8-baseline:
     docker:
@@ -27,6 +30,7 @@ jobs:
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS for CentOS8" &&
           cd trunk && ./configure && make
   build-ubuntu20-baseline:
     docker:
@@ -34,22 +38,36 @@ jobs:
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS for Ubuntu20" &&
           cd trunk && ./configure && make
-  test:
+  run-utest:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
       - run: |
-          cd trunk &&
-          ./configure --gb28181=on --utest=on --gcov=on && make &&
+          echo "Build and run utest for SRS" &&
+          cd trunk && ./configure --gb28181=on --utest=on --gcov=on && make &&
           ./objs/srs_utest && bash auto/coverage.sh
+  run-regression-test:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with regression config" &&
+          cd trunk && ./configure && make && ./objs/srs -c conf/regression-test.conf &&
+          echo "Clone srs-bench for regression test" &&
+          cd 3rdparty && git clone -b feature/srs --depth=1 https://github.com/ossrs/srs-bench &&
+          echo "Run srs-bench regression test" &&
+          cd srs-bench && make && ./objs/srs_test -test.v
 workflows:
   version: 2
   build_and_test:
     jobs:
       - build-centos7-baseline
-      - test
+      - run-utest
+      - run-regression-test
       - build-centos7-noasm
       - build-centos7-gb28181
       - build-centos8-baseline
