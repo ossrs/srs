@@ -513,12 +513,6 @@ function apply_detail_options() {
         echo "Disable SRTP-ASM, because NASM is disabled."
         SRS_SRTP_ASM=NO
     fi
-
-    # Which openssl we choose, openssl-1.0.* for SRTP with ASM, others we use openssl-1.1.*
-    if [[ $SRS_SRTP_ASM == YES && $SRS_SSL_1_0 == NO ]]; then
-        echo "Use openssl-1.0 for SRTP-ASM."
-        SRS_SSL_1_0=YES
-    fi
 }
 apply_detail_options
 
