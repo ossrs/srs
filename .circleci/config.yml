@@ -48,7 +48,7 @@ jobs:
       - run: |
           echo "Build and run utest for SRS" &&
           cd trunk && ./configure --gb28181=on --utest=on --gcov=on && make &&
-          ./objs/srs_utest && bash auto/coverage.sh
+          ./objs/srs_utest && bash auto/codecov.sh
   run-regression-test:
     docker:
       - image: ossrs/srs:dev
