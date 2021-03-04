@@ -16,17 +16,16 @@ SRS is a RTMP/HLS/FLV streaming cluster, high efficiency, stable and simple.
 Recommend to run SRS by [docker][docker-srs3]:
 
 ```bash
+# From Aliyun CR, for developers in China.
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
-```
 
-By default, the images is speedup by [ACR](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
-for developers in China, you can also run by:
-
-```bash
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+# From docker hub, depends on your network.
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
 ```
+
+> Note: The available images is [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images).
 
 Please open [http://localhost:8080/](http://localhost:8080/) if success, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
