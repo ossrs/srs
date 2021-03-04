@@ -25,7 +25,10 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
 ```
 
-> Note: The available images is [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images).
+> Note: Each tag is available for docker, such as 
+> [ossrs/srs:v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
+> please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
+> or [there](https://hub.docker.com/r/ossrs/srs/tags?page=1&ordering=last_updated).
 
 If success, please open [http://localhost:8080/](http://localhost:8080/), then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
