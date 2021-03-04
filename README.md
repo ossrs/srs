@@ -27,7 +27,7 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 
 > Note: The available images is [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images).
 
-Please open [http://localhost:8080/](http://localhost:8080/) if success, then publish 
+If success, please open [http://localhost:8080/](http://localhost:8080/), then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
@@ -35,7 +35,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
     -f flv rtmp://127.0.0.1/live/livestream
 ```
 
-Done! Play the following streams by players:
+Play the following streams by players:
 
 * VLC: rtmp://127.0.0.1/live/livestream
 * H5: [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
@@ -55,8 +55,6 @@ Done! Play the following streams by players:
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
 * Usage: How to deploy in low lantency mode?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 * Usage: How to ingest file/stream/device to RTMP?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to improve edge performance for multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
-* Usage: How to file a bug or contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact])
 
 It's also very easy to build from source:
 
@@ -87,19 +85,13 @@ git checkout 3.0release && git pull
 ```
 
 <a name="srs-30-wiki"></a>
-## Wiki
+<a name="wiki"></a>
+Other documents:
 
-Please select according to languages:
-
+* Usage: How to improve edge performance for multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
+* Usage: How to file a bug or contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact])
 * [SRS 3.0 English Wiki][v3_EN_Home]
 * [SRS 3.0 Chinese Wiki][v3_CN_Home]
-
-For previous versions, please read:
-
-* [SRS 2.0 English Wiki][v2_EN_Home]
-* [SRS 2.0 Chinese Wiki][v2_CN_Home]
-* [SRS 1.0 English Wiki][v1_EN_Home]
-* [SRS 1.0 Chinese Wiki][v1_CN_Home]
 
 ## Features
 
