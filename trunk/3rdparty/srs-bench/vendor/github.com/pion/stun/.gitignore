@@ -1,0 +1,17 @@
+*-fuzz.zip
+.idea
+benchmark.*.write
+*.test
+*.out
+*.sw[poe]
+bench.go-*
+PACKAGES
+cmd/stun-cli/stun-cli
+cmd/stun-decode/stun-decode
+cmd/stun-bench/stun-bench
+cmd/stun-nat-behaviour/stun-nat-behaviour
+
+coverage.txt
+
+e2e/dump.pcap
+e2e/log-*.txt
