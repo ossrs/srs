@@ -25,8 +25,8 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
 ```
 
-> Note: Each tag is available for docker, such as 
-> [ossrs/srs:v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
+> Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
+> `ossrs/srs:v3.0-r3` for tag [v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
 > please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
 > or [there](https://hub.docker.com/r/ossrs/srs/tags).
 
