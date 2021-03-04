@@ -1,0 +1,12 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+  misspell:
+    locale: US
+
+linters:
+  enable-all: true
+  disable:
+
+issues:
+  exclude-use-default: false

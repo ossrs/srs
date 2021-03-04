@@ -768,11 +768,11 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         rnk_desc = buf;
     }
 
-    string drop_desc;
+    string loss_desc;
     SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
     if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
-        snprintf(buf, sizeof(buf), ", drop=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
-        drop_desc = buf;
+        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+        loss_desc = buf;
     }
 
     string fid_desc;
@@ -784,7 +784,7 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 
     srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
         nn_rtc_conns,
-        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), drop_desc.c_str(), fid_desc.c_str()
+        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), loss_desc.c_str(), fid_desc.c_str()
     );
 
     return err;

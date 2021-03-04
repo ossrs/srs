@@ -1,0 +1,119 @@
+# Makefile for crypto test suite
+#
+# David A. McGrew
+# Cisco Systems, Inc.
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+top_builddir = @top_builddir@
+VPATH = @srcdir@
+
+CC	= @CC@
+INCDIR	= -Iinclude -I$(srcdir)/include -I$(top_srcdir)/include
+DEFS	= @DEFS@
+CPPFLAGS= @CPPFLAGS@
+CFLAGS	= @CFLAGS@
+LIBS	= @LIBS@
+LDFLAGS	= @LDFLAGS@ -L. -L..
+COMPILE = $(CC) $(DEFS) $(INCDIR) $(CPPFLAGS) $(CFLAGS)
+CRYPTOLIB = -lsrtp2
+CRYPTO_LIBDIR = @CRYPTO_LIBDIR@
+
+RANLIB	= @RANLIB@
+
+# Specify how tests should find shared libraries on macOS and Linux
+#
+# macOS purges DYLD_LIBRARY_PATH when spawning subprocesses, so it's
+# not possible to pass this in from the outside; we have to specify
+# it for any subprocesses we call. No support for dynamic linked
+# tests on Windows.
+ifneq ($(strip $(CRYPTO_LIBDIR)),)
+	ifneq ($(OS),Windows_NT)
+		UNAME_S = $(shell uname -s)
+		ifeq ($(UNAME_S),Linux)
+			FIND_LIBRARIES = LD_LIBRARY_PATH=$(CRYPTO_LIBDIR)
+		endif
+		ifeq ($(UNAME_S),Darwin)
+			FIND_LIBRARIES = DYLD_LIBRARY_PATH=$(CRYPTO_LIBDIR)
+		endif
+	endif
+endif
+
+# EXE defines the suffix on executables - it's .exe for cygwin, and
+# null on linux, bsd, and OS X and other OSes.  we define this so that
+# `make clean` will work on the cygwin platform
+EXE = @EXE@
+# Random source.
+USE_EXTERNAL_CRYPTO = @USE_EXTERNAL_CRYPTO@
+
+ifdef ARCH
+  DEFS += -D$(ARCH)=1
+endif
+
+ifdef sysname
+  DEFS += -D$(sysname)=1
+endif
+
+.PHONY: dummy all runtest clean superclean
+
+dummy : all runtest
+
+# test applications
+ifneq (1, $(USE_EXTERNAL_CRYPTO))
+AES_CALC = test/aes_calc$(EXE)
+endif
+
+testapp = test/cipher_driver$(EXE) test/datatypes_driver$(EXE) \
+	  test/stat_driver$(EXE) test/sha1_driver$(EXE) \
+	  test/kernel_driver$(EXE) $(AES_CALC) \
+	  test/env$(EXE)
+
+# data values used to test the aes_calc application for AES-128
+k128=000102030405060708090a0b0c0d0e0f
+p128=00112233445566778899aabbccddeeff
+c128=69c4e0d86a7b0430d8cdb78070b4c55a
+
+
+# data values used to test the aes_calc application for AES-256
+k256=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+p256=00112233445566778899aabbccddeeff
+c256=8ea2b7ca516745bfeafc49904b496089
+
+
+runtest: $(testapp)
+	$(FIND_LIBRARIES) test/env$(EXE) # print out information on the build environment
+	@echo "running crypto test applications..."
+ifneq (1, $(USE_EXTERNAL_CRYPTO))
+	$(FIND_LIBRARIES) test `test/aes_calc $(k128) $(p128)` = $(c128)
+	$(FIND_LIBRARIES) test `test/aes_calc $(k256) $(p256)` = $(c256)
+endif
+	$(FIND_LIBRARIES) test/cipher_driver$(EXE) -v >/dev/null
+	$(FIND_LIBRARIES) test/datatypes_driver$(EXE) -v >/dev/null
+	$(FIND_LIBRARIES) test/stat_driver$(EXE) >/dev/null
+	$(FIND_LIBRARIES) test/sha1_driver$(EXE) -v >/dev/null
+	$(FIND_LIBRARIES) test/kernel_driver$(EXE) -v >/dev/null
+	@echo "crypto test applications passed."
+
+
+# the rule for making object files and test apps
+
+%.o: %.c
+	$(COMPILE) -c $< -o $@
+
+%$(EXE): %.c $(srcdir)/../test/getopt_s.c
+	$(COMPILE) $(LDFLAGS) $< $(srcdir)/../test/getopt_s.c -o $@ $(CRYPTOLIB) $(LIBS)
+
+all: $(testapp)
+
+# housekeeping functions
+
+clean:
+	rm -f $(testapp) *.o */*.o
+	for a in * .* */*; do if [ -f "$$a~" ] ; then rm $$a~; fi; done;
+	rm -f `find . -name "*.[ch]~*~"`
+	rm -rf latex
+
+superclean: clean
+	rm -f *core TAGS ktrace.out
+
+# EOF

@@ -192,8 +192,8 @@ if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
 
-# For FFMPEG/RTC.
-if [[ $SRS_RTC == YES && $SRS_NASM == NO && $SRS_OSX == NO ]]; then
+# For FFMPEG/RTC on Linux.
+if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 

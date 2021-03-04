@@ -359,7 +359,7 @@ if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
 fi
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st/libst.a ]]; then
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/libst.a ]]; then
     echo "The state-threads is ok.";
 else
     echo "Building state-threads.";
@@ -388,6 +388,7 @@ fi
 # check status
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; exit $ret; fi
 # Always update the links.
+(cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf st && ln -sf st-srs/${_ST_OBJ} st)
 (cd ${SRS_OBJS} && rm -rf st && ln -sf ${SRS_PLATFORM}/st-srs/${_ST_OBJ} st)
 if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 
@@ -507,20 +508,31 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     if [[ $SRS_OSX == YES ]]; then
         export KERNEL_BITS=64;
     fi
-    # Default to openssl 1.1, use 1.0 if required.
-    OPENSSL_CANDIDATE="openssl-1.1.0e" && OPENSSL_UNZIP="unzip -q ../../3rdparty/$OPENSSL_CANDIDATE.zip"
+    # Use 1.0 if required.
     if [[ $SRS_SSL_1_0 == YES ]]; then
+        OPENSSL_AR="$SRS_TOOL_AR -r" # For openssl 1.0, MUST specifies the args for ar or build faild.
         OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" && OPENSSL_UNZIP="tar xf ../../3rdparty/$OPENSSL_CANDIDATE.tar.gz"
+    else
+        OPENSSL_AR="$SRS_TOOL_AR"
+        OPENSSL_CANDIDATE="openssl-1.1-fit" && OPENSSL_UNZIP="cp -R ../../3rdparty/$OPENSSL_CANDIDATE ."
     fi
+    #
+    # https://wiki.openssl.org/index.php/Compilation_and_Installation#Configure_Options
+    # Already defined: -no-shared -no-threads -no-asm
+    # Should enable:  -no-dtls -no-dtls1 -no-ssl3
+    # Might able to disable: -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers
+    # Note that we do not disable more features, because no file could be removed.
+    #OPENSSL_OPTIONS="$OPENSSL_OPTIONS -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers"
+    #
     # cross build not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/$OPENSSL_CANDIDATE/_release/lib/libssl.a ]]; then
         echo "The $OPENSSL_CANDIDATE is ok.";
     else
         echo "Building $OPENSSL_CANDIDATE.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=`pwd`/_release $OPENSSL_OPTIONS &&
-            make CC=${SRS_TOOL_CC} AR="${SRS_TOOL_AR} -rs" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
+            make CC=${SRS_TOOL_CC} AR="${OPENSSL_AR}" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw &&
             cd .. && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl
         )
     fi
@@ -532,6 +544,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build $OPENSSL_CANDIDATE failed, ret=$ret"; exit $ret; fi
     # Always update the links.
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf openssl && ln -sf $OPENSSL_CANDIDATE/_release openssl)
     (cd ${SRS_OBJS} && rm -rf openssl && ln -sf ${SRS_PLATFORM}/${OPENSSL_LIB} openssl)
     if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "Build $OPENSSL_CANDIDATE failed."; exit -1; fi
 fi
@@ -558,29 +571,30 @@ if [[ $SRS_SRTP_ASM == YES ]]; then
     SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
 fi
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/srtp2/lib/libsrtp2.a ]]; then
-    echo "The srtp2 is ok.";
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
+    echo "The libsrtp-2-fit is ok.";
 else
-    echo "Building srtp2.";
+    echo "Building libsrtp-2-fit.";
     (
         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-        rm -rf libsrtp-2.0.0 && unzip -q ../../3rdparty/libsrtp-2.0.0.zip && cd libsrtp-2.0.0 &&
+        rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
         ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
-        cd .. && rm -rf srtp2 && ln -sf libsrtp-2.0.0/_release srtp2
+        cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
     )
 fi
 # check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srtp2 failed, ret=$ret"; exit $ret; fi
+ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libsrtp-2-fit failed, ret=$ret"; exit $ret; fi
 # Always update the links.
-(cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2.0.0/_release srtp2)
-if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build srtp2 static lib failed."; exit -1; fi
+(cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2)
+(cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2-fit/_release srtp2)
+if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit static lib failed."; exit -1; fi
 
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_RTC == YES ]]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus/lib/libopus.a ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/_release/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
         echo "Building opus-1.3.1.";
@@ -594,6 +608,7 @@ if [[ $SRS_RTC == YES ]]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build opus-1.3.1 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf opus && ln -sf opus-1.3.1/_release opus)
     (cd ${SRS_OBJS} && rm -rf opus && ln -sf ${SRS_PLATFORM}/opus-1.3.1/_release opus)
     if [ ! -f ${SRS_OBJS}/opus/lib/libopus.a ]; then echo "Build opus-1.3.1 failed."; exit -1; fi
 fi
@@ -613,33 +628,20 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         FFMPEG_OPTIONS="--disable-x86asm"
     fi
 
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/lib/libavcodec.a ]]; then
-        echo "The ffmpeg-4.2-fit is ok.";
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/_release/lib/libavcodec.a ]]; then
+        echo "The ffmpeg-4-fit is ok.";
     else
-        echo "Building ffmpeg-4.2-fit.";
+        echo "Building ffmpeg-4-fit.";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
             # Create a hidden directory .src
-            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit && ABS_OBJS=`(cd .. && pwd)` && ln -sf ../../../3rdparty/ffmpeg-4.2-fit .src &&
-            # Link source files under .src
-            _srs_link_file .src/ ./ ./ &&
-            for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
-                dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../ &&
-                for dir2 in `(cd .src/$dir && find . -maxdepth 1 -type d|grep '\./')`; do
-                    dir2=`basename $dir2` && mkdir -p $dir/$dir2 && _srs_link_file .src/$dir/$dir2/ $dir/$dir2/ ../../ &&
-                    for dir3 in `(cd .src/$dir/$dir2 && find . -maxdepth 1 -type d|grep '\./')`; do
-                        dir3=`basename $dir3` && mkdir -p $dir/$dir2/$dir3 && _srs_link_file .src/$dir/$dir2/$dir3/ $dir/$dir2/$dir3/ ../../../;
-                    done
-                done
-            done &&
-            # We should remove some files(in .gitignore) to keep them in local generated.
-            (cd ffbuild && rm -f config.fate config.log config.mak config.sh .config) &&
-            (cd libavutil && rm -f lib.version libavutil.version ffversion.h avconfig.h) &&
-            (rm -rf doc && rm -f config.asm config.h libavcodec/libavcodec.version libswresample/libswresample.version) &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && cp -R ../../../3rdparty/ffmpeg-4-fit/* . &&
+            # For libopus and other codecs.
+            ABS_OBJS=$(cd .. && pwd) &&
             # Build source code.
             PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
-              --prefix=`pwd`/${SRS_PLATFORM}/_release \
-              --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
+              --prefix=`pwd`/_release \
+              --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
@@ -649,14 +651,15 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
               --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
               --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
             make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
+            cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4-fit/_release ffmpeg
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4.2-fit failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build ffmpeg-4-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg)
-    if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4.2-fit failed."; exit -1; fi
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf ffmpeg && ln -sf ffmpeg-4-fit/_release ffmpeg)
+    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg-4-fit/_release ffmpeg)
+    if [ ! -f ${SRS_OBJS}/ffmpeg/lib/libavcodec.a ]; then echo "Build ffmpeg-4-fit failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -704,7 +707,7 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest/include/gtest/gtest.h ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0/include/gtest/gtest.h ]]; then
         echo "The gtest-1.6.0 is ok.";
     else
         echo "Build gtest-1.6.0";
@@ -717,6 +720,7 @@ if [ $SRS_UTEST = YES ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
     # Always update the links.
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest && ln -sf gtest-1.6.0 gtest)
     (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
     if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
 fi

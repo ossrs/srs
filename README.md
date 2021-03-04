@@ -58,6 +58,7 @@ docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 * Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
 * Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
+* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
 * Usage: How to publish SRT(Experimental) to SRS?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
 * Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
@@ -156,6 +157,11 @@ For previous versions, please read:
 
 ## V4 changes
 
+* v4.0, 2021-03-03, Fix [#2106][bug #2106], [#2011][bug #2011], RTMP/AAC transcode to Opus bug. 4.0.81
+* v4.0, 2021-03-02, Refine build script for FFmpeg and SRTP. 4.0.80
+* v4.0, 2021-03-02, Upgrade libsrtp from 2.0.0 to 2.3.0, with source code. 4.0.79
+* v4.0, 2021-03-01, Upgrade openssl from 1.1.0e to 1.1.1b, with source code. 4.0.78
+* v4.0, 2021-03-01, Enable Object Cache and Zero Copy Nack by default. 4.0.77
 * v4.0, 2021-02-28, RTC: Support high performance [Zero Copy NACK](https://github.com/ossrs/srs/commit/36ea67359e55c94ab044cee4b6a4ec901a83a287#commitcomment-47654868). 4.0.76
 * v4.0, 2021-02-27, RTC: Support [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008) for performance. 4.0.75
 * v4.0, 2021-02-12, RTC: Support [High Resolution(about 25ms) Timer](https://github.com/ossrs/srs/commit/c5d2027f9af77fc2d34a6b6ca941c0f0fbdd10c4#commitcomment-47655747). 4.0.72
@@ -1474,6 +1480,10 @@ Winlin
 [v3_EN_NgExec]:https://github.com/ossrs/srs/wiki/v3_EN_NgExec
 [v3_CN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_CN_ReusePort
 [v3_EN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_EN_ReusePort
+[v4_CN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_CN_SampleSRT
+[v4_EN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_EN_SampleSRT
+[v3_CN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_CN_SampleDASH
+[v3_EN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_EN_SampleDASH
 
 [bug #213]: https://github.com/ossrs/srs/issues/213
 [bug #194]: https://github.com/ossrs/srs/issues/194
@@ -1815,6 +1825,8 @@ Winlin
 [bug #1657-2]: https://github.com/ossrs/srs/issues/1657#issuecomment-722904004
 [bug #1657-3]: https://github.com/ossrs/srs/issues/1657#issuecomment-722971676
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
+[bug #2106]: https://github.com/ossrs/srs/issues/2106
+[bug #2011]: https://github.com/ossrs/srs/issues/2011
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

@@ -1,0 +1,9 @@
+*.sw[poe]
+examples/turn-client/tcp/tcp
+examples/turn-client/udp/udp
+examples/turn-server/add-software-attribute/add-software-attribute
+examples/turn-server/log/log
+examples/turn-server/simple/simple
+examples/turn-server/tcp/tcp
+examples/lt-cred-generator/lt-cred-generator
+examples/turn-server/lt-cred/lt-cred

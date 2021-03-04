@@ -439,6 +439,7 @@ public:
     bool has_ssrc(uint32_t ssrc);
 public:
     void add_rtp_extension_desc(int id, std::string uri);
+    void del_rtp_extension_desc(std::string uri);
     void set_direction(std::string direction);
     void set_codec_payload(SrsCodecPayload* payload);
     // auxiliary paylod include red, rtx, ulpfec.
