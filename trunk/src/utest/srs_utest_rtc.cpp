@@ -1143,8 +1143,8 @@ VOID TEST(KernelRTCTest, DTLSServerARQTest)
 
         EXPECT_EQ(1, cio.nn_client_hello);
         EXPECT_EQ(1, sio.nn_server_hello);
-        EXPECT_EQ(1, cio.nn_certificate);
-        EXPECT_EQ(1, sio.nn_new_session);
+        EXPECT_TRUE(1 <= cio.nn_certificate);
+        EXPECT_TRUE(1 <= sio.nn_new_session);
         EXPECT_EQ(0, sio.nn_change_cipher);
     }
 
