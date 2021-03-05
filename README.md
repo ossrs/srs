@@ -34,17 +34,17 @@ If success, please open [http://localhost:8080/](http://localhost:8080/), then p
 
 ```bash
 ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
-    -f flv rtmp://127.0.0.1/live/livestream
+    -f flv rtmp://localhost/live/livestream
 
 # Or by FFmpeg docker
 docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
   ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
-      -f flv -y rtmp://127.0.0.1/live/encoder
+      -f flv -y rtmp://localhost/live/encoder
 ```
 
 Play the following streams by players:
 
-* VLC: rtmp://127.0.0.1/live/livestream
+* VLC: rtmp://localhost/live/livestream
 * H5: [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
 * H5: [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
 
