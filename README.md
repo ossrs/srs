@@ -16,13 +16,12 @@ SRS is a RTMP/HLS/FLV streaming cluster, high efficiency, stable and simple.
 Recommend to run SRS by [docker][docker-srs3]:
 
 ```bash
-# From Aliyun CR, for developers in China.
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
-
-# From docker hub, depends on your network.
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
+
+# Or, for developers in China.
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
 
 > Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
@@ -36,6 +35,11 @@ If success, please open [http://localhost:8080/](http://localhost:8080/), then p
 ```bash
 ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
     -f flv rtmp://127.0.0.1/live/livestream
+
+# Or by FFmpeg docker
+docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
+      -f flv -y rtmp://127.0.0.1/live/encoder
 ```
 
 Play the following streams by players:
