@@ -16,13 +16,17 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 Recommend to run SRS by [docker][docker-srs4]:
 
 ```bash
-# From Aliyun CR, for developers in China.
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    ossrs/srs:v4.0.76
+
+# Or, for developers in China to speedup.
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
 
-# From docker hub, depends on your network.
+# For macOS to enable WebRTC, other OS please see #307.
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    ossrs/srs:v4.0.76
+    --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
 ```
 
 > Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
@@ -32,21 +36,27 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 
 > To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
 
-If success, please open [http://localhost:8080/](http://localhost:8080/), then publish 
+If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
 ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
-    -f flv rtmp://127.0.0.1/live/livestream
+    -f flv rtmp://localhost/live/livestream
+
+# Or by FFmpeg docker
+docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
+      -f flv -y rtmp://localhost/live/livestream
 ```
 
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
 
 Play the following streams by players:
 
-* VLC: rtmp://127.0.0.1/live/livestream
-* H5: [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
-* H5: [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
+* VLC(RTMP): rtmp://localhost/live/livestream
+* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
+* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
+* H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
 
 > The online demos and players are available on [ossrs.net](https://ossrs.net).
 
@@ -247,6 +257,7 @@ Other documents:
 
 ## V3 changes
 
+* v3.0, 2021-03-05, Refine usage to docker by default. 3.0.158
 * v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
 * <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
 * v3.0, 2020-12-26, For RTMP edge/forward, pass vhost in tcUrl, not in stream. 3.0.156
