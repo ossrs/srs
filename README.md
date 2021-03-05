@@ -29,7 +29,7 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 > please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
 > or [there](https://hub.docker.com/r/ossrs/srs/tags).
 
-If success, please open [http://localhost:8080/](http://localhost:8080/), then publish 
+If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
