@@ -44,9 +44,9 @@ docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encod
 
 Play the following streams by players:
 
-* VLC: rtmp://localhost/live/livestream
-* H5: [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
-* H5: [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
+* VLC(RTMP): rtmp://localhost/live/livestream
+* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
+* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
 
 > The online demos and players are available on [ossrs.net](https://ossrs.net).
 
