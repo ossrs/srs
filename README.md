@@ -39,7 +39,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
 # Or by FFmpeg docker
 docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
   ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
-      -f flv -y rtmp://localhost/live/encoder
+      -f flv -y rtmp://localhost/live/livestream
 ```
 
 Play the following streams by players:
