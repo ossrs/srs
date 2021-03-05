@@ -19,7 +19,7 @@ Recommend to run SRS by [docker][docker-srs3]:
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:3
 
-# Or, for developers in China.
+# Or, for developers in China to speedup.
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
 ```
