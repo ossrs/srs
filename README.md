@@ -186,6 +186,7 @@ Other documents:
 
 ## V4 changes
 
+* v4.0, 2021-03-08, Fix bug when client DTLS is passive. 4.0.82
 * v4.0, 2021-03-03, Fix [#2106][bug #2106], [#2011][bug #2011], RTMP/AAC transcode to Opus bug. 4.0.81
 * v4.0, 2021-03-02, Refine build script for FFmpeg and SRTP. 4.0.80
 * v4.0, 2021-03-02, Upgrade libsrtp from 2.0.0 to 2.3.0, with source code. 4.0.79

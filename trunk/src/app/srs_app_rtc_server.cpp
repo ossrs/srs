@@ -590,18 +590,23 @@ srs_error_t SrsRtcServer::do_create_session(
         srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
+    // Setup the negotiate DTLS by config.
+    local_sdp.session_negotiate_ = local_sdp.session_config_;
+
+    // Setup the negotiate DTLS role.
     if (remote_sdp.get_dtls_role() == "active") {
-        local_sdp.set_dtls_role("passive");
+        local_sdp.session_negotiate_.dtls_role = "passive";
     } else if (remote_sdp.get_dtls_role() == "passive") {
-        local_sdp.set_dtls_role("active");
+        local_sdp.session_negotiate_.dtls_role = "active";
     } else if (remote_sdp.get_dtls_role() == "actpass") {
-        local_sdp.set_dtls_role(local_sdp.session_config_.dtls_role);
+        local_sdp.session_negotiate_.dtls_role = local_sdp.session_config_.dtls_role;
     } else {
         // @see: https://tools.ietf.org/html/rfc4145#section-4.1
         // The default value of the setup attribute in an offer/answer exchange
         // is 'active' in the offer and 'passive' in the answer.
-        local_sdp.set_dtls_role("passive");
+        local_sdp.session_negotiate_.dtls_role = "passive";
     }
+    local_sdp.set_dtls_role(local_sdp.session_negotiate_.dtls_role);
 
     session->set_remote_sdp(remote_sdp);
     // We must setup the local SDP, then initialize the session object.

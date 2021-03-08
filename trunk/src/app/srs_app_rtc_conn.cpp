@@ -1920,7 +1920,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
         }
     }
 
-    SrsSessionConfig* cfg = &local_sdp.session_config_;
+    SrsSessionConfig* cfg = &local_sdp.session_negotiate_;
     if ((err = transport_->initialize(cfg)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
