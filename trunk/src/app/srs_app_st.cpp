@@ -163,6 +163,8 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h, SrsContext
 SrsFastCoroutine::~SrsFastCoroutine()
 {
     stop();
+
+    // TODO: FIXME: We must assert the cycle is done.
     
     srs_freep(trd_err);
 }
@@ -207,7 +209,6 @@ srs_error_t SrsFastCoroutine::start()
 void SrsFastCoroutine::stop()
 {
     if (disposed) {
-        // TODO: FIXME: If previous stop is wait on st_thread_join, this call should assert fail.
         return;
     }
     disposed = true;
