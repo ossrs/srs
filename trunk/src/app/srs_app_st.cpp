@@ -207,13 +207,14 @@ srs_error_t SrsFastCoroutine::start()
 void SrsFastCoroutine::stop()
 {
     if (disposed) {
+        // TODO: FIXME: If previous stop is wait on st_thread_join, this call should assert fail.
         return;
     }
     disposed = true;
     
     interrupt();
 
-    // When not started, the rd is NULL.
+    // When not started, the trd is NULL.
     if (trd) {
         void* res = NULL;
         int r0 = st_thread_join((st_thread_t)trd, &res);
@@ -245,7 +246,9 @@ void SrsFastCoroutine::interrupt()
     if (trd_err == srs_success) {
         trd_err = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
     }
-    
+
+    // Note that if another thread is stopping thread and waiting in st_thread_join,
+    // the interrupt will make the st_thread_join fail.
     st_thread_interrupt((st_thread_t)trd);
 }
 
