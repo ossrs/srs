@@ -471,17 +471,33 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
         return srs_error_wrap(err, "do handshake");
     }
 
-    while (BIO_ctrl_pending(bio_in) > 0) {
+    // If there is data in bio_in, read it to let SSL consume it.
+    // @remark Limit the max loop, to avoid the dead loop.
+    for (int i = 0; i < 1024 && BIO_ctrl_pending(bio_in) > 0; i++) {
         char buf[8092];
-        int nb = SSL_read(dtls, buf, sizeof(buf));
-        if (nb <= 0) {
+        int r0 = SSL_read(dtls, buf, sizeof(buf));
+        int r1 = SSL_get_error(dtls, r0);
+
+        if (r0 <= 0) {
+            // SSL_ERROR_ZERO_RETURN
+            //
+            // The TLS/SSL connection has been closed. If the protocol version is SSL 3.0 or higher,
+            // this result code is returned only if a closure alert has occurred in the protocol,
+            // i.e. if the connection has been closed cleanly.
+            // @see https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
+            // @remark Already close, never read again, because padding always exsists.
+            if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE) {
+                break;
+            }
             continue;
         }
-        srs_trace("DTLS: read nb=%d, data=[%s]", nb, srs_string_dumps_hex(buf, nb, 32).c_str());
 
-        if ((err = callback_->on_dtls_application_data(buf, nb)) != srs_success) {
-            return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
-                srs_string_dumps_hex(buf, nb, 32).c_str());
+        srs_trace("DTLS: read r0=%d, r1=%d, padding=%d, done=%d, data=[%s]",
+            r0, r1, BIO_ctrl_pending(bio_in), handshake_done_for_us, srs_string_dumps_hex(buf, r0, 32).c_str());
+
+        if ((err = callback_->on_dtls_application_data(buf, r0)) != srs_success) {
+            return srs_error_wrap(err, "on DTLS data, done=%d, r1=%d, size=%u, data=[%s]", handshake_done_for_us,
+                r1, r0, srs_string_dumps_hex(buf, r0, 32).c_str());
         }
     }
 
