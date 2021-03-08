@@ -118,7 +118,7 @@ protected:
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
     SrsDtlsVersion version_;
 protected:
-    // Whether the handhshake is done, for us only.
+    // Whether the handshake is done, for us only.
     // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
     bool handshake_done_for_us;
     // DTLS packet cache, only last out-going packet.

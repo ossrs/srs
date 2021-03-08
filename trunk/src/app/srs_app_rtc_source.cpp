@@ -433,6 +433,8 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
 
 bool SrsRtcStream::can_publish()
 {
+    // TODO: FIXME: Should check the status of bridger.
+    
     return !is_created_;
 }
 
