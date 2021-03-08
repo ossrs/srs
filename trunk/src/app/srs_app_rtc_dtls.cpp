@@ -418,6 +418,11 @@ srs_error_t SrsDtlsImpl::initialize(std::string version)
     SSL_set_ex_data(dtls, 0, this);
     SSL_set_info_callback(dtls, ssl_on_info);
 
+    // set dtls fragment
+    // @see https://stackoverflow.com/questions/62413602/openssl-server-packets-get-fragmented-into-270-bytes-per-packet
+    SSL_set_options(dtls, SSL_OP_NO_QUERY_MTU);
+    SSL_set_mtu(dtls, kRtpPacketSize);
+
     if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
         return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
     }
