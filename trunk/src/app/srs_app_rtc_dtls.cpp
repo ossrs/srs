@@ -826,7 +826,8 @@ srs_error_t SrsDtlsClientImpl::cycle()
     //      50ms, 100ms, 200ms, 400ms, 800ms, (1000ms,600ms), (200ms,1000ms,1000ms,1000ms),
     //      (400ms,1000ms,1000ms,1000ms,1000ms,1000ms,1000ms), ...
     // So when the max ARQ limit to 12 times, the max loop is about 103.
-    const int max_loop = 103;
+    // @remark We change the max sleep to 100ms, so we limit about (103*10)/2=500.
+    const int max_loop = 512;
 
     int arq_count = 0;
     for (int i = 0; arq_count < arq_max_retry && i < max_loop; i++) {
