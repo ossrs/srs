@@ -96,16 +96,24 @@ void ssl_on_info(const SSL* dtls, int where, int ret)
     }
 }
 
-SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version)
+SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
 {
     SSL_CTX* dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
 #else
     if (version == SrsDtlsVersion1_0) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_method());
+        if (role == "active") {
+            dtls_ctx = SSL_CTX_new(DTLSv1_client_method());
+        } else {
+            dtls_ctx = SSL_CTX_new(DTLSv1_server_method());
+        }
     } else if (version == SrsDtlsVersion1_2) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+        if (role == "active") {
+            dtls_ctx = SSL_CTX_new(DTLS_client_method());
+        } else {
+            dtls_ctx = SSL_CTX_new(DTLS_server_method());
+        }
     } else {
         // SrsDtlsVersionAuto, use version-flexible DTLS methods
         dtls_ctx = SSL_CTX_new(DTLS_method());
@@ -397,7 +405,7 @@ SrsDtlsImpl::~SrsDtlsImpl()
     srs_freepa(last_outgoing_packet_cache);
 }
 
-srs_error_t SrsDtlsImpl::initialize(std::string version)
+srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
@@ -409,7 +417,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx = srs_build_dtls_ctx(version_);
+    dtls_ctx = srs_build_dtls_ctx(version_, role);
 
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
@@ -648,11 +656,11 @@ SrsDtlsClientImpl::~SrsDtlsClientImpl()
     srs_freep(trd);
 }
 
-srs_error_t SrsDtlsClientImpl::initialize(std::string version)
+srs_error_t SrsDtlsClientImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version, role)) != srs_success) {
         return err;
     }
 
@@ -824,11 +832,11 @@ SrsDtlsServerImpl::~SrsDtlsServerImpl()
 {
 }
 
-srs_error_t SrsDtlsServerImpl::initialize(std::string version)
+srs_error_t SrsDtlsServerImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version, role)) != srs_success) {
         return err;
     }
 
@@ -897,7 +905,7 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
         impl = new SrsDtlsServerImpl(callback_);
     }
 
-    return impl->initialize(version);
+    return impl->initialize(version, role);
 }
 
 srs_error_t SrsDtls::start_active_handshake()
