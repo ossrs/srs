@@ -563,7 +563,7 @@ VOID TEST(KernelRTCTest, StringDumpHexTest)
     }
 }
 
-extern SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version);
+extern SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version, std::string role);
 
 class MockDtls
 {
@@ -625,7 +625,7 @@ srs_error_t MockDtls::initialize(std::string role, std::string version)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx = srs_build_dtls_ctx(version_);
+    dtls_ctx = srs_build_dtls_ctx(version_, role);
     dtls = SSL_new(dtls_ctx);
     srs_assert(dtls);
 

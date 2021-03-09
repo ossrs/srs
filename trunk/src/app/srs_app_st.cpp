@@ -163,6 +163,8 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h, SrsContext
 SrsFastCoroutine::~SrsFastCoroutine()
 {
     stop();
+
+    // TODO: FIXME: We must assert the cycle is done.
     
     srs_freep(trd_err);
 }
@@ -213,7 +215,7 @@ void SrsFastCoroutine::stop()
     
     interrupt();
 
-    // When not started, the rd is NULL.
+    // When not started, the trd is NULL.
     if (trd) {
         void* res = NULL;
         int r0 = st_thread_join((st_thread_t)trd, &res);
@@ -245,7 +247,9 @@ void SrsFastCoroutine::interrupt()
     if (trd_err == srs_success) {
         trd_err = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
     }
-    
+
+    // Note that if another thread is stopping thread and waiting in st_thread_join,
+    // the interrupt will make the st_thread_join fail.
     st_thread_interrupt((st_thread_t)trd);
 }
 

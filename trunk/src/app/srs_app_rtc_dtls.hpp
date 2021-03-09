@@ -130,7 +130,7 @@ public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
@@ -162,7 +162,7 @@ public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
@@ -183,7 +183,7 @@ public:
     SrsDtlsServerImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsServerImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
 protected:
     virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached);
