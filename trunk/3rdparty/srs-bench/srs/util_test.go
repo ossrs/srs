@@ -84,9 +84,11 @@ func prepareTest() error {
 		f, err := os.Open(filename)
 		if err != nil {
 			nfilename := path.Join("../", filename)
-			if fi, r0 := os.Stat(nfilename); r0 != nil && !fi.IsDir() {
+			f2, err := os.Open(nfilename)
+			if err != nil {
 				return filename, errors.Wrapf(err, "No video file at %v or %v", filename, nfilename)
 			}
+			defer f2.Close()
 
 			return nfilename, nil
 		}
