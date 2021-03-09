@@ -68,7 +68,7 @@ unsigned int dtls_timer_cb(SSL* dtls, unsigned int previous_us)
     // Never exceed the max timeout.
     timeout_us = srs_min(timeout_us, 30 * 1000 * 1000); // in us
 
-    srs_info("DTLS: ARQ timer cb timeout=%ums, previous=%ums", timeout_us, previous_us);
+    srs_info("DTLS: ARQ timer cb timeout=%ums, previous=%ums", timeout_us/1000, previous_us/1000);
 
     return timeout_us;
 }
@@ -503,7 +503,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     // When already done, only for us, we still got message from client,
     // it might be our response is lost, or application data.
     if (handshake_done_for_us) {
-        srs_trace("DTLS: After done, got %d bytes", nb_data);
+        srs_info("DTLS: After done, got %d bytes", nb_data);
     }
 
     int r0 = 0;
@@ -553,7 +553,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
             int size = BIO_get_mem_data(bio_out, (char**)&data);
 
             // Logging when got SSL original data.
-            state_trace((uint8_t*)data, size, true, r0, r1, false);
+            state_trace((uint8_t*)data, size, false, r0, r1, false);
 
             if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
                 return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
@@ -577,6 +577,12 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 srs_error_t SrsDtlsImpl::do_handshake()
 {
     srs_error_t err = srs_success;
+
+    // Done for use, ignore handshake packets. If need to ARQ the handshake packets,
+    // we should use SSL_read to handle it.
+    if (handshake_done_for_us) {
+        return err;
+    }
 
     // Do handshake and get the result.
     int r0 = SSL_do_handshake(dtls);
@@ -690,7 +696,7 @@ SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(c
     state_ = SrsDtlsStateInit;
 
     // the max dtls retry num is 12 in openssl.
-    arq_max_retry = 12 * 2; // ARQ for ClientHello and Certificate.
+    arq_max_retry = 12 * 2; // Max ARQ limit shared for ClientHello and Certificate.
     reset_timer_ = true;
 }
 
@@ -745,15 +751,17 @@ srs_error_t SrsDtlsClientImpl::on_final_out_data(uint8_t* data, int size)
     // If we are sending client hello, change from init to new state.
     if (state_ == SrsDtlsStateInit && size > 14 && data[0] == 22 && data[13] == 1) {
         state_ = SrsDtlsStateClientHello;
+        return err;
     }
 
-    // If we are sending certificate, change from SrsDtlsStateServerHello to new state.
-    if (state_ == SrsDtlsStateServerHello && size > 14 && data[0] == 22 && data[13] == 11) {
+    // If we are sending certificate, change from SrsDtlsStateClientHello to new state.
+    if (state_ == SrsDtlsStateClientHello && size > 14 && data[0] == 22 && data[13] == 11) {
         state_ = SrsDtlsStateClientCertificate;
 
         // When we send out the certificate, we should reset the timer.
         reset_timer_ = true;
         srs_info("DTLS: Reset the timer for ServerHello");
+        return err;
     }
 
     return err;
@@ -850,11 +858,13 @@ srs_error_t SrsDtlsClientImpl::cycle()
 
         // There is timeout to wait, so we should wait, because there is no packet in openssl.
         if (timeout > 0) {
-            // Note that if we use very small timeout, say 10ms, the client might got two ClientHello,
-            // then it confused and send HelloVerifyRequest(3) to check it, this is not the efficiency
-            // way, so we limit the min timeout here to make it faster.
-            // TODO: FIXME: Config it.
-            srs_usleep(srs_max(50 * SRS_UTIME_MILLISECONDS, timeout));
+            // Never wait too long, because we might need to retransmit other messages.
+            // For example, we have transmit 2 ClientHello as [50ms, 100ms] then we sleep(200ms),
+            // during this we reset the openssl timer to 50ms and need to retransmit Certificate,
+            // we still need to wait 200ms not 50ms.
+            timeout = srs_min(100 * SRS_UTIME_MILLISECONDS, timeout);
+            timeout = srs_max(50 * SRS_UTIME_MILLISECONDS, timeout);
+            srs_usleep(timeout);
             continue;
         }
 
@@ -869,6 +879,9 @@ srs_error_t SrsDtlsClientImpl::cycle()
         // messages and returns 1. If too many timeouts had expired without progress or an error
         // occurs, it returns -1.
         r0 = DTLSv1_handle_timeout(dtls); r1 = SSL_get_error(dtls, r0);
+        if (r0 == 0) {
+            continue; // No timeout had expired.
+        }
         if (r0 != 1) {
             return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
         }
