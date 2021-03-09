@@ -18,50 +18,44 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-package srs
+package vnet
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/ossrs/go-oryx-lib/logger"
-	"net/http"
-	"strings"
+	"net"
 )
 
-type statRTC struct {
-	Publishers struct {
-		Expect int `json:"expect"`
-		Alive  int `json:"alive"`
-	} `json:"publishers"`
-	Subscribers struct {
-		Expect int `json:"expect"`
-		Alive  int `json:"alive"`
-	} `json:"subscribers"`
-	PeerConnection interface{} `json:"random-pc"`
+func (v *UDPProxy) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err error) {
+	v.workers.Range(func(key, value interface{}) bool {
+		if nn, err := value.(*aUDPProxyWorker).Deliver(sourceAddr, destAddr, b); err != nil {
+			return false // Fail, abort.
+		} else if nn == len(b) {
+			return false // Done.
+		}
+
+		return true // Deliver by next worker.
+	})
+	return
 }
 
-var StatRTC statRTC
-
-func HandleStat(ctx context.Context, mux *http.ServeMux, l string) {
-	if strings.HasPrefix(l, ":") {
-		l = "127.0.0.1" + l
+func (v *aUDPProxyWorker) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err error) {
+	addr, ok := sourceAddr.(*net.UDPAddr)
+	if !ok {
+		return 0, nil
 	}
 
-	logger.Tf(ctx, "Handle http://%v/api/v1/sb/rtc", l)
-	mux.HandleFunc("/api/v1/sb/rtc", func(w http.ResponseWriter, r *http.Request) {
-		res := &struct {
-			Code int         `json:"code"`
-			Data interface{} `json:"data"`
-		}{
-			0, &StatRTC,
-		}
+	// TODO: Support deliver packet from real server to vnet.
+	// If packet is from vent, proxy to real server.
+	var realSocket *net.UDPConn
+	if value, ok := v.endpoints.Load(addr.String()); !ok {
+		return 0, nil
+	} else {
+		realSocket = value.(*net.UDPConn)
+	}
 
-		b, err := json.Marshal(res)
-		if err != nil {
-			logger.Wf(ctx, "marshal %v err %+v", res, err)
-			return
-		}
+	// Send to real server.
+	if _, err := realSocket.Write(b); err != nil {
+		return 0, err
+	}
 
-		w.Write(b)
-	})
+	return len(b), nil
 }

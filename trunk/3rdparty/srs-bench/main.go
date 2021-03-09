@@ -1,3 +1,23 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2021 srs-bench(ossrs)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package main
 
 import (
@@ -42,7 +62,7 @@ func main() {
 	flag.IntVar(&delay, "delay", 50, "")
 
 	var statListen string
-	flag.StringVar(&statListen, "stat", ":18000", "")
+	flag.StringVar(&statListen, "stat", "", "")
 
 	flag.Usage = func() {
 		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
@@ -52,7 +72,7 @@ func main() {
 		fmt.Println(fmt.Sprintf("   -delay  The start delay in ms for each client or stream to simulate. Default: 50"))
 		fmt.Println(fmt.Sprintf("   -al     [Optional] Whether enable audio-level. Default: true"))
 		fmt.Println(fmt.Sprintf("   -twcc   [Optional] Whether enable vdieo-twcc. Default: true"))
-		fmt.Println(fmt.Sprintf("   -stat   [Optional] The stat server API listen port. Default: :18000"))
+		fmt.Println(fmt.Sprintf("   -stat   [Optional] The stat server API listen port."))
 		fmt.Println(fmt.Sprintf("Player or Subscriber:"))
 		fmt.Println(fmt.Sprintf("   -sr     The url to play/subscribe. If sn exceed 1, auto append variable %%d."))
 		fmt.Println(fmt.Sprintf("   -da     [Optional] The file path to dump audio, ignore if empty."))
