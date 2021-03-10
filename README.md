@@ -186,6 +186,7 @@ Other documents:
 
 ## V4 changes
 
+* v4.0, 2021-03-09, DTLS: Fix ARQ bug, use openssl timeout. 4.0.84
 * v4.0, 2021-03-08, DTLS: Fix dead loop by duplicated Alert message. 4.0.83
 * v4.0, 2021-03-08, Fix bug when client DTLS is passive. 4.0.82
 * v4.0, 2021-03-03, Fix [#2106][bug #2106], [#2011][bug #2011], RTMP/AAC transcode to Opus bug. 4.0.81

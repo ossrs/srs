@@ -34,7 +34,7 @@
 /research/speex/
 /test/
 .DS_Store
-srs
+./srs
 *.dSYM/
 *.gcov
 *.ts
