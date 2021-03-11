@@ -1116,14 +1116,6 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         return err;
     }
 
-    // If payload type is configed to drop, ignore this packet.
-    if (pt_to_drop_) {
-        uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
-        if (pt_to_drop_ == pt) {
-            return err;
-        }
-    }
-
     // Decode the header first.
     if (twcc_id_) {
         // We must parse the TWCC from RTP header before SRTP unprotect, because:
@@ -1137,6 +1129,14 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
             }
         } else {
             srs_error_reset(err);
+        }
+    }
+
+    // If payload type is configed to drop, ignore this packet.
+    if (pt_to_drop_) {
+        uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
+        if (pt_to_drop_ == pt) {
+            return err;
         }
     }
 
