@@ -60,7 +60,7 @@ jobs:
       #    uses a compiled language
       - name: Build SRS
         run: |
-         ./configure && make
+         cd trunk && ./configure && make
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v1
