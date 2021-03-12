@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 srs-bench(ossrs)
+// Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,18 +23,38 @@ package srs
 import (
 	"context"
 	"fmt"
-	"github.com/ossrs/go-oryx-lib/errors"
-	"github.com/ossrs/go-oryx-lib/logger"
-	"github.com/pion/interceptor"
-	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
 	"github.com/pion/transport/vnet"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/logger"
+	"github.com/pion/interceptor"
+	"github.com/pion/rtcp"
+	"github.com/pion/rtp"
 )
+
+func TestMain(m *testing.M) {
+	if err := prepareTest(); err != nil {
+		logger.Ef(nil, "Prepare test fail, err %+v", err)
+		os.Exit(-1)
+	}
+
+	// Disable the logger during all tests.
+	if *srsLog == false {
+		olw := logger.Switch(ioutil.Discard)
+		defer func() {
+			logger.Switch(olw)
+		}()
+	}
+
+	os.Exit(m.Run())
+}
 
 // Basic use scenario, publish a stream, then play it.
 func TestRtcBasic_PublishPlay(t *testing.T) {
@@ -50,12 +70,20 @@ func TestRtcBasic_PublishPlay(t *testing.T) {
 		}
 	}(ctx)
 
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			resource.Close()
+		}
+	}()
+
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
 	// The event notify.
 	var thePublisher *TestPublisher
 	var thePlayer *TestPlayer
+
 	mainReady, mainReadyCancel := context.WithCancel(context.Background())
 	publishReady, publishReadyCancel := context.WithCancel(context.Background())
 
@@ -66,76 +94,110 @@ func TestRtcBasic_PublishPlay(t *testing.T) {
 		defer cancel()
 
 		doInit := func() error {
-			playOK := *srsPlayOKPackets
-			vnetClientIP := *srsVnetClientIP
-
-			// Create top level test object.
-			api, err := NewTestWebRTCAPI()
-			if err != nil {
-				return err
-			}
-			defer api.Close()
-
+			playOK, vnetClientIP := *srsPlayOKPackets, *srsVnetClientIP
 			streamSuffix := fmt.Sprintf("basic-publish-play-%v-%v", os.Getpid(), rand.Int())
-			play := NewTestPlayer(api, func(play *TestPlayer) {
+
+			// Initialize player with private api.
+			if play, err := NewTestPlayer(nil, func(play *TestPlayer) error {
 				play.streamSuffix = streamSuffix
-			})
-			defer play.Close()
+				resources = append(resources, play)
 
-			pub := NewTestPublisher(api, func(pub *TestPublisher) {
-				pub.streamSuffix = streamSuffix
-				pub.iceReadyCancel = publishReadyCancel
-			})
-			defer pub.Close()
+				api, err := NewTestWebRTCAPI()
+				if err != nil {
+					return err
+				}
+				resources = append(resources, api)
+				play.api = api
 
-			if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-				var nnWriteRTP, nnReadRTP, nnWriteRTCP, nnReadRTCP int64
-				api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
-					i.rtpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
-						nn, attr, err := i.nextRTPReader.Read(buf, attributes)
-						nnReadRTP++
-						return nn, attr, err
-					}
-					i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-						nn, err := i.nextRTPWriter.Write(header, payload, attributes)
-
-						nnWriteRTP++
-						logger.Tf(ctx, "publish rtp=(read:%v write:%v), rtcp=(read:%v write:%v) packets",
-							nnReadRTP, nnWriteRTP, nnReadRTCP, nnWriteRTCP)
-						return nn, err
-					}
-				}))
-				api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
-					i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
-						nn, attr, err := i.nextRTCPReader.Read(buf, attributes)
-						nnReadRTCP++
-						return nn, attr, err
-					}
-					i.rtcpWriter = func(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
-						nn, err := i.nextRTCPWriter.Write(pkts, attributes)
-						nnWriteRTCP++
-						return nn, err
-					}
-				}))
-			}, func(api *TestWebRTCAPI) {
-				var nn uint64
-				api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
-					i.rtpReader = func(payload []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
-						if nn++; nn >= uint64(playOK) {
-							cancel() // Completed.
+				var nnPlayWriteRTCP, nnPlayReadRTCP, nnPlayWriteRTP, nnPlayReadRTP uint64
+				if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
+					api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
+						i.rtpReader = func(payload []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+							if nnPlayReadRTP++; nnPlayReadRTP >= uint64(playOK) {
+								cancel() // Completed.
+							}
+							logger.Tf(ctx, "Play rtp=(recv:%v, send:%v), rtcp=(recv:%v send:%v) packets",
+								nnPlayReadRTP, nnPlayWriteRTP, nnPlayReadRTCP, nnPlayWriteRTCP)
+							return i.nextRTPReader.Read(payload, attributes)
 						}
-						logger.Tf(ctx, "play got %v packets", nn)
-						return i.nextRTPReader.Read(payload, attributes)
-					}
-				}))
+					}))
+					api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+						i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+							nn, attr, err := i.nextRTCPReader.Read(buf, attributes)
+							nnPlayReadRTCP++
+							return nn, attr, err
+						}
+						i.rtcpWriter = func(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
+							nn, err := i.nextRTCPWriter.Write(pkts, attributes)
+							nnPlayWriteRTCP++
+							return nn, err
+						}
+					}))
+				}); err != nil {
+					return err
+				}
+
+				return nil
 			}); err != nil {
 				return err
+			} else {
+				thePlayer = play
 			}
 
-			// Set the available objects.
+			// Initialize publisher with private api.
+			if pub, err := NewTestPublisher(nil, func(pub *TestPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+
+				api, err := NewTestWebRTCAPI()
+				if err != nil {
+					return err
+				}
+				resources = append(resources, api)
+				pub.api = api
+
+				var nnPubWriteRTCP, nnPubReadRTCP, nnPubWriteRTP, nnPubReadRTP uint64
+				if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
+					api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
+						i.rtpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+							nn, attr, err := i.nextRTPReader.Read(buf, attributes)
+							nnPubReadRTP++
+							return nn, attr, err
+						}
+						i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+							nn, err := i.nextRTPWriter.Write(header, payload, attributes)
+							nnPubWriteRTP++
+							logger.Tf(ctx, "Publish rtp=(recv:%v, send:%v), rtcp=(recv:%v send:%v) packets",
+								nnPubReadRTP, nnPubWriteRTP, nnPubReadRTCP, nnPubWriteRTCP)
+							return nn, err
+						}
+					}))
+					api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+						i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+							nn, attr, err := i.nextRTCPReader.Read(buf, attributes)
+							nnPubReadRTCP++
+							return nn, attr, err
+						}
+						i.rtcpWriter = func(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
+							nn, err := i.nextRTCPWriter.Write(pkts, attributes)
+							nnPubWriteRTCP++
+							return nn, err
+						}
+					}))
+				}); err != nil {
+					return err
+				}
+
+				return nil
+			}); err != nil {
+				return err
+			} else {
+				thePublisher = pub
+			}
+
+			// Init done.
 			mainReadyCancel()
-			thePublisher = pub
-			thePlayer = play
 
 			<-ctx.Done()
 			return nil
@@ -158,17 +220,10 @@ func TestRtcBasic_PublishPlay(t *testing.T) {
 		case <-mainReady.Done():
 		}
 
-		doPublish := func() error {
-			if err := thePublisher.Run(logger.WithContext(ctx), cancel); err != nil {
-				return err
-			}
-
-			logger.Tf(ctx, "pub done")
-			return nil
-		}
-		if err := doPublish(); err != nil {
+		if err := thePublisher.Run(logger.WithContext(ctx), cancel); err != nil {
 			r2 = err
 		}
+		logger.Tf(ctx, "pub done")
 	}()
 
 	// Run player.
@@ -180,27 +235,13 @@ func TestRtcBasic_PublishPlay(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-mainReady.Done():
-		}
-
-		select {
-		case <-ctx.Done():
-			return
 		case <-publishReady.Done():
 		}
 
-		doPlay := func() error {
-			if err := thePlayer.Run(logger.WithContext(ctx), cancel); err != nil {
-				return err
-			}
-
-			logger.Tf(ctx, "play done")
-			return nil
-		}
-		if err := doPlay(); err != nil {
+		if err := thePlayer.Run(logger.WithContext(ctx), cancel); err != nil {
 			r3 = err
 		}
-
+		logger.Tf(ctx, "play done")
 	}()
 }
 
@@ -222,21 +263,31 @@ func TestRtcDTLS_ClientActive_Default(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -276,21 +327,31 @@ func TestRtcDTLS_ClientPassive_Default(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -327,21 +388,31 @@ func TestRtcDTLS_ClientActive_Duplicated_Alert(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -385,21 +456,31 @@ func TestRtcDTLS_ClientPassive_Duplicated_Alert(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -450,21 +531,31 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -527,21 +618,31 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -603,21 +704,31 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -690,21 +801,31 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -774,21 +895,31 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-arq-certificate-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -850,21 +981,31 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-certificate-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -926,21 +1067,31 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *test
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-active-arq-certificate-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupActive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -1011,21 +1162,31 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *tes
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-certificate-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -1087,10 +1248,14 @@ func TestRtcDTLS_ClientPassive_ARQ_DropAllAfter_ClientHello(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
@@ -1145,10 +1310,14 @@ func TestRtcDTLS_ClientPassive_ARQ_DropAllAfter_ServerHello(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
@@ -1203,10 +1372,14 @@ func TestRtcDTLS_ClientPassive_ARQ_DropAllAfter_Certificate(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
@@ -1261,10 +1434,14 @@ func TestRtcDTLS_ClientPassive_ARQ_DropAllAfter_ChangeCipherSpec(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
@@ -1320,21 +1497,31 @@ func TestRtcDTLS_ClientPassive_ARQ_VeryBadNetwork(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
@@ -1397,21 +1584,31 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 		defer api.Close()
 
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
-		p := NewTestPublisher(api, func(p *TestPublisher) {
+		p, err := NewTestPublisher(api, func(p *TestPublisher) error {
 			p.streamSuffix = streamSuffix
 			p.onOffer = testUtilSetupPassive
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		defer p.Close()
 
 		if err := api.Setup(vnetClientIP, func(api *TestWebRTCAPI) {
-			var nn int64
+			var nnRTCP, nnRTP int64
 			api.registry.Add(NewRTPInterceptor(func(i *RTPInterceptor) {
 				i.rtpWriter = func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
-					if nn++; nn >= int64(publishOK) {
+					nnRTP++
+					return i.nextRTPWriter.Write(header, payload, attributes)
+				}
+			}))
+			api.registry.Add(NewRTCPInterceptor(func(i *RTCPInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					if nnRTCP++; nnRTCP >= int64(publishOK) && nnRTP >= int64(publishOK) {
 						cancel() // Send enough packets, done.
 					}
-					logger.Tf(ctx, "publish write %v packets", nn)
-					return i.nextRTPWriter.Write(header, payload, attributes)
+					logger.Tf(ctx, "publish write %v RTP read %v RTCP packets", nnRTP, nnRTCP)
+					return i.nextRTCPReader.Read(buf, attributes)
 				}
 			}))
 		}, func(api *TestWebRTCAPI) {
