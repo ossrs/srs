@@ -606,12 +606,10 @@ func NewTestWebRTCAPI(options ...TestWebRTCAPIOptionFunc) (*TestWebRTCAPI, error
 func (v *TestWebRTCAPI) Close() error {
 	if v.proxy != nil {
 		v.proxy.Close()
-		v.proxy = nil
 	}
 
 	if v.router != nil {
 		v.router.Stop()
-		v.router = nil
 	}
 
 	return nil
@@ -702,13 +700,11 @@ func NewTestPlayer(api *TestWebRTCAPI, options ...TestPlayerOptionFunc) (*TestPl
 func (v *TestPlayer) Close() error {
 	if v.pc != nil {
 		v.pc.Close()
-		v.pc = nil
 	}
 
 	for _, receiver := range v.receivers {
 		receiver.Stop()
 	}
-	v.receivers = nil
 
 	return nil
 }
