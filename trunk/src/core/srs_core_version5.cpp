@@ -21,11 +21,4 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SRS_CORE_VERSION4_HPP
-#define SRS_CORE_VERSION4_HPP
-
-#define VERSION_MAJOR       4
-#define VERSION_MINOR       0
-#define SRS_VERSION4_REVISION 85
-
-#endif
+#include <srs_core_version4.hpp>
