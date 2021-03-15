@@ -122,7 +122,7 @@ Other documents:
 - [x] Edge server supports remuxing RTMP to HTTP-FLV([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv]). As for HLS([CN][v3_CN_DeliveryHLS], [EN][v3_EN_DeliveryHLS]) edge server, recomment to use HTTP edge server, such as [NGINX](http://nginx.org/).
 - [x] Support HLS with audio-only([CN][v3_CN_DeliveryHLS2], [EN][v3_EN_DeliveryHLS2]), which need to build the timestamp from AAC samples, so we enhanced it please read [#547][bug #547].
 - [x] Support HLS with mp3(h.264+mp3) audio codec, please read [bug #301][bug #301].
-- [x] Support remuxing RTMP to http FLV/MP3/AAC/TS live streaming, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
+- [x] Support transmux RTMP to HTTP-FLV/MP3/AAC/TS, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
 - [x] Support ingesting([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) other protocols to SRS by FFMPEG.
 - [x] Support RTMP long time(>4.6hours) publishing/playing, with the timestamp corrected.
 - [x] Support publishing h264 raw stream([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2]) by srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp]).
@@ -140,42 +140,46 @@ Other documents:
 - [x] Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]) and \_\_defaultVhost\_\_.
 - [x] Support reloading([CN][v1_CN_Reload], [EN][v1_EN_Reload]) to apply changes of config.
 - [x] Support listening at multiple ports.
-- [x] Support forwarding([CN][v3_CN_Forward], [EN][v3_EN_Forward]) from master to slave server.
-- [x] Support transcoding([CN][v3_CN_FFMPEG], [EN][v3_EN_FFMPEG]) live streaming by FFMPEG.
+- [x] Support forwarding([CN][v3_CN_Forward], [EN][v3_EN_Forward]) to other RTMP servers.
+- [x] Support transcoding([CN][v3_CN_FFMPEG], [EN][v3_EN_FFMPEG]) by FFMPEG.
 - [x] All wikis are writen in [Chinese][v3_CN_Home] and [English][v3_EN_Home]. 
 - [x] Enhanced json, replace NXJSON(LGPL) with json-parser(BSD), read [#904][bug #904].
 - [x] Support valgrind and latest ARM by patching ST, read [ST#1](https://github.com/ossrs/state-threads/issues/1) and [ST#2](https://github.com/ossrs/state-threads/issues/2).
-- [x] Support tracable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
-- [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(200kbps), CPU 82%, 203MB.
+- [x] Support traceable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
+- [x] High performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]) RTMP/HTTP-FLV, 6000+ connections.
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
 - [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
-- [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
 - [x] Improve test coverage for core/kernel/protocol/service.
-- [x] [Experimental] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
+- [x] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
+- [x] Support multiple processes by ReusePort([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT]), [#775][bug #775].
+- [x] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
+- [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
+- [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
+- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
 - [x] [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250][bug #250].
 - [x] [Experimental] Support pushing RTSP, please read [bug #133][bug #133].
-- [x] [Experimental] Support pushing FLV over HTTP POST, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
-- [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
-- [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
+- [x] [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
-- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
-- [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
-- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
-- [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
+- [x] [Deprecated] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
-- [ ] Enhanced forwarding with vhost and variables.
-- [ ] Support source cleanup for idle streams.
-- [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
-- [ ] Support UDP protocol such as QUIC or KCP in cluster.
-- [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
+- [ ] Enhanced forwarding with vhost and variables, [#1342][bug #1342].
+- [ ] Support DVR to Cloud Storage, [#1193][bug #1193].
+- [ ] Support transmux RTC to RTMP, [#2093][bug #2093].
+- [ ] Support H.265 over RTMP and HLS, [#465][bug #465].
+- [ ] Support IETF-QUIC for WebRTC Cluster, [#2091][bug #2091].
+- [ ] Improve RTC performance to 5K by multiple threading, [#2188][bug #2188].
+- [ ] Support source cleanup for idle streams, [#413][bug #413].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
 
@@ -1848,6 +1852,12 @@ Winlin
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #1548]: https://github.com/ossrs/srs/issues/1548
 [bug #1694]: https://github.com/ossrs/srs/issues/1694
+[bug #413]: https://github.com/ossrs/srs/issues/413
+[bug #2091]: https://github.com/ossrs/srs/issues/2091
+[bug #1342]: https://github.com/ossrs/srs/issues/1342
+[bug #2093]: https://github.com/ossrs/srs/issues/2093
+[bug #2188]: https://github.com/ossrs/srs/issues/2188
+[bug #1193]: https://github.com/ossrs/srs/issues/1193
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
