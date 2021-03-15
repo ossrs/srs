@@ -174,6 +174,7 @@ Other documents:
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
 - [ ] Enhanced forwarding with vhost and variables, [#1342][bug #1342].
+- [ ] Support DVR to Cloud Storage, [#1193][bug #1193].
 - [ ] Support transmux RTC to RTMP, [#2093][bug #2093].
 - [ ] Support H.265 over RTMP and HLS, [#465][bug #465].
 - [ ] Support IETF-QUIC for WebRTC Cluster, [#2091][bug #2091].
@@ -1856,6 +1857,7 @@ Winlin
 [bug #1342]: https://github.com/ossrs/srs/issues/1342
 [bug #2093]: https://github.com/ossrs/srs/issues/2093
 [bug #2188]: https://github.com/ossrs/srs/issues/2188
+[bug #1193]: https://github.com/ossrs/srs/issues/1193
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
