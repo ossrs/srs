@@ -54,6 +54,7 @@ using namespace std;
 
 SrsPps* _srs_pps_rloss = new SrsPps();
 SrsPps* _srs_pps_sloss = new SrsPps();
+SrsPps* _srs_pps_aloss = new SrsPps();
 
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000

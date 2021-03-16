@@ -77,6 +77,7 @@ extern SrsPps* _srs_pps_rmnack;
 
 extern SrsPps* _srs_pps_rloss;
 extern SrsPps* _srs_pps_sloss;
+extern SrsPps* _srs_pps_aloss;
 
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
@@ -778,8 +779,9 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 
     // TODO: FIXME: Should move to Hybrid server stat.
     string loss_desc;
-    if (_srs_pps_rloss->r10s() || _srs_pps_sloss->r10s()) {
-        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", _srs_pps_rloss->r10s(), _srs_pps_sloss->r10s());
+    _srs_pps_aloss->update();
+    if (_srs_pps_rloss->r10s() || _srs_pps_sloss->r10s() || _srs_pps_aloss->r10s()) {
+        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d,a:%d)", _srs_pps_rloss->r10s(), _srs_pps_sloss->r10s(), _srs_pps_aloss->r10s());
         loss_desc = buf;
     }
 

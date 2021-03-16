@@ -40,6 +40,8 @@ SrsPps* _srs_thread_sync_100us = new SrsPps();
 SrsPps* _srs_thread_sync_1000us = new SrsPps();
 SrsPps* _srs_thread_sync_plus = new SrsPps();
 
+extern SrsPps* _srs_pps_aloss;
+
 uint64_t srs_covert_cpuset(cpu_set_t v)
 {
 #ifdef SRS_OSX
@@ -897,6 +899,7 @@ srs_error_t SrsAsyncRecvManager::do_start()
 
             // Drop packet if exceed max recv queue size.
             if ((int)packets_->size() >= max_recv_queue_) {
+                ++_srs_pps_aloss->sugar;
                 continue;
             }
 
