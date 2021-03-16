@@ -877,9 +877,9 @@ static SrsSnmpUdpStat _srs_snmp_udp_stat;
 
 void srs_update_udp_snmp_statistic()
 {
+#ifndef SRS_OSX
     SrsSnmpUdpStat& r = _srs_snmp_udp_stat;
 
-#ifndef SRS_OSX
     FILE* f = fopen("/proc/net/snmp", "r");
     if (f == NULL) {
         return;

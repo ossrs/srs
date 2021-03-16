@@ -74,6 +74,11 @@ public:
     }
 };
 
+#ifdef SRS_OSX
+    typedef uint64_t cpu_set_t;
+    #define CPU_ZERO(p) *p = 0
+#endif
+
 // The information for a thread.
 class SrsThreadEntry
 {
@@ -89,6 +94,10 @@ public:
     pthread_t trd;
     // The exit error of thread.
     srs_error_t err;
+    // @see https://man7.org/linux/man-pages/man3/pthread_setaffinity_np.3.html
+    cpu_set_t cpuset; // Config value.
+    cpu_set_t cpuset2; // Actual value.
+    bool cpuset_ok;
 public:
     SrsThreadEntry();
     virtual ~SrsThreadEntry();

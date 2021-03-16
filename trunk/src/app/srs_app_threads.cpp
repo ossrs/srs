@@ -40,6 +40,21 @@ SrsPps* _srs_thread_sync_100us = new SrsPps();
 SrsPps* _srs_thread_sync_1000us = new SrsPps();
 SrsPps* _srs_thread_sync_plus = new SrsPps();
 
+uint64_t srs_covert_cpuset(cpu_set_t v)
+{
+#ifdef SRS_OSX
+    return v;
+#else
+    uint64_t iv = 0;
+    for (int i = 0; i <= 63; i++) {
+        if (CPU_ISSET(i, &v)) {
+            iv |= uint64_t(1) << i;
+        }
+    }
+    return iv;
+#endif
+}
+
 SrsThreadMutex::SrsThreadMutex()
 {
     // https://man7.org/linux/man-pages/man3/pthread_mutexattr_init.3.html
@@ -88,6 +103,11 @@ SrsThreadEntry::SrsThreadEntry()
     num = 0;
 
     err = srs_success;
+
+    // Set affinity mask to include CPUs 0 to 7
+    CPU_ZERO(&cpuset);
+    CPU_ZERO(&cpuset2);
+    cpuset_ok = false;
 }
 
 SrsThreadEntry::~SrsThreadEntry()
@@ -132,10 +152,29 @@ srs_error_t SrsThreadPool::initialize()
         return srs_error_wrap(err, "initialize st failed");
     }
 
+    SrsThreadEntry* entry = (SrsThreadEntry*)entry_;
+#ifndef SRS_OSX
+    // Load CPU affinity from config.
+    int cpu_start = 0, cpu_end = 0;
+    entry->cpuset_ok = _srs_config->get_threads_cpu_affinity("master", &cpu_start, &cpu_end);
+    for (int i = cpu_start; entry->cpuset_ok && i <= cpu_end; i++) {
+        CPU_SET(i, &entry->cpuset);
+    }
+#endif
+
+    int r0 = 0, r1 = 0;
+#ifndef SRS_OSX
+    if (entry->cpuset_ok) {
+        r0 = pthread_setaffinity_np(pthread_self(), sizeof(entry->cpuset), &entry->cpuset);
+    }
+    r1 = pthread_getaffinity_np(pthread_self(), sizeof(entry->cpuset2), &entry->cpuset2);
+#endif
+
     interval_ = _srs_config->get_threads_interval();
     bool async_srtp = _srs_config->get_threads_async_srtp();
-    srs_trace("Thread #%d(%s): init name=%s, interval=%dms, async_srtp=%d",
-        entry_->num, entry_->label.c_str(), entry_->name.c_str(), srsu2msi(interval_), async_srtp);
+    srs_trace("Thread #%d(%s): init name=%s, interval=%dms, async_srtp=%d, cpuset=%d/%d-0x%" PRIx64 "/%d-0x%" PRIx64,
+        entry->num, entry->label.c_str(), entry->name.c_str(), srsu2msi(interval_), async_srtp,
+        entry->cpuset_ok, r0, srs_covert_cpuset(entry->cpuset), r1, srs_covert_cpuset(entry->cpuset2));
 
     return err;
 }
@@ -166,6 +205,15 @@ srs_error_t SrsThreadPool::execute(string label, srs_error_t (*start)(void* arg)
     char buf[256];
     snprintf(buf, sizeof(buf), "srs-%s-%d", entry->label.c_str(), entry->num);
     entry->name = buf;
+
+#ifndef SRS_OSX
+    // Load CPU affinity from config.
+    int cpu_start = 0, cpu_end = 0;
+    entry->cpuset_ok = _srs_config->get_threads_cpu_affinity(label, &cpu_start, &cpu_end);
+    for (int i = cpu_start; entry->cpuset_ok && i <= cpu_end; i++) {
+        CPU_SET(i, &entry->cpuset);
+    }
+#endif
 
     // https://man7.org/linux/man-pages/man3/pthread_create.3.html
     pthread_t trd;
@@ -232,13 +280,19 @@ void* SrsThreadPool::start(void* arg)
 
     SrsThreadEntry* entry = (SrsThreadEntry*)arg;
 
+    int r0 = 0, r1 = 0;
 #ifndef SRS_OSX
     // https://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
-    pthread_setname_np(entry->trd, entry->name.c_str());
+    pthread_setname_np(pthread_self(), entry->name.c_str());
+    if (entry->cpuset_ok) {
+        r0 = pthread_setaffinity_np(pthread_self(), sizeof(entry->cpuset), &entry->cpuset);
+    }
+    r1 = pthread_getaffinity_np(pthread_self(), sizeof(entry->cpuset2), &entry->cpuset2);
 #endif
 
-    srs_trace("Thread #%d: run with label=%s, name=%s", entry->num,
-        entry->label.c_str(), entry->name.c_str());
+    srs_trace("Thread #%d: run with label=%s, name=%s, cpuset=%d/%d-0x%" PRIx64 "/%d-0x%" PRIx64, entry->num,
+        entry->label.c_str(), entry->name.c_str(), entry->cpuset_ok, r0, srs_covert_cpuset(entry->cpuset),
+        r1, srs_covert_cpuset(entry->cpuset2));
 
     if ((err = entry->start(entry->arg)) != srs_success) {
         entry->err = err;

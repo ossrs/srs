@@ -4161,6 +4161,47 @@ bool SrsConfig::get_threads_async_recv()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::get_threads_cpu_affinity(std::string label, int* start, int* end)
+{
+    static int DEFAULT_START = 0;
+    static int DEFAULT_END = 63;
+
+    *start = DEFAULT_START;
+    *end = DEFAULT_END;
+
+    SrsConfDirective* conf = root->get("threads");
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("cpu_affinity");
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get(label);
+    if (!conf) {
+        return false;
+    }
+
+    string v = conf->arg0();
+    size_t pos = v.find("-");
+    if (pos == string::npos) {
+        *start = *end = ::atoi(v.c_str());
+        return true;
+    }
+
+    string sv = v.substr(0, pos);
+    string ev = v.substr(pos + 1);
+    if (!sv.empty()) {
+        *start = ::atoi(sv.c_str());
+    }
+    if (!ev.empty()) {
+        *end = ::atoi(ev.c_str());
+    }
+    return true;
+}
+
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()
 {
     srs_assert(root);
