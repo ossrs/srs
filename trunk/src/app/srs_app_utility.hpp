@@ -552,12 +552,9 @@ class SrsSnmpUdpStat
 public:
     // Whether the data is ok.
     bool ok;
-    // send and recv buffer error delta
-    int rcv_buf_errors_delta;
-    int snd_buf_errors_delta;
 
 public:
-    // @see: cat /proc/uptimecat /proc/net/snmp|grep 'Udp:'
+    // @see: cat /proc/uptime && cat /proc/net/snmp|grep 'Udp:'
     // @see: https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/#procnetsnmp
     // InDatagrams: incremented when recvmsg was used by a userland program to read datagram.
     // also incremented when a UDP packet is encapsulated and sent back for processing.

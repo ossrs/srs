@@ -75,6 +75,9 @@ extern SrsPps* _srs_pps_rnack2;
 extern SrsPps* _srs_pps_rhnack;
 extern SrsPps* _srs_pps_rmnack;
 
+extern SrsPps* _srs_pps_rloss;
+extern SrsPps* _srs_pps_sloss;
+
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole = false;
@@ -774,9 +777,8 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
     }
 
     string loss_desc;
-    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
-    if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
-        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+    if (_srs_pps_rloss->r10s() || _srs_pps_sloss->r10s()) {
+        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", _srs_pps_rloss->r10s(), _srs_pps_sloss->r10s());
         loss_desc = buf;
     }
 

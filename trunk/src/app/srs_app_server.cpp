@@ -1283,7 +1283,7 @@ srs_error_t SrsServer::setup_ticks()
             return srs_error_wrap(err, "tick");
         }
 
-        if ((err = timer_->tick(10, 9 * SRS_UTIME_SECONDS)) != srs_success) {
+        if ((err = timer_->tick(10, 5 * SRS_UTIME_SECONDS)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
     }

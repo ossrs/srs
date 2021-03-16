@@ -50,6 +50,11 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_rloss = new SrsPps();
+SrsPps* _srs_pps_sloss = new SrsPps();
+
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
@@ -862,9 +867,6 @@ SrsSnmpUdpStat::SrsSnmpUdpStat()
     rcv_buf_errors = 0;
     snd_buf_errors = 0;
     in_csum_errors = 0;
-
-    rcv_buf_errors_delta = 0;
-    snd_buf_errors_delta = 0;
 }
 
 SrsSnmpUdpStat::~SrsSnmpUdpStat()
@@ -873,70 +875,54 @@ SrsSnmpUdpStat::~SrsSnmpUdpStat()
 
 static SrsSnmpUdpStat _srs_snmp_udp_stat;
 
-bool get_udp_snmp_statistic(SrsSnmpUdpStat& r)
+void srs_update_udp_snmp_statistic()
 {
+    SrsSnmpUdpStat& r = _srs_snmp_udp_stat;
+
 #ifndef SRS_OSX
-    if (true) {
-        FILE* f = fopen("/proc/net/snmp", "r");
-        if (f == NULL) {
-            srs_warn("open proc network snmp failed, ignore");
-            return false;
-        }
-
-        // ignore title.
-        static char buf[1024];
-        fgets(buf, sizeof(buf), f);
-
-        while (fgets(buf, sizeof(buf), f)) {
-            // udp stat title
-            if (strncmp(buf, "Udp: ", 5) == 0) {
-                // read tcp stat data
-                if (!fgets(buf, sizeof(buf), f)) {
-                    break;
-                }
-                // parse tcp stat data
-                if (strncmp(buf, "Udp: ", 5) == 0) {
-                    sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu\n",
-                        &r.in_datagrams,
-                        &r.no_ports,
-                        &r.in_errors,
-                        &r.out_datagrams,
-                        &r.rcv_buf_errors,
-                        &r.snd_buf_errors,
-                        &r.in_csum_errors);
-                }
-            }
-        }
-        fclose(f);
+    FILE* f = fopen("/proc/net/snmp", "r");
+    if (f == NULL) {
+        return;
     }
-#endif
-    r.ok = true;
 
-    return true;
+    static char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        // Ignore lines except UDP.
+        if (strncmp(buf, "Udp: ", 5) != 0) {
+            continue;
+        }
+
+        // Ignore UDP stat title.
+        //      Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors
+        if (strncmp(buf, "Udp: InDatagrams", 16) == 0) {
+            continue;
+        }
+
+        // Parse the UDP stat messages.
+        //      Udp: 22000790151 77826210 229174183 24889592909 229174182 420017 1
+        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu\n",
+            &r.in_datagrams,
+            &r.no_ports,
+            &r.in_errors,
+            &r.out_datagrams,
+            &r.rcv_buf_errors,
+            &r.snd_buf_errors,
+            &r.in_csum_errors);
+        break;
+    }
+    fclose(f);
+
+    // Update the pps for recv/send loss.
+    _srs_pps_rloss->update(r.rcv_buf_errors);
+    _srs_pps_sloss->update(r.snd_buf_errors);
+
+    r.ok = true;
+#endif
 }
 
 SrsSnmpUdpStat* srs_get_udp_snmp_stat()
 {
     return &_srs_snmp_udp_stat;
-}
-
-void srs_update_udp_snmp_statistic()
-{
-    SrsSnmpUdpStat r;
-    if (!get_udp_snmp_statistic(r)) {
-        return;
-    }
-
-    SrsSnmpUdpStat& o = _srs_snmp_udp_stat;
-    if (o.rcv_buf_errors > 0) {
-        r.rcv_buf_errors_delta = int(r.rcv_buf_errors - o.rcv_buf_errors);
-    }
-
-    if (o.snd_buf_errors > 0) {
-        r.snd_buf_errors_delta = int(r.snd_buf_errors - o.snd_buf_errors);
-    }
-
-    _srs_snmp_udp_stat = r;
 }
 
 SrsNetworkDevices::SrsNetworkDevices()
