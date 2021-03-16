@@ -776,6 +776,7 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         rnk_desc = buf;
     }
 
+    // TODO: FIXME: Should move to Hybrid server stat.
     string loss_desc;
     if (_srs_pps_rloss->r10s() || _srs_pps_sloss->r10s()) {
         snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", _srs_pps_rloss->r10s(), _srs_pps_sloss->r10s());

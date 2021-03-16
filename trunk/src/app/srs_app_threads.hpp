@@ -80,6 +80,7 @@ class SrsThreadEntry
 public:
     SrsThreadPool* pool;
     std::string label;
+    std::string name;
     srs_error_t (*start)(void* arg);
     void* arg;
     int num;

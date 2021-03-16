@@ -110,6 +110,11 @@ SrsThreadPool::SrsThreadPool()
     entry->start = NULL;
     entry->arg = NULL;
     entry->num = 1;
+    entry->trd = pthread_self();
+
+    char buf[256];
+    snprintf(buf, sizeof(buf), "srs-master-%d", entry->num);
+    entry->name = buf;
 }
 
 // TODO: FIMXE: If free the pool, we should stop all threads.
@@ -129,8 +134,8 @@ srs_error_t SrsThreadPool::initialize()
 
     interval_ = _srs_config->get_threads_interval();
     bool async_srtp = _srs_config->get_threads_async_srtp();
-    srs_trace("Thread #%d(%s): init interval=%dms, async_srtp=%d",
-        entry_->num, entry_->label.c_str(), srsu2msi(interval_), async_srtp);
+    srs_trace("Thread #%d(%s): init name=%s, interval=%dms, async_srtp=%d",
+        entry_->num, entry_->label.c_str(), entry_->name.c_str(), srsu2msi(interval_), async_srtp);
 
     return err;
 }
@@ -157,6 +162,10 @@ srs_error_t SrsThreadPool::execute(string label, srs_error_t (*start)(void* arg)
     // For lldb, it's: thread list
     static int num = entry_->num + 1;
     entry->num = num++;
+
+    char buf[256];
+    snprintf(buf, sizeof(buf), "srs-%s-%d", entry->label.c_str(), entry->num);
+    entry->name = buf;
 
     // https://man7.org/linux/man-pages/man3/pthread_create.3.html
     pthread_t trd;
@@ -205,7 +214,7 @@ srs_error_t SrsThreadPool::run()
             sync_desc = buf;
         }
 
-        srs_trace("Thread: cycle threads=%d%s%s", (int)threads_.size(),
+        srs_trace("Thread: %s cycle threads=%d%s%s", entry_->name.c_str(), (int)threads_.size(),
             async_logs.c_str(), sync_desc.c_str());
     }
 
@@ -222,7 +231,14 @@ void* SrsThreadPool::start(void* arg)
     srs_error_t err = srs_success;
 
     SrsThreadEntry* entry = (SrsThreadEntry*)arg;
-    srs_trace("Thread #%d(%s): run", entry->num, entry->label.c_str());
+
+#ifndef SRS_OSX
+    // https://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
+    pthread_setname_np(entry->trd, entry->name.c_str());
+#endif
+
+    srs_trace("Thread #%d: run with label=%s, name=%s", entry->num,
+        entry->label.c_str(), entry->name.c_str());
 
     if ((err = entry->start(entry->arg)) != srs_success) {
         entry->err = err;
