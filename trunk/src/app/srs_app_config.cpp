@@ -4202,6 +4202,23 @@ bool SrsConfig::get_threads_cpu_affinity(std::string label, int* start, int* end
     return true;
 }
 
+int SrsConfig::get_threads_max_recv_queue()
+{
+    static int DEFAULT = 5000;
+
+    SrsConfDirective* conf = root->get("threads");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("max_recv_queue");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()
 {
     srs_assert(root);

@@ -336,6 +336,8 @@ public:
     void register_task(SrsAsyncSRTPTask* task);
     void remove_task(SrsAsyncSRTPTask* task);
     void add_packet(SrsAsyncSRTPPacket* pkt);
+    int size();
+    int cooked_size();
     static srs_error_t start(void* arg);
 private:
     srs_error_t do_start();
@@ -364,6 +366,7 @@ class SrsAsyncRecvManager
 private:
     ISrsUdpMuxHandler* handler_;
 private:
+    int max_recv_queue_;
     SrsThreadQueue<SrsUdpMuxSocket>* packets_;
 private:
     std::vector<SrsThreadUdpListener*> listeners_;
@@ -372,8 +375,10 @@ public:
     SrsAsyncRecvManager();
     virtual ~SrsAsyncRecvManager();
 public:
+    srs_error_t initialize();
     void set_handler(ISrsUdpMuxHandler* v);
     void add_listener(SrsThreadUdpListener* listener);
+    int size();
     static srs_error_t start(void* arg);
 private:
     srs_error_t do_start();

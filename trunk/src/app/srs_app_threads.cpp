@@ -170,6 +170,10 @@ srs_error_t SrsThreadPool::initialize()
     r1 = pthread_getaffinity_np(pthread_self(), sizeof(entry->cpuset2), &entry->cpuset2);
 #endif
 
+    if ((err = _srs_async_recv->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init async recv");
+    }
+
     interval_ = _srs_config->get_threads_interval();
     bool async_srtp = _srs_config->get_threads_async_srtp();
     srs_trace("Thread #%d(%s): init name=%s, interval=%dms, async_srtp=%d, cpuset=%d/%d-0x%" PRIx64 "/%d-0x%" PRIx64,
@@ -254,6 +258,12 @@ srs_error_t SrsThreadPool::run()
         static char buf[128];
         string async_logs = _srs_async_log->description();
 
+        string queue_desc;
+        if (true) {
+            snprintf(buf, sizeof(buf), ", queue=%d,%d,%d", _srs_async_recv->size(), _srs_async_srtp->size(), _srs_async_srtp->cooked_size());
+            queue_desc = buf;
+        }
+
         string sync_desc;
         _srs_thread_sync_10us->update(); _srs_thread_sync_100us->update();
         _srs_thread_sync_1000us->update(); _srs_thread_sync_plus->update();
@@ -262,8 +272,8 @@ srs_error_t SrsThreadPool::run()
             sync_desc = buf;
         }
 
-        srs_trace("Thread: %s cycle threads=%d%s%s", entry_->name.c_str(), (int)threads_.size(),
-            async_logs.c_str(), sync_desc.c_str());
+        srs_trace("Thread: %s cycle threads=%d%s%s%s", entry_->name.c_str(), (int)threads_.size(),
+            async_logs.c_str(), sync_desc.c_str(), queue_desc.c_str());
     }
 
     return err;
@@ -722,6 +732,15 @@ void SrsAsyncSRTPManager::add_packet(SrsAsyncSRTPPacket* pkt)
     packets_->push_back(pkt);
 }
 
+int SrsAsyncSRTPManager::size()
+{
+    return packets_->size();
+}
+int SrsAsyncSRTPManager::cooked_size()
+{
+    return cooked_packets_->size();
+}
+
 srs_error_t SrsAsyncSRTPManager::start(void* arg)
 {
     SrsAsyncSRTPManager* srtp = (SrsAsyncSRTPManager*)arg;
@@ -807,6 +826,7 @@ SrsAsyncRecvManager::SrsAsyncRecvManager()
     lock_ = new SrsThreadMutex();
     packets_ = new SrsThreadQueue<SrsUdpMuxSocket>();
     handler_ = NULL;
+    max_recv_queue_ = 0;
 }
 
 // TODO: FIXME: We should stop the thread first, then free the manager.
@@ -822,6 +842,16 @@ SrsAsyncRecvManager::~SrsAsyncRecvManager()
     }
 }
 
+srs_error_t SrsAsyncRecvManager::initialize()
+{
+    srs_error_t err = srs_success;
+
+    max_recv_queue_ = _srs_config->get_threads_max_recv_queue();
+    srs_trace("AsyncRecv: Set max_queue=%d", max_recv_queue_);
+
+    return err;
+}
+
 void SrsAsyncRecvManager::set_handler(ISrsUdpMuxHandler* v)
 {
     handler_ = v;
@@ -831,6 +861,11 @@ void SrsAsyncRecvManager::add_listener(SrsThreadUdpListener* listener)
 {
     SrsThreadLocker(lock_);
     listeners_.push_back(listener);
+}
+
+int SrsAsyncRecvManager::size()
+{
+    return packets_->size();
 }
 
 srs_error_t SrsAsyncRecvManager::start(void* arg)
@@ -859,6 +894,13 @@ srs_error_t SrsAsyncRecvManager::do_start()
 
             // TODO: FIXME: Use st_recvfrom to recv if thread-safe ST is ok.
             int nread = listener->skt_->raw_recvfrom();
+
+            // Drop packet if exceed max recv queue size.
+            if ((int)packets_->size() >= max_recv_queue_) {
+                continue;
+            }
+
+            // If got packet, copy to the queue.
             if (nread > 0) {
                 got_packet = true;
                 packets_->push_back(listener->skt_->copy());
