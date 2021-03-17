@@ -117,6 +117,8 @@ public:
     SrsThreadPool();
     virtual ~SrsThreadPool();
 public:
+    // Setup the thread-local variables.
+    static void setup();
     // Initialize the thread pool.
     srs_error_t initialize();
     // Execute start function with label in thread.

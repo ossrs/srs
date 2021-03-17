@@ -39,12 +39,15 @@
 #include <srs_app_threads.hpp>
 
 // the max size of a line of log.
-#define LOG_MAX_SIZE 8192
+int LOG_MAX_SIZE = 8192;
 
 // the tail append to each log.
 #define LOG_TAIL '\n'
 // reserved for the end of log data, it must be strlen(LOG_TAIL)
 #define LOG_TAIL_SIZE 1
+
+// Thread local log cache.
+__thread char* _srs_log_data = NULL;
 
 SrsFileLog::SrsFileLog()
 {
@@ -52,13 +55,11 @@ SrsFileLog::SrsFileLog()
     log_to_file_tank = false;
     utc = false;
 
-    log_data = new char[LOG_MAX_SIZE];
     writer_ = NULL;
 }
 
 SrsFileLog::~SrsFileLog()
 {
-    srs_freepa(log_data);
 }
 
 // @remark Note that we should never write logs, because log is not ready not.
@@ -96,17 +97,17 @@ void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* f
     }
     
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Verb", &size)) {
+    if (!srs_log_header(_srs_log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Verb", &size)) {
         return;
     }
     
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    size += vsnprintf(_srs_log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
     
-    write_log(log_data, size, SrsLogLevelVerbose);
+    write_log(_srs_log_data, size, SrsLogLevelVerbose);
 }
 
 void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt, ...)
@@ -116,17 +117,17 @@ void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt,
     }
     
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Debug", &size)) {
+    if (!srs_log_header(_srs_log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Debug", &size)) {
         return;
     }
     
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    size += vsnprintf(_srs_log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
     
-    write_log(log_data, size, SrsLogLevelInfo);
+    write_log(_srs_log_data, size, SrsLogLevelInfo);
 }
 
 void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt, ...)
@@ -136,17 +137,17 @@ void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt
     }
     
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Trace", &size)) {
+    if (!srs_log_header(_srs_log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Trace", &size)) {
         return;
     }
     
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    size += vsnprintf(_srs_log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
     
-    write_log(log_data, size, SrsLogLevelTrace);
+    write_log(_srs_log_data, size, SrsLogLevelTrace);
 }
 
 void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt, ...)
@@ -156,17 +157,17 @@ void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt,
     }
     
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Warn", &size)) {
+    if (!srs_log_header(_srs_log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Warn", &size)) {
         return;
     }
     
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    size += vsnprintf(_srs_log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
     
-    write_log(log_data, size, SrsLogLevelWarn);
+    write_log(_srs_log_data, size, SrsLogLevelWarn);
 }
 
 void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt, ...)
@@ -176,23 +177,23 @@ void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt
     }
     
     int size = 0;
-    if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Error", &size)) {
+    if (!srs_log_header(_srs_log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Error", &size)) {
         return;
     }
     
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
-    size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
+    size += vsnprintf(_srs_log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
     
     // add strerror() to error msg.
     // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
     if (errno != 0 && size < LOG_MAX_SIZE) {
-        size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
+        size += snprintf(_srs_log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
     }
     
-    write_log(log_data, size, SrsLogLevelError);
+    write_log(_srs_log_data, size, SrsLogLevelError);
 }
 
 void SrsFileLog::write_log(char *str_log, int size, int level)

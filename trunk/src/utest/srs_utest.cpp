@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_threads.hpp>
 
 #include <string>
 using namespace std;
@@ -70,7 +71,11 @@ srs_error_t prepare_main() {
 
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
-GTEST_API_ int main(int argc, char **argv) {
+GTEST_API_ int main(int argc, char **argv)
+{
+    // Initialize thread-local variables.
+    SrsThreadPool::setup();
+
     srs_error_t err = srs_success;
 
     if ((err = prepare_main()) != srs_success) {

@@ -145,6 +145,18 @@ SrsThreadPool::~SrsThreadPool()
     srs_freep(lock_);
 }
 
+// Thread local log cache.
+extern const int LOG_MAX_SIZE;
+extern __thread char* _srs_log_data;
+
+// Setup the thread-local variables, MUST call when each thread starting.
+void SrsThreadPool::setup()
+{
+    // Initialize the log shared buffer for threads.
+    srs_assert(!_srs_log_data);
+    _srs_log_data = new char[LOG_MAX_SIZE];
+}
+
 srs_error_t SrsThreadPool::initialize()
 {
     srs_error_t err = srs_success;
@@ -288,6 +300,9 @@ void SrsThreadPool::stop()
 
 void* SrsThreadPool::start(void* arg)
 {
+    // Initialize thread-local variables.
+    SrsThreadPool::setup();
+
     srs_error_t err = srs_success;
 
     SrsThreadEntry* entry = (SrsThreadEntry*)arg;
@@ -300,11 +315,13 @@ void* SrsThreadPool::start(void* arg)
         r0 = pthread_setaffinity_np(pthread_self(), sizeof(entry->cpuset), &entry->cpuset);
     }
     r1 = pthread_getaffinity_np(pthread_self(), sizeof(entry->cpuset2), &entry->cpuset2);
+#else
+    pthread_setname_np(entry->name.c_str());
 #endif
 
-    srs_trace("Thread #%d: run with label=%s, name=%s, cpuset=%d/%d-0x%" PRIx64 "/%d-0x%" PRIx64, entry->num,
-        entry->label.c_str(), entry->name.c_str(), entry->cpuset_ok, r0, srs_covert_cpuset(entry->cpuset),
-        r1, srs_covert_cpuset(entry->cpuset2));
+    srs_trace("Thread #%d: run with entry=%p, label=%s, name=%s, cpuset=%d/%d-0x%" PRIx64 "/%d-0x%" PRIx64,
+        entry->num, entry, entry->label.c_str(), entry->name.c_str(), entry->cpuset_ok,
+        r0, srs_covert_cpuset(entry->cpuset), r1, srs_covert_cpuset(entry->cpuset2));
 
     if ((err = entry->start(entry->arg)) != srs_success) {
         entry->err = err;

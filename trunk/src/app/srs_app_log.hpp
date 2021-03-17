@@ -48,8 +48,6 @@ class SrsAsyncFileWriter;
 class SrsFileLog : public ISrsLog, public ISrsReloadHandler
 {
 private:
-    // Shared cache for each line of log.
-    char* log_data;
     // Async file writer.
     SrsAsyncFileWriter* writer_;
 private:
