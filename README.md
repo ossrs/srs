@@ -190,6 +190,7 @@ Other documents:
 
 ## V5 changes
 
+* v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
 * v5.0, 2021-03-15, Init SRS/5. 5.0.0
 
 ## V4 changes
