@@ -599,6 +599,28 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 
 #####################################################################################
+# libfdk_aac, for WebRTC to transcode Opus with AAC.
+#####################################################################################
+if [[ $SRS_RTC == YES ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/fdk-aac/lib/libfdk-aac.a ]]; then
+        echo "The fdk-aac-2.0.1 is ok.";
+    else
+        echo "Building fdk-aac-2.0.1.";
+        (
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/fdk-aac-2.0.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            tar xf ../../3rdparty/fdk-aac-2.0.1.tar.gz && cd fdk-aac-2.0.1 &&
+            ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
+            cd .. && rm -rf fdk-aac && ln -sf fdk-aac-2.0.1/_release fdk-aac
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build fdk-aac-2.0.1 failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS} && rm -rf fdk-aac && ln -sf ${SRS_PLATFORM}/fdk-aac-2.0.1/_release fdk-aac)
+    if [ ! -f ${SRS_OBJS}/fdk-aac/lib/libfdk-aac.a ]; then echo "Build fdk-aac-2.0.1 failed."; exit -1; fi
+fi
+
+#####################################################################################
 # ffmpeg-fix, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
@@ -637,7 +659,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             (cd libavutil && rm -f lib.version libavutil.version ffversion.h avconfig.h) &&
             (rm -rf doc && rm -f config.asm config.h libavcodec/libavcodec.version libswresample/libswresample.version) &&
             # Build source code.
-            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
+            export PKG_CONFIG_PATH=$ABS_OBJS/fdk-aac/lib/pkgconfig:$PKG_CONFIG_PATH
+            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig:$PKG_CONFIG_PATH ./configure \
               --prefix=`pwd`/${SRS_PLATFORM}/_release \
               --pkg-config-flags="--static" --extra-libs=-lpthread --extra-libs=-lm ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
@@ -647,7 +670,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
               --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi \
               --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv \
               --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
-              --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
+              --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus \
+              --enable-libfdk_aac --enable-decoder=libfdk_aac --enable-encoder=libfdk_aac &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4.2-fit/${SRS_PLATFORM}/_release ffmpeg
         )

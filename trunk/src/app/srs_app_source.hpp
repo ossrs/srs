@@ -35,6 +35,7 @@
 #include <srs_core_performance.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -498,6 +499,7 @@ public:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
     virtual srs_error_t on_video(SrsSharedPtrMessage* video) = 0;
     virtual void on_unpublish() = 0;
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt) = 0;
 };
 
 // live streaming source.

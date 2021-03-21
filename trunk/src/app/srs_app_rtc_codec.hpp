@@ -25,6 +25,7 @@
 #define SRS_APP_RTC_CODEC_HPP
 
 #include <srs_core.hpp>
+#include <srs_kernel_file.hpp>
 
 #include <string>
 
@@ -131,6 +132,11 @@ public:
     virtual ~SrsAudioRecode();
     srs_error_t initialize();
     virtual srs_error_t transcode(SrsSample *pkt, char **buf, int *buf_len, int &n);
+    AVCodecContext* dec_codec_ctx();
+    AVCodecContext* enc_codec_ctx();
+    SrsFileWriter *fw_audio_dec;
+    SrsFileWriter *fw_audio_res;
+    SrsFileWriter *fw_audio_enc;
 };
 
 #endif /* SRS_APP_AUDIO_RECODE_HPP */

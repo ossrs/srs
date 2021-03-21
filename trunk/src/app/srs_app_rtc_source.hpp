@@ -37,6 +37,8 @@
 #include <srs_service_st.hpp>
 #include <srs_app_source.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_app_rtc_jitbuffer.hpp>
+#include <srs_raw_avc.hpp>
 
 class SrsRequest;
 class SrsMetaCache;
@@ -220,6 +222,8 @@ public:
     bool has_stream_desc();
     void set_stream_desc(SrsRtcStreamDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
+private:
+    srs_error_t bridge_packet(SrsRtpPacket2* pkt); 
 };
 
 // A helper class, to release the packet to cache.
@@ -233,6 +237,56 @@ public:
 };
 
 #ifdef SRS_FFMPEG_FIT
+class SrsRtcToRtmpBridger : public ISrsSourceBridger
+{
+private:
+    SrsRequest* req_;
+    SrsRtcStream* source_;
+    SrsSource* rtmp_source_;
+    SrsRtpJitterBuffer *jitter_buffer_;
+    
+    char* frame_cache_;
+    int frame_cache_len_;  
+
+    //video
+    SrsRawH264Stream* avc_;
+    std::string h264_sps;
+    bool h264_sps_changed;
+    std::string h264_pps;
+    bool h264_pps_changed;
+    bool h264_sps_pps_sent;
+    int message_stream_id_; 
+    
+    //audio 
+    SrsAudioRecode* codec_;
+    SrsRawAacStream* aac_;
+    std::string aac_specific_config;
+public:
+    SrsRtcToRtmpBridger(SrsRtcStream* source, SrsSource* rtmp_source);
+    virtual ~SrsRtcToRtmpBridger();
+public:
+    virtual srs_error_t initialize(SrsRequest* r);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
+    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt);
+private:
+    srs_error_t on_rtp_video(SrsRtpPacket2* pkt);
+    srs_error_t package_video(char* data, int len, uint32_t timestamp);
+    srs_error_t package_h264_sps_pps(uint32_t dts, uint32_t pts);
+    srs_error_t package_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts);
+
+    srs_error_t on_rtp_audio(SrsRtpPacket2* pkt);
+    srs_error_t transcode_audio(char* opus_audio, int nn_opus_audio, uint32_t timestamp);
+    srs_error_t package_aac(char* data, int len, uint32_t timestamp);
+    srs_error_t generate_aac_stream_codec(SrsRawAacStreamCodec& codec);
+    srs_error_t package_aac_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
+
+    srs_error_t package_rtmp(char type, uint32_t timestamp, char* data, int size);
+    srs_error_t consume_packet(SrsCommonMessage* msg);
+};
+
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
 private:
@@ -260,6 +314,7 @@ public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt);
 private:
     srs_error_t transcode(char* adts_audio, int nn_adts_audio);
     srs_error_t package_opus(char* data, int size, SrsRtpPacketCacheHelper* helper);
@@ -289,6 +344,7 @@ public:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
     virtual srs_error_t on_video(SrsSharedPtrMessage* video);
     virtual void on_unpublish();
+    virtual srs_error_t on_rtp(SrsRtpPacket2* pkt);
 public:
     // Setup a new implementation bridger, which might be NULL to free previous one.
     void setup(ISrsSourceBridger* impl);

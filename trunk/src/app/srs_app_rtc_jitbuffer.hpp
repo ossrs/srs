@@ -415,6 +415,8 @@ public:
     void Reset();
     SrsRtpFrameBufferEnum InsertPacket(uint16_t seq, uint32_t ts, bool maker, char *buf, int size,
         bool* retransmitted);
+    SrsRtpFrameBufferEnum InsertPacket2(const SrsRtpPacket2 *pkt, const char*nalu, int nalu_len, 
+                                        bool is_first_packet_in_frame, FrameType frameType, bool* retransmitted);
     void ReleaseFrame(SrsRtpFrameBuffer* frame);
     bool FoundFrame(uint32_t& time_stamp);
     bool GetFrame(char **buffer, int &buf_len, int &size, bool &keyframe, const uint32_t time_stamp);

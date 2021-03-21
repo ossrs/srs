@@ -1728,13 +1728,15 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
+    //TODO:huping modify.
 #ifdef SRS_RTC
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(r->vhost);
+    bool rtc_to_rtmp_enable = _srs_config->get_rtc_to_rtmp_enable(); 
 
     // Get the RTC source and bridger.
     SrsRtcStream* rtc = NULL;
-    if (rtc_server_enabled && rtc_enabled) {
+    if (rtc_server_enabled && rtc_enabled && !rtc_to_rtmp_enable) {
         if ((err = _srs_rtc_sources->fetch_or_create(r, &rtc)) != srs_success) {
             err = srs_error_wrap(err, "init rtc %s", r->get_stream_url().c_str());
             goto failed;

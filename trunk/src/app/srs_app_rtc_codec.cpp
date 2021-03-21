@@ -25,6 +25,7 @@
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_rtc_codec.hpp>
+#include <srs_kernel_log.hpp>
 
 static const int kFrameBufMax   = 40960;
 static const int kPacketBufMax  = 8192;
@@ -33,7 +34,8 @@ static const char* id2codec_name(SrsAudioCodecId id)
 {
     switch (id) {
     case SrsAudioCodecIdAAC:
-        return "aac";
+        //return "aac";
+        return "libfdk_aac";
     case SrsAudioCodecIdOpus:
         return "libopus";
     default:
@@ -130,6 +132,10 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
             return srs_error_new(ERROR_RTC_RTP_MUXER, "Failed to calculate data size");
         }
 
+        if ( codec_ctx_->frame_size == 0) {
+           codec_ctx_->frame_size = frame_->nb_samples;
+        }
+
         for (int i = 0; i < frame_->nb_samples; i++) {
             if (size + pcm_size * codec_ctx_->channels <= max) {
                 memcpy(buf + size,frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
@@ -200,7 +206,8 @@ srs_error_t SrsAudioEncoder::initialize()
         //TODO: for more level setting
         codec_ctx_->compression_level = 1;
     } else if (codec_id_ == SrsAudioCodecIdAAC) {
-        codec_ctx_->sample_fmt = AV_SAMPLE_FMT_FLTP;
+        // codec_ctx_->sample_fmt = AV_SAMPLE_FMT_FLTP;
+        codec_ctx_->sample_fmt = AV_SAMPLE_FMT_S16;
     }
 
     // TODO: FIXME: Show detail error.
@@ -415,6 +422,10 @@ SrsAudioRecode::SrsAudioRecode(SrsAudioCodecId src_codec, SrsAudioCodecId dst_co
     dec_ = NULL;
     enc_ = NULL;
     resample_ = NULL;
+
+    fw_audio_dec = new SrsFileWriter();
+    fw_audio_res = new SrsFileWriter();
+    fw_audio_enc = new SrsFileWriter();
 }
 
 SrsAudioRecode::~SrsAudioRecode()
@@ -423,6 +434,10 @@ SrsAudioRecode::~SrsAudioRecode()
     srs_freep(enc_);
     srs_freep(resample_);
     srs_freepa(data_);
+
+    srs_freep(fw_audio_dec);
+    srs_freep(fw_audio_res);
+    srs_freep(fw_audio_enc);
 }
 
 srs_error_t SrsAudioRecode::initialize()
@@ -484,7 +499,6 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
     }
 
     n = 0;
-
     // We can encode it in one time.
     if (enc_want_bytes_ <= 0) {
         int encode_len;
@@ -542,4 +556,12 @@ srs_error_t SrsAudioRecode::transcode(SrsSample *pkt, char **buf, int *buf_len, 
     }
 
     return err;
+}
+
+AVCodecContext* SrsAudioRecode::dec_codec_ctx() {
+    return dec_->codec_ctx();
+}
+
+AVCodecContext* SrsAudioRecode::enc_codec_ctx() {
+    return enc_->codec_ctx();
 }

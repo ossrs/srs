@@ -3651,7 +3651,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
-                && n != "ip_family" && n != "rtp_cache" && n != "rtp_msg_cache") {
+                && n != "ip_family" && n != "rtp_cache" && n != "rtp_msg_cache" && n != "rtc_to_rtmp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -4724,6 +4724,24 @@ bool SrsConfig::get_rtc_server_enabled()
 {
     SrsConfDirective* conf = root->get("rtc_server");
     return get_rtc_server_enabled(conf);
+}
+
+bool SrsConfig::get_rtc_to_rtmp_enable()
+{
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtc_to_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::get_rtc_server_enabled(SrsConfDirective* conf)

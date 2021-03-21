@@ -245,7 +245,9 @@ void VCMPacket::CopyCodecSpecifics(RtpVideoCodecTypes codecType, bool H264single
         isFirstPacket = firstPacket;
 
         if (isFirstPacket) {
-            insertStartCode = true;
+            //TODO:huping modify.
+            //insertStartCode = true;
+            insertStartCode = false;
         }
 
         if (H264single_nalu) {
@@ -1273,6 +1275,157 @@ SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket(uint16_t seq, uint32_t ts
     return buffer_state;
 }
 
+
+#if 1
+SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket2(const SrsRtpPacket2 *pkt, const char*nalu, int nalu_len,
+                                                        bool is_first_packet_in_frame, FrameType frameType, bool* retransmitted)
+{
+    bool singlenual = false;
+    H264PacketizationTypes packetyType = kH264SingleNalu;
+     
+    const VCMPacket packet((const uint8_t*)nalu, nalu_len,
+        pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->header.get_marker(), 
+        packetyType, kRtpVideoH264, singlenual, is_first_packet_in_frame, frameType);
+
+    ++num_packets_;
+    if (num_packets_ == 1) {
+        time_first_packet_ms_ =  srs_update_system_time();
+    }
+
+    //Does this packet belong to an old frame?
+    // if (last_decoded_state_.IsOldPacket(&packet)) {
+     
+    //     //return kOldPacket;
+    // }
+
+    //num_consecutive_old_packets_ = 0;
+
+    SrsRtpFrameBuffer* frame;
+    FrameList* frame_list;
+
+    const SrsRtpFrameBufferEnum error = GetFrameByRtpPacket(packet, &frame, &frame_list);
+
+    if (error != kNoError) {
+        return error;
+    }
+
+
+    //srs_utime_t now_ms =  srs_update_system_time();
+
+    FrameData frame_data;
+    frame_data.rtt_ms = 0; //rtt_ms_;
+    frame_data.rolling_average_packets_per_frame = 25;//average_packets_per_frame_;
+
+    SrsRtpFrameBufferEnum buffer_state = frame->InsertPacket(packet, frame_data);
+    
+    if (buffer_state > 0) {
+        incoming_bit_count_ += packet.sizeBytes << 3;
+
+        if (first_packet_since_reset_) {
+            latest_received_sequence_number_ = packet.seqNum;
+            first_packet_since_reset_ = false;
+        } else {
+            // if (IsPacketRetransmitted(packet)) {
+            //     frame->IncrementNackCount();
+            // }
+
+            UpdateNackList(packet.seqNum);
+
+            latest_received_sequence_number_ = LatestSequenceNumber(
+                                                   latest_received_sequence_number_, packet.seqNum);
+        }
+    }
+
+    // Is the frame already in the decodable list?
+    bool continuous = IsContinuous(*frame);
+    
+    switch (buffer_state) {
+    case kGeneralError:
+    case kTimeStampError:
+    case kSizeError: {
+        free_frames_.push_back(frame);
+        break;
+    }
+
+    case kCompleteSession: {
+        //CountFrame(*frame);
+        // if (previous_state != kStateDecodable &&
+        //         previous_state != kStateComplete) {
+        //     /*CountFrame(*frame);*/ //????????????????????�?? by ylr
+        //     if (continuous) {
+        //         // Signal that we have a complete session.
+        //         frame_event_->Set();
+        //     }
+        // }
+    }
+
+    // Note: There is no break here - continuing to kDecodableSession.
+    case kDecodableSession: {
+        // *retransmitted = (frame->GetNackCount() > 0);
+
+        if (true || continuous) {
+            decodable_frames_.InsertFrame(frame);
+            FindAndInsertContinuousFrames(*frame);
+        } else {
+            incomplete_frames_.InsertFrame(frame);
+
+            // If NACKs are enabled, keyframes are triggered by |GetNackList|.
+            // if (nack_mode_ == kNoNack && NonContinuousOrIncompleteDuration() >
+            //         90 * kMaxDiscontinuousFramesTime) {
+            //     return kFlushIndicator;
+            // }
+        }
+
+        break;
+    }
+
+    case kIncomplete: {
+        if (frame->GetState() == kStateEmpty &&
+                last_decoded_state_.UpdateEmptyFrame(frame)) {
+            free_frames_.push_back(frame);
+            return kNoError;
+        } else {
+            incomplete_frames_.InsertFrame(frame);
+
+            // If NACKs are enabled, keyframes are triggered by |GetNackList|.
+            // if (nack_mode_ == kNoNack && NonContinuousOrIncompleteDuration() >
+            //         90 * kMaxDiscontinuousFramesTime) {
+            //     return kFlushIndicator;
+            // }
+        }
+
+        break;
+    }
+
+    case kNoError:
+    case kOutOfBoundsPacket:
+    case kDuplicatePacket: {
+        // Put back the frame where it came from.
+        if (frame_list != NULL) {
+            frame_list->InsertFrame(frame);
+        } else {
+            free_frames_.push_back(frame);
+        }
+
+        ++num_duplicated_packets_;
+        break;
+    }
+
+    case kFlushIndicator:{
+            free_frames_.push_back(frame);
+        }
+        return kFlushIndicator;
+
+    default:
+        assert(false);
+    }
+
+    return buffer_state;
+}
+#endif 
+
+
+
 // Gets frame to use for this timestamp. If no match, get empty frame.
 SrsRtpFrameBufferEnum SrsRtpJitterBuffer::GetFrameByRtpPacket(const VCMPacket& packet,
         SrsRtpFrameBuffer** frame,
@@ -1475,22 +1628,27 @@ bool SrsRtpJitterBuffer::NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32
                                          max_wait_time_ms * SRS_UTIME_MILLISECONDS;
         int64_t wait_time_ms = max_wait_time_ms * SRS_UTIME_MILLISECONDS;
 
-        while (wait_time_ms > 0) {
-            int ret = srs_cond_timedwait(wait_cond_t, wait_time_ms);
-            if (ret == 0) {
-                // Finding oldest frame ready for decoder.
-                CleanUpOldOrEmptyFrames();
+        
 
-                if (decodable_frames_.empty() ||
-                        decodable_frames_.Front()->GetState() != kStateComplete) {
-                    wait_time_ms = end_wait_time_ms - srs_update_system_time();
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
+        //TODO:huping modify.
+        // while (wait_time_ms > 0) {
+        //     int ret = srs_cond_timedwait(wait_cond_t, wait_time_ms);
+        //     if (ret == 0) {
+        //         // Finding oldest frame ready for decoder.
+        //         CleanUpOldOrEmptyFrames();
+
+        //         if (decodable_frames_.empty() ||
+        //                 decodable_frames_.Front()->GetState() != kStateComplete) {
+        //             wait_time_ms = end_wait_time_ms - srs_update_system_time();
+        //         } else {
+        //             break;
+        //         }
+        //     } else {
+        //         break;
+        //     }
+        // }
+
+
 
         // Inside |crit_sect_|.
     } else {
