@@ -255,12 +255,17 @@ private:
     std::string h264_pps;
     bool h264_pps_changed;
     bool h264_sps_pps_sent;
-    int message_stream_id_; 
+    int message_stream_id_;
+    SrsRtpTimeJitter vjitter_; 
     
     //audio 
     SrsAudioRecode* codec_;
     SrsRawAacStream* aac_;
     std::string aac_specific_config;
+    double last_audio_timestamp_;
+    double audio_duration_;
+    int64_t last_audio_timestamp_ms_;
+
 public:
     SrsRtcToRtmpBridger(SrsRtcStream* source, SrsSource* rtmp_source);
     virtual ~SrsRtcToRtmpBridger();

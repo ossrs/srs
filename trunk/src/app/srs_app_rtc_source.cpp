@@ -658,6 +658,10 @@ SrsRtcToRtmpBridger::SrsRtcToRtmpBridger(SrsRtcStream* source, SrsSource* rtmp_s
     h264_pps_changed = false;
     h264_sps_pps_sent = false;
     message_stream_id_ = RtmpMsid;
+
+    last_audio_timestamp_ = 0;
+    audio_duration_ = 0;
+    last_audio_timestamp_ms_ = -1;
     
     avc_ = new SrsRawH264Stream();
     aac_ = new SrsRawAacStream();
@@ -811,6 +815,17 @@ srs_error_t SrsRtcToRtmpBridger::transcode_audio(char* opus_audio, int nn_opus_a
         return err;
     }
 
+    if (last_audio_timestamp_ms_ == -1) {
+        last_audio_timestamp_ms_ = 0;
+        timestamp = 0;
+    } else {
+        AVCodecContext* enc_codec_ctx = codec_->enc_codec_ctx();
+        audio_duration_ = (((double)enc_codec_ctx->frame_size / (double)enc_codec_ctx->sample_rate) * (double)1000);
+        last_audio_timestamp_ += audio_duration_;
+        last_audio_timestamp_ms_ = ((last_audio_timestamp_ * 10 + 5) / 10);
+        timestamp = last_audio_timestamp_ms_;
+    }
+
     int nn_max_extra_payload = 0;
     for (int i = 0; i < nn_aac_packets; i++) {
         char* data = (char*)aac_payloads[i];
@@ -832,8 +847,8 @@ srs_error_t SrsRtcToRtmpBridger::package_aac(char* data, int len, uint32_t times
     srs_error_t err = srs_success;
     
     // rtp tbn to flv tbn.
-    uint32_t dts = (uint32_t)(timestamp / 90);
-    //srs_trace("rtctortmp: package_aac: data size=%d, dts=%d", len, dts); 
+    uint32_t dts = timestamp;
+    srs_warn("rtctortmp: package_aac: data size=%d, dts=%d", len, dts); 
 
     SrsRawAacStreamCodec codec;
     generate_aac_stream_codec(codec);
@@ -1087,11 +1102,15 @@ srs_error_t SrsRtcToRtmpBridger::package_video(char* data, int len, uint32_t tim
 {
     srs_error_t err = srs_success;
 
+    int64_t v_timestamp = timestamp;
+    if ((err = vjitter_.correct(v_timestamp)) != srs_success) {
+        return srs_error_wrap(err, "rtctortmp: video timestamp jitter error.");
+    }
     // rtp tbn to flv tbn.
-    uint32_t dts = (uint32_t)(timestamp / 90);
-    uint32_t pts = (uint32_t)(timestamp / 90);
-
+    uint32_t dts = (uint32_t)(v_timestamp / 90);
+    uint32_t pts = (uint32_t)(v_timestamp / 90);
     //srs_trace("rtctortmp: package_video: data size=%d, dts=%d", len, dts); 
+
     SrsBuffer buffer(data, len);
      // send each frame.
     while (!buffer.empty()) {
