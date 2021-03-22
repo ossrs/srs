@@ -1327,12 +1327,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
     }
 
-    int nb_protected_buf = buffer->pos();
-    if ((err = session_->transport_->protect_rtcp(pkt, &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp, size=%u", nb_protected_buf);
-    }
-
-    return session_->sendonly_skt->sendto(pkt, nb_protected_buf, 0);
+    return session_->send_rtcp(pkt, buffer->pos());
 }
 
 srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
@@ -2366,17 +2361,11 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.encode(&stream);
 
     // TODO: FIXME: Check error.
-    int nb_protected_buf = stream.pos();
-    transport_->protect_rtcp(stream.data(), &nb_protected_buf);
-
-    // TODO: FIXME: Check error.
-    sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
@@ -2412,18 +2401,11 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp rr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     /*
@@ -2466,18 +2448,11 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     stream.write_4bytes(cur_ntp.ntp_second_);
     stream.write_4bytes(cur_ntp.ntp_fractions_);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp xr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     char buf[kRtpPacketSize];
@@ -2498,12 +2473,7 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
         _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp psfb pli");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)
