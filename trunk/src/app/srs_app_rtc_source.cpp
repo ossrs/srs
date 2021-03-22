@@ -848,7 +848,7 @@ srs_error_t SrsRtcToRtmpBridger::package_aac(char* data, int len, uint32_t times
     
     // rtp tbn to flv tbn.
     uint32_t dts = timestamp;
-    srs_warn("rtctortmp: package_aac: data size=%d, dts=%d", len, dts); 
+    //srs_trace("rtctortmp: package_aac: data size=%d, dts=%d", len, dts); 
 
     SrsRawAacStreamCodec codec;
     generate_aac_stream_codec(codec);
@@ -1052,7 +1052,7 @@ srs_error_t SrsRtcToRtmpBridger::on_rtp_video(SrsRtpPacket2* pkt)
         }
        
         if (raw_payload->nn_payload <= 0 || !raw_payload->payload) {
-            srs_error("Maybe it is padding data, video rtp raw payload size=%d.\n", raw_payload->nn_payload);
+            srs_warn("Maybe it is padding data, video rtp raw payload size=%d.\n", raw_payload->nn_payload);
             return err;
         }
 
