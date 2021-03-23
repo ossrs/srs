@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 srs-bench(ossrs)
+// Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -31,14 +31,13 @@ type RTPInterceptorOptionFunc func(i *RTPInterceptor)
 // Common RTP packet interceptor for benchmark.
 // @remark Should never merge with RTCPInterceptor, because they has the same Write interface.
 type RTPInterceptor struct {
-	localInfo  *interceptor.StreamInfo
-	remoteInfo *interceptor.StreamInfo
 	// If rtpReader is nil, use the default next one to read.
 	rtpReader     interceptor.RTPReaderFunc
 	nextRTPReader interceptor.RTPReader
 	// If rtpWriter is nil, use the default next one to write.
 	rtpWriter     interceptor.RTPWriterFunc
 	nextRTPWriter interceptor.RTPWriter
+	// Other common fields.
 	BypassInterceptor
 }
 
@@ -51,11 +50,6 @@ func NewRTPInterceptor(options ...RTPInterceptorOptionFunc) *RTPInterceptor {
 }
 
 func (v *RTPInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
-	if v.localInfo != nil {
-		return writer // Only handle one stream.
-	}
-
-	v.localInfo = info
 	v.nextRTPWriter = writer
 	return v // Handle all RTP
 }
@@ -68,17 +62,9 @@ func (v *RTPInterceptor) Write(header *rtp.Header, payload []byte, attributes in
 }
 
 func (v *RTPInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
-	if v.localInfo == nil || v.localInfo.ID != info.ID {
-		return
-	}
-	v.localInfo = nil // Reset the interceptor.
 }
 
 func (v *RTPInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
-	if v.remoteInfo != nil {
-		return reader // Only handle one stream.
-	}
-
 	v.nextRTPReader = reader
 	return v // Handle all RTP
 }
@@ -91,10 +77,6 @@ func (v *RTPInterceptor) Read(b []byte, a interceptor.Attributes) (int, intercep
 }
 
 func (v *RTPInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
-	if v.remoteInfo == nil || v.remoteInfo.ID != info.ID {
-		return
-	}
-	v.remoteInfo = nil
 }
 
 type RTCPInterceptorOptionFunc func(i *RTCPInterceptor)
@@ -108,6 +90,7 @@ type RTCPInterceptor struct {
 	// If rtcpWriter is nil, use the default next one to write.
 	rtcpWriter     interceptor.RTCPWriterFunc
 	nextRTCPWriter interceptor.RTCPWriter
+	// Other common fields.
 	BypassInterceptor
 }
 

@@ -21,41 +21,18 @@
 package vnet
 
 import (
-	"net"
+	"github.com/pion/transport/vnet"
 )
 
-func (v *UDPProxy) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err error) {
-	v.workers.Range(func(key, value interface{}) bool {
-		if nn, err := value.(*aUDPProxyWorker).Deliver(sourceAddr, destAddr, b); err != nil {
-			return false // Fail, abort.
-		} else if nn == len(b) {
-			return false // Done.
-		}
+type Router = vnet.Router
+type Net = vnet.Net
 
-		return true // Deliver by next worker.
-	})
-	return
+type NetConfig = vnet.NetConfig
+type RouterConfig = vnet.RouterConfig
+
+func NewNet(config *NetConfig) *Net {
+	return vnet.NewNet(config)
 }
-
-func (v *aUDPProxyWorker) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err error) {
-	addr, ok := sourceAddr.(*net.UDPAddr)
-	if !ok {
-		return 0, nil
-	}
-
-	// TODO: Support deliver packet from real server to vnet.
-	// If packet is from vent, proxy to real server.
-	var realSocket *net.UDPConn
-	if value, ok := v.endpoints.Load(addr.String()); !ok {
-		return 0, nil
-	} else {
-		realSocket = value.(*net.UDPConn)
-	}
-
-	// Send to real server.
-	if _, err := realSocket.Write(b); err != nil {
-		return 0, err
-	}
-
-	return len(b), nil
+func NewRouter(config *RouterConfig) (*Router, error) {
+	return vnet.NewRouter(config)
 }

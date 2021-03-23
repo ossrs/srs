@@ -142,6 +142,12 @@ go test ./srs -mod=vendor -v -srs-server=127.0.0.1
 make && ./objs/srs_test -test.v -srs-server=127.0.0.1
 ```
 
+可以只运行某个用例，并打印详细日志，比如：
+
+```bash
+make && ./objs/srs_test -test.v -srs-log -test.run TestRtcBasic_PublishPlay
+```
+
 支持的参数如下：
 
 * `-srs-server`，RTC服务器地址。默认值：`127.0.0.1`

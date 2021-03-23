@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2021 srs-bench(ossrs)
+// Copyright (c) 2021 Winlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
@@ -23,9 +23,10 @@ package srs
 import (
 	"context"
 	"encoding/json"
-	"github.com/ossrs/go-oryx-lib/logger"
 	"net/http"
 	"strings"
+
+	"github.com/ossrs/go-oryx-lib/logger"
 )
 
 type statRTC struct {
