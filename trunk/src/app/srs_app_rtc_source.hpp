@@ -47,6 +47,7 @@ class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
+class SrsRtcToRtmpBridger;
 class SrsAudioRecode;
 class SrsRtpPacket2;
 class SrsRtpPacketCacheHelper;
