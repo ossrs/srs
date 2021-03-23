@@ -1305,6 +1305,8 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     srs_freepa(ps_buffer_audio);
 
     srs_freep(channel);
+    srs_freep(avc);
+    srs_freep(aac);
     srs_freep(ps_demixer);
     srs_freep(trd);
     srs_freep(sdk);
