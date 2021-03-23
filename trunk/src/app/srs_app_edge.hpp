@@ -127,6 +127,8 @@ private:
     SrsHttpFileReader* reader_;
     SrsFlvDecoder* decoder_;
 private:
+    // We might modify the request by HTTP redirect.
+    SrsRequest* req_;
     // Current selected server, the ip:port.
     std::string selected_ip;
     int selected_port;
@@ -135,6 +137,9 @@ public:
     virtual ~SrsEdgeFlvUpstream();
 public:
     virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
+private:
+    virtual srs_error_t do_connect(SrsRequest* r, SrsLbRoundRobin* lb, int redirect_depth);
+public:
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual void close();

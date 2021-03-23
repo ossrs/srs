@@ -197,8 +197,8 @@ if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
 
-# For FFMPEG/RTC.
-if [[ $SRS_RTC == YES && $SRS_NASM == NO && $SRS_OSX == NO ]]; then
+# For FFMPEG/RTC on Linux.
+if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 
@@ -209,7 +209,7 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_version4" "srs_core_autofree" "srs_core_performance"
+MODULE_FILES=("srs_core" "srs_core_version5" "srs_core_autofree" "srs_core_performance"
 		"srs_core_time")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"

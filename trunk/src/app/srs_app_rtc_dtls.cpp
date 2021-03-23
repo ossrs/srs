@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -42,6 +43,35 @@ using namespace std;
 
 // Defined in HTTP/HTTPS client.
 extern int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
+
+// Setup the openssl timeout for DTLS packet.
+// @see https://www.openssl.org/docs/man1.1.1/man3/DTLS_set_timer_cb.html
+//
+// Use step timeout for ARQ, [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200] in ms,
+// then total timeout is sum([50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200]) = 102350ms.
+//
+// @remark The connection might be closed for timeout in about 30s by default, which stop the DTLS ARQ.
+unsigned int dtls_timer_cb(SSL* dtls, unsigned int previous_us)
+{
+    SrsDtlsImpl* dtls_impl = (SrsDtlsImpl*)SSL_get_ex_data(dtls, 0);
+    srs_assert(dtls_impl);
+
+    // Double the timeout. Note that it can be 0.
+    unsigned int timeout_us = previous_us * 2;
+
+    // If previous_us is 0, for example, the HelloVerifyRequest, we should response it ASAP.
+    // When got ServerHello, we should reset the timer.
+    if (previous_us == 0 || dtls_impl->should_reset_timer()) {
+        timeout_us =  50 * 1000; // in us
+    }
+
+    // Never exceed the max timeout.
+    timeout_us = srs_min(timeout_us, 30 * 1000 * 1000); // in us
+
+    srs_info("DTLS: ARQ timer cb timeout=%ums, previous=%ums", timeout_us/1000, previous_us/1000);
+
+    return timeout_us;
+}
 
 // Print the information of SSL, DTLS alert as such.
 void ssl_on_info(const SSL* dtls, int where, int ret)
@@ -96,16 +126,24 @@ void ssl_on_info(const SSL* dtls, int where, int ret)
     }
 }
 
-SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version)
+SSL_CTX* srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
 {
     SSL_CTX* dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
 #else
     if (version == SrsDtlsVersion1_0) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_method());
+        if (role == "active") {
+            dtls_ctx = SSL_CTX_new(DTLSv1_client_method());
+        } else {
+            dtls_ctx = SSL_CTX_new(DTLSv1_server_method());
+        }
     } else if (version == SrsDtlsVersion1_2) {
-        dtls_ctx = SSL_CTX_new(DTLSv1_2_method());
+        if (role == "active") {
+            dtls_ctx = SSL_CTX_new(DTLS_client_method());
+        } else {
+            dtls_ctx = SSL_CTX_new(DTLS_server_method());
+        }
     } else {
         // SrsDtlsVersionAuto, use version-flexible DTLS methods
         dtls_ctx = SSL_CTX_new(DTLS_method());
@@ -369,8 +407,6 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback* callback)
     callback_ = callback;
     handshake_done_for_us = false;
 
-    last_outgoing_packet_cache = new uint8_t[kRtpPacketSize];
-    nn_last_outgoing_packet = 0;
     nn_arq_packets = 0;
 
     version_ = SrsDtlsVersionAuto;
@@ -393,11 +429,9 @@ SrsDtlsImpl::~SrsDtlsImpl()
         SSL_free(dtls);
         dtls = NULL;
     }
-
-    srs_freepa(last_outgoing_packet_cache);
 }
 
-srs_error_t SrsDtlsImpl::initialize(std::string version)
+srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
@@ -409,7 +443,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx = srs_build_dtls_ctx(version_);
+    dtls_ctx = srs_build_dtls_ctx(version_, role);
 
     if ((dtls = SSL_new(dtls_ctx)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");
@@ -417,6 +451,24 @@ srs_error_t SrsDtlsImpl::initialize(std::string version)
 
     SSL_set_ex_data(dtls, 0, this);
     SSL_set_info_callback(dtls, ssl_on_info);
+
+    // set dtls fragment
+    // @see https://stackoverflow.com/questions/62413602/openssl-server-packets-get-fragmented-into-270-bytes-per-packet
+    SSL_set_options(dtls, SSL_OP_NO_QUERY_MTU);
+    SSL_set_mtu(dtls, kRtpPacketSize);
+
+    // @see https://linux.die.net/man/3/openssl_version_number
+    //                MM NN FF PP S
+    // 0x1010102fL = 0x1 01 01 02 fL            // 1.1.1b release
+    //   MM(major) = 0x1                        // 1.*
+    //     NN(minor) = 0x01                     // 1.1.*
+    //          FF(fix) = 0x01                  // 1.1.1*
+    //     PP(patch) = 'a' + 0x02 - 1 = 'b'     // 1.1.1b *
+    //              S(status) = 0xf = release   // 1.1.1b release
+    // @note Status 0 for development, 1 to e for betas 1 to 14, and f for release.
+#if OPENSSL_VERSION_NUMBER >= 0x1010102fL // 1.1.1b
+    DTLS_set_timer_cb(dtls, dtls_timer_cb);
+#endif
 
     if ((bio_in = BIO_new(BIO_s_mem())) == NULL) {
         return srs_error_new(ERROR_OpenSslBIONew, "BIO_new in");
@@ -448,6 +500,12 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+    // When already done, only for us, we still got message from client,
+    // it might be our response is lost, or application data.
+    if (handshake_done_for_us) {
+        srs_info("DTLS: After done, got %d bytes", nb_data);
+    }
+
     int r0 = 0;
     // TODO: FIXME: Why reset it before writing?
     if ((r0 = BIO_reset(bio_in)) != 1) {
@@ -458,7 +516,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
     }
 
     // Trace the detail of DTLS packet.
-    state_trace((uint8_t*)data, nb_data, true, r0, SSL_ERROR_NONE, false, false);
+    state_trace((uint8_t*)data, nb_data, true, r0, SSL_ERROR_NONE, false);
 
     if ((r0 = BIO_write(bio_in, data, nb_data)) <= 0) {
         // TODO: 0 or -1 maybe block, use BIO_should_retry to check.
@@ -471,17 +529,45 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
         return srs_error_wrap(err, "do handshake");
     }
 
-    while (BIO_ctrl_pending(bio_in) > 0) {
+    // If there is data in bio_in, read it to let SSL consume it.
+    // @remark Limit the max loop, to avoid the dead loop.
+    for (int i = 0; i < 1024 && BIO_ctrl_pending(bio_in) > 0; i++) {
         char buf[8092];
-        int nb = SSL_read(dtls, buf, sizeof(buf));
-        if (nb <= 0) {
+        int r0 = SSL_read(dtls, buf, sizeof(buf));
+        int r1 = SSL_get_error(dtls, r0);
+
+        if (r0 <= 0) {
+            // SSL_ERROR_ZERO_RETURN
+            //
+            // The TLS/SSL connection has been closed. If the protocol version is SSL 3.0 or higher,
+            // this result code is returned only if a closure alert has occurred in the protocol,
+            // i.e. if the connection has been closed cleanly.
+            // @see https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
+            // @remark Already close, never read again, because padding always exsists.
+            if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE) {
+                break;
+            }
+
+            // We got data in memory, which can not read by SSL_read, generally, it's handshake data.
+            uint8_t* data = NULL;
+            int size = BIO_get_mem_data(bio_out, (char**)&data);
+
+            // Logging when got SSL original data.
+            state_trace((uint8_t*)data, size, false, r0, r1, false);
+
+            if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
+                return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
+                    srs_string_dumps_hex((char*)data, size, 32).c_str());
+            }
             continue;
         }
-        srs_trace("DTLS: read nb=%d, data=[%s]", nb, srs_string_dumps_hex(buf, nb, 32).c_str());
 
-        if ((err = callback_->on_dtls_application_data(buf, nb)) != srs_success) {
-            return srs_error_wrap(err, "on DTLS data, size=%u, data=[%s]", nb,
-                srs_string_dumps_hex(buf, nb, 32).c_str());
+        srs_trace("DTLS: read r0=%d, r1=%d, padding=%d, done=%d, data=[%s]",
+            r0, r1, BIO_ctrl_pending(bio_in), handshake_done_for_us, srs_string_dumps_hex(buf, r0, 32).c_str());
+
+        if ((err = callback_->on_dtls_application_data(buf, r0)) != srs_success) {
+            return srs_error_wrap(err, "on DTLS data, done=%d, r1=%d, size=%u, data=[%s]", handshake_done_for_us,
+                r1, r0, srs_string_dumps_hex(buf, r0, 32).c_str());
         }
     }
 
@@ -491,6 +577,12 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char* data, int nb_data)
 srs_error_t SrsDtlsImpl::do_handshake()
 {
     srs_error_t err = srs_success;
+
+    // Done for use, ignore handshake packets. If need to ARQ the handshake packets,
+    // we should use SSL_read to handle it.
+    if (handshake_done_for_us) {
+        return err;
+    }
 
     // Do handshake and get the result.
     int r0 = SSL_do_handshake(dtls);
@@ -508,18 +600,10 @@ srs_error_t SrsDtlsImpl::do_handshake()
 
     // The data to send out to peer.
     uint8_t* data = NULL;
-    int size = BIO_get_mem_data(bio_out, &data);
+    int size = BIO_get_mem_data(bio_out, (char**)&data);
 
-    // Callback when got SSL original data.
-    bool cache = false;
-    on_ssl_out_data(data, size, cache);
-    state_trace((uint8_t*)data, size, false, r0, r1, cache, false);
-
-    // Update the packet cache.
-    if (size > 0 && data != last_outgoing_packet_cache && size < kRtpPacketSize) {
-        memcpy(last_outgoing_packet_cache, data, size);
-        nn_last_outgoing_packet = size;
-    }
+    // Logging when got SSL original data.
+    state_trace((uint8_t*)data, size, false, r0, r1, false);
 
     // Callback for the final output data, before send-out.
     if ((err = on_final_out_data(data, size)) != srs_success) {
@@ -540,7 +624,7 @@ srs_error_t SrsDtlsImpl::do_handshake()
     return err;
 }
 
-void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq)
+void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq)
 {
     // change_cipher_spec(20), alert(21), handshake(22), application_data(23)
     // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
@@ -559,8 +643,8 @@ void SrsDtlsImpl::state_trace(uint8_t* data, int length, bool incoming, int r0, 
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: %s %s, done=%u, cache=%u, arq=%u/%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
-        (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, cache, arq,
+    srs_trace("DTLS: State %s %s, done=%u, arq=%u/%u, r0=%d, r1=%d, len=%u, cnt=%u, size=%u, hs=%u",
+        (is_dtls_client()? "Active":"Passive"), (incoming? "RECV":"SEND"), handshake_done_for_us, arq,
         nn_arq_packets, r0, r1, length, content_type, size, handshake_type);
 }
 
@@ -611,15 +695,9 @@ SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback* callback) : SrsDtlsImpl(c
     trd = NULL;
     state_ = SrsDtlsStateInit;
 
-    // The first wait and base interval for ARQ.
-    arq_interval = 10 * SRS_UTIME_MILLISECONDS;
-
-    // Use step timeout for ARQ, the total timeout is sum(arq_to_ratios)*arq_interval.
-    // for example, if arq_interval is 10ms, arq_to_ratios is [3, 6, 9, 15, 20, 40, 80, 160],
-    // then total timeout is sum([3, 6, 9, 15, 20, 40, 80, 160]) * 10ms = 3330ms.
-    int ratios[] = {3, 6, 9, 15, 20, 40, 80, 160};
-    srs_assert(sizeof(arq_to_ratios) == sizeof(ratios));
-    memcpy(arq_to_ratios, ratios, sizeof(ratios));
+    // the max dtls retry num is 12 in openssl.
+    arq_max_retry = 12 * 2; // Max ARQ limit shared for ClientHello and Certificate.
+    reset_timer_ = true;
 }
 
 SrsDtlsClientImpl::~SrsDtlsClientImpl()
@@ -627,11 +705,11 @@ SrsDtlsClientImpl::~SrsDtlsClientImpl()
     srs_freep(trd);
 }
 
-srs_error_t SrsDtlsClientImpl::initialize(std::string version)
+srs_error_t SrsDtlsClientImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version, role)) != srs_success) {
         return err;
     }
 
@@ -644,59 +722,46 @@ srs_error_t SrsDtlsClientImpl::initialize(std::string version)
 
 srs_error_t SrsDtlsClientImpl::start_active_handshake()
 {
-    return do_handshake();
-}
-
-srs_error_t SrsDtlsClientImpl::on_dtls(char* data, int nb_data)
-{
     srs_error_t err = srs_success;
 
-    // When got packet, stop the ARQ if server in the first ARQ state SrsDtlsStateServerHello.
-    // @note But for ARQ state, we should never stop the ARQ, for example, we are in the second ARQ sate
-    //      SrsDtlsStateServerDone, but we got previous late wrong packet ServeHello, which is not the expect
-    //      packet SessionNewTicket, we should never stop the ARQ thread.
-    if (state_ == SrsDtlsStateServerHello) {
-        stop_arq();
+    if ((err = do_handshake()) != srs_success) {
+        return srs_error_wrap(err, "start handshake");
     }
 
-    if ((err = SrsDtlsImpl::on_dtls(data, nb_data)) != srs_success) {
-        return err;
+    if ((err = start_arq()) != srs_success) {
+        return srs_error_wrap(err, "start arq");
     }
 
     return err;
 }
 
-void SrsDtlsClientImpl::on_ssl_out_data(uint8_t*& data, int& size, bool& cached)
+bool SrsDtlsClientImpl::should_reset_timer()
 {
-    // DTLS client use ARQ thread to send cached packet.
-    cached = false;
+    bool v = reset_timer_;
+    reset_timer_ = false;
+    return v;
 }
 
+// Note that only handshake sending packets drives the state, neither ARQ nor the
+// final-packets(after handshake done) drives it.
 srs_error_t SrsDtlsClientImpl::on_final_out_data(uint8_t* data, int size)
 {
     srs_error_t err = srs_success;
 
-    // Driven ARQ and state for DTLS client.
     // If we are sending client hello, change from init to new state.
-    if (state_ == SrsDtlsStateInit && size > 14 && data[13] == 1) {
+    if (state_ == SrsDtlsStateInit && size > 14 && data[0] == 22 && data[13] == 1) {
         state_ = SrsDtlsStateClientHello;
+        return err;
     }
-    // If we are sending certificate, change from SrsDtlsStateServerHello to new state.
-    if (state_ == SrsDtlsStateServerHello && size > 14 && data[13] == 11) {
+
+    // If we are sending certificate, change from SrsDtlsStateClientHello to new state.
+    if (state_ == SrsDtlsStateClientHello && size > 14 && data[0] == 22 && data[13] == 11) {
         state_ = SrsDtlsStateClientCertificate;
-    }
 
-    // Try to start the ARQ for client.
-    if ((state_ == SrsDtlsStateClientHello || state_ == SrsDtlsStateClientCertificate)) {
-        if (state_ == SrsDtlsStateClientHello) {
-            state_ = SrsDtlsStateServerHello;
-        } else if (state_ == SrsDtlsStateClientCertificate) {
-            state_ = SrsDtlsStateServerDone;
-        }
-
-        if ((err = start_arq()) != srs_success) {
-            return srs_error_wrap(err, "start arq");
-        }
+        // When we send out the certificate, we should reset the timer.
+        reset_timer_ = true;
+        srs_info("DTLS: Reset the timer for ServerHello");
+        return err;
     }
 
     return err;
@@ -706,8 +771,15 @@ srs_error_t SrsDtlsClientImpl::on_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // When handshake done, stop the ARQ.
+    // Ignore if done.
+    if (state_ == SrsDtlsStateClientDone) {
+        return err;
+    }
+
+    // Change to done state.
     state_ = SrsDtlsStateClientDone;
+
+    // When handshake done, stop the ARQ.
     stop_arq();
 
     // Notify connection the DTLS is done.
@@ -727,8 +799,6 @@ srs_error_t SrsDtlsClientImpl::start_arq()
 {
     srs_error_t err = srs_success;
 
-    srs_info("start arq, state=%u", state_);
-
     // Dispose the previous ARQ thread.
     srs_freep(trd);
     trd = new SrsSTCoroutine("dtls", this, _srs_context->get_id());
@@ -743,20 +813,24 @@ srs_error_t SrsDtlsClientImpl::start_arq()
 
 void SrsDtlsClientImpl::stop_arq()
 {
-    srs_info("stop arq, state=%u", state_);
     srs_freep(trd);
-    srs_info("stop arq, done");
 }
 
 srs_error_t SrsDtlsClientImpl::cycle()
 {
     srs_error_t err = srs_success;
 
-    // Limit the max retry for ARQ.
-    for (int i = 0; i < (int)(sizeof(arq_to_ratios) / sizeof(int)); i++) {
-        srs_utime_t arq_to = arq_interval * arq_to_ratios[i];
-        srs_usleep(arq_to);
+    // Limit the max retry for ARQ, to avoid infinite loop.
+    // Note that we set the timeout to [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200] in ms,
+    // but the actual timeout is limit to 1s:
+    //      50ms, 100ms, 200ms, 400ms, 800ms, (1000ms,600ms), (200ms,1000ms,1000ms,1000ms),
+    //      (400ms,1000ms,1000ms,1000ms,1000ms,1000ms,1000ms), ...
+    // So when the max ARQ limit to 12 times, the max loop is about 103.
+    // @remark We change the max sleep to 100ms, so we limit about (103*10)/2=500.
+    const int max_loop = 512;
 
+    int arq_count = 0;
+    for (int i = 0; arq_count < arq_max_retry && i < max_loop; i++) {
         // We ignore any error for ARQ thread.
         if ((err = trd->pull()) != srs_success) {
             srs_freep(err);
@@ -769,27 +843,62 @@ srs_error_t SrsDtlsClientImpl::cycle()
         }
 
         // For DTLS client ARQ, the state should be specified.
-        if (state_ != SrsDtlsStateServerHello && state_ != SrsDtlsStateServerDone) {
+        if (state_ != SrsDtlsStateClientHello && state_ != SrsDtlsStateClientCertificate) {
             return err;
         }
 
-        // Try to retransmit the packet.
-        uint8_t* data = last_outgoing_packet_cache;
-        int size = nn_last_outgoing_packet;
+        // If there is a timeout in progress, it sets *out to the time remaining
+        // and returns one. Otherwise, it returns zero.
+        int r0 = 0; timeval to = {0};
+        if ((r0 = DTLSv1_get_timeout(dtls, &to)) == 0) {
+            // No timeout, for example?, wait for a default 50ms.
+            srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+            continue;
+        }
+        srs_utime_t timeout = to.tv_sec + to.tv_usec;
 
-        if (size) {
-            // Trace the detail of DTLS packet.
-            state_trace((uint8_t*)data, size, false, 1, SSL_ERROR_NONE, true, true);
-            nn_arq_packets++;
-
-            if ((err = callback_->write_dtls_data(data, size)) != srs_success) {
-                return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
-                    srs_string_dumps_hex((char*)data, size, 32).c_str());
-            }
+        // There is timeout to wait, so we should wait, because there is no packet in openssl.
+        if (timeout > 0) {
+            // Never wait too long, because we might need to retransmit other messages.
+            // For example, we have transmit 2 ClientHello as [50ms, 100ms] then we sleep(200ms),
+            // during this we reset the openssl timer to 50ms and need to retransmit Certificate,
+            // we still need to wait 200ms not 50ms.
+            timeout = srs_min(100 * SRS_UTIME_MILLISECONDS, timeout);
+            timeout = srs_max(50 * SRS_UTIME_MILLISECONDS, timeout);
+            srs_usleep(timeout);
+            continue;
         }
 
-        srs_info("arq cycle, done=%u, state=%u, retry=%d, interval=%dms, to=%dms, size=%d, nn=%d", handshake_done_for_us,
-            state_, i, srsu2msi(arq_interval), srsu2msi(arq_to), size, nn_arq_packets);
+        // The timeout is 0, so there must be a ARQ packet to transmit in openssl.
+        r0 = BIO_reset(bio_out); int r1 = SSL_get_error(dtls, r0);
+        if (r0 != 1) {
+            return srs_error_new(ERROR_OpenSslBIOReset, "BIO_reset r0=%d, r1=%d", r0, r1);
+        }
+
+        // DTLSv1_handle_timeout is called when a DTLS handshake timeout expires. If no timeout
+        // had expired, it returns 0. Otherwise, it retransmits the previous flight of handshake
+        // messages and returns 1. If too many timeouts had expired without progress or an error
+        // occurs, it returns -1.
+        r0 = DTLSv1_handle_timeout(dtls); r1 = SSL_get_error(dtls, r0);
+        if (r0 == 0) {
+            continue; // No timeout had expired.
+        }
+        if (r0 != 1) {
+            return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
+        }
+
+        // The data to send out to peer.
+        uint8_t* data = NULL;
+        int size = BIO_get_mem_data(bio_out, (char**)&data);
+
+        arq_count++;
+        nn_arq_packets++;
+        state_trace((uint8_t*)data, size, false, r0, r1, true);
+
+        if (size > 0 && (err = callback_->write_dtls_data(data, size)) != srs_success) {
+            return srs_error_wrap(err, "dtls send size=%u, data=[%s]", size,
+                srs_string_dumps_hex((char*)data, size, 32).c_str());
+        }
     }
 
     return err;
@@ -803,11 +912,11 @@ SrsDtlsServerImpl::~SrsDtlsServerImpl()
 {
 }
 
-srs_error_t SrsDtlsServerImpl::initialize(std::string version)
+srs_error_t SrsDtlsServerImpl::initialize(std::string version, std::string role)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDtlsImpl::initialize(version)) != srs_success) {
+    if ((err = SrsDtlsImpl::initialize(version, role)) != srs_success) {
         return err;
     }
 
@@ -819,23 +928,19 @@ srs_error_t SrsDtlsServerImpl::initialize(std::string version)
 
 srs_error_t SrsDtlsServerImpl::start_active_handshake()
 {
+    // For DTLS server, we do nothing, because DTLS client drive it.
     return srs_success;
 }
 
-void SrsDtlsServerImpl::on_ssl_out_data(uint8_t*& data, int& size, bool& cached)
+bool SrsDtlsServerImpl::should_reset_timer()
 {
-    // If outgoing packet is empty, we use the last cache.
-    // @remark Only for DTLS server, because DTLS client use ARQ thread to send cached packet.
-    if (size <= 0 && nn_last_outgoing_packet) {
-        size = nn_last_outgoing_packet;
-        data = last_outgoing_packet_cache;
-        nn_arq_packets++;
-        cached = true;
-    }
+    // For DTLS server, we never use timer for ARQ, because DTLS client drive it.
+    return false;
 }
 
 srs_error_t SrsDtlsServerImpl::on_final_out_data(uint8_t* data, int size)
 {
+    // No ARQ, driven by DTLS client packets.
     return srs_success;
 }
 
@@ -876,7 +981,7 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
         impl = new SrsDtlsServerImpl(callback_);
     }
 
-    return impl->initialize(version);
+    return impl->initialize(version, role);
 }
 
 srs_error_t SrsDtls::start_active_handshake()

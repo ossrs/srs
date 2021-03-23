@@ -680,6 +680,9 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     if (!oip.empty()) {
         req->ip = oip;
     }
+
+    // The request streaming protocol.
+    req->protocol = (schema_ == "http")? "flv" : "flvs";
     
     return req;
 }

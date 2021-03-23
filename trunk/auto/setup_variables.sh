@@ -13,6 +13,7 @@ if [[ $OS_KERNEL_NAME == Darwin ]]; then
   SRS_PLATFORM="${SRS_PLATFORM}-${GCC_VERSION}"
 else
   GCC_VERSION="GCC$(gcc --version 2>/dev/null|grep gcc|awk '{print $3}')"
+  echo $GCC_VERSION| grep '-' >/dev/null && GCC_VERSION=$(echo $GCC_VERSION| awk -F '-' '{print$1}')
   SRS_PLATFORM="${SRS_PLATFORM}-${GCC_VERSION}"
 fi
 # Use isolate cache for different SRS version.

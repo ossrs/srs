@@ -47,8 +47,11 @@ public:
     virtual ~ISrsDisposingHandler();
 public:
     // When before disposing resource, trigger when manager.remove(c), sync API.
+    // @remark Recommend to unref c, after this, no other objects refs to c.
     virtual void on_before_dispose(ISrsResource* c) = 0;
     // When disposing resource, async API, c is freed after it.
+    // @remark Recommend to stop any thread/timer of c, after this, fields of c is able
+    // to be deleted in any order.
     virtual void on_disposing(ISrsResource* c) = 0;
 };
 

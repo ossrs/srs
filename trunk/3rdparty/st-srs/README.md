@@ -1,6 +1,8 @@
 # state-threads
 
 ![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/srsst)
+[![](https://circleci.com/gh/ossrs/state-threads/tree/srs.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/state-threads/tree/srs)
+[![](https://codecov.io/gh/ossrs/state-threads/branch/srs/graph/badge.svg)](https://codecov.io/gh/ossrs/state-threads/branch/srs)
 [![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
 
 Fork from http://sourceforge.net/projects/state-threads, patched for [SRS](https://github.com/ossrs/srs/tree/2.0release).
@@ -14,8 +16,8 @@ For original ST without any changes, checkout the [ST master branch](https://git
 Get code:
 
 ```
-git clone https://github.com/ossrs/state-threads.git st-1.9 &&
-git checkout -b srs origin/srs
+git clone https://github.com/ossrs/state-threads.git &&
+cd state-threads && git checkout srs
 ```
 
 For Linux:
@@ -66,9 +68,10 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] Support macro `MD_ST_NO_ASM` to disable ASM, [#8](https://github.com/ossrs/state-threads/issues/8).
 - [x] Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
 - [x] Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
-- [ ] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
+- [x] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 - [x] Refine performance for sleep or epoll_wait(0), [#17](https://github.com/ossrs/state-threads/issues/17).
 - [ ] Improve the performance of timer. [9fe8cfe5b](https://github.com/ossrs/state-threads/commit/9fe8cfe5b1c9741a2e671a46215184f267fba400), [7879c2b](https://github.com/ossrs/state-threads/commit/7879c2b), [387cddb](https://github.com/ossrs/state-threads/commit/387cddb)
+- [x] Support utest by gtest and coverage by gcov/gocvr.
 
 ## GDB Tools
 
@@ -87,6 +90,49 @@ Important cli options:
 1. `--leak-check=<no|summary|yes|full> [default: summary]`, When enabled, search for memory leaks when the client program finishes. If set to summary, it says how many leaks occurred. If set to full or yes, each individual leak will be shown in detail and/or counted as an error, as specified by the options `--show-leak-kinds` and `--errors-for-leak-kinds`.
 1. `--track-origins=<yes|no> [default: no]`, Controls whether Memcheck tracks the origin of uninitialised values. By default, it does not, which means that although it can tell you that an uninitialised value is being used in a dangerous way, it cannot tell you where the uninitialised value came from. This often makes it difficult to track down the root problem.
 1. `--show-reachable=<yes|no> , --show-possibly-lost=<yes|no>`, to show the using memory.
+
+## UTest and Coverage
+
+First of all, download [google test](https://github.com/google/googletest/releases/tag/release-1.6.0) to `utest/gtest`, check by:
+
+```bash
+ls -lh utest/gtest/include/gtest/gtest.h >/dev/null && echo yes
+```
+
+To make ST with utest and run it:
+
+```bash
+make linux-debug-gcov && ./obj/st_utest
+```
+
+> For macOS: `make darwin-debug-gcov && ./obj/st_utest`
+
+> Run utest without coverage: `make darwin-debug-utest && ./obj/st_utest`
+
+Then, install [gcovr](https://gcovr.com/en/stable/guide.html) for coverage:
+
+```bash
+yum install -y python2-pip &&
+pip install lxml && pip install gcovr
+```
+
+> For macOS: `pip3 install gcovr`
+
+Finally, run test and get the report
+
+```bash
+mkdir -p coverage &&
+gcovr -r . -e LINUX -e DARWIN -e examples --html --html-details -o coverage/st.html &&
+open coverage/st.html
+```
+
+> Note: We ignore `LINUX*` and `DARWIN*` which is `obj` actually.
+
+Or just run locally:
+
+```bash
+bash auto/coverage.sh
+```
 
 ## Docs & Analysis
 

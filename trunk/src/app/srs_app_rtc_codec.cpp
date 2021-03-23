@@ -136,10 +136,20 @@ srs_error_t SrsAudioDecoder::decode(SrsSample *pkt, char *buf, int &size)
            codec_ctx_->frame_size = frame_->nb_samples;
         }
 
-        for (int i = 0; i < frame_->nb_samples; i++) {
-            if (size + pcm_size * codec_ctx_->channels <= max) {
-                memcpy(buf + size,frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
-                size += pcm_size * codec_ctx_->channels;
+        if (SrsAudioCodecIdAAC == codec_id_) {
+            // @see https://github.com/ossrs/srs/pull/2011/files
+            for (int i = 0; i < codec_ctx_->channels; i++) {
+                if (size + pcm_size * frame_->nb_samples <= max) {
+                    memcpy(buf + size,frame_->data[i],pcm_size * frame_->nb_samples);
+                    size += pcm_size * frame_->nb_samples;
+                }
+            }
+        } else {
+            for (int i = 0; i < frame_->nb_samples; i++) {
+                if (size + pcm_size * codec_ctx_->channels <= max) {
+                    memcpy(buf + size,frame_->data[0] + pcm_size*codec_ctx_->channels * i, pcm_size * codec_ctx_->channels);
+                    size += pcm_size * codec_ctx_->channels;
+                }
             }
         }
     }

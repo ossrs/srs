@@ -590,18 +590,23 @@ srs_error_t SrsRtcServer::do_create_session(
         srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
 
+    // Setup the negotiate DTLS by config.
+    local_sdp.session_negotiate_ = local_sdp.session_config_;
+
+    // Setup the negotiate DTLS role.
     if (remote_sdp.get_dtls_role() == "active") {
-        local_sdp.set_dtls_role("passive");
+        local_sdp.session_negotiate_.dtls_role = "passive";
     } else if (remote_sdp.get_dtls_role() == "passive") {
-        local_sdp.set_dtls_role("active");
+        local_sdp.session_negotiate_.dtls_role = "active";
     } else if (remote_sdp.get_dtls_role() == "actpass") {
-        local_sdp.set_dtls_role(local_sdp.session_config_.dtls_role);
+        local_sdp.session_negotiate_.dtls_role = local_sdp.session_config_.dtls_role;
     } else {
         // @see: https://tools.ietf.org/html/rfc4145#section-4.1
         // The default value of the setup attribute in an offer/answer exchange
         // is 'active' in the offer and 'passive' in the answer.
-        local_sdp.set_dtls_role("passive");
+        local_sdp.session_negotiate_.dtls_role = "passive";
     }
+    local_sdp.set_dtls_role(local_sdp.session_negotiate_.dtls_role);
 
     session->set_remote_sdp(remote_sdp);
     // We must setup the local SDP, then initialize the session object.
@@ -768,11 +773,11 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
         rnk_desc = buf;
     }
 
-    string drop_desc;
+    string loss_desc;
     SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
     if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
-        snprintf(buf, sizeof(buf), ", drop=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
-        drop_desc = buf;
+        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+        loss_desc = buf;
     }
 
     string fid_desc;
@@ -784,7 +789,7 @@ srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tic
 
     srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
         nn_rtc_conns,
-        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), drop_desc.c_str(), fid_desc.c_str()
+        rpkts_desc.c_str(), spkts_desc.c_str(), rtcp_desc.c_str(), snk_desc.c_str(), rnk_desc.c_str(), loss_desc.c_str(), fid_desc.c_str()
     );
 
     return err;

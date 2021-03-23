@@ -13,6 +13,66 @@ SRS is a RTMP/HLS/WebRTC/SRT/GB28181 streaming cluster, high efficiency, stable 
 <a name="product"></a>
 ## Usage
 
+Recommend to run SRS by [docker][docker-srs4]:
+
+```bash
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    ossrs/srs:v4.0.76
+
+# Or, for developers in China to speedup.
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
+
+# For macOS to enable WebRTC, other OS please see #307.
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+    --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
+```
+
+> Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
+> `ossrs/srs:v3.0-r3` for tag [v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
+> please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
+> or [there](https://hub.docker.com/r/ossrs/srs/tags).
+
+> To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
+
+If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
+
+```bash
+ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
+    -f flv rtmp://localhost/live/livestream
+
+# Or by FFmpeg docker
+docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
+      -f flv -y rtmp://localhost/live/livestream
+```
+
+> Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
+
+Play the following streams by players:
+
+* VLC(RTMP): rtmp://localhost/live/livestream
+* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
+* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
+* H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
+
+> The online demos and players are available on [ossrs.net](https://ossrs.net).
+
+Strongly recommend reading bellow wikis:
+
+* How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
+* How to deliver HTTP-FLV streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
+* How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
+* How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
+* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
+* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
+
+It's also very easy to build from source:
+
 **>>> Step 1:** Get SRS.
 
 ```
@@ -39,50 +99,20 @@ git checkout develop && git pull
 ./objs/srs -c conf/srs.conf
 ```
 
-**>>> Whatever**, you can also directly run SRS in [docker][docker-srs3]:
-
-```
-docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
-```
-
-> Note: Again, we use [ACR](https://cr.console.aliyun.com/) here, you can directly run in docker hub by `docker run -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3`
-
-**>>> From here,** strongly recommend to read bellow wikis:
-
-* Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* Usage: How to delivery RTMP-Edge Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
-* Usage: How to create a RTMP-Origin Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
-* Usage: How to delivery HTTP-FLV?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
-* Usage: How to delivery HTTP-FLV Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
-* Usage: How to delivery HLS?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
-* Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
-* Usage: How to publish SRT(Experimental) to SRS?([CN][v4_CN_SampleSRT], [EN][v4_EN_SampleSRT])
-* Usage: How to transode stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
-* Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
-* Usage: How to enable low lantency live streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
-* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to delivery DASH(Experimental)?([CN][v3_CN_SampleDASH], [EN][v3_EN_SampleDASH])
-* Usage: How to enable multiple processes? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
-* Usage: Want to contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact]) Or file an issue [here](https://github.com/ossrs/srs/issues/new)?
-
 <a name="srs-30-wiki"></a>
-## Wiki
+<a name="wiki"></a>
+Other documents:
 
-Please select according to languages:
-
+* Usage: How to publish GB28181 to SRS? [#1500](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679)
+* Usage: How to delivery DASH(Experimental)?([CN][v3_CN_SampleDASH], [EN][v3_EN_SampleDASH])
+* Usage: How to transode RTMP stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
+* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
+* Usage: How to ingest file/stream/device to RTMP?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
+* Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
+* Usage: How to improve edge performance for multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
+* Usage: How to file a bug or contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact])
 * [SRS 4.0 English Wiki][v4_EN_Home]
 * [SRS 4.0 Chinese Wiki][v4_CN_Home]
-
-For previous versions, please read:
-
-* [SRS 3.0 English Wiki][v3_EN_Home]
-* [SRS 3.0 Chinese Wiki][v3_CN_Home]
-* [SRS 2.0 English Wiki][v2_EN_Home]
-* [SRS 2.0 Chinese Wiki][v2_CN_Home]
-* [SRS 1.0 English Wiki][v1_EN_Home]
-* [SRS 1.0 Chinese Wiki][v1_CN_Home]
 
 ## Features
 
@@ -92,7 +122,7 @@ For previous versions, please read:
 - [x] Edge server supports remuxing RTMP to HTTP-FLV([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv]). As for HLS([CN][v3_CN_DeliveryHLS], [EN][v3_EN_DeliveryHLS]) edge server, recomment to use HTTP edge server, such as [NGINX](http://nginx.org/).
 - [x] Support HLS with audio-only([CN][v3_CN_DeliveryHLS2], [EN][v3_EN_DeliveryHLS2]), which need to build the timestamp from AAC samples, so we enhanced it please read [#547][bug #547].
 - [x] Support HLS with mp3(h.264+mp3) audio codec, please read [bug #301][bug #301].
-- [x] Support remuxing RTMP to http FLV/MP3/AAC/TS live streaming, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
+- [x] Support transmux RTMP to HTTP-FLV/MP3/AAC/TS, please read wiki([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
 - [x] Support ingesting([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) other protocols to SRS by FFMPEG.
 - [x] Support RTMP long time(>4.6hours) publishing/playing, with the timestamp corrected.
 - [x] Support publishing h264 raw stream([CN][v3_CN_SrsLibrtmp2], [EN][v3_EN_SrsLibrtmp2]) by srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp]).
@@ -110,42 +140,46 @@ For previous versions, please read:
 - [x] Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]) and \_\_defaultVhost\_\_.
 - [x] Support reloading([CN][v1_CN_Reload], [EN][v1_EN_Reload]) to apply changes of config.
 - [x] Support listening at multiple ports.
-- [x] Support forwarding([CN][v3_CN_Forward], [EN][v3_EN_Forward]) from master to slave server.
-- [x] Support transcoding([CN][v3_CN_FFMPEG], [EN][v3_EN_FFMPEG]) live streaming by FFMPEG.
+- [x] Support forwarding([CN][v3_CN_Forward], [EN][v3_EN_Forward]) to other RTMP servers.
+- [x] Support transcoding([CN][v3_CN_FFMPEG], [EN][v3_EN_FFMPEG]) by FFMPEG.
 - [x] All wikis are writen in [Chinese][v3_CN_Home] and [English][v3_EN_Home]. 
 - [x] Enhanced json, replace NXJSON(LGPL) with json-parser(BSD), read [#904][bug #904].
 - [x] Support valgrind and latest ARM by patching ST, read [ST#1](https://github.com/ossrs/state-threads/issues/1) and [ST#2](https://github.com/ossrs/state-threads/issues/2).
-- [x] Support tracable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
-- [x] High concurrency and performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(200kbps), CPU 82%, 203MB.
+- [x] Support traceable and session-based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
+- [x] High performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]) RTMP/HTTP-FLV, 6000+ connections.
 - [x] Enhanced complex error code with description and stack, read [#913][bug #913].
 - [x] Enhanced RTMP url  which supports vhost in stream, read [#1059][bug #1059].
 - [x] Support origin cluster, please read [#464][bug #464], [RTMP 302][bug #92].
 - [x] Support listen at IPv4 and IPv6, read [#460][bug #460].
-- [x] Support SO_REUSEPORT, to improve edge server performance, read [#775][bug #775].
 - [x] Improve test coverage for core/kernel/protocol/service.
-- [x] [Experimental] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
+- [x] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
+- [x] Support multiple processes by ReusePort([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT]), [#775][bug #775].
+- [x] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
+- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
+- [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
+- [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
+- [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
+- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
 - [x] [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250][bug #250].
 - [x] [Experimental] Support pushing RTSP, please read [bug #133][bug #133].
-- [x] [Experimental] Support pushing FLV over HTTP POST, please read [wiki]([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
-- [x] [Experimental] Support multiple processes by [dolphin][srs-dolphin] or [oryx][oryx].
-- [x] [Experimental] Support a simple [mgmt console][console], please read [srs-ngb][srs-ngb].
-- [x] [Experimental] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
+- [x] [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN][v2_CN_Streamer2], [EN][v2_EN_Streamer2]).
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
-- [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
-- [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
-- [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
-- [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
+- [x] [Deprecated] Support RTMP client library: srs-librtmp([CN][v3_CN_SrsLibrtmp], [EN][v3_EN_SrsLibrtmp])
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v2_CN_DeliveryHDS], [EN][v2_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]), please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v3_CN_DRM2], [EN][v3_EN_DRM2]) authentication, please read [#1535][bug #1535].
-- [ ] Enhanced forwarding with vhost and variables.
-- [ ] Support source cleanup for idle streams.
-- [ ] Support H.265 by pushing H.265 over RTMP, deliverying in HLS, read [#465][bug #465].
-- [ ] Support UDP protocol such as QUIC or KCP in cluster.
-- [ ] Support H.264+Opus codec for WebRTC, [#307][bug #307].
+- [ ] Enhanced forwarding with vhost and variables, [#1342][bug #1342].
+- [ ] Support DVR to Cloud Storage, [#1193][bug #1193].
+- [ ] Support transmux RTC to RTMP, [#2093][bug #2093].
+- [ ] Support H.265 over RTMP and HLS, [#465][bug #465].
+- [ ] Support IETF-QUIC for WebRTC Cluster, [#2091][bug #2091].
+- [ ] Improve RTC performance to 5K by multiple threading, [#2188][bug #2188].
+- [ ] Support source cleanup for idle streams, [#413][bug #413].
 - [ ] Support change user to run SRS, [#1111][bug #1111].
 - [ ] Support HLS variant, [#463][bug #463].
 
@@ -154,8 +188,20 @@ For previous versions, please read:
 <a name="history"></a>
 <a name="change-logs"></a>
 
+## V5 changes
+
+* v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
+* v5.0, 2021-03-15, Init SRS/5. 5.0.0
+
 ## V4 changes
 
+* v4.0, 2021-03-09, DTLS: Fix ARQ bug, use openssl timeout. 4.0.84
+* v4.0, 2021-03-08, DTLS: Fix dead loop by duplicated Alert message. 4.0.83
+* v4.0, 2021-03-08, Fix bug when client DTLS is passive. 4.0.82
+* v4.0, 2021-03-03, Fix [#2106][bug #2106], [#2011][bug #2011], RTMP/AAC transcode to Opus bug. 4.0.81
+* v4.0, 2021-03-02, Refine build script for FFmpeg and SRTP. 4.0.80
+* v4.0, 2021-03-02, Upgrade libsrtp from 2.0.0 to 2.3.0, with source code. 4.0.79
+* v4.0, 2021-03-01, Upgrade openssl from 1.1.0e to 1.1.1b, with source code. 4.0.78
 * v4.0, 2021-03-01, Enable Object Cache and Zero Copy Nack by default. 4.0.77
 * v4.0, 2021-02-28, RTC: Support high performance [Zero Copy NACK](https://github.com/ossrs/srs/commit/36ea67359e55c94ab044cee4b6a4ec901a83a287#commitcomment-47654868). 4.0.76
 * v4.0, 2021-02-27, RTC: Support [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008) for performance. 4.0.75
@@ -223,6 +269,7 @@ For previous versions, please read:
 
 ## V3 changes
 
+* v3.0, 2021-03-05, Refine usage to docker by default. 3.0.158
 * v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
 * <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
 * v3.0, 2020-12-26, For RTMP edge/forward, pass vhost in tcUrl, not in stream. 3.0.156
@@ -1268,7 +1315,7 @@ git clone https://github.com/ossrs/srs.git
 Supported operating systems and hardware:
 
 * All Linux, both 32 and 64 bits
-* Other OS, such as Windows, please use [docker][docker-srs3].
+* Other OS, such as Windows, please use [docker][docker-srs4].
 
 Beijing, 2013.10<br/>
 Winlin
@@ -1322,7 +1369,8 @@ Winlin
 [console]: http://ossrs.net:1985/console
 [player]: http://ossrs.net/players/srs_player.html
 [modules]: https://github.com/ossrs/srs/blob/develop/trunk/modules/readme.txt
-[docker-srs3]: https://github.com/ossrs/srs-docker#srs3
+[docker-srs3]: https://github.com/ossrs/srs-docker/tree/v3#usage
+[docker-srs4]: https://github.com/ossrs/srs-docker/tree/v4#usage
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v1_CN_Git]: https://github.com/ossrs/srs/wiki/v1_CN_Git
@@ -1475,6 +1523,10 @@ Winlin
 [v3_EN_NgExec]:https://github.com/ossrs/srs/wiki/v3_EN_NgExec
 [v3_CN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_CN_ReusePort
 [v3_EN_ReusePort]:https://github.com/ossrs/srs/wiki/v3_EN_ReusePort
+[v4_CN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_CN_SampleSRT
+[v4_EN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_EN_SampleSRT
+[v3_CN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_CN_SampleDASH
+[v3_EN_SampleDASH]:https://github.com/ossrs/srs/wiki/v3_EN_SampleDASH
 
 [bug #213]: https://github.com/ossrs/srs/issues/213
 [bug #194]: https://github.com/ossrs/srs/issues/194
@@ -1805,6 +1857,12 @@ Winlin
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #1548]: https://github.com/ossrs/srs/issues/1548
 [bug #1694]: https://github.com/ossrs/srs/issues/1694
+[bug #413]: https://github.com/ossrs/srs/issues/413
+[bug #2091]: https://github.com/ossrs/srs/issues/2091
+[bug #1342]: https://github.com/ossrs/srs/issues/1342
+[bug #2093]: https://github.com/ossrs/srs/issues/2093
+[bug #2188]: https://github.com/ossrs/srs/issues/2188
+[bug #1193]: https://github.com/ossrs/srs/issues/1193
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
@@ -1816,6 +1874,8 @@ Winlin
 [bug #1657-2]: https://github.com/ossrs/srs/issues/1657#issuecomment-722904004
 [bug #1657-3]: https://github.com/ossrs/srs/issues/1657#issuecomment-722971676
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
+[bug #2106]: https://github.com/ossrs/srs/issues/2106
+[bug #2011]: https://github.com/ossrs/srs/issues/2011
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828

@@ -118,30 +118,27 @@ protected:
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
     SrsDtlsVersion version_;
 protected:
-    // Whether the handhshake is done, for us only.
+    // Whether the handshake is done, for us only.
     // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
     bool handshake_done_for_us;
-    // DTLS packet cache, only last out-going packet.
-    uint8_t* last_outgoing_packet_cache;
-    int nn_last_outgoing_packet;
     // The stat for ARQ packets.
     int nn_arq_packets;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake() = 0;
+    virtual bool should_reset_timer() = 0;
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
-    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
+    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
     void callback_by_ssl(std::string type, std::string desc);
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached) = 0;
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;
     virtual srs_error_t on_handshake_done() = 0;
     virtual bool is_dtls_client() = 0;
@@ -155,18 +152,19 @@ private:
     SrsCoroutine* trd;
     // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
-    // The timeout for ARQ.
-    srs_utime_t arq_interval;
-    int arq_to_ratios[8];
+    // The max ARQ retry.
+    int arq_max_retry;
+    // Should we reset the timer?
+    // It's true when init, or in state ServerHello.
+    bool reset_timer_;
 public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
-    virtual srs_error_t on_dtls(char* data, int nb_data);
+    virtual bool should_reset_timer();
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached);
     virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
@@ -183,10 +181,10 @@ public:
     SrsDtlsServerImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsServerImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
+    virtual bool should_reset_timer();
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached);
     virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();

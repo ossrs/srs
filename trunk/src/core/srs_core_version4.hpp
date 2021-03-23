@@ -24,6 +24,8 @@
 #ifndef SRS_CORE_VERSION4_HPP
 #define SRS_CORE_VERSION4_HPP
 
-#define SRS_VERSION4_REVISION 77
+#define VERSION_MAJOR       4
+#define VERSION_MINOR       0
+#define SRS_VERSION4_REVISION 85
 
 #endif

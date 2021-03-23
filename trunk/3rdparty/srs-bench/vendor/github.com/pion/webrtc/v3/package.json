@@ -1,0 +1,11 @@
+{
+  "name": "webrtc",
+  "repository": "git@github.com:pion/webrtc.git",
+  "private": true,
+  "devDependencies": {
+    "wrtc": "0.4.7"
+  },
+  "dependencies": {
+    "request": "2.88.2"
+  }
+}

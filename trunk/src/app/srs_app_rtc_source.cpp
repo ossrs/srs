@@ -466,6 +466,8 @@ void SrsRtcStream::on_consumer_destroy(SrsRtcConsumer* consumer)
 
 bool SrsRtcStream::can_publish()
 {
+    // TODO: FIXME: Should check the status of bridger.
+    
     return !is_created_;
 }
 
@@ -2319,6 +2321,16 @@ void SrsRtcTrackDescription::add_rtp_extension_desc(int id, std::string uri)
     extmaps_[id] = uri;
 }
 
+void SrsRtcTrackDescription::del_rtp_extension_desc(std::string uri)
+{
+    for(std::map<int, std::string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+        if(uri == it->second) {
+            extmaps_.erase(it++);
+            break;
+        }
+    }
+}
+
 void SrsRtcTrackDescription::set_direction(std::string direction)
 {
     direction_ = direction;
@@ -2366,7 +2378,7 @@ void SrsRtcTrackDescription::set_mid(std::string mid)
 
 int SrsRtcTrackDescription::get_rtp_extension_id(std::string uri)
 {
-     for(std::map<int, std::string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+    for (std::map<int, std::string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
         if(uri == it->second) {
             return it->first;
         }

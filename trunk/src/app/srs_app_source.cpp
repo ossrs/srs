@@ -2125,6 +2125,8 @@ void SrsSource::update_auth(SrsRequest* r)
 
 bool SrsSource::can_publish(bool is_edge)
 {
+    // TODO: FIXME: Should check the status of bridger.
+
     if (is_edge) {
         return publish_edge->can_publish();
     }

@@ -106,6 +106,10 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     }
     
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    if (schema == "https") {
+        port = SRS_DEFAULT_HTTPS_PORT;
+    }
+
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
         srs_info("discovery host=%s, port=%d", host.c_str(), port);

@@ -489,6 +489,12 @@ public:
 public:
     // Transform it as HTTP request.
     virtual SrsRequest* as_http();
+public:
+    // The protocol of client:
+    //      rtmp, Adobe RTMP protocol.
+    //      flv, HTTP-FLV protocol.
+    //      flvs, HTTPS-FLV protocol.
+    std::string protocol;
 };
 
 // The response to client.

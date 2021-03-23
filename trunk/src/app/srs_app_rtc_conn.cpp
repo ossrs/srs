@@ -866,6 +866,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
     pt_to_drop_ = 0;
 
     nn_audio_frames = 0;
+    twcc_enabled_ = false;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
     
@@ -930,7 +931,7 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
         media_ssrc = desc->ssrc_;
         break;
     }
-    if (twcc_id != -1) {
+    if (twcc_id > 0) {
         twcc_id_ = twcc_id;
         extension_types_.register_by_uri(twcc_id_, kTWCCExt);
         rtcp_twcc_.set_media_ssrc(media_ssrc);
@@ -940,6 +941,11 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     nack_no_copy_ = _srs_config->get_rtc_nack_no_copy(req->vhost);
     pt_to_drop_ = (uint16_t)_srs_config->get_rtc_drop_for_pt(req->vhost);
     twcc_enabled_ = _srs_config->get_rtc_twcc_enabled(req->vhost);
+
+    // No TWCC when negotiate, disable it.
+    if (twcc_id <= 0) {
+        twcc_enabled_ = false;
+    }
 
     srs_trace("RTC publisher nack=%d, nnc=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, nack_no_copy_, pt_to_drop_, twcc_enabled_, twcc_id);
 
@@ -1110,14 +1116,6 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         return err;
     }
 
-    // If payload type is configed to drop, ignore this packet.
-    if (pt_to_drop_) {
-        uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
-        if (pt_to_drop_ == pt) {
-            return err;
-        }
-    }
-
     // Decode the header first.
     if (twcc_id_) {
         // We must parse the TWCC from RTP header before SRTP unprotect, because:
@@ -1131,6 +1129,14 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
             }
         } else {
             srs_error_reset(err);
+        }
+    }
+
+    // If payload type is configed to drop, ignore this packet.
+    if (pt_to_drop_) {
+        uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
+        if (pt_to_drop_ == pt) {
+            return err;
         }
     }
 
@@ -1321,12 +1327,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
     }
 
-    int nb_protected_buf = buffer->pos();
-    if ((err = session_->transport_->protect_rtcp(pkt, &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp, size=%u", nb_protected_buf);
-    }
-
-    return session_->sendonly_skt->sendto(pkt, nb_protected_buf, 0);
+    return session_->send_rtcp(pkt, buffer->pos());
 }
 
 srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
@@ -1914,7 +1915,7 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
         }
     }
 
-    SrsSessionConfig* cfg = &local_sdp.session_config_;
+    SrsSessionConfig* cfg = &local_sdp.session_negotiate_;
     if ((err = transport_->initialize(cfg)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
@@ -2360,17 +2361,11 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.encode(&stream);
 
     // TODO: FIXME: Check error.
-    int nb_protected_buf = stream.pos();
-    transport_->protect_rtcp(stream.data(), &nb_protected_buf);
-
-    // TODO: FIXME: Check error.
-    sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
@@ -2406,18 +2401,11 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp rr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     /*
@@ -2460,18 +2448,11 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     stream.write_4bytes(cur_ntp.ntp_second_);
     stream.write_4bytes(cur_ntp.ntp_fractions_);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp xr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     char buf[kRtpPacketSize];
@@ -2492,12 +2473,7 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
         _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp psfb pli");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)
@@ -3116,6 +3092,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     //negotiate audio media
     if(NULL != req_stream_desc->audio_track_desc_) {
         SrsRtcTrackDescription* req_audio_track = req_stream_desc->audio_track_desc_;
+        int remote_twcc_id = req_audio_track->get_rtp_extension_id(kTWCCExt);
 
         src_track_descs = source->get_track_desc("audio", "opus");
         if (src_track_descs.size() > 0) {
@@ -3131,6 +3108,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
                 track->red_->pt_ = req_audio_track->red_->pt_;
             }
 
+            track->del_rtp_extension_desc(kTWCCExt);
+            if (remote_twcc_id > 0) {
+                track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
+            }
+
             track->mid_ = req_audio_track->mid_;
             sub_relations.insert(make_pair(track->ssrc_, track));
             track->set_direction("sendonly");
@@ -3143,6 +3125,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
     src_track_descs = source->get_track_desc("video", "h264");
     for(int i = 0; i < (int)req_video_tracks.size(); ++i) {
         SrsRtcTrackDescription* req_video = req_video_tracks.at(i);
+        int remote_twcc_id = req_video->get_rtp_extension_id(kTWCCExt);
+
         for(int j = 0; j < (int)src_track_descs.size(); ++j) {
             SrsRtcTrackDescription* src_video = src_track_descs.at(j);
             if(req_video->id_ == src_video->id_) {
@@ -3156,6 +3140,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcS
                 if (req_video->red_ && track->red_) {
                     track->red_->pt_of_publisher_ = track->red_->pt_;
                     track->red_->pt_ = req_video->red_->pt_;
+                }
+
+                track->del_rtp_extension_desc(kTWCCExt);
+                if (remote_twcc_id > 0) {
+                    track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
                 }
 
                 track->mid_ = req_video->mid_;
