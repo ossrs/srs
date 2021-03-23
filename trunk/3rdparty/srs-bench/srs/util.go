@@ -36,7 +36,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/ossrs/go-oryx-lib/errors"
@@ -207,7 +206,7 @@ func apiRtcRequest(ctx context.Context, apiPath, r, offer string) (string, error
 	logger.Tf(ctx, "Parse response to code=%v, session=%v, sdp=%v bytes",
 		resBody.Code, resBody.Session, len(resBody.SDP))
 
-	return string(resBody.SDP), nil
+	return resBody.SDP, nil
 }
 
 func escapeSDP(sdp string) string {
@@ -219,7 +218,7 @@ func packageAsSTAPA(frames ...*h264reader.NAL) *h264reader.NAL {
 
 	buf := bytes.Buffer{}
 	buf.WriteByte(
-		byte(first.RefIdc<<5)&0x60 | byte(24), // STAP-A
+		first.RefIdc<<5&0x60 | byte(24), // STAP-A
 	)
 
 	for _, frame := range frames {
@@ -325,6 +324,14 @@ func filterTestError(errs ...error) error {
 		if err == nil || errors.Cause(err) == context.Canceled {
 			continue
 		}
+
+		// If url error, server maybe error, do not print the detail log.
+		if r0 := errors.Cause(err); r0 != nil {
+			if r1, ok := r0.(*url.Error); ok {
+				err = r1
+			}
+		}
+
 		filteredErrors = append(filteredErrors, err)
 	}
 
@@ -352,13 +359,13 @@ func srsIsStun(b []byte) bool {
 // @see https://tools.ietf.org/html/rfc2246#section-6.2.1
 // @see srs_is_dtls of https://github.com/ossrs/srs
 func srsIsDTLS(b []byte) bool {
-	return (len(b) >= 13 && (b[0] > 19 && b[0] < 64))
+	return len(b) >= 13 && (b[0] > 19 && b[0] < 64)
 }
 
 // For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
 // @see srs_is_rtp_or_rtcp of https://github.com/ossrs/srs
 func srsIsRTPOrRTCP(b []byte) bool {
-	return (len(b) >= 12 && (b[0]&0xC0) == 0x80)
+	return len(b) >= 12 && (b[0]&0xC0) == 0x80
 }
 
 // For RTCP, PT is [128, 223] (or without marker [0, 95]).
@@ -554,7 +561,7 @@ func (v *DTLSRecord) Unmarshal(b []byte) error {
 		return errors.Errorf("requires 13B only %v", len(b))
 	}
 
-	v.ContentType = DTLSContentType(uint8(b[0]))
+	v.ContentType = DTLSContentType(b[0])
 	v.Version = uint16(b[1])<<8 | uint16(b[2])
 	v.Epoch = uint16(b[3])<<8 | uint16(b[4])
 	v.SequenceNumber = uint64(b[5])<<40 | uint64(b[6])<<32 | uint64(b[7])<<24 | uint64(b[8])<<16 | uint64(b[9])<<8 | uint64(b[10])
@@ -605,11 +612,11 @@ func NewTestWebRTCAPI(options ...TestWebRTCAPIOptionFunc) (*TestWebRTCAPI, error
 
 func (v *TestWebRTCAPI) Close() error {
 	if v.proxy != nil {
-		v.proxy.Close()
+		_ = v.proxy.Close()
 	}
 
 	if v.router != nil {
-		v.router.Stop()
+		_ = v.router.Stop()
 	}
 
 	return nil
@@ -676,14 +683,24 @@ type TestPlayerOptionFunc func(p *TestPlayer) error
 type TestPlayer struct {
 	pc        *webrtc.PeerConnection
 	receivers []*webrtc.RTPReceiver
-	// root api object
+	// We should dispose it.
 	api *TestWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
 }
 
-func NewTestPlayer(api *TestWebRTCAPI, options ...TestPlayerOptionFunc) (*TestPlayer, error) {
-	v := &TestPlayer{api: api}
+func CreateApiForPlayer(play *TestPlayer) error {
+	api, err := NewTestWebRTCAPI()
+	if err != nil {
+		return err
+	}
+
+	play.api = api
+	return nil
+}
+
+func NewTestPlayer(options ...TestPlayerOptionFunc) (*TestPlayer, error) {
+	v := &TestPlayer{}
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
@@ -691,19 +708,24 @@ func NewTestPlayer(api *TestWebRTCAPI, options ...TestPlayerOptionFunc) (*TestPl
 		}
 	}
 
-	// The api might be override by options.
-	api = v.api
-
 	return v, nil
+}
+
+func (v *TestPlayer) Setup(vnetClientIP string, options ...TestWebRTCAPIOptionFunc) error {
+	return v.api.Setup(vnetClientIP, options...)
 }
 
 func (v *TestPlayer) Close() error {
 	if v.pc != nil {
-		v.pc.Close()
+		_ = v.pc.Close()
 	}
 
 	for _, receiver := range v.receivers {
-		receiver.Stop()
+		_ = receiver.Stop()
+	}
+
+	if v.api != nil {
+		_ = v.api.Close()
 	}
 
 	return nil
@@ -723,12 +745,16 @@ func (v *TestPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	}
 	v.pc = pc
 
-	pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
+	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-	})
-	pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
+	}); err != nil {
+		return errors.Wrapf(err, "add track")
+	}
+	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
 		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-	})
+	}); err != nil {
+		return errors.Wrapf(err, "add track")
+	}
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
@@ -818,25 +844,34 @@ type TestPublisher struct {
 	aIngester *audioIngester
 	vIngester *videoIngester
 	pc        *webrtc.PeerConnection
-	// root api object
+	// We should dispose it.
 	api *TestWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
+	// To cancel the publisher, pass by Run.
+	cancel context.CancelFunc
 }
 
-func NewTestPublisher(api *TestWebRTCAPI, options ...TestPublisherOptionFunc) (*TestPublisher, error) {
+func CreateApiForPublisher(pub *TestPublisher) error {
+	api, err := NewTestWebRTCAPI()
+	if err != nil {
+		return err
+	}
+
+	pub.api = api
+	return nil
+}
+
+func NewTestPublisher(options ...TestPublisherOptionFunc) (*TestPublisher, error) {
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
-	v := &TestPublisher{api: api}
+	v := &TestPublisher{}
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
 			return nil, err
 		}
 	}
-
-	// The api might be override by options.
-	api = v.api
 
 	// Create ingesters.
 	if sourceAudio != "" {
@@ -847,6 +882,7 @@ func NewTestPublisher(api *TestWebRTCAPI, options ...TestPublisherOptionFunc) (*
 	}
 
 	// Setup the interceptors for packets.
+	api := v.api
 	api.options = append(api.options, func(api *TestWebRTCAPI) {
 		// Filter for RTCP packets.
 		rtcpInterceptor := &RTCPInterceptor{}
@@ -870,17 +906,25 @@ func NewTestPublisher(api *TestWebRTCAPI, options ...TestPublisherOptionFunc) (*
 	return v, nil
 }
 
+func (v *TestPublisher) Setup(vnetClientIP string, options ...TestWebRTCAPIOptionFunc) error {
+	return v.api.Setup(vnetClientIP, options...)
+}
+
 func (v *TestPublisher) Close() error {
 	if v.vIngester != nil {
-		v.vIngester.Close()
+		_ = v.vIngester.Close()
 	}
 
 	if v.aIngester != nil {
-		v.aIngester.Close()
+		_ = v.aIngester.Close()
 	}
 
 	if v.pc != nil {
-		v.pc.Close()
+		_ = v.pc.Close()
+	}
+
+	if v.api != nil {
+		_ = v.api.Close()
 	}
 
 	return nil
@@ -892,6 +936,9 @@ func (v *TestPublisher) SetStreamSuffix(suffix string) *TestPublisher {
 }
 
 func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) error {
+	// Save the cancel.
+	v.cancel = cancel
+
 	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
@@ -1012,11 +1059,17 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		<-ctx.Done()
 
 		if v.aIngester != nil && v.aIngester.sAudioSender != nil {
-			v.aIngester.sAudioSender.Stop()
+			// We MUST wait for the ingester ready(or closed), because it might crash if sender is disposed.
+			<-v.aIngester.ready.Done()
+
+			_ = v.aIngester.Close()
 		}
 
 		if v.vIngester != nil && v.vIngester.sVideoSender != nil {
-			v.vIngester.sVideoSender.Stop()
+			// We MUST wait for the ingester ready(or closed), because it might crash if sender is disposed.
+			<-v.vIngester.ready.Done()
+
+			_ = v.vIngester.Close()
 		}
 	}()
 
@@ -1028,6 +1081,7 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		if v.aIngester == nil {
 			return
 		}
+		defer v.aIngester.readyCancel()
 
 		select {
 		case <-ctx.Done():
@@ -1072,6 +1126,7 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		if v.vIngester == nil {
 			return
 		}
+		defer v.vIngester.readyCancel()
 
 		select {
 		case <-ctx.Done():
@@ -1118,48 +1173,4 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		return finalErr
 	}
 	return ctx.Err()
-}
-
-func TestRTCServerVersion(t *testing.T) {
-	api := fmt.Sprintf("http://%v:1985/api/v1/versions", *srsServer)
-	req, err := http.NewRequest("POST", api, nil)
-	if err != nil {
-		t.Errorf("Request %v", api)
-		return
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Errorf("Do request %v", api)
-		return
-	}
-
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		t.Errorf("Read body of %v", api)
-		return
-	}
-
-	obj := struct {
-		Code   int    `json:"code"`
-		Server string `json:"server"`
-		Data   struct {
-			Major    int    `json:"major"`
-			Minor    int    `json:"minor"`
-			Revision int    `json:"revision"`
-			Version  string `json:"version"`
-		} `json:"data"`
-	}{}
-	if err := json.Unmarshal(b, &obj); err != nil {
-		t.Errorf("Parse %v", string(b))
-		return
-	}
-	if obj.Code != 0 {
-		t.Errorf("Server err code=%v, server=%v", obj.Code, obj.Server)
-		return
-	}
-	if obj.Data.Major == 0 && obj.Data.Minor == 0 {
-		t.Errorf("Invalid version %v", obj.Data)
-		return
-	}
 }

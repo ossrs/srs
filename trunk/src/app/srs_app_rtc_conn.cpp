@@ -605,7 +605,7 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
 
     // TODO: FIXME: Maybe refine for performance issue.
     if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
-        srs_warn("ssrc %u not found", pkt->header.get_ssrc());
+        srs_warn("RTC: Drop for ssrc %u not found", pkt->header.get_ssrc());
         return err;
     }
 
