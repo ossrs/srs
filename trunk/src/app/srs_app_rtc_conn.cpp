@@ -1122,7 +1122,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
         // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
         uint16_t twcc_sn = 0;
-        if ((err = srs_rtp_fast_parse_twcc(data, nb_data, &extension_types_, twcc_sn)) == srs_success) {
+        if ((err = srs_rtp_fast_parse_twcc(data, nb_data, twcc_id_, twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
                 return srs_error_wrap(err, "on twcc");
             }

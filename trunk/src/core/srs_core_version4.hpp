@@ -26,6 +26,6 @@
 
 #define VERSION_MAJOR       4
 #define VERSION_MINOR       0
-#define SRS_VERSION4_REVISION 85
+#define SRS_VERSION4_REVISION 86
 
 #endif
