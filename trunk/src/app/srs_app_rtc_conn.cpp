@@ -1856,53 +1856,6 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     return err;
 }
 
-srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, bool unified_plan, SrsSdp& local_sdp)
-{
-    srs_error_t err = srs_success;
-
-    if (_srs_rtc_hijacker) {
-        if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
-            return srs_error_wrap(err, "before play");
-        }
-    }
-
-    std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
-    if ((err = fetch_source_capability(req, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "play negotiate");
-    }
-
-    if (!play_sub_relations.size()) {
-        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no play relations");
-    }
-
-    SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
-    SrsAutoFree(SrsRtcStreamDescription, stream_desc);
-
-    std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = play_sub_relations.begin();
-    while (it != play_sub_relations.end()) {
-        SrsRtcTrackDescription* track_desc = it->second;
-
-        if (track_desc->type_ == "audio" || !stream_desc->audio_track_desc_) {
-            stream_desc->audio_track_desc_ = track_desc->copy();
-        }
-
-        if (track_desc->type_ == "video") {
-            stream_desc->video_track_descs_.push_back(track_desc->copy());
-        }
-        ++it;
-    }
-
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, unified_plan)) != srs_success) {
-        return srs_error_wrap(err, "generate local sdp");
-    }
-
-    if ((err = create_player(req, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "create player");
-    }
-
-    return err;
-}
-
 srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, string username)
 {
     srs_error_t err = srs_success;
