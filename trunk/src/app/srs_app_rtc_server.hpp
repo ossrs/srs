@@ -123,10 +123,6 @@ private:
         const std::string& mock_eip, bool publish, bool dtls, bool srtp
     );
 public:
-    // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
-    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession);
-    srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
-public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsHourGlass
 public:
