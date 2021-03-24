@@ -183,6 +183,7 @@ SrsEdgeFlvUpstream::SrsEdgeFlvUpstream(std::string schema)
     hr_ = NULL;
     reader_ = NULL;
     decoder_ = NULL;
+    req_ = NULL;
 }
 
 SrsEdgeFlvUpstream::~SrsEdgeFlvUpstream()
@@ -192,11 +193,23 @@ SrsEdgeFlvUpstream::~SrsEdgeFlvUpstream()
 
 srs_error_t SrsEdgeFlvUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
 {
+    // Because we might modify the r, which cause retry fail, so we must copy it.
+    SrsRequest* cp = r->copy();
+
+    // Free the request when close upstream.
+    srs_freep(req_);
+    req_ = cp;
+
+    return do_connect(cp, lb, 0);
+}
+
+srs_error_t SrsEdgeFlvUpstream::do_connect(SrsRequest* r, SrsLbRoundRobin* lb, int redirect_depth)
+{
     srs_error_t err = srs_success;
 
     SrsRequest* req = r;
 
-    if (true) {
+    if (redirect_depth == 0) {
         SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
 
         // @see https://github.com/ossrs/srs/issues/79
@@ -217,12 +230,20 @@ srs_error_t SrsEdgeFlvUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         // Remember the current selected server.
         selected_ip = server;
         selected_port = port;
+    } else {
+        // If HTTP redirect, use the server in location.
+        schema_ = req->schema;
+        selected_ip = req->host;
+        selected_port = req->port;
     }
 
     srs_freep(sdk_);
     sdk_ = new SrsHttpClient();
 
-    string path = "/" + req->app + "/" + req->stream + ".flv";
+    string path = "/" + req->app + "/" + req->stream;
+    if (!srs_string_ends_with(req->stream, ".flv")) {
+        path += ".flv";
+    }
     if (!req->param.empty()) {
         path += req->param;
     }
@@ -238,6 +259,37 @@ srs_error_t SrsEdgeFlvUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     srs_freep(hr_);
     if ((err = sdk_->get(path, "", &hr_)) != srs_success) {
         return srs_error_wrap(err, "edge get %s failed, path=%s", url.c_str(), path.c_str());
+    }
+
+    if (hr_->status_code() == 404) {
+        return srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "Connect to %s, status=%d", url.c_str(), hr_->status_code());
+    }
+
+    string location;
+    if (hr_->status_code() == 302) {
+        location = hr_->header()->get("Location");
+    }
+    srs_trace("Edge: Connect to %s ok, status=%d, location=%s", url.c_str(), hr_->status_code(), location.c_str());
+
+    if (hr_->status_code() == 302) {
+        if (redirect_depth >= 3) {
+            return srs_error_new(ERROR_HTTP_302_INVALID, "redirect to %s fail, depth=%d", location.c_str(), redirect_depth);
+        }
+
+        string app;
+        string stream_name;
+        if (true) {
+            string tcUrl;
+            srs_parse_rtmp_url(location, tcUrl, stream_name);
+
+            int port;
+            string schema, host, vhost, param;
+            srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+
+            r->schema = schema; r->host = host; r->port = port;
+            r->app = app; r->stream = stream_name; r->param = param;
+        }
+        return do_connect(r, lb, redirect_depth + 1);
     }
 
     srs_freep(reader_);
@@ -330,6 +382,7 @@ void SrsEdgeFlvUpstream::close()
     srs_freep(hr_);
     srs_freep(reader_);
     srs_freep(decoder_);
+    srs_freep(req_);
 }
 
 void SrsEdgeFlvUpstream::selected(string& server, int& port)
@@ -446,8 +499,17 @@ srs_error_t SrsEdgeIngester::do_cycle()
             return srs_error_wrap(err, "do cycle pull");
         }
 
-        srs_freep(upstream);
+        // Use protocol in config.
         string edge_protocol = _srs_config->get_vhost_edge_protocol(req->vhost);
+
+        // If follow client protocol, change to protocol of client.
+        bool follow_client = _srs_config->get_vhost_edge_follow_client(req->vhost);
+        if (follow_client && !req->protocol.empty()) {
+            edge_protocol = req->protocol;
+        }
+
+        // Create object by protocol.
+        srs_freep(upstream);
         if (edge_protocol == "flv" || edge_protocol == "flvs") {
             upstream = new SrsEdgeFlvUpstream(edge_protocol == "flv"? "http" : "https");
         } else {

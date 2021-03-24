@@ -188,6 +188,11 @@ Other documents:
 <a name="history"></a>
 <a name="change-logs"></a>
 
+## V5 changes
+
+* v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
+* v5.0, 2021-03-15, Init SRS/5. 5.0.0
+
 ## V4 changes
 
 * v4.0, 2021-03-09, DTLS: Fix ARQ bug, use openssl timeout. 4.0.84
