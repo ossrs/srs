@@ -211,7 +211,7 @@ public:
 
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler
+    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
 {
 private:
     SrsContextId cid_;
@@ -235,13 +235,16 @@ private:
     bool nack_enabled_;
     bool nack_no_copy_;
 private:
-    // Whether palyer started.
+    // Whether player started.
     bool is_started;
 public:
     SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid);
     virtual ~SrsRtcPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
+// Interface ISrsRtcStreamChangeCallback
+public:
+    void on_stream_change(SrsRtcStreamDescription* desc);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -268,7 +271,7 @@ private:
     srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
-// inteface ISrsRtcPLIWorkerHandler
+// Interface ISrsRtcPLIWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
 };

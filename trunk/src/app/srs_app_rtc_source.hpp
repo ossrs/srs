@@ -75,6 +75,17 @@ public:
     static uint64_t kMagicNtpFractionalUnit;
 };
 
+// When RTC stream publish and re-publish.
+class ISrsRtcStreamChangeCallback
+{
+public:
+    ISrsRtcStreamChangeCallback();
+    virtual ~ISrsRtcStreamChangeCallback();
+public:
+    virtual void on_stream_change(SrsRtcStreamDescription* desc) = 0;
+};
+
+// The RTC stream consumer, consume packets from RTC stream source.
 class SrsRtcConsumer
 {
 private:
@@ -87,6 +98,9 @@ private:
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
+private:
+    // The callback for stream change event.
+    ISrsRtcStreamChangeCallback* handler_;
 public:
     SrsRtcConsumer(SrsRtcStream* s);
     virtual ~SrsRtcConsumer();
@@ -100,6 +114,9 @@ public:
     virtual srs_error_t dump_packet(SrsRtpPacket2** ppkt);
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
+public:
+    void set_handler(ISrsRtcStreamChangeCallback* h) { handler_ = h; } // SrsRtcConsumer::set_handler()
+    void on_stream_change(SrsRtcStreamDescription* desc);
 };
 
 class SrsRtcStreamManager
@@ -154,7 +171,7 @@ private:
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
-    // invoke the on_source_id_changed() to let all clients know.
+    // invoke the on_source_changed() to let all clients know.
     SrsContextId _source_id;
     // previous source id.
     SrsContextId _pre_source_id;
@@ -180,8 +197,10 @@ public:
     virtual srs_error_t initialize(SrsRequest* r);
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
-    // The source id changed.
-    virtual srs_error_t on_source_id_changed(SrsContextId id);
+private:
+    // The stream source changed.
+    virtual srs_error_t on_source_changed();
+public:
     // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
