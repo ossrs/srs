@@ -10,3 +10,4 @@ googletest-*
 *.gcno
 coverage
 codecov
+
