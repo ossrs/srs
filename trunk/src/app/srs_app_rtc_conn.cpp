@@ -429,19 +429,18 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    if (true) {
-        std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin();
-        while (it != sub_relations.end()) {
-            if (it->second->type_ == "audio") {
-                SrsRtcAudioSendTrack* track = new SrsRtcAudioSendTrack(session_, it->second);
-                audio_tracks_.insert(make_pair(it->first, track));
-            }
+    for (map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin(); it != sub_relations.end(); ++it) {
+        uint32_t ssrc = it->first;
+        SrsRtcTrackDescription* desc = it->second;
 
-            if (it->second->type_ == "video") {
-                SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(session_, it->second);
-                video_tracks_.insert(make_pair(it->first, track));
-            }
-            ++it;
+        if (desc->type_ == "audio") {
+            SrsRtcAudioSendTrack* track = new SrsRtcAudioSendTrack(session_, desc);
+            audio_tracks_.insert(make_pair(ssrc, track));
+        }
+
+        if (desc->type_ == "video") {
+            SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(session_, desc);
+            video_tracks_.insert(make_pair(ssrc, track));
         }
     }
 
