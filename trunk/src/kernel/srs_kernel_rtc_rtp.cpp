@@ -411,7 +411,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
         // Note that 'len' is the header extension element length, which is the
         // number of bytes - 1.
         uint8_t id = (v & 0xF0) >> 4;
-        uint8_t len = (v & 0x0F);
+        uint8_t len = (v & 0x0F) + 1;
 
         SrsRtpExtensionType xtype = types_? types_->get_type(id) : kRtpExtensionNone;
         if (xtype == kRtpExtensionTransportSequenceNumber) {
@@ -421,10 +421,10 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
                 }
                 has_ext_ = true;
             } else {
-                if (!buf->require(len+1+1)) {
-                    return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", len+1+1);
+                if (!buf->require(len+1)) {
+                    return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", len+1);
                 }
-                buf->skip(len + 1 + 1);
+                buf->skip(len + 1);
             }
         } else if (xtype == kRtpExtensionAudioLevel) {
             if((err = audio_level_.decode(buf)) != srs_success) {
@@ -432,7 +432,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
             }
             has_ext_ = true;
         } else {
-            buf->skip(1 + (len + 1));
+            buf->skip(1 + len);
         }
     }
 
