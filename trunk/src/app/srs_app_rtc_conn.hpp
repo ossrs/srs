@@ -475,8 +475,6 @@ public:
 public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    // server send offer sdp to client, local sdp derivate from source stream desc.
-    srs_error_t add_player2(SrsRequest* request, bool unified_plan, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
