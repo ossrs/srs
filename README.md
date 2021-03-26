@@ -195,6 +195,7 @@ Other documents:
 
 ## V4 changes
 
+* v4.0, 2021-03-24, RTC: Support WebRTC re-publish stream. 4.0.87
 * v4.0, 2021-03-24, RTC: Use fast parse TWCCID, ignore in packet parsing. 4.0.86
 * v4.0, 2021-03-09, DTLS: Fix ARQ bug, use openssl timeout. 4.0.84
 * v4.0, 2021-03-08, DTLS: Fix dead loop by duplicated Alert message. 4.0.83

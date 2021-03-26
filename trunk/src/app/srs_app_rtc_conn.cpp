@@ -466,6 +466,30 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
     return err;
 }
 
+void SrsRtcPlayStream::on_stream_change(SrsRtcStreamDescription* desc)
+{
+    // Refresh the relation for audio.
+    // TODO: FIMXE: Match by label?
+    if (desc->audio_track_desc_ && audio_tracks_.size() == 1) {
+        uint32_t ssrc = desc->audio_track_desc_->ssrc_;
+        SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
+
+        audio_tracks_.clear();
+        audio_tracks_.insert(make_pair(ssrc, track));
+    }
+
+    // Refresh the relation for video.
+    // TODO: FIMXE: Match by label?
+    if (desc->video_track_descs_.size() == 1 && desc->video_track_descs_.size() == 1) {
+        SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
+        uint32_t ssrc = vdesc->ssrc_;
+        SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
+
+        video_tracks_.clear();
+        video_tracks_.insert(make_pair(ssrc, track));
+    }
+}
+
 srs_error_t SrsRtcPlayStream::on_reload_vhost_play(string vhost)
 {
     if (req_->vhost != vhost) {
@@ -545,6 +569,9 @@ srs_error_t SrsRtcPlayStream::cycle()
     if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer, source=%s", req_->get_stream_url().c_str());
     }
+
+    srs_assert(consumer);
+    consumer->set_handler(this);
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer)) != srs_success) {
