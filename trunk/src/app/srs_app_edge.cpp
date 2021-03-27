@@ -622,7 +622,13 @@ srs_error_t SrsEdgeForwarder::do_cycle()
         
         // sendout messages, all messages are freed by send_and_free_messages().
         if ((err = sdk->send_and_free_messages(msgs.msgs, count)) != srs_success) {
-            return srs_error_wrap(err, "send messages");
+            // return srs_error_wrap(err, "send messages");
+            // problem: return error will let the push connection still be alive although upstream connection already was shutdown.
+            // fix: set the error for this thread, and while SrsEdgeForwarder::proxy is called later, it will check the error, 
+            // if the error is found, push connection will be closed 
+            srs_error("edge push send message to upstream failed. err=%s", srs_error_desc(err).c_str());
+            send_error_code = srs_error_code(err);
+            srs_error_reset(err);            
         }
     }
     
