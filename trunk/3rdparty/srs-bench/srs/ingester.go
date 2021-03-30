@@ -44,16 +44,20 @@ type videoIngester struct {
 	markerInterceptor *RTPInterceptor
 	sVideoTrack       *webrtc.TrackLocalStaticSample
 	sVideoSender      *webrtc.RTPSender
+	ready             context.Context
+	readyCancel       context.CancelFunc
 }
 
 func NewVideoIngester(sourceVideo string) *videoIngester {
-	return &videoIngester{markerInterceptor: &RTPInterceptor{}, sourceVideo: sourceVideo}
+	v := &videoIngester{markerInterceptor: &RTPInterceptor{}, sourceVideo: sourceVideo}
+	v.ready, v.readyCancel = context.WithCancel(context.Background())
+	return v
 }
 
 func (v *videoIngester) Close() error {
+	v.readyCancel()
 	if v.sVideoSender != nil {
-		v.sVideoSender.Stop()
-		v.sVideoSender = nil
+		_ = v.sVideoSender.Stop()
 	}
 	return nil
 }
@@ -101,6 +105,9 @@ func (v *videoIngester) Ingest(ctx context.Context) error {
 	headers := sender.GetParameters().HeaderExtensions
 	logger.Tf(ctx, "Video %v, tbn=%v, fps=%v, ssrc=%v, pt=%v, header=%v",
 		codec.MimeType, codec.ClockRate, fps, enc.SSRC, codec.PayloadType, headers)
+
+	// OK, we are ready.
+	v.readyCancel()
 
 	clock := newWallClock()
 	sampleDuration := time.Duration(uint64(time.Millisecond) * 1000 / uint64(fps))
@@ -179,16 +186,21 @@ type audioIngester struct {
 	audioLevelInterceptor *RTPInterceptor
 	sAudioTrack           *webrtc.TrackLocalStaticSample
 	sAudioSender          *webrtc.RTPSender
+	ready                 context.Context
+	readyCancel           context.CancelFunc
 }
 
 func NewAudioIngester(sourceAudio string) *audioIngester {
-	return &audioIngester{audioLevelInterceptor: &RTPInterceptor{}, sourceAudio: sourceAudio}
+	v := &audioIngester{audioLevelInterceptor: &RTPInterceptor{}, sourceAudio: sourceAudio}
+	v.ready, v.readyCancel = context.WithCancel(context.Background())
+	return v
 }
 
 func (v *audioIngester) Close() error {
+	v.readyCancel() // OK we are closed, also ready.
+
 	if v.sAudioSender != nil {
-		v.sAudioSender.Stop()
-		v.sAudioSender = nil
+		_ = v.sAudioSender.Stop()
 	}
 	return nil
 }
@@ -240,6 +252,9 @@ func (v *audioIngester) Ingest(ctx context.Context) error {
 		}
 	}
 
+	// OK, we are ready.
+	v.readyCancel()
+
 	clock := newWallClock()
 	var lastGranule uint64
 
@@ -253,7 +268,7 @@ func (v *audioIngester) Ingest(ctx context.Context) error {
 		}
 
 		// The amount of samples is the difference between the last and current timestamp
-		sampleCount := uint64(pageHeader.GranulePosition - lastGranule)
+		sampleCount := pageHeader.GranulePosition - lastGranule
 		lastGranule = pageHeader.GranulePosition
 		sampleDuration := time.Duration(uint64(time.Millisecond) * 1000 * sampleCount / uint64(codec.ClockRate))
 
@@ -266,7 +281,7 @@ func (v *audioIngester) Ingest(ctx context.Context) error {
 						return 0, err
 					}
 
-					header.SetExtension(uint8(audioLevel.ID), audioLevelPayload)
+					_ = header.SetExtension(uint8(audioLevel.ID), audioLevelPayload)
 				}
 
 				return ri.nextRTPWriter.Write(header, payload, attributes)

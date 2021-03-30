@@ -211,7 +211,7 @@ public:
 
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler
+    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
 {
 private:
     SrsContextId cid_;
@@ -235,13 +235,16 @@ private:
     bool nack_enabled_;
     bool nack_no_copy_;
 private:
-    // Whether palyer started.
+    // Whether player started.
     bool is_started;
 public:
     SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid);
     virtual ~SrsRtcPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
+// Interface ISrsRtcStreamChangeCallback
+public:
+    void on_stream_change(SrsRtcStreamDescription* desc);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -268,7 +271,7 @@ private:
     srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
-// inteface ISrsRtcPLIWorkerHandler
+// Interface ISrsRtcPLIWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
 };
@@ -475,8 +478,6 @@ public:
 public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    // server send offer sdp to client, local sdp derivate from source stream desc.
-    srs_error_t add_player2(SrsRequest* request, bool unified_plan, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);

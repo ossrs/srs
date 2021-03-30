@@ -429,19 +429,18 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
         return srs_error_wrap(err, "rtc fetch source failed");
     }
 
-    if (true) {
-        std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin();
-        while (it != sub_relations.end()) {
-            if (it->second->type_ == "audio") {
-                SrsRtcAudioSendTrack* track = new SrsRtcAudioSendTrack(session_, it->second);
-                audio_tracks_.insert(make_pair(it->first, track));
-            }
+    for (map<uint32_t, SrsRtcTrackDescription*>::iterator it = sub_relations.begin(); it != sub_relations.end(); ++it) {
+        uint32_t ssrc = it->first;
+        SrsRtcTrackDescription* desc = it->second;
 
-            if (it->second->type_ == "video") {
-                SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(session_, it->second);
-                video_tracks_.insert(make_pair(it->first, track));
-            }
-            ++it;
+        if (desc->type_ == "audio") {
+            SrsRtcAudioSendTrack* track = new SrsRtcAudioSendTrack(session_, desc);
+            audio_tracks_.insert(make_pair(ssrc, track));
+        }
+
+        if (desc->type_ == "video") {
+            SrsRtcVideoSendTrack* track = new SrsRtcVideoSendTrack(session_, desc);
+            video_tracks_.insert(make_pair(ssrc, track));
         }
     }
 
@@ -465,6 +464,30 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
     session_->stat_->nn_subscribers++;
 
     return err;
+}
+
+void SrsRtcPlayStream::on_stream_change(SrsRtcStreamDescription* desc)
+{
+    // Refresh the relation for audio.
+    // TODO: FIMXE: Match by label?
+    if (desc->audio_track_desc_ && audio_tracks_.size() == 1) {
+        uint32_t ssrc = desc->audio_track_desc_->ssrc_;
+        SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
+
+        audio_tracks_.clear();
+        audio_tracks_.insert(make_pair(ssrc, track));
+    }
+
+    // Refresh the relation for video.
+    // TODO: FIMXE: Match by label?
+    if (desc->video_track_descs_.size() == 1 && desc->video_track_descs_.size() == 1) {
+        SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
+        uint32_t ssrc = vdesc->ssrc_;
+        SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
+
+        video_tracks_.clear();
+        video_tracks_.insert(make_pair(ssrc, track));
+    }
 }
 
 srs_error_t SrsRtcPlayStream::on_reload_vhost_play(string vhost)
@@ -547,6 +570,9 @@ srs_error_t SrsRtcPlayStream::cycle()
         return srs_error_wrap(err, "create consumer, source=%s", req_->get_stream_url().c_str());
     }
 
+    srs_assert(consumer);
+    consumer->set_handler(this);
+
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer)) != srs_success) {
         return srs_error_wrap(err, "dumps consumer, url=%s", req_->get_stream_url().c_str());
@@ -605,7 +631,7 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
 
     // TODO: FIXME: Maybe refine for performance issue.
     if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
-        srs_warn("ssrc %u not found", pkt->header.get_ssrc());
+        srs_warn("RTC: Drop for ssrc %u not found", pkt->header.get_ssrc());
         return err;
     }
 
@@ -1123,7 +1149,7 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
         // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
         uint16_t twcc_sn = 0;
-        if ((err = srs_rtp_fast_parse_twcc(data, nb_data, &extension_types_, twcc_sn)) == srs_success) {
+        if ((err = srs_rtp_fast_parse_twcc(data, nb_data, twcc_id_, twcc_sn)) == srs_success) {
             if((err = on_twcc(twcc_sn)) != srs_success) {
                 return srs_error_wrap(err, "on twcc");
             }
@@ -1842,53 +1868,6 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     }
 
     if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, remote_sdp.is_unified())) != srs_success) {
-        return srs_error_wrap(err, "generate local sdp");
-    }
-
-    if ((err = create_player(req, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "create player");
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcConnection::add_player2(SrsRequest* req, bool unified_plan, SrsSdp& local_sdp)
-{
-    srs_error_t err = srs_success;
-
-    if (_srs_rtc_hijacker) {
-        if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
-            return srs_error_wrap(err, "before play");
-        }
-    }
-
-    std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
-    if ((err = fetch_source_capability(req, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "play negotiate");
-    }
-
-    if (!play_sub_relations.size()) {
-        return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no play relations");
-    }
-
-    SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
-    SrsAutoFree(SrsRtcStreamDescription, stream_desc);
-
-    std::map<uint32_t, SrsRtcTrackDescription*>::iterator it = play_sub_relations.begin();
-    while (it != play_sub_relations.end()) {
-        SrsRtcTrackDescription* track_desc = it->second;
-
-        if (track_desc->type_ == "audio" || !stream_desc->audio_track_desc_) {
-            stream_desc->audio_track_desc_ = track_desc->copy();
-        }
-
-        if (track_desc->type_ == "video") {
-            stream_desc->video_track_descs_.push_back(track_desc->copy());
-        }
-        ++it;
-    }
-
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, unified_plan)) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 

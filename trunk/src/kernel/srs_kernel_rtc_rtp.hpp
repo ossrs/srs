@@ -64,7 +64,7 @@ class SrsRtpExtensionTypes;
 // Fast parse the SSRC from RTP packet. Return 0 if invalid.
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
-srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, SrsRtpExtensionTypes* types, uint16_t& twcc_sn);
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
 
 // The "distance" between two uint16 number, for example:
 //      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
@@ -177,6 +177,8 @@ class SrsRtpExtensions// : public ISrsCodec
 {
 private:
     bool has_ext_;
+    // by default, twcc isnot decoded. Because it is decoded by fast function(srs_rtp_fast_parse_twcc)
+    bool decode_twcc_extension_;
 private:
     // The extension types is used to decode the packet, which is reference to
     // the types in publish stream.
@@ -188,6 +190,7 @@ public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
 public:
+    void enable_twcc_decode() { decode_twcc_extension_ = true; } // SrsRtpExtensions::enable_twcc_decode
     inline bool exists() { return has_ext_; } // SrsRtpExtensions::exists
     void set_types_(SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
@@ -229,6 +232,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual uint64_t nb_bytes();
 public:
+    void enable_twcc_decode() { extensions_.enable_twcc_decode(); } // SrsRtpHeader::enable_twcc_decode
     void set_marker(bool v);
     bool get_marker() const;
     void set_payload_type(uint8_t v);
@@ -326,6 +330,8 @@ public:
     // Copy the RTP packet.
     virtual SrsRtpPacket2* copy();
 public:
+    // Parse the TWCC extension, ignore by default.
+    void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket2::enable_twcc_decode
     // Get and set the payload of packet.
     void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
     ISrsRtpPayloader* payload() { return payload_; }
