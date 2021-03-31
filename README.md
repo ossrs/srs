@@ -1061,6 +1061,7 @@ The performance benchmark data and corelative commits are listed here.
 * See also: [Performance for x86/x64 Test Guide][v1_CN_Performance].
 * See also: [Performance for RaspberryPi][v1_CN_RaspberryPi].
 * For multiple processes performance, read [#775: REUSEPORT][bug #775] or OriginCluster([CN][v3_EN_OriginCluster]/[EN][v3_EN_OriginCluster]) or [go-oryx][oryx].
+* For RTC benchmark, please use [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage).
 
 <a name="play-rtmp-benchmark"></a>
 **Play RTMP benchmark**
@@ -1113,6 +1114,19 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 |   2014-05-24  |   2.0.169 |   3.0k(3000)  |   players     |   94%     |   188MB   |   [code][p18] |
 |   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   [code][p17] |
 |   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
+
+<a name="rtc-benchmark"></a>
+**RTC benchmark**
+
+The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
+
+
+|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Threads | 
+| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------- |
+|   2021-03-31  |   4.0.87  |   550         |   publishers  |   ~86%     |   1.3GB   | 1      |
+|   2021-03-31  |   4.0.87  |   800         |   players     |   ~94%     |   444MB   | 1      |
+
+> Note: CentOS7, 500Kbps, 4CPU, 2.5 GHz Intel Xeon Platinum 8163/8269CY.
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**
