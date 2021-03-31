@@ -294,8 +294,10 @@ private:
 private:
     // The original shared message, all RTP packets can refer to its data.
     // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
+    // @remark Note that it may point to the whole RTP packet(for RTP parser, which decode RTP packet from buffer),
+    //      and it may point to the RTP payload(for RTMP to RTP, which build RTP header and payload).
     SrsSharedPtrMessage* shared_buffer_;
-    // The size of original packet.
+    // The size of RTP packet or RTP payload.
     int actual_buffer_size_;
 // Helper fields.
 public:
@@ -333,6 +335,7 @@ public:
     // Parse the TWCC extension, ignore by default.
     void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket2::enable_twcc_decode
     // Get and set the payload of packet.
+    // @remark Note that return NULL if no payload.
     void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
     ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
