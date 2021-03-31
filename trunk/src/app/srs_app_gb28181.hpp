@@ -303,6 +303,7 @@ private:
     int stream_idle_timeout;
     srs_utime_t recv_rtp_stream_time;
     srs_utime_t send_rtmp_stream_time;
+    srs_mutex_t close_rtmp_lock;
 private:
     std::string channel_id;
     std::string _rtmp_url;
@@ -518,6 +519,8 @@ private:
     SrsResourceManager* manager;
     SrsGb28181SipService* sip_service;
     SrsServer* server;
+    srs_mutex_t remove_muxer_lock;
+    srs_mutex_t remove_listener_lock;
 public:
     SrsGb28181Manger(SrsServer* s, SrsConfDirective* c);
     virtual ~SrsGb28181Manger();

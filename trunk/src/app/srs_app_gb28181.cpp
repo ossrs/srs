@@ -1266,7 +1266,7 @@ SrsGb28181RtmpMuxer::SrsGb28181RtmpMuxer(SrsGb28181Manger* c, std::string id, bo
 
     ps_demixer = new SrsPsStreamDemixer(this, id, a, k);
     wait_ps_queue = srs_cond_new();
-
+    close_rtmp_lock = srs_mutex_new();
     stream_idle_timeout = -1;
     recv_rtp_stream_time = 0;
     send_rtmp_stream_time = 0;
@@ -1298,7 +1298,7 @@ SrsGb28181RtmpMuxer::~SrsGb28181RtmpMuxer()
     close();
     
     srs_cond_destroy(wait_ps_queue);
- 
+    srs_mutex_destroy(close_rtmp_lock);
     srs_freep(jitter_buffer);
     srs_freep(jitter_buffer_audio);
     srs_freepa(ps_buffer);
@@ -1561,9 +1561,10 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
 
 void SrsGb28181RtmpMuxer::stop()
 {
-    if (trd){
-        trd->interrupt();
-    }
+    // do not interrupt muxer trd
+    // if (trd){
+    //     trd->interrupt();
+    // }
     //stop rtmp publish
     close();
 }
@@ -2121,6 +2122,7 @@ srs_error_t SrsGb28181RtmpMuxer::connect()
 
 void SrsGb28181RtmpMuxer::close()
 {
+    SrsLocker(close_rtmp_lock);
     srs_freep(sdk);
   
     // cleared and sequence header will be sent again next time.
@@ -2221,13 +2223,16 @@ SrsGb28181Manger::SrsGb28181Manger(SrsServer *s, SrsConfDirective* c)
     server = s;
     config = new SrsGb28181Config(c);
     manager = new SrsResourceManager("GB28181");
+    remove_muxer_lock = srs_mutex_new();
+    remove_listener_lock = srs_mutex_new();
 }
 
 SrsGb28181Manger::~SrsGb28181Manger()
 {
     used_ports.clear();
     destroy();
-  
+    srs_mutex_destroy(remove_muxer_lock);
+    srs_mutex_destroy(remove_listener_lock);
     srs_freep(manager);
     srs_freep(config);
 }
@@ -2409,6 +2414,7 @@ void SrsGb28181Manger::destroy()
 
 void SrsGb28181Manger::remove(SrsGb28181RtmpMuxer* muxer)
 {
+    SrsLocker(remove_muxer_lock);
     std::string id = muxer->get_channel_id();
   
     map<std::string, SrsGb28181RtmpMuxer*>::iterator it = rtmpmuxers.find(id);
@@ -2459,6 +2465,7 @@ srs_error_t SrsGb28181Manger::start_ps_rtp_listen(std::string id, int port)
 
 void SrsGb28181Manger::stop_rtp_listen(std::string id)
 {
+    SrsLocker(remove_listener_lock);
     map<std::string, SrsGb28181RtmpMuxer*>::iterator it = rtmpmuxers.find(id);
     if (it == rtmpmuxers.end()){
        return; 
@@ -2632,7 +2639,7 @@ srs_error_t SrsGb28181Manger::create_stream_channel(SrsGb28181StreamChannel *cha
 srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id, std::string chid)
 {
     srs_error_t err = srs_success;
-
+    SrsLocker(remove_muxer_lock);
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
     notify_sip_bye(id, chid);
