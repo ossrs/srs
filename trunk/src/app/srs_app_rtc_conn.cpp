@@ -1345,23 +1345,25 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 
     ++_srs_pps_srtcps->sugar;
 
-    char pkt[kRtcpPacketSize];
-    SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
-    SrsAutoFree(SrsBuffer, buffer);
+    // limit the max count=1024 to avoid dead loop.
+    for (int i = 0; i < 1024 && rtcp_twcc_.need_feedback(); ++i) {
+        char pkt[kMaxUDPDataSize];
+        SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
+        SrsAutoFree(SrsBuffer, buffer);
 
-    rtcp_twcc_.set_feedback_count(twcc_fb_count_);
-    twcc_fb_count_++;
+        rtcp_twcc_.set_feedback_count(twcc_fb_count_);
+        twcc_fb_count_++;
 
-    if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
-        return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
+        if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
+            return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
+        }
+
+        if((err = session_->send_rtcp(pkt, buffer->pos())) != srs_success) {
+            return srs_error_wrap(err, "send twcc, count=%u", twcc_fb_count_);
+        }
     }
 
-    int nb_protected_buf = buffer->pos();
-    if ((err = session_->transport_->protect_rtcp(pkt, &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp, size=%u", nb_protected_buf);
-    }
-
-    return session_->sendonly_skt->sendto(pkt, nb_protected_buf, 0);
+    return err;
 }
 
 srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)

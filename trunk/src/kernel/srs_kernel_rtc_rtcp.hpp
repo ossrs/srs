@@ -36,6 +36,9 @@
 const int kRtcpPacketSize = 1500;
 const uint8_t kRtcpVersion = 0x2;
 
+// 1500 - 20(ip_header) - 8(udp_header)
+const int kMaxUDPDataSize = 1472;
+
 // RTCP Packet Types, @see http://www.networksorcery.com/enp/protocol/rtcp.htm
 enum SrsRtcpType
 {
@@ -266,7 +269,6 @@ class SrsRtcpTWCC : public SrsRtcpCommon
 private:
     uint32_t media_ssrc_;
     uint16_t base_sn_;
-    uint16_t packet_count_;
     int32_t reference_time_;
     uint8_t fb_pkt_count_;
     std::vector<uint16_t> encoded_chucks_;
@@ -284,6 +286,7 @@ private:
     };
 
     int pkt_len;
+    uint16_t next_base_sn_;
 private:
     void clear();
     srs_utime_t calculate_delta_us(srs_utime_t ts, srs_utime_t last);
@@ -302,7 +305,6 @@ public:
 
     uint32_t get_media_ssrc() const;
     uint16_t get_base_sn() const;
-    uint16_t get_packet_status_count() const;
     uint32_t get_reference_time() const;
     uint8_t get_feedback_count() const;
     std::vector<uint16_t> get_packet_chucks() const;
@@ -310,7 +312,6 @@ public:
 
     void set_media_ssrc(uint32_t ssrc);
     void set_base_sn(uint16_t sn);
-    void set_packet_status_count(uint16_t count);
     void set_reference_time(uint32_t time);
     void set_feedback_count(uint8_t count);
     void add_packet_chuck(uint16_t chuck);
