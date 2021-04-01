@@ -99,7 +99,9 @@ bool SrsBuffer::empty()
 
 bool SrsBuffer::require(int required_size)
 {
-    srs_assert(required_size >= 0);
+    if (required_size < 0) {
+        return false;
+    }
     
     return required_size <= nb_bytes - (p - bytes);
 }
