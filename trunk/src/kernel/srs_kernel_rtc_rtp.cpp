@@ -1078,6 +1078,12 @@ SrsRtpRawPayload::~SrsRtpRawPayload()
 {
 }
 
+bool SrsRtpRawPayload::recycle() 
+{ 
+    payload=NULL; nn_payload=0;
+    return true;    
+}
+
 uint64_t SrsRtpRawPayload::nb_bytes()
 {
     return nn_payload;
@@ -1536,6 +1542,16 @@ SrsRtpFUAPayload2::SrsRtpFUAPayload2()
 
 SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
 {
+}
+
+bool SrsRtpFUAPayload2::recycle()
+{
+    start = end = false;
+    nri = nalu_type = (SrsAvcNaluType)0;
+
+    payload = NULL;
+    size = 0;
+    return true;
 }
 
 uint64_t SrsRtpFUAPayload2::nb_bytes()
