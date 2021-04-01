@@ -1699,7 +1699,11 @@ SrsRtcConnection::~SrsRtcConnection()
         srs_freep(addr);
     }
 
-    srs_freep(cache_iov_);
+    if (true) {
+        char* iov_base = (char*)cache_iov_->iov_base;
+        srs_freepa(iov_base);
+        srs_freep(cache_iov_);
+    }
     srs_freep(cache_buffer_);
 
     srs_freep(transport_);
