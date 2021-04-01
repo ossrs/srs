@@ -1035,11 +1035,6 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     }
     buf->set_size(buf->size() - padding);
 
-    // Try to parse the NALU type for video decoder.
-    if (!buf->empty()) {
-        nalu_type = SrsAvcNaluType((uint8_t)(buf->head()[0] & kNalTypeMask));
-    }
-
     // TODO: FIXME: We should keep payload to NULL and return if buffer is empty.
     // If user set the decode handler, call it to set the payload.
     if (decode_handler) {
