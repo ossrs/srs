@@ -941,7 +941,10 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     req = r->copy();
 
-    audio_tracks_.push_back(new SrsRtcAudioRecvTrack(session_, stream_desc->audio_track_desc_));
+    if (stream_desc->audio_track_desc_) {
+        audio_tracks_.push_back(new SrsRtcAudioRecvTrack(session_, stream_desc->audio_track_desc_));
+    }
+
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* desc = stream_desc->video_track_descs_.at(i);
         video_tracks_.push_back(new SrsRtcVideoRecvTrack(session_, desc));
@@ -1862,7 +1865,8 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     while (it != play_sub_relations.end()) {
         SrsRtcTrackDescription* track_desc = it->second;
 
-        if (track_desc->type_ == "audio" || !stream_desc->audio_track_desc_) {
+        // TODO: FIXME: we only support one audio track.
+        if (track_desc->type_ == "audio" && !stream_desc->audio_track_desc_) {
             stream_desc->audio_track_desc_ = track_desc->copy();
         }
 
