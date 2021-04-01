@@ -473,7 +473,7 @@ public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
 public:
-    bool recycle() { return true; }
+    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -573,7 +573,7 @@ public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
 public:
-    bool recycle() { return true; }
+    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();

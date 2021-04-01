@@ -941,7 +941,10 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
     req = r->copy();
 
-    audio_tracks_.push_back(new SrsRtcAudioRecvTrack(session_, stream_desc->audio_track_desc_));
+    if (stream_desc->audio_track_desc_) {
+        audio_tracks_.push_back(new SrsRtcAudioRecvTrack(session_, stream_desc->audio_track_desc_));
+    }
+
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* desc = stream_desc->video_track_descs_.at(i);
         video_tracks_.push_back(new SrsRtcVideoRecvTrack(session_, desc));
@@ -1342,18 +1345,25 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 
     ++_srs_pps_srtcps->sugar;
 
-    char pkt[kRtcpPacketSize];
-    SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
-    SrsAutoFree(SrsBuffer, buffer);
+    // limit the max count=1024 to avoid dead loop.
+    for (int i = 0; i < 1024 && rtcp_twcc_.need_feedback(); ++i) {
+        char pkt[kMaxUDPDataSize];
+        SrsBuffer *buffer = new SrsBuffer(pkt, sizeof(pkt));
+        SrsAutoFree(SrsBuffer, buffer);
 
-    rtcp_twcc_.set_feedback_count(twcc_fb_count_);
-    twcc_fb_count_++;
+        rtcp_twcc_.set_feedback_count(twcc_fb_count_);
+        twcc_fb_count_++;
 
-    if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
-        return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
+        if((err = rtcp_twcc_.encode(buffer)) != srs_success) {
+            return srs_error_wrap(err, "encode, count=%u", twcc_fb_count_);
+        }
+
+        if((err = session_->send_rtcp(pkt, buffer->pos())) != srs_success) {
+            return srs_error_wrap(err, "send twcc, count=%u", twcc_fb_count_);
+        }
     }
 
-    return session_->send_rtcp(pkt, buffer->pos());
+    return err;
 }
 
 srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon* rtcp)
@@ -1857,7 +1867,8 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     while (it != play_sub_relations.end()) {
         SrsRtcTrackDescription* track_desc = it->second;
 
-        if (track_desc->type_ == "audio" || !stream_desc->audio_track_desc_) {
+        // TODO: FIXME: we only support one audio track.
+        if (track_desc->type_ == "audio" && !stream_desc->audio_track_desc_) {
             stream_desc->audio_track_desc_ = track_desc->copy();
         }
 
