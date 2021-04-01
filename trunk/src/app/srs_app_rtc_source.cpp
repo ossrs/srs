@@ -1965,7 +1965,9 @@ void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
         return;
     }
 
-    uint8_t v = (uint8_t)pkt->nalu_type;
+    uint8_t v = (uint8_t)(buf->head()[0] & kNalTypeMask);
+    pkt->nalu_type = SrsAvcNaluType(v);
+
     if (v == kStapA) {
         *ppayload = new SrsRtpSTAPPayload();
         *ppt = SrsRtpPacketPayloadTypeSTAP;
