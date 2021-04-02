@@ -2096,6 +2096,7 @@ srs_error_t SrsGb28181RtmpMuxer::connect()
         return err;
     }
     
+    srs_mutex_lock(close_rtmp_lock);
     // generate rtmp url to connect to.
     std::string url = _rtmp_url;
    
@@ -2107,16 +2108,18 @@ srs_error_t SrsGb28181RtmpMuxer::connect()
     srs_trace("gb28181: rtmp connect url=%s", url.c_str());
 
     if ((err = sdk->connect()) != srs_success) {
+        srs_mutex_unlock(close_rtmp_lock);
         close();
         return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
     
     // publish.
     if ((err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
+        srs_mutex_unlock(close_rtmp_lock);
         close();
         return srs_error_wrap(err, "publish %s failed", url.c_str());
     }
-    
+    srs_mutex_unlock(close_rtmp_lock);
     return err;
 }
 
