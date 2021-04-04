@@ -482,11 +482,6 @@ srs_error_t SrsRtcStream::on_publish()
     is_created_ = true;
     is_delivering_packets_ = true;
 
-    // Notify the consumers about stream change event.
-    if ((err = on_source_changed()) != srs_success) {
-        return srs_error_wrap(err, "source id change");
-    }
-
     // Create a new bridger, because it's been disposed when unpublish.
 #ifdef SRS_FFMPEG_FIT
     SrsRtcFromRtmpBridger* impl = new SrsRtcFromRtmpBridger(this);
@@ -496,6 +491,11 @@ srs_error_t SrsRtcStream::on_publish()
 
     bridger_->setup(impl);
 #endif
+
+    // Notify the consumers about stream change event.
+    if ((err = on_source_changed()) != srs_success) {
+        return srs_error_wrap(err, "source id change");
+    }
 
     // TODO: FIXME: Handle by statistic.
 
