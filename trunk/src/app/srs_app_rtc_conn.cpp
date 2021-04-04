@@ -469,7 +469,7 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 void SrsRtcPlayStream::on_stream_change(SrsRtcStreamDescription* desc)
 {
     // Refresh the relation for audio.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         uint32_t ssrc = desc->audio_track_desc_->ssrc_;
         SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
@@ -479,7 +479,7 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcStreamDescription* desc)
     }
 
     // Refresh the relation for video.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->video_track_descs_.size() == 1 && desc->video_track_descs_.size() == 1) {
         SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
         uint32_t ssrc = vdesc->ssrc_;
