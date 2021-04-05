@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-06-28, ST: Support thread-local for multiple threads. v5.0.31
 * v5.0, 2022-06-17, Merge [#3010](https://github.com/ossrs/srs/pull/3010): SRT: Support Coroutine Native SRT over ST. (#3010). v5.0.30
 * v5.0, 2022-06-15, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v5.0.29
 * v5.0, 2022-04-04, Support NGINX HLS Cluster, see [CN](https://github.com/ossrs/srs/wiki/v4_CN_SampleHlsCluster) or [EN](https://github.com/ossrs/srs/wiki/v4_EN_SampleHlsCluster). v5.0.28
