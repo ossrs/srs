@@ -186,6 +186,7 @@ Other documents:
 > Remark: About the milestone and product plan, please read ([CN][v1_CN_Product], [EN][v1_EN_Product]) wiki.
 
 <a name="history"></a>
+<a name="changes"></a>
 <a name="change-logs"></a>
 
 ## V5 changes
