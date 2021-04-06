@@ -479,8 +479,8 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcStreamDescription* desc)
     }
 
     // Refresh the relation for video.
-    // TODO: FIXME: Match by label?
-    if (desc && desc->video_track_descs_.size() == 1 && desc->video_track_descs_.size() == 1) {
+    // TODO: FIMXE: Match by label?
+    if (desc && desc->video_track_descs_.size() == 1) {
         SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
         uint32_t ssrc = vdesc->ssrc_;
         SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
