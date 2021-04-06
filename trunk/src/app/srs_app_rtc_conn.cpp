@@ -2139,6 +2139,11 @@ srs_error_t SrsRtcConnection::on_connection_established()
 {
     srs_error_t err = srs_success;
 
+    // Ignore if disposing.
+    if (disposing_) {
+        return err;
+    }
+
     // If DTLS done packet received many times, such as ARQ, ignore.
     if(ESTABLISHED == state_) {
         return err;
