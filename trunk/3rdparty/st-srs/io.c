@@ -112,7 +112,7 @@ int _st_io_init(void)
     /**
      * by SRS, for osx.
      * when rlimit max is negative, for example, osx, use cur directly.
-     * @see https://github.com/winlinvip/simple-rtmp-server/issues/336
+     * @see https://github.com/ossrs/srs/issues/336
      */
     if ((int)rlim.rlim_max < 0) {
         _st_osfd_limit = (int)(fdlim > 0? fdlim : rlim.rlim_cur);

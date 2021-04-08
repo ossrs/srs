@@ -1369,7 +1369,7 @@ class SrsTsHanlder implements ISrsTsHandler
     private function write_h264_ipb_frame(ibps:ByteArray, frame_type:uint, dts:uint, pts:uint, piece:ByteArray):void
     {
         // when sps or pps not sent, ignore the packet.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+        // @see https://github.com/ossrs/srs/issues/203
         if (video_sh_tag.length == 0) {
             return;
         }
@@ -2197,7 +2197,7 @@ class SrsRawAacStream
             // decode the ADTS.
             // @see aac-iso-13818-7.pdf, page 26
             //      6.2 Audio Data Transport Stream, ADTS
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145885
+            // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
             // byte_alignment()
             
             // adts_fixed_header:
@@ -2260,7 +2260,7 @@ class SrsRawAacStream
             var channel_configuration:uint = (sfiv >> 6) & 0x07;
             /*int8_t original = (sfiv >> 5) & 0x01;*/
             /*int8_t home = (sfiv >> 4) & 0x01;*/
-            //int8_t Emphasis; @remark, Emphasis is removed, @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64154736
+            //int8_t Emphasis; @remark, Emphasis is removed, @see https://github.com/ossrs/srs/issues/212#issuecomment-64154736
             // 4bits left.
             // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
             // copyright_identification_bit 1 bslbf
@@ -2357,7 +2357,7 @@ class SrsRawAacStream
         var samplingFrequencyIndex:uint = codec.sampling_frequency_index;
         
         // override the aac samplerate by user specified.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64146899
+        // @see https://github.com/ossrs/srs/issues/212#issuecomment-64146899
         switch (codec.sound_rate) {
             case SrsConsts.SrsCodecAudioSampleRate11025: 
                 samplingFrequencyIndex = 0x0a; break;
@@ -2478,7 +2478,7 @@ class SrsEnum
 
 /**
  * the aac profile, for ADTS(HLS/TS)
- * @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+ * @see https://github.com/ossrs/srs/issues/310
  */
 class SrsAacProfile extends SrsEnum
 {
@@ -3697,7 +3697,7 @@ class SrsTsAdaptationField
             
             // @remark, for as, should never shift the Number object.
             // @remark, use pcr base and ignore the extension
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/250#issuecomment-71349370
+            // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
             // first 33bits is pcr base.
             program_clock_reference_base = (stream.readUnsignedInt() << 1) & 0x1fffffe;
             var ch:uint = stream.readUnsignedByte();
@@ -3715,7 +3715,7 @@ class SrsTsAdaptationField
             }
             // @remark, for as, should never shift the Number object.
             // @remark, use pcr base and ignore the extension
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/250#issuecomment-71349370
+            // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
             // first 33bits is pcr base.
             original_program_clock_reference_base = (stream.readUnsignedInt() << 1) & 0x1fffffe;
             ch = stream.readUnsignedByte();

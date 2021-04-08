@@ -45,7 +45,7 @@ function remote_check()
     ok_msg "remote $remote ok, url is $url"
 }
 remote_check origin git@github.com:ossrs/srs.git
-remote_check srs.winlin git@github.com:winlinvip/simple-rtmp-server.git
+remote_check srs.winlin git@github.com:winlinvip/srs.git
 remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
 remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
 remote_check srs.gitlab git@gitlab.com:winlinvip/srs-gitlab.git
