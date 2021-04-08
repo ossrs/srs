@@ -3925,7 +3925,7 @@ srs_error_t SrsConfig::check_normal_config()
                                 && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
                                 && e != "aparams" && e != "output" && e != "perfile"
                                 && e != "iformat" && e != "oformat") {
-                                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.transcode.engine.%s of %s", m.c_str(), vhost->arg0().c_str());
+                                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.transcode.engine.%s of %s", e.c_str(), vhost->arg0().c_str());
                             }
                         }
                     }
