@@ -279,7 +279,13 @@ bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req)
 {
     static bool DEFAULT = true;
     
-    if (!dvr_apply || dvr_apply->args.empty()) {
+    // if dvr_apply is null, return false to keep consistency with get_dvr_enabled() function
+    // if not, will occasionally cause SrsAsyncCallWorker::cycle to crash down with trd == 0x00
+    if ( !dvr_apply ){
+        return false;
+    }
+    
+    if ( dvr_apply->args.empty()) {
         return DEFAULT;
     }
     
