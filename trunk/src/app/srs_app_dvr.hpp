@@ -263,7 +263,7 @@ public:
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* metadata);
     // mux the audio packets to dvr.
     // @param shared_audio, directly ptr, copy it if need to save it.
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* foramt);
+    virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     // mux the video packets to dvr.
     // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
