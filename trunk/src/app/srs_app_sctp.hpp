@@ -32,7 +32,7 @@
 #include <map>
 #include <vector>
 
-#ifdef SRS_VERBOSE
+#if defined(SRS_VERBOSE) || defined(SRS_DEBUG)
 #define SCTP_DEBUG 1
 #endif
 
