@@ -179,24 +179,31 @@ srs_error_t SrsForwarder::on_video(SrsSharedPtrMessage* shared_video)
 srs_error_t SrsForwarder::cycle()
 {
     srs_error_t err = srs_success;
-    
+
     while (true) {
-        // We always check status first.
-        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
-        if ((err = trd->pull()) != srs_success) {
-            return srs_error_wrap(err, "forwarder");
-        }
 
         if ((err = do_cycle()) != srs_success) {
             srs_warn("Forwarder: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }
 
+        //
+        // 将trd->pull()检测移到do_cycle之后，以便当正常的下游服务器断开连接的时候，不用再
+        // srs_usleep(SRS_FORWARDER_CIMS)，避免下游服务器马上重连的时候失败的情况发生。
+        //
+        // We always check status first.
+        // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "forwarder");
+        }
+
         srs_usleep(SRS_FORWARDER_CIMS);
     }
-    
+
     return err;
 }
+
+
 
 srs_error_t SrsForwarder::do_cycle()
 {
