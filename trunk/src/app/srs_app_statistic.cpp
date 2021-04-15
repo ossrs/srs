@@ -301,9 +301,7 @@ SrsStatistic::~SrsStatistic()
     }
     
     vhosts.clear();
-    rvhosts.clear();
     streams.clear();
-    rstreams.clear();
 
     srs_freep(perf_iovs);
     srs_freep(perf_msgs);
@@ -364,8 +362,12 @@ srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec,
 {
     srs_error_t err = srs_success;
     
-    SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = find_stream(req);
+    if (!stream) {
+        srs_warn("on_video_info find_stream failed");
+        return err;
+    }
+
     
     stream->has_video = true;
     stream->vcodec = vcodec;
@@ -382,9 +384,12 @@ srs_error_t SrsStatistic::on_audio_info(SrsRequest* req, SrsAudioCodecId acodec,
 {
     srs_error_t err = srs_success;
     
-    SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
-    
+    SrsStatisticStream* stream = find_stream(req);
+    if (!stream) {
+        srs_warn("on_video_info find_stream failed");
+        return err;
+    }
+
     stream->has_audio = true;
     stream->acodec = acodec;
     stream->asample_rate = asample_rate;
@@ -398,8 +403,11 @@ srs_error_t SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
 {
     srs_error_t err = srs_success;
     
-    SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = find_stream(req);
+    if (!stream) {
+        srs_warn("on_video_info find_stream failed");
+        return err;
+    }
     
     stream->nb_frames += nb_frames;
     
@@ -416,25 +424,14 @@ void SrsStatistic::on_stream_publish(SrsRequest* req, SrsContextId cid)
 
 void SrsStatistic::on_stream_close(SrsRequest* req)
 {
-    SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = find_stream(req);
+    if (!stream) {
+        srs_warn("on_stream_close find_stream failed");
+        return;
+    }
+
     stream->close();
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=streams.find(stream->id)) != streams.end()) {
-            streams.erase(it);
-        }
-    }
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
-            rstreams.erase(it);
-        }
-    }
+    delete_stream(stream);
 }
 
 srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
@@ -487,6 +484,12 @@ void SrsStatistic::on_disconnect(const SrsContextId& cid)
     
     stream->nb_clients--;
     vhost->nb_clients--;
+
+    if ((!stream->active) && (0 == stream->nb_clients)) {
+        delete_stream(stream);
+        srs_freep(stream);
+    }
+
 }
 
 void SrsStatistic::kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta)
@@ -750,42 +753,73 @@ srs_error_t SrsStatistic::dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj
 
 SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
 {
-    SrsStatisticVhost* vhost = NULL;
-    
-    // create vhost if not exists.
-    if (rvhosts.find(req->vhost) == rvhosts.end()) {
+    SrsStatisticVhost* vhost = find_vhost(req);
+    if (!vhost) {
+        // create vhost if not exists.
         vhost = new SrsStatisticVhost();
         vhost->vhost = req->vhost;
-        rvhosts[req->vhost] = vhost;
         vhosts[vhost->id] = vhost;
-        return vhost;
     }
-    
-    vhost = rvhosts[req->vhost];
-    
+
     return vhost;
 }
 
 SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsRequest* req)
 {
-    std::string url = req->get_stream_url();
-    
-    SrsStatisticStream* stream = NULL;
-    
-    // create stream if not exists.
-    if (rstreams.find(url) == rstreams.end()) {
+    SrsStatisticStream* stream = find_stream(req);
+    if (!stream) {
+        // create stream if not exists.
         stream = new SrsStatisticStream();
         stream->vhost = vhost;
         stream->stream = req->stream;
         stream->app = req->app;
-        stream->url = url;
-        rstreams[url] = stream;
+        stream->url = req->get_stream_url();
         streams[stream->id] = stream;
-        return stream;
     }
-    
-    stream = rstreams[url];
-    
+
     return stream;
+}
+
+SrsStatisticVhost* SrsStatistic::find_vhost(SrsRequest * req)
+{
+    SrsStatisticVhost* vhost = NULL;
+
+    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    for (it = vhosts.begin(); it != vhosts.end(); ++it) {
+        if (0 == it->second->vhost.compare(req->vhost)) {
+            vhost = it->second;
+            break;
+        }
+    }
+
+    return vhost;
+}
+
+SrsStatisticStream* SrsStatistic::find_stream(SrsRequest * req)
+{
+    SrsStatisticStream* stream = NULL;
+
+    std::string url = req->get_stream_url();
+    std::map<std::string, SrsStatisticStream*>::iterator it;
+    for (it = streams.begin(); it != streams.end(); ++it) {
+        if (0 == it->second->url.compare(url)) {
+            stream = it->second;
+            break;
+        }
+    }
+
+    return stream;
+}
+
+void SrsStatistic::delete_stream(SrsStatisticStream* stream)
+{
+    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it = streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+            srs_trace("streams erase id: %s", stream->id.c_str());
+        }
+    }
 }
 

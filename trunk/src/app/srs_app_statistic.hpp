@@ -264,6 +264,9 @@ private:
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
+    virtual SrsStatisticVhost * find_vhost(SrsRequest * req);
+    virtual SrsStatisticStream * find_stream(SrsRequest * req);
+    virtual void delete_stream(SrsStatisticStream* stream);
 };
 
 #endif
