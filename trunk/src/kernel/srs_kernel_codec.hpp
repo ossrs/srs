@@ -650,9 +650,8 @@ public:
     virtual bool is_avc_codec_ok();
 };
 
-/**
- * A frame, consists of a codec and a group of samples.
- */
+// A frame, consists of a codec and a group of samples.
+// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
 class SrsFrame
 {
 public:
@@ -677,9 +676,8 @@ public:
     virtual srs_error_t add_sample(char* bytes, int size);
 };
 
-/**
- * A audio frame, besides a frame, contains the audio frame info, such as frame type.
- */
+// A audio frame, besides a frame, contains the audio frame info, such as frame type.
+// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
 class SrsAudioFrame : public SrsFrame
 {
 public:
@@ -691,9 +689,8 @@ public:
     virtual SrsAudioCodecConfig* acodec();
 };
 
-/**
- * A video frame, besides a frame, contains the video frame info, such as frame type.
- */
+// A video frame, besides a frame, contains the video frame info, such as frame type.
+// TODO: FIXME: Rename to packet to follow names of FFmpeg, which means before decoding or after decoding.
 class SrsVideoFrame : public SrsFrame
 {
 public:

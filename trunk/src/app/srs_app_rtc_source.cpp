@@ -70,11 +70,6 @@ const int kAudioSamplerate      = 48000;
 const int kVideoPayloadType = 102;
 const int kVideoSamplerate  = 90000;
 
-// An AAC packet may be transcoded to many OPUS packets.
-const int kMaxOpusPackets = 8;
-// The max size for each OPUS packet.
-const int kMaxOpusPacketSize = 4096;
-
 // The RTP payload max size, reserved some paddings for SRTP as such:
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
 // For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
@@ -632,12 +627,11 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
     req = NULL;
     source_ = source;
     format = new SrsRtmpFormat();
-    codec = new SrsAudioRecode(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate);
+    codec_ = new SrsAudioTranscoder();
     discard_aac = false;
     discard_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
-    audio_timestamp = 0;
     audio_sequence = 0;
     video_sequence = 0;
 
@@ -687,7 +681,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcStream* source)
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
     srs_freep(format);
-    srs_freep(codec);
+    srs_freep(codec_);
     srs_freep(meta);
 }
 
@@ -701,7 +695,8 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
         return srs_error_wrap(err, "format initialize");
     }
 
-    if ((err = codec->initialize()) != srs_success) {
+    int bitrate = 48000; // The output bitrate in bps.
+    if ((err = codec_->initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "init codec");
     }
 
@@ -779,72 +774,58 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "aac append header");
     }
 
-    if (adts_audio) {
-        err = transcode(adts_audio, nn_adts_audio);
-        srs_freep(adts_audio);
+    if (!adts_audio) {
+        return err;
     }
+
+    SrsAudioFrame aac;
+    aac.dts = format->audio->dts;
+    aac.cts = format->audio->cts;
+    if ((err = aac.add_sample(adts_audio, nn_adts_audio)) == srs_success) {
+        // If OK, transcode the AAC to Opus and consume it.
+        err = transcode(&aac);
+    }
+
+    srs_freepa(adts_audio);
 
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::transcode(char* adts_audio, int nn_adts_audio)
+srs_error_t SrsRtcFromRtmpBridger::transcode(SrsAudioFrame* pkt)
 {
     srs_error_t err = srs_success;
 
-    // Opus packet cache.
-    static char* opus_payloads[kMaxOpusPackets];
-
-    static bool initialized = false;
-    if (!initialized) {
-        initialized = true;
-
-        static char opus_packets_cache[kMaxOpusPackets][kMaxOpusPacketSize];
-        opus_payloads[0] = &opus_packets_cache[0][0];
-        for (int i = 1; i < kMaxOpusPackets; i++) {
-           opus_payloads[i] = opus_packets_cache[i];
-        }
-    }
-
-    // Transcode an aac packet to many opus packets.
-    SrsSample aac;
-    aac.bytes = adts_audio;
-    aac.size = nn_adts_audio;
-
-    int nn_opus_packets = 0;
-    int opus_sizes[kMaxOpusPackets];
-    if ((err = codec->transcode(&aac, opus_payloads, opus_sizes, nn_opus_packets)) != srs_success) {
+    std::vector<SrsAudioFrame *> out_pkts;
+    if ((err = codec_->transcode(pkt, out_pkts)) != srs_success) {
         return srs_error_wrap(err, "recode error");
     }
 
     // Save OPUS packets in shared message.
-    if (nn_opus_packets <= 0) {
+    if (out_pkts.empty()) {
         return err;
     }
 
-    int nn_max_extra_payload = 0;
-    for (int i = 0; i < nn_opus_packets; i++) {
-        char* data = (char*)opus_payloads[i];
-        int size = (int)opus_sizes[i];
-
-        // TODO: FIXME: Use it to padding audios.
-        nn_max_extra_payload = srs_max(nn_max_extra_payload, size);
-
+    for (std::vector<SrsAudioFrame *>::iterator it = out_pkts.begin(); it != out_pkts.end(); ++it) {
         SrsRtpPacketCacheHelper* helper = new SrsRtpPacketCacheHelper();
         SrsAutoFree(SrsRtpPacketCacheHelper, helper);
 
-        if ((err = package_opus(data, size, helper)) != srs_success) {
-            return srs_error_wrap(err, "package opus");
+        if ((err = package_opus(*it, helper)) != srs_success) {
+            err = srs_error_wrap(err, "package opus");
+            break;
         }
 
         if ((err = source_->on_rtp(helper->pkt)) != srs_success) {
-            return srs_error_wrap(err, "consume opus");
+            err = srs_error_wrap(err, "consume opus");
+            break;
         }
     }
+
+    codec_->free_frames(out_pkts);
 
     return err;
 }
 
-srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPacketCacheHelper* helper)
+srs_error_t SrsRtcFromRtmpBridger::package_opus(SrsAudioFrame* audio, SrsRtpPacketCacheHelper* helper)
 {
     srs_error_t err = srs_success;
 
@@ -854,16 +835,14 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(char* data, int size, SrsRtpPack
     pkt->frame_type = SrsFrameTypeAudio;
     pkt->header.set_marker(true);
     pkt->header.set_sequence(audio_sequence++);
-    pkt->header.set_timestamp(audio_timestamp);
-
-    // TODO: FIXME: Why 960? Need Refactoring?
-    audio_timestamp += 960;
+    pkt->header.set_timestamp(audio->dts * 48);
 
     SrsRtpRawPayload* raw = _srs_rtp_raw_cache->allocate();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
-    raw->payload = pkt->wrap(data, size);
-    raw->nn_payload = size;
+    srs_assert(audio->nb_samples == 1);
+    raw->payload = pkt->wrap(audio->samples[0].bytes, audio->samples[0].size);
+    raw->nn_payload = audio->samples[0].size;
 
     return err;
 }

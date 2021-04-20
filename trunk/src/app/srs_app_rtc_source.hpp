@@ -45,7 +45,7 @@ class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
-class SrsAudioRecode;
+class SrsAudioTranscoder;
 class SrsRtpPacket2;
 class SrsRtpPacketCacheHelper;
 class SrsSample;
@@ -263,10 +263,9 @@ private:
     SrsMetaCache* meta;
 private:
     bool discard_aac;
-    SrsAudioRecode* codec;
+    SrsAudioTranscoder* codec_;
     bool discard_bframe;
     bool merge_nalus;
-    uint32_t audio_timestamp;
     uint16_t audio_sequence;
     uint16_t video_sequence;
     uint32_t audio_ssrc;
@@ -280,8 +279,8 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
-    srs_error_t transcode(char* adts_audio, int nn_adts_audio);
-    srs_error_t package_opus(char* data, int size, SrsRtpPacketCacheHelper* helper);
+    srs_error_t transcode(SrsAudioFrame* audio);
+    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacketCacheHelper* helper);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
