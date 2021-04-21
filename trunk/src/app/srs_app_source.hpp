@@ -535,7 +535,7 @@ private:
     // The event handler.
     ISrsSourceHandler* handler;
     // The source bridger for other source.
-    ISrsSourceBridger* bridger;
+    ISrsSourceBridger* bridger_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -563,7 +563,7 @@ public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void bridge_to(ISrsSourceBridger* v);
+    void set_bridger(ISrsSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

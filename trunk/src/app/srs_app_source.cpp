@@ -1728,19 +1728,6 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
-#ifdef SRS_RTC
-    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(r->vhost);
-
-    // Get the RTC source and bridger.
-    SrsRtcStream* rtc = NULL;
-    if (rtc_server_enabled && rtc_enabled) {
-        if ((err = _srs_rtc_sources->fetch_or_create(r, &rtc)) != srs_success) {
-            err = srs_error_wrap(err, "init rtc %s", r->get_stream_url().c_str());
-            goto failed;
-        }
-    }
-#endif
     srs_trace("new source, stream_url=%s", stream_url.c_str());
 
     source = new SrsSource();
@@ -1748,14 +1735,6 @@ srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* 
         err = srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
         goto failed;
     }
-
-#ifdef SRS_RTC
-    // If rtc enabled, bridge RTMP source to RTC,
-    // all RTMP packets will be forwarded to RTC source.
-    if (source && rtc) {
-        source->bridge_to(rtc->bridger());
-    }
-#endif
     
     pool[stream_url] = source;
     *pps = source;
@@ -1883,7 +1862,7 @@ SrsSource::SrsSource()
     die_at = 0;
 
     handler = NULL;
-    bridger = NULL;
+    bridger_ = NULL;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1915,6 +1894,7 @@ SrsSource::~SrsSource()
     srs_freep(gop_cache);
     
     srs_freep(req);
+    srs_freep(bridger_);
 }
 
 void SrsSource::dispose()
@@ -1990,9 +1970,10 @@ srs_error_t SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
     return err;
 }
 
-void SrsSource::bridge_to(ISrsSourceBridger* v)
+void SrsSource::set_bridger(ISrsSourceBridger* v)
 {
-    bridger = v;
+    srs_freep(bridger_);
+    bridger_ = v;
 }
 
 srs_error_t SrsSource::on_reload_vhost_play(string vhost)
@@ -2245,7 +2226,7 @@ srs_error_t SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridger to consume the message.
-    if (bridger && (err = bridger->on_audio(msg)) != srs_success) {
+    if (bridger_ && (err = bridger_->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "bridger consume audio");
     }
 
@@ -2375,7 +2356,7 @@ srs_error_t SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridger to consume the message.
-    if (bridger && (err = bridger->on_video(msg)) != srs_success) {
+    if (bridger_ && (err = bridger_->on_video(msg)) != srs_success) {
         return srs_error_wrap(err, "bridger consume video");
     }
 
@@ -2539,7 +2520,7 @@ srs_error_t SrsSource::on_publish()
         return srs_error_wrap(err, "handle publish");
     }
 
-    if (bridger && (err = bridger->on_publish()) != srs_success) {
+    if (bridger_ && (err = bridger_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "bridger publish");
     }
 
@@ -2584,8 +2565,9 @@ void SrsSource::on_unpublish()
 
     handler->on_unpublish(this, req);
 
-    if (bridger) {
-        bridger->on_unpublish();
+    if (bridger_) {
+        bridger_->on_unpublish();
+        srs_freep(bridger_);
     }
     
     // no consumer, stream is die.
