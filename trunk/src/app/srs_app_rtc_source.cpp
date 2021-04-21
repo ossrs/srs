@@ -337,7 +337,6 @@ SrsRtcStream::SrsRtcStream()
     stream_desc_ = NULL;
 
     req = NULL;
-    bridger_ = new SrsRtcDummyBridger(this);
 }
 
 SrsRtcStream::~SrsRtcStream()
@@ -347,7 +346,6 @@ SrsRtcStream::~SrsRtcStream()
     consumers.clear();
 
     srs_freep(req);
-    srs_freep(bridger_);
     srs_freep(stream_desc_);
 }
 
@@ -406,11 +404,6 @@ SrsContextId SrsRtcStream::source_id()
 SrsContextId SrsRtcStream::pre_source_id()
 {
     return _pre_source_id;
-}
-
-ISrsSourceBridger* SrsRtcStream::bridger()
-{
-    return bridger_;
 }
 
 srs_error_t SrsRtcStream::create_consumer(SrsRtcConsumer*& consumer)
@@ -477,16 +470,6 @@ srs_error_t SrsRtcStream::on_publish()
     is_created_ = true;
     is_delivering_packets_ = true;
 
-    // Create a new bridger, because it's been disposed when unpublish.
-#ifdef SRS_FFMPEG_FIT
-    SrsRtcFromRtmpBridger* impl = new SrsRtcFromRtmpBridger(this);
-    if ((err = impl->initialize(req)) != srs_success) {
-        return srs_error_wrap(err, "bridge initialize");
-    }
-
-    bridger_->setup(impl);
-#endif
-
     // Notify the consumers about stream change event.
     if ((err = on_source_changed()) != srs_success) {
         return srs_error_wrap(err, "source id change");
@@ -521,11 +504,6 @@ void SrsRtcStream::on_unpublish()
 
     // release unpublish stream description.
     set_stream_desc(NULL);
-
-    // Dispose the impl of bridger, to free memory.
-#ifdef SRS_FFMPEG_FIT
-    bridger_->setup(NULL);
-#endif
 
     // TODO: FIXME: Handle by statistic.
 }
@@ -1195,56 +1173,6 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacketCacheHelpe
     return err;
 }
 #endif
-
-SrsRtcDummyBridger::SrsRtcDummyBridger(SrsRtcStream* s)
-{
-    rtc_ = s;
-    impl_ = NULL;
-}
-
-SrsRtcDummyBridger::~SrsRtcDummyBridger()
-{
-    srs_freep(impl_);
-}
-
-srs_error_t SrsRtcDummyBridger::on_publish()
-{
-    if (impl_) {
-        return impl_->on_publish();
-    }
-    return rtc_->on_publish();
-}
-
-srs_error_t SrsRtcDummyBridger::on_audio(SrsSharedPtrMessage* audio)
-{
-    if (impl_) {
-        return impl_->on_audio(audio);
-    }
-    return srs_success;
-}
-
-srs_error_t SrsRtcDummyBridger::on_video(SrsSharedPtrMessage* video)
-{
-    if (impl_) {
-        return impl_->on_video(video);
-    }
-    return srs_success;
-}
-
-void SrsRtcDummyBridger::on_unpublish()
-{
-    if (impl_) {
-        impl_->on_unpublish();
-        return;
-    }
-    rtc_->on_unpublish();
-}
-
-void SrsRtcDummyBridger::setup(ISrsSourceBridger* impl)
-{
-    srs_freep(impl_);
-    impl_ = impl;
-}
 
 SrsCodecPayload::SrsCodecPayload()
 {

@@ -56,7 +56,6 @@ class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsErrorPithyPrint;
-class SrsRtcDummyBridger;
 
 class SrsNtp
 {
@@ -177,8 +176,6 @@ private:
     SrsContextId _pre_source_id;
     SrsRequest* req;
     ISrsRtcPublishStream* publish_stream_;
-    // Transmux RTMP to RTC.
-    SrsRtcDummyBridger* bridger_;
     // Steam description for this steam.
     SrsRtcStreamDescription* stream_desc_;
 private:
@@ -204,8 +201,6 @@ public:
     // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
-    // Get the bridger.
-    ISrsSourceBridger* bridger();
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -292,25 +287,6 @@ private:
     srs_error_t consume_packets(std::vector<SrsRtpPacketCacheHelper*>& helpers);
 };
 #endif
-
-class SrsRtcDummyBridger : public ISrsSourceBridger
-{
-private:
-    SrsRtcStream* rtc_;
-    // The optional implementation bridger, ignore if NULL.
-    ISrsSourceBridger* impl_;
-public:
-    SrsRtcDummyBridger(SrsRtcStream* s);
-    virtual ~SrsRtcDummyBridger();
-public:
-    virtual srs_error_t on_publish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
-    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
-    virtual void on_unpublish();
-public:
-    // Setup a new implementation bridger, which might be NULL to free previous one.
-    void setup(ISrsSourceBridger* impl);
-};
 
 // TODO: FIXME: Rename it.
 class SrsCodecPayload
