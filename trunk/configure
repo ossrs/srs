@@ -328,7 +328,7 @@ SERVER_OBJS="${MODULE_OBJS[@]}"
 #
 #Main Module, for app from modules.
 MODULE_ID="MAIN"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
@@ -390,7 +390,7 @@ LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 #
 # For modules, without the app module.
-MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
 ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibFiles+=(${LibSrtpFile})
