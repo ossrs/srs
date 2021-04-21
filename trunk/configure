@@ -57,14 +57,11 @@ __mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
 done
 
 # variables for makefile for all modules.
-__mphonys="" && __mdefaults="" && __mcleanups="" && __makefiles=""
+__mphonys="" && __mdefaults="" && __mcleanups=""
 # add each modules for application
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo "install module at: $SRS_MODULE"
-    . $SRS_MODULE/config
-    if [[ $SRS_MODULE_MAKEFILE != "" ]]; then
-        __makefiles="$__makefiles $SRS_MODULE_MAKEFILE"
-    fi
+    . auto/reset_module.sh && . $SRS_MODULE/config
     if [[ 0 -ne ${#SRS_MODULE_MAIN[@]} ]]; then
         __mphonys="$__mphonys $SRS_MODULE_NAME"
         __mdefaults="$__mdefaults $SRS_MODULE_NAME"
@@ -299,7 +296,7 @@ fi
 DEFINES=""
 # add each modules for app
 for SRS_MODULE in ${SRS_MODULES[*]}; do
-    . $SRS_MODULE/config
+    . auto/reset_module.sh && . $SRS_MODULE/config
     MODULE_FILES+=("${SRS_MODULE_APP[*]}")
     DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
 done
@@ -328,7 +325,7 @@ SERVER_OBJS="${MODULE_OBJS[@]}"
 #
 #Main Module, for app from modules.
 MODULE_ID="MAIN"
-MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL")
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
@@ -340,7 +337,7 @@ MODULE_FILES=()
 DEFINES=""
 # add each modules for main
 for SRS_MODULE in ${SRS_MODULES[*]}; do
-    . $SRS_MODULE/config
+    . auto/reset_module.sh && . $SRS_MODULE/config
     MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
     DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
 done
@@ -354,7 +351,7 @@ MAIN_OBJS="${MODULE_OBJS[@]}"
 # all main entrances
 MAIN_ENTRANCES=("srs_main_server")
 for SRS_MODULE in ${SRS_MODULES[*]}; do
-    . $SRS_MODULE/config
+    . auto/reset_module.sh && . $SRS_MODULE/config
     MAIN_ENTRANCES+=("${SRS_MODULE_MAIN[*]}")
 done
 #
@@ -389,8 +386,8 @@ LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 # srs: srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 #
-# For modules, without the app module.
-MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
+# For modules, with the app module.
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
 ModuleLibFiles=(${LibSTfile} ${LibSSLfile} ${LibGperfFile})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibFiles+=(${LibSrtpFile})
@@ -400,7 +397,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 #
 for SRS_MODULE in ${SRS_MODULES[*]}; do
-    . $SRS_MODULE/config
+    . auto/reset_module.sh && . $SRS_MODULE/config
     # no SRS_MODULE_MAIN
     if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
     BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="${SRS_MODULE_MAIN[0]}" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
@@ -473,7 +470,7 @@ END
 
 # the real entry for all platform:
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server srs_ingest_hls utest __modules $__mdefaults
+_default: server srs_ingest_hls utest $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
@@ -558,14 +555,6 @@ ffmpeg:
 
 END
 
-# for Makefile of all modules.
-# depends on server, for some modules maybe use srs files.
-echo "__modules: server" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-for MMF in ${__makefiles[*]}; do
-    echo "	\$(MAKE) -f $MMF" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-done
-echo "" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "Build the srs(simple rtmp server) over ST(state-threads)"
@@ -574,7 +563,7 @@ server: _prepare_dir
 END
 # generate all modules entry
 for SRS_MODULE in ${SRS_MODULES[*]}; do
-    . $SRS_MODULE/config
+    . auto/reset_module.sh && . $SRS_MODULE/config
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 $SRS_MODULE_NAME: _prepare_dir server
 	@echo "Build the $SRS_MODULE_NAME over SRS"
