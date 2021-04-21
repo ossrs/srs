@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -312,6 +312,8 @@ public:
     SrsSharedPtrMessage();
     virtual ~SrsSharedPtrMessage();
 public:
+    // For object cache to reset and reuse it.
+    bool recycle();
     // Create shared ptr message,
     // copy header, manage the payload of msg,
     // set the payload to NULL to prevent double free.
@@ -347,6 +349,8 @@ public:
     // copy current shared ptr message, use ref-count.
     // @remark, assert object is created.
     virtual SrsSharedPtrMessage* copy();
+    // Only copy the buffer, without header fields.
+    virtual SrsSharedPtrMessage* copy2();
 };
 
 // Transmux RTMP packets to FLV stream.

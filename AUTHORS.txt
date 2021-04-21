@@ -79,3 +79,4 @@ CONTRIBUTORS ordered by first contribution.
 * ghostsf<ghost_sf@163.com>
 * xbpeng121<53243357+xbpeng121@users.noreply.github.com>
 * johzzy<hellojinqiang@gmail.com>
+* stone<bluestn@163.com>

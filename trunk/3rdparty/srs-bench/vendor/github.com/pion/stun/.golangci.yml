@@ -1,0 +1,93 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+  golint:
+    min-confidence: 0
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  lll:
+    line-length: 140
+  goimports:
+    local-prefixes: github.com/pion
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - commentedOutCode
+      - sloppyReassign
+
+issues:
+  exclude:
+    - "`assertHMACSize` - `blocksize` always receives `64`"
+  exclude-rules:
+    - text: "string `<nil>`"
+      linters:
+        - goconst
+
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+
+    # Ease some gocritic warnings on test files.
+    - path: _test\.go
+      text: "(unnamedResult|exitAfterDefer|unlambda)"
+      linters:
+        - gocritic
+
+    # Exclude known linters from partially hard-vendored code,
+    # which is impossible to exclude via "nolint" comments.
+    - path: internal/hmac/
+      text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    - path: internal/hmac/
+      text: "Write\\` is not checked"
+      linters:
+        - errcheck
+
+    # Ease linting on benchmarking code.
+    - path: cmd/stun-bench/
+      linters:
+        - gosec
+        - errcheck
+        - unparam
+
+    - path: ^cmd/
+      linters:
+        - gocyclo
+    - path: ^cmd/
+      text: "(unnamedResult|exitAfterDefer)"
+      linters:
+        - gocritic
+
+linters:
+  enable-all: true
+  disable:
+    - funlen
+    - gochecknoglobals
+    - godox
+    - prealloc
+    - scopelint
+
+run:
+  skip-dirs:
+    - e2e
+    - fuzz
+    - testdata
+    - api

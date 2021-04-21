@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -45,6 +45,10 @@ class SrsLbRoundRobin;
 class SrsTcpClient;
 class SrsSimpleRtmpClient;
 class SrsPacket;
+class SrsHttpClient;
+class ISrsHttpMessage;
+class SrsHttpFileReader;
+class SrsFlvDecoder;
 
 // The state of edge, auto machine
 enum SrsEdgeState
@@ -104,6 +108,38 @@ public:
     virtual ~SrsEdgeRtmpUpstream();
 public:
     virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
+    virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
+    virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
+    virtual void close();
+public:
+    virtual void selected(std::string& server, int& port);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual void kbps_sample(const char* label, int64_t age);
+};
+
+class SrsEdgeFlvUpstream : public SrsEdgeUpstream
+{
+private:
+    std::string schema_;
+    SrsHttpClient* sdk_;
+    ISrsHttpMessage* hr_;
+private:
+    SrsHttpFileReader* reader_;
+    SrsFlvDecoder* decoder_;
+private:
+    // We might modify the request by HTTP redirect.
+    SrsRequest* req_;
+    // Current selected server, the ip:port.
+    std::string selected_ip;
+    int selected_port;
+public:
+    SrsEdgeFlvUpstream(std::string schema);
+    virtual ~SrsEdgeFlvUpstream();
+public:
+    virtual srs_error_t connect(SrsRequest* r, SrsLbRoundRobin* lb);
+private:
+    virtual srs_error_t do_connect(SrsRequest* r, SrsLbRoundRobin* lb, int redirect_depth);
+public:
     virtual srs_error_t recv_message(SrsCommonMessage** pmsg);
     virtual srs_error_t decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     virtual void close();

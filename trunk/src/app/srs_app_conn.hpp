@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -47,9 +47,33 @@ public:
     virtual ~ISrsDisposingHandler();
 public:
     // When before disposing resource, trigger when manager.remove(c), sync API.
+    // @remark Recommend to unref c, after this, no other objects refs to c.
     virtual void on_before_dispose(ISrsResource* c) = 0;
     // When disposing resource, async API, c is freed after it.
+    // @remark Recommend to stop any thread/timer of c, after this, fields of c is able
+    // to be deleted in any order.
     virtual void on_disposing(ISrsResource* c) = 0;
+};
+
+// The item to identify the fast id object.
+class SrsResourceFastIdItem
+{
+public:
+    // If available, use the resource in item.
+    bool available;
+    // How many resource have the same fast-id, which contribute a collision.
+    int nn_collisions;
+    // The first fast-id of resources.
+    uint64_t fast_id;
+    // The first resource object.
+    ISrsResource* impl;
+public:
+    SrsResourceFastIdItem() {
+        available = false;
+        nn_collisions = 0;
+        fast_id = 0;
+        impl = NULL;
+    }
 };
 
 // The resource manager remove resource and delete it asynchronously.
@@ -76,6 +100,11 @@ private:
     std::vector<ISrsResource*> conns_;
     // The connections with resource id.
     std::map<std::string, ISrsResource*> conns_id_;
+    // The connections with resource fast(int) id.
+    std::map<uint64_t, ISrsResource*> conns_fast_id_;
+    // The level-0 fast cache for fast id.
+    int nn_level0_cache_;
+    SrsResourceFastIdItem* conns_level0_cache_;
     // The connections with resource name.
     std::map<std::string, ISrsResource*> conns_name_;
 public:
@@ -89,11 +118,13 @@ public:
 public:
     virtual srs_error_t cycle();
 public:
-    void add(ISrsResource* conn);
+    void add(ISrsResource* conn, bool* exists = NULL);
     void add_with_id(const std::string& id, ISrsResource* conn);
+    void add_with_fast_id(uint64_t id, ISrsResource* conn);
     void add_with_name(const std::string& name, ISrsResource* conn);
     ISrsResource* at(int index);
     ISrsResource* find_by_id(std::string id);
+    ISrsResource* find_by_fast_id(uint64_t id);
     ISrsResource* find_by_name(std::string name);
 public:
     void subscribe(ISrsDisposingHandler* h);

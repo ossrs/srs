@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -33,6 +33,11 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_cids_get = new SrsPps();
+SrsPps* _srs_pps_cids_set = new SrsPps();
+
 #define SRS_BASIC_LOG_SIZE 8192
 
 SrsThreadContext::SrsThreadContext()
@@ -49,32 +54,55 @@ SrsContextId SrsThreadContext::generate_id()
     return cid.set_value(srs_random_str(8));
 }
 
+static SrsContextId _srs_context_default;
+static int _srs_context_key = -1;
+void _srs_context_destructor(void* arg)
+{
+    SrsContextId* cid = (SrsContextId*)arg;
+    srs_freep(cid);
+}
+
 const SrsContextId& SrsThreadContext::get_id()
 {
-    return cache[srs_thread_self()];
+    ++_srs_pps_cids_get->sugar;
+
+    if (!srs_thread_self()) {
+        return _srs_context_default;
+    }
+
+    void* cid = srs_thread_getspecific(_srs_context_key);
+    if (!cid) {
+        return _srs_context_default;
+    }
+
+    return *(SrsContextId*)cid;
 }
 
 const SrsContextId& SrsThreadContext::set_id(const SrsContextId& v)
 {
-    srs_thread_t self = srs_thread_self();
+    ++_srs_pps_cids_set->sugar;
 
-    if (cache.find(self) == cache.end()) {
-        cache[self] = v;
+    if (!srs_thread_self()) {
+        _srs_context_default = v;
         return v;
     }
 
-    const SrsContextId& ov = cache[self];
-    cache[self] = v;
-    return ov;
+    SrsContextId* cid = new SrsContextId();
+    *cid = v;
+
+    if (_srs_context_key < 0) {
+        int r0 = srs_key_create(&_srs_context_key, _srs_context_destructor);
+        srs_assert(r0 == 0);
+    }
+
+    int r0 = srs_thread_setspecific(_srs_context_key, cid);
+    srs_assert(r0 == 0);
+
+    return v;
 }
 
 void SrsThreadContext::clear_cid()
 {
-    srs_thread_t self = srs_thread_self();
-    std::map<srs_thread_t, SrsContextId>::iterator it = cache.find(self);
-    if (it != cache.end()) {
-        cache.erase(it);
-    }
 }
 
 impl_SrsContextRestore::impl_SrsContextRestore(SrsContextId cid)

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -117,7 +117,7 @@ public:
     // @param ppmsg output the http message to read the response.
     // @remark user must free the ppmsg if not NULL.
     virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
-private:
+public:
     virtual void set_recv_timeout(srs_utime_t tm);
 public:
     virtual void kbps_sample(const char* label, int64_t age);

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -489,6 +489,12 @@ public:
 public:
     // Transform it as HTTP request.
     virtual SrsRequest* as_http();
+public:
+    // The protocol of client:
+    //      rtmp, Adobe RTMP protocol.
+    //      flv, HTTP-FLV protocol.
+    //      flvs, HTTPS-FLV protocol.
+    std::string protocol;
 };
 
 // The response to client.

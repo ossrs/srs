@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,24 +24,6 @@
 #include <srs_protocol_kbps.hpp>
 
 #include <srs_kernel_utility.hpp>
-
-SrsKbpsSample::SrsKbpsSample()
-{
-    bytes = time = -1;
-    kbps = 0;
-}
-
-SrsKbpsSample::~SrsKbpsSample()
-{
-}
-
-SrsKbpsSample* SrsKbpsSample::update(int64_t b, srs_utime_t t, int k)
-{
-    bytes = b;
-    time = t;
-    kbps = k;
-    return this;
-}
 
 SrsKbpsSlice::SrsKbpsSlice(SrsWallClock* c)
 {
@@ -78,19 +60,19 @@ void SrsKbpsSlice::sample()
     }
     
     if (now - sample_30s.time >= 30 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_30s.bytes) * 8 / srsu2ms(now - sample_30s.time));
+        int kbps = (int)((total_bytes - sample_30s.total) * 8 / srsu2ms(now - sample_30s.time));
         sample_30s.update(total_bytes, now, kbps);
     }
     if (now - sample_1m.time >= 60 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_1m.bytes) * 8 / srsu2ms(now - sample_1m.time));
+        int kbps = (int)((total_bytes - sample_1m.total) * 8 / srsu2ms(now - sample_1m.time));
         sample_1m.update(total_bytes, now, kbps);
     }
     if (now - sample_5m.time >= 300 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_5m.bytes) * 8 / srsu2ms(now - sample_5m.time));
+        int kbps = (int)((total_bytes - sample_5m.total) * 8 / srsu2ms(now - sample_5m.time));
         sample_5m.update(total_bytes, now, kbps);
     }
     if (now - sample_60m.time >= 3600 * SRS_UTIME_SECONDS) {
-        int kbps = (int)((total_bytes - sample_60m.bytes) * 8 / srsu2ms(now - sample_60m.time));
+        int kbps = (int)((total_bytes - sample_60m.total) * 8 / srsu2ms(now - sample_60m.time));
         sample_60m.update(total_bytes, now, kbps);
     }
 }
@@ -101,19 +83,6 @@ ISrsKbpsDelta::ISrsKbpsDelta()
 
 ISrsKbpsDelta::~ISrsKbpsDelta()
 {
-}
-
-SrsWallClock::SrsWallClock()
-{
-}
-
-SrsWallClock::~SrsWallClock()
-{
-}
-
-srs_utime_t SrsWallClock::now()
-{
-    return srs_get_system_time();
 }
 
 SrsKbps::SrsKbps(SrsWallClock* c) : is(c), os(c)
@@ -188,22 +157,22 @@ int SrsKbps::get_recv_kbps()
 
 int SrsKbps::get_send_kbps_30s()
 {
-    return os.sample_30s.kbps;
+    return os.sample_30s.rate;
 }
 
 int SrsKbps::get_recv_kbps_30s()
 {
-    return is.sample_30s.kbps;
+    return is.sample_30s.rate;
 }
 
 int SrsKbps::get_send_kbps_5m()
 {
-    return os.sample_5m.kbps;
+    return os.sample_5m.rate;
 }
 
 int SrsKbps::get_recv_kbps_5m()
 {
-    return is.sample_5m.kbps;
+    return is.sample_5m.rate;
 }
 
 void SrsKbps::add_delta(int64_t in, int64_t out)

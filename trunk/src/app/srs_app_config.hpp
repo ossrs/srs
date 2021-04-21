@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -534,6 +534,19 @@ public:
     virtual int get_rtc_server_reuseport();
     virtual bool get_rtc_server_merge_nalus();
     virtual bool get_rtc_server_perf_stat();
+private:
+    SrsConfDirective* get_rtc_server_rtp_cache();
+public:
+    virtual bool get_rtc_server_rtp_cache_enabled();
+    virtual uint64_t get_rtc_server_rtp_cache_pkt_size();
+    virtual uint64_t get_rtc_server_rtp_cache_payload_size();
+private:
+    virtual SrsConfDirective* get_rtc_server_rtp_msg_cache();
+public:
+    virtual bool get_rtc_server_rtp_msg_cache_enabled();
+    virtual uint64_t get_rtc_server_rtp_msg_cache_msg_size();
+    virtual uint64_t get_rtc_server_rtp_msg_cache_buffer_size();
+public:
     virtual bool get_rtc_server_black_hole();
     virtual std::string get_rtc_server_black_hole_addr();
 private:
@@ -550,6 +563,7 @@ public:
     std::string get_rtc_dtls_version(std::string vhost);
     int get_rtc_drop_for_pt(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
+    bool get_rtc_nack_no_copy(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
 
 // vhost specified section
@@ -759,6 +773,10 @@ public:
     // Get the origin config of edge,
     // specifies the origin ip address, port.
     virtual SrsConfDirective* get_vhost_edge_origin(std::string vhost);
+    // Get the procotol to connect to origin server.
+    virtual std::string get_vhost_edge_protocol(std::string vhost);
+    // Whether follow client protocol to connect to origin.
+    virtual bool get_vhost_edge_follow_client(std::string vhost);
     // Whether edge token tranverse is enabled,
     // If  true, edge will send connect origin to verfy the token of client.
     // For example, we verify all clients on the origin FMS by server-side as,
@@ -1084,6 +1102,8 @@ private:
     // Get the stats directive.
     virtual SrsConfDirective* get_stats();
 public:
+    // Whether enabled stats.
+    virtual bool get_stats_enabled();
     // Get the network device index, used to retrieve the ip of device,
     // For heartbeat to report to server, or to get the local ip.
     // For example, 0 means the eth0 maybe.

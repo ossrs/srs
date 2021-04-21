@@ -52,6 +52,24 @@
 #include <valgrind/valgrind.h>
 #endif
 
+// Global stat.
+#if defined(DEBUG) && defined(DEBUG_STATS)
+unsigned long long _st_stat_sched_15ms = 0;
+unsigned long long _st_stat_sched_20ms = 0;
+unsigned long long _st_stat_sched_25ms = 0;
+unsigned long long _st_stat_sched_30ms = 0;
+unsigned long long _st_stat_sched_35ms = 0;
+unsigned long long _st_stat_sched_40ms = 0;
+unsigned long long _st_stat_sched_80ms = 0;
+unsigned long long _st_stat_sched_160ms = 0;
+unsigned long long _st_stat_sched_s = 0;
+
+unsigned long long _st_stat_thread_run = 0;
+unsigned long long _st_stat_thread_idle = 0;
+unsigned long long _st_stat_thread_yield = 0;
+unsigned long long _st_stat_thread_yield2 = 0;
+#endif
+
 
 /* Global data */
 _st_vp_t _st_this_vp;           /* This VP */
@@ -118,10 +136,18 @@ void _st_vp_schedule(void)
     _st_thread_t *thread;
     
     if (_ST_RUNQ.next != &_ST_RUNQ) {
+        #if defined(DEBUG) && defined(DEBUG_STATS)
+        ++_st_stat_thread_run;
+        #endif
+
         /* Pull thread off of the run queue */
         thread = _ST_THREAD_PTR(_ST_RUNQ.next);
         _ST_DEL_RUNQ(thread);
     } else {
+        #if defined(DEBUG) && defined(DEBUG_STATS)
+        ++_st_stat_thread_idle;
+        #endif
+
         /* If there are no threads to run, switch to the idle thread */
         thread = _st_this_vp.idle_thread;
     }
@@ -480,8 +506,30 @@ void _st_vp_check_clock(void)
     st_utime_t elapsed, now;
     
     now = st_utime();
-    elapsed = now - _ST_LAST_CLOCK;
+    elapsed = now < _ST_LAST_CLOCK? 0 : now - _ST_LAST_CLOCK; // Might step back.
     _ST_LAST_CLOCK = now;
+
+    #if defined(DEBUG) && defined(DEBUG_STATS)
+    if (elapsed <= 10000) {
+        ++_st_stat_sched_15ms;
+    } else if (elapsed <= 21000) {
+        ++_st_stat_sched_20ms;
+    } else if (elapsed <= 25000) {
+        ++_st_stat_sched_25ms;
+    } else if (elapsed <= 30000) {
+        ++_st_stat_sched_30ms;
+    } else if (elapsed <= 35000) {
+        ++_st_stat_sched_35ms;
+    } else if (elapsed <= 40000) {
+        ++_st_stat_sched_40ms;
+    } else if (elapsed <= 80000) {
+        ++_st_stat_sched_80ms;
+    } else if (elapsed <= 160000) {
+        ++_st_stat_sched_160ms;
+    } else {
+        ++_st_stat_sched_s;
+    }
+    #endif
     
     if (_st_curr_time && now - _st_last_tset > 999000) {
         _st_curr_time = time(NULL);
@@ -502,8 +550,38 @@ void _st_vp_check_clock(void)
         /* Make thread runnable */
         ST_ASSERT(!(thread->flags & _ST_FL_IDLE_THREAD));
         thread->state = _ST_ST_RUNNABLE;
-        _ST_ADD_RUNQ(thread);
+        // Insert at the head of RunQ, to execute timer first.
+        _ST_INSERT_RUNQ(thread);
     }
+}
+
+
+void st_thread_yield()
+{
+    _st_thread_t *me = _ST_CURRENT_THREAD();
+
+    #if defined(DEBUG) && defined(DEBUG_STATS)
+    ++_st_stat_thread_yield;
+    #endif
+
+    /* Check sleep queue for expired threads */
+    _st_vp_check_clock();
+
+    // If not thread in RunQ to yield to, ignore and continue to run.
+    if (_ST_RUNQ.next == &_ST_RUNQ) {
+        return;
+    }
+
+    #if defined(DEBUG) && defined(DEBUG_STATS)
+    ++_st_stat_thread_yield2;
+    #endif
+
+    // Append thread to the tail of RunQ, we will back after all threads executed.
+    me->state = _ST_ST_RUNNABLE;
+    _ST_ADD_RUNQ(me);
+
+    // Yield to other threads in the RunQ.
+    _ST_SWITCH_CONTEXT(me);
 }
 
 

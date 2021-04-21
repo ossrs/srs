@@ -34,7 +34,7 @@
 /research/speex/
 /test/
 .DS_Store
-srs
+./srs
 *.dSYM/
 *.gcov
 *.ts
@@ -46,4 +46,6 @@ srs
 *.dump
 bug
 /research/thread-model/thread-local
+*.gcp
+*.svg
 

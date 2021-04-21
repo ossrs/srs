@@ -63,6 +63,8 @@ class SrsRtcConsumer;
 class SrsRtcAudioSendTrack;
 class SrsRtcVideoSendTrack;
 class SrsErrorPithyPrint;
+class SrsPithyPrint;
+class SrsStatistic;
 class SrsWallClock;
 
 const uint8_t kSR   = 200;
@@ -99,11 +101,14 @@ public:
     virtual srs_error_t on_dtls(char* data, int nb_data) = 0;
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher) = 0;
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr) = 0;
-    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
-    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext) = 0;
+    // Encrypt the packet(paintext) to cipher, which is aso the packet ptr.
+    // The nb_cipher should be initialized to the size of cipher, with some paddings.
+    virtual srs_error_t protect_rtp(void* packet, int* nb_cipher) = 0;
+    virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher) = 0;
+    // Decrypt the packet(cipher) to plaintext, which is also the packet ptr.
+    // The nb_plaintext should be initialized to the size of cipher.
+    virtual srs_error_t unprotect_rtp(void* packet, int* nb_plaintext) = 0;
+    virtual srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext) = 0;
 };
 
 // The security transport, use DTLS/SRTP to protect the data.
@@ -124,19 +129,14 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_dtls_alert(std::string type, std::string desc);
 public:
-    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_cipher is the size of input plaintext, and 
-    // it also is the length of output cipher when return.
-    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    // Encrypt the input rtp_hdr with *len_ptr bytes.
-    // @remark the input plaintext and out cipher reuse rtp_hdr.
-    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    // Decrypt the input cipher to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_plaintext is the size of input cipher, and 
-    // it also is the length of output plaintext when return.
-    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    // Encrypt the packet(paintext) to cipher, which is aso the packet ptr.
+    // The nb_cipher should be initialized to the size of cipher, with some paddings.
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    // Decrypt the packet(cipher) to plaintext, which is also the packet ptr.
+    // The nb_plaintext should be initialized to the size of cipher.
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 // implement ISrsDtlsCallback
 public:
     virtual srs_error_t on_dtls_handshake_done();
@@ -153,9 +153,8 @@ public:
     SrsSemiSecurityTransport(SrsRtcConnection* s);
     virtual ~SrsSemiSecurityTransport();
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
 };
 
 // Plaintext transport, without DTLS or SRTP.
@@ -175,11 +174,10 @@ public:
     virtual srs_error_t on_dtls_application_data(const char* data, const int len);
     virtual srs_error_t write_dtls_data(void* data, int size);
 public:
-    virtual srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    virtual srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    virtual srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    virtual srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 // The handler for PLI worker coroutine.
@@ -213,45 +211,13 @@ public:
     virtual srs_error_t cycle();
 };
 
-// A group of RTP packets for outgoing(send to players).
-class SrsRtcPlayStreamStatistic
-{
-public:
-    // The total bytes of AVFrame packets.
-    uint64_t nn_bytes;
-    // The total bytes of RTP packets.
-    uint64_t nn_rtp_bytes;
-    // The total padded bytes.
-    uint64_t nn_padding_bytes;
-public:
-    // The RTP packets send out by sendmmsg or sendmsg. Note that if many packets group to
-    // one msghdr by GSO, it's only one RTP packet, because we only send once.
-    uint64_t nn_rtp_pkts;
-    // For video, the samples or NALUs.
-    // TODO: FIXME: Remove it because we may don't know.
-    uint64_t nn_samples;
-    // For audio, the generated extra audio packets.
-    // For example, when transcoding AAC to opus, may many extra payloads for a audio.
-    // TODO: FIXME: Remove it because we may don't know.
-    uint64_t nn_extras;
-    // The original audio messages.
-    uint64_t nn_audios;
-    // The original video messages.
-    uint64_t nn_videos;
-    // The number of padded packet.
-    uint64_t nn_paddings;
-public:
-    SrsRtcPlayStreamStatistic();
-    virtual ~SrsRtcPlayStreamStatistic();
-};
-
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler
+    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
 {
 private:
     SrsContextId cid_;
-    SrsCoroutine* trd;
+    SrsFastCoroutine* trd_;
     SrsRtcConnection* session_;
     SrsRtcPLIWorker* pli_worker_;
 private:
@@ -269,16 +235,18 @@ private:
     bool realtime;
     // Whether enabled nack.
     bool nack_enabled_;
+    bool nack_no_copy_;
 private:
-    // Whether palyer started.
+    // Whether player started.
     bool is_started;
-    // The statistic for consumer to send packets to player.
-    SrsRtcPlayStreamStatistic info;
 public:
     SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid);
     virtual ~SrsRtcPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
+// Interface ISrsRtcStreamChangeCallback
+public:
+    void on_stream_change(SrsRtcStreamDescription* desc);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -290,7 +258,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_packets(SrsRtcStream* source, const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
+    srs_error_t send_packet(SrsRtpPacket2*& pkt);
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
@@ -305,7 +273,7 @@ private:
     srs_error_t on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR* rtcp);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
-// inteface ISrsRtcPLIWorkerHandler
+// Interface ISrsRtcPLIWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
 };
@@ -325,6 +293,8 @@ private:
     uint16_t pt_to_drop_;
     // Whether enabled nack.
     bool nack_enabled_;
+    bool nack_no_copy_;
+    bool twcc_enabled_;
 private:
     bool request_keyframe_;
     SrsErrorPithyPrint* pli_epp;
@@ -359,10 +329,14 @@ private:
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
 private:
-    srs_error_t do_on_rtp(char* plaintext, int nb_plaintext);
+    // @remark We copy the plaintext, user should free it.
+    srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
+private:
+    srs_error_t do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuffer* buf);
+public:
     srs_error_t check_send_nacks();
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload);
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
 private:
     srs_error_t send_periodic_twcc();
 public:
@@ -417,8 +391,11 @@ public:
 };
 
 // A RTC Peer Connection, SDP level object.
-class SrsRtcConnection : virtual public ISrsHourGlass, virtual public ISrsResource
-    , virtual public ISrsDisposingHandler, virtual public ISrsKbpsDelta
+//
+// For performance, we use non-virtual public from resource,
+// see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
+class SrsRtcConnection : public ISrsResource
+    , virtual public ISrsHourGlass, virtual public ISrsDisposingHandler, virtual public ISrsKbpsDelta
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -432,6 +409,9 @@ private:
     SrsRtcConnectionStateType state_;
     ISrsRtcTransport* transport_;
     SrsHourGlass* timer_;
+private:
+    iovec* cache_iov_;
+    SrsBuffer* cache_buffer_;
 private:
     // key: stream id
     std::map<std::string, SrsRtcPlayStream*> players_;
@@ -509,8 +489,6 @@ public:
 public:
     srs_error_t add_publisher(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t add_player(SrsRequest* request, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
-    // server send offer sdp to client, local sdp derivate from source stream desc.
-    srs_error_t add_player2(SrsRequest* request, bool unified_plan, SrsSdp& local_sdp);
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(SrsRequest* r, bool dtls, bool srtp, std::string username);
@@ -518,6 +496,10 @@ public:
     srs_error_t on_stun(SrsUdpMuxSocket* skt, SrsStunPacket* r);
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
+private:
+    // Decode the RTP header from buf, find the publisher by SSRC.
+    srs_error_t find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher);
+public:
     srs_error_t on_rtcp(char* data, int nb_data);
 private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
@@ -548,7 +530,7 @@ public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
-    srs_error_t do_send_packets(const std::vector<SrsRtpPacket2*>& pkts, SrsRtcPlayStreamStatistic& info);
+    srs_error_t do_send_packet(SrsRtpPacket2* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 private:

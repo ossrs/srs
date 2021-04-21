@@ -85,7 +85,7 @@ public:
 };
 
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass
+class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsReloadHandler
 {
 private:
     SrsHourGlass* timer;
@@ -97,6 +97,10 @@ public:
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
+// interface ISrsReloadHandler
+public:
+    virtual srs_error_t on_reload_rtc_server();
+public:
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);
     void set_hijacker(ISrsRtcServerHijacker* h);
@@ -118,12 +122,6 @@ private:
         SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
         const std::string& mock_eip, bool publish, bool dtls, bool srtp
     );
-public:
-    // We start offering, create_session2 to generate offer, setup_session2 to handle answer.
-    srs_error_t create_session2(SrsRequest* req, SrsSdp& local_sdp, const std::string& mock_eip, bool unified_plan, SrsRtcConnection** psession);
-    srs_error_t setup_session2(SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp);
-public:
-    void insert_into_id_sessions(const std::string& peer_id, SrsRtcConnection* session);
 public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsHourGlass

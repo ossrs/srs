@@ -49,7 +49,7 @@ SrsRtpRingBuffer::~SrsRtpRingBuffer()
 {
     for (int i = 0; i < capacity_; ++i) {
         SrsRtpPacket2* pkt = queue_[i];
-        srs_freep(pkt);
+        _srs_rtp_cache->recycle(pkt);
     }
     srs_freepa(queue_);
 }
@@ -76,7 +76,7 @@ void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
     SrsRtpPacket2* p = queue_[at % capacity_];
 
     if (p) {
-        srs_freep(p);
+        _srs_rtp_cache->recycle(p);
     }
 
     queue_[at % capacity_] = pkt;
@@ -164,7 +164,7 @@ void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
     for (uint16_t i = 0; i < capacity_; i++) {
         SrsRtpPacket2* p = queue_[i];
         if (p && p->header.get_sequence() < seq) {
-            srs_freep(p);
+            _srs_rtp_cache->recycle(p);
             queue_[i] = NULL;
         }
     }
@@ -175,7 +175,7 @@ void SrsRtpRingBuffer::clear_all_histroy()
     for (uint16_t i = 0; i < capacity_; i++) {
         SrsRtpPacket2* p = queue_[i];
         if (p) {
-            srs_freep(p);
+            _srs_rtp_cache->recycle(p);
             queue_[i] = NULL;
         }
     }
@@ -190,7 +190,7 @@ SrsNackOption::SrsNackOption()
     max_nack_interval = 500 * SRS_UTIME_MILLISECONDS;
     min_nack_interval = 20 * SRS_UTIME_MILLISECONDS;
 
-    nack_check_interval = 3 * SRS_UTIME_MILLISECONDS;
+    nack_check_interval = 20 * SRS_UTIME_MILLISECONDS;
 
     //TODO: FIXME: audio and video using diff nack strategy
     // video:
@@ -259,8 +259,7 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
 {
-    // TODO: FIXME: Use packet as tick count, not clock.
-    srs_utime_t now = srs_update_system_time();
+    srs_utime_t now = srs_get_system_time();
 
     srs_utime_t interval = now - pre_check_time_;
     if (interval < opts_.nack_check_interval) {

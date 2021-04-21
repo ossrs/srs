@@ -716,9 +716,9 @@ SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : pkt_len(0)
     ssrc_ = sender_ssrc;
     media_ssrc_ = 0;
     base_sn_ = 0;
-    packet_count_ = 0;
     reference_time_ = 0;
     fb_pkt_count_ = 0;
+    next_base_sn_ = 0;
 }
 
 SrsRtcpTWCC::~SrsRtcpTWCC()
@@ -731,6 +731,7 @@ void SrsRtcpTWCC::clear()
     pkt_deltas_.clear();
     recv_packets_.clear();
     recv_sns_.clear();
+    next_base_sn_ = 0;
 }
 
 uint32_t SrsRtcpTWCC::get_media_ssrc() const
@@ -751,11 +752,6 @@ uint8_t SrsRtcpTWCC::get_feedback_count() const
 {
     return fb_pkt_count_;
 }
-
-uint16_t SrsRtcpTWCC::get_packet_status_count() const
-{
-    return packet_count_;
-}
     
 vector<uint16_t> SrsRtcpTWCC::get_packet_chucks() const
 {
@@ -774,11 +770,6 @@ void SrsRtcpTWCC::set_media_ssrc(uint32_t ssrc)
 void SrsRtcpTWCC::set_base_sn(uint16_t sn)
 {
     base_sn_ = sn;
-}
-
-void SrsRtcpTWCC::set_packet_status_count(uint16_t count)
-{
-    packet_count_ = count;
 }
 
 void SrsRtcpTWCC::set_reference_time(uint32_t time)
@@ -865,7 +856,7 @@ srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
 
 uint64_t SrsRtcpTWCC::nb_bytes()
 {
-    return kRtcpPacketSize;
+    return kMaxUDPDataSize;
 }
 
 srs_utime_t SrsRtcpTWCC::calculate_delta_us(srs_utime_t ts, srs_utime_t last)
@@ -1057,7 +1048,9 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 
     err = do_encode(buffer);
 
-    clear();
+    if (err != srs_success || next_base_sn_ == 0) {
+        clear();
+    }
 
     return err;
 }
@@ -1099,21 +1092,41 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     }
 
     pkt_len = kTwccFbPktHeaderSize;
+
     set<uint16_t, SrsSeqCompareLess>::iterator it_sn = recv_sns_.begin();
-    base_sn_ = *it_sn;
+    if (!next_base_sn_) {
+        base_sn_ = *it_sn;
+    } else {
+        base_sn_ = next_base_sn_;
+        it_sn = recv_sns_.find(base_sn_);
+    }
+
     map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(base_sn_);
     srs_utime_t ts = it_ts->second;
+
     reference_time_ = (ts % kTwccFbReferenceTimeDivisor) / kTwccFbTimeMultiplier;
     srs_utime_t last_ts = (srs_utime_t)(reference_time_) * kTwccFbTimeMultiplier;
+
     uint16_t last_sn = base_sn_;
-    packet_count_ = recv_packets_.size();
+    uint16_t packet_count = 0;
 
     // encode chunk
     SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
     for(; it_sn != recv_sns_.end(); ++it_sn) {
+        // check whether exceed buffer len
+        // max recv_delta_size = 2
+        if (pkt_len + 2 >= buffer->left()) {
+            break;
+        }
+
         uint16_t current_sn = *it_sn;
         // calculate delta
         it_ts = recv_packets_.find(current_sn);
+        if (it_ts == recv_packets_.end()) {
+            continue;
+        }
+
+        packet_count++;
         srs_utime_t delta_us = calculate_delta_us(it_ts->second, last_ts);
         int16_t delta = delta_us;
         if(delta != delta_us) {
@@ -1124,7 +1137,7 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
             // lost packet
             for(uint16_t lost_sn = last_sn + 1; lost_sn < current_sn; ++lost_sn) {
                 process_pkt_chunk(chunk, 0);
-                packet_count_++;
+                packet_count++;
             }
         }
 
@@ -1138,6 +1151,13 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
         last_ts += delta * kTwccFbDeltaUnit;
         pkt_len += recv_delta_size;
         last_sn = current_sn;
+
+        recv_packets_.erase(it_ts);
+    }
+
+    next_base_sn_ = 0;
+    if (it_sn != recv_sns_.end()) {
+        next_base_sn_ = *it_sn;
     }
 
     if(0 < chunk.size) {
@@ -1159,7 +1179,7 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     }
     buffer->write_4bytes(media_ssrc_);
     buffer->write_2bytes(base_sn_);
-    buffer->write_2bytes(packet_count_);
+    buffer->write_2bytes(packet_count);
     buffer->write_3bytes(reference_time_);
     buffer->write_1bytes(fb_pkt_count_);
 
@@ -1180,6 +1200,9 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
         buffer->write_1bytes(0);
         pkt_len++;
     }
+
+    encoded_chucks_.clear();
+    pkt_deltas_.clear();
 
     return err;
 }
@@ -1210,6 +1233,11 @@ vector<uint16_t> SrsRtcpNack::get_lost_sns() const
         sn.push_back(*it);
     }
     return sn;
+}
+
+bool SrsRtcpNack::empty()
+{
+    return lost_sns_.empty();
 }
 
 void SrsRtcpNack::set_media_ssrc(uint32_t ssrc)

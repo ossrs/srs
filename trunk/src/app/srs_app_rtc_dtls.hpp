@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -118,30 +118,27 @@ protected:
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
     SrsDtlsVersion version_;
 protected:
-    // Whether the handhshake is done, for us only.
+    // Whether the handshake is done, for us only.
     // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
     bool handshake_done_for_us;
-    // DTLS packet cache, only last out-going packet.
-    uint8_t* last_outgoing_packet_cache;
-    int nn_last_outgoing_packet;
     // The stat for ARQ packets.
     int nn_arq_packets;
 public:
     SrsDtlsImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake() = 0;
+    virtual bool should_reset_timer() = 0;
     virtual srs_error_t on_dtls(char* data, int nb_data);
 protected:
     srs_error_t do_on_dtls(char* data, int nb_data);
     srs_error_t do_handshake();
-    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool cache, bool arq);
+    void state_trace(uint8_t* data, int length, bool incoming, int r0, int r1, bool arq);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
     void callback_by_ssl(std::string type, std::string desc);
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached) = 0;
     virtual srs_error_t on_final_out_data(uint8_t* data, int size) = 0;
     virtual srs_error_t on_handshake_done() = 0;
     virtual bool is_dtls_client() = 0;
@@ -155,18 +152,19 @@ private:
     SrsCoroutine* trd;
     // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
-    // The timeout for ARQ.
-    srs_utime_t arq_interval;
-    int arq_to_ratios[8];
+    // The max ARQ retry.
+    int arq_max_retry;
+    // Should we reset the timer?
+    // It's true when init, or in state ServerHello.
+    bool reset_timer_;
 public:
     SrsDtlsClientImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsClientImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
-    virtual srs_error_t on_dtls(char* data, int nb_data);
+    virtual bool should_reset_timer();
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached);
     virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
@@ -183,10 +181,29 @@ public:
     SrsDtlsServerImpl(ISrsDtlsCallback* callback);
     virtual ~SrsDtlsServerImpl();
 public:
-    virtual srs_error_t initialize(std::string version);
+    virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
+    virtual bool should_reset_timer();
 protected:
-    virtual void on_ssl_out_data(uint8_t*& data, int& size, bool& cached);
+    virtual srs_error_t on_final_out_data(uint8_t* data, int size);
+    virtual srs_error_t on_handshake_done();
+    virtual bool is_dtls_client();
+};
+
+class SrsDtlsEmptyImpl : public SrsDtlsImpl
+{
+public:
+    SrsDtlsEmptyImpl();
+    virtual ~SrsDtlsEmptyImpl();
+public:
+    virtual srs_error_t initialize(std::string version, std::string role);
+    virtual srs_error_t start_active_handshake();
+    virtual bool should_reset_timer();
+    virtual srs_error_t on_dtls(char* data, int nb_data);
+public:
+    srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+    void callback_by_ssl(std::string type, std::string desc);
+protected:
     virtual srs_error_t on_final_out_data(uint8_t* data, int size);
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
@@ -224,19 +241,10 @@ public:
     // Intialize srtp context with recv_key and send_key.
     srs_error_t initialize(std::string recv_key, std::string send_key);
 public:
-    // Encrypt the input plaintext to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_cipher is the size of input plaintext, and 
-    // it also is the length of output cipher when return.
-    srs_error_t protect_rtp(const char* plaintext, char* cipher, int& nb_cipher);
-    srs_error_t protect_rtcp(const char* plaintext, char* cipher, int& nb_cipher);
-    // Encrypt the input rtp_hdr with *len_ptr bytes.
-    // @remark the input plaintext and out cipher reuse rtp_hdr.
-    srs_error_t protect_rtp2(void* rtp_hdr, int* len_ptr);
-    // Decrypt the input cipher to output cipher with nb_cipher bytes.
-    // @remark Note that the nb_plaintext is the size of input cipher, and 
-    // it also is the length of output plaintext when return.
-    srs_error_t unprotect_rtp(const char* cipher, char* plaintext, int& nb_plaintext);
-    srs_error_t unprotect_rtcp(const char* cipher, char* plaintext, int& nb_plaintext);
+    srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 #endif

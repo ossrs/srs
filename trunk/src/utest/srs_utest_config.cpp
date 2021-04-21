@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2020 Winlin
+Copyright (c) 2013-2021 Winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1973,7 +1973,7 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
 	    HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF));
-	    EXPECT_EQ(srs_utime_t(9.9 * SRS_UTIME_SECONDS), conf.get_heartbeat_interval());
+	    EXPECT_EQ(srs_utime_t(10 * SRS_UTIME_SECONDS), conf.get_heartbeat_interval());
 
 	    HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "heartbeat{interval 10;}"));
 	    EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_heartbeat_interval());

@@ -37,7 +37,7 @@ const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transpor
 // TDOO: FIXME: Rename it, and add utest.
 extern std::vector<std::string> split_str(const std::string& str, const std::string& delim);
 
-struct SrsSessionConfig
+class SrsSessionConfig
 {
 public:
     std::string dtls_role;
@@ -237,6 +237,7 @@ public:
 
     SrsSessionInfo session_info_;
     SrsSessionConfig session_config_;
+    SrsSessionConfig session_negotiate_;
 
     std::vector<std::string> groups_;
     std::string group_policy_;

@@ -1,0 +1,3 @@
+---
+exclude_paths:
+  - examples/examples.json

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +30,8 @@
 #include <srs_kernel_codec.hpp>
 
 #include <string>
+#include <list>
+#include <vector>
 
 class SrsRtpPacket2;
 
@@ -57,6 +59,12 @@ class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsSharedPtrMessage;
+class SrsRtpExtensionTypes;
+
+// Fast parse the SSRC from RTP packet. Return 0 if invalid.
+uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
+uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
 
 // The "distance" between two uint16 number, for example:
 //      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
@@ -120,7 +128,8 @@ private:
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
-class SrsRtpExtensionTwcc : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionTwcc// : public ISrsCodec
 {
     bool has_twcc_;
     uint8_t id_;
@@ -128,30 +137,30 @@ class SrsRtpExtensionTwcc : public ISrsCodec
 public:
     SrsRtpExtensionTwcc();
     virtual ~SrsRtpExtensionTwcc();
-
-    bool has_twcc_ext();
+public:
+    inline bool exists() { return has_twcc_; } // SrsRtpExtensionTwcc::exists
     uint8_t get_id();
     void set_id(uint8_t id);
     uint16_t get_sn();
     void set_sn(uint16_t sn);
-
-public:  
+public:
     // ISrsCodec
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpExtensionOneByte : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensionOneByte// : public ISrsCodec
 {
     bool has_ext_;
     int id_;
     uint8_t value_;
 public:
     SrsRtpExtensionOneByte();
-    virtual ~SrsRtpExtensionOneByte() {}
-
-    bool exists() { return has_ext_; }
+    virtual ~SrsRtpExtensionOneByte();
+public:
+    inline bool exists() { return has_ext_; } // SrsRtpExtensionOneByte::exists
     int get_id() { return id_; }
     uint8_t get_value() { return value_; }
     void set_id(int id);
@@ -163,24 +172,31 @@ public:
     virtual uint64_t nb_bytes() { return 2; };
 };
 
-class SrsRtpExtensions : public ISrsCodec
+// Note that the extensions should never extends from any class, for performance.
+class SrsRtpExtensions// : public ISrsCodec
 {
 private:
     bool has_ext_;
-    SrsRtpExtensionTypes types_;
+    // by default, twcc isnot decoded. Because it is decoded by fast function(srs_rtp_fast_parse_twcc)
+    bool decode_twcc_extension_;
+private:
+    // The extension types is used to decode the packet, which is reference to
+    // the types in publish stream.
+    SrsRtpExtensionTypes* types_;
+private:
     SrsRtpExtensionTwcc twcc_;
     SrsRtpExtensionOneByte audio_level_;
 public:
     SrsRtpExtensions();
     virtual ~SrsRtpExtensions();
-
-    bool exists();
-    void set_types_(const SrsRtpExtensionTypes* types);
+public:
+    void enable_twcc_decode() { decode_twcc_extension_ = true; } // SrsRtpExtensions::enable_twcc_decode
+    inline bool exists() { return has_ext_; } // SrsRtpExtensions::exists
+    void set_types_(SrsRtpExtensionTypes* types);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
     srs_error_t get_audio_level(uint8_t& level);
     srs_error_t set_audio_level(int id, uint8_t level);
-
 // ISrsCodec
 public:
     virtual srs_error_t decode(SrsBuffer* buf);
@@ -191,7 +207,8 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-class SrsRtpHeader : public ISrsCodec
+// Note that the header should never extends from any class, for performance.
+class SrsRtpHeader// : public ISrsCodec
 {
 private:
     uint8_t padding_length;
@@ -215,6 +232,7 @@ public:
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual uint64_t nb_bytes();
 public:
+    void enable_twcc_decode() { extensions_.enable_twcc_decode(); } // SrsRtpHeader::enable_twcc_decode
     void set_marker(bool v);
     bool get_marker() const;
     void set_payload_type(uint8_t v);
@@ -224,15 +242,16 @@ public:
     void set_timestamp(uint32_t v);
     uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
-    uint32_t get_ssrc() const;
+    inline uint32_t get_ssrc() const { return ssrc; } // SrsRtpHeader::get_ssrc
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
-    void set_extensions(const SrsRtpExtensionTypes* extmap);
+    void set_extensions(SrsRtpExtensionTypes* extmap);
     void ignore_padding(bool v);
     srs_error_t get_twcc_sequence_number(uint16_t& twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
 };
 
+// The common payload interface for RTP packet.
 class ISrsRtpPayloader : public ISrsCodec
 {
 public:
@@ -242,6 +261,17 @@ public:
     virtual ISrsRtpPayloader* copy() = 0;
 };
 
+// The payload type, for performance to avoid dynamic cast.
+enum SrsRtpPacketPayloadType
+{
+    SrsRtpPacketPayloadTypeRaw,
+    SrsRtpPacketPayloadTypeFUA2,
+    SrsRtpPacketPayloadTypeFUA,
+    SrsRtpPacketPayloadTypeNALU,
+    SrsRtpPacketPayloadTypeSTAP,
+    SrsRtpPacketPayloadTypeUnknown,
+};
+
 class ISrsRtpPacketDecodeHandler
 {
 public:
@@ -249,21 +279,30 @@ public:
     virtual ~ISrsRtpPacketDecodeHandler();
 public:
     // We don't know the actual payload, so we depends on external handler.
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload) = 0;
+    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt) = 0;
 };
 
+// The RTP packet with cached shared message.
 class SrsRtpPacket2
 {
 // RTP packet fields.
 public:
     SrsRtpHeader header;
-    ISrsRtpPayloader* payload;
+private:
+    ISrsRtpPayloader* payload_;
+    SrsRtpPacketPayloadType payload_type_;
+private:
+    // The original shared message, all RTP packets can refer to its data.
+    // Note that the size of shared msg, is not the packet size, it's a larger aligned buffer.
+    // @remark Note that it may point to the whole RTP packet(for RTP parser, which decode RTP packet from buffer),
+    //      and it may point to the RTP payload(for RTMP to RTP, which build RTP header and payload).
+    SrsSharedPtrMessage* shared_buffer_;
+    // The size of RTP packet or RTP payload.
+    int actual_buffer_size_;
 // Helper fields.
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The original shared message, all RTP packets can refer to its data.
-    SrsSharedPtrMessage* shared_msg;
     // The frame type, for RTMP bridger or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
@@ -276,6 +315,29 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
+    // User MUST reset the packet if got from cache,
+    // except copy(we will assign the header and copy payload).
+    void reset();
+private:
+    void recycle_payload();
+    void recycle_shared_buffer();
+public:
+    // Recycle the object to reuse it.
+    virtual bool recycle();
+    // Wrap buffer to shared_message, which is managed by us.
+    char* wrap(int size);
+    char* wrap(char* data, int size);
+    // Wrap the shared message, we copy it.
+    char* wrap(SrsSharedPtrMessage* msg);
+    // Copy the RTP packet.
+    virtual SrsRtpPacket2* copy();
+public:
+    // Parse the TWCC extension, ignore by default.
+    void enable_twcc_decode() { header.enable_twcc_decode(); } // SrsRtpPacket2::enable_twcc_decode
+    // Get and set the payload of packet.
+    // @remark Note that return NULL if no payload.
+    void set_payload(ISrsRtpPayloader* p, SrsRtpPacketPayloadType pt) { payload_ = p; payload_type_ = pt; }
+    ISrsRtpPayloader* payload() { return payload_; }
     // Set the padding of RTP packet.
     void set_padding(int size);
     // Increase the padding of RTP packet.
@@ -284,15 +346,119 @@ public:
     void set_decode_handler(ISrsRtpPacketDecodeHandler* h);
     // Whether the packet is Audio packet.
     bool is_audio();
-    // Copy the RTP packet.
-    virtual SrsRtpPacket2* copy();
     // Set RTP header extensions for encoding or decoding header extension
-    void set_extension_types(const SrsRtpExtensionTypes* v);
+    void set_extension_types(SrsRtpExtensionTypes* v);
 // interface ISrsEncoder
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
+};
+
+// For object cache manager to stat the object dropped.
+#include <srs_kernel_kbps.hpp>
+extern SrsPps* _srs_pps_objs_drop;
+
+// The RTP packet or message cache manager.
+template<typename T>
+class SrsRtpObjectCacheManager
+{
+private:
+    bool enabled_;
+    std::vector<T*> cache_objs_;
+    size_t capacity_;
+    size_t object_size_;
+public:
+    // SrsRtpObjectCacheManager::SrsRtpObjectCacheManager
+    SrsRtpObjectCacheManager(size_t size_of_object) {
+        enabled_ = false;
+        capacity_ = 0;
+        object_size_ = size_of_object;
+    }
+    // SrsRtpObjectCacheManager::~SrsRtpObjectCacheManager
+    virtual ~SrsRtpObjectCacheManager() {
+        typedef typename std::vector<T*>::iterator iterator;
+        for (iterator it = cache_objs_.begin(); it != cache_objs_.end(); ++it) {
+            T* obj = *it;
+            srs_freep(obj);
+        }
+    }
+public:
+    // Setup the object cache, shrink if capacity changed.
+    // SrsRtpObjectCacheManager::setup
+    void setup(bool v, uint64_t memory) {
+        enabled_ = v;
+        capacity_ = (size_t)(memory / object_size_);
+
+
+        if (!enabled_) {
+            capacity_ = 0;
+        }
+
+        // Shrink the cache.
+        while (cache_objs_.size() > capacity_) {
+            T* obj = cache_objs_.back();
+            cache_objs_.pop_back();
+            srs_freep(obj);
+        }
+    }
+    // Get the status of object cache.
+    // SrsRtpObjectCacheManager::enabled
+    inline bool enabled() {
+        return enabled_;
+    }
+    // SrsRtpObjectCacheManager::size
+    int size() {
+        return (int)cache_objs_.size();
+    }
+    // SrsRtpObjectCacheManager::capacity
+    int capacity() {
+        return (int)capacity_;
+    }
+    // Try to allocate from cache, create new object if no cache.
+    // SrsRtpObjectCacheManager::allocate
+    T* allocate() {
+        if (!enabled_ || cache_objs_.empty()) {
+            return new T();
+        }
+
+        T* obj = cache_objs_.back();
+        cache_objs_.pop_back();
+
+        return obj;
+    }
+    // Recycle the object to cache.
+    // @remark User can directly free the packet.
+    // SrsRtpObjectCacheManager::recycle
+    void recycle(T* p) {
+        // The p may be NULL, because srs_freep(NULL) is ok.
+        if (!p) {
+            return;
+        }
+
+        // If disabled, drop the object.
+        if (!enabled_) {
+            srs_freep(p);
+            return;
+        }
+
+        // If recycle the object fail, drop the cached object.
+        if (!p->recycle()) {
+            srs_freep(p);
+            return;
+        }
+
+        // If exceed the capacity, drop the object.
+        if (cache_objs_.size() > capacity_) {
+            ++_srs_pps_objs_drop->sugar;
+
+            srs_freep(p);
+            return;
+        }
+
+        // Recycle it.
+        cache_objs_.push_back(p);
+    }
 };
 
 // Single payload data.
@@ -306,6 +472,8 @@ public:
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
+public:
+    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -404,6 +572,8 @@ public:
 public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
+public:
+    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -411,5 +581,16 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
 };
+
+// For RTP packets cache.
+extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
+extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
+extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
+
+// For shared message cache, with payload.
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
+// For shared message cache, without payload.
+// Note that user must unwrap the shared message, before recycle it.
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
 
 #endif

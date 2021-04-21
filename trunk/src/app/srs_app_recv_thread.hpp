@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -144,6 +144,7 @@ class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public IS
 #endif
 {
 private:
+    uint32_t nn_msgs_for_yield_;
     SrsRecvThread trd;
     SrsRtmpServer* rtmp;
     SrsRequest* req;

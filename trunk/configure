@@ -169,12 +169,13 @@ if [[ $SRS_SRT == YES ]]; then
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-lsrt"; fi
 fi
 
-# the link options, always use static link
-SrsLinkOptions="-ldl";
-if [[ $SRS_SRT == YES || $SRS_RTC == YES ]]; then
-    SrsLinkOptions="${SrsLinkOptions} -lpthread";
+# For iconv on macOS only, CentOS seems ok.
+if [[ $SRS_GB28181 == YES && $SRS_OSX == YES ]]; then
+    LibIconvRoot="/usr/local/opt/libiconv/include"; LibIconvfile="/usr/local/opt/libiconv/lib/libiconv.a"
 fi
 
+# the link options, always use static link
+SrsLinkOptions="-ldl -lpthread";
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lssl -lcrypto";
 fi
@@ -191,8 +192,8 @@ if [[ $SRS_GCOV == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} ${SrsGcov}";
 fi
 
-# For FFMPEG/RTC.
-if [[ $SRS_RTC == YES && $SRS_NASM == NO && $SRS_OSX == NO ]]; then
+# For FFMPEG/RTC on Linux.
+if [[ $SRS_OSX != YES && $SRS_RTC == YES && $SRS_FFMPEG_FIT == YES ]]; then
     SrsLinkOptions="${SrsLinkOptions} -lrt";
 fi
 
@@ -203,8 +204,8 @@ fi
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_version4" "srs_core_autofree" "srs_core_performance"
-		"srs_core_mem_watch" "srs_core_time")
+MODULE_FILES=("srs_core" "srs_core_version5" "srs_core_autofree" "srs_core_performance"
+		"srs_core_time")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 #
@@ -215,7 +216,8 @@ ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_buffer"
         "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_io"
         "srs_kernel_consts" "srs_kernel_aac" "srs_kernel_mp3" "srs_kernel_ts"
-        "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file")
+        "srs_kernel_stream" "srs_kernel_balance" "srs_kernel_mp4" "srs_kernel_file"
+        "srs_kernel_kbps")
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_kernel_rtc_rtp" "srs_kernel_rtc_rtcp")
 fi
@@ -234,9 +236,6 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_rtmp_stack"
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_rtc_stun_stack")
     ModuleLibIncs+=(${LibSrtpRoot})
-fi
-if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_sip_stack")
 fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
@@ -287,8 +286,16 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_codec")
 fi
 if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip" "srs_app_gb28181_jitbuffer")
+    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")
 fi
+if [[ $SRS_GB28181 == YES || $SRS_RTC == YES ]]; then
+    MODULE_FILES+=("srs_app_rtc_jitbuffer")
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    MODULE_FILES+=("srs_app_sip")
+    ModuleLibIncs+=(${LibIconvRoot})
+fi
+
 DEFINES=""
 # add each modules for app
 for SRS_MODULE in ${SRS_MODULES[*]}; do
@@ -361,6 +368,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibFiles+=("${LibSRTfile[*]}")
+fi
+if [[ $SRS_GB28181 == YES ]]; then
+    ModuleLibFiles+=("${LibIconvfile[*]}")
 fi
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"

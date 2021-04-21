@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -826,6 +826,10 @@ srs_error_t SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, Sr
         if (send_min_interval > 0) {
             srs_usleep(send_min_interval);
         }
+
+        // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777437476
+        srs_thread_yield();
     }
     
     return err;

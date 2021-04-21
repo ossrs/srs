@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -41,6 +41,15 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_buffer.hpp>
+
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_rpkts = new SrsPps();
+SrsPps* _srs_pps_addrs = new SrsPps();
+SrsPps* _srs_pps_fast_addrs = new SrsPps();
+
+SrsPps* _srs_pps_spkts = new SrsPps();
 
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
@@ -285,6 +294,7 @@ srs_error_t SrsTcpListener::cycle()
 
 SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
 {
+    nn_msgs_for_yield_ = 0;
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
     nread = 0;
@@ -294,18 +304,30 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     fromlen = 0;
     peer_port = 0;
 
+    fast_id_ = 0;
+    address_changed_ = false;
+    cache_buffer_ = new SrsBuffer(buf, nb_buf);
+
     in_bytes = out_bytes = 0;
 }
 
 SrsUdpMuxSocket::~SrsUdpMuxSocket()
 {
     srs_freepa(buf);
+    srs_freep(cache_buffer_);
 }
 
 int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 {
     fromlen = sizeof(from);
     nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &fromlen, timeout);
+    if (nread <= 0) {
+        return nread;
+    }
+
+    // Reset the fast cache buffer size.
+    cache_buffer_->set_size(nread);
+    cache_buffer_->skip(-1 * cache_buffer_->pos());
 
     // Drop UDP health check packet of Aliyun SLB.
     //      Healthcheck udp check
@@ -316,37 +338,17 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
     }
 
     // Parse address from cache.
-    bool parsed = false;
     if (from.ss_family == AF_INET) {
         sockaddr_in* addr = (sockaddr_in*)&from;
-
-        // Load from fast cache, previous ip.
-        std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
-        if (it == cache_.end()) {
-            peer_ip = inet_ntoa(addr->sin_addr);
-            cache_[addr->sin_addr.s_addr] = peer_ip;
-        } else {
-            peer_ip = it->second;
-        }
-
-        peer_port = ntohs(addr->sin_port);
-        parsed = true;
+        fast_id_ = uint64_t(addr->sin_port)<<48 | uint64_t(addr->sin_addr.s_addr);
     }
 
-    if (!parsed && nread > 0) {
-        // TODO: FIXME: Maybe we should not covert to string for each packet.
-        char address_string[64];
-        char port_string[16];
-        if (getnameinfo((sockaddr*)&from, fromlen, 
-                       (char*)&address_string, sizeof(address_string),
-                       (char*)&port_string, sizeof(port_string),
-                       NI_NUMERICHOST|NI_NUMERICSERV)) {
-            return -1;
-        }
+    // We will regenerate the peer_ip, peer_port and peer_id.
+    address_changed_ = true;
 
-        peer_ip = std::string(address_string);
-        peer_port = atoi(port_string);    
-    }
+    // Update the stat.
+    ++_srs_pps_rpkts->sugar;
+
     in_bytes += nread;
 
     return nread;
@@ -355,6 +357,8 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
 srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
 {
     srs_error_t err = srs_success;
+
+    ++_srs_pps_spkts->sugar;
 
     int nb_write = srs_sendto(lfd, data, size, (sockaddr*)&from, fromlen, timeout);
 
@@ -366,6 +370,13 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
         return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
     }  
     out_bytes += nb_write;
+
+    // Yield to another coroutines.
+    // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777542162
+    if (++nn_msgs_for_yield_ > 20) {
+        nn_msgs_for_yield_ = 0;
+        srs_thread_yield();
+    }
 
     return err;
 }
@@ -407,10 +418,63 @@ int SrsUdpMuxSocket::get_peer_port() const
 
 std::string SrsUdpMuxSocket::peer_id()
 {
-    char id_buf[1024];
-    int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
+    if (address_changed_) {
+        address_changed_ = false;
 
-    return string(id_buf, len);
+        // Parse address from cache.
+        bool parsed = false;
+        if (from.ss_family == AF_INET) {
+            sockaddr_in* addr = (sockaddr_in*)&from;
+
+            // Load from fast cache, previous ip.
+            std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
+            if (it == cache_.end()) {
+                peer_ip = inet_ntoa(addr->sin_addr);
+                cache_[addr->sin_addr.s_addr] = peer_ip;
+            } else {
+                peer_ip = it->second;
+            }
+
+            peer_port = ntohs(addr->sin_port);
+            parsed = true;
+        }
+
+        if (!parsed) {
+            // TODO: FIXME: Maybe we should not covert to string for each packet.
+            char address_string[64];
+            char port_string[16];
+            if (getnameinfo((sockaddr*)&from, fromlen,
+                           (char*)&address_string, sizeof(address_string),
+                           (char*)&port_string, sizeof(port_string),
+                           NI_NUMERICHOST|NI_NUMERICSERV)) {
+                return "";
+            }
+
+            peer_ip = std::string(address_string);
+            peer_port = atoi(port_string);
+        }
+
+        // Build the peer id.
+        static char id_buf[128];
+        int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip.c_str(), peer_port);
+        peer_id_ = string(id_buf, len);
+
+        // Update the stat.
+        ++_srs_pps_addrs->sugar;
+    }
+
+    return peer_id_;
+}
+
+uint64_t SrsUdpMuxSocket::fast_id()
+{
+    ++_srs_pps_fast_addrs->sugar;
+    return fast_id_;
+}
+
+SrsBuffer* SrsUdpMuxSocket::buffer()
+{
+    return cache_buffer_;
 }
 
 SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
@@ -426,6 +490,11 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
     sendonly->fromlen   = fromlen;
     sendonly->peer_ip   = peer_ip;
     sendonly->peer_port = peer_port;
+
+    // Copy the fast id.
+    sendonly->peer_id_ = peer_id_;
+    sendonly->fast_id_ = fast_id_;
+    sendonly->address_changed_ = address_changed_;
 
     return sendonly;
 }
@@ -552,7 +621,10 @@ srs_error_t SrsUdpMuxListener::cycle()
     // and the size is not determined, so we think there is at least one copy,
     // and we can reuse the plaintext h264/opus with players when got plaintext.
     SrsUdpMuxSocket skt(lfd);
-    
+
+    // How many messages to run a yield.
+    uint32_t nn_msgs_for_yield = 0;
+
     while (true) {
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "udp listener");
@@ -619,7 +691,14 @@ srs_error_t SrsUdpMuxListener::cycle()
     
         if (SrsUdpPacketRecvCycleInterval > 0) {
             srs_usleep(SrsUdpPacketRecvCycleInterval);
-        }   
+        }
+
+        // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777485531
+        if (++nn_msgs_for_yield > 10) {
+            nn_msgs_for_yield = 0;
+            srs_thread_yield();
+        }
     }   
     
     return err;

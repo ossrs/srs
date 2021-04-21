@@ -299,6 +299,7 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_DEL_IOQ(_pq)    ST_REMOVE_LINK(&_pq.links)
 
 #define _ST_ADD_RUNQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_RUNQ)
+#define _ST_INSERT_RUNQ(_thr)  ST_INSERT_LINK(&(_thr)->links, &_ST_RUNQ)
 #define _ST_DEL_RUNQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
 
 #define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)

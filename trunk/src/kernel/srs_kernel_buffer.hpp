@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -109,6 +109,8 @@ public:
     SrsBuffer(char* b, int nn);
     ~SrsBuffer();
 public:
+    // Copy the object, keep position of buffer.
+    SrsBuffer* copy();
     // Get the data and head of buffer.
     //      current-bytes = head() = data() + pos()
     char* data();

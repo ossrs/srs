@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,7 +28,10 @@
 
 #include <vector>
 
+#include <srs_app_hourglass.hpp>
+
 class SrsServer;
+class SrsServerAdapter;
 
 // The hibrid server interfaces, we could register many servers.
 class ISrsHybridServer
@@ -45,27 +48,12 @@ public:
     virtual void stop() = 0;
 };
 
-// The SRS server adapter, the master server.
-class SrsServerAdapter : public ISrsHybridServer
-{
-private:
-    SrsServer* srs;
-public:
-    SrsServerAdapter();
-    virtual ~SrsServerAdapter();
-public:
-    virtual srs_error_t initialize();
-    virtual srs_error_t run();
-    virtual void stop();
-public:
-    virtual SrsServer* instance();
-};
-
 // The hybrid server manager.
-class SrsHybridServer
+class SrsHybridServer : public ISrsHourGlass
 {
 private:
     std::vector<ISrsHybridServer*> servers;
+    SrsHourGlass* timer_;
 public:
     SrsHybridServer();
     virtual ~SrsHybridServer();
@@ -77,6 +65,10 @@ public:
     virtual void stop();
 public:
     virtual SrsServerAdapter* srs();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 };
 
 extern SrsHybridServer* _srs_hybrid;

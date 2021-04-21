@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -149,6 +149,16 @@ srs_error_t srs_fd_keepalive(int fd)
 srs_thread_t srs_thread_self()
 {
     return (srs_thread_t)st_thread_self();
+}
+
+void srs_thread_exit(void* retval)
+{
+    st_thread_exit(retval);
+}
+
+void srs_thread_yield()
+{
+    st_thread_yield();
 }
 
 srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
@@ -381,6 +391,21 @@ int srs_mutex_unlock(srs_mutex_t mutex)
     return st_mutex_unlock((st_mutex_t)mutex);
 }
 
+int srs_key_create(int *keyp, void (*destructor)(void *))
+{
+    return st_key_create(keyp, destructor);
+}
+
+int srs_thread_setspecific(int key, void *value)
+{
+    return st_thread_setspecific(key, value);
+}
+
+void *srs_thread_getspecific(int key)
+{
+    return st_thread_getspecific(key);
+}
+
 int srs_netfd_fileno(srs_netfd_t stfd)
 {
     return st_netfd_fileno((st_netfd_t)stfd);
@@ -419,11 +444,6 @@ int srs_recvmsg(srs_netfd_t stfd, struct msghdr *msg, int flags, srs_utime_t tim
 int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, srs_utime_t timeout)
 {
     return st_sendmsg((st_netfd_t)stfd, msg, flags, (st_utime_t)timeout);
-}
-
-int srs_sendmmsg(srs_netfd_t stfd, struct srs_mmsghdr *msgvec, unsigned int vlen, int flags, srs_utime_t timeout)
-{
-    return st_sendmmsg((st_netfd_t)stfd, (struct st_mmsghdr*)msgvec, vlen, flags, (st_utime_t)timeout);
 }
 
 srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout)

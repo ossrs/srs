@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,6 +28,10 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+SrsPps* _srs_pps_timer = new SrsPps();
+
 ISrsHourGlass::ISrsHourGlass()
 {
 }
@@ -36,12 +40,13 @@ ISrsHourGlass::~ISrsHourGlass()
 {
 }
 
-SrsHourGlass::SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution)
+SrsHourGlass::SrsHourGlass(string label, ISrsHourGlass* h, srs_utime_t resolution)
 {
+    label_ = label;
     handler = h;
     _resolution = resolution;
     total_elapse = 0;
-    trd = new SrsSTCoroutine("timer", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("timer-" + label, this, _srs_context->get_id());
 }
 
 SrsHourGlass::~SrsHourGlass()
@@ -58,6 +63,11 @@ srs_error_t SrsHourGlass::start()
     }
 
     return err;
+}
+
+void SrsHourGlass::stop()
+{
+    trd->stop();
 }
 
 srs_error_t SrsHourGlass::tick(srs_utime_t interval)
@@ -94,6 +104,8 @@ srs_error_t SrsHourGlass::cycle()
             srs_utime_t interval = it->second;
 
             if (interval == 0 || (total_elapse % interval) == 0) {
+                ++_srs_pps_timer->sugar;
+
                 if ((err = handler->notify(event, interval, total_elapse)) != srs_success) {
                     return srs_error_wrap(err, "notify");
                 }

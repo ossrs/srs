@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -680,6 +680,9 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     if (!oip.empty()) {
         req->ip = oip;
     }
+
+    // The request streaming protocol.
+    req->protocol = (schema_ == "http")? "flv" : "flvs";
     
     return req;
 }

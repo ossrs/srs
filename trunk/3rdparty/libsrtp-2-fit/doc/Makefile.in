@@ -1,0 +1,32 @@
+# Makefile for libSRTP documentation
+#
+# David A. McGrew
+# Cisco Systems, Inc.
+#
+# This makefile does not use the autoconf system; we don't really need
+# it. We just run doxygen.
+# The most up to date documentation can be found at www.github.com/cisco/libsrtp
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+top_builddir = @top_builddir@
+VPATH = @srcdir@
+
+# Determine the version of the library
+
+version = $(shell cat $(top_srcdir)/VERSION)
+
+.PHONY: libsrtpdoc clean
+libsrtpdoc:
+	@if test ! -e Doxyfile.in; then \
+		echo "*** Sorry, can't build doc outside source dir"; exit 1; \
+	fi
+	sed 's/LIBSRTPVERSIONNUMBER/$(version)/' Doxyfile.in > Doxyfile
+	doxygen
+
+clean:
+
+	rm -rf html/ Doxyfile
+	for a in * ; do							\
+			  if [ -f "$$a~" ] ; then rm -f $$a~; fi;	\
+		done;

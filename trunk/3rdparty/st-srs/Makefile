@@ -98,6 +98,9 @@ TARGETS     = aix-debug aix-optimized               \
               solaris-debug solaris-optimized       \
               solaris-64-debug solaris-64-optimized
 
+UTEST_TARGETS = darwin-debug-utest linux-debug-utest \
+                darwin-debug-gcov linux-debug-gcov
+
 #
 # Platform specifics
 #
@@ -286,9 +289,17 @@ endif
 #
 # make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
+# or to enable stats for ST:
+#
+# make EXTRA_CFLAGS=-DDEBUG_STATS
+#
+# or enable the coverage for utest:
+# make UTEST_FLAGS="-fprofile-arcs -ftest-coverage"
+#
 ##########################
 
 CFLAGS      += $(DEFINES) $(OTHER_FLAGS) $(EXTRA_CFLAGS)
+CFLAGS      += $(UTEST_FLAGS)
 
 OBJS        = $(TARGETDIR)/sched.o \
               $(TARGETDIR)/stk.o   \
@@ -347,6 +358,8 @@ unknown:
 	@echo "Please specify one of the following targets:"
 	@echo
 	@for target in $(TARGETS); do echo $$target; done
+	@echo
+	@for target in $(UTEST_TARGETS); do echo $$target; done
 	@echo
 
 st.pc:	st.pc.in
@@ -479,6 +492,24 @@ solaris-64-debug:
 	$(MAKE) OS="SOLARIS_64" BUILD="DBG"
 solaris-64-optimized:
 	$(MAKE) OS="SOLARIS_64" BUILD="OPT"
+
+darwin-debug-utest:
+	@echo "Build utest for state-threads"
+	$(MAKE) OS="DARWIN" BUILD="DBG"
+	cd utest && $(MAKE)
+linux-debug-utest:
+	@echo "Build utest for state-threads"
+	$(MAKE) OS="LINUX" BUILD="DBG"
+	cd utest && $(MAKE)
+
+darwin-debug-gcov:
+	@echo "Build utest with gcov for state-threads"
+	$(MAKE) OS="DARWIN" BUILD="DBG" UTEST_FLAGS="-fprofile-arcs -ftest-coverage" STATIC_ONLY=yes
+	cd utest && $(MAKE) UTEST_FLAGS="-fprofile-arcs -ftest-coverage"
+linux-debug-gcov:
+	@echo "Build utest with gcov for state-threads"
+	$(MAKE) OS="LINUX" BUILD="DBG" UTEST_FLAGS="-fprofile-arcs -ftest-coverage" STATIC_ONLY=yes
+	cd utest && $(MAKE) UTEST_FLAGS="-fprofile-arcs -ftest-coverage"
 
 ##########################
 

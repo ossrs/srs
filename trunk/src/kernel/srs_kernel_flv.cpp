@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -38,8 +38,12 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_core_mem_watch.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+
+#include <srs_kernel_kbps.hpp>
+
+SrsPps* _srs_pps_objs_msgs = new SrsPps();
 
 SrsMessageHeader::SrsMessageHeader()
 {
@@ -161,9 +165,6 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
-#ifdef SRS_MEM_WATCH
-    srs_memory_unwatch(payload);
-#endif
     srs_freepa(payload);
 }
 
@@ -173,10 +174,6 @@ void SrsCommonMessage::create_payload(int size)
     
     payload = new char[size];
     srs_verbose("create payload for RTMP message. size=%d", size);
-    
-#ifdef SRS_MEM_WATCH
-    srs_memory_watch(payload, "RTMP.msg.payload", size);
-#endif
 }
 
 srs_error_t SrsCommonMessage::create(SrsMessageHeader* pheader, char* body, int size)
@@ -211,15 +208,14 @@ SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 
 SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
-#ifdef SRS_MEM_WATCH
-    srs_memory_unwatch(payload);
-#endif
     srs_freepa(payload);
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage() : timestamp(0), stream_id(0), size(0), payload(NULL)
 {
     ptr = NULL;
+
+    ++ _srs_pps_objs_msgs->sugar;
 }
 
 SrsSharedPtrMessage::~SrsSharedPtrMessage()
@@ -231,6 +227,19 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
             ptr->shared_count--;
         }
     }
+}
+
+bool SrsSharedPtrMessage::recycle()
+{
+    // When recycle, unwrap if not the last reference.
+    if (ptr && ptr->shared_count > 0) {
+        ptr->shared_count--;
+        ptr = NULL;
+        payload = NULL;
+        size = 0;
+    }
+
+    return true;
 }
 
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -293,8 +302,7 @@ void SrsSharedPtrMessage::wrap(char* payload, int size)
 
 int SrsSharedPtrMessage::count()
 {
-    srs_assert(ptr);
-    return ptr->shared_count;
+    return ptr? ptr->shared_count : 0;
 }
 
 bool SrsSharedPtrMessage::check(int stream_id)
@@ -351,13 +359,25 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     srs_assert(ptr);
     
-    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
-    
-    copy->ptr = ptr;
-    ptr->shared_count++;
+    SrsSharedPtrMessage* copy = copy2();
     
     copy->timestamp = timestamp;
     copy->stream_id = stream_id;
+
+    return copy;
+}
+
+SrsSharedPtrMessage* SrsSharedPtrMessage::copy2()
+{
+    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache_objs->allocate();
+
+    // We got an object from cache, the ptr might exists, so unwrap it.
+    //srs_assert(!copy->ptr);
+
+    // Reference to this message instead.
+    copy->ptr = ptr;
+    ptr->shared_count++;
+
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 

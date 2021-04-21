@@ -1,0 +1,19 @@
+language: go
+
+go:
+  - "1.x" # use the latest Go release
+
+env:
+  - GO111MODULE=on
+
+before_script:
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b $GOPATH/bin v1.15.0
+
+script:
+  - golangci-lint run ./...
+#  - rm -rf examples # Remove examples, no test coverage for them
+  - go test -coverpkg=$(go list ./... | tr '\n' ',') -coverprofile=cover.out -v -race -covermode=atomic ./...
+  - bash <(curl -s https://codecov.io/bash)
+  - bash .github/assert-contributors.sh
+  - bash .github/lint-disallowed-functions-in-library.sh
+  - bash .github/lint-commit-message.sh

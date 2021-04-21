@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -29,6 +29,7 @@
 #include <srs_app_st.hpp>
 
 #include <map>
+#include <string>
 
 class SrsCoroutine;
 
@@ -59,17 +60,18 @@ public:
 // It's a complex and high-performance timer.
 //
 // Usage:
-//      SrsHourGlass* hg = new SrsHourGlass(handler, 1 * SRS_UTIME_MILLISECONDS);
+//      SrsHourGlass* hg = new SrsHourGlass("nack", handler, 100 * SRS_UTIME_MILLISECONDS);
 //
-//      hg->tick(1, 3 * SRS_UTIME_MILLISECONDS);
-//      hg->tick(2, 5 * SRS_UTIME_MILLISECONDS);
-//      hg->tick(3, 7 * SRS_UTIME_MILLISECONDS);
+//      hg->tick(1, 300 * SRS_UTIME_MILLISECONDS);
+//      hg->tick(2, 500 * SRS_UTIME_MILLISECONDS);
+//      hg->tick(3, 700 * SRS_UTIME_MILLISECONDS);
 //
 //      // The hg will create a thread for timer.
 //      hg->start();
 class SrsHourGlass : virtual public ISrsCoroutineHandler
 {
 private:
+    std::string label_;
     SrsCoroutine* trd;
     ISrsHourGlass* handler;
     srs_utime_t _resolution;
@@ -81,12 +83,15 @@ private:
     // for each cycle, we increase it with a resolution.
     srs_utime_t total_elapse;
 public:
-    SrsHourGlass(ISrsHourGlass* h, srs_utime_t resolution);
+    // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
+    SrsHourGlass(std::string label, ISrsHourGlass* h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
 public:
-    // Start the hourglass.
+    // Start or stop the hourglass.
     virtual srs_error_t start();
+    virtual void stop();
 public:
+    // TODO: FIXME: Refine to tick with handler. Remove the tick(interval).
     // Add a pair of tick(event, interval).
     // @param event the event of tick, default is 0.
     // @param interval the interval in srs_utime_t of tick.

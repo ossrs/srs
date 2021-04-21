@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -37,6 +37,7 @@
 
 struct sockaddr;
 
+class SrsBuffer;
 class SrsUdpMuxSocket;
 
 // The udp packet handler.
@@ -138,10 +139,13 @@ public:
 class SrsUdpMuxSocket : public ISrsProtocolStatistic
 {
 private:
+    // For sender yield only.
+    uint32_t nn_msgs_for_yield_;
     int64_t in_bytes;
     int64_t out_bytes;
 
     std::map<uint32_t, std::string> cache_;
+    SrsBuffer* cache_buffer_;
 private:
     char* buf;
     int nb_buf;
@@ -149,8 +153,16 @@ private:
     srs_netfd_t lfd;
     sockaddr_storage from;
     int fromlen;
+private:
     std::string peer_ip;
     int peer_port;
+private:
+    // Cache for peer id.
+    std::string peer_id_;
+    // If the address changed, we should generate the peer_id.
+    bool address_changed_;
+    // For IPv4 client, we use 8 bytes int id to find it fastly.
+    uint64_t fast_id_;
 public:
     SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
@@ -165,6 +177,8 @@ public:
     std::string get_peer_ip() const;
     int get_peer_port() const;
     std::string peer_id();
+    uint64_t fast_id();
+    SrsBuffer* buffer();
     SrsUdpMuxSocket* copy_sendonly();
 public:
     virtual int64_t get_recv_bytes();

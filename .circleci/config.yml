@@ -1,26 +1,81 @@
 version: 2
 jobs:
-  build:
+  build-c7-baseline:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
       - run: |
-          cd trunk &&
-          ./configure --without-rtc --without-gb28181 --without-utest --without-srtp-nasm && make &&
-          ./configure --with-rtc --with-gb28181 --with-utest --with-srtp-nasm && make clean && make
-  test:
+          echo "Build and run SRS baseline" &&
+          cd trunk && ./configure && make
+  build-c7-noasm:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
       - run: |
-          cd trunk &&
-          ./configure --with-rtc --with-gb28181 --with-srtp-nasm --with-utest --gcov && make &&
-          ./objs/srs_utest && bash auto/coverage.sh
+          echo "Build and run SRS without NASM or SRTP-NASM" &&
+          cd trunk && ./configure --nasm=off --srtp-nasm=off && make
+  build-c7-gb28181:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with GB28181" &&
+          cd trunk && ./configure --gb28181=on && make
+  build-c8-baseline:
+    docker:
+      - image: ossrs/srs:dev8
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS for CentOS8" &&
+          cd trunk && ./configure && make
+  build-u20-baseline:
+    docker:
+      - image: ossrs/srs:dev8
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS for Ubuntu20" &&
+          cd trunk && ./configure && make
+  run-utest:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run utest for SRS" &&
+          cd trunk && ./configure --gb28181=on --utest=on --gcov=on && make &&
+          ./objs/srs_utest && bash auto/codecov.sh
+  run-regression-test:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with regression config" &&
+          cd trunk && ./configure && make && ./objs/srs -c conf/regression-test.conf &&
+          echo "Run srs-bench regression test" &&
+          cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v
+  build-c7-ansi-noff:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS C++98(ANSI), no FFmpeg-fit" &&
+          cd trunk && ./configure --cxx11=off --cxx14=off --ffmpeg-fit=off && make
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - build
-      - test
+      - build-c7-baseline
+      - run-utest
+      - run-regression-test
+      - build-c7-noasm
+      - build-c7-gb28181
+      - build-c8-baseline
+      - build-u20-baseline
+      - build-c7-ansi-noff

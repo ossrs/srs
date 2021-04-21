@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -38,6 +38,8 @@
 #include <srs_service_st.hpp>
 #include <srs_app_gb28181.hpp>
 #include <srs_app_gb28181_sip.hpp>
+#include <srs_app_hourglass.hpp>
+#include <srs_app_hybrid.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -260,7 +262,9 @@ public:
 
 // TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler, virtual public ISrsResourceManager
+class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler
+    , virtual public ISrsResourceManager, virtual public ISrsCoroutineHandler
+    , virtual public ISrsHourGlass
 {
 private:
     // TODO: FIXME: Extract an HttpApiServer.
@@ -269,6 +273,8 @@ private:
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
     SrsResourceManager* conn_manager;
+    SrsCoroutine* trd_;
+    SrsHourGlass* timer_;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -315,6 +321,9 @@ public:
     virtual srs_error_t register_signal();
     virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
+    virtual srs_error_t start();
+// interface ISrsCoroutineHandler
+public:
     virtual srs_error_t cycle();
 // server utilities.
 public:
@@ -337,6 +346,11 @@ private:
     // update the global static data, for instance, the current time,
     // the cpu/mem/network statistic.
     virtual srs_error_t do_cycle();
+// interface ISrsHourGlass
+private:
+    virtual srs_error_t setup_ticks();
+    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+private:
     // listen at specified protocol.
     virtual srs_error_t listen_rtmp();
     virtual srs_error_t listen_http_api();
@@ -384,6 +398,22 @@ public:
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+};
+
+// The SRS server adapter, the master server.
+class SrsServerAdapter : public ISrsHybridServer
+{
+private:
+    SrsServer* srs;
+public:
+    SrsServerAdapter();
+    virtual ~SrsServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run();
+    virtual void stop();
+public:
+    virtual SrsServer* instance();
 };
 
 #endif

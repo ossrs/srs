@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -354,11 +354,6 @@ void show_macro_features()
 #endif
     srs_trace("system default latency(ms): mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
               srsu2msi(SRS_PERF_MW_SLEEP), possible_mr_latency, srsu2msi(SRS_PERF_PLAY_QUEUE));
-    
-#ifdef SRS_MEM_WATCH
-#warning "srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script."
-    srs_warn("srs memory watcher will hurts performance. user should kill by SIGTERM or init.d script.");
-#endif
     
 #if VERSION_MAJOR > VERSION_STABLE
     #warning "Current branch is not stable."

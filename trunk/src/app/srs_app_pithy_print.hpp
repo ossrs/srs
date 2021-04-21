@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -111,6 +111,7 @@ class SrsPithyPrint
 {
 private:
     int client_id;
+    SrsStageInfo* cache_;
     int stage_id;
     srs_utime_t _age;
     srs_utime_t previous_tick;

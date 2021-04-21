@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -23,6 +23,7 @@
 
 #include <srs_kernel_rtc_rtp.hpp>
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <sstream>
 using namespace std;
@@ -32,6 +33,114 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_flv.hpp>
+
+#include <srs_kernel_kbps.hpp>
+
+SrsPps* _srs_pps_objs_rtps = new SrsPps();
+SrsPps* _srs_pps_objs_rraw = new SrsPps();
+SrsPps* _srs_pps_objs_rfua = new SrsPps();
+SrsPps* _srs_pps_objs_rbuf = new SrsPps();
+SrsPps* _srs_pps_objs_rothers = new SrsPps();
+SrsPps* _srs_pps_objs_drop = new SrsPps();
+
+/* @see https://tools.ietf.org/html/rfc1889#section-5.1
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                           timestamp                           |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |           synchronization source (SSRC) identifier            |
+ +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+ |            contributing source (CSRC) identifiers             |
+ |                             ....                              |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size)
+{
+    if (size < 12) {
+        return 0;
+    }
+
+    uint32_t value = 0;
+    char* pp = (char*)&value;
+
+    char* p = buf + 8;
+    pp[3] = *p++;
+    pp[2] = *p++;
+    pp[1] = *p++;
+    pp[0] = *p++;
+    return value;
+}
+uint8_t srs_rtp_fast_parse_pt(char* buf, int size)
+{
+    if (size < 12) {
+        return 0;
+    }
+    return buf[1] & 0x7f;
+}
+srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn)
+{
+    srs_error_t err = srs_success;
+
+    int need_size = 12 /*rtp head fix len*/ + 4 /* extension header len*/ + 3 /* twcc extension len*/;
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    uint8_t first = buf[0];
+    bool extension = (first & 0x10);
+    uint8_t cc = (first & 0x0F);
+
+    if(!extension) {
+        return srs_error_new(ERROR_RTC_RTP, "no extension in rtp");
+    }
+
+    need_size += cc * 4; // csrc size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+    buf += 12 + 4*cc;
+
+    uint16_t value = *((uint16_t*)buf);
+    value = ntohs(value);
+    if(0xBEDE != value) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "no support this type(0x%02x) extension", value);
+    }
+    buf += 2;
+    
+    uint16_t extension_length = ntohs(*((uint16_t*)buf));
+    buf += 2;
+    extension_length *= 4;
+    need_size += extension_length; // entension size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    while(extension_length > 0) {
+        uint8_t v = buf[0];
+        buf++;
+        extension_length--;
+        if(0 == v) {
+            continue;
+        }
+
+        uint8_t id = (v & 0xF0) >>4;
+        uint8_t len = (v & 0x0F) + 1;
+
+        if(id == twcc_id) {
+            twcc_sn = ntohs(*((uint16_t*)buf));
+            return err;
+        } else {
+            buf += len;
+            extension_length -= len;
+        }
+    }
+
+
+    return err;
+}
 
 // If value is newer than pre_value，return true; otherwise false
 bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
@@ -92,19 +201,15 @@ SrsRtpExtensionType SrsRtpExtensionTypes::get_type(int id) const
     return kInvalidType;
 }
 
-
-
-SrsRtpExtensionTwcc::SrsRtpExtensionTwcc(): has_twcc_(false), id_(0), sn_(0)
+SrsRtpExtensionTwcc::SrsRtpExtensionTwcc()
 {
+    has_twcc_ = false;
+    id_ = 0;
+    sn_ = 0;
 }
 
 SrsRtpExtensionTwcc::~SrsRtpExtensionTwcc()
 {
-}
-
-bool SrsRtpExtensionTwcc::has_twcc_ext()
-{
-    return has_twcc_;
 }
 
 srs_error_t SrsRtpExtensionTwcc::decode(SrsBuffer* buf)
@@ -179,7 +284,14 @@ void SrsRtpExtensionTwcc::set_sn(uint16_t sn)
     has_twcc_ = true;
 }
 
-SrsRtpExtensionOneByte::SrsRtpExtensionOneByte() : has_ext_(false), id_(0), value_(0)
+SrsRtpExtensionOneByte::SrsRtpExtensionOneByte()
+{
+    has_ext_ = false;
+    id_ = 0;
+    value_ = 0;
+}
+
+SrsRtpExtensionOneByte::~SrsRtpExtensionOneByte()
 {
 }
 
@@ -231,8 +343,11 @@ srs_error_t SrsRtpExtensionOneByte::encode(SrsBuffer* buf)
     return err;
 }
 
-SrsRtpExtensions::SrsRtpExtensions() : has_ext_(false)
+SrsRtpExtensions::SrsRtpExtensions()
 {
+    types_ = NULL;
+    has_ext_ = false;
+    decode_twcc_extension_ = false;
 }
 
 SrsRtpExtensions::~SrsRtpExtensions()
@@ -296,21 +411,28 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
         // Note that 'len' is the header extension element length, which is the
         // number of bytes - 1.
         uint8_t id = (v & 0xF0) >> 4;
-        uint8_t len = (v & 0x0F);
+        uint8_t len = (v & 0x0F) + 1;
 
-        SrsRtpExtensionType xtype = types_.get_type(id);
+        SrsRtpExtensionType xtype = types_? types_->get_type(id) : kRtpExtensionNone;
         if (xtype == kRtpExtensionTransportSequenceNumber) {
-            if ((err = twcc_.decode(buf)) != srs_success) {
-                return srs_error_wrap(err, "decode twcc extension");
+            if (decode_twcc_extension_) {
+                if ((err = twcc_.decode(buf)) != srs_success) {
+                    return srs_error_wrap(err, "decode twcc extension");
+                }
+                has_ext_ = true;
+            } else {
+                if (!buf->require(len+1)) {
+                    return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", len+1);
+                }
+                buf->skip(len + 1);
             }
-            has_ext_ = true;
         } else if (xtype == kRtpExtensionAudioLevel) {
             if((err = audio_level_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode audio level extension");
             }
             has_ext_ = true;
         } else {
-            buf->skip(1 + (len + 1));
+            buf->skip(1 + len);
         }
     }
 
@@ -319,7 +441,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
 
 uint64_t SrsRtpExtensions::nb_bytes()
 {
-    int size =  4 + (twcc_.has_twcc_ext() ? twcc_.nb_bytes() : 0);
+    int size =  4 + (twcc_.exists() ? twcc_.nb_bytes() : 0);
     size += (audio_level_.exists() ? audio_level_.nb_bytes() : 0);
     // add padding
     size += (size % 4 == 0) ? 0 : (4 - size % 4);
@@ -335,7 +457,7 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     // Write length.
     int len = 0;
 
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         len += twcc_.nb_bytes();
     }
 
@@ -346,10 +468,14 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     int padding_count = (len % 4 == 0) ? 0 : (4 - len % 4);
     len += padding_count;
 
+    if (!buf->require(len)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", len);
+    }
+
     buf->write_2bytes(len / 4);
 
     // Write extensions.
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
         }
@@ -362,29 +488,22 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer* buf)
     }
 
     // add padding
-    while(padding_count > 0) {
-        buf->write_1bytes(0);
-        padding_count--;
+    if (padding_count) {
+        memset(buf->head(), 0, padding_count);
+        buf->skip(padding_count);
     }
 
     return err;
 }
 
-bool SrsRtpExtensions::exists()
+void SrsRtpExtensions::set_types_(SrsRtpExtensionTypes* types)
 {
-    return has_ext_;
-}
-
-void SrsRtpExtensions::set_types_(const SrsRtpExtensionTypes* types)
-{
-    if(types) {
-        types_ = *types;
-    }
+    types_ = types;
 }
 
 srs_error_t SrsRtpExtensions::get_twcc_sequence_number(uint16_t& twcc_sn)
 {
-    if (twcc_.has_twcc_ext()) {
+    if (twcc_.exists()) {
         twcc_sn = twcc_.get_sn();
         return srs_success;
     }
@@ -418,14 +537,15 @@ srs_error_t SrsRtpExtensions::set_audio_level(int id, uint8_t level)
 
 SrsRtpHeader::SrsRtpHeader()
 {
-    padding_length   = 0;
     cc               = 0;
     marker           = false;
     payload_type     = 0;
     sequence         = 0;
     timestamp        = 0;
     ssrc             = 0;
+    padding_length   = 0;
     ignore_padding_  = false;
+    memset(csrc, 0, sizeof(csrc));
 }
 
 SrsRtpHeader::~SrsRtpHeader()
@@ -548,7 +668,7 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer* buf)
 
     return err;
 }
-void SrsRtpHeader::set_extensions(const SrsRtpExtensionTypes* extmap)
+void SrsRtpHeader::set_extensions(SrsRtpExtensionTypes* extmap)
 {
     if (extmap) {
         extensions_.set_types_(extmap);
@@ -623,11 +743,6 @@ void SrsRtpHeader::set_ssrc(uint32_t v)
     ssrc = v;
 }
 
-uint32_t SrsRtpHeader::get_ssrc() const
-{
-    return ssrc;
-}
-
 void SrsRtpHeader::set_padding(uint8_t v)
 {
     padding_length = v;
@@ -656,19 +771,189 @@ ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
 
 SrsRtpPacket2::SrsRtpPacket2()
 {
-    payload = NULL;
-    decode_handler = NULL;
+    payload_ = NULL;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+    shared_buffer_ = NULL;
+    actual_buffer_size_ = 0;
 
     nalu_type = SrsAvcNaluTypeReserved;
-    shared_msg = NULL;
     frame_type = SrsFrameTypeReserved;
     cached_payload_size = 0;
+    decode_handler = NULL;
+
+    ++_srs_pps_objs_rtps->sugar;
 }
 
 SrsRtpPacket2::~SrsRtpPacket2()
 {
-    srs_freep(payload);
-    srs_freep(shared_msg);
+    recycle_payload();
+    recycle_shared_buffer();
+}
+
+void SrsRtpPacket2::reset()
+{
+    nalu_type = SrsAvcNaluTypeReserved;
+    frame_type = SrsFrameTypeReserved;
+    cached_payload_size = 0;
+    decode_handler = NULL;
+
+    // It's important to reset the header.
+    header = SrsRtpHeader();
+
+    // Recyle the payload again, to ensure the packet is new one.
+    recycle_payload();
+    recycle_shared_buffer();
+}
+
+void SrsRtpPacket2::recycle_payload()
+{
+    if (!payload_) {
+        return;
+    }
+
+    if (payload_type_ == SrsRtpPacketPayloadTypeRaw && _srs_rtp_raw_cache->enabled()) {
+        _srs_rtp_raw_cache->recycle((SrsRtpRawPayload*)payload_);
+        goto cleanup;
+    }
+
+    if (payload_type_ == SrsRtpPacketPayloadTypeFUA2 && _srs_rtp_fua_cache->enabled()) {
+        _srs_rtp_fua_cache->recycle((SrsRtpFUAPayload2*)payload_);
+        goto cleanup;
+    }
+
+    srs_freep(payload_);
+
+cleanup:
+    payload_ = NULL;
+    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+}
+
+void SrsRtpPacket2::recycle_shared_buffer()
+{
+    if (!shared_buffer_) {
+        return;
+    }
+
+    // Only recycle the message for UDP packets.
+    if (shared_buffer_->payload && shared_buffer_->size == kRtpPacketSize) {
+        if (_srs_rtp_msg_cache_objs->enabled() && shared_buffer_->count() > 0) {
+            // Recycle the small shared message objects.
+            _srs_rtp_msg_cache_objs->recycle(shared_buffer_);
+            goto cleanup;
+        }
+
+        if (_srs_rtp_msg_cache_buffers->enabled() && shared_buffer_->count() == 0) {
+            // Recycle the UDP large buffer.
+            _srs_rtp_msg_cache_buffers->recycle(shared_buffer_);
+            goto cleanup;
+        }
+    }
+
+    srs_freep(shared_buffer_);
+
+cleanup:
+    shared_buffer_ = NULL;
+    actual_buffer_size_ = 0;
+}
+
+bool SrsRtpPacket2::recycle()
+{
+    // Clear the cache size, it may change when reuse it.
+    cached_payload_size = 0;
+    // Reset the handler, for decode only.
+    decode_handler = NULL;
+
+    // We only recycle the payload and shared messages,
+    // for header and fields, user will reset or copy it.
+    recycle_payload();
+    recycle_shared_buffer();
+
+    return true;
+}
+
+char* SrsRtpPacket2::wrap(int size)
+{
+    // The buffer size is larger or equals to the size of packet.
+    actual_buffer_size_ = size;
+
+    // If the buffer is large enough, reuse it.
+    if (shared_buffer_ && shared_buffer_->size >= size) {
+        return shared_buffer_->payload;
+    }
+
+    // Create a large enough message, with under-layer buffer.
+    while (true) {
+        srs_freep(shared_buffer_);
+        shared_buffer_ = _srs_rtp_msg_cache_buffers->allocate();
+
+        // If got a cached message(which has payload), but it's too small,
+        // we free it and allocate a larger one.
+        if (shared_buffer_->payload && shared_buffer_->size < size) {
+            ++_srs_pps_objs_rothers->sugar;
+            continue;
+        }
+
+        // Create under-layer buffer for new message
+        if (!shared_buffer_->payload) {
+            // For RTC, we use larger under-layer buffer for each packet.
+            int nb_buffer = srs_max(size, kRtpPacketSize);
+            char* buf = new char[nb_buffer];
+            shared_buffer_->wrap(buf, nb_buffer);
+
+            ++_srs_pps_objs_rbuf->sugar;
+        }
+
+        break;
+    }
+
+    return shared_buffer_->payload;
+}
+
+char* SrsRtpPacket2::wrap(char* data, int size)
+{
+    char* buf = wrap(size);
+    memcpy(buf, data, size);
+    return buf;
+}
+
+char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
+{
+    // Generally, the wrap(msg) is used for RTMP to RTC, which is not generated by RTC,
+    // so we do not recycle the msg. It's ok to directly free the msg, event the msg is
+    // allocated by object cache manager.
+    srs_freep(shared_buffer_);
+
+    // Copy from the new message.
+    shared_buffer_ = msg->copy();
+    // If we wrap a message, the size of packet equals to the message size.
+    actual_buffer_size_ = shared_buffer_->size;
+
+    return msg->payload;
+}
+
+SrsRtpPacket2* SrsRtpPacket2::copy()
+{
+    SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
+
+    // We got packet from cache, the payload and message MUST be NULL,
+    // because we had clear it in recycle.
+    //srs_assert(!cp->payload_);
+    //srs_assert(!cp->shared_buffer_);
+
+    cp->header = header;
+    cp->payload_ = payload_? payload_->copy():NULL;
+    cp->payload_type_ = payload_type_;
+
+    cp->nalu_type = nalu_type;
+    cp->shared_buffer_ = shared_buffer_? shared_buffer_->copy2() : NULL;
+    cp->actual_buffer_size_ = actual_buffer_size_;
+    cp->frame_type = frame_type;
+
+    cp->cached_payload_size = cached_payload_size;
+    // For performance issue, do not copy the unused field.
+    cp->decode_handler = decode_handler;
+
+    return cp;
 }
 
 void SrsRtpPacket2::set_padding(int size)
@@ -697,24 +982,7 @@ bool SrsRtpPacket2::is_audio()
     return frame_type == SrsFrameTypeAudio;
 }
 
-SrsRtpPacket2* SrsRtpPacket2::copy()
-{
-    SrsRtpPacket2* cp = new SrsRtpPacket2();
-
-    cp->header = header;
-    cp->payload = payload? payload->copy():NULL;
-
-    cp->nalu_type = nalu_type;
-    cp->shared_msg = shared_msg? shared_msg->copy():NULL;
-    cp->frame_type = frame_type;
-
-    cp->cached_payload_size = cached_payload_size;
-    cp->decode_handler = decode_handler;
-
-    return cp;
-}
-
-void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
+void SrsRtpPacket2::set_extension_types(SrsRtpExtensionTypes* v)
 {
     return header.set_extensions(v);
 }
@@ -722,7 +990,7 @@ void SrsRtpPacket2::set_extension_types(const SrsRtpExtensionTypes* v)
 uint64_t SrsRtpPacket2::nb_bytes()
 {
     if (!cached_payload_size) {
-        int nn_payload = (payload? payload->nb_bytes():0);
+        int nn_payload = (payload_? payload_->nb_bytes():0);
         cached_payload_size = header.nb_bytes() + nn_payload + header.get_padding();
     }
     return cached_payload_size;
@@ -736,7 +1004,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         return srs_error_wrap(err, "rtp header");
     }
 
-    if (payload && (err = payload->encode(buf)) != srs_success) {
+    if (payload_ && (err = payload_->encode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp payload");
     }
 
@@ -745,7 +1013,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
         if (!buf->require(padding)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", padding);
         }
-        memset(buf->data() + buf->pos(), padding, padding);
+        memset(buf->head(), padding, padding);
         buf->skip(padding);
     }
 
@@ -767,36 +1035,48 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     }
     buf->set_size(buf->size() - padding);
 
-    // Try to parse the NALU type for video decoder.
-    if (!buf->empty()) {
-        nalu_type = SrsAvcNaluType((uint8_t)(buf->head()[0] & kNalTypeMask));
-    }
-
+    // TODO: FIXME: We should keep payload to NULL and return if buffer is empty.
     // If user set the decode handler, call it to set the payload.
     if (decode_handler) {
-        decode_handler->on_before_decode_payload(this, buf, &payload);
+        decode_handler->on_before_decode_payload(this, buf, &payload_, &payload_type_);
     }
 
     // By default, we always use the RAW payload.
-    if (!payload) {
-        payload = new SrsRtpRawPayload();
+    if (!payload_) {
+        payload_ = _srs_rtp_raw_cache->allocate();
+        payload_type_ = SrsRtpPacketPayloadTypeRaw;
     }
 
-    if ((err = payload->decode(buf)) != srs_success) {
+    if ((err = payload_->decode(buf)) != srs_success) {
         return srs_error_wrap(err, "rtp payload");
     }
 
     return err;
 }
 
+SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
+SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
+SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
+
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
+
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
     payload = NULL;
     nn_payload = 0;
+
+    ++_srs_pps_objs_rraw->sugar;
 }
 
 SrsRtpRawPayload::~SrsRtpRawPayload()
 {
+}
+
+bool SrsRtpRawPayload::recycle() 
+{ 
+    payload=NULL; nn_payload=0;
+    return true;    
 }
 
 uint64_t SrsRtpRawPayload::nb_bytes()
@@ -833,7 +1113,7 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpRawPayload::copy()
 {
-    SrsRtpRawPayload* cp = new SrsRtpRawPayload();
+    SrsRtpRawPayload* cp = _srs_rtp_raw_cache->allocate();
 
     cp->payload = payload;
     cp->nn_payload = nn_payload;
@@ -845,6 +1125,8 @@ SrsRtpRawNALUs::SrsRtpRawNALUs()
 {
     cursor = 0;
     nn_bytes = 0;
+
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpRawNALUs::~SrsRtpRawNALUs()
@@ -982,6 +1264,8 @@ ISrsRtpPayloader* SrsRtpRawNALUs::copy()
 SrsRtpSTAPPayload::SrsRtpSTAPPayload()
 {
     nri = (SrsAvcNaluType)0;
+
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpSTAPPayload::~SrsRtpSTAPPayload()
@@ -1130,6 +1414,8 @@ SrsRtpFUAPayload::SrsRtpFUAPayload()
 {
     start = end = false;
     nri = nalu_type = (SrsAvcNaluType)0;
+
+    ++_srs_pps_objs_rothers->sugar;
 }
 
 SrsRtpFUAPayload::~SrsRtpFUAPayload()
@@ -1245,10 +1531,22 @@ SrsRtpFUAPayload2::SrsRtpFUAPayload2()
 
     payload = NULL;
     size = 0;
+
+    ++_srs_pps_objs_rfua->sugar;
 }
 
 SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
 {
+}
+
+bool SrsRtpFUAPayload2::recycle()
+{
+    start = end = false;
+    nri = nalu_type = (SrsAvcNaluType)0;
+
+    payload = NULL;
+    size = 0;
+    return true;
 }
 
 uint64_t SrsRtpFUAPayload2::nb_bytes()
@@ -1318,7 +1616,7 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
 {
-    SrsRtpFUAPayload2* cp = new SrsRtpFUAPayload2();
+    SrsRtpFUAPayload2* cp = _srs_rtp_fua_cache->allocate();
 
     cp->nri = nri;
     cp->start = start;

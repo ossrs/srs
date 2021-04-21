@@ -7,8 +7,14 @@ OS_PREFIX="Platform"
 
 # Build platform cache.
 SRS_PLATFORM="${OS_PREFIX}-${OS_KERNEL_NAME}-${OS_KERNRL_RELEASE}"
-if [[ ${SRS_BUILD_TAG} != "" ]]; then
-  SRS_PLATFORM="${SRS_PLATFORM}-${SRS_BUILD_TAG}"
+# Build platform cache with gcc version.
+if [[ $OS_KERNEL_NAME == Darwin ]]; then
+  GCC_VERSION="Clang$(gcc --version 2>/dev/null|grep clang|awk '{print $4}')"
+  SRS_PLATFORM="${SRS_PLATFORM}-${GCC_VERSION}"
+else
+  GCC_VERSION="GCC$(gcc --version 2>/dev/null|grep gcc|awk '{print $3}')"
+  echo $GCC_VERSION| grep '-' >/dev/null && GCC_VERSION=$(echo $GCC_VERSION| awk -F '-' '{print$1}')
+  SRS_PLATFORM="${SRS_PLATFORM}-${GCC_VERSION}"
 fi
 # Use isolate cache for different SRS version.
 SRS_PLATFORM="${SRS_PLATFORM}-SRS4"

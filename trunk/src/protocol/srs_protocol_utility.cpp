@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2020 Winlin
+ * Copyright (c) 2013-2021 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -106,6 +106,10 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     }
     
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    if (schema == "https") {
+        port = SRS_DEFAULT_HTTPS_PORT;
+    }
+
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
         srs_info("discovery host=%s, port=%d", host.c_str(), port);
