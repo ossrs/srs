@@ -3940,7 +3940,8 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt") {
+                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
+                        && m != "pli_for_rtmp") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5224,6 +5225,46 @@ int SrsConfig::get_rtc_drop_for_pt(string vhost)
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_rtc_to_rtmp(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtc_to_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
+{
+    static srs_utime_t DEFAULT = 6 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("pli_for_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    srs_utime_t v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    if (v < 500 * SRS_UTIME_MILLISECONDS || v > 30 * SRS_UTIME_SECONDS) {
+        srs_warn("Reset pli %dms to %dms", srsu2msi(v), srsu2msi(DEFAULT));
+        return DEFAULT;
+    }
+
+    return v;
 }
 
 bool SrsConfig::get_rtc_nack_enabled(string vhost)

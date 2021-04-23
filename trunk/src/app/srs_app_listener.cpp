@@ -536,6 +536,10 @@ srs_error_t SrsUdpMuxListener::listen()
     
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this, cid);
+
+    //change stack size to 256K, fix crash when call some 3rd-part api.
+    ((SrsSTCoroutine*)trd)->set_stack_size(1 << 18);
+
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start thread");
     }

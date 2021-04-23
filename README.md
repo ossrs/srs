@@ -157,6 +157,7 @@ Other important wiki:
 
 ## V4 changes
 
+* v5.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
 * v5.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94
 * v4.0, 2021-05-01, Timer: Extract and apply shared FastTimer. 4.0.93
 * v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
