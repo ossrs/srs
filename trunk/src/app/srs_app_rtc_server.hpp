@@ -105,10 +105,9 @@ public:
 };
 
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
-class SrsRtcServer : virtual public ISrsUdpMuxHandler, virtual public ISrsHourGlass, virtual public ISrsReloadHandler
+class SrsRtcServer : public ISrsUdpMuxHandler, public ISrsFastTimer, public ISrsReloadHandler
 {
 private:
-    SrsHourGlass* timer;
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
     ISrsRtcServerHijacker* hijacker;
@@ -137,9 +136,9 @@ private:
     srs_error_t do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session);
 public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
-// interface ISrsHourGlass
-public:
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
 };
 
 // The RTC server adapter.

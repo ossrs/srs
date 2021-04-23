@@ -259,7 +259,6 @@ SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
     hijacker = NULL;
-    timer = new SrsHourGlass("server", this, 1 * SRS_UTIME_SECONDS);
 
     _srs_config->subscribe(this);
 }
@@ -267,8 +266,6 @@ SrsRtcServer::SrsRtcServer()
 SrsRtcServer::~SrsRtcServer()
 {
     _srs_config->unsubscribe(this);
-
-    srs_freep(timer);
 
     if (true) {
         vector<SrsUdpMuxListener*>::iterator it;
@@ -283,14 +280,10 @@ srs_error_t SrsRtcServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer->tick(5 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "hourglass tick");
-    }
+    // The RTC server start a timer, do routines of RTC server.
+    _srs_hybrid->timer()->subscribe(5 * SRS_UTIME_SECONDS, this);
 
-    if ((err = timer->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
-
+    // Initialize the black hole.
     if ((err = _srs_blackhole->initialize()) != srs_success) {
         return srs_error_wrap(err, "black hole");
     }
@@ -640,7 +633,7 @@ SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& user
     return dynamic_cast<SrsRtcConnection*>(conn);
 }
 
-srs_error_t SrsRtcServer::notify(int type, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcServer::on_timer(srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
 
