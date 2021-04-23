@@ -64,11 +64,12 @@ public:
 };
 
 // The hybrid server manager.
-class SrsHybridServer : public ISrsHourGlass
+class SrsHybridServer : public ISrsFastTimer
 {
 private:
     std::vector<ISrsHybridServer*> servers;
-    SrsHourGlass* timer_;
+    SrsFastTimer* timer_;
+    SrsClockWallMonitor* clock_monitor_;
 public:
     SrsHybridServer();
     virtual ~SrsHybridServer();
@@ -80,10 +81,10 @@ public:
     virtual void stop();
 public:
     virtual SrsServerAdapter* srs();
-// interface ISrsHourGlass
+    SrsFastTimer* timer();
+// interface ISrsFastTimer
 private:
-    virtual srs_error_t setup_ticks();
-    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
 };
 
 extern SrsHybridServer* _srs_hybrid;
