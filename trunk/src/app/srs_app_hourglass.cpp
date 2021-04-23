@@ -27,10 +27,21 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
 SrsPps* _srs_pps_timer = new SrsPps();
+
+extern SrsPps* _srs_pps_clock_15ms;
+extern SrsPps* _srs_pps_clock_20ms;
+extern SrsPps* _srs_pps_clock_25ms;
+extern SrsPps* _srs_pps_clock_30ms;
+extern SrsPps* _srs_pps_clock_35ms;
+extern SrsPps* _srs_pps_clock_40ms;
+extern SrsPps* _srs_pps_clock_80ms;
+extern SrsPps* _srs_pps_clock_160ms;
+extern SrsPps* _srs_pps_timer_s;
 
 ISrsHourGlass::ISrsHourGlass()
 {
@@ -89,6 +100,14 @@ srs_error_t SrsHourGlass::tick(int event, srs_utime_t interval)
     return err;
 }
 
+void SrsHourGlass::untick(int event)
+{
+    map<int, srs_utime_t>::iterator it = ticks.find(event);
+    if (it != ticks.end()) {
+        ticks.erase(it);
+    }
+}
+
 srs_error_t SrsHourGlass::cycle()
 {
     srs_error_t err = srs_success;
@@ -119,3 +138,128 @@ srs_error_t SrsHourGlass::cycle()
     
     return err;
 }
+
+ISrsFastTimer::ISrsFastTimer()
+{
+}
+
+ISrsFastTimer::~ISrsFastTimer()
+{
+}
+
+SrsFastTimer::SrsFastTimer(std::string label, srs_utime_t resolution)
+{
+    timer_ = new SrsHourGlass(label, this, resolution);
+}
+
+SrsFastTimer::~SrsFastTimer()
+{
+    srs_freep(timer_);
+}
+
+srs_error_t SrsFastTimer::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    return err;
+}
+
+void SrsFastTimer::subscribe(srs_utime_t interval, ISrsFastTimer* timer)
+{
+    static int g_event = 0;
+
+    int event = g_event++;
+
+    // TODO: FIXME: Error leak. Change tick to void in future.
+    timer_->tick(event, interval);
+
+    handlers_[event] = timer;
+}
+
+void SrsFastTimer::unsubscribe(ISrsFastTimer* timer)
+{
+    for (map<int, ISrsFastTimer*>::iterator it = handlers_.begin(); it != handlers_.end();) {
+        if (it->second != timer) {
+            ++it;
+            continue;
+        }
+
+        handlers_.erase(it++);
+
+        int event = it->first;
+        timer_->untick(event);
+    }
+}
+
+srs_error_t SrsFastTimer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    for (map<int, ISrsFastTimer*>::iterator it = handlers_.begin(); it != handlers_.end(); ++it) {
+        ISrsFastTimer* timer = it->second;
+
+        if (event != it->first) {
+            continue;
+        }
+
+        if ((err = timer->on_timer(interval, tick)) != srs_success) {
+            return srs_error_wrap(err, "tick for event=%d, interval=%dms, tick=%dms",
+                event, srsu2msi(interval), srsu2msi(tick));
+        }
+
+        break;
+    }
+
+    return err;
+}
+
+SrsClockWallMonitor::SrsClockWallMonitor()
+{
+}
+
+SrsClockWallMonitor::~SrsClockWallMonitor()
+{
+}
+
+srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval, srs_utime_t tick)
+{
+    srs_error_t err = srs_success;
+
+    static srs_utime_t clock = 0;
+
+    srs_utime_t now = srs_update_system_time();
+    if (!clock) {
+        clock = now;
+        return err;
+    }
+
+    srs_utime_t elapsed = now - clock;
+    clock = now;
+
+    if (elapsed <= 15 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_15ms->sugar;
+    } else if (elapsed <= 21 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_20ms->sugar;
+    } else if (elapsed <= 25 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_25ms->sugar;
+    } else if (elapsed <= 30 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_30ms->sugar;
+    } else if (elapsed <= 35 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_35ms->sugar;
+    } else if (elapsed <= 40 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_40ms->sugar;
+    } else if (elapsed <= 80 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_80ms->sugar;
+    } else if (elapsed <= 160 * SRS_UTIME_MILLISECONDS) {
+        ++_srs_pps_clock_160ms->sugar;
+    } else {
+        ++_srs_pps_timer_s->sugar;
+    }
+
+    return err;
+}
+
