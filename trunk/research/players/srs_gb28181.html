@@ -752,12 +752,11 @@
     */
     var autoLoadPage = function() {
         var query = parse_query_string();
-           
+
         // get the vhost and port to set the default url.
-        // for example: http://192.168.1.213/players/srs_player.html?port=1935&vhost=demo
-        // url set to: rtmp://demo:1935/live/livestream
-        srs_init_rtmp("#txt_url", "#main_modal");
-        srs_init_rtmp("#txt_url", "#rtc_player_modal");
+        // url set to: http://localhost:8080/live/livestream.flv
+        srs_init_flv("#txt_url", "#main_modal");
+        srs_init_flv("#txt_url", "#rtc_player_modal");
 
         // consts for buffer and max buffer.
         var bts =  [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30];

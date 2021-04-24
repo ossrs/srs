@@ -1,50 +1,26 @@
-<!DOCTYPE html>
+
 <html>
 <head>
-    <title>SRS</title>   
+    <title>SRS</title>
     <meta charset="utf-8">
-    <link rel="stylesheet" type="text/css" href="players/css/bootstrap.min.css"/>
-    <script type="text/javascript" src="players/js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="players/js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="players/js/swfobject.js"></script>
-    <script type="text/javascript" src="players/js/srs.page.js"></script>
-    <style>
-        body{
-            padding-top: 55px;
-        }
-    </style>
-    <script type="text/javascript">
-        $(function(){
-            update_nav();
-            
-            // direct to the default vhost for players.
-            window.location.href = "players/index.html" + window.location.search;
-        });
-    </script>
 </head>
 <body>
-<div class="navbar navbar-fixed-top">
-    <div class="navbar-inner">
-        <div class="container">
-        <a class="brand" href="index.html">SRS</a>
-            <div class="nav-collapse collapse">
-                <ul class="nav">
-                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
-                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
-                    <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
-                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
-                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="container">
-    <hr>
-    <footer>
-        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2013</a></p>
-    </footer>
-</div>
+<h3><a href="https://github.com/ossrs/srs">SRS</a> works!</h3>
+<p>
+    Click <a id="en" href="#">here</a> to enter SRS console.<br/>
+    点击进入<a id="cn" href="#">SRS控制台</a>
+</p>
+<p>
+    Click <a href="players/">here</a> to start SRS player.<br/>
+    点击进入<a href="players/">SRS播放器</a>
+</p>
+<p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2021</a></p>
+<script type="text/javascript">
+    // http://localhost:8080/console/ng_index.html#/connect?port=1985
+    // http://localhost:8080/console/ng_index.html#/summaries?port=1985
+    var en_url = window.location.protocol + "//" + window.location.host + "/console/en_index.html#/summaries?port=1985";
+    var cn_url = window.location.protocol + "//" + window.location.host + "/console/ng_index.html#/summaries?port=1985";
+    document.getElementById("en").setAttribute('href', en_url);
+    document.getElementById("cn").setAttribute('href', cn_url);
+</script>
 </body>

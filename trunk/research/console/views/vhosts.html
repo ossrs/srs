@@ -1,0 +1,37 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading" sc-collapse="in">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    虚拟主机(Vhosts)列表
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse">
+                <div class="accordion-inner">
+                    <table class="table table-striped table-bordered">
+                        <tr>
+                            <th>ID</th>
+                            <th>主机名称</th>
+                            <th>状态</th>
+                            <th>在线流</th>
+                            <th>在线人数</th>
+                            <th>入口带宽</th>
+                            <th>出口带宽</th>
+                            <th>HLS</th>
+                        </tr>
+                        <tr ng-repeat="vhost in vhosts">
+                            <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + vhost.id)">{{vhost.id}}</a></td>
+                            <td>{{vhost.name}}</td>
+                            <td>{{vhost.enabled| sc_filter_enabled}}</td>
+                            <td>{{vhost.streams}}个</td>
+                            <td>{{vhost.clients}}人</td>
+                            <td>{{vhost.kbps.recv_30s| sc_filter_bitrate_k}}</td>
+                            <td>{{vhost.kbps.send_30s| sc_filter_bitrate_k}}</td>
+                            <td>{{vhost.hls.enabled| sc_filter_enabled}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

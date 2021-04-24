@@ -1,0 +1,137 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading" sc-collapse="in">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    SRS Summary
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse">
+                <div class="accordion-inner">
+                    <div class="row">
+                        <div class="span3">
+                            <table class="table table-bordered" ng-if="server">
+                                <tr>
+                                    <th colspan="2">SRS/{{server.version}}</th>
+                                </tr>
+                                <tr>
+                                    <td>Alive</td>
+                                    <td>{{server.srs_uptime| sc_filter_time}}</td>
+                                </tr>
+                                <tr>
+                                    <td>CPU</td>
+                                    <td>{{server.cpu_percent| sc_filter_percentf}} / {{system.cpus_online| sc_filter_percentf}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Memory</td>
+                                    <td>
+                                        {{server.mem_percent| sc_filter_percentf2}}
+                                        {{server.mem_kbyte| sc_filter_filesize_k2}} / {{system.mem_ram_kbyte| sc_filter_filesize_k2}}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Network</td>
+                                    <td>
+                                        <span title="SRS Connections">{{system.conn_srs}}</span> /
+                                        <span title="SRS Inbound Bandwidth">{{kbps.in.srs| sc_filter_bitrate_k2}}</span> /
+                                        <span title="SRS Outbound Bandwidth">{{kbps.out.srs| sc_filter_bitrate_k2}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="span3">
+                            <table class="table table-bordered" ng-if="system">
+                                <tr>
+                                    <th colspan="2">OS System</th>
+                                </tr>
+                                <tr>
+                                    <td>Alive</td>
+                                    <td>{{system.uptime| sc_filter_time}}</td>
+                                </tr>
+                                <tr>
+                                    <td>CPU</td>
+                                    <td>{{system.cpu_percent * system.cpus_online| sc_filter_percentf}} / {{system.cpus_online| sc_filter_percentf}}</td>
+                                </tr>
+                                <tr>
+                                    <td>Memory</td>
+                                    <td>
+                                        {{system.mem_ram_percent| sc_filter_percentf2}}
+                                        {{system.mem_ram_kbyte * system.mem_ram_percent| sc_filter_filesize_k2}} / {{system.mem_ram_kbyte| sc_filter_filesize_k2}}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Load</td>
+                                    <td>{{system.load_1m| sc_filter_number}} / {{system.load_5m| sc_filter_number}} / {{system.load_15m| sc_filter_number}}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="span3">
+                            <table class="table table-bordered" ng-if="system">
+                                <tr>
+                                    <th colspan="2">IO Load</th>
+                                </tr>
+                                <tr>
+                                    <td>Internet</td>
+                                    <td>
+                                        <span title="Internet Inbound Bandwidth">{{kbps.in.sys| sc_filter_bitrate_k2}}</span> /
+                                        <span title="Internet Outbound Bandwidth">{{kbps.out.sys| sc_filter_bitrate_k2}}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Intranet</td>
+                                    <td>
+                                        <span title="Intranet Inbound Bandwidth">{{kbps.in.inner| sc_filter_bitrate_k2}}</span> /
+                                        <span title="Intranet Outbound Bandwidth">{{kbps.out.inner| sc_filter_bitrate_k2}}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td title="Connections">Conns</td>
+                                    <td>
+                                        <span title="System">{{system.conn_sys}}</span>
+                                        <span title="System ESTABLISHED">{{system.conn_sys_et}}</span>
+                                        <span title="System TIME_WAIT">{{system.conn_sys_tw}}</span>
+                                        <span title="System UDP Bind Ports">{{system.conn_sys_udp}}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Disk</td>
+                                    <td>
+                                        <span title="IO Busy">{{system.disk_busy_percent| sc_filter_percentf2}}</span>
+                                        <span title="Disk Read in Bps">{{system.disk_read_KBps| sc_filter_filerate_k2}}</span>
+                                        <span title="Disk Write in Bps">{{system.disk_write_KBps| sc_filter_filerate_k2}}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="span2">
+                            <table class="table table-bordered" ng-if="system">
+                                <tr>
+                                    <th colspan="2">Others</th>
+                                </tr>
+                                <tr>
+                                    <td title="System CPU Usage">CPU</td>
+                                    <td>
+                                        <span title="Number of CPU">{{system.cpus}}</span> /
+                                        <span title="Online CPUs">{{system.cpus_online}}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td title="PID of SRS">PID</td>
+                                    <td>{{server.pid}}</td>
+                                </tr>
+                                <tr>
+                                    <td title="PID of SRS's Parent">PPID</td>
+                                    <td>{{server.ppid}}</td>
+                                </tr>
+                                <tr>
+                                    <td title="Whether SRS API Ready?">Ready</td>
+                                    <td>{{global.ok| sc_filter_yesno}}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
