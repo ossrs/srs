@@ -346,7 +346,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install help clean destroy server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_st clean_openssl clean_ffmpeg clean_nginx clean_cherrypy
 .PHONY: st
 
@@ -367,7 +367,7 @@ _default: server srs_ingest_hls librtmp utest __modules $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<librtmp>|<utest>|<install>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project and all depends"
 	@echo "     destroy            Cleanup all files for this platform in ${SRS_OBJS_DIR}/${SRS_PLATFORM}"
@@ -375,7 +375,6 @@ help:
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
-	@echo "     install-api        install srs and api-server to the prefix path"
 	@echo "     uninstall          uninstall srs from prefix path"
 	@echo "To clean special module:"
 	@echo "     clean_st           Clean depend st-srs in ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs"
@@ -473,9 +472,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
 uninstall: 
 	@echo "Disable uninstall for srs-librtmp"
 
-install-api: 
-	@echo "Disable install-api for srs-librtmp"
-
 install: 
 	@echo "Disable install for srs-librtmp"
 
@@ -485,30 +481,6 @@ else
 uninstall:
 	@echo "rmdir \$(SRS_PREFIX)"
 	@rm -rf \$(SRS_PREFIX)
-
-install-api: install
-	@echo "Now mkdir \$(__REAL_INSTALL)"
-	@mkdir -p \$(__REAL_INSTALL)
-	@echo "Now copy binary files"
-	@mkdir -p \$(__REAL_INSTALL)/research/api-server
-	@cp research/api-server/server.py \$(__REAL_INSTALL)/research/api-server
-	@mkdir -p \$(__REAL_INSTALL)/objs/ffmpeg/bin
-	@cp objs/ffmpeg/bin/ffmpeg \$(__REAL_INSTALL)/objs/ffmpeg/bin
-	@echo "Now copy html files"
-	@mkdir -p \$(__REAL_INSTALL)/research/api-server/static-dir/players
-	@cp research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/research/api-server/static-dir
-	@cp research/api-server/static-dir/index.html \$(__REAL_INSTALL)/research/api-server/static-dir
-	@cp -r research/api-server/static-dir/players/* \$(__REAL_INSTALL)/research/api-server/static-dir/players
-	@echo "Now copy init.d script files"
-	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
-	@cp etc/init.d/srs-api \$(__REAL_INSTALL)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs-api
-	@echo ""
-	@echo "The api installed, to link and start api:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs-api /etc/init.d/srs-api"
-	@echo "     /etc/init.d/srs-api start"
-	@echo "     http://\$(shell bash auto/local_ip.sh):8085"
-	@echo "@see: https://github.com/ossrs/srs/wiki/v1_CN_LinuxService"
 
 install:
 	@echo "Now mkdir \$(__REAL_INSTALL)"
