@@ -14,75 +14,42 @@ SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC
 <a name="product"></a>
 ## Usage
 
-Recommend to run SRS by [docker][docker-srs4]:
+Recommend running SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
 
 ```bash
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    ossrs/srs:v4.0.76
-
-# Or, for developers in China to speedup.
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
-
-# For macOS to enable WebRTC, other OS please see #307.
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76
+    ossrs/srs:v4.0.85
 ```
-
-> Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
-> `ossrs/srs:v3.0-r3` for tag [v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
-> please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
-> or [there](https://hub.docker.com/r/ossrs/srs/tags).
 
 > To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
 
-If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
+Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
-ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
-    -f flv rtmp://localhost/live/livestream
-
-# Or by FFmpeg docker
-docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
-  ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
-      -f flv -y rtmp://localhost/live/livestream
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+  -c copy -f flv -y rtmp://localhost/live/livestream
 ```
-
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
 
-Play the following streams by players:
+Play the following streams by [players](https://ossrs.net):
 
 * VLC(RTMP): rtmp://localhost/live/livestream
 * H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
 * H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
 * H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
 
-> The online demos and players are available on [ossrs.net](https://ossrs.net).
-
-Strongly recommend reading bellow wikis:
-
-* How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
-* How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
-* How to deliver HTTP-FLV streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
-* How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
-* How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
-* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
-
 It's also very easy to build from source:
 
 **>>> Step 1:** Get SRS.
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && 
-git checkout develop && git pull
+git clone -b develop https://gitee.com/winlinvip/srs.oschina.git srs &&
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git
 ```
 
-> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
 
 **>>> Step 2:** Build SRS.
 
@@ -99,6 +66,17 @@ git checkout develop && git pull
 ```
 ./objs/srs -c conf/srs.conf
 ```
+
+Strongly recommend reading bellow wikis:
+
+* How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
+* How to deliver HTTP-FLV streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
+* How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
+* How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
+* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
+* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
 
 <a name="srs-30-wiki"></a>
 <a name="wiki"></a>
