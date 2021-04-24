@@ -40,8 +40,7 @@ It's also very easy to build from source:
 
 ```
 git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git && 
-git checkout 3.0release && git pull
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git
 ```
 
 > Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to directly clone by `git clone https://github.com/ossrs/srs.git && cd srs/trunk`
