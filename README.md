@@ -39,7 +39,7 @@ It's also very easy to build from source:
 **>>> Step 1:** Get SRS.
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+git clone -b 3.0release https://gitee.com/winlinvip/srs.oschina.git srs &&
 cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git
 ```
 
