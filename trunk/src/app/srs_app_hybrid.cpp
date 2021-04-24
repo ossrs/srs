@@ -139,11 +139,18 @@ ISrsHybridServer::~ISrsHybridServer()
 
 SrsHybridServer::SrsHybridServer()
 {
+    // Note that the timer depends on other global variables,
+    // so we MUST never create it in constructor.
     timer_ = NULL;
+
+    clock_monitor_ = new SrsClockWallMonitor();
 }
 
 SrsHybridServer::~SrsHybridServer()
 {
+    srs_freep(clock_monitor_);
+    srs_freep(timer_);
+
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
@@ -166,9 +173,19 @@ srs_error_t SrsHybridServer::initialize()
         return srs_error_wrap(err, "initialize st failed");
     }
 
-    if ((err = setup_ticks()) != srs_success) {
-        return srs_error_wrap(err, "tick");
+    // Create global shared timer.
+    timer_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+
+    // Start the timer first.
+    if ((err = timer_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
     }
+
+    // The hybrid server start a timer, do routines of hybrid server.
+    timer_->subscribe(5 * SRS_UTIME_SECONDS, this);
+
+    // A monitor to check the clock wall deviation, per clock tick.
+    timer_->subscribe(20 * SRS_UTIME_MILLISECONDS, clock_monitor_);
 
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
@@ -220,66 +237,14 @@ SrsServerAdapter* SrsHybridServer::srs()
     return NULL;
 }
 
-srs_error_t SrsHybridServer::setup_ticks()
+SrsFastTimer* SrsHybridServer::timer()
 {
-    srs_error_t err = srs_success;
-
-    // Start timer for system global works.
-    timer_ = new SrsHourGlass("hybrid", this, 20 * SRS_UTIME_MILLISECONDS);
-
-    if ((err = timer_->tick(1, 20 * SRS_UTIME_MILLISECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-
-    if ((err = timer_->tick(2, 5 * SRS_UTIME_SECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick");
-    }
-
-    if ((err = timer_->start()) != srs_success) {
-        return srs_error_wrap(err, "start");
-    }
-
-    return err;
+    return timer_;
 }
 
-srs_error_t SrsHybridServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsHybridServer::on_timer(srs_utime_t interval, srs_utime_t tick)
 {
     srs_error_t err = srs_success;
-
-    // Update system wall clock.
-    if (event == 1) {
-        static srs_utime_t clock = 0;
-
-        srs_utime_t now = srs_update_system_time();
-        if (!clock) {
-            clock = now;
-            return err;
-        }
-
-        srs_utime_t elapsed = now - clock;
-        clock = now;
-
-        if (elapsed <= 15 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_15ms->sugar;
-        } else if (elapsed <= 21 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_20ms->sugar;
-        } else if (elapsed <= 25 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_25ms->sugar;
-        } else if (elapsed <= 30 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_30ms->sugar;
-        } else if (elapsed <= 35 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_35ms->sugar;
-        } else if (elapsed <= 40 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_40ms->sugar;
-        } else if (elapsed <= 80 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_80ms->sugar;
-        } else if (elapsed <= 160 * SRS_UTIME_MILLISECONDS) {
-            ++_srs_pps_clock_160ms->sugar;
-        } else {
-            ++_srs_pps_timer_s->sugar;
-        }
-        return err;
-    }
 
     // Show statistics for RTC server.
     SrsProcSelfStat* u = srs_get_self_proc_stat();

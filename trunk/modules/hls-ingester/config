@@ -4,4 +4,3 @@ SRS_MODULE_NAME=("srs_hls_ingester")
 SRS_MODULE_MAIN=("srs_main_ingest_hls")
 SRS_MODULE_APP=()
 SRS_MODULE_DEFINES=""
-SRS_MODULE_MAKEFILE=""

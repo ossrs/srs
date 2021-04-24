@@ -29,6 +29,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_config.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,9 @@ using namespace std;
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsContext* _srs_context = new SrsThreadContext();
+
+// @global config object for app module.
+SrsConfig* _srs_config = new SrsConfig();
 
 srs_error_t parse(std::string mp4_file, bool verbose)
 {
