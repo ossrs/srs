@@ -191,6 +191,7 @@ Other documents:
 
 ## V4 changes
 
+* v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90
 * v4.0, 2021-04-01, RTC: Refine TWCC and SDP exchange. 4.0.88
 * v4.0, 2021-03-24, RTC: Support WebRTC re-publish stream. 4.0.87
 * v4.0, 2021-03-24, RTC: Use fast parse TWCC-ID, ignore in packet parsing. 4.0.86

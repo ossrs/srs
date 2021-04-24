@@ -505,7 +505,6 @@ doclean:
 	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 clean: clean_srs clean_modules
-	@echo "You can clean each some components, see make help"
 
 destroy:
 	(cd ${SRS_OBJS_DIR} && rm -rf ${SRS_PLATFORM})
@@ -567,7 +566,7 @@ echo "" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "Build the srs(simple rtmp server) over ST(state-threads)"
+	@echo "Build the SRS server"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
 
 END
@@ -786,20 +785,22 @@ done
 # Do cleanup when configure done.
 #####################################################################################
 if [[ $SRS_CLEAN == YES && -f Makefile ]]; then
-    echo "Do full cleanup, you can disable it by: --clean=off"
+    #echo "Do full cleanup, you can disable it by: --clean=off"
     make clean
 fi
 
 #####################################################################################
 # next step
 #####################################################################################
-echo ""
-echo "You can run 3rdparty applications:"
-if [ $SRS_HTTP_CALLBACK = YES ]; then
-    echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
+if [[ $SRS_CHERRYPY == YES ]]; then
+  echo ""
+  echo "You can run 3rdparty applications:"
+  if [ $SRS_HTTP_CALLBACK = YES ]; then
+      echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
+  fi
 fi
 echo ""
 echo "You can build SRS:"
-echo "\" make \" to build the srs(simple rtmp server)."
-echo "\" make help \" to get the usage of make"
+echo "\" make \" to build the SRS server"
+echo "\" make help \" to get some help"
 
