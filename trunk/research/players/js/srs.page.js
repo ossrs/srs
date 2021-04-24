@@ -61,20 +61,20 @@ function is_default_port(schema, port) {
 
 /**
 @param server the ip of server. default to window.location.hostname
-@param vhost the vhost of rtmp. default to window.location.hostname
-@param port the port of rtmp. default to 1935
-@param app the app of rtmp. default to live.
-@param stream the stream of rtmp. default to livestream.
+@param vhost the vhost of HTTP-FLV. default to window.location.hostname
+@param port the port of HTTP-FLV. default to 1935
+@param app the app of HTTP-FLV. default to live.
+@param stream the stream of HTTP-FLV. default to livestream.flv
 */
-function build_default_rtmp_url() {
+function build_default_flv_url() {
     var query = parse_query_string();
 
-    var schema = (!query.schema)? "rtmp":query.schema;
+    var schema = (!query.schema)? "http":query.schema;
     var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.port)? (schema==="http"? 80:1935) : Number(query.port);
+    var port = (!query.port)? (schema==="http"? 8080:1935) : Number(query.port);
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
-    var stream = (!query.stream)? "livestream":query.stream;
+    var stream = (!query.stream)? "livestream.flv":query.stream;
 
     var queries = [];
     if (server !== vhost && vhost !== "__defaultVhost__") {
@@ -147,14 +147,14 @@ function build_default_rtc_url(query) {
 
 /**
 * initialize the page.
-* @param rtmp_url the div id contains the rtmp stream url to play
+* @param flv_url the div id contains the flv stream url to play
 * @param hls_url the div id contains the hls stream url to play
 * @param modal_player the div id contains the modal player
 */
-function srs_init_rtmp(rtmp_url, modal_player) {
+function srs_init_flv(flv_url, modal_player) {
     update_nav();
-    if (rtmp_url) {
-        $(rtmp_url).val(build_default_rtmp_url());
+    if (flv_url) {
+        $(flv_url).val(build_default_flv_url());
     }
     if (modal_player) {
         $(modal_player).width(srs_get_player_modal() + "px");
