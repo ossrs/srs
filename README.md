@@ -14,18 +14,13 @@ SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC
 <a name="product"></a>
 ## Usage
 
-Recommend to run SRS by [docker][docker-srs3]:
+Recommend running SRS by [docker][docker-srs3], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
 
 ```bash
 docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
 ```
 
-> Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
-> `ossrs/srs:v3.0-r3` for tag [v3.0-r3](https://github.com/ossrs/srs/releases/tag/v3.0-r3), 
-> please check at [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images) 
-> or [there](https://hub.docker.com/r/ossrs/srs/tags).
-
-If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
+Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
