@@ -17,6 +17,8 @@ MIPS=NO
 #
 EMBEDED=NO
 JOBS=1
+#
+SRS_CONSOLE=
 
 ##################################################################################
 ##################################################################################
@@ -26,8 +28,8 @@ for option
 do
     case "$option" in
         -*=*) 
-            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/~]*||'`
         ;;
            *) value="" ;;
     esac
@@ -41,6 +43,7 @@ do
         --arm)                          ARM=YES                   ;;
         --pi)                           PI=YES                    ;;
         --jobs)                         JOBS=$value               ;;
+        --console)                      SRS_CONSOLE=$value        ;;
 
         *)
             echo "$0: error: invalid option \"$option\", @see $0 --help"
@@ -59,6 +62,8 @@ if [ $help = yes ]; then
   --pi                     for pi platform, configure/make/package.
   --x86-64                 alias for --x86-x64.
   --jobs                   Set the configure and make jobs.
+
+  --console                The path for https://github.com/ossrs/srs-console
 END
     exit 0
 fi
@@ -150,6 +155,16 @@ ok_msg "start install srs"
 ) >> $log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install srs failed"; exit $ret; fi
 ok_msg "install srs success"
+
+# Copy srs-console
+if [[ $SRS_CONSOLE != "" ]]; then
+    HTTP_HOME="objs/nginx/html/"
+    CONSOLE_HOME="trunk/research/console"
+    cp -R $SRS_CONSOLE/index.html ${package_dir}/${INSTALL}/${HTTP_HOME} >> $log 2>&1
+    cp -R $SRS_CONSOLE/${CONSOLE_HOME} ${package_dir}/${INSTALL}/${HTTP_HOME} >> $log 2>&1
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy console files failed"; exit $ret; fi
+    ok_msg "copy console files success"
+fi
 
 # copy extra files to package.
 ok_msg "start copy extra files to package"
