@@ -268,6 +268,8 @@ Other documents:
 
 ## V3 changes
 
+* <strong>v3.0, 2021-04-24, [3.0 release4(3.0.159)][r3.0r4] released. 122750 lines.</strong>
+* v3.0, 2021-04-24, Package srs-console to zip and docker. 3.0.159
 * v3.0, 2021-03-05, Refine usage to docker by default. 3.0.158
 * v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
 * <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
@@ -903,6 +905,7 @@ Other documents:
 
 ## Releases
 
+* 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.159, 122750 lines.
 * 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
 * 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
 * 2020-10-10, [Release v3.0-r1][r3.0r1], 3.0 release1, 3.0.144, 122674 lines.
@@ -1893,6 +1896,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0r4]: https://github.com/ossrs/srs/releases/tag/v3.0-r4
 [r3.0r3]: https://github.com/ossrs/srs/releases/tag/v3.0-r3
 [r3.0r2]: https://github.com/ossrs/srs/releases/tag/v3.0-r2
 [r3.0r1]: https://github.com/ossrs/srs/releases/tag/v3.0-r1
