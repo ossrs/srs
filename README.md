@@ -28,13 +28,11 @@ docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200k
   -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 
-Play the following streams by players:
+Play the following streams by [players](https://ossrs.net):
 
 * VLC(RTMP): rtmp://localhost/live/livestream
 * H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
 * H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
-
-> The online demos and players are available on [ossrs.net](https://ossrs.net).
 
 It's also very easy to build from source:
 
