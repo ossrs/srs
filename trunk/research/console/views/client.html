@@ -1,0 +1,25 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    客户端-{{client.id}}
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    <p>ID: {{client.id}}</p>
+                    <p>IP: {{client.ip}}</p>
+                    <p><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + client.vhost)">{{client.vhost}}</a></p>
+                    <p><a href="javascript:void(0)" ng-click="gogogo('/streams/' + client.stream)">{{client.stream}}</a></p>
+                    <p>Type: {{client.publish| sc_filter_ctype}}</p>
+                    <p>Alive: {{client.alive| sc_filter_time}}</p>
+                    <p>TcUrl: {{client.tcUrl}}</p>
+                    <p>PageUrl: {{client.pageUrl}}</p>
+                    <p>SwfUrl: {{client.swfUrl}}</p>
+                    <p><a ng-click="kickoff(client)" href="javascript:void(0)">踢Ta</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

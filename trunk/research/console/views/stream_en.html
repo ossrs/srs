@@ -1,0 +1,27 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    Stream-{{stream.id}}
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse in">
+                <div class="accordion-inner" ng-if="stream">
+                    <p>ID: {{stream.id}}</p>
+                    <p>Name: {{stream.name}}</p>
+                    <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + stream.vhost)">{{owner.name}}</a></td>
+                    <p>Publishing: {{stream.publish.active| sc_filter_has_stream}}</p>
+                    <p>Clients: {{stream.clients}} Clients</p>
+                    <p>Recv: {{stream.kbps.recv_30s| sc_filter_bitrate_k}}</p>
+                    <p>Send: {{stream.kbps.send_30s| sc_filter_bitrate_k}}</p>
+                    <p ng-if="stream.video">Video: <span>{{stream.video| sc_filter_video}}</span></p>
+                    <p ng-if="stream.audio">Audio: <span>{{stream.audio| sc_filter_audio}}</span></p>
+                    <p>Manage:  <a ng-href="{{stream| sc_filter_preview_url}}" target="_blank">Preview</a></p>
+                    <p ng-show="stream.publish.active">Manage: <a ng-click="kickoff(stream)" href="javascript:void(0)">Kickoff</a></p>
+                    <p ng-show="support_raw_api">Manage: <a ng-click="dvr(stream)" href="javascript:void(0)">Record</a> </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
