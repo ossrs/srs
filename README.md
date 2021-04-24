@@ -170,7 +170,7 @@ Other documents:
 ## V3 changes
 
 * <strong>v3.0, 2021-04-24, [3.0 release4(3.0.159)][r3.0r4] released. 122750 lines.</strong>
-* v3.0, 2021-04-24, Package srs-console to zip and docker. 3.0.159
+* v3.0, 2021-04-24, Add srs-console to research/console. 3.0.159
 * v3.0, 2021-03-05, Refine usage to docker by default. 3.0.158
 * v3.0, 2021-01-07, Change id from int to string for the statistics. 3.0.157
 * <strong>v3.0, 2021-01-02, [3.0 release3(3.0.156)][r3.0r3] released. 122736 lines.</strong>
