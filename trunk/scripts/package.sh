@@ -26,8 +26,8 @@ for option
 do
     case "$option" in
         -*=*) 
-            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/~]*||'`
         ;;
            *) value="" ;;
     esac
@@ -59,6 +59,8 @@ if [ $help = yes ]; then
   --pi                     for pi platform, configure/make/package.
   --x86-64                 alias for --x86-x64.
   --jobs                   Set the configure and make jobs.
+
+  --console                The path for https://github.com/ossrs/srs-console
 END
     exit 0
 fi
@@ -150,6 +152,18 @@ ok_msg "start install srs"
 ) >> $log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install srs failed"; exit $ret; fi
 ok_msg "install srs success"
+
+# Copy srs-console
+HTTP_HOME="${package_dir}/${INSTALL}/objs/nginx/html/"
+(
+  cp $work_dir/research/api-server/static-dir/index.html ${HTTP_HOME} &&
+  cp $work_dir/research/api-server/static-dir/favicon.ico ${HTTP_HOME} &&
+  cp $work_dir/research/api-server/static-dir/crossdomain.xml ${HTTP_HOME} &&
+  cp -R $work_dir/research/players ${HTTP_HOME} &&
+  cp -R $work_dir/research/console ${HTTP_HOME}
+) >> $log 2>&1
+ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy utilities failed"; exit $ret; fi
+ok_msg "copy utilities success"
 
 # copy extra files to package.
 ok_msg "start copy extra files to package"

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html ng-app="scApp">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>SRS控制台</title>
+    <link rel="stylesheet" type="text/css" href="js/3rdparty/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="js/srs.console.css"/>
+    <style>
+        body {
+            padding-top: 50px;
+        }
+    </style>
+    <script type="text/javascript" src="js/3rdparty/angular.min.js"></script>
+    <script type="text/javascript" src="js/3rdparty/angular-route.min.js"></script>
+    <script type="text/javascript" src="js/3rdparty/angular-resource.min.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+    <script type="text/javascript" src="js/bravo_alert/alert.js"></script>
+    <script type="text/javascript" src="js/bravo_popover/popover.js"></script>
+    <script type="text/javascript" src="js/srs.cn.js"></script>
+    <script type="text/javascript" src="js/srs.console.js"></script>
+</head>
+<body ng-controller="CSCMain">
+<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/console/cnindex'/>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container">
+                <a class="brand" href="https://github.com/ossrs/srs" target="_blank">SRS</a>
+                <ul class="nav">
+                    <li class="{{'/console'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/connect')">连接SRS</a></li>
+                    <li class="{{'/summaries'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/summaries')">概览</a></li>
+                    <li class="{{'/vhosts'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/vhosts')">虚拟主机(Vhosts)</a></li>
+                    <li class="{{'/streams'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/streams')">视频流</a></li>
+                    <li class="{{'/clients'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/clients')">客户端</a></li>
+                    <li class="{{'/configs'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/configs')">配置</a></li>
+                    <li class="{{'/dvr'| sc_filter_nav_active}}"><a href="javascript:void(0)" ng-click="gogogo('/dvr')">DVR</a></li>
+                    <li><a href="javascript:void(0)" ng-click="redirect('ng_index.html', 'en_index.html')">English</a></li>
+                    <li>
+                        <a href="https://github.com/ossrs/srs-console">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/srs-console?style=social">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div ng-view></div>
+        <div bravo-alert ng-repeat="log in logs" class="alert fade in {{log.level|sc_filter_log_level}}">
+            <button type="button" class="close" data-dismiss="alert">×</button>
+            <strong>{{log.level}}:</strong> {{log.msg}}
+        </div>
+    </div>
+    <footer class="footer">
+        <div class="container">
+            <ul class="footer-links">
+                <li>&copy; SRS 2020</li>
+                <li class="muted">|</li>
+                <li><a href="http://ossrs.net/" target="_blank">Releases</a></li>
+                <li class="muted">|</li>
+                <li><a href="https://github.com/ossrs/srs" target="_blank">SRS</a></li>
+                <li class="muted">|</li>
+                <li><a href="https://github.com/ossrs/srs-console" target="_blank">Github</a></li>
+            </ul>
+        </div>
+    </footer>
+</body>
+</html>
+

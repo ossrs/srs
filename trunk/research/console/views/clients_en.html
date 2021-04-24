@@ -1,0 +1,39 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading" sc-collapse="in">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    System Clients
+                </a>
+            </div>
+            <div id="collapseOne" class="accordion-body collapse">
+                <div class="accordion-inner">
+                    <table class="table table-striped table-bordered">
+                        <tr>
+                            <th>ID</th>
+                            <th>IP</th>
+                            <th>Vhost</th>
+                            <th>Stream</th>
+                            <th>Type</th>
+                            <th>Duration</th>
+                            <th>TcUrl</th>
+                            <th>Manage</th>
+                        </tr>
+                        <tr ng-repeat="client in clients">
+                            <td><a href="javascript:void(0)" ng-click="gogogo('/clients/' + client.id)">{{client.id}}</a></td>
+                            <td>{{client.ip}}</td>
+                            <td><a href="javascript:void(0)" ng-click="gogogo('/vhosts/' + client.vhost)">{{client.vhost}}</a></td>
+                            <td><a href="javascript:void(0)" ng-click="gogogo('/streams/' + client.stream)">{{client.stream}}</a></td>
+                            <td>{{client.publish| sc_filter_ctype}}</td>
+                            <td>{{client.alive| sc_filter_time}}</td>
+                            <td>{{client.tcUrl}}</td>
+                            <td>
+                                <a ng-click="kickoff(client)" href="javascript:void(0)">Kickoff It</a>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

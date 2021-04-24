@@ -46,7 +46,7 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
-SRS_CHERRYPY=YES
+SRS_CHERRYPY=NO
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.

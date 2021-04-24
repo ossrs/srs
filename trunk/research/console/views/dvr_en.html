@@ -1,0 +1,62 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    Vhost({{global.vid.value}}) DVR Config
+                </a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                            <th>Description</th>
+                            <th>Opt</th>
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.name" scp-link="#/vhosts/{{global.id.value}}"
+                            scp-desc="The vhost name to DVR.">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.app"
+                            scp-desc="The app name to DVR.">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.stream" scp-link="#/streams/{{global.sid.value}}"
+                            scp-desc="The stream url to DVR.">
+                        </tr>
+                        <tr sc-directive scd-data="global.dvr.apply" scd-span="span4"
+                            scd-desc="Whether record this stream."
+                            scd-default="false" scd-bool="true"
+                            scd-submit="dvr(global.dvr.apply)"
+                            ng-show="global.dvr.enabled.value">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.enabled"
+                            scp-desc="Whether enable DVR for vhost. Default is {{false| sc_filter_yesno}}"
+                            scp-bool="true">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.dvr_plan"
+                            scp-desc="The DVR plan, can be session, segment or append. Default is session."
+                            ng-show="global.dvr.enabled.value">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.dvr_path"
+                            scp-desc="The DVR file path template. Default is ./objs/nginx/html/[app]/[stream].[timestamp].flv"
+                            ng-show="global.dvr.enabled.value">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.dvr_duration"
+                            scp-desc="The DVR file duration in seconds. Default is 30"
+                            ng-show="global.dvr.enabled.value && global.dvr.dvr_plan && global.dvr.dvr_plan.value == 'segment'">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.dvr_wait_keyframe"
+                            scp-desc="Whether wait for keyframe when DVR. Default is {{true| sc_filter_yesno}}"
+                            ng-show="global.dvr.enabled.value && global.dvr.dvr_plan && global.dvr.dvr_plan.value == 'segment'">
+                        </tr>
+                        <tr sc-pretty2 scp-data="global.dvr.time_jitter"
+                            scp-desc="The time jitter algorithm for DVR, can be full, zero or off. Default is full."
+                            ng-show="global.dvr.enabled.value">
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
