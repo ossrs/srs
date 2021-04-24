@@ -17,12 +17,7 @@ SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC
 Recommend to run SRS by [docker][docker-srs3]:
 
 ```bash
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    ossrs/srs:3
-
-# Or, for developers in China to speedup.
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:3
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
 ```
 
 > Note: All [tags](https://github.com/ossrs/srs/tags) are available, such as 
@@ -34,13 +29,8 @@ If it works, open [http://localhost:8080/](http://localhost:8080/) to check it, 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
 
 ```bash
-ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy \
-    -f flv rtmp://localhost/live/livestream
-
-# Or by FFmpeg docker
-docker run --rm --network=host registry.cn-hangzhou.aliyuncs.com/ossrs/srs:encoder \
-  ffmpeg -re -i ./doc/source.200kbps.768x320.flv -c copy \
-      -f flv -y rtmp://localhost/live/livestream
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+  -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 
 Play the following streams by players:
@@ -50,15 +40,6 @@ Play the following streams by players:
 * H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
 
 > The online demos and players are available on [ossrs.net](https://ossrs.net).
-
-Strongly recommend reading bellow wikis:
-
-* How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
-* How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
-* How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
-* How to deliver HTTP-FLV streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
-* How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
-* How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 
 It's also very easy to build from source:
 
@@ -87,6 +68,15 @@ git checkout 3.0release && git pull
 ```
 ./objs/srs -c conf/srs.conf
 ```
+
+Strongly recommend reading bellow wikis:
+
+* How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
+* How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
+* How to deliver HTTP-FLV streaming?([CN][v3_CN_SampleHttpFlv], [EN][v3_EN_SampleHttpFlv])
+* How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
+* How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 
 <a name="srs-30-wiki"></a>
 <a name="wiki"></a>
