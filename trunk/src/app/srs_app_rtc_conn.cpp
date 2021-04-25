@@ -999,6 +999,7 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     source->set_publish_stream(this);
 
     // Bridge to rtmp
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req->vhost);
     if (rtc_to_rtmp) {
         SrsSource *rtmp = NULL;
@@ -1019,6 +1020,7 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
 
         source->set_bridger(bridger);
     }
+#endif
 
     return err;
 }
