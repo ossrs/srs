@@ -50,9 +50,9 @@
 /* How much space to leave between the stacks, at each end */
 #define REDZONE	_ST_PAGE_SIZE
 
-_st_clist_t _st_free_stacks = ST_INIT_STATIC_CLIST(&_st_free_stacks);
-int _st_num_free_stacks = 0;
-int _st_randomize_stacks = 0;
+__thread _st_clist_t _st_free_stacks;
+__thread int _st_num_free_stacks = 0;
+__thread int _st_randomize_stacks = 0;
 
 static char *_st_new_stk_segment(int size);
 

@@ -264,9 +264,9 @@ typedef struct _st_netfd {
  * Current vp, thread, and event system
  */
 
-extern _st_vp_t        _st_this_vp;
-extern _st_thread_t *_st_this_thread;
-extern _st_eventsys_t *_st_eventsys;
+extern __thread _st_vp_t        _st_this_vp;
+extern __thread _st_thread_t *_st_this_thread;
+extern __thread _st_eventsys_t *_st_eventsys;
 
 #define _ST_CURRENT_THREAD()            (_st_this_thread)
 #define _ST_SET_CURRENT_THREAD(_thread) (_st_this_thread = (_thread))

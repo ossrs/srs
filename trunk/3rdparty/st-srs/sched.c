@@ -54,31 +54,33 @@
 
 // Global stat.
 #if defined(DEBUG) && defined(DEBUG_STATS)
-unsigned long long _st_stat_sched_15ms = 0;
-unsigned long long _st_stat_sched_20ms = 0;
-unsigned long long _st_stat_sched_25ms = 0;
-unsigned long long _st_stat_sched_30ms = 0;
-unsigned long long _st_stat_sched_35ms = 0;
-unsigned long long _st_stat_sched_40ms = 0;
-unsigned long long _st_stat_sched_80ms = 0;
-unsigned long long _st_stat_sched_160ms = 0;
-unsigned long long _st_stat_sched_s = 0;
+__thread unsigned long long _st_stat_sched_15ms = 0;
+__thread unsigned long long _st_stat_sched_20ms = 0;
+__thread unsigned long long _st_stat_sched_25ms = 0;
+__thread unsigned long long _st_stat_sched_30ms = 0;
+__thread unsigned long long _st_stat_sched_35ms = 0;
+__thread unsigned long long _st_stat_sched_40ms = 0;
+__thread unsigned long long _st_stat_sched_80ms = 0;
+__thread unsigned long long _st_stat_sched_160ms = 0;
+__thread unsigned long long _st_stat_sched_s = 0;
 
-unsigned long long _st_stat_thread_run = 0;
-unsigned long long _st_stat_thread_idle = 0;
-unsigned long long _st_stat_thread_yield = 0;
-unsigned long long _st_stat_thread_yield2 = 0;
+__thread unsigned long long _st_stat_thread_run = 0;
+__thread unsigned long long _st_stat_thread_idle = 0;
+__thread unsigned long long _st_stat_thread_yield = 0;
+__thread unsigned long long _st_stat_thread_yield2 = 0;
 #endif
 
 
 /* Global data */
-_st_vp_t _st_this_vp;           /* This VP */
-_st_thread_t *_st_this_thread;  /* Current thread */
-int _st_active_count = 0;       /* Active thread count */
+__thread _st_vp_t _st_this_vp;           /* This VP */
+__thread _st_thread_t *_st_this_thread;  /* Current thread */
+__thread int _st_active_count = 0;       /* Active thread count */
 
-time_t _st_curr_time = 0;       /* Current time as returned by time(2) */
-st_utime_t _st_last_tset;       /* Last time it was fetched */
+__thread time_t _st_curr_time = 0;       /* Current time as returned by time(2) */
+__thread st_utime_t _st_last_tset;       /* Last time it was fetched */
 
+// We should initialize the thread-local variable in st_init().
+extern __thread _st_clist_t _st_free_stacks;
 
 int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
 {
@@ -165,7 +167,7 @@ void _st_vp_schedule(void)
 int st_init(void)
 {
     _st_thread_t *thread;
-    
+
     if (_st_active_count) {
         /* Already initialized */
         return 0;
@@ -176,7 +178,11 @@ int st_init(void)
     
     if (_st_io_init() < 0)
         return -1;
-    
+
+    // Initialize the thread-local variables.
+    ST_INIT_CLIST(&_st_free_stacks);
+
+    // Initialize ST.
     memset(&_st_this_vp, 0, sizeof(_st_vp_t));
     
     ST_INIT_CLIST(&_ST_RUNQ);
@@ -711,8 +717,8 @@ int _st_iterate_threads_flag = 0;
 
 void _st_iterate_threads(void)
 {
-    static _st_thread_t *thread = NULL;
-    static jmp_buf orig_jb, save_jb;
+    static __thread _st_thread_t *thread = NULL;
+    static __thread jmp_buf orig_jb, save_jb;
     _st_clist_t *q;
     
     if (!_st_iterate_threads_flag) {

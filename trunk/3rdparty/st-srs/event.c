@@ -49,10 +49,10 @@
 
 // Global stat.
 #if defined(DEBUG) && defined(DEBUG_STATS)
-unsigned long long _st_stat_epoll = 0;
-unsigned long long _st_stat_epoll_zero = 0;
-unsigned long long _st_stat_epoll_shake = 0;
-unsigned long long _st_stat_epoll_spin = 0;
+__thread unsigned long long _st_stat_epoll = 0;
+__thread unsigned long long _st_stat_epoll_zero = 0;
+__thread unsigned long long _st_stat_epoll_shake = 0;
+__thread unsigned long long _st_stat_epoll_spin = 0;
 #endif
 
 #if !defined(MD_HAVE_KQUEUE) && !defined(MD_HAVE_EPOLL)
@@ -67,7 +67,7 @@ typedef struct _kq_fd_data {
     int revents;
 } _kq_fd_data_t;
 
-static struct _st_kqdata {
+static __thread struct _st_kqdata {
     _kq_fd_data_t *fd_data;
     struct kevent *evtlist;
     struct kevent *addlist;
@@ -99,7 +99,7 @@ typedef struct _epoll_fd_data {
     int revents;
 } _epoll_fd_data_t;
 
-static struct _st_epolldata {
+static __thread struct _st_epolldata {
     _epoll_fd_data_t *fd_data;
     struct epoll_event *evtlist;
     int fd_data_size;
@@ -127,7 +127,7 @@ static struct _st_epolldata {
 
 #endif  /* MD_HAVE_EPOLL */
 
-_st_eventsys_t *_st_eventsys = NULL;
+__thread _st_eventsys_t *_st_eventsys = NULL;
 
 
 #ifdef MD_HAVE_KQUEUE
