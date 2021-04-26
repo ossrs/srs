@@ -33,6 +33,12 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_threads.hpp>
+
+#include <srs_protocol_kbps.hpp>
+
+extern __thread SrsPps* _srs_pps_snack3;
+extern __thread SrsPps* _srs_pps_snack4;
 
 SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
 {
@@ -228,6 +234,12 @@ SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
 
 void SrsRtpNackForReceiver::insert(uint16_t first, uint16_t last)
 {
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_high_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return;
+    }
+
     for (uint16_t s = first; s != last; ++s) {
         queue_[s] = SrsRtpNackInfo();
     }
@@ -259,6 +271,13 @@ void SrsRtpNackForReceiver::check_queue_size()
 
 void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_nacks)
 {
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_high_water_level()) {
+        queue_.clear();
+        ++_srs_pps_snack4->sugar;
+        return;
+    }
+
     srs_utime_t now = srs_get_system_time();
 
     srs_utime_t interval = now - pre_check_time_;
@@ -294,6 +313,8 @@ void SrsRtpNackForReceiver::get_nack_seqs(SrsRtcpNack& seqs, uint32_t& timeout_n
             ++nack_info.req_nack_count_;
             nack_info.pre_req_nack_time_ = now;
             seqs.add_lost_sn(seq);
+
+            ++_srs_pps_snack3->sugar;
         }
 
         ++iter;

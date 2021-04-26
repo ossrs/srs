@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_threads.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -65,20 +66,20 @@ using namespace std;
 
 // pre-declare
 srs_error_t run_directly_or_daemon();
-srs_error_t run_hybrid_server();
+srs_error_t run_in_thread_pool();
 void show_macro_features();
 
 // @global log and context.
+// It SHOULD be thread-safe, because it use async log and thread-local buffer.
 ISrsLog* _srs_log = new SrsFileLog();
+// It SHOULD be thread-safe, because it use thread-local thread private data.
 ISrsContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
+// TODO: FIXME: It should be thread-local or thread-safe.
 SrsConfig* _srs_config = new SrsConfig();
 
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
-
-// @global main SRS server, for debugging
-SrsServer* _srs_server = NULL;
 
 /**
  * main entrance.
@@ -86,7 +87,15 @@ SrsServer* _srs_server = NULL;
 srs_error_t do_main(int argc, char** argv)
 {
     srs_error_t err = srs_success;
-    
+
+    // Initialize thread-local variables.
+    if ((err = SrsThreadPool::setup()) != srs_success) {
+        return srs_error_wrap(err, "thread init");
+    }
+
+    // For background context id.
+    _srs_context->set_id(_srs_context->generate_id());
+
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -129,6 +138,11 @@ srs_error_t do_main(int argc, char** argv)
     }
     if ((err = _srs_config->initialize_cwd()) != srs_success) {
         return srs_error_wrap(err, "config cwd");
+    }
+
+    // We must initialize the async log manager before log init.
+    if ((err = _srs_async_log->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init async log");
     }
     
     // config parsed, initialize log.
@@ -214,14 +228,16 @@ srs_error_t do_main(int argc, char** argv)
     return err;
 }
 
-int main(int argc, char** argv) {
-    // For background context id.
-    _srs_context->set_id(_srs_context->generate_id());
-
+int main(int argc, char** argv)
+{
     srs_error_t err = do_main(argc, argv);
 
+    // Because we are exiting, and it's impossible to notify the async log thread
+    // to write the error log, so we print to stderr instead.
+    // TODO: FIXME: Should we flush the async log cache?
     if (err != srs_success) {
-        srs_error("Failed, %s", srs_error_desc(err).c_str());
+        fprintf(stderr, "Failed, ts=%" PRId64 ", err is %s\n", srs_update_system_time(),
+            srs_error_desc(err).c_str());
     }
     
     int ret = srs_error_code(err);
@@ -415,7 +431,7 @@ srs_error_t run_directly_or_daemon()
     
     // If not daemon, directly run hybrid server.
     if (!run_as_daemon) {
-        if ((err = run_hybrid_server()) != srs_success) {
+        if ((err = run_in_thread_pool()) != srs_success) {
             return srs_error_wrap(err, "run hybrid");
         }
         return srs_success;
@@ -452,16 +468,52 @@ srs_error_t run_directly_or_daemon()
     // son
     srs_trace("son(daemon) process running.");
     
-    if ((err = run_hybrid_server()) != srs_success) {
+    if ((err = run_in_thread_pool()) != srs_success) {
         return srs_error_wrap(err, "daemon run hybrid");
     }
     
     return err;
 }
 
-srs_error_t run_hybrid_server()
+srs_error_t run_hybrid_server(void* arg);
+srs_error_t run_in_thread_pool()
 {
     srs_error_t err = srs_success;
+
+    if ((err = _srs_thread_pool->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init thread pool");
+    }
+
+    // After all init(log, async log manager, thread pool), now we can start to
+    // run the log manager thread.
+    if ((err = _srs_thread_pool->execute("log", SrsAsyncLogManager::start, _srs_async_log)) != srs_success) {
+        return srs_error_wrap(err, "start async log thread");
+    }
+
+    // Start a number of hybrid service threads.
+    int hybrids = _srs_config->get_threads_hybrids();
+    for (int stream_index = 0; stream_index < hybrids; stream_index++) {
+        // TODO: FIXME: Change the thread name for debugging?
+        // Start the hybrid service worker thread, for RTMP and RTC server, etc.
+        if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)(uint64_t)stream_index)) != srs_success) {
+            return srs_error_wrap(err, "start hybrid server %d thread", stream_index);
+        }
+    }
+
+    srs_trace("Pool: Start threads hybrids=%d", hybrids);
+
+    return _srs_thread_pool->run();
+}
+
+// TODO: FIXME: Extract to hybrid server.
+srs_error_t run_hybrid_server(void* arg)
+{
+    srs_error_t err = srs_success;
+
+    // The config index for hybrid/stream server.
+    int stream_index = (int)(uint64_t)arg;
+    _srs_hybrid->set_stream_index(stream_index);
+    srs_assert(_srs_hybrid->stream_index() >= 0);
 
     // Create servers and register them.
     _srs_hybrid->register_server(new SrsServerAdapter());
@@ -475,8 +527,15 @@ srs_error_t run_hybrid_server()
 #endif
 
     // Do some system initialize.
+    // TODO: FIXME: If fail, for example, acquire pid fail, should exit.
     if ((err = _srs_hybrid->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
+    }
+
+    // Initialize the circuit breaker, which depends on hybrid timer.
+    // TODO: Enable the circuit breaker for API and LOG threads.
+    if ((err = _srs_circuit_breaker->initialize()) != srs_success) {
+        return srs_error_wrap(err, "circuit breaker init");
     }
 
     // Should run util hybrid servers all done.
@@ -484,6 +543,7 @@ srs_error_t run_hybrid_server()
         return srs_error_wrap(err, "hybrid run");
     }
 
+    // TODO: FIXME: Crash if hybrid run fail, for example, listen failed.
     // After all done, stop and cleanup.
     _srs_hybrid->stop();
 

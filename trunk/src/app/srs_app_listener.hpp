@@ -162,9 +162,20 @@ private:
 public:
     SrsUdpMuxSocket(srs_netfd_t fd);
     virtual ~SrsUdpMuxSocket();
+private:
+    ISrsUdpMuxHandler* handler_;
+public:
+    // SrsUdpMuxSocket::set_handler
+    void set_handler(ISrsUdpMuxHandler* h) { handler_ = h; }
+    // SrsUdpMuxSocket::handler
+    ISrsUdpMuxHandler* handler() { return handler_; }
 public:
     int recvfrom(srs_utime_t timeout);
+private:
+    int on_recvfrom();
+public:
     srs_error_t sendto(void* data, int size, srs_utime_t timeout);
+public:
     srs_netfd_t stfd();
     sockaddr_in* peer_addr();
     socklen_t peer_addrlen();
@@ -176,6 +187,8 @@ public:
     uint64_t fast_id();
     SrsBuffer* buffer();
     SrsUdpMuxSocket* copy_sendonly();
+public:
+    SrsUdpMuxSocket* copy();
 };
 
 class SrsUdpMuxListener : public ISrsCoroutineHandler

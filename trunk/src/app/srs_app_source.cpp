@@ -1684,7 +1684,7 @@ srs_error_t SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
     return vformat->on_video(msg);
 }
 
-SrsSourceManager* _srs_sources = new SrsSourceManager();
+__thread SrsSourceManager* _srs_sources = NULL;
 
 SrsSourceManager::SrsSourceManager()
 {

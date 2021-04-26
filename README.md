@@ -177,6 +177,8 @@ The ports used by SRS:
 
 ## V5 changes
 
+* v5.0, 2021-04-07, Threads: Support multiple hybrid threads, [#2188](https://github.com/ossrs/srs/issues/2188). 5.0.3
+* v5.0, 2021-03-31, Threads: Support multiple threads with locks, [#2188](https://github.com/ossrs/srs/issues/2188). 5.0.2
 * v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
 * v5.0, 2021-03-15, Init SRS/5. 5.0.0
 
@@ -1119,7 +1121,6 @@ The data for publishing RTMP was benchmarked by [SB][srs-bench]:
 
 The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
-
 |   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
 | ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
 |   2014-05-25  |   2.0.171 |   6.0k(6000)  |   players     |   84%     |   297MB   |   [code][p20] |
@@ -1133,60 +1134,39 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
 
+|   Update      |    Server     | Clients |    Type  |   CPU    | Memory   | Threads | Commit |
+| ------------- | ------------  | ----- | ---------- | -------- | -------- | ----- | --------- |
+|   2021-04-07  |   SRS/5.0.3   | 10000 | publishers | ~90% x 32 |  28GB  | 33   | [#2188](https://github.com/ossrs/srs/issues/2188#issuecomment-816309097) |
+|   2021-04-20  | Janus/0.11.1  | 4000  | publishers | ~90% x 32 |  790MB | 51   | [#2629](https://github.com/meetecho/janus-gateway/pull/2629#issuecomment-822914989) |
+|   2021-04-07  |   SRS/5.0.3   | 3400  | publishers | ~95% x 8 |  6.3GB  | 12   | [#2188](https://github.com/ossrs/srs/issues/2188#issuecomment-816309097) |
+|   2021-04-20  | Janus/0.11.1  | 1500  | publishers | ~95% x 8 |  276MB  | 26   | [#2629](https://github.com/meetecho/janus-gateway/pull/2629#issuecomment-822914989) |
+|   2021-04-07  |   SRS/5.0.3   | 2000  | publishers | ~95% x 4 |  4.1GB  | 8    | [#2188](https://github.com/ossrs/srs/issues/2188#issuecomment-816309097) |
+|   2021-03-31  |   SRS/5.0.2   | 1400  | publishers | ~90% x 4 |  3.1GB  | 6    | [#2188](https://github.com/ossrs/srs/issues/2188#issuecomment-812499542) |
+|   2021-03-31  |   SRS/5.0.2   | 1400  | players    | ~93% x 4 |  1.0GB  | 6    | [#2188](https://github.com/ossrs/srs/issues/2188#issuecomment-812499542) |
+|   2021-04-20  | Janus/0.11.1  | 750   | publishers | ~90% x 4 |  142MB  | 23   | [#2629](https://github.com/meetecho/janus-gateway/pull/2629#issuecomment-822914989) |
+|   2021-04-20  | Janus/0.11.1  | 750   | players    | ~92% x 4 |  283MB  | 23   | [#2629](https://github.com/meetecho/janus-gateway/pull/2629#issuecomment-822914989) |
+|   2021-03-31  |   SRS/4.0.87  | 550   | publishers | ~86% x 1 |  1.3GB  | 1    | |
+|   2021-03-31  |   SRS/4.0.87  | 800   | players    | ~94% x 1 |  444MB  | 1    | |
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Threads | 
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------- |
-|   2021-03-31  |   4.0.87  |   550         |   publishers  |   ~86%     |   1.3GB   | 1      |
-|   2021-03-31  |   4.0.87  |   800         |   players     |   ~94%     |   444MB   | 1      |
-
-> Note: CentOS7, 500Kbps, 4CPU, 2.5 GHz Intel Xeon Platinum 8163/8269CY.
+> Note: The benchmark tool for Janus is [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#janus), and startup script by [janus-docker](https://github.com/winlinvip/janus-docker#usage).
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**
 
 The latency between encoder and player with realtime config([CN][v4_CN_LowLatency], [EN][v4_EN_LowLatency]):
-|   
 
-|   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
-| ------------- | --------- | --------- | --------- | --------- | --------  |
-|   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
-|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
-|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   Update      |    SRS    | Protocol |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
+| ------------- | --------- | --------- | --------- | --------- | --------- | --------  |
+|   2014-12-16  |   2.0.72  | RTMP      |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
+|   2014-12-12  |   2.0.70  | RTMP      |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
+|   2014-12-03  |   1.0.10  | RTMP      |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   2021-04-02  |   4.0.87  | WebRTC    |   x       |   80ms    |   x       |   x       |
 
 > 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
 
 We used FMLE as encoder for benchmark. The latency of server was 0.1s+, 
 and the bottleneck was the encoder. For more information, read 
 [bug #257][bug #257-c0].
-
-<a name="hls-overhead"></a>
-**HLS overhead**
-
-About the overhead of HLS overhead, we compared FFMPEG and SRS.
-
-| Bitrate   |   Duration    |   FLV(KB)     |   HLS(KB)     |   Overhead    |
-| -------   |   --------    |   -------     |   --------    |   ---------   |
-| 275kbps   |   600s        |   11144       |   12756       |   14.46%      |
-| 260kbps   |   1860s       |   59344       |   68004       |   14.59%      |
-| 697kbps   |   60s         |   5116        |   5476        |   7.03%       |
-| 565kbps   |   453s        |   31316       |   33544       |   7.11%       |
-| 565kbps   |   1813s       |   125224      |   134140      |   7.12%       |
-| 861kbps   |   497s        |   52316       |   54924       |   4.98%       |
-| 857kbps   |   1862s       |   195008      |   204768      |   5.00%       |
-| 1301kbps  |   505s        |   80320       |   83676       |   4.17%       |
-| 1312kbps  |   1915s       |   306920      |   319680      |   4.15%       |
-| 2707kbps  |   600s        |   198356      |   204560      |   3.12%       |
-| 2814kbps  |   1800s       |   618456      |   637660      |   3.10%       |
-| 2828kbps  |   60s         |   20716       |   21356       |   3.08%       |
-| 2599kbps  |   307s        |   97580       |   100672      |   3.16%       |
-| 2640kbps  |   1283s       |   413880      |   426912      |   3.14%       |
-| 5254kbps  |   71s         |   45832       |   47056       |   2.67%       |
-| 5147kbps  |   370s        |   195040      |   200280      |   2.68%       |
-| 5158kbps  |   1327s       |   835664      |   858092      |   2.68%       |
-
-The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
-
-The overhead should be larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
 
 ## Architecture
 

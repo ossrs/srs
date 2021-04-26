@@ -61,8 +61,6 @@ public:
 public:
     // Initialize log utilities.
     virtual srs_error_t initialize() = 0;
-    // Reopen the log file for log rotate.
-    virtual void reopen() = 0;
 public:
     // The log for verbose, very verbose information.
     virtual void verbose(const char* tag, SrsContextId context_id, const char* fmt, ...) = 0;
@@ -99,10 +97,10 @@ public:
     virtual const SrsContextId& set_id(const SrsContextId& v) = 0;
 };
 
-// @global User must provides a log object
+// It SHOULD be thread-safe, because it use async log and thread-local buffer.
 extern ISrsLog* _srs_log;
 
-// @global User must implements the LogContext and define a global instance.
+// It SHOULD be thread-safe, because it use thread-local thread private data.
 extern ISrsContext* _srs_context;
 
 // Log style.

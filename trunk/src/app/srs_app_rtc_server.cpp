@@ -45,35 +45,42 @@ using namespace std;
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
 
-extern SrsPps* _srs_pps_rpkts;
-SrsPps* _srs_pps_rstuns = new SrsPps();
-SrsPps* _srs_pps_rrtps = new SrsPps();
-SrsPps* _srs_pps_rrtcps = new SrsPps();
-extern SrsPps* _srs_pps_addrs;
-extern SrsPps* _srs_pps_fast_addrs;
+extern __thread SrsPps* _srs_pps_rpkts;
+__thread SrsPps* _srs_pps_rstuns = NULL;
+__thread SrsPps* _srs_pps_rrtps = NULL;
+__thread SrsPps* _srs_pps_rrtcps = NULL;
+extern __thread SrsPps* _srs_pps_addrs;
+extern __thread SrsPps* _srs_pps_fast_addrs;
 
-extern SrsPps* _srs_pps_spkts;
-extern SrsPps* _srs_pps_sstuns;
-extern SrsPps* _srs_pps_srtcps;
-extern SrsPps* _srs_pps_srtps;
+extern __thread SrsPps* _srs_pps_spkts;
+extern __thread SrsPps* _srs_pps_sstuns;
+extern __thread SrsPps* _srs_pps_srtcps;
+extern __thread SrsPps* _srs_pps_srtps;
 
-extern SrsPps* _srs_pps_ids;
-extern SrsPps* _srs_pps_fids;
-extern SrsPps* _srs_pps_fids_level0;
+extern __thread SrsPps* _srs_pps_ids;
+extern __thread SrsPps* _srs_pps_fids;
+extern __thread SrsPps* _srs_pps_fids_level0;
 
-extern SrsPps* _srs_pps_pli;
-extern SrsPps* _srs_pps_twcc;
-extern SrsPps* _srs_pps_rr;
+extern __thread SrsPps* _srs_pps_pli;
+extern __thread SrsPps* _srs_pps_twcc;
+extern __thread SrsPps* _srs_pps_rr;
 
-extern SrsPps* _srs_pps_snack;
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_sanack;
-extern SrsPps* _srs_pps_svnack;
+extern __thread SrsPps* _srs_pps_snack;
+extern __thread SrsPps* _srs_pps_snack2;
+extern __thread SrsPps* _srs_pps_snack3;
+extern __thread SrsPps* _srs_pps_snack4;
+extern __thread SrsPps* _srs_pps_sanack;
+extern __thread SrsPps* _srs_pps_svnack;
 
-extern SrsPps* _srs_pps_rnack;
-extern SrsPps* _srs_pps_rnack2;
-extern SrsPps* _srs_pps_rhnack;
-extern SrsPps* _srs_pps_rmnack;
+extern __thread SrsPps* _srs_pps_rnack;
+extern __thread SrsPps* _srs_pps_rnack2;
+extern __thread SrsPps* _srs_pps_rhnack;
+extern __thread SrsPps* _srs_pps_rmnack;
+
+extern __thread SrsPps* _srs_pps_rloss;
+extern __thread SrsPps* _srs_pps_sloss;
+extern __thread SrsPps* _srs_pps_aloss;
+extern __thread SrsPps* _srs_pps_aloss2;
 
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
@@ -132,7 +139,7 @@ void SrsRtcBlackhole::sendto(void* data, int len)
     srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
+__thread SrsRtcBlackhole* _srs_blackhole = NULL;
 
 // @global dtls certficate for rtc module.
 SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
@@ -284,6 +291,7 @@ srs_error_t SrsRtcServer::initialize()
     _srs_hybrid->timer5s()->subscribe(this);
 
     // Initialize the black hole.
+    // TODO: FIXME: It should be thread-local or thread-safe.
     if ((err = _srs_blackhole->initialize()) != srs_success) {
         return srs_error_wrap(err, "black hole");
     }
@@ -305,7 +313,8 @@ srs_error_t SrsRtcServer::initialize()
         rtp_cache_enabled, (int)(rtp_cache_pkt_size/1024/1024), _srs_rtp_cache->capacity()/10000,
         (int)(rtp_cache_payload_size/1024/1024), _srs_rtp_raw_cache->capacity()/10000, _srs_rtp_fua_cache->capacity()/10000,
         rtp_msg_cache_enabled, (int)(rtp_msg_cache_msg_size/1024/1024), _srs_rtp_msg_cache_objs->capacity()/10000,
-        (int)(rtp_msg_cache_buffer_size/1024/1024), _srs_rtp_msg_cache_buffers->capacity()/10000);
+        (int)(rtp_msg_cache_buffer_size/1024/1024), _srs_rtp_msg_cache_buffers->capacity()/10000
+    );
 
     return err;
 }
@@ -364,7 +373,7 @@ srs_error_t SrsRtcServer::listen_udp()
         return err;
     }
 
-    int port = _srs_config->get_rtc_server_listen();
+    int port = _srs_config->get_rtc_server_listen(_srs_hybrid->stream_index());
     if (port <= 0) {
         return srs_error_new(ERROR_RTC_PORT, "invalid port=%d", port);
     }
@@ -481,33 +490,11 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
     if (srs_is_dtls((uint8_t*)data, size)) {
         ++_srs_pps_rstuns->sugar;
 
-        return session->on_dtls(data, size);
+        err = session->on_dtls(data, size);
+
+        return err;
     }
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
-}
-
-srs_error_t SrsRtcServer::listen_api()
-{
-    srs_error_t err = srs_success;
-
-    // TODO: FIXME: Fetch api from hybrid manager, not from SRS.
-    SrsHttpServeMux* http_api_mux = _srs_hybrid->srs()->instance()->api_server();
-
-    if ((err = http_api_mux->handle("/rtc/v1/play/", new SrsGoApiRtcPlay(this))) != srs_success) {
-        return srs_error_wrap(err, "handle play");
-    }
-
-    if ((err = http_api_mux->handle("/rtc/v1/publish/", new SrsGoApiRtcPublish(this))) != srs_success) {
-        return srs_error_wrap(err, "handle publish");
-    }
-
-#ifdef SRS_SIMULATOR
-    if ((err = http_api_mux->handle("/rtc/v1/nack/", new SrsGoApiRtcNACK(this))) != srs_success) {
-        return srs_error_wrap(err, "handle nack");
-    }
-#endif
-
-    return err;
 }
 
 srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession)
@@ -580,7 +567,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     // We allows to mock the eip of server.
     if (!ruc->eip_.empty()) {
         string host;
-        int port = _srs_config->get_rtc_server_listen();
+        int port = _srs_config->get_rtc_server_listen(_srs_hybrid->stream_index());
         srs_parse_hostport(ruc->eip_, host, port);
 
         local_sdp.add_candidate(host, port, "host");
@@ -588,7 +575,7 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
-            local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(), "host");
+            local_sdp.add_candidate(candidate_ips[i], _srs_config->get_rtc_server_listen(_srs_hybrid->stream_index()), "host");
         }
         srs_trace("RTC: Use candidates %s", srs_join_vector_string(candidate_ips, ", ").c_str());
     }
@@ -693,9 +680,9 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
     }
 
     string snk_desc;
-    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
-    if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s()) {
-        snprintf(buf, sizeof(buf), ", snk=(%d,a:%d,v:%d,h:%d)", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s());
+    _srs_pps_snack->update(); _srs_pps_snack2->update(); _srs_pps_snack3->update(); _srs_pps_snack4->update(); _srs_pps_sanack->update(); _srs_pps_svnack->update();
+    if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s() || _srs_pps_snack3->r10s() || _srs_pps_snack4->r10s()) {
+        snprintf(buf, sizeof(buf), ", snk=(%d,a:%d,v:%d,h:%d,h3:%d,h4:%d)", _srs_pps_snack->r10s(), _srs_pps_sanack->r10s(), _srs_pps_svnack->r10s(), _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s());
         snk_desc = buf;
     }
 
@@ -706,10 +693,11 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
         rnk_desc = buf;
     }
 
+    // TODO: FIXME: Should move to Hybrid server stat.
     string loss_desc;
-    SrsSnmpUdpStat* s = srs_get_udp_snmp_stat();
-    if (s->rcv_buf_errors_delta || s->snd_buf_errors_delta) {
-        snprintf(buf, sizeof(buf), ", loss=(r:%d,s:%d)", s->rcv_buf_errors_delta, s->snd_buf_errors_delta);
+    _srs_pps_aloss->update(); _srs_pps_aloss2->update();
+    if (_srs_pps_rloss->r1s() || _srs_pps_rloss->r10s() || _srs_pps_sloss->r10s() || _srs_pps_aloss->r10s() || _srs_pps_aloss2->r10s()) {
+        snprintf(buf, sizeof(buf), ", loss=(r:%d/%d,s:%d,a:%d/%d)", _srs_pps_rloss->r1s(), _srs_pps_rloss->r10s(), _srs_pps_sloss->r10s(), _srs_pps_aloss->r10s(), _srs_pps_aloss2->r10s());
         loss_desc = buf;
     }
 
@@ -742,10 +730,6 @@ srs_error_t RtcServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
 
-    if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
-        return srs_error_wrap(err, "rtc dtls certificate initialize");
-    }
-
     if ((err = rtc->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtc server initialize");
     }
@@ -761,10 +745,6 @@ srs_error_t RtcServerAdapter::run()
         return srs_error_wrap(err, "listen udp");
     }
 
-    if ((err = rtc->listen_api()) != srs_success) {
-        return srs_error_wrap(err, "listen api");
-    }
-
     if ((err = _srs_rtc_manager->start()) != srs_success) {
         return srs_error_wrap(err, "start manager");
     }
@@ -776,5 +756,5 @@ void RtcServerAdapter::stop()
 {
 }
 
-SrsResourceManager* _srs_rtc_manager = new SrsResourceManager("RTC", true);
+__thread SrsResourceManager* _srs_rtc_manager = NULL;
 

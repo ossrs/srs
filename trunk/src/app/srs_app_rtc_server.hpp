@@ -61,7 +61,8 @@ public:
     void sendto(void* data, int len);
 };
 
-extern SrsRtcBlackhole* _srs_blackhole;
+// It MUST be thread-local, because it create ST socket.
+extern __thread SrsRtcBlackhole* _srs_blackhole;
 
 // The handler for RTC server to call.
 class ISrsRtcServerHandler
@@ -128,7 +129,6 @@ public:
     // TODO: FIXME: Support reload.
     srs_error_t listen_udp();
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt);
-    srs_error_t listen_api();
 public:
     // Peer start offering, we answer it.
     srs_error_t create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession);
@@ -144,6 +144,7 @@ private:
 // The RTC server adapter.
 class RtcServerAdapter : public ISrsHybridServer
 {
+    friend class SrsHybridServer;
 private:
     SrsRtcServer* rtc;
 public:
@@ -155,8 +156,8 @@ public:
     virtual void stop();
 };
 
-// Manager for RTC connections.
-extern SrsResourceManager* _srs_rtc_manager;
+// It SHOULD be thread-local, because used to find connection for each UDP packet.
+extern __thread SrsResourceManager* _srs_rtc_manager;
 
 #endif
 

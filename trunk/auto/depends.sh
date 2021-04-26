@@ -488,7 +488,11 @@ fi
 # Affected users should upgrade to OpenSSL 1.1.0e. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
-    OPENSSL_OPTIONS="-no-shared -no-threads -DOPENSSL_NO_HEARTBEATS"
+    # Should never disable threads by -no-threads, because we're now multiple threading.
+    # @see https://www.openssl.org/blog/blog/2017/02/21/threads/
+    # @see https://github.com/openssl/openssl/issues/2165
+    # @see https://curl.se/libcurl/c/opensslthreadlock.html
+    OPENSSL_OPTIONS="-no-shared -DOPENSSL_NO_HEARTBEATS"
     OPENSSL_CONFIG="./config"
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
@@ -527,7 +531,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     fi
     #
     # https://wiki.openssl.org/index.php/Compilation_and_Installation#Configure_Options
-    # Already defined: -no-shared -no-threads -no-asm
+    # Already defined: -no-shared -no-asm
     # Should enable:  -no-dtls -no-dtls1 -no-ssl3
     # Might able to disable: -no-ssl2 -no-comp -no-idea -no-hw -no-engine -no-dso -no-err -no-nextprotoneg -no-psk -no-srp -no-ec2m -no-weak-ssl-ciphers
     # Note that we do not disable more features, because no file could be removed.

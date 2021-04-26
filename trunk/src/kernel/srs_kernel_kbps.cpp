@@ -88,12 +88,16 @@ void SrsPps::update(int64_t nn)
 
     srs_utime_t now = clk_->now();
 
+    srs_pps_init(sample_1s_, nn, now);
     srs_pps_init(sample_10s_, nn, now);
     srs_pps_init(sample_30s_, nn, now);
     srs_pps_init(sample_1m_, nn, now);
     srs_pps_init(sample_5m_, nn, now);
     srs_pps_init(sample_60m_, nn, now);
 
+    if (now - sample_1s_.time >= 1 * SRS_UTIME_SECONDS) {
+        srs_pps_update(sample_1s_, nn, now);
+    }
     if (now - sample_10s_.time >= 10 * SRS_UTIME_SECONDS) {
         srs_pps_update(sample_10s_, nn, now);
     }
@@ -116,6 +120,11 @@ int SrsPps::r10s()
     return sample_10s_.rate;
 }
 
+int SrsPps::r1s()
+{
+    return sample_1s_.rate;
+}
+
 SrsWallClock::SrsWallClock()
 {
 }
@@ -129,5 +138,6 @@ srs_utime_t SrsWallClock::now()
     return srs_get_system_time();
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 SrsWallClock* _srs_clock = new SrsWallClock();
 

@@ -372,69 +372,6 @@ VOID TEST(ConfigReloadTest, ReloadPid)
     handler.reset();
 }
 
-VOID TEST(ConfigReloadTest, ReloadLogTank)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank file;"));
-    EXPECT_TRUE(handler.log_tank_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_tank console;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadLogLevel)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level warn;"));
-    EXPECT_TRUE(handler.log_level_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_level trace;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadLogFile)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_file srs.log;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs.log;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs1.log;"));
-    EXPECT_TRUE(handler.log_file_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"srs_log_file srs.log;"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
 VOID TEST(ConfigReloadTest, ReloadPithyPrint)
 {
     MockReloadHandler handler;

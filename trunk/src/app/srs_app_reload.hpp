@@ -39,13 +39,9 @@ public:
     ISrsReloadHandler();
     virtual ~ISrsReloadHandler();
 public:
-    virtual srs_error_t on_reload_utc_time();
     virtual srs_error_t on_reload_max_conns();
     virtual srs_error_t on_reload_listen();
     virtual srs_error_t on_reload_pid();
-    virtual srs_error_t on_reload_log_tank();
-    virtual srs_error_t on_reload_log_level();
-    virtual srs_error_t on_reload_log_file();
     virtual srs_error_t on_reload_pithy_print();
     virtual srs_error_t on_reload_http_api_enabled();
     virtual srs_error_t on_reload_http_api_disabled();

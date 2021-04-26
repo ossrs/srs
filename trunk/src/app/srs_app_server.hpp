@@ -28,6 +28,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
@@ -40,6 +41,8 @@
 #include <srs_app_gb28181_sip.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_rtc_api.hpp>
+#include <srs_app_rtc_sdp.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -56,7 +59,7 @@ class SrsAppCasterFlv;
 class SrsRtspCaster;
 class SrsResourceManager;
 class SrsGb28181Caster;
-
+class SrsThreadPipePair;
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -84,6 +87,17 @@ enum SrsListenerType
     SrsListenerHttpsStream = 9,
 };
 
+// To mux the tcp handler.
+class ISrsTcpMuxHandler
+{
+public:
+    ISrsTcpMuxHandler();
+    virtual ~ISrsTcpMuxHandler();
+public:
+    // Accept the TCP client, which is identified by type.
+    virtual srs_error_t accept_tcp_client(SrsListenerType type, srs_netfd_t stfd) = 0;
+};
+
 // A common tcp listener, for RTMP/HTTP server.
 class SrsListener
 {
@@ -92,9 +106,9 @@ protected:
 protected:
     std::string ip;
     int port;
-    SrsServer* server;
+    ISrsTcpMuxHandler* server;
 public:
-    SrsListener(SrsServer* svr, SrsListenerType t);
+    SrsListener(ISrsTcpMuxHandler* svr, SrsListenerType t);
     virtual ~SrsListener();
 public:
     virtual SrsListenerType listen_type();
@@ -107,7 +121,7 @@ class SrsBufferListener : virtual public SrsListener, virtual public ISrsTcpHand
 private:
     SrsTcpListener* listener;
 public:
-    SrsBufferListener(SrsServer* server, SrsListenerType type);
+    SrsBufferListener(ISrsTcpMuxHandler* server, SrsListenerType type);
     virtual ~SrsBufferListener();
 public:
     virtual srs_error_t listen(std::string ip, int port);
@@ -203,8 +217,7 @@ class SrsSignalManager : public ISrsCoroutineHandler
 private:
     // Per-process pipe which is used as a signal queue.
     // Up to PIPE_BUF/sizeof(int) signals can be queued up.
-    int sig_pipe[2];
-    srs_netfd_t signal_read_stfd;
+    SrsThreadPipePair* pipe_;
 private:
     SrsServer* server;
     SrsCoroutine* trd;
@@ -264,11 +277,9 @@ public:
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
 class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler
     , virtual public ISrsResourceManager, virtual public ISrsCoroutineHandler
-    , virtual public ISrsHourGlass
+    , virtual public ISrsHourGlass, public ISrsTcpMuxHandler
 {
 private:
-    // TODO: FIXME: Extract an HttpApiServer.
-    SrsHttpServeMux* http_api_mux;
     SrsHttpServer* http_server;
     SrsHttpHeartbeat* http_heartbeat;
     SrsIngester* ingester;
@@ -276,11 +287,6 @@ private:
     SrsCoroutine* trd_;
     SrsHourGlass* timer_;
 private:
-    // The pid file fd, lock the file write when server is running.
-    // @remark the init.d script should cleanup the pid file, when stop service,
-    //       for the server never delete the file; when system startup, the pid in pid file
-    //       maybe valid but the process is not SRS, the init.d script will never start server.
-    int pid_fd;
     // All listners, listener manager.
     std::vector<SrsListener*> listeners;
     // Signal manager which convert gignal to io message.
@@ -316,10 +322,8 @@ public:
     virtual srs_error_t initialize(ISrsServerCycle* ch);
     virtual srs_error_t initialize_st();
     virtual srs_error_t initialize_signal();
-    virtual srs_error_t acquire_pid_file();
     virtual srs_error_t listen();
     virtual srs_error_t register_signal();
-    virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
     virtual srs_error_t start();
 // interface ISrsCoroutineHandler
@@ -353,8 +357,6 @@ private:
 private:
     // listen at specified protocol.
     virtual srs_error_t listen_rtmp();
-    virtual srs_error_t listen_http_api();
-    virtual srs_error_t listen_https_api();
     virtual srs_error_t listen_http_stream();
     virtual srs_error_t listen_https_stream();
     virtual srs_error_t listen_stream_caster();
@@ -366,19 +368,11 @@ private:
     virtual void close_listeners(SrsListenerType type);
     // Resample the server kbs.
     virtual void resample_kbps();
-// For internal only
-public:
-    // When listener got a fd, notice server to accept it.
-    // @param type, the client type, used to create concrete connection,
-    //       for instance RTMP connection to serve client.
-    // @param stfd, the client fd in st boxed, the underlayer fd.
-    virtual srs_error_t accept_client(SrsListenerType type, srs_netfd_t stfd);
-    // TODO: FIXME: Fetch from hybrid server manager.
-    virtual SrsHttpServeMux* api_server();
 private:
+    virtual srs_error_t accept_tcp_client(SrsListenerType type, srs_netfd_t stfd);
     virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr);
 // Interface ISrsResourceManager
-public:
+private:
     // A callback for connection to remove itself.
     // When connection thread cycle terminated, callback this to delete connection.
     // @see SrsTcpConnection.on_thread_stop().
@@ -414,6 +408,54 @@ public:
     virtual void stop();
 public:
     virtual SrsServer* instance();
+};
+
+// The HTTP API server.
+class SrsApiServer : public ISrsTcpMuxHandler, public ISrsResourceManager, public ISrsRtcServer
+{
+private:
+    SrsBufferListener* http_;
+    SrsBufferListener* https_;
+    SrsHttpServeMux* http_api_mux_;
+    SrsResourceManager* conn_manager_;
+private:
+    // Key is stream url, value is hybrid thread entry.
+    std::map<std::string, SrsThreadEntry*> hybrids_;
+private:
+    // To process api request one by one.
+    srs_mutex_t lock_;
+public:
+    SrsApiServer();
+    virtual ~SrsApiServer();
+public:
+    virtual srs_error_t initialize();
+private:
+    virtual srs_error_t listen_http_api();
+    virtual srs_error_t listen_https_api();
+private:
+    virtual srs_error_t accept_tcp_client(SrsListenerType type, srs_netfd_t stfd);
+    virtual srs_error_t fd_to_resource(SrsListenerType type, srs_netfd_t stfd, ISrsStartableConneciton** pr);
+    virtual void remove(ISrsResource* c);
+private:
+    virtual srs_error_t http_handle();
+    srs_error_t listen_api();
+private:
+    virtual srs_error_t create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession);
+};
+
+// It's only used in master/srs thread.
+extern SrsApiServer* _srs_api;
+
+// The RTC create session information.
+struct SrsThreadMessageRtcCreateSession
+{
+    // Input.
+    SrsRtcUserConfig* ruc;
+
+    // Output.
+    SrsSdp* local_sdp;
+    // TODO: FIXME: It's not thread-safe.
+    SrsRtcConnection* session;
 };
 
 #endif

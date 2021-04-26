@@ -341,7 +341,12 @@ extern SrsProcSelfStat* srs_get_self_proc_stat();
 // Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSystemStat* srs_get_system_proc_stat();
 // The daemon st-thread will update it.
-extern void srs_update_proc_stat();
+extern void srs_update_system_proc_stat();
+extern void srs_update_self_proc_stat();
+// Get the thread stat of this process.
+extern void srs_update_thread_proc_stat(SrsProcSelfStat* r, pid_t tid);
+// Get the system config USER_HZ.
+extern int srs_user_hz();
 
 // Stat disk iops
 // @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed
@@ -552,12 +557,9 @@ class SrsSnmpUdpStat
 public:
     // Whether the data is ok.
     bool ok;
-    // send and recv buffer error delta
-    int rcv_buf_errors_delta;
-    int snd_buf_errors_delta;
 
 public:
-    // @see: cat /proc/uptimecat /proc/net/snmp|grep 'Udp:'
+    // @see: cat /proc/uptime && cat /proc/net/snmp|grep 'Udp:'
     // @see: https://blog.packagecloud.io/eng/2017/02/06/monitoring-tuning-linux-networking-stack-sending-data/#procnetsnmp
     // InDatagrams: incremented when recvmsg was used by a userland program to read datagram.
     // also incremented when a UDP packet is encapsulated and sent back for processing.

@@ -128,6 +128,7 @@ srs_utime_t srs_get_system_startup_time()
 srs_gettimeofday_t _srs_gettimeofday = (srs_gettimeofday_t)::gettimeofday;
 #endif
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 srs_utime_t srs_update_system_time()
 {
     timeval now;

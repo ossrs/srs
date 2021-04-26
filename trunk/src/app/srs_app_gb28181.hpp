@@ -501,7 +501,7 @@ public:
 
 };
 
-// Global singleton instance.
+// TODO: FIXME: It should be thread-local or thread-safe.
 extern SrsGb28181Manger* _srs_gb28181;
 
 //gb28181 module management, management of all RTMP multiplexers,

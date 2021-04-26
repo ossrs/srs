@@ -70,6 +70,7 @@ srs_error_t srs_st_init()
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
 
+    // TODO: FIXME: Pass the cid of thread.
     // Before ST init, we might have already initialized the background cid.
     SrsContextId cid = _srs_context->get_id();
     if (cid.empty()) {
@@ -454,6 +455,11 @@ srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, sr
 ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout)
 {
     return st_read((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
+}
+
+ssize_t srs_write(srs_netfd_t stfd, const void *buf, size_t nbyte, srs_utime_t timeout)
+{
+    return st_write((st_netfd_t)stfd, buf, nbyte, (st_utime_t)timeout);
 }
 
 bool srs_is_never_timeout(srs_utime_t tm)

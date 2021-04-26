@@ -137,8 +137,8 @@ private:
     virtual SrsRtcStream* fetch(SrsRequest* r);
 };
 
-// Global singleton instance.
-extern SrsRtcStreamManager* _srs_rtc_sources;
+// It SHOULD be thread-local, because stream source is isolated by threads.
+extern __thread SrsRtcStreamManager* _srs_rtc_sources;
 
 // A publish stream interface, for source to callback with.
 class ISrsRtcPublishStream

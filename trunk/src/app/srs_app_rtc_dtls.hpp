@@ -35,6 +35,7 @@
 #include <srs_app_st.hpp>
 
 class SrsRequest;
+class SrsUdpMuxSocket;
 
 class SrsDtlsCertificate
 {
@@ -62,7 +63,7 @@ public:
     bool is_ecdsa();
 };
 
-// @global config object.
+// It's shared global object, MUST be thread-safe.
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
 // @remark: play the role of DTLS_CLIENT, will send handshake
@@ -231,20 +232,20 @@ public:
 
 class SrsSRTP
 {
-private:
+protected:
     srtp_t recv_ctx_;
     srtp_t send_ctx_;
 public:
     SrsSRTP();
     virtual ~SrsSRTP();
 public:
-    // Intialize srtp context with recv_key and send_key.
-    srs_error_t initialize(std::string recv_key, std::string send_key);
+    // Initialize srtp context with recv_key and send_key.
+    virtual srs_error_t initialize(std::string recv_key, std::string send_key);
 public:
-    srs_error_t protect_rtp(void* packet, int* nb_cipher);
-    srs_error_t protect_rtcp(void* packet, int* nb_cipher);
-    srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
-    srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
+    virtual srs_error_t protect_rtp(void* packet, int* nb_cipher);
+    virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher);
+    virtual srs_error_t unprotect_rtp(void* packet, int* nb_plaintext);
+    virtual srs_error_t unprotect_rtcp(void* packet, int* nb_plaintext);
 };
 
 #endif

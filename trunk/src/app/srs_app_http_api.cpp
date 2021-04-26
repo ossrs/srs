@@ -1083,36 +1083,6 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
                 srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
             }
-        } else if (scope == "srs_log_tank") {
-            if (value.empty() || (value != "file" && value != "console")) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_srs_log_tank(value, applied)) != srs_success) {
-                int code = srs_error_code(err);
-                srs_error_reset(err);
-                return srs_api_response_code(w, r, code);
-            }
-        } else if (scope == "srs_log_level") {
-            if (value != "verbose" && value != "info" && value != "trace" && value != "warn" && value != "error") {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_srs_log_level(value, applied)) != srs_success) {
-                int code = srs_error_code(err);
-                srs_error_reset(err);
-                return srs_api_response_code(w, r, code);
-            }
-        } else if (scope == "srs_log_file") {
-            if (value.empty() || !srs_string_starts_with(value, "./", "/tmp/", "/var/") || !srs_string_ends_with(value, ".log")) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_srs_log_file(value, applied)) != srs_success) {
-                int code = srs_error_code(err);
-                srs_error_reset(err);
-                return srs_api_response_code(w, r, code);
-            }
         } else if (scope == "max_connections") {
             int mcv = ::atoi(value.c_str());
             if (mcv < 10 || mcv > 65535 || !srs_is_digit_number(value)) {
@@ -1123,14 +1093,6 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
                 int code = srs_error_code(err);
                 srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
-            }
-        } else if (scope == "utc_time") {
-            if (!srs_is_boolean(value)) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_utc_time(srs_config_bool2switch(value), applied)) != srs_success) {
-                return srs_api_response_code(w, r, srs_error_wrap(err, "raw api update utc_time=%s", value.c_str()));
             }
         } else if (scope == "pithy_print_ms") {
             int ppmv = ::atoi(value.c_str());

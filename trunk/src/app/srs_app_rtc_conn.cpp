@@ -57,24 +57,26 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_threads.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_sstuns = new SrsPps();
-SrsPps* _srs_pps_srtcps = new SrsPps();
-SrsPps* _srs_pps_srtps = new SrsPps();
+__thread SrsPps* _srs_pps_sstuns = NULL;
+__thread SrsPps* _srs_pps_srtcps = NULL;
+__thread SrsPps* _srs_pps_srtps = NULL;
 
-SrsPps* _srs_pps_pli = new SrsPps();
-SrsPps* _srs_pps_twcc = new SrsPps();
-SrsPps* _srs_pps_rr = new SrsPps();
-SrsPps* _srs_pps_pub = new SrsPps();
-SrsPps* _srs_pps_conn = new SrsPps();
+__thread SrsPps* _srs_pps_pli = NULL;
+__thread SrsPps* _srs_pps_twcc = NULL;
+__thread SrsPps* _srs_pps_rr = NULL;
+__thread SrsPps* _srs_pps_pub = NULL;
+__thread SrsPps* _srs_pps_conn = NULL;
 
-extern SrsPps* _srs_pps_snack;
-extern SrsPps* _srs_pps_snack2;
+extern __thread SrsPps* _srs_pps_snack;
+extern __thread SrsPps* _srs_pps_snack2;
 
-extern SrsPps* _srs_pps_rnack;
-extern SrsPps* _srs_pps_rnack2;
+extern __thread SrsPps* _srs_pps_rnack;
+extern __thread SrsPps* _srs_pps_rnack2;
+extern __thread SrsPps* _srs_pps_snack4;
 
 ISrsRtcTransport::ISrsRtcTransport()
 {
@@ -256,7 +258,7 @@ srs_error_t SrsPlaintextTransport::on_dtls_alert(std::string type, std::string d
 
 srs_error_t SrsPlaintextTransport::on_dtls_handshake_done()
 {
-    srs_trace("RTC: DTLS handshake done.");
+    srs_trace("RTC: DTLS plaintext handshake done.");
     return session_->on_connection_established();
 }
 
@@ -593,6 +595,9 @@ srs_error_t SrsRtcPlayStream::cycle()
         }
     }
 
+    // How many messages to run a yield.
+    uint32_t nn_msgs_for_yield = 0;
+
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
@@ -620,6 +625,13 @@ srs_error_t SrsRtcPlayStream::cycle()
         // Release the packet to cache.
         // @remark Note that the pkt might be set to NULL.
         _srs_rtp_cache->recycle(pkt);
+
+        // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777485531
+        if (++nn_msgs_for_yield > 10) {
+            nn_msgs_for_yield = 0;
+            srs_thread_yield();
+        }
     }
 }
 
@@ -1217,6 +1229,12 @@ srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
         return err;
     }
 
+    // For async SRTP, the nb_plaintext might be zero, which means we do not got the plaintext
+    // right now, and it will callback if get one.
+    if (nb_plaintext == 0) {
+        return err;
+    }
+
     // Handle the plaintext RTP packet.
     if ((err = on_rtp_plaintext(plaintext, nb_plaintext)) != srs_success) {
         // We try to decode the RTP header for more detail error informations.
@@ -1297,6 +1315,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuf
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt)) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
         }
+    }
+
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
     }
 
     // For NACK to handle packet.
@@ -1546,6 +1570,12 @@ srs_error_t SrsRtcPublishStream::on_timer(srs_utime_t interval)
     // For TWCC feedback.
     if (twcc_enabled_) {
         ++_srs_pps_twcc->sugar;
+
+        // If circuit-breaker is dropping packet, disable TWCC.
+        if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+            ++_srs_pps_snack4->sugar;
+            return err;
+        }
 
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
@@ -2004,6 +2034,23 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
         return srs_error_wrap(err, "rtcp unprotect");
     }
 
+    // For async SRTP, the nb_unprotected_buf might be zero, which means we do not got the plaintext
+    // right now, and it will callback if get one.
+    if (nb_unprotected_buf == 0) {
+        return err;
+    }
+
+    if ((err = on_rtcp_plaintext(data, nb_unprotected_buf)) != srs_success) {
+        return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::on_rtcp_plaintext(char* data, int nb_unprotected_buf)
+{
+    srs_error_t err = srs_success;
+
     char* unprotected_buf = data;
     if (_srs_blackhole->blackhole) {
         _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
@@ -2025,10 +2072,32 @@ srs_error_t SrsRtcConnection::on_rtcp(char* data, int nb_data)
         SrsAutoFree(SrsRtcpCommon, rtcp);
 
         if(srs_success != err) {
-            return srs_error_wrap(err, "cipher=%u, plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_data, nb_unprotected_buf,
+            return srs_error_wrap(err, "plaintext=%u, bytes=[%s], rtcp=(%u,%u,%u,%u)", nb_unprotected_buf,
                 srs_string_dumps_hex(rtcp->data(), rtcp->size(), rtcp->size()).c_str(),
                 rtcp->get_rc(), rtcp->type(), rtcp->get_ssrc(), rtcp->size());
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::on_rtp_cipher(char* cipher, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = sendonly_skt->sendto(cipher, size, 0)) != srs_success) {
+        srs_error_reset(err); // Ignore any error.
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::on_rtcp_cipher(char* cipher, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = sendonly_skt->sendto(cipher, size, 0)) != srs_success) {
+        srs_error_reset(err); // Ignore any error.
     }
 
     return err;
@@ -2144,6 +2213,22 @@ srs_error_t SrsRtcConnection::on_rtp(char* data, int nb_data)
     srs_assert(publisher);
 
     return publisher->on_rtp(data, nb_data);
+}
+
+srs_error_t SrsRtcConnection::on_rtp_plaintext(char* plaintext, int nb_plaintext)
+{
+    srs_error_t err = srs_success;
+
+    // We should keep alive here, for tunnel is enabled.
+    alive();
+
+    SrsRtcPublishStream* publisher = NULL;
+    if ((err = find_publisher(plaintext, nb_plaintext, &publisher)) != srs_success) {
+        return srs_error_wrap(err, "find");
+    }
+    srs_assert(publisher);
+
+    return publisher->on_rtp_plaintext(plaintext, nb_plaintext);
 }
 
 srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher)
@@ -2334,10 +2419,13 @@ srs_error_t SrsRtcConnection::on_timer(srs_utime_t interval)
 
     ++_srs_pps_conn->sugar;
 
-    // For publisher to send NACK.
-    // TODO: FIXME: Merge with hybrid system clock.
-    srs_update_system_time();
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
+    }
 
+    // For publisher to send NACK.
     std::map<std::string, SrsRtcPublishStream*>::iterator it;
     for (it = publishers_.begin(); it != publishers_.end(); it++) {
         SrsRtcPublishStream* publisher = it->second;
@@ -2362,11 +2450,12 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
         return srs_error_wrap(err, "protect rtcp");
     }
 
-    if ((err = sendonly_skt->sendto(data, nb_buf, 0)) != srs_success) {
-        return srs_error_wrap(err, "send");
+    // Async SRTP encrypt.
+    if (nb_buf <= 0) {
+        return err;
     }
 
-    return err;
+    return on_rtcp_cipher(data, nb_buf);
 }
 
 void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ssrc, uint32_t& sent_nacks, uint32_t& timeout_nacks)
@@ -2552,6 +2641,11 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket2* pkt)
         iov->iov_len = (size_t)nn_encrypt;
     }
 
+    // Async SRTP encrypt.
+    if (iov->iov_len <= 0) {
+        return err;
+    }
+
     // For NACK simulator, drop packet.
     if (nn_simulate_player_nack_drop) {
         simulate_player_drop_packet(&pkt->header, (int)iov->iov_len);
@@ -2561,14 +2655,11 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket2* pkt)
 
     ++_srs_pps_srtps->sugar;
 
-    // TODO: FIXME: Handle error.
-    sendonly_skt->sendto(iov->iov_base, iov->iov_len, 0);
-
     // Detail log, should disable it in release version.
     srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header.get_payload_type(), pkt->header.get_ssrc(),
         pkt->header.get_sequence(), pkt->header.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
 
-    return err;
+    return on_rtp_cipher((char*)iov->iov_base, iov->iov_len);
 }
 
 void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_publish, bool status)

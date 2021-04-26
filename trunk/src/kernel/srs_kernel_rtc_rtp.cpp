@@ -36,12 +36,12 @@ using namespace std;
 
 #include <srs_kernel_kbps.hpp>
 
-SrsPps* _srs_pps_objs_rtps = new SrsPps();
-SrsPps* _srs_pps_objs_rraw = new SrsPps();
-SrsPps* _srs_pps_objs_rfua = new SrsPps();
-SrsPps* _srs_pps_objs_rbuf = new SrsPps();
-SrsPps* _srs_pps_objs_rothers = new SrsPps();
-SrsPps* _srs_pps_objs_drop = new SrsPps();
+__thread SrsPps* _srs_pps_objs_rtps = NULL;
+__thread SrsPps* _srs_pps_objs_rraw = NULL;
+__thread SrsPps* _srs_pps_objs_rfua = NULL;
+__thread SrsPps* _srs_pps_objs_rbuf = NULL;
+__thread SrsPps* _srs_pps_objs_rothers = NULL;
+__thread SrsPps* _srs_pps_objs_drop = NULL;
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3
@@ -1081,12 +1081,14 @@ bool SrsRtpPacket2::is_keyframe()
     return false;
 }
 
-SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
-SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
-SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
+// It SHOULD be thread-local, because it's safe to exchange objects between threads.
+__thread SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = NULL;
+__thread SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = NULL;
+__thread SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = NULL;
 
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
+// It SHOULD be thread-local, because it's safe to exchange objects between threads.
+__thread SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = NULL;
+__thread SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = NULL;
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {

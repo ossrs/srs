@@ -26,20 +26,33 @@
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_http_stack.hpp>
 
 class SrsRtcServer;
 class SrsRequest;
 class SrsSdp;
+class SrsRtcConnection;
+class SrsRtcUserConfig;
+
+class ISrsRtcServer
+{
+public:
+    ISrsRtcServer();
+    virtual ~ISrsRtcServer();
+public:
+    virtual srs_error_t create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession) = 0;
+};
 
 class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
 public:
     static uint32_t ssrc_num;
 private:
-    SrsRtcServer* server_;
+    ISrsRtcServer* server_;
 public:
-    SrsGoApiRtcPlay(SrsRtcServer* server);
+    SrsGoApiRtcPlay(ISrsRtcServer* server);
     virtual ~SrsGoApiRtcPlay();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
@@ -54,9 +67,9 @@ class SrsGoApiRtcPublish : public ISrsHttpHandler
 public:
     static uint32_t ssrc_num;
 private:
-    SrsRtcServer* server_;
+    ISrsRtcServer* server_;
 public:
-    SrsGoApiRtcPublish(SrsRtcServer* server);
+    SrsGoApiRtcPublish(ISrsRtcServer* server);
     virtual ~SrsGoApiRtcPublish();
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);

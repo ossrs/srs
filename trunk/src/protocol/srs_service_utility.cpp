@@ -73,6 +73,7 @@ bool srs_is_digit_number(string str)
     return  v / powv >= 1 && v / powv <= 9;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 // we detect all network device as internet or intranet device, by its ip address.
 //      key is device name, for instance, eth0
 //      value is whether internet, for instance, true.

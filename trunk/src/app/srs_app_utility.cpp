@@ -50,6 +50,13 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_utility.hpp>
 
+#include <srs_protocol_kbps.hpp>
+
+__thread SrsPps* _srs_pps_rloss = NULL;
+__thread SrsPps* _srs_pps_sloss = NULL;
+__thread SrsPps* _srs_pps_aloss = NULL;
+__thread SrsPps* _srs_pps_aloss2 = NULL;
+
 // the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
@@ -214,6 +221,7 @@ srs_error_t srs_kill_forced(int& pid)
     return err;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsRusage _srs_system_rusage;
 
 SrsRusage::SrsRusage()
@@ -240,6 +248,7 @@ void srs_update_system_rusage()
     _srs_system_rusage.ok = true;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsProcSelfStat _srs_system_cpu_self_stat;
 static SrsProcSystemStat _srs_system_cpu_system_stat;
 
@@ -327,7 +336,7 @@ SrsProcSystemStat* srs_get_system_proc_stat()
     return &_srs_system_cpu_system_stat;
 }
 
-bool get_proc_system_stat(SrsProcSystemStat& r)
+bool read_proc_system_stat(SrsProcSystemStat& r)
 {
 #ifndef SRS_OSX
     FILE* f = fopen("/proc/stat", "r");
@@ -366,15 +375,16 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     return true;
 }
 
-bool get_proc_self_stat(SrsProcSelfStat& r)
+bool read_proc_self_stat(const char* path, SrsProcSelfStat& r)
 {
 #ifndef SRS_OSX
-    FILE* f = fopen("/proc/self/stat", "r");
+    FILE* f = fopen(path, "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
         return false;
     }
-    
+
+    // Please read /proc/[pid]/stat of @doc https://man7.org/linux/man-pages/man5/procfs.5.html
     fscanf(f, "%d %32s %c %d %d %d %d "
            "%d %u %lu %lu %lu %lu "
            "%lu %lu %ld %ld %ld %ld "
@@ -402,24 +412,16 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
     return true;
 }
 
-void srs_update_proc_stat()
+void srs_update_system_proc_stat()
 {
-    // @see: http://stackoverflow.com/questions/7298646/calculating-user-nice-sys-idle-iowait-irq-and-sirq-from-proc-stat/7298711
-    // @see https://github.com/ossrs/srs/issues/397
-    static int user_hz = 0;
-    if (user_hz <= 0) {
-        user_hz = (int)sysconf(_SC_CLK_TCK);
-        srs_info("USER_HZ=%d", user_hz);
-        srs_assert(user_hz > 0);
-    }
-    
     // system cpu stat
     if (true) {
         SrsProcSystemStat r;
-        if (!get_proc_system_stat(r)) {
+        if (!read_proc_system_stat(r)) {
             return;
         }
-        
+
+        // TODO: FIXME: Use system time cache.
         r.sample_time = srsu2ms(srs_update_system_time());
         
         // calc usage in percent
@@ -438,29 +440,70 @@ void srs_update_proc_stat()
         // upate cache.
         _srs_system_cpu_system_stat = r;
     }
+}
+
+void srs_update_self_proc_stat()
+{
+    srs_update_thread_proc_stat(&_srs_system_cpu_self_stat, 0);
+}
+
+void srs_update_thread_proc_stat(SrsProcSelfStat* stat, pid_t tid)
+{
+    // @see: http://stackoverflow.com/questions/7298646/calculating-user-nice-sys-idle-iowait-irq-and-sirq-from-proc-stat/7298711
+    // @see https://github.com/ossrs/srs/issues/397
+    int user_hz = srs_user_hz();
     
-    // self cpu stat
-    if (true) {
-        SrsProcSelfStat r;
-        if (!get_proc_self_stat(r)) {
+    // self process cpu stat
+    SrsProcSelfStat r;
+
+    // @see https://man7.org/linux/man-pages/man5/procfs.5.html
+    if (tid == 0) {
+        if (!read_proc_self_stat("/proc/self/stat", r)) {
             return;
         }
-        
-        r.sample_time = srsu2ms(srs_update_system_time());
-        
-        // calc usage in percent
-        SrsProcSelfStat& o = _srs_system_cpu_self_stat;
-        
-        // @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
-        int64_t total = r.sample_time - o.sample_time;
-        int64_t usage = (r.utime + r.stime) - (o.utime + o.stime);
-        if (total > 0) {
-            r.percent = (float)(usage * 1000 / (double)total / user_hz);
+    } else {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "/proc/self/task/%d/stat", (int)tid);
+        if (!read_proc_self_stat(buf, r)) {
+            return;
         }
-        
-        // upate cache.
-        _srs_system_cpu_self_stat = r;
     }
+
+    // calc usage in percent
+    SrsProcSelfStat* o = stat;
+
+    // Never update in 1s.
+    if (srs_update_system_time() - o->sample_time <= 1 * SRS_UTIME_SECONDS) {
+        return;
+    }
+
+    // TODO: FIXME: Use system time cache.
+    r.sample_time = srsu2ms(srs_update_system_time());
+
+    // @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
+    int64_t total = r.sample_time - o->sample_time;
+    int64_t usage = (r.utime + r.stime) - (o->utime + o->stime);
+    if (total > 0) {
+        r.percent = (float)(usage * 1000 / (double)total / user_hz);
+    }
+
+    // update cache.
+    *stat = r;
+}
+
+int srs_user_hz()
+{
+    // @see: http://stackoverflow.com/questions/7298646/calculating-user-nice-sys-idle-iowait-irq-and-sirq-from-proc-stat/7298711
+    // @see https://github.com/ossrs/srs/issues/397
+    static int user_hz = 0;
+
+    if (user_hz <= 0) {
+        user_hz = (int)sysconf(_SC_CLK_TCK);
+        srs_info("USER_HZ=%d", user_hz);
+        srs_assert(user_hz > 0);
+    }
+
+    return user_hz;
 }
 
 SrsDiskStat::SrsDiskStat()
@@ -482,6 +525,7 @@ SrsDiskStat::SrsDiskStat()
     wr_ticks = nb_current = ticks = aveq = 0;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsDiskStat _srs_disk_stat;
 
 SrsDiskStat* srs_get_disk_stat()
@@ -610,7 +654,7 @@ void srs_update_disk_stat()
     if (!srs_get_disk_diskstats_stat(r)) {
         return;
     }
-    if (!get_proc_system_stat(r.cpu)) {
+    if (!read_proc_system_stat(r.cpu)) {
         return;
     }
     
@@ -676,6 +720,7 @@ SrsMemInfo::SrsMemInfo()
     SwapFree = 0;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsMemInfo _srs_system_meminfo;
 
 SrsMemInfo* srs_get_meminfo()
@@ -768,6 +813,7 @@ SrsPlatformInfo::SrsPlatformInfo()
     load_fifteen_minutes = 0;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsPlatformInfo _srs_system_platform_info;
 
 SrsPlatformInfo* srs_get_platform_info()
@@ -862,81 +908,63 @@ SrsSnmpUdpStat::SrsSnmpUdpStat()
     rcv_buf_errors = 0;
     snd_buf_errors = 0;
     in_csum_errors = 0;
-
-    rcv_buf_errors_delta = 0;
-    snd_buf_errors_delta = 0;
 }
 
 SrsSnmpUdpStat::~SrsSnmpUdpStat()
 {
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsSnmpUdpStat _srs_snmp_udp_stat;
 
-bool get_udp_snmp_statistic(SrsSnmpUdpStat& r)
+void srs_update_udp_snmp_statistic()
 {
 #ifndef SRS_OSX
-    if (true) {
-        FILE* f = fopen("/proc/net/snmp", "r");
-        if (f == NULL) {
-            srs_warn("open proc network snmp failed, ignore");
-            return false;
-        }
+    SrsSnmpUdpStat& r = _srs_snmp_udp_stat;
 
-        // ignore title.
-        static char buf[1024];
-        fgets(buf, sizeof(buf), f);
-
-        while (fgets(buf, sizeof(buf), f)) {
-            // udp stat title
-            if (strncmp(buf, "Udp: ", 5) == 0) {
-                // read tcp stat data
-                if (!fgets(buf, sizeof(buf), f)) {
-                    break;
-                }
-                // parse tcp stat data
-                if (strncmp(buf, "Udp: ", 5) == 0) {
-                    sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu\n",
-                        &r.in_datagrams,
-                        &r.no_ports,
-                        &r.in_errors,
-                        &r.out_datagrams,
-                        &r.rcv_buf_errors,
-                        &r.snd_buf_errors,
-                        &r.in_csum_errors);
-                }
-            }
-        }
-        fclose(f);
+    FILE* f = fopen("/proc/net/snmp", "r");
+    if (f == NULL) {
+        return;
     }
-#endif
-    r.ok = true;
 
-    return true;
+    static char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        // Ignore lines except UDP.
+        if (strncmp(buf, "Udp: ", 5) != 0) {
+            continue;
+        }
+
+        // Ignore UDP stat title.
+        //      Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors
+        if (strncmp(buf, "Udp: InDatagrams", 16) == 0) {
+            continue;
+        }
+
+        // Parse the UDP stat messages.
+        //      Udp: 22000790151 77826210 229174183 24889592909 229174182 420017 1
+        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu\n",
+            &r.in_datagrams,
+            &r.no_ports,
+            &r.in_errors,
+            &r.out_datagrams,
+            &r.rcv_buf_errors,
+            &r.snd_buf_errors,
+            &r.in_csum_errors);
+        break;
+    }
+    fclose(f);
+
+    // Update the pps for recv/send loss.
+    _srs_pps_rloss->update(r.rcv_buf_errors);
+    _srs_pps_sloss->update(r.snd_buf_errors);
+
+    r.ok = true;
+#endif
 }
 
 SrsSnmpUdpStat* srs_get_udp_snmp_stat()
 {
     return &_srs_snmp_udp_stat;
-}
-
-void srs_update_udp_snmp_statistic()
-{
-    SrsSnmpUdpStat r;
-    if (!get_udp_snmp_statistic(r)) {
-        return;
-    }
-
-    SrsSnmpUdpStat& o = _srs_snmp_udp_stat;
-    if (o.rcv_buf_errors > 0) {
-        r.rcv_buf_errors_delta = int(r.rcv_buf_errors - o.rcv_buf_errors);
-    }
-
-    if (o.snd_buf_errors > 0) {
-        r.snd_buf_errors_delta = int(r.snd_buf_errors - o.snd_buf_errors);
-    }
-
-    _srs_snmp_udp_stat = r;
 }
 
 SrsNetworkDevices::SrsNetworkDevices()
@@ -965,6 +993,7 @@ SrsNetworkDevices::SrsNetworkDevices()
     scompressed = 0;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 #define MAX_NETWORK_DEVICES_COUNT 16
 static SrsNetworkDevices _srs_system_network_devices[MAX_NETWORK_DEVICES_COUNT];
 static int _nb_srs_system_network_devices = -1;
@@ -1033,6 +1062,7 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     rkbps_5m = skbps_5m = 0;
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsNetworkRtmpServer _srs_network_rtmp_server;
 
 SrsNetworkRtmpServer* srs_get_network_rtmp_server()

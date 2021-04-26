@@ -35,8 +35,8 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_cids_get = new SrsPps();
-SrsPps* _srs_pps_cids_set = new SrsPps();
+__thread SrsPps* _srs_pps_cids_get = NULL;
+__thread SrsPps* _srs_pps_cids_set = NULL;
 
 #define SRS_BASIC_LOG_SIZE 8192
 
@@ -54,6 +54,7 @@ SrsContextId SrsThreadContext::generate_id()
     return cid.set_value(srs_random_str(8));
 }
 
+// TODO: FIXME: It should be thread-local or thread-safe.
 static SrsContextId _srs_context_default;
 static int _srs_context_key = -1;
 void _srs_context_destructor(void* arg)
@@ -132,10 +133,6 @@ SrsConsoleLog::~SrsConsoleLog()
 srs_error_t SrsConsoleLog::initialize()
 {
     return srs_success;
-}
-
-void SrsConsoleLog::reopen()
-{
 }
 
 void SrsConsoleLog::verbose(const char* tag, SrsContextId context_id, const char* fmt, ...)
@@ -248,9 +245,9 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
 {
     // clock time
     timeval tv;
-    if (gettimeofday(&tv, NULL) == -1) {
-        return false;
-    }
+    srs_utime_t now = srs_update_system_time();
+    tv.tv_sec = now / SRS_UTIME_SECONDS;
+    tv.tv_usec = now % SRS_UTIME_SECONDS;
     
     // to calendar time
     struct tm* tm;

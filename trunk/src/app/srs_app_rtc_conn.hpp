@@ -29,7 +29,6 @@
 #include <srs_service_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_app_reload.hpp>
@@ -334,7 +333,7 @@ private:
     srs_error_t send_rtcp_xr_rrtr();
 public:
     srs_error_t on_rtp(char* buf, int nb_buf);
-private:
+public:
     // @remark We copy the plaintext, user should free it.
     srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
 private:
@@ -492,10 +491,16 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_rtp(char* data, int nb_data);
 private:
+    srs_error_t on_rtp_plaintext(char* plaintext, int size);
     // Decode the RTP header from buf, find the publisher by SSRC.
     srs_error_t find_publisher(char* buf, int size, SrsRtcPublishStream** ppublisher);
 public:
     srs_error_t on_rtcp(char* data, int nb_data);
+private:
+    srs_error_t on_rtcp_plaintext(char* plaintext, int size);
+private:
+    srs_error_t on_rtp_cipher(char* cipher, int size);
+    srs_error_t on_rtcp_cipher(char* cipher, int size);
 private:
     srs_error_t dispatch_rtcp(SrsRtcpCommon* rtcp);
 public:
@@ -568,6 +573,8 @@ public:
     virtual srs_error_t on_start_consume(SrsRtcConnection* session, SrsRtcPlayStream* player, SrsRequest* req, SrsRtcConsumer* consumer) = 0;
 };
 
+// TODO: FIXME: It should be thread-local or thread-safe.
+// TODO: FIXME: It seems thread-local make sense.
 extern ISrsRtcHijacker* _srs_rtc_hijacker;
 
 #endif

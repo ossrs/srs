@@ -46,6 +46,7 @@ class SrsConfig;
 class SrsRequest;
 class SrsJsonArray;
 class SrsConfDirective;
+class SrsThreadMutex;
 
 /**
  * whether the two vector actual equals, for instance,
@@ -137,8 +138,11 @@ extern std::string srs_config_bool2switch(std::string sbool);
 // so we must transform the vhost directive anytime load the config.
 // @param root the root directive to transform, in and out parameter.
 extern srs_error_t srs_config_transform_vhost(SrsConfDirective* root);
+extern srs_error_t srs_config_transform_vhost2(SrsConfDirective* root);
+extern srs_error_t srs_config_generate_stream(SrsConfDirective* root, SrsConfDirective* tmpl, int nn);
 
-// @global config object.
+// TODO: FIXME: It should be thread-local or thread-safe.
+// TODO: FIXME: We should use channel to deliver changes of config.
 extern SrsConfig* _srs_config;
 
 // The config directive.
@@ -271,11 +275,6 @@ class SrsConfig
 {
 // user command
 private:
-    // Whether srs is run in dolphin mode.
-    // @see https://github.com/ossrs/srs-dolphin
-    bool dolphin;
-    std::string dolphin_rtmp_port;
-    std::string dolphin_http_port;
     // Whether show help and exit.
     bool show_help;
     // Whether test config file and exit.
@@ -303,13 +302,10 @@ protected:
 private:
     // The reload subscribers, when reload, callback all handlers.
     std::vector<ISrsReloadHandler*> subscribes;
+    SrsThreadMutex* lock_;
 public:
     SrsConfig();
     virtual ~SrsConfig();
-    // dolphin
-public:
-    // Whether srs is in dolphin mode.
-    virtual bool is_dolphin();
 // Reload
 public:
     // For reload handler to register itself,
@@ -367,16 +363,8 @@ public:
     virtual srs_error_t raw_set_chunk_size(std::string chunk_size, bool& applied);
     // RAW  set the global ffmpeg log dir.
     virtual srs_error_t raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
-    // RAW  set the global log tank.
-    virtual srs_error_t raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
-    // RAW  set the global log level.
-    virtual srs_error_t raw_set_srs_log_level(std::string srs_log_level, bool& applied);
-    // RAW  set the global log file path for file tank.
-    virtual srs_error_t raw_set_srs_log_file(std::string srs_log_file, bool& applied);
     // RAW  set the global max connections of srs.
     virtual srs_error_t raw_set_max_connections(std::string max_connections, bool& applied);
-    // RAW  set the global whether use utc time.
-    virtual srs_error_t raw_set_utc_time(std::string utc_time, bool& applied);
     // RAW  set the global pithy print interval in ms.
     virtual srs_error_t raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
     // RAW  create the new vhost.
@@ -396,11 +384,7 @@ public:
 private:
     virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
-    virtual srs_error_t do_reload_srs_log_tank();
-    virtual srs_error_t do_reload_srs_log_level();
-    virtual srs_error_t do_reload_srs_log_file();
     virtual srs_error_t do_reload_max_connections();
-    virtual srs_error_t do_reload_utc_time();
     virtual srs_error_t do_reload_pithy_print_ms();
     virtual srs_error_t do_reload_vhost_added(std::string vhost);
     virtual srs_error_t do_reload_vhost_removed(std::string vhost);
@@ -421,6 +405,7 @@ public:
 protected:
     virtual srs_error_t check_normal_config();
     virtual srs_error_t check_number_connections();
+    virtual srs_error_t check_hybrids();
 protected:
     // Parse config from the buffer.
     // @param buffer, the config buffer, user must delete it.
@@ -438,6 +423,8 @@ public:
     // The root directive, no name and args, contains directives.
     // All directive parsed can retrieve from root.
     virtual SrsConfDirective* get_root();
+    // Get the stream config at index.
+    virtual SrsConfDirective* get_stream_at(int index);
     // Get the daemon config.
     // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
@@ -448,11 +435,11 @@ public:
     //       for example, when you need SRS to service 10000+ connections,
     //       user must use "ulimit -HSn 10000" and config the max connections
     //       of SRS.
-    virtual int get_max_connections();
+    virtual int get_max_connections(int stream_index = 0);
     // Get the listen port of SRS.
     // user can specifies multiple listen ports,
     // each args of directive is a listen port.
-    virtual std::vector<std::string> get_listens();
+    virtual std::vector<std::string> get_listens(int stream_index = 0);
     // Get the pid file path.
     // The pid file is used to save the pid of SRS,
     // use file lock to prevent multiple SRS starting.
@@ -487,6 +474,19 @@ public:
     virtual bool auto_reload_for_docker();
     // For tcmalloc, get the release rate.
     virtual double tcmalloc_release_rate();
+// Thread pool section.
+public:
+    virtual srs_utime_t get_threads_interval();
+    virtual int get_threads_hybrids();
+    virtual bool get_threads_generate_stream();
+    virtual bool get_threads_cpu_affinity(std::string label, int* start, int* end);
+    virtual bool get_circuit_breaker();
+    virtual int get_high_threshold();
+    virtual int get_high_pulse();
+    virtual int get_critical_threshold();
+    virtual int get_critical_pulse();
+    virtual int get_dying_threshold();
+    virtual int get_dying_pulse();
 // stream_caster section
 public:
     // Get all stream_caster in config file.
@@ -523,34 +523,37 @@ public:
     virtual srs_utime_t get_stream_caster_gb28181_sip_query_catalog_interval(SrsConfDirective* conf);
 
 // rtc section
+private:
+    // Get the RTC server config at index.
+    SrsConfDirective* get_rtc_server_at(int index);
 public:
-    virtual bool get_rtc_server_enabled();
+    virtual bool get_rtc_server_enabled(int stream_index = 0);
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
-    virtual int get_rtc_server_listen();
-    virtual std::string get_rtc_server_candidates();
-    virtual std::string get_rtc_server_ip_family();
-    virtual bool get_rtc_server_ecdsa();
-    virtual bool get_rtc_server_encrypt();
-    virtual int get_rtc_server_reuseport();
-    virtual bool get_rtc_server_merge_nalus();
-    virtual bool get_rtc_server_perf_stat();
+    virtual int get_rtc_server_listen(int stream_index = 0);
+    virtual std::string get_rtc_server_candidates(int stream_index = 0);
+    virtual std::string get_rtc_server_ip_family(int stream_index = 0);
+    virtual bool get_rtc_server_ecdsa(int stream_index = 0);
+    virtual bool get_rtc_server_encrypt(int stream_index = 0);
+    virtual int get_rtc_server_reuseport(int stream_index = 0);
+    virtual bool get_rtc_server_merge_nalus(int stream_index = 0);
+    virtual bool get_rtc_server_perf_stat(int stream_index = 0);
 private:
-    SrsConfDirective* get_rtc_server_rtp_cache();
+    SrsConfDirective* get_rtc_server_rtp_cache(int stream_index = 0);
 public:
-    virtual bool get_rtc_server_rtp_cache_enabled();
-    virtual uint64_t get_rtc_server_rtp_cache_pkt_size();
-    virtual uint64_t get_rtc_server_rtp_cache_payload_size();
+    virtual bool get_rtc_server_rtp_cache_enabled(int stream_index = 0);
+    virtual uint64_t get_rtc_server_rtp_cache_pkt_size(int stream_index = 0);
+    virtual uint64_t get_rtc_server_rtp_cache_payload_size(int stream_index = 0);
 private:
-    virtual SrsConfDirective* get_rtc_server_rtp_msg_cache();
+    virtual SrsConfDirective* get_rtc_server_rtp_msg_cache(int stream_index = 0);
 public:
-    virtual bool get_rtc_server_rtp_msg_cache_enabled();
-    virtual uint64_t get_rtc_server_rtp_msg_cache_msg_size();
-    virtual uint64_t get_rtc_server_rtp_msg_cache_buffer_size();
+    virtual bool get_rtc_server_rtp_msg_cache_enabled(int stream_index = 0);
+    virtual uint64_t get_rtc_server_rtp_msg_cache_msg_size(int stream_index = 0);
+    virtual uint64_t get_rtc_server_rtp_msg_cache_buffer_size(int stream_index = 0);
 public:
-    virtual bool get_rtc_server_black_hole();
-    virtual std::string get_rtc_server_black_hole_addr();
+    virtual bool get_rtc_server_black_hole(int stream_index = 0);
+    virtual std::string get_rtc_server_black_hole_addr(int stream_index = 0);
 private:
-    virtual int get_rtc_server_reuseport2();
+    virtual int get_rtc_server_reuseport2(int stream_index = 0);
 
 public:
     SrsConfDirective* get_rtc(std::string vhost);
@@ -903,6 +906,8 @@ public:
     virtual std::string get_log_level();
     // Get the log file path.
     virtual std::string get_log_file();
+    // Get the interval in ms to flush async log.
+    virtual srs_utime_t srs_log_flush_interval();
     // Whether ffmpeg log enabled
     virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.
@@ -1046,26 +1051,29 @@ public:
     virtual std::string get_https_api_ssl_cert();
 // http stream section
 private:
+    // Get the HTTP stream config at index.
+    SrsConfDirective* get_http_stream_at(int index);
     // Whether http stream enabled.
     virtual bool get_http_stream_enabled(SrsConfDirective* conf);
 public:
     // Whether http stream enabled.
     // TODO: FIXME: rename to http_static.
-    virtual bool get_http_stream_enabled();
+    virtual bool get_http_stream_enabled(int stream_index = 0);
     // Get the http stream listen port.
-    virtual std::string get_http_stream_listen();
+    virtual std::string get_http_stream_listen(int stream_index = 0);
     // Get the http stream root dir.
-    virtual std::string get_http_stream_dir();
+    virtual std::string get_http_stream_dir(int stream_index = 0);
     // Whether enable crossdomain for http static and stream server.
-    virtual bool get_http_stream_crossdomain();
+    virtual bool get_http_stream_crossdomain(int stream_index = 0);
 // https api section
 private:
-    SrsConfDirective* get_https_stream();
+    // Get the HTTPS stream config at index.
+    SrsConfDirective* get_https_stream(int index);
 public:
-    virtual bool get_https_stream_enabled();
-    virtual std::string get_https_stream_listen();
-    virtual std::string get_https_stream_ssl_key();
-    virtual std::string get_https_stream_ssl_cert();
+    virtual bool get_https_stream_enabled(int stream_index = 0);
+    virtual std::string get_https_stream_listen(int stream_index = 0);
+    virtual std::string get_https_stream_ssl_key(int stream_index = 0);
+    virtual std::string get_https_stream_ssl_cert(int stream_index = 0);
 public:
     // Get whether vhost enabled http stream
     virtual bool get_vhost_http_enabled(std::string vhost);

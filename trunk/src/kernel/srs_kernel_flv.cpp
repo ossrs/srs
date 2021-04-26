@@ -43,7 +43,7 @@ using namespace std;
 
 #include <srs_kernel_kbps.hpp>
 
-SrsPps* _srs_pps_objs_msgs = new SrsPps();
+__thread SrsPps* _srs_pps_objs_msgs = NULL;
 
 SrsMessageHeader::SrsMessageHeader()
 {

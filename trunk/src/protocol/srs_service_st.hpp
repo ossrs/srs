@@ -102,10 +102,12 @@ extern int srs_sendmsg(srs_netfd_t stfd, const struct msghdr *msg, int flags, sr
 extern srs_netfd_t srs_accept(srs_netfd_t stfd, struct sockaddr *addr, int *addrlen, srs_utime_t timeout);
 
 extern ssize_t srs_read(srs_netfd_t stfd, void *buf, size_t nbyte, srs_utime_t timeout);
+extern ssize_t srs_write(srs_netfd_t stfd, const void *buf, size_t nbyte, srs_utime_t timeout);
 
 extern bool srs_is_never_timeout(srs_utime_t tm);
 
 // The mutex locker.
+// TODO: FIXME: Rename _SRS to _srs
 #define SrsLocker(instance) \
     impl__SrsLocker _SRS_free_##instance(&instance)
 

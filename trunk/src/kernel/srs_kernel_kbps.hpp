@@ -52,6 +52,7 @@ private:
     SrsWallClock* clk_;
 private:
     // samples
+    SrsRateSample sample_1s_;
     SrsRateSample sample_10s_;
     SrsRateSample sample_30s_;
     SrsRateSample sample_1m_;
@@ -72,6 +73,8 @@ public:
     void update(int64_t nn);
     // Get the 10s average stat.
     int r10s();
+    // Get the 1s average stat.
+    int r1s();
 };
 
 /**
@@ -89,7 +92,7 @@ public:
     virtual srs_utime_t now();
 };
 
-// The global clock.
+// TODO: FIXME: It should be thread-local or thread-safe.
 extern SrsWallClock* _srs_clock;
 
 #endif

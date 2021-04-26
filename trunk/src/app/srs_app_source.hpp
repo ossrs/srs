@@ -485,7 +485,7 @@ public:
 };
 
 // Global singleton instance.
-extern SrsSourceManager* _srs_sources;
+extern __thread SrsSourceManager* _srs_sources;
 
 // For RTMP2RTC, bridge SrsSource to SrsRtcStream
 class ISrsSourceBridger

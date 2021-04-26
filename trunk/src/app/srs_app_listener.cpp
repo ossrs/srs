@@ -42,17 +42,19 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_threads.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_rpkts = new SrsPps();
-SrsPps* _srs_pps_addrs = new SrsPps();
-SrsPps* _srs_pps_fast_addrs = new SrsPps();
+__thread SrsPps* _srs_pps_rpkts = NULL;
+__thread SrsPps* _srs_pps_addrs = NULL;
+__thread SrsPps* _srs_pps_fast_addrs = NULL;
 
-SrsPps* _srs_pps_spkts = new SrsPps();
+__thread SrsPps* _srs_pps_spkts = NULL;
 
 // set the max packet size.
-#define SRS_UDP_MAX_PACKET_SIZE 65535
+const int SRS_UDP_MAX_PACKET_SIZE = 1500;
 
 // sleep in srs_utime_t for udp recv packet.
 #define SrsUdpPacketRecvCycleInterval 0
@@ -300,6 +302,7 @@ SrsUdpMuxSocket::SrsUdpMuxSocket(srs_netfd_t fd)
     nread = 0;
 
     lfd = fd;
+    handler_ = NULL;
 
     fromlen = 0;
     peer_port = 0;
@@ -323,6 +326,11 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         return nread;
     }
 
+    return on_recvfrom();
+}
+
+int SrsUdpMuxSocket::on_recvfrom()
+{
     // Reset the fast cache buffer size.
     cache_buffer_->set_size(nread);
     cache_buffer_->skip(-1 * cache_buffer_->pos());
@@ -361,8 +369,8 @@ srs_error_t SrsUdpMuxSocket::sendto(void* data, int size, srs_utime_t timeout)
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "sendto timeout %d ms", srsu2msi(timeout));
-        }   
-    
+        }
+
         return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
     }
 
@@ -491,7 +499,40 @@ SrsUdpMuxSocket* SrsUdpMuxSocket::copy_sendonly()
     sendonly->fast_id_ = fast_id_;
     sendonly->address_changed_ = address_changed_;
 
+    sendonly->handler_ = handler_;
+
     return sendonly;
+}
+
+SrsUdpMuxSocket* SrsUdpMuxSocket::copy()
+{
+    SrsUdpMuxSocket* cp = new SrsUdpMuxSocket(lfd);
+
+    cp->nb_buf    = nb_buf;
+    if (nread) {
+        memcpy(cp->buf, buf, nread);
+    }
+    cp->nread     = nread;
+    cp->lfd       = lfd;
+    cp->from      = from;
+    cp->fromlen   = fromlen;
+    cp->peer_ip   = peer_ip;
+    cp->peer_port = peer_port;
+
+    // Copy the fast id.
+    cp->peer_id_ = peer_id_;
+    cp->fast_id_ = fast_id_;
+    cp->address_changed_ = address_changed_;
+
+    if (nread) {
+        // Reset the fast cache buffer size.
+        cp->cache_buffer_->set_size(nread);
+        cp->cache_buffer_->skip(-1 * cache_buffer_->pos());
+    }
+
+    cp->handler_ = handler_;
+
+    return cp;
 }
 
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler* h, std::string i, int p)
