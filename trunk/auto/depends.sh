@@ -340,24 +340,34 @@ fi
 # state-threads
 #####################################################################################
 # check the cross build flag file, if flag changed, need to rebuild the st.
-_ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
+_ST_MAKE=linux-debug && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
+# Always alloc on heap, @see https://github.com/ossrs/srs/issues/509#issuecomment-719931676
+_ST_EXTRA_CFLAGS="-DMALLOC_STACK"
+# For valgrind to detect memory issues.
 if [[ $SRS_VALGRIND == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
 fi
 # for osx, use darwin for st, donot use epoll.
 if [[ $SRS_OSX == YES ]]; then
-    _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
+    _ST_MAKE=darwin-debug && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
 fi
-# Always alloc on heap, @see https://github.com/ossrs/srs/issues/509#issuecomment-719931676
-_ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMALLOC_STACK"
 # Pass the global extra flags.
 if [[ $SRS_EXTRA_FLAGS != '' ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS $SRS_EXTRA_FLAGS"
 fi
+# Whether link as .so
+if [[ $SRS_SHARED_ST == YES ]]; then
+  _ST_STATIC_ONLY=no;
+else
+  _ST_STATIC_ONLY=yes;
+fi
+# The final args to make st.
+_ST_MAKE_ARGS="${_ST_MAKE} STATIC_ONLY=${_ST_STATIC_ONLY}"
+_ST_MAKE_ARGS="${_ST_MAKE_ARGS} CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB}"
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
 if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/libst.a ]]; then
     echo "The state-threads is ok.";
@@ -369,19 +379,8 @@ else
         cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs && ln -sf ../../../3rdparty/st-srs .src &&
         # Link source files under .src
         _srs_link_file .src/ ./ ./ &&
-        for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./')`; do
-            dir=`basename $dir` && mkdir -p $dir && _srs_link_file .src/$dir/ $dir/ ../
-        done &&
-        # Link source files under .src/xxx, the first child dir.
-        for dir in `(cd .src && find . -maxdepth 1 -type d|grep '\./'|grep -v Linux|grep -v Darwin)`; do
-            mkdir -p $dir &&
-            for file in `(cd .src/$dir && find . -maxdepth 1 -type f ! -name '*.o' ! -name '*.d')`; do
-                ln -sf ../.src/$dir/$file $dir/$file;
-            done;
-        done &&
         # Build source code.
-        make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
-            CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+        env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" make ${_ST_MAKE_ARGS} &&
         cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
     )
 fi

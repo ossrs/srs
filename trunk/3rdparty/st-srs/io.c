@@ -68,8 +68,6 @@ unsigned long long _st_stat_recvmsg = 0;
 unsigned long long _st_stat_recvmsg_eagain = 0;
 unsigned long long _st_stat_sendmsg = 0;
 unsigned long long _st_stat_sendmsg_eagain = 0;
-unsigned long long _st_stat_sendmmsg = 0;
-unsigned long long _st_stat_sendmmsg_eagain = 0;
 #endif
 
 #if EAGAIN != EWOULDBLOCK
@@ -262,7 +260,6 @@ int st_netfd_poll(_st_netfd_t *fd, int how, st_utime_t timeout)
 }
 
 
-#ifdef MD_ALWAYS_UNSERIALIZED_ACCEPT
 /* No-op */
 int st_netfd_serialize_accept(_st_netfd_t *fd)
 {
@@ -309,112 +306,6 @@ _st_netfd_t *st_accept(_st_netfd_t *fd, struct sockaddr *addr, int *addrlen, st_
     
     return newfd;
 }
-
-#else /* MD_ALWAYS_UNSERIALIZED_ACCEPT */
-/*
- * On some platforms accept() calls from different processes
- * on the same listen socket must be serialized.
- * The following code serializes accept()'s without process blocking.
- * A pipe is used as an inter-process semaphore.
- */
-int st_netfd_serialize_accept(_st_netfd_t *fd)
-{
-    _st_netfd_t **p;
-    int osfd[2], err;
-    
-    if (fd->aux_data) {
-        errno = EINVAL;
-        return -1;
-    }
-    if ((p = (_st_netfd_t **)calloc(2, sizeof(_st_netfd_t *))) == NULL)
-        return -1;
-    if (pipe(osfd) < 0) {
-        free(p);
-        return -1;
-    }
-    if ((p[0] = st_netfd_open(osfd[0])) != NULL && (p[1] = st_netfd_open(osfd[1])) != NULL && write(osfd[1], " ", 1) == 1) {
-        fd->aux_data = p;
-        return 0;
-    }
-    /* Error */
-    err = errno;
-    if (p[0])
-        st_netfd_free(p[0]);
-    if (p[1])
-        st_netfd_free(p[1]);
-    close(osfd[0]);
-    close(osfd[1]);
-    free(p);
-    errno = err;
-    
-    return -1;
-}
-
-static void _st_netfd_free_aux_data(_st_netfd_t *fd)
-{
-    _st_netfd_t **p = (_st_netfd_t **) fd->aux_data;
-    
-    st_netfd_close(p[0]);
-    st_netfd_close(p[1]);
-    free(p);
-    fd->aux_data = NULL;
-}
-
-_st_netfd_t *st_accept(_st_netfd_t *fd, struct sockaddr *addr, int *addrlen, st_utime_t timeout)
-{
-    int osfd, err;
-    _st_netfd_t *newfd;
-    _st_netfd_t **p = (_st_netfd_t **) fd->aux_data;
-    ssize_t n;
-    char c;
-    
-    for ( ; ; ) {
-        if (p == NULL) {
-            osfd = accept(fd->osfd, addr, (socklen_t *)addrlen);
-        } else {
-            /* Get the lock */
-            n = st_read(p[0], &c, 1, timeout);
-            if (n < 0)
-                return NULL;
-            ST_ASSERT(n == 1);
-            /* Got the lock */
-            osfd = accept(fd->osfd, addr, (socklen_t *)addrlen);
-            /* Unlock */
-            err = errno;
-            n = st_write(p[1], &c, 1, timeout);
-            ST_ASSERT(n == 1);
-            errno = err;
-        }
-        if (osfd >= 0)
-            break;
-        if (errno == EINTR)
-            continue;
-        if (!_IO_NOT_READY_ERROR)
-            return NULL;
-        /* Wait until the socket becomes readable */
-        if (st_netfd_poll(fd, POLLIN, timeout) < 0)
-            return NULL;
-    }
-    
-    /* On some platforms the new socket created by accept() inherits */
-    /* the nonblocking attribute of the listening socket */
-#if defined (MD_ACCEPT_NB_INHERITED)
-    newfd = _st_netfd_new(osfd, 0, 1);
-#elif defined (MD_ACCEPT_NB_NOT_INHERITED)
-    newfd = _st_netfd_new(osfd, 1, 1);
-#else
-#error Unknown OS
-#endif
-    
-    if (!newfd) {
-        err = errno;
-        close(osfd);
-        errno = err;
-    }
-    
-    return newfd;
-}
-#endif /* MD_ALWAYS_UNSERIALIZED_ACCEPT */
 
 
 int st_connect(_st_netfd_t *fd, const struct sockaddr *addr, int addrlen, st_utime_t timeout)
@@ -831,69 +722,6 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
     }
     
     return n;
-}
-
-int st_sendmmsg(st_netfd_t fd, struct st_mmsghdr *msgvec, unsigned int vlen, int flags, st_utime_t timeout)
-{
-#if defined(MD_HAVE_SENDMMSG) && defined(_GNU_SOURCE)
-    int n;
-    int left;
-    struct mmsghdr *p;
-
-    #if defined(DEBUG) && defined(DEBUG_STATS)
-    ++_st_stat_sendmmsg;
-    #endif
-
-    left = (int)vlen;
-    while (left > 0) {
-        p = (struct mmsghdr*)msgvec + (vlen - left);
-
-        if ((n = sendmmsg(fd->osfd, p, left, flags)) < 0) {
-            if (errno == EINTR)
-                continue;
-            if (!_IO_NOT_READY_ERROR)
-                break;
-
-            #if defined(DEBUG) && defined(DEBUG_STATS)
-            ++_st_stat_sendmmsg_eagain;
-            #endif
-
-            /* Wait until the socket becomes writable */
-            if (st_netfd_poll(fd, POLLOUT, timeout) < 0)
-                break;
-        }
-
-        left -= n;
-    }
-
-    // An error is returned only if no datagrams could be sent.
-    if (left == (int)vlen) {
-        return n;
-    }
-    return (int)vlen - left;
-#else
-    struct st_mmsghdr *p;
-    int i, n;
-
-    // @see http://man7.org/linux/man-pages/man2/sendmmsg.2.html
-    for (i = 0; i < (int)vlen; ++i) {
-        p = msgvec + i;
-        n = st_sendmsg(fd, &p->msg_hdr, flags, timeout);
-        if (n < 0) {
-            // An error is returned only if no datagrams could be sent.
-            if (i == 0) {
-                return n;
-            }
-            return i + 1;
-        }
-
-        p->msg_len = n;
-    }
-
-    // Returns the number of messages sent from msgvec; if this is less than vlen, the caller can retry with a
-    // further sendmmsg() call to send the remaining messages.
-    return vlen;
-#endif
 }
 
 

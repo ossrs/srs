@@ -132,7 +132,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
-if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
 
 # srtp
 if [[ $SRS_RTC == YES ]]; then
@@ -542,7 +542,8 @@ clean_st:
 
 st:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE) ${_ST_MAKE_ARGS})
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 ffmpeg:
