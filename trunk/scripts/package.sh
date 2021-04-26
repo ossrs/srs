@@ -153,18 +153,6 @@ ok_msg "start install srs"
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install srs failed"; exit $ret; fi
 ok_msg "install srs success"
 
-# Copy srs-console
-HTTP_HOME="${package_dir}/${INSTALL}/objs/nginx/html/"
-(
-  cp $work_dir/research/api-server/static-dir/index.html ${HTTP_HOME} &&
-  cp $work_dir/research/api-server/static-dir/favicon.ico ${HTTP_HOME} &&
-  cp $work_dir/research/api-server/static-dir/crossdomain.xml ${HTTP_HOME} &&
-  cp -R $work_dir/research/players ${HTTP_HOME} &&
-  cp -R $work_dir/research/console ${HTTP_HOME}
-) >> $log 2>&1
-ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy utilities failed"; exit $ret; fi
-ok_msg "copy utilities success"
-
 # copy extra files to package.
 ok_msg "start copy extra files to package"
 (

@@ -462,7 +462,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 .PHONY: default _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
-.PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus clean_ffmpeg clean_st
+.PHONY: clean_srs clean_modules clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
 # install prefix.
@@ -505,7 +505,6 @@ doclean:
 	(cd ${SRS_OBJS_DIR} && rm -rf srs srs_utest $__mcleanups)
 	(cd ${SRS_OBJS_DIR} && rm -rf src/* include lib)
 	(mkdir -p ${SRS_OBJS_DIR}/utest && cd ${SRS_OBJS_DIR}/utest && rm -rf *.o *.a)
-	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 clean: clean_srs clean_modules
 
@@ -540,12 +539,6 @@ clean_ffmpeg:
 clean_st:
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf st-srs)
 	@echo "Please rebuild ST by: ./configure"
-
-clean_nginx:
-	(cd ${SRS_OBJS_DIR} && rm -rf nginx)
-
-clean_cherrypy:
-	(cd research/api-server/static-dir && rm -rf crossdomain.xml forward live players)
 
 st:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
@@ -587,7 +580,11 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)
 	@echo "Now make the http root dir"
 	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/api-server/static-dir/index.html \$(__REAL_INSTALL)/objs/nginx/html
 	@cp -f research/api-server/static-dir/crossdomain.xml \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -f research/api-server/static-dir/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -Rf research/players \$(__REAL_INSTALL)/objs/nginx/html
+	@cp -Rf research/console \$(__REAL_INSTALL)/objs/nginx/html
 	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
 	@cp -f objs/srs \$(__REAL_INSTALL)/objs
