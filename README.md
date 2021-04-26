@@ -177,6 +177,7 @@ The ports used by SRS:
 
 ## V5 changes
 
+* v5.0, 2021-05-19, ST: Simplify it, only Linux/Darwin, epoll/kqueue, single process. 5.0.2
 * v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
 * v5.0, 2021-03-15, Init SRS/5. 5.0.0
 

@@ -38,20 +38,8 @@ VERSION     = 1.9
 ##########################
 # Supported OSes:
 #
-#OS         = AIX
-#OS         = CYGWIN
 #OS         = DARWIN
-#OS         = FREEBSD
-#OS         = HPUX
-#OS         = HPUX_64
-#OS         = IRIX
-#OS         = IRIX_64
 #OS         = LINUX
-#OS         = NETBSD
-#OS         = OPENBSD
-#OS         = OSF1
-#OS         = SOLARIS
-#OS         = SOLARIS_64
 
 # Please see the "Other possible defines" section below for
 # possible compilation options.
@@ -62,6 +50,7 @@ AR          = ar
 LD          = ld
 RANLIB      = ranlib
 LN          = ln
+STATIC_ONLY = yes
 
 SHELL       = /bin/sh
 ECHO        = /bin/echo
@@ -72,7 +61,7 @@ TARGETDIR   = $(OS)_$(shell uname -r)_$(BUILD)
 DEFINES     = -D$(OS)
 CFLAGS      =
 SFLAGS      =
-ARFLAGS     = -rv
+ARFLAGS     = -r
 LNFLAGS     = -s
 DSO_SUFFIX  = so
 
@@ -83,20 +72,8 @@ DESC        = st.pc
 # Platform section.
 # Possible targets:
 
-TARGETS     = aix-debug aix-optimized               \
-              cygwin-debug cygwin-optimized         \
-              darwin-debug darwin-optimized         \
-              freebsd-debug freebsd-optimized       \
-              hpux-debug hpux-optimized             \
-              hpux-64-debug hpux-64-optimized       \
-              irix-n32-debug irix-n32-optimized     \
-              irix-64-debug irix-64-optimized       \
-              linux-debug linux-optimized           \
-              netbsd-debug netbsd-optimized         \
-              openbsd-debug openbsd-optimized       \
-              osf1-debug osf1-optimized             \
-              solaris-debug solaris-optimized       \
-              solaris-64-debug solaris-64-optimized
+TARGETS     = darwin-debug darwin-optimized         \
+              linux-debug linux-optimized
 
 UTEST_TARGETS = darwin-debug-utest linux-debug-utest \
                 darwin-debug-gcov linux-debug-gcov
@@ -105,127 +82,24 @@ UTEST_TARGETS = darwin-debug-utest linux-debug-utest \
 # Platform specifics
 #
 
-ifeq ($(OS), AIX)
-AIX_VERSION = $(shell uname -v).$(shell uname -r)
-TARGETDIR   = $(OS)_$(AIX_VERSION)_$(BUILD)
-CC          = xlC
-STATIC_ONLY = yes
-ifeq ($(BUILD), OPT)
-OTHER_FLAGS = -w
-endif
-ifneq ($(filter-out 4.1 4.2, $(AIX_VERSION)),)
-DEFINES     += -DMD_HAVE_SOCKLEN_T
-endif
-endif
-
-ifeq ($(OS), CYGWIN)
-TARGETDIR   = $(OS)_$(BUILD)
-CC          = gcc
-LD          = gcc
-DSO_SUFFIX  = dll
-SLIBRARY    = $(TARGETDIR)/libst.dll.a
-DLIBRARY    = $(TARGETDIR)/libst.dll
-DEF_FILE    = $(TARGETDIR)/libst.def
-LDFLAGS     = libst.def -shared --enable-auto-image-base -Wl,--output-def,$(DEF_FILE),--out-implib,$(SLIBRARY)
-OTHER_FLAGS = -Wall
-endif
-
 ifeq ($(OS), DARWIN)
 EXTRA_OBJS  = $(TARGETDIR)/md_darwin.o
 LD          = cc
 SFLAGS      = -fPIC -fno-common
 DSO_SUFFIX  = dylib
-RELEASE     = $(shell uname -r | cut -d. -f1)
-PPC         = $(shell test $(RELEASE) -le 9 && echo yes)
-INTEL       = $(shell test $(RELEASE) -ge 9 && echo yes)
-ifeq ($(PPC), yes)
-CFLAGS      += -arch ppc
-LDFLAGS     += -arch ppc
-endif
-ifeq ($(INTEL), yes)
 CFLAGS      += -arch x86_64
 LDFLAGS     += -arch x86_64
-endif
 LDFLAGS     += -dynamiclib -install_name /sw/lib/libst.$(MAJOR).$(DSO_SUFFIX) -compatibility_version $(MAJOR) -current_version $(VERSION)
 OTHER_FLAGS = -Wall
-endif
-
-ifeq ($(OS), FREEBSD)
-SFLAGS      = -fPIC
-LDFLAGS     = -shared -soname=$(SONAME) -lc
-OTHER_FLAGS = -Wall
-ifeq ($(shell test -f /usr/include/sys/event.h && echo yes), yes)
 DEFINES     += -DMD_HAVE_KQUEUE
-endif
-endif
-
-ifeq (HPUX, $(findstring HPUX, $(OS)))
-ifeq ($(OS), HPUX_64)
-DEFINES     = -DHPUX
-CFLAGS      = -Ae +DD64 +Z
-else
-CFLAGS      = -Ae +DAportable +Z
-endif
-RANLIB      = true
-LDFLAGS     = -b
-DSO_SUFFIX  = sl
-endif
-
-ifeq (IRIX, $(findstring IRIX, $(OS)))
-ifeq ($(OS), IRIX_64)
-DEFINES     = -DIRIX
-ABIFLAG     = -64
-else
-ABIFLAG     = -n32
-endif
-RANLIB      = true
-CFLAGS      = $(ABIFLAG) -mips3
-LDFLAGS     = $(ABIFLAG) -shared
-OTHER_FLAGS = -fullwarn
 endif
 
 ifeq ($(OS), LINUX)
-EXTRA_OBJS  = $(TARGETDIR)/md.o
+EXTRA_OBJS  = $(TARGETDIR)/md_linux.o
 SFLAGS      = -fPIC
 LDFLAGS     = -shared -soname=$(SONAME) -lc
 OTHER_FLAGS = -Wall
-ifeq ($(shell test -f /usr/include/sys/epoll.h && echo yes), yes)
 DEFINES     += -DMD_HAVE_EPOLL
-endif
-endif
-
-ifeq ($(OS), NETBSD)
-SFLAGS      = -fPIC
-LDFLAGS     = -shared -soname=$(SONAME) -lc
-OTHER_FLAGS = -Wall
-endif
-
-ifeq ($(OS), OPENBSD)
-SFLAGS      = -fPIC
-LDFLAGS     = -shared -soname=$(SONAME) -lc
-OTHER_FLAGS = -Wall
-ifeq ($(shell test -f /usr/include/sys/event.h && echo yes), yes)
-DEFINES     += -DMD_HAVE_KQUEUE
-endif
-endif
-
-ifeq ($(OS), OSF1)
-RANLIB      = true
-LDFLAGS     = -shared -all -expect_unresolved "*"
-endif
-
-ifeq (SOLARIS, $(findstring SOLARIS, $(OS)))
-TARGETDIR   = $(OS)_$(shell uname -r | sed 's/^5/2/')_$(BUILD)
-CC          = gcc
-LD          = gcc
-RANLIB      = true
-LDFLAGS     = -G
-OTHER_FLAGS = -Wall
-ifeq ($(OS), SOLARIS_64)
-DEFINES     = -DSOLARIS
-CFLAGS     += -m64
-LDFLAGS    += -m64
-endif
 endif
 
 #
@@ -234,9 +108,9 @@ endif
 
 
 ifeq ($(BUILD), OPT)
-OTHER_FLAGS += -O
+OTHER_FLAGS += -O2
 else
-OTHER_FLAGS += -g
+OTHER_FLAGS += -g -O0
 DEFINES     += -DDEBUG
 endif
 
@@ -285,10 +159,6 @@ endif
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
-# or to enable sendmmsg(2) support:
-#
-# make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
-#
 # or to enable stats for ST:
 #
 # make EXTRA_CFLAGS=-DDEBUG_STATS
@@ -311,27 +181,10 @@ OBJS        += $(EXTRA_OBJS)
 HEADER      = $(TARGETDIR)/st.h
 SLIBRARY    = $(TARGETDIR)/libst.a
 DLIBRARY    = $(TARGETDIR)/libst.$(DSO_SUFFIX).$(VERSION)
-EXAMPLES    = examples
 
 LINKNAME    = libst.$(DSO_SUFFIX)
 SONAME      = libst.$(DSO_SUFFIX).$(MAJOR)
 FULLNAME    = libst.$(DSO_SUFFIX).$(VERSION)
-
-ifeq ($(OS), CYGWIN)
-SONAME      = cygst.$(DSO_SUFFIX)
-SLIBRARY    = $(TARGETDIR)/libst.dll.a
-DLIBRARY    = $(TARGETDIR)/$(SONAME)
-LINKNAME    =
-# examples directory does not compile under cygwin
-EXAMPLES    =
-endif
-
-# for SRS
-# disable examples for ubuntu crossbuild failed.
-# @see https://github.com/winlinvip/simple-rtmp-server/issues/308
-ifeq ($(OS), LINUX)
-EXAMPLES =
-endif
 
 ifeq ($(OS), DARWIN)
 LINKNAME    = libst.$(DSO_SUFFIX)
@@ -348,7 +201,7 @@ endif
 ifeq ($(OS),)
 ST_ALL      = unknown
 else
-ST_ALL      = $(TARGETDIR) $(LIBRARIES) $(HEADER) $(EXAMPLES) $(DESC)
+ST_ALL      = $(TARGETDIR) $(LIBRARIES) $(HEADER) $(DESC)
 endif
 
 all: $(ST_ALL)
@@ -386,7 +239,7 @@ $(HEADER): public.h
 	rm -f $@
 	cp public.h $@
 
-$(TARGETDIR)/md.o: md.S
+$(TARGETDIR)/md_linux.o: md_linux.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGETDIR)/md_darwin.o: md_darwin.S
@@ -394,10 +247,6 @@ $(TARGETDIR)/md_darwin.o: md_darwin.S
 
 $(TARGETDIR)/%.o: %.c common.h md.h
 	$(CC) $(CFLAGS) -c $< -o $@
-
-examples: $(SLIBRARY)
-	@echo Making $@
-	@cd $@; $(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" OS="$(OS)" TARGETDIR="$(TARGETDIR)"
 
 clean:
 	rm -rf *_OPT *_DBG obj st.pc
@@ -418,80 +267,15 @@ endif
 ##########################
 # Target rules:
 
-default-debug:
-	. ./osguess.sh; $(MAKE) OS="$$OS" BUILD="DBG"
-default default-optimized:
-	. ./osguess.sh; $(MAKE) OS="$$OS" BUILD="OPT"
-
-aix-debug:
-	$(MAKE) OS="AIX" BUILD="DBG"
-aix-optimized:
-	$(MAKE) OS="AIX" BUILD="OPT"
-
-cygwin-debug:
-	$(MAKE) OS="CYGWIN" BUILD="DBG"
-cygwin-optimized:
-	$(MAKE) OS="CYGWIN" BUILD="OPT"
-
 darwin-debug:
 	$(MAKE) OS="DARWIN" BUILD="DBG"
 darwin-optimized:
 	$(MAKE) OS="DARWIN" BUILD="OPT"
 
-freebsd-debug:
-	$(MAKE) OS="FREEBSD" BUILD="DBG"
-freebsd-optimized:
-	$(MAKE) OS="FREEBSD" BUILD="OPT"
-
-hpux-debug:
-	$(MAKE) OS="HPUX" BUILD="DBG"
-hpux-optimized:
-	$(MAKE) OS="HPUX" BUILD="OPT"
-hpux-64-debug:
-	$(MAKE) OS="HPUX_64" BUILD="DBG"
-hpux-64-optimized:
-	$(MAKE) OS="HPUX_64" BUILD="OPT"
-
-irix-n32-debug:
-	$(MAKE) OS="IRIX" BUILD="DBG"
-irix-n32-optimized:
-	$(MAKE) OS="IRIX" BUILD="OPT"
-irix-64-debug:
-	$(MAKE) OS="IRIX_64" BUILD="DBG"
-irix-64-optimized:
-	$(MAKE) OS="IRIX_64" BUILD="OPT"
-
 linux-debug:
 	$(MAKE) OS="LINUX" BUILD="DBG"
 linux-optimized:
 	$(MAKE) OS="LINUX" BUILD="OPT"
-# compatibility
-linux-ia64-debug: linux-debug
-linux-ia64-optimized: linux-optimized
-
-netbsd-debug:
-	$(MAKE) OS="NETBSD" BUILD="DBG"
-netbsd-optimized:
-	$(MAKE) OS="NETBSD" BUILD="OPT"
-
-openbsd-debug:
-	$(MAKE) OS="OPENBSD" BUILD="DBG"
-openbsd-optimized:
-	$(MAKE) OS="OPENBSD" BUILD="OPT"
-
-osf1-debug:
-	$(MAKE) OS="OSF1" BUILD="DBG"
-osf1-optimized:
-	$(MAKE) OS="OSF1" BUILD="OPT"
-
-solaris-debug:
-	$(MAKE) OS="SOLARIS" BUILD="DBG"
-solaris-optimized:
-	$(MAKE) OS="SOLARIS" BUILD="OPT"
-solaris-64-debug:
-	$(MAKE) OS="SOLARIS_64" BUILD="DBG"
-solaris-64-optimized:
-	$(MAKE) OS="SOLARIS_64" BUILD="OPT"
 
 darwin-debug-utest:
 	@echo "Build utest for state-threads"

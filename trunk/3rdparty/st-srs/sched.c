@@ -503,10 +503,15 @@ void _st_del_sleep_q(_st_thread_t *thread)
 void _st_vp_check_clock(void)
 {
     _st_thread_t *thread;
-    st_utime_t elapsed, now;
-    
+    st_utime_t now;
+#if defined(DEBUG) && defined(DEBUG_STATS)
+    st_utime_t elapsed;
+#endif
+
     now = st_utime();
+#if defined(DEBUG) && defined(DEBUG_STATS)
     elapsed = now < _ST_LAST_CLOCK? 0 : now - _ST_LAST_CLOCK; // Might step back.
+#endif
     _ST_LAST_CLOCK = now;
 
     #if defined(DEBUG) && defined(DEBUG_STATS)
@@ -620,9 +625,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     _st_stack_t *stack;
     void **ptds;
     char *sp;
-#ifdef __ia64__
-    char *bsp;
-#endif
     
     /* Adjust stack size */
     if (stk_size == 0)
@@ -633,23 +635,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
         return NULL;
     
     /* Allocate thread object and per-thread data off the stack */
-#if defined (MD_STACK_GROWS_DOWN)
     sp = stack->stk_top;
-#ifdef __ia64__
-    /*
-     * The stack segment is split in the middle. The upper half is used
-     * as backing store for the register stack which grows upward.
-     * The lower half is used for the traditional memory stack which
-     * grows downward. Both stacks start in the middle and grow outward
-     * from each other.
-     */
-    sp -= (stk_size >> 1);
-    bsp = sp;
-    /* Make register stack 64-byte aligned */
-    if ((unsigned long)bsp & 0x3f)
-        bsp = bsp + (0x40 - ((unsigned long)bsp & 0x3f));
-    stack->bsp = bsp + _ST_STACK_PAD_SIZE;
-#endif
     sp = sp - (ST_KEYS_MAX * sizeof(void *));
     ptds = (void **) sp;
     sp = sp - sizeof(_st_thread_t);
@@ -659,21 +645,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     if ((unsigned long)sp & 0x3f)
         sp = sp - ((unsigned long)sp & 0x3f);
     stack->sp = sp - _ST_STACK_PAD_SIZE;
-#elif defined (MD_STACK_GROWS_UP)
-    sp = stack->stk_bottom;
-    thread = (_st_thread_t *) sp;
-    sp = sp + sizeof(_st_thread_t);
-    ptds = (void **) sp;
-    sp = sp + (ST_KEYS_MAX * sizeof(void *));
-    
-    /* Make stack 64-byte aligned */
-    if ((unsigned long)sp & 0x3f)
-        sp = sp + (0x40 - ((unsigned long)sp & 0x3f));
-    stack->sp = sp + _ST_STACK_PAD_SIZE;
-#else
-#error Unknown OS
-#endif
-    
+
     memset(thread, 0, sizeof(_st_thread_t));
     memset(ptds, 0, ST_KEYS_MAX * sizeof(void *));
     
@@ -683,7 +655,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->start = start;
     thread->arg = arg;
     
-#ifndef __ia64__
     /* Merge from https://github.com/michaeltalyansky/state-threads/commit/cce736426c2320ffec7c9820df49ee7a18ae638c */
     #if defined(__arm__) && !defined(MD_USE_BUILTIN_SETJMP) && __GLIBC_MINOR__ >= 19
         volatile void * lsp = PTR_MANGLE(stack->sp);
@@ -693,9 +664,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     #else
         _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
     #endif
-#else
-    _ST_INIT_CONTEXT(thread, stack->sp, stack->bsp, _st_thread_main);
-#endif
     
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {
