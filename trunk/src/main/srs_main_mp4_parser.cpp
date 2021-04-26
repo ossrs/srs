@@ -44,6 +44,9 @@ ISrsContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
 
+// @global Other variables.
+bool _srs_in_docker = false;
+
 srs_error_t parse(std::string mp4_file, bool verbose)
 {
     srs_error_t err = srs_success;
