@@ -167,6 +167,9 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
 
 SrsAlonePithyPrint::SrsAlonePithyPrint() : info_(0)
 {
+    //stage work for one print
+    info_.nb_clients = 1;
+
     previous_tick_ = srs_get_system_time();
 }
 
