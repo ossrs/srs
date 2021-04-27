@@ -76,7 +76,7 @@ public:
     bool hybrid_dying_water_level();
 // interface ISrsFastTimer
 private:
-    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 extern __thread SrsCircuitBreaker* _srs_circuit_breaker;

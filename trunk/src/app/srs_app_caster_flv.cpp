@@ -258,12 +258,6 @@ srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecod
     return err;
 }
 
-srs_error_t SrsDynamicHttpConn::on_reload_http_stream_crossdomain()
-{
-    bool v = _srs_config->get_http_stream_crossdomain();
-    return conn->set_crossdomain_enabled(v);
-}
-
 srs_error_t SrsDynamicHttpConn::on_start()
 {
     return srs_success;

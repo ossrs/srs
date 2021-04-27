@@ -385,9 +385,6 @@ public:
     virtual srs_error_t on_reload_vhost_removed(std::string vhost);
     virtual srs_error_t on_reload_http_api_enabled();
     virtual srs_error_t on_reload_http_api_disabled();
-    virtual srs_error_t on_reload_http_stream_enabled();
-    virtual srs_error_t on_reload_http_stream_disabled();
-    virtual srs_error_t on_reload_http_stream_updated();
 // Interface ISrsSourceHandler
 public:
     virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);

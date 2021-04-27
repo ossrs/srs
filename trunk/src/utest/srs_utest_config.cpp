@@ -81,6 +81,10 @@ srs_error_t MockSrsConfig::parse(string buf)
         return srs_error_wrap(err, "transform config");
     }
 
+    if ((err = srs_config_transform_vhost2(root)) != srs_success) {
+        return srs_error_wrap(err, "transform config");
+    }
+
     if ((err = check_normal_config()) != srs_success) {
         return srs_error_wrap(err, "check normal config");
     }

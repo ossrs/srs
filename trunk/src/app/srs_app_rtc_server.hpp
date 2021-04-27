@@ -117,9 +117,6 @@ public:
     virtual ~SrsRtcServer();
 public:
     virtual srs_error_t initialize();
-// interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_rtc_server();
 public:
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);

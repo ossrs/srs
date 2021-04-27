@@ -1516,45 +1516,6 @@ srs_error_t SrsServer::on_reload_http_api_disabled()
     return srs_success;
 }
 
-srs_error_t SrsServer::on_reload_http_stream_enabled()
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = listen_http_stream()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream enabled");
-    }
-
-    if ((err = listen_https_stream()) != srs_success) {
-        return srs_error_wrap(err, "reload https_stream enabled");
-    }
-    
-    return err;
-}
-
-srs_error_t SrsServer::on_reload_http_stream_disabled()
-{
-    close_listeners(SrsListenerHttpStream);
-    close_listeners(SrsListenerHttpsStream);
-    return srs_success;
-}
-
-// TODO: FIXME: rename to http_remux
-srs_error_t SrsServer::on_reload_http_stream_updated()
-{
-    srs_error_t err = srs_success;
-    
-    if ((err = on_reload_http_stream_enabled()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream updated");
-    }
-    
-    // TODO: FIXME: should handle the event in SrsHttpStaticServer
-    if ((err = on_reload_vhost_http_updated()) != srs_success) {
-        return srs_error_wrap(err, "reload http_stream updated");
-    }
-    
-    return err;
-}
-
 srs_error_t SrsServer::on_publish(SrsSource* s, SrsRequest* r)
 {
     srs_error_t err = srs_success;

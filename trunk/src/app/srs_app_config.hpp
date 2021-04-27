@@ -326,11 +326,8 @@ protected:
 private:
     // Reload  the http_api section of config.
     virtual srs_error_t reload_http_api(SrsConfDirective* old_root);
-    // Reload  the http_stream section of config.
-    // TODO: FIXME: rename to http_server.
-    virtual srs_error_t reload_http_stream(SrsConfDirective* old_root);
-    // Reload the rtc_server section of config.
-    virtual srs_error_t reload_rtc_server(SrsConfDirective* old_root);
+    // Reload the streams for hybrids.
+    virtual srs_error_t reload_streams(SrsConfDirective* old_root);
     // Reload  the transcode section of vhost of config.
     virtual srs_error_t reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     // Reload  the ingest section of vhost of config.
@@ -355,16 +352,12 @@ public:
     virtual srs_error_t vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
     // Dumps the http_api sections to json for raw api info.
     virtual srs_error_t raw_to_json(SrsJsonObject* obj);
-    // RAW  set the global listen.
-    virtual srs_error_t raw_set_listen(const std::vector<std::string>& eps, bool& applied);
     // RAW  set the global pid.
     virtual srs_error_t raw_set_pid(std::string pid, bool& applied);
     // RAW  set the global chunk size.
     virtual srs_error_t raw_set_chunk_size(std::string chunk_size, bool& applied);
     // RAW  set the global ffmpeg log dir.
     virtual srs_error_t raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
-    // RAW  set the global max connections of srs.
-    virtual srs_error_t raw_set_max_connections(std::string max_connections, bool& applied);
     // RAW  set the global pithy print interval in ms.
     virtual srs_error_t raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
     // RAW  create the new vhost.
@@ -382,9 +375,7 @@ public:
     // RAW  disable the dvr of stream of vhost.
     virtual srs_error_t raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
 private:
-    virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
-    virtual srs_error_t do_reload_max_connections();
     virtual srs_error_t do_reload_pithy_print_ms();
     virtual srs_error_t do_reload_vhost_added(std::string vhost);
     virtual srs_error_t do_reload_vhost_removed(std::string vhost);

@@ -319,42 +319,6 @@ srs_error_t SrsRtcServer::initialize()
     return err;
 }
 
-srs_error_t SrsRtcServer::on_reload_rtc_server()
-{
-    bool changed = false;
-
-    bool rtp_cache_enabled = _srs_config->get_rtc_server_rtp_cache_enabled();
-    uint64_t rtp_cache_pkt_size = _srs_config->get_rtc_server_rtp_cache_pkt_size();
-    uint64_t rtp_cache_payload_size = _srs_config->get_rtc_server_rtp_cache_payload_size();
-    if (_srs_rtp_cache->enabled() != rtp_cache_enabled) {
-        _srs_rtp_cache->setup(rtp_cache_enabled, rtp_cache_pkt_size);
-        _srs_rtp_raw_cache->setup(rtp_cache_enabled, rtp_cache_payload_size);
-        _srs_rtp_fua_cache->setup(rtp_cache_enabled, rtp_cache_payload_size);
-
-        changed = true;
-    }
-
-    bool rtp_msg_cache_enabled = _srs_config->get_rtc_server_rtp_msg_cache_enabled();
-    uint64_t rtp_msg_cache_msg_size = _srs_config->get_rtc_server_rtp_msg_cache_msg_size();
-    uint64_t rtp_msg_cache_buffer_size = _srs_config->get_rtc_server_rtp_msg_cache_buffer_size();
-    if (_srs_rtp_msg_cache_buffers->enabled() != rtp_msg_cache_enabled) {
-        _srs_rtp_msg_cache_buffers->setup(rtp_msg_cache_enabled, rtp_msg_cache_buffer_size);
-        _srs_rtp_msg_cache_objs->setup(rtp_msg_cache_enabled, rtp_msg_cache_msg_size);
-
-        changed = true;
-    }
-
-    if (changed) {
-        srs_trace("RTC: Object cache reload, rtp-cache=(enabled:%d,pkt:%dm-%dw,payload:%dm-%dw-%dw), msg-cache=(enabled:%d,obj:%dm-%dw,buf:%dm-%dw)",
-            rtp_cache_enabled, (int)(rtp_cache_pkt_size/1024/1024), _srs_rtp_cache->capacity()/10000,
-            (int)(rtp_cache_payload_size/1024/1024), _srs_rtp_raw_cache->capacity()/10000, _srs_rtp_fua_cache->capacity()/10000,
-            rtp_msg_cache_enabled, (int)(rtp_msg_cache_msg_size/1024/1024), _srs_rtp_msg_cache_objs->capacity()/10000,
-            (int)(rtp_msg_cache_buffer_size/1024/1024), _srs_rtp_msg_cache_buffers->capacity()/10000);
-    }
-
-    return srs_success;
-}
-
 void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 {
     handler = h;

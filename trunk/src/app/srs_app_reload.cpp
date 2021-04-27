@@ -85,31 +85,6 @@ srs_error_t ISrsReloadHandler::on_reload_http_api_raw_api()
     return srs_success;
 }
 
-srs_error_t ISrsReloadHandler::on_reload_http_stream_enabled()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_http_stream_disabled()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_http_stream_updated()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_http_stream_crossdomain()
-{
-    return srs_success;
-}
-
-srs_error_t ISrsReloadHandler::on_reload_rtc_server()
-{
-    return srs_success;
-}
-
 srs_error_t ISrsReloadHandler::on_reload_vhost_http_updated()
 {
     return srs_success;

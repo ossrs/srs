@@ -366,12 +366,6 @@ srs_error_t SrsResponseOnlyHttpConn::pop_message(ISrsHttpMessage** preq)
     return err;
 }
 
-srs_error_t SrsResponseOnlyHttpConn::on_reload_http_stream_crossdomain()
-{
-    bool v = _srs_config->get_http_stream_crossdomain();
-    return conn->set_crossdomain_enabled(v);
-}
-
 srs_error_t SrsResponseOnlyHttpConn::on_start()
 {
     srs_error_t err = srs_success;

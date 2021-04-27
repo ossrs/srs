@@ -1654,24 +1654,10 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     //      bandcheck, http_hooks, heartbeat,
     //      security
     
-    // merge config: listen
-    if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
-        if ((err = do_reload_listen()) != srs_success) {
-            return srs_error_wrap(err, "listen");
-        }
-    }
-    
     // merge config: pid
     if (!srs_directive_equals(root->get("pid"), old_root->get("pid"))) {
         if ((err = do_reload_pid()) != srs_success) {
             return srs_error_wrap(err, "pid");;
-        }
-    }
-    
-    // merge config: max_connections
-    if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
-        if ((err = do_reload_max_connections()) != srs_success) {
-            return srs_error_wrap(err, "max connections");;
         }
     }
     
@@ -1686,15 +1672,10 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
     if ((err = reload_http_api(old_root)) != srs_success) {
         return srs_error_wrap(err, "http api");;
     }
-    
-    // merge config: http_stream
-    if ((err = reload_http_stream(old_root)) != srs_success) {
-        return srs_error_wrap(err, "http steram");;
-    }
 
-    // Merge config: rtc_server
-    if ((err = reload_rtc_server(old_root)) != srs_success) {
-        return srs_error_wrap(err, "http steram");;
+    // merge config: streams
+    if ((err = reload_streams(old_root)) != srs_success) {
+        return srs_error_wrap(err, "streams");;
     }
     
     // TODO: FIXME: support reload stream_caster.
@@ -1785,17 +1766,10 @@ srs_error_t SrsConfig::reload_http_api(SrsConfDirective* old_root)
     return err;
 }
 
-srs_error_t SrsConfig::reload_http_stream(SrsConfDirective* old_root)
+srs_error_t SrsConfig::reload_streams(SrsConfDirective* old_root)
 {
     srs_error_t err = srs_success;
-    // TODO: FIXME: We never support reload HTTP stream.
-    return err;
-}
-
-srs_error_t SrsConfig::reload_rtc_server(SrsConfDirective* old_root)
-{
-    srs_error_t err = srs_success;
-    // TODO: FIXME: Do not support reloading RTC Server.
+    // TODO: FIXME: We never support reload streams.
     return err;
 }
 
@@ -2901,31 +2875,6 @@ srs_error_t SrsConfig::raw_to_json(SrsJsonObject* obj)
     return err;
 }
 
-srs_error_t SrsConfig::raw_set_listen(const vector<string>& eps, bool& applied)
-{
-    srs_error_t err = srs_success;
-    
-    applied = false;
-    
-    SrsConfDirective* conf = root->get("listen");
-    
-    // nothing changed, ignore.
-    if (srs_vector_actual_equals(conf->args, eps)) {
-        return err;
-    }
-    
-    // changed, apply and reload.
-    conf->args = eps;
-    
-    if ((err = do_reload_listen()) != srs_success) {
-        return srs_error_wrap(err, "reload listen");
-    }
-    
-    applied = true;
-    
-    return err;
-}
-
 srs_error_t SrsConfig::raw_set_pid(string pid, bool& applied)
 {
     srs_error_t err = srs_success;
@@ -2988,30 +2937,6 @@ srs_error_t SrsConfig::raw_set_ff_log_dir(string ff_log_dir, bool& applied)
     conf->args.push_back(ff_log_dir);
     
     // directly supported reload for ff_log_dir change.
-    
-    applied = true;
-    
-    return err;
-}
-
-srs_error_t SrsConfig::raw_set_max_connections(string max_connections, bool& applied)
-{
-    srs_error_t err = srs_success;
-    
-    applied = false;
-    
-    SrsConfDirective* conf = root->get_or_create("max_connections");
-    
-    if (conf->arg0() == max_connections) {
-        return err;
-    }
-    
-    conf->args.clear();
-    conf->args.push_back(max_connections);
-    
-    if ((err = do_reload_max_connections()) != srs_success) {
-        return srs_error_wrap(err, "reload max connection");
-    }
     
     applied = true;
     
@@ -3185,22 +3110,6 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
 }
 // LCOV_EXCL_STOP
 
-srs_error_t SrsConfig::do_reload_listen()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_listen()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload listen failed");
-        }
-    }
-    srs_trace("reload listen success.");
-    
-    return err;
-}
-
 srs_error_t SrsConfig::do_reload_pid()
 {
     srs_error_t err = srs_success;
@@ -3213,22 +3122,6 @@ srs_error_t SrsConfig::do_reload_pid()
         }
     }
     srs_trace("reload pid success.");
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_max_connections()
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_max_conns()) != srs_success) {
-            return srs_error_wrap(err, "notify subscribes reload max_connections failed");
-        }
-    }
-    srs_trace("reload max_connections success.");
     
     return err;
 }

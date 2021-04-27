@@ -107,7 +107,7 @@ srs_error_t SrsCircuitBreaker::initialize()
     srs_error_t err = srs_success;
 
     // Start a timer to stat the data for circuit breaker.
-    _srs_hybrid->timer()->subscribe(1 * SRS_UTIME_SECONDS, this);
+    _srs_hybrid->timer1s()->subscribe(this);
 
     enabled_ = _srs_config->get_circuit_breaker();
     high_threshold_ = _srs_config->get_high_threshold();
@@ -138,7 +138,7 @@ bool SrsCircuitBreaker::hybrid_dying_water_level()
     return enabled_ && (dying_pulse_ && hybrid_dying_water_level_ >= dying_pulse_);
 }
 
-srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 

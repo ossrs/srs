@@ -162,9 +162,6 @@ public:
     // @see https://github.com/ossrs/srs/issues/636#issuecomment-298208427
     // @remark Should only used in HTTP-FLV streaming connection.
     virtual srs_error_t pop_message(ISrsHttpMessage** preq);
-// Interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_http_stream_crossdomain();
 // Interface ISrsHttpConnOwner.
 public:
     virtual srs_error_t on_start();

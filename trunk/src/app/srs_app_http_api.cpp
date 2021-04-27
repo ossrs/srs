@@ -993,14 +993,12 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
     //      @data the extra data for scope.
     // possible updates:
     //      @scope          @value              value-description
-    //      listen          1935,1936           the port list.
     //      pid             ./objs/srs.pid      the pid file of srs.
     //      chunk_size      60000               the global RTMP chunk_size.
     //      ff_log_dir      ./objs              the dir for ffmpeg log.
     //      srs_log_tank    file                the tank to log, file or console.
     //      srs_log_level   trace               the level of log, verbose, info, trace, warn, error.
     //      srs_log_file    ./objs/srs.log      the log file when tank is file.
-    //      max_connections 1000                the max connections of srs.
     //      utc_time        false               whether enable utc time.
     //      pithy_print_ms  10000               the pithy print interval in ms.
     // vhost specified updates:
@@ -1021,9 +1019,9 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         if (scope.empty()) {
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
         }
-        if (scope != "listen" && scope != "pid" && scope != "chunk_size"
+        if (scope != "pid" && scope != "chunk_size"
             && scope != "ff_log_dir" && scope != "srs_log_tank" && scope != "srs_log_level"
-            && scope != "srs_log_file" && scope != "max_connections" && scope != "utc_time"
+            && scope != "srs_log_file" && scope != "utc_time"
             && scope != "pithy_print_ms" && scope != "vhost" && scope != "dvr"
             ) {
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
@@ -1031,28 +1029,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
         
         bool applied = false;
         string extra = "";
-        if (scope == "listen") {
-            vector<string> eps = srs_string_split(value, ",");
-            
-            bool invalid = eps.empty();
-            for (int i = 0; i < (int)eps.size(); i++) {
-                string ep = eps.at(i);
-                int port = ::atoi(ep.c_str());
-                if (port <= 2 || port >= 65535) {
-                    invalid = true;
-                    break;
-                }
-            }
-            if (invalid) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_listen(eps, applied)) != srs_success) {
-                int code = srs_error_code(err);
-                srs_error_reset(err);
-                return srs_api_response_code(w, r, code);
-            }
-        } else if (scope == "pid") {
+        if (scope == "pid") {
             if (value.empty() || !srs_string_starts_with(value, "./", "/tmp/", "/var/") || !srs_string_ends_with(value, ".pid")) {
                 return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
             }
@@ -1079,17 +1056,6 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
             }
             
             if ((err = _srs_config->raw_set_ff_log_dir(value, applied)) != srs_success) {
-                int code = srs_error_code(err);
-                srs_error_reset(err);
-                return srs_api_response_code(w, r, code);
-            }
-        } else if (scope == "max_connections") {
-            int mcv = ::atoi(value.c_str());
-            if (mcv < 10 || mcv > 65535 || !srs_is_digit_number(value)) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-            
-            if ((err = _srs_config->raw_set_max_connections(value, applied)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_error_reset(err);
                 return srs_api_response_code(w, r, code);

@@ -185,24 +185,6 @@ srs_error_t MockReloadHandler::on_reload_http_api_disabled()
     return srs_success;
 }
 
-srs_error_t MockReloadHandler::on_reload_http_stream_enabled()
-{
-    http_stream_enabled_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_http_stream_disabled()
-{
-    http_stream_disabled_reloaded = true;
-    return srs_success;
-}
-
-srs_error_t MockReloadHandler::on_reload_http_stream_updated()
-{
-    http_stream_updated_reloaded = true;
-    return srs_success;
-}
-
 srs_error_t MockReloadHandler::on_reload_vhost_http_updated()
 {
     vhost_http_updated_reloaded = true;
@@ -310,47 +292,6 @@ VOID TEST(ConfigReloadTest, ReloadEmpty)
     EXPECT_TRUE(handler.all_false());
 }
 
-VOID TEST(ConfigReloadTest, ReloadListen)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse("listen 1935;"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1935;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1936;"));
-    EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1936;"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1936 1935;"));
-    EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1935;"));
-    EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1935 1935;"));
-    EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload("listen 1935;"));
-    EXPECT_TRUE(handler.listen_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
 VOID TEST(ConfigReloadTest, ReloadPid)
 {
     MockReloadHandler handler;
@@ -431,69 +372,6 @@ VOID TEST(ConfigReloadTest, ReloadHttpApiDisabled)
     handler.reset();
     
     EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_api {enabled on;}"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadHttpStreamEnabled)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"http_stream {enabled off;}"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled off;}"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on;}"));
-    EXPECT_TRUE(handler.http_stream_enabled_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled off;}"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadHttpStreamDisabled)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"http_stream {enabled on;}"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on;}"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled off;}"));
-    EXPECT_TRUE(handler.http_stream_disabled_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on;}"));
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-}
-
-VOID TEST(ConfigReloadTest, ReloadHttpStreamUpdated)
-{
-    MockReloadHandler handler;
-    MockSrsReloadConfig conf;
-    
-    conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"http_stream {enabled on; listen 8080;}"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on; listen 8080;}"));
-    EXPECT_TRUE(handler.all_false());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on; listen 8000;}"));
-    EXPECT_TRUE(handler.http_stream_updated_reloaded);
-    EXPECT_EQ(1, handler.count_true());
-    handler.reset();
-    
-    EXPECT_TRUE(ERROR_SUCCESS == conf.do_reload(_MIN_OK_CONF"http_stream {enabled on; listen 8080;}"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }
