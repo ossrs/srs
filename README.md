@@ -43,6 +43,7 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git &&
 ```
 
 > Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
+
 > Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]), or use [docker][docker-dev].
 
 <a name="srs-30-wiki"></a>
