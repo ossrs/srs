@@ -5,13 +5,13 @@ default: bench test
 clean:
 	rm -f ./objs/srs_bench ./objs/srs_test
 
-.format.txt: *.go srs/*.go vnet/*.go
+.format.txt: *.go srs/*.go vnet/*.go janus/*.go
 	gofmt -w .
 	echo "done" > .format.txt
 
 bench: ./objs/srs_bench
 
-./objs/srs_bench: .format.txt *.go srs/*.go vnet/*.go Makefile
+./objs/srs_bench: .format.txt *.go srs/*.go vnet/*.go janus/*.go Makefile
 	go build -mod=vendor -o objs/srs_bench .
 
 test: ./objs/srs_test

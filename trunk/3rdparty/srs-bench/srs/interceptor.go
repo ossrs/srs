@@ -26,11 +26,11 @@ import (
 	"github.com/pion/rtp"
 )
 
-type RTPInterceptorOptionFunc func(i *RTPInterceptor)
+type rtpInterceptorOptionFunc func(i *rtpInterceptor)
 
 // Common RTP packet interceptor for benchmark.
-// @remark Should never merge with RTCPInterceptor, because they has the same Write interface.
-type RTPInterceptor struct {
+// @remark Should never merge with rtcpInterceptor, because they has the same Write interface.
+type rtpInterceptor struct {
 	// If rtpReader is nil, use the default next one to read.
 	rtpReader     interceptor.RTPReaderFunc
 	nextRTPReader interceptor.RTPReader
@@ -38,52 +38,52 @@ type RTPInterceptor struct {
 	rtpWriter     interceptor.RTPWriterFunc
 	nextRTPWriter interceptor.RTPWriter
 	// Other common fields.
-	BypassInterceptor
+	bypassInterceptor
 }
 
-func NewRTPInterceptor(options ...RTPInterceptorOptionFunc) *RTPInterceptor {
-	v := &RTPInterceptor{}
+func newRTPInterceptor(options ...rtpInterceptorOptionFunc) *rtpInterceptor {
+	v := &rtpInterceptor{}
 	for _, opt := range options {
 		opt(v)
 	}
 	return v
 }
 
-func (v *RTPInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
+func (v *rtpInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
 	v.nextRTPWriter = writer
 	return v // Handle all RTP
 }
 
-func (v *RTPInterceptor) Write(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+func (v *rtpInterceptor) Write(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
 	if v.rtpWriter != nil {
 		return v.rtpWriter(header, payload, attributes)
 	}
 	return v.nextRTPWriter.Write(header, payload, attributes)
 }
 
-func (v *RTPInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
+func (v *rtpInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
 }
 
-func (v *RTPInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+func (v *rtpInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
 	v.nextRTPReader = reader
 	return v // Handle all RTP
 }
 
-func (v *RTPInterceptor) Read(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
+func (v *rtpInterceptor) Read(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
 	if v.rtpReader != nil {
 		return v.rtpReader(b, a)
 	}
 	return v.nextRTPReader.Read(b, a)
 }
 
-func (v *RTPInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
+func (v *rtpInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
 }
 
-type RTCPInterceptorOptionFunc func(i *RTCPInterceptor)
+type rtcpInterceptorOptionFunc func(i *rtcpInterceptor)
 
 // Common RTCP packet interceptor for benchmark.
-// @remark Should never merge with RTPInterceptor, because they has the same Write interface.
-type RTCPInterceptor struct {
+// @remark Should never merge with rtpInterceptor, because they has the same Write interface.
+type rtcpInterceptor struct {
 	// If rtcpReader is nil, use the default next one to read.
 	rtcpReader     interceptor.RTCPReaderFunc
 	nextRTCPReader interceptor.RTCPReader
@@ -91,35 +91,35 @@ type RTCPInterceptor struct {
 	rtcpWriter     interceptor.RTCPWriterFunc
 	nextRTCPWriter interceptor.RTCPWriter
 	// Other common fields.
-	BypassInterceptor
+	bypassInterceptor
 }
 
-func NewRTCPInterceptor(options ...RTCPInterceptorOptionFunc) *RTCPInterceptor {
-	v := &RTCPInterceptor{}
+func newRTCPInterceptor(options ...rtcpInterceptorOptionFunc) *rtcpInterceptor {
+	v := &rtcpInterceptor{}
 	for _, opt := range options {
 		opt(v)
 	}
 	return v
 }
 
-func (v *RTCPInterceptor) BindRTCPReader(reader interceptor.RTCPReader) interceptor.RTCPReader {
+func (v *rtcpInterceptor) BindRTCPReader(reader interceptor.RTCPReader) interceptor.RTCPReader {
 	v.nextRTCPReader = reader
 	return v // Handle all RTCP
 }
 
-func (v *RTCPInterceptor) Read(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
+func (v *rtcpInterceptor) Read(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
 	if v.rtcpReader != nil {
 		return v.rtcpReader(b, a)
 	}
 	return v.nextRTCPReader.Read(b, a)
 }
 
-func (v *RTCPInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) interceptor.RTCPWriter {
+func (v *rtcpInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) interceptor.RTCPWriter {
 	v.nextRTCPWriter = writer
 	return v // Handle all RTCP
 }
 
-func (v *RTCPInterceptor) Write(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
+func (v *rtcpInterceptor) Write(pkts []rtcp.Packet, attributes interceptor.Attributes) (int, error) {
 	if v.rtcpWriter != nil {
 		return v.rtcpWriter(pkts, attributes)
 	}
@@ -127,32 +127,32 @@ func (v *RTCPInterceptor) Write(pkts []rtcp.Packet, attributes interceptor.Attri
 }
 
 // Do nothing.
-type BypassInterceptor struct {
+type bypassInterceptor struct {
 	interceptor.Interceptor
 }
 
-func (v *BypassInterceptor) BindRTCPReader(reader interceptor.RTCPReader) interceptor.RTCPReader {
+func (v *bypassInterceptor) BindRTCPReader(reader interceptor.RTCPReader) interceptor.RTCPReader {
 	return reader
 }
 
-func (v *BypassInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) interceptor.RTCPWriter {
+func (v *bypassInterceptor) BindRTCPWriter(writer interceptor.RTCPWriter) interceptor.RTCPWriter {
 	return writer
 }
 
-func (v *BypassInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
+func (v *bypassInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
 	return writer
 }
 
-func (v *BypassInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
+func (v *bypassInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
 }
 
-func (v *BypassInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+func (v *bypassInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
 	return reader
 }
 
-func (v *BypassInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
+func (v *bypassInterceptor) UnbindRemoteStream(info *interceptor.StreamInfo) {
 }
 
-func (v *BypassInterceptor) Close() error {
+func (v *bypassInterceptor) Close() error {
 	return nil
 }

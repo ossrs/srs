@@ -89,6 +89,20 @@ public:
     bool can_print(int err, uint32_t* pnn = NULL);
 };
 
+// An standalone pithy print, without shared stages.
+class SrsAlonePithyPrint
+{
+private:
+    SrsStageInfo info_;
+    srs_utime_t previous_tick_;
+public:
+    SrsAlonePithyPrint();
+    virtual ~SrsAlonePithyPrint();
+public:
+    virtual void elapse();
+    virtual bool can_print();
+};
+
 // The stage is used for a collection of object to do print,
 // the print time in a stage is constant and not changed,
 // that is, we always got one message to print every specified time.

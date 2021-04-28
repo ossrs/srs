@@ -1,0 +1,40 @@
+<div>
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" href="javascript:void(0)">
+                    Connect to your SRS
+                </a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    <div class="form-horizontal">
+                        <div class="control-group">
+                            <label class="control-label" for="sscProtocol">Protocol</label>
+                            <div class="controls">
+                                <input type="text" id="sscProtocol" placeholder="SRS API Protocol, http or https" ng-model="server.schema">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="sscServer">Server IP</label>
+                            <div class="controls">
+                                <input type="text" id="sscServer" placeholder="SRS API Server IP" ng-model="server.ip">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="sscPort">SRS API Port</label>
+                            <div class="controls">
+                                <input type="text" id="sscPort" placeholder="SRS API Server Port" ng-model="server.port">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="controls">
+                                <button type="submit" class="btn" ng-click="connect()">Connect</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

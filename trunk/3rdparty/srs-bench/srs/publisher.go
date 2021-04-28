@@ -34,10 +34,10 @@ import (
 )
 
 // @see https://github.com/pion/webrtc/blob/master/examples/play-from-disk/main.go
-func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC bool) error {
+func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC bool) error {
 	ctx = logger.WithContext(ctx)
 
-	logger.Tf(ctx, "Start publish url=%v, audio=%v, video=%v, fps=%v, audio-level=%v, twcc=%v",
+	logger.Tf(ctx, "Run publish url=%v, audio=%v, video=%v, fps=%v, audio-level=%v, twcc=%v",
 		r, sourceAudio, sourceVideo, fps, enableAudioLevel, enableTWCC)
 
 	// Filter for SPS/PPS marker.
@@ -78,11 +78,11 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 		}
 
 		if sourceAudio != "" {
-			aIngester = NewAudioIngester(sourceAudio)
+			aIngester = newAudioIngester(sourceAudio)
 			registry.Add(aIngester.audioLevelInterceptor)
 		}
 		if sourceVideo != "" {
-			vIngester = NewVideoIngester(sourceVideo)
+			vIngester = newVideoIngester(sourceVideo)
 			registry.Add(vIngester.markerInterceptor)
 		}
 
@@ -158,7 +158,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	pcDone, pcDoneCancel := context.WithCancel(context.Background())
+	pcDoneCtx, pcDoneCancel := context.WithCancel(context.Background())
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		logger.Tf(ctx, "PC state %v", state)
 
@@ -196,7 +196,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 		select {
 		case <-ctx.Done():
-		case <-pcDone.Done():
+		case <-pcDoneCtx.Done():
 			logger.Tf(ctx, "PC(ICE+DTLS+SRTP) done, start read audio packets")
 		}
 
@@ -218,7 +218,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 		select {
 		case <-ctx.Done():
-		case <-pcDone.Done():
+		case <-pcDoneCtx.Done():
 			logger.Tf(ctx, "PC(ICE+DTLS+SRTP) done, start ingest audio %v", sourceAudio)
 		}
 
@@ -244,7 +244,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 		select {
 		case <-ctx.Done():
-		case <-pcDone.Done():
+		case <-pcDoneCtx.Done():
 			logger.Tf(ctx, "PC(ICE+DTLS+SRTP) done, start read video packets")
 		}
 
@@ -266,7 +266,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 
 		select {
 		case <-ctx.Done():
-		case <-pcDone.Done():
+		case <-pcDoneCtx.Done():
 			logger.Tf(ctx, "PC(ICE+DTLS+SRTP) done, start ingest video %v", sourceVideo)
 		}
 
@@ -290,7 +290,7 @@ func StartPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 			case <-ctx.Done():
 				return
 			case <-time.After(5 * time.Second):
-				StatRTC.PeerConnection = pc.GetStats()
+				gStatRTC.PeerConnection = pc.GetStats()
 			}
 		}
 	}()

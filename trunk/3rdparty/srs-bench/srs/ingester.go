@@ -41,15 +41,15 @@ import (
 type videoIngester struct {
 	sourceVideo       string
 	fps               int
-	markerInterceptor *RTPInterceptor
+	markerInterceptor *rtpInterceptor
 	sVideoTrack       *webrtc.TrackLocalStaticSample
 	sVideoSender      *webrtc.RTPSender
 	ready             context.Context
 	readyCancel       context.CancelFunc
 }
 
-func NewVideoIngester(sourceVideo string) *videoIngester {
-	v := &videoIngester{markerInterceptor: &RTPInterceptor{}, sourceVideo: sourceVideo}
+func newVideoIngester(sourceVideo string) *videoIngester {
+	v := &videoIngester{markerInterceptor: &rtpInterceptor{}, sourceVideo: sourceVideo}
 	v.ready, v.readyCancel = context.WithCancel(context.Background())
 	return v
 }
@@ -183,15 +183,15 @@ func (v *videoIngester) Ingest(ctx context.Context) error {
 
 type audioIngester struct {
 	sourceAudio           string
-	audioLevelInterceptor *RTPInterceptor
+	audioLevelInterceptor *rtpInterceptor
 	sAudioTrack           *webrtc.TrackLocalStaticSample
 	sAudioSender          *webrtc.RTPSender
 	ready                 context.Context
 	readyCancel           context.CancelFunc
 }
 
-func NewAudioIngester(sourceAudio string) *audioIngester {
-	v := &audioIngester{audioLevelInterceptor: &RTPInterceptor{}, sourceAudio: sourceAudio}
+func newAudioIngester(sourceAudio string) *audioIngester {
+	v := &audioIngester{audioLevelInterceptor: &rtpInterceptor{}, sourceAudio: sourceAudio}
 	v.ready, v.readyCancel = context.WithCancel(context.Background())
 	return v
 }

@@ -58,6 +58,9 @@ ISrsContext* _srs_context = new SrsThreadContext();
 // @global config object for app module.
 SrsConfig* _srs_config = new SrsConfig();
 
+// @global Other variables.
+bool _srs_in_docker = false;
+
 /**
  * main entrance.
  */

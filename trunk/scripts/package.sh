@@ -26,8 +26,8 @@ for option
 do
     case "$option" in
         -*=*) 
-            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/~]*||'`
         ;;
            *) value="" ;;
     esac
@@ -59,6 +59,8 @@ if [ $help = yes ]; then
   --pi                     for pi platform, configure/make/package.
   --x86-64                 alias for --x86-x64.
   --jobs                   Set the configure and make jobs.
+
+  --console                The path for https://github.com/ossrs/srs-console
 END
     exit 0
 fi

@@ -376,97 +376,97 @@ func srsIsRTCP(b []byte) bool {
 	return (len(b) >= 12) && (b[0]&0x80) != 0 && (b[1] >= 192 && b[1] <= 223)
 }
 
-type ChunkType int
+type chunkType int
 
 const (
-	ChunkTypeICE ChunkType = iota + 1
-	ChunkTypeDTLS
-	ChunkTypeRTP
-	ChunkTypeRTCP
+	chunkTypeICE chunkType = iota + 1
+	chunkTypeDTLS
+	chunkTypeRTP
+	chunkTypeRTCP
 )
 
-func (v ChunkType) String() string {
+func (v chunkType) String() string {
 	switch v {
-	case ChunkTypeICE:
+	case chunkTypeICE:
 		return "ICE"
-	case ChunkTypeDTLS:
+	case chunkTypeDTLS:
 		return "DTLS"
-	case ChunkTypeRTP:
+	case chunkTypeRTP:
 		return "RTP"
-	case ChunkTypeRTCP:
+	case chunkTypeRTCP:
 		return "RTCP"
 	default:
 		return "Unknown"
 	}
 }
 
-type DTLSContentType int
+type dtlsContentType int
 
 const (
-	DTLSContentTypeHandshake        DTLSContentType = 22
-	DTLSContentTypeChangeCipherSpec DTLSContentType = 20
-	DTLSContentTypeAlert            DTLSContentType = 21
+	dtlsContentTypeHandshake        dtlsContentType = 22
+	dtlsContentTypeChangeCipherSpec dtlsContentType = 20
+	dtlsContentTypeAlert            dtlsContentType = 21
 )
 
-func (v DTLSContentType) String() string {
+func (v dtlsContentType) String() string {
 	switch v {
-	case DTLSContentTypeHandshake:
+	case dtlsContentTypeHandshake:
 		return "Handshake"
-	case DTLSContentTypeChangeCipherSpec:
+	case dtlsContentTypeChangeCipherSpec:
 		return "ChangeCipherSpec"
 	default:
 		return "Unknown"
 	}
 }
 
-type DTLSHandshakeType int
+type dtlsHandshakeType int
 
 const (
-	DTLSHandshakeTypeClientHello        DTLSHandshakeType = 1
-	DTLSHandshakeTypeServerHello        DTLSHandshakeType = 2
-	DTLSHandshakeTypeCertificate        DTLSHandshakeType = 11
-	DTLSHandshakeTypeServerKeyExchange  DTLSHandshakeType = 12
-	DTLSHandshakeTypeCertificateRequest DTLSHandshakeType = 13
-	DTLSHandshakeTypeServerDone         DTLSHandshakeType = 14
-	DTLSHandshakeTypeCertificateVerify  DTLSHandshakeType = 15
-	DTLSHandshakeTypeClientKeyExchange  DTLSHandshakeType = 16
-	DTLSHandshakeTypeFinished           DTLSHandshakeType = 20
+	dtlsHandshakeTypeClientHello        dtlsHandshakeType = 1
+	dtlsHandshakeTypeServerHello        dtlsHandshakeType = 2
+	dtlsHandshakeTypeCertificate        dtlsHandshakeType = 11
+	dtlsHandshakeTypeServerKeyExchange  dtlsHandshakeType = 12
+	dtlsHandshakeTypeCertificateRequest dtlsHandshakeType = 13
+	dtlsHandshakeTypeServerDone         dtlsHandshakeType = 14
+	dtlsHandshakeTypeCertificateVerify  dtlsHandshakeType = 15
+	dtlsHandshakeTypeClientKeyExchange  dtlsHandshakeType = 16
+	dtlsHandshakeTypeFinished           dtlsHandshakeType = 20
 )
 
-func (v DTLSHandshakeType) String() string {
+func (v dtlsHandshakeType) String() string {
 	switch v {
-	case DTLSHandshakeTypeClientHello:
+	case dtlsHandshakeTypeClientHello:
 		return "ClientHello"
-	case DTLSHandshakeTypeServerHello:
+	case dtlsHandshakeTypeServerHello:
 		return "ServerHello"
-	case DTLSHandshakeTypeCertificate:
+	case dtlsHandshakeTypeCertificate:
 		return "Certificate"
-	case DTLSHandshakeTypeServerKeyExchange:
+	case dtlsHandshakeTypeServerKeyExchange:
 		return "ServerKeyExchange"
-	case DTLSHandshakeTypeCertificateRequest:
+	case dtlsHandshakeTypeCertificateRequest:
 		return "CertificateRequest"
-	case DTLSHandshakeTypeServerDone:
+	case dtlsHandshakeTypeServerDone:
 		return "ServerDone"
-	case DTLSHandshakeTypeCertificateVerify:
+	case dtlsHandshakeTypeCertificateVerify:
 		return "CertificateVerify"
-	case DTLSHandshakeTypeClientKeyExchange:
+	case dtlsHandshakeTypeClientKeyExchange:
 		return "ClientKeyExchange"
-	case DTLSHandshakeTypeFinished:
+	case dtlsHandshakeTypeFinished:
 		return "Finished"
 	default:
 		return "Unknown"
 	}
 }
 
-type ChunkMessageType struct {
-	chunk     ChunkType
-	content   DTLSContentType
-	handshake DTLSHandshakeType
+type chunkMessageType struct {
+	chunk     chunkType
+	content   dtlsContentType
+	handshake dtlsHandshakeType
 }
 
-func (v *ChunkMessageType) String() string {
-	if v.chunk == ChunkTypeDTLS {
-		if v.content == DTLSContentTypeHandshake {
+func (v *chunkMessageType) String() string {
+	if v.chunk == chunkTypeDTLS {
+		if v.content == dtlsContentTypeHandshake {
 			return fmt.Sprintf("%v-%v-%v", v.chunk, v.content, v.handshake)
 		} else {
 			return fmt.Sprintf("%v-%v", v.chunk, v.content)
@@ -475,26 +475,26 @@ func (v *ChunkMessageType) String() string {
 	return fmt.Sprintf("%v", v.chunk)
 }
 
-func NewChunkMessageType(c vnet.Chunk) (*ChunkMessageType, bool) {
+func newChunkMessageType(c vnet.Chunk) (*chunkMessageType, bool) {
 	b := c.UserData()
 
 	if len(b) == 0 {
 		return nil, false
 	}
 
-	v := &ChunkMessageType{}
+	v := &chunkMessageType{}
 
 	if srsIsRTPOrRTCP(b) {
 		if srsIsRTCP(b) {
-			v.chunk = ChunkTypeRTCP
+			v.chunk = chunkTypeRTCP
 		} else {
-			v.chunk = ChunkTypeRTP
+			v.chunk = chunkTypeRTP
 		}
 		return v, true
 	}
 
 	if srsIsStun(b) {
-		v.chunk = ChunkTypeICE
+		v.chunk = chunkTypeICE
 		return v, true
 	}
 
@@ -502,40 +502,40 @@ func NewChunkMessageType(c vnet.Chunk) (*ChunkMessageType, bool) {
 		return nil, false
 	}
 
-	v.chunk, v.content = ChunkTypeDTLS, DTLSContentType(b[0])
-	if v.content != DTLSContentTypeHandshake {
+	v.chunk, v.content = chunkTypeDTLS, dtlsContentType(b[0])
+	if v.content != dtlsContentTypeHandshake {
 		return v, true
 	}
 
 	if len(b) < 14 {
 		return v, false
 	}
-	v.handshake = DTLSHandshakeType(b[13])
+	v.handshake = dtlsHandshakeType(b[13])
 	return v, true
 }
 
-func (v *ChunkMessageType) IsHandshake() bool {
-	return v.chunk == ChunkTypeDTLS && v.content == DTLSContentTypeHandshake
+func (v *chunkMessageType) IsHandshake() bool {
+	return v.chunk == chunkTypeDTLS && v.content == dtlsContentTypeHandshake
 }
 
-func (v *ChunkMessageType) IsClientHello() bool {
-	return v.chunk == ChunkTypeDTLS && v.content == DTLSContentTypeHandshake && v.handshake == DTLSHandshakeTypeClientHello
+func (v *chunkMessageType) IsClientHello() bool {
+	return v.chunk == chunkTypeDTLS && v.content == dtlsContentTypeHandshake && v.handshake == dtlsHandshakeTypeClientHello
 }
 
-func (v *ChunkMessageType) IsServerHello() bool {
-	return v.chunk == ChunkTypeDTLS && v.content == DTLSContentTypeHandshake && v.handshake == DTLSHandshakeTypeServerHello
+func (v *chunkMessageType) IsServerHello() bool {
+	return v.chunk == chunkTypeDTLS && v.content == dtlsContentTypeHandshake && v.handshake == dtlsHandshakeTypeServerHello
 }
 
-func (v *ChunkMessageType) IsCertificate() bool {
-	return v.chunk == ChunkTypeDTLS && v.content == DTLSContentTypeHandshake && v.handshake == DTLSHandshakeTypeCertificate
+func (v *chunkMessageType) IsCertificate() bool {
+	return v.chunk == chunkTypeDTLS && v.content == dtlsContentTypeHandshake && v.handshake == dtlsHandshakeTypeCertificate
 }
 
-func (v *ChunkMessageType) IsChangeCipherSpec() bool {
-	return v.chunk == ChunkTypeDTLS && v.content == DTLSContentTypeChangeCipherSpec
+func (v *chunkMessageType) IsChangeCipherSpec() bool {
+	return v.chunk == chunkTypeDTLS && v.content == dtlsContentTypeChangeCipherSpec
 }
 
-type DTLSRecord struct {
-	ContentType    DTLSContentType
+type dtlsRecord struct {
+	ContentType    dtlsContentType
 	Version        uint16
 	Epoch          uint16
 	SequenceNumber uint64
@@ -543,25 +543,25 @@ type DTLSRecord struct {
 	Data           []byte
 }
 
-func NewDTLSRecord(b []byte) (*DTLSRecord, error) {
-	v := &DTLSRecord{}
+func newDTLSRecord(b []byte) (*dtlsRecord, error) {
+	v := &dtlsRecord{}
 	return v, v.Unmarshal(b)
 }
 
-func (v *DTLSRecord) String() string {
+func (v *dtlsRecord) String() string {
 	return fmt.Sprintf("epoch=%v, sequence=%v", v.Epoch, v.SequenceNumber)
 }
 
-func (v *DTLSRecord) Equals(p *DTLSRecord) bool {
+func (v *dtlsRecord) Equals(p *dtlsRecord) bool {
 	return v.Epoch == p.Epoch && v.SequenceNumber == p.SequenceNumber
 }
 
-func (v *DTLSRecord) Unmarshal(b []byte) error {
+func (v *dtlsRecord) Unmarshal(b []byte) error {
 	if len(b) < 13 {
 		return errors.Errorf("requires 13B only %v", len(b))
 	}
 
-	v.ContentType = DTLSContentType(b[0])
+	v.ContentType = dtlsContentType(b[0])
 	v.Version = uint16(b[1])<<8 | uint16(b[2])
 	v.Epoch = uint16(b[3])<<8 | uint16(b[4])
 	v.SequenceNumber = uint64(b[5])<<40 | uint64(b[6])<<32 | uint64(b[7])<<24 | uint64(b[8])<<16 | uint64(b[9])<<8 | uint64(b[10])
@@ -570,11 +570,11 @@ func (v *DTLSRecord) Unmarshal(b []byte) error {
 	return nil
 }
 
-type TestWebRTCAPIOptionFunc func(api *TestWebRTCAPI)
+type testWebRTCAPIOptionFunc func(api *testWebRTCAPI)
 
-type TestWebRTCAPI struct {
+type testWebRTCAPI struct {
 	// The options to setup the api.
-	options []TestWebRTCAPIOptionFunc
+	options []testWebRTCAPIOptionFunc
 	// The api and settings.
 	api           *webrtc.API
 	mediaEngine   *webrtc.MediaEngine
@@ -588,8 +588,8 @@ type TestWebRTCAPI struct {
 	proxy *vnet_proxy.UDPProxy
 }
 
-func NewTestWebRTCAPI(options ...TestWebRTCAPIOptionFunc) (*TestWebRTCAPI, error) {
-	v := &TestWebRTCAPI{}
+func newTestWebRTCAPI(options ...testWebRTCAPIOptionFunc) (*testWebRTCAPI, error) {
+	v := &testWebRTCAPI{}
 
 	v.mediaEngine = &webrtc.MediaEngine{}
 	if err := v.mediaEngine.RegisterDefaultCodecs(); err != nil {
@@ -610,7 +610,7 @@ func NewTestWebRTCAPI(options ...TestWebRTCAPIOptionFunc) (*TestWebRTCAPI, error
 	return v, nil
 }
 
-func (v *TestWebRTCAPI) Close() error {
+func (v *testWebRTCAPI) Close() error {
 	if v.proxy != nil {
 		_ = v.proxy.Close()
 	}
@@ -622,7 +622,7 @@ func (v *TestWebRTCAPI) Close() error {
 	return nil
 }
 
-func (v *TestWebRTCAPI) Setup(vnetClientIP string, options ...TestWebRTCAPIOptionFunc) error {
+func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptionFunc) error {
 	// Setting engine for https://github.com/pion/transport/tree/master/vnet
 	setupVnet := func(vnetClientIP string) (err error) {
 		// We create a private router for a api, however, it's possible to share the
@@ -674,23 +674,23 @@ func (v *TestWebRTCAPI) Setup(vnetClientIP string, options ...TestWebRTCAPIOptio
 	return nil
 }
 
-func (v *TestWebRTCAPI) NewPeerConnection(configuration webrtc.Configuration) (*webrtc.PeerConnection, error) {
+func (v *testWebRTCAPI) NewPeerConnection(configuration webrtc.Configuration) (*webrtc.PeerConnection, error) {
 	return v.api.NewPeerConnection(configuration)
 }
 
-type TestPlayerOptionFunc func(p *TestPlayer) error
+type testPlayerOptionFunc func(p *testPlayer) error
 
-type TestPlayer struct {
+type testPlayer struct {
 	pc        *webrtc.PeerConnection
 	receivers []*webrtc.RTPReceiver
 	// We should dispose it.
-	api *TestWebRTCAPI
+	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
 }
 
-func CreateApiForPlayer(play *TestPlayer) error {
-	api, err := NewTestWebRTCAPI()
+func createApiForPlayer(play *testPlayer) error {
+	api, err := newTestWebRTCAPI()
 	if err != nil {
 		return err
 	}
@@ -699,8 +699,8 @@ func CreateApiForPlayer(play *TestPlayer) error {
 	return nil
 }
 
-func NewTestPlayer(options ...TestPlayerOptionFunc) (*TestPlayer, error) {
-	v := &TestPlayer{}
+func newTestPlayer(options ...testPlayerOptionFunc) (*testPlayer, error) {
+	v := &testPlayer{}
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
@@ -711,11 +711,11 @@ func NewTestPlayer(options ...TestPlayerOptionFunc) (*TestPlayer, error) {
 	return v, nil
 }
 
-func (v *TestPlayer) Setup(vnetClientIP string, options ...TestWebRTCAPIOptionFunc) error {
+func (v *testPlayer) Setup(vnetClientIP string, options ...testWebRTCAPIOptionFunc) error {
 	return v.api.Setup(vnetClientIP, options...)
 }
 
-func (v *TestPlayer) Close() error {
+func (v *testPlayer) Close() error {
 	if v.pc != nil {
 		_ = v.pc.Close()
 	}
@@ -731,13 +731,13 @@ func (v *TestPlayer) Close() error {
 	return nil
 }
 
-func (v *TestPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
+func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
 	}
 	pli := time.Duration(*srsPlayPLI) * time.Millisecond
-	logger.Tf(ctx, "Start play url=%v", r)
+	logger.Tf(ctx, "Run play url=%v", r)
 
 	pc, err := v.api.NewPeerConnection(webrtc.Configuration{})
 	if err != nil {
@@ -770,7 +770,7 @@ func (v *TestPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 		return errors.Wrapf(err, "Api request offer=%v", offer.SDP)
 	}
 
-	// Start a proxy for real server and vnet.
+	// Run a proxy for real server and vnet.
 	if address, err := parseAddressOfCandidate(answer); err != nil {
 		return errors.Wrapf(err, "parse address of %v", answer)
 	} else if err := v.api.proxy.Proxy(v.api.network, address); err != nil {
@@ -834,9 +834,9 @@ func (v *TestPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	return err
 }
 
-type TestPublisherOptionFunc func(p *TestPublisher) error
+type testPublisherOptionFunc func(p *testPublisher) error
 
-type TestPublisher struct {
+type testPublisher struct {
 	onOffer        func(s *webrtc.SessionDescription) error
 	onAnswer       func(s *webrtc.SessionDescription) error
 	iceReadyCancel context.CancelFunc
@@ -845,15 +845,15 @@ type TestPublisher struct {
 	vIngester *videoIngester
 	pc        *webrtc.PeerConnection
 	// We should dispose it.
-	api *TestWebRTCAPI
+	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
 	// To cancel the publisher, pass by Run.
 	cancel context.CancelFunc
 }
 
-func CreateApiForPublisher(pub *TestPublisher) error {
-	api, err := NewTestWebRTCAPI()
+func createApiForPublisher(pub *testPublisher) error {
+	api, err := newTestWebRTCAPI()
 	if err != nil {
 		return err
 	}
@@ -862,10 +862,10 @@ func CreateApiForPublisher(pub *TestPublisher) error {
 	return nil
 }
 
-func NewTestPublisher(options ...TestPublisherOptionFunc) (*TestPublisher, error) {
+func newTestPublisher(options ...testPublisherOptionFunc) (*testPublisher, error) {
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
-	v := &TestPublisher{}
+	v := &testPublisher{}
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
@@ -875,17 +875,17 @@ func NewTestPublisher(options ...TestPublisherOptionFunc) (*TestPublisher, error
 
 	// Create ingesters.
 	if sourceAudio != "" {
-		v.aIngester = NewAudioIngester(sourceAudio)
+		v.aIngester = newAudioIngester(sourceAudio)
 	}
 	if sourceVideo != "" {
-		v.vIngester = NewVideoIngester(sourceVideo)
+		v.vIngester = newVideoIngester(sourceVideo)
 	}
 
 	// Setup the interceptors for packets.
 	api := v.api
-	api.options = append(api.options, func(api *TestWebRTCAPI) {
+	api.options = append(api.options, func(api *testWebRTCAPI) {
 		// Filter for RTCP packets.
-		rtcpInterceptor := &RTCPInterceptor{}
+		rtcpInterceptor := &rtcpInterceptor{}
 		rtcpInterceptor.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
 			return rtcpInterceptor.nextRTCPReader.Read(buf, attributes)
 		}
@@ -906,11 +906,11 @@ func NewTestPublisher(options ...TestPublisherOptionFunc) (*TestPublisher, error
 	return v, nil
 }
 
-func (v *TestPublisher) Setup(vnetClientIP string, options ...TestWebRTCAPIOptionFunc) error {
+func (v *testPublisher) Setup(vnetClientIP string, options ...testWebRTCAPIOptionFunc) error {
 	return v.api.Setup(vnetClientIP, options...)
 }
 
-func (v *TestPublisher) Close() error {
+func (v *testPublisher) Close() error {
 	if v.vIngester != nil {
 		_ = v.vIngester.Close()
 	}
@@ -930,12 +930,12 @@ func (v *TestPublisher) Close() error {
 	return nil
 }
 
-func (v *TestPublisher) SetStreamSuffix(suffix string) *TestPublisher {
+func (v *testPublisher) SetStreamSuffix(suffix string) *testPublisher {
 	v.streamSuffix = suffix
 	return v
 }
 
-func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) error {
+func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) error {
 	// Save the cancel.
 	v.cancel = cancel
 
@@ -945,7 +945,7 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	}
 	sourceVideo, sourceAudio, fps := *srsPublishVideo, *srsPublishAudio, *srsPublishVideoFps
 
-	logger.Tf(ctx, "Start publish url=%v, audio=%v, video=%v, fps=%v",
+	logger.Tf(ctx, "Run publish url=%v, audio=%v, video=%v, fps=%v",
 		r, sourceAudio, sourceVideo, fps)
 
 	pc, err := v.api.NewPeerConnection(webrtc.Configuration{})
@@ -986,7 +986,7 @@ func (v *TestPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		return errors.Wrapf(err, "Api request offer=%v", offer.SDP)
 	}
 
-	// Start a proxy for real server and vnet.
+	// Run a proxy for real server and vnet.
 	if address, err := parseAddressOfCandidate(answerSDP); err != nil {
 		return errors.Wrapf(err, "parse address of %v", answerSDP)
 	} else if err := v.api.proxy.Proxy(v.api.network, address); err != nil {

@@ -118,7 +118,11 @@ done
 #
 # depends library header files
 for item in ${ModuleLibIncs[*]}; do
-    echo -n "-I${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    if [[ "${item:0:1}" == "/" ]]; then
+        echo -n "-I${item} " >> ${FILE}
+    else
+        echo -n "-I${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+    fi
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}
 
@@ -164,10 +168,10 @@ echo "" >> ${FILE}
 echo "# link all depends libraries" >> ${FILE}
 echo -n "DEPS_LIBRARIES_FILES = " >> ${FILE}
 for item in ${ModuleLibFiles[*]}; do
-    if [[ -f ${item} ]]; then
-        echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
-    else
+    if [[ "${item:0:1}" == "/" ]]; then
         echo -n "${item} " >> ${FILE}
+    else
+        echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
     fi
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}

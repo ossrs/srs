@@ -1,9 +1,9 @@
 #!/bin/bash
 
-FILES=(udpproxy.go udpproxy_test.go)
+FILES=(udpproxy.go udpproxy_test.go udpproxy_direct.go udpproxy_direct_test.go)
 for file in ${FILES[@]}; do
-  echo "cp vnet/udpproxy.go ~/git/transport/vnet/" &&
-  cp vnet/udpproxy.go ~/git/transport/vnet/
+  echo "cp vnet/$file ~/git/transport/vnet/" &&
+  cp vnet/$file ~/git/transport/vnet/
 done
 
 # https://github.com/pion/webrtc/wiki/Contributing#run-all-automated-tests-and-checks-before-submitting
@@ -26,8 +26,8 @@ echo "go test -race ./..." &&
 go test -race ./...
 if [[ $? -ne 0 ]]; then echo "fail"; exit -1; fi
 
-echo "golangci-lint run --skip-files conn_map_test.go" &&
-golangci-lint run --skip-files conn_map_test.go
+echo "golangci-lint run --skip-files conn_map_test.go,router_test.go" &&
+golangci-lint run --skip-files conn_map_test.go,a_test.go
 if [[ $? -ne 0 ]]; then echo "fail"; exit -1; fi
 
 echo "OK"

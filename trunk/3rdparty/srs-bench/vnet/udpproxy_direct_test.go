@@ -1,40 +1,22 @@
-// The MIT License (MIT)
-//
-// Copyright (c) 2021 Winlin
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package vnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/pion/logging"
-	"github.com/pion/transport/vnet"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pion/logging"
 )
 
-// vnet client:
+// The vnet client:
 //		10.0.0.11:5787
-// proxy to real server:
+// which proxy to real server:
 //		192.168.1.10:8000
+// We should get a reply if directly deliver to proxy.
 func TestUDPProxyDirectDeliver(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -57,7 +39,7 @@ func TestUDPProxyDirectDeliver(t *testing.T) {
 		select {
 		case <-ctx.Done():
 		case <-time.After(time.Duration(*testTimeout) * time.Millisecond):
-			r2 = fmt.Errorf("timeout")
+			r2 = fmt.Errorf("timeout") // nolint:goerr113
 		}
 	}()
 
@@ -86,7 +68,7 @@ func TestUDPProxyDirectDeliver(t *testing.T) {
 		}
 
 		doVnetProxy := func() error {
-			router, err := vnet.NewRouter(&vnet.RouterConfig{
+			router, err := NewRouter(&RouterConfig{
 				CIDR:          "0.0.0.0/0",
 				LoggerFactory: logging.NewDefaultLoggerFactory(),
 			})
@@ -94,23 +76,23 @@ func TestUDPProxyDirectDeliver(t *testing.T) {
 				return err
 			}
 
-			clientNetwork := vnet.NewNet(&vnet.NetConfig{
+			clientNetwork := NewNet(&NetConfig{
 				StaticIP: "10.0.0.11",
 			})
 			if err = router.AddNet(clientNetwork); err != nil {
 				return err
 			}
 
-			if err := router.Start(); err != nil {
+			if err = router.Start(); err != nil {
 				return err
 			}
-			defer router.Stop()
+			defer router.Stop() // nolint:errcheck
 
 			proxy, err := NewProxy(router)
 			if err != nil {
 				return err
 			}
-			defer proxy.Close()
+			defer proxy.Close() // nolint:errcheck
 
 			// For utest, mock the target real server.
 			proxy.mockRealServerAddr = mockServer.realServerAddr
@@ -122,7 +104,7 @@ func TestUDPProxyDirectDeliver(t *testing.T) {
 				return err
 			}
 
-			if err := proxy.Proxy(clientNetwork, serverAddr); err != nil {
+			if err = proxy.Proxy(clientNetwork, serverAddr); err != nil {
 				return err
 			}
 
@@ -137,41 +119,41 @@ func TestUDPProxyDirectDeliver(t *testing.T) {
 			go func() {
 				<-ctx.Done()
 				selfKillCancel()
-				client.Close()
+				_ = client.Close()
 			}()
 
 			// Write by vnet client.
-			if _, err := client.WriteTo([]byte("Hello"), serverAddr); err != nil {
+			if _, err = client.WriteTo([]byte("Hello"), serverAddr); err != nil {
 				return err
 			}
 
 			buf := make([]byte, 1500)
-			if n, addr, err := client.ReadFrom(buf); err != nil {
-				if selfKill.Err() == context.Canceled {
+			if n, addr, err := client.ReadFrom(buf); err != nil { // nolint:gocritic,govet
+				if errors.Is(selfKill.Err(), context.Canceled) {
 					return nil
 				}
 				return err
 			} else if n != 5 || addr == nil {
-				return fmt.Errorf("n=%v, addr=%v", n, addr)
-			} else if string(buf[:n]) != "Hello" {
-				return fmt.Errorf("data %v", buf[:n])
+				return fmt.Errorf("n=%v, addr=%v", n, addr) // nolint:goerr113
+			} else if string(buf[:n]) != "Hello" { // nolint:goconst
+				return fmt.Errorf("data %v", buf[:n]) // nolint:goerr113
 			}
 
 			// Directly write, simulate the ARQ packet.
 			// We should got the echo packet also.
-			if _, err := proxy.Deliver(client.LocalAddr(), serverAddr, []byte("Hello")); err != nil {
+			if _, err = proxy.Deliver(client.LocalAddr(), serverAddr, []byte("Hello")); err != nil {
 				return err
 			}
 
-			if n, addr, err := client.ReadFrom(buf); err != nil {
-				if selfKill.Err() == context.Canceled {
+			if n, addr, err := client.ReadFrom(buf); err != nil { // nolint:gocritic,govet
+				if errors.Is(selfKill.Err(), context.Canceled) {
 					return nil
 				}
 				return err
 			} else if n != 5 || addr == nil {
-				return fmt.Errorf("n=%v, addr=%v", n, addr)
+				return fmt.Errorf("n=%v, addr=%v", n, addr) // nolint:goerr113
 			} else if string(buf[:n]) != "Hello" {
-				return fmt.Errorf("data %v", buf[:n])
+				return fmt.Errorf("data %v", buf[:n]) // nolint:goerr113
 			}
 
 			return err

@@ -247,9 +247,8 @@
     var query = parse_query_string();
 
     // get the vhost and port to set the default url.
-    // for example: http://192.168.1.213/players/srs_player.html?port=1935&vhost=demo
-    // url set to: rtmp://demo:1935/live/livestream
-    srs_init_rtmp("#txt_url");
+    // url set to: http://localhost:8080/live/livestream.flv
+    srs_init_flv("#txt_url");
 
     if (query.autostart === "true") {
         $('#video_player').prop('muted', true);
