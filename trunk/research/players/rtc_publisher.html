@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+</head>
+<body>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a id="srs_index" class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li class="active"><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
+                    <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
+                    <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
+                    <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
+                    <!--<li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
+                    <li><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>
+                    <li>
+                        <a href="https://github.com/ossrs/srs">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/srs?style=social">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_url" class="input-xxlarge" value="">
+        <button class="btn btn-primary" id="btn_publish">开始推流</button>
+    </div>
+
+    <label></label>
+    <video id="rtc_media_player" width="320" autoplay muted></video>
+
+    <label></label>
+    SessionID: <span id='sessionid'></span>
+
+    <label></label>
+    Simulator: <a href='#' id='simulator-drop'>Drop</a>
+
+    <footer>
+        <p></p>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2020</a></p>
+    </footer>
+</div>
+<script type="text/javascript">
+    var pc = null; // Global handler to do cleanup when replaying.
+    $(function(){
+        // Async-awat-prmise based SRS RTC Publisher.
+        function SrsRtcPublisherAsync() {
+            var self = {};
+
+            // @see https://github.com/rtcdn/rtcdn-draft
+            // @url The WebRTC url to play with, for example:
+            //      webrtc://r.ossrs.net/live/livestream
+            // or specifies the API port:
+            //      webrtc://r.ossrs.net:11985/live/livestream
+            // or autostart the publish:
+            //      webrtc://r.ossrs.net/live/livestream?autostart=true
+            // or change the app from live to myapp:
+            //      webrtc://r.ossrs.net:11985/myapp/livestream
+            // or change the stream from livestream to mystream:
+            //      webrtc://r.ossrs.net:11985/live/mystream
+            // or set the api server to myapi.domain.com:
+            //      webrtc://myapi.domain.com/live/livestream
+            // or set the candidate(ip) of answer:
+            //      webrtc://r.ossrs.net/live/livestream?eip=39.107.238.185
+            // or force to access https API:
+            //      webrtc://r.ossrs.net/live/livestream?schema=https
+            // or use plaintext, without SRTP:
+            //      webrtc://r.ossrs.net/live/livestream?encrypt=false
+            // or any other information, will pass-by in the query:
+            //      webrtc://r.ossrs.net/live/livestream?vhost=xxx
+            //      webrtc://r.ossrs.net/live/livestream?token=xxx
+            self.publish = async function (url) {
+                var conf = self.__internal.prepareUrl(url);
+                self.pc.addTransceiver("audio", {direction: "sendonly"});
+                self.pc.addTransceiver("video", {direction: "sendonly"});
+
+                var stream = await navigator.mediaDevices.getUserMedia(
+                    {audio: true, video: {height: {max: 320}}}
+                );
+                // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
+                stream.getTracks().forEach(function (track) {
+                    self.pc.addTrack(track);
+                });
+
+                var offer = await self.pc.createOffer();
+                await self.pc.setLocalDescription(offer);
+                var session = await new Promise(function (resolve, reject) {
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var data = {
+                        api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
+                    };
+                    console.log("Generated offer: ", data);
+
+                    $.ajax({
+                        type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
+                        contentType: 'application/json', dataType: 'json'
+                    }).done(function (data) {
+                        console.log("Got answer: ", data);
+                        if (data.code) {
+                            reject(data);
+                            return;
+                        }
+
+                        resolve(data);
+                    }).fail(function (reason) {
+                        reject(reason);
+                    });
+                });
+                await self.pc.setRemoteDescription(
+                    new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+                );
+                session.simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
+
+                // Notify about local stream when success.
+                self.onaddstream && self.onaddstream({stream: stream});
+
+                return session;
+            };
+
+            // Close the publisher.
+            self.close = function () {
+                self.pc.close();
+            };
+
+            // The callback when got local stream.
+            self.onaddstream = function (event) {
+            };
+
+            // Internal APIs.
+            self.__internal = {
+                defaultPath: '/rtc/v1/publish/',
+                prepareUrl: function (webrtcUrl) {
+                    var urlObject = self.__internal.parse(webrtcUrl);
+
+                    // If user specifies the schema, use it as API schema.
+                    var schema = urlObject.user_query.schema;
+                    schema = schema ? schema + ':' : window.location.protocol;
+
+                    var port = urlObject.port || 1985;
+                    if (schema === 'https:') {
+                        port = urlObject.port || 443;
+                    }
+
+                    // @see https://github.com/rtcdn/rtcdn-draft
+                    var api = urlObject.user_query.play || self.__internal.defaultPath;
+                    if (api.lastIndexOf('/') !== api.length - 1) {
+                        api += '/';
+                    }
+
+                    apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                    for (var key in urlObject.user_query) {
+                        if (key !== 'api' && key !== 'play') {
+                            apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                        }
+                    }
+                    // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                    var apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                    var streamUrl = urlObject.url;
+
+                    return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+                },
+                parse: function (url) {
+                    // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
+                    var a = document.createElement("a");
+                    a.href = url.replace("rtmp://", "http://")
+                        .replace("webrtc://", "http://")
+                        .replace("rtc://", "http://");
+
+                    var vhost = a.hostname;
+                    var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
+                    var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+
+                    // parse the vhost in the params of app, that srs supports.
+                    app = app.replace("...vhost...", "?vhost=");
+                    if (app.indexOf("?") >= 0) {
+                        var params = app.substr(app.indexOf("?"));
+                        app = app.substr(0, app.indexOf("?"));
+
+                        if (params.indexOf("vhost=") > 0) {
+                            vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+                            if (vhost.indexOf("&") > 0) {
+                                vhost = vhost.substr(0, vhost.indexOf("&"));
+                            }
+                        }
+                    }
+
+                    // when vhost equals to server, and server is ip,
+                    // the vhost is __defaultVhost__
+                    if (a.hostname === vhost) {
+                        var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+                        if (re.test(a.hostname)) {
+                            vhost = "__defaultVhost__";
+                        }
+                    }
+
+                    // parse the schema
+                    var schema = "rtmp";
+                    if (url.indexOf("://") > 0) {
+                        schema = url.substr(0, url.indexOf("://"));
+                    }
+
+                    var port = a.port;
+                    if (!port) {
+                        if (schema === 'http') {
+                            port = 80;
+                        } else if (schema === 'https') {
+                            port = 443;
+                        } else if (schema === 'rtmp') {
+                            port = 1935;
+                        }
+                    }
+
+                    var ret = {
+                        url: url,
+                        schema: schema,
+                        server: a.hostname, port: port,
+                        vhost: vhost, app: app, stream: stream
+                    };
+                    self.__internal.fill_query(a.search, ret);
+
+                    // For webrtc API, we use 443 if page is https, or schema specified it.
+                    if (!ret.port) {
+                        if (schema === 'webrtc' || schema === 'rtc') {
+                            if (ret.user_query.schema === 'https') {
+                                ret.port = 443;
+                            } else if (window.location.href.indexOf('https://') === 0) {
+                                ret.port = 443;
+                            } else {
+                                // For WebRTC, SRS use 1985 as default API port.
+                                ret.port = 1985;
+                            }
+                        }
+                    }
+
+                    return ret;
+                },
+                fill_query: function (query_string, obj) {
+                    // pure user query object.
+                    obj.user_query = {};
+
+                    if (query_string.length === 0) {
+                        return;
+                    }
+
+                    // split again for angularjs.
+                    if (query_string.indexOf("?") >= 0) {
+                        query_string = query_string.split("?")[1];
+                    }
+
+                    var queries = query_string.split("&");
+                    for (var i = 0; i < queries.length; i++) {
+                        var elem = queries[i];
+
+                        var query = elem.split("=");
+                        obj[query[0]] = query[1];
+                        obj.user_query[query[0]] = query[1];
+                    }
+
+                    // alias domain for vhost.
+                    if (obj.domain) {
+                        obj.vhost = obj.domain;
+                    }
+                }
+            };
+
+            self.pc = new RTCPeerConnection(null);
+
+            return self;
+        }
+
+        var sdk = null; // Global handler to do cleanup when republishing.
+        var startPublish = function() {
+            $('#rtc_media_player').show();
+
+            // Close PC when user replay.
+            if (sdk) {
+                sdk.close();
+            }
+
+            sdk = new SrsRtcPublisherAsync();
+            sdk.onaddstream = function (event) {
+                console.log('Start publish, event: ', event);
+                $('#rtc_media_player').prop('srcObject', event.stream);
+            };
+
+            // For example:
+            //      webrtc://r.ossrs.net/live/livestream
+            var url = $("#txt_url").val();
+            sdk.publish(url).then(function(session){
+                $('#sessionid').html(session.sessionid);
+                $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+            }).catch(function (reason) {
+                sdk.close();
+                $('#rtc_media_player').hide();
+                console.error(reason);
+            });
+        };
+
+        $('#rtc_media_player').hide();
+        var query = parse_query_string();
+        srs_init_rtc("#txt_url", query);
+
+        $("#btn_publish").click(startPublish);
+        if (query.autostart === 'true') {
+            startPublish();
+        }
+    });
+</script>
+</body>
+</html>
+
+</html>

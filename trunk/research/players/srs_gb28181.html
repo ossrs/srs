@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <style>
+        body{
+            padding-top: 55px;
+        }
+        #my_modal_footer {
+            margin-top: -20px;
+            padding-top: 3px;
+        }
+        #main_modal {
+            margin-top: -60px;
+        }
+        #rtc_player_modal {
+            margin-top: -60px;
+        }
+        .div_play_time {
+            margin-top: 10px;
+        }
+        #pb_buffer_bg {
+            margin-top: -4px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/srsplayer'/>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a id="srs_index" class="brand" href="#">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_rtc_player" href="rtc_player.html">RTC播放器</a></li>
+                    <li><a id="nav_rtc_publisher" href="rtc_publisher.html">RTC推流</a></li>
+                    <li><a  href="http://ossrs.net/srs.release/releases/app.html">iOS/Andriod</a></li>
+                    <!--<li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>-->
+                    <!--<li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>-->
+                    <!--<li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>-->
+                    <!--<li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>-->
+                    <li class="active" ><a id="nav_gb28181" href="srs_gb28181.html">GB28181</a></li>
+                    <li>
+                        <a href="https://github.com/ossrs/srs">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/srs?style=social">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div name="detect_flash">
+        <div id="main_flash_alert" class="alert alert-danger fade in hide">
+            <button type="button" class="close" data-dismiss="alert">×</button>
+            <strong><p>Usage:</p></strong>
+            <p>
+                请点击下面的图标，启用Flash
+            </p>
+            <p>
+                若没有见到这个图标，Chrome浏览器请打开
+                <span class="text-info">chrome://settings/content/flash</span> 并修改为"Ask first"。
+            </p>
+        </div>
+        <div id="main_flash_hdr" class="hide">
+        </div>
+    </div>
+
+    <div class="form-inline">
+        API地址与端口
+        <input type="text" id="txt_api_url" class="input-xxlarge">
+        <p></p>
+      
+    </div>
+
+    <div>
+        <div class="row">
+            <div class="span4" id="divSipSessionList">
+                <span>sip会话(需内部启用sip)</span><label id="lab_sip_session"></label>
+                <div style="overflow:scroll; height:330px; width:310px">
+                 <ul id="sipSessionList"></ul>
+                </div>
+                
+
+            </div>
+            <div class="span8">
+                <button class="btn btn-primary" id="btn_sip_query_session">查询所有会话</button>
+                <button class="btn btn-primary" id="btn_sip_unregister">unregister</button>
+                <button class="btn btn-primary" id="btn_sip_invite">invite</button>
+                <button class="btn btn-primary" id="btn_sip_bye">bye</button>
+                <button class="btn btn-primary" id="btn_sip_querycatalog">querycatalog</button>
+                <div id="context2">
+                  当前会话:<a id="sipSessionId"></a>
+                  <div>
+                    <pre id="sipSessionMessage"  style="overflow:scroll; height:280px"></pre>
+                  </div>
+               </div>
+            </div>
+        </div>
+      </div>
+      <p></p>
+
+      <div>
+        <div class="row">
+            <div class="span4" id="divMediaChannelList">
+                <span>GB28181媒体通道</span><label id="lab_gb28181_ch"></label>
+                <div style="overflow:scroll; height:400px; width:310px">
+                 <ul id="gb28181ChList"></ul>
+                </div>
+              
+            </div>
+            <div class="span8">
+                <button class="btn btn-primary" id="btn_query_channel">查询所有通道</button>
+                <button class="btn btn-primary" id="btn_create_channel">创建通道</button>
+                <button class="btn btn-primary" id="btn_delete_channel">删除通道</button>
+                <div id="context2">
+                  当前通道:<a id="gb28181ChannelId"></a>
+                  <div>
+                    <textarea class="span6" id="txt_rtmp_url" rows="2"></textarea>
+                    <button class="btn btn-primary" id="btn_play">FLV播放</button>
+                     
+                  </div>
+                  <div>
+                    <textarea class="span6" id="txt_rtc_url" rows="2"></textarea>
+                    <button class="btn btn-primary" id="btn_rtc_play">RTC播放</button>
+                    <div>RTC播放，需要后台启用RTC功能才能正常播放， 
+                        <a href='https://github.com/ossrs/srs/wiki/v4_CN_RTCWiki'>RTC配置参考</a>
+                    </div>
+                  </div>
+                  <div>
+                    <pre id="gb28181ChannelMessage"  style="overflow:scroll; height:210px"></pre>
+                  </div>
+               </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="main_content" class="hide">
+        <div id="main_modal" class="modal hide fade">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h3><a href="https://github.com/ossrs/srs">SrsFlvPlayer</a></h3>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <video id="video_player" width="98%" autoplay controls></video>
+                </div>
+            </div>
+            <div class="modal-footer" id="my_modal_footer">
+                <div>
+                    <div class="btn-group dropup">
+                        <button class="btn btn-primary" id="btn_ptz_up"> 上↑ </button>
+                        <button class="btn btn-primary" id="btn_ptz_down"> 下↓ </button>
+                        <button class="btn btn-primary" id="btn_ptz_left"> ←左 </button>
+                        <button class="btn btn-primary" id="btn_ptz_right"> 右→ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomin"> 放大＋ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomout"> 缩小－ </button>
+                    </div>    
+                    [注意] !!! 云台控制需要启用内部sip功能
+                </div>
+            </div>
+        </div>
+
+        <div id="rtc_player_modal" class="modal hide fade">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h3><a href="https://github.com/ossrs/srs">RtcPlayer</a></h3>
+            </div>
+            <div class="modal-body">
+                <video id="rtc_media_player" width="100%" controls autoplay ></video>
+            </div>
+            <div class="modal-footer" id="my_modal_footer">
+                <div>
+                    <div class="btn-group dropup">
+                        <button class="btn btn-primary" id="btn_ptz_up_rtc"> 上↑ </button>
+                        <button class="btn btn-primary" id="btn_ptz_down_rtc"> 下↓ </button>
+                        <button class="btn btn-primary" id="btn_ptz_left_rtc"> ←左 </button>
+                        <button class="btn btn-primary" id="btn_ptz_right_rtc"> 右→ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomin_rtc"> 放大＋ </button>
+                        <button class="btn btn-primary" id="btn_ptz_zoomout_rtc"> 缩小－ </button>
+                    </div>    
+                    [注意] !!! 云台控制需要启用内部sip功能
+                   </div>
+            </div>
+        </div>
+
+        <div id="create_channel_modal" class="modal hide fade">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h3>创建通道</h3>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <span class="add-on">通道ID</span>
+                    <input class="span1" style="width:200px" id="txt_channel_id" type="text" >
+                </div>
+                <div>
+                    <span class="add-on">app</span>
+                    <input class="span1" style="width:200px" id="txt_app" type="text" value="live">
+                </div>
+                <div>
+                    <div>可以参数化: [stream]--通道ID; [ssrc]--rtp中ssrc; [timestamp]--当前时间戳</div>
+                    <span class="add-on">stream</span>
+                    <input class="span1" style="width:200px" id="txt_stream" type="text" value="[stream]">
+                </div>
+                <div>
+                    <span>端口模式</span>
+                    <select id="sel_ch_mode_type" onclick="selectChannelModeType(this)">
+                        <option value="fixed">固定</option>
+                        <option value="random">随机</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" id="my_modal_footer">
+                <div class="btn-group dropup">
+                    <button id="btn_channel_cancel" class="btn btn-primary">取消</button>
+                </div>
+                <div class="btn-group dropup">
+                    <button id="btn_channel_submit" class="btn btn-primary">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p></p>
+        <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2013</a></p>
+    </footer>
+</div>
+</body>
+<script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/json2.js"></script>
+<script type="text/javascript" src="js/srs.page.js"></script>
+<script type="text/javascript" src="js/srs.log.js"></script>
+<script type="text/javascript" src="js/srs.utility.js"></script>
+<script type="text/javascript" src="js/winlin.utility.js"></script>
+<script type="text/javascript" src="js/flv-1.5.0.min.js"></script>
+<script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
+<script type="text/javascript">
+    $(function(){
+        $('#main_content').show();
+        autoLoadPage();
+    });
+</script>
+<script type="text/javascript">
+    var srs_player = null;
+    var url = null;
+
+    var query = parse_query_string();
+    var query_host = query.host.split(':');
+    if (query_host && query_host.length == 2) {
+        $("#txt_api_url").val("http://" + query_host[0] + ":1985");
+    } else {
+        $("#txt_api_url").val("http://" + query.host + ":1985");
+    }
+    var __active_dar = null;
+    function select_dar(dar_id, num, den) {
+        srs_player.set_dar(num, den);
+
+        if (__active_dar) {
+            __active_dar.removeClass("active");
+        }
+
+        __active_dar = $(dar_id).parent();
+        __active_dar.addClass("active");
+    }
+
+    var __active_size = null;
+    function select_fs_size(size_id, refer, percent) {
+        srs_player.set_fs(refer, percent);
+
+        if (__active_size) {
+            __active_size.removeClass("active");
+        }
+
+        __active_size = $(size_id).parent();
+        __active_size.addClass("active");
+    }
+
+    function select_buffer(buffer_time) {
+        var bt = buffer_time;
+        var bt_id = "#btn_bt_" + bt.toFixed(1).replace(".", "_");
+        select_buffer_time(bt_id, bt);
+    }
+    function select_max_buffer(max_buffer_time) {
+        var mbt = max_buffer_time;
+        var mbt_id = "#btn_mbt_" + mbt.toFixed(1).replace(".", "_");
+        select_max_buffer_time(mbt_id, mbt);
+    }
+
+    var __active_bt = null;
+    function select_buffer_time(bt_id, buffer_time) {
+        srs_player.set_bt(buffer_time);
+
+        if (__active_bt) {
+            __active_bt.removeClass("active");
+        }
+
+        __active_bt = $(bt_id).parent();
+        __active_bt.addClass("active");
+
+        select_max_buffer(srs_player.max_buffer_time);
+    }
+
+    var __active_mbt = null;
+    function select_max_buffer_time(mbt_id, max_buffer_time) {
+        srs_player.set_mbt(max_buffer_time);
+
+        if (__active_mbt) {
+            __active_mbt.removeClass("active");
+        }
+
+        __active_mbt = $(mbt_id).parent();
+        __active_mbt.addClass("active");
+    }
+
+
+    //格式化json显示
+    function syntaxHighlight(json) {
+        if (typeof json != 'string') {
+        json = JSON.stringify(json, undefined, 2);
+        }
+        json = json.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(match) {
+        var cls = 'number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'key';
+            } else {
+            cls = 'string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'boolean';
+        } else if (/null/.test(match)) {
+            cls = 'null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+        });
+    }  
+
+    function http_get(url){
+        var retdata = null;
+        console.log("GET", url);
+        $.ajax({
+            type       : "GET",
+            async      : false,
+            url        : url,
+            contentType: "text/html",
+            data       : "",
+            complete   : function() {
+            },
+            error      : function(ret) {
+                alert("GET 请求失败:" + url);
+            },
+            success    : function(ret) {
+                console.log(ret);
+                //var jdata =  JSON.parse(ret);       
+                retdata = ret;//.data;
+            }
+        });
+        return retdata;
+    }
+
+     function refreshSipSessionList(sessionList){
+        $("#sipSessionList").empty();
+        for (idx in sessionList.sessions)
+        {
+            //href="javascript:void(0)" onclick="fn(this)">
+            var session =  sessionList.sessions[idx];
+            var id = "id:" +session.id;
+            var li = "<li><a id='linkChannelId1' href='javascript:void(0)' onclick='sipSessionOnClick(this)'>" +id + "</a></li>";
+            $("#sipSessionList").append(li); 
+            var devices = session.devices;
+            for (idx2 in devices)
+            {
+                //href="javascript:void(0)" onclick="fn(this)">
+                var id = "-->" + devices[idx2].device_name + ":" + devices[idx2].device_id + ":" + devices[idx2].device_status + ":" + devices[idx2].invite_status;
+                var li = "<li><a id='linkChannelId1' href='javascript:void(0)' onclick='sipSessionOnClick(this)' rel='"+ session.id + "'>" +id + "</a></li>";
+                $("#sipSessionList").append(li); 
+            }
+        }
+        //if (sessionList == undefined)
+        //        $("#lab_chlist").text("(0)");
+        //else
+        //       $("#lab_chlist").text("("+sessionList.length+")");
+    }
+
+    function sipSessionOnClick(chidObj){
+        id =  chidObj.rel + chidObj.text;
+        if (id.indexOf("id:") != -1) {
+            var aa = id.split(":")
+            sessionid = aa[1];
+            url = $("#txt_api_url").val();
+            var apiurl = url + "/api/v1/gb28181?action=sip_query_session&id=" + sessionid
+            var ret = http_get(apiurl);
+            $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+
+            if (ret.code == 0 && ret.data != undefined ) {
+            };
+        }
+     
+        $("#sipSessionId").text(id);
+    } 
+
+    function channelOnClick(chidObj){
+        id = chidObj.text;
+        $("#gb28181ChannelId").text(id);
+
+        url = $("#txt_api_url").val();
+        var apiurl = url + "/api/v1/gb28181?action=query_channel&id=" + id
+        var ret = http_get(apiurl);
+        $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+
+        if (ret.code == 0 && ret.data != undefined ) {
+            $("#txt_rtmp_url").val(ret.data.channels[0].flv_url);
+
+            ret.data.channels[0].flv_url.split("//") 
+            
+            //var urlObject = parse_rtmp_url(ret.data.channels[0].rtmp_url);
+            //var werbrtc_url = "webrtc://"+ urlObject.server + "/" + urlObject.app + "/" + urlObject.stream;
+            $("#txt_rtc_url").val(ret.data.channels[0].webrtc_url);
+        }
+    } 
+
+    function refreshGb28181ChList(gb28181ChList){
+        $("#gb28181ChList").empty();
+        for (idx in gb28181ChList.channels)
+        {
+            //href="javascript:void(0)" onclick="fn(this)">
+            var channel =  gb28181ChList.channels[idx];
+            var id = channel.id;
+            var li = "<li><a id='linkChannelId' href='javascript:void(0)' onclick='channelOnClick(this)'>" +id + "</a></li>";
+            $("#gb28181ChList").append(li); 
+          
+        }
+        //if (sessionList == undefined)
+        //        $("#lab_chlist").text("(0)");
+        //else
+        //       $("#lab_chlist").text("("+sessionList.length+")");
+    }
+
+
+    // Async-await-promise based SRS RTC Player.
+    function SrsRtcPlayerAsync() {
+        var self = {};
+
+        // @see https://github.com/rtcdn/rtcdn-draft
+        // @url The WebRTC url to play with, for example:
+        //      webrtc://r.ossrs.net/live/livestream
+        // or specifies the API port:
+        //      webrtc://r.ossrs.net:11985/live/livestream
+        // or autostart the play:
+        //      webrtc://r.ossrs.net/live/livestream?autostart=true
+        // or change the app from live to myapp:
+        //      webrtc://r.ossrs.net:11985/myapp/livestream
+        // or change the stream from livestream to mystream:
+        //      webrtc://r.ossrs.net:11985/live/mystream
+        // or set the api server to myapi.domain.com:
+        //      webrtc://myapi.domain.com/live/livestream
+        // or set the candidate(ip) of answer:
+        //      webrtc://r.ossrs.net/live/livestream?eip=39.107.238.185
+        // or force to access https API:
+        //      webrtc://r.ossrs.net/live/livestream?schema=https
+        // or use plaintext, without SRTP:
+        //      webrtc://r.ossrs.net/live/livestream?encrypt=false
+        // or any other information, will pass-by in the query:
+        //      webrtc://r.ossrs.net/live/livestream?vhost=xxx
+        //      webrtc://r.ossrs.net/live/livestream?token=xxx
+        self.play = async function(url) {
+            var conf = self.__internal.prepareUrl(url);
+            self.pc.addTransceiver("audio", {direction: "recvonly"});
+            self.pc.addTransceiver("video", {direction: "recvonly"});
+
+            var offer = await self.pc.createOffer();
+            await self.pc.setLocalDescription(offer);
+            var session = await new Promise(function(resolve, reject) {
+                // @see https://github.com/rtcdn/rtcdn-draft
+                var data = {
+                    api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
+                };
+                console.log("Generated offer: ", data);
+
+                $.ajax({
+                    type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
+                    contentType:'application/json', dataType: 'json'
+                }).done(function(data) {
+                    console.log("Got answer: ", data);
+                    if (data.code) {
+                        reject(data); return;
+                    }
+
+                    resolve(data);
+                }).fail(function(reason){
+                    reject(reason);
+                });
+            });
+            await self.pc.setRemoteDescription(
+                new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+            );
+            return session;
+        };
+
+        // Close the publisher.
+        self.close = function() {
+            self.pc.close();
+        };
+
+        // The callback when got remote stream.
+        self.onaddstream = function (event) {};
+
+        // Internal APIs.
+        self.__internal = {
+            defaultPath: '/rtc/v1/play/',
+            prepareUrl: function (webrtcUrl) {
+                var urlObject = self.__internal.parse(webrtcUrl);
+
+                // If user specifies the schema, use it as API schema.
+                var schema = urlObject.user_query.schema;
+                schema = schema ? schema + ':' : window.location.protocol;
+
+                var port = urlObject.port || 1985;
+                if (schema === 'https:') {
+                    port = urlObject.port || 443;
+                }
+
+                // @see https://github.com/rtcdn/rtcdn-draft
+                var api = urlObject.user_query.play || self.__internal.defaultPath;
+                if (api.lastIndexOf('/') !== api.length - 1) {
+                    api += '/';
+                }
+
+                apiUrl = schema + '//' + urlObject.server + ':' + port + api;
+                for (var key in urlObject.user_query) {
+                    if (key !== 'api' && key !== 'play') {
+                        apiUrl += '&' + key + '=' + urlObject.user_query[key];
+                    }
+                }
+                // Replace /rtc/v1/play/&k=v to /rtc/v1/play/?k=v
+                var apiUrl = apiUrl.replace(api + '&', api + '?');
+
+                var streamUrl = urlObject.url;
+
+                return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+            },
+            parse: function (url) {
+                // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
+                var a = document.createElement("a");
+                a.href = url.replace("rtmp://", "http://")
+                    .replace("webrtc://", "http://")
+                    .replace("rtc://", "http://");
+
+                var vhost = a.hostname;
+                var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
+                var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+
+                // parse the vhost in the params of app, that srs supports.
+                app = app.replace("...vhost...", "?vhost=");
+                if (app.indexOf("?") >= 0) {
+                    var params = app.substr(app.indexOf("?"));
+                    app = app.substr(0, app.indexOf("?"));
+
+                    if (params.indexOf("vhost=") > 0) {
+                        vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+                        if (vhost.indexOf("&") > 0) {
+                            vhost = vhost.substr(0, vhost.indexOf("&"));
+                        }
+                    }
+                }
+
+                // when vhost equals to server, and server is ip,
+                // the vhost is __defaultVhost__
+                if (a.hostname === vhost) {
+                    var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+                    if (re.test(a.hostname)) {
+                        vhost = "__defaultVhost__";
+                    }
+                }
+
+                // parse the schema
+                var schema = "rtmp";
+                if (url.indexOf("://") > 0) {
+                    schema = url.substr(0, url.indexOf("://"));
+                }
+
+                var port = a.port;
+                if (!port) {
+                    if (schema === 'http') {
+                        port = 80;
+                    } else if (schema === 'https') {
+                        port = 443;
+                    } else if (schema === 'rtmp') {
+                        port = 1935;
+                    }
+                }
+
+                var ret = {
+                    url: url,
+                    schema: schema,
+                    server: a.hostname, port: port,
+                    vhost: vhost, app: app, stream: stream
+                };
+                self.__internal.fill_query(a.search, ret);
+
+                // For webrtc API, we use 443 if page is https, or schema specified it.
+                if (!ret.port) {
+                    if (schema === 'webrtc' || schema === 'rtc') {
+                        if (ret.user_query.schema === 'https') {
+                            ret.port = 443;
+                        } else if (window.location.href.indexOf('https://') === 0) {
+                            ret.port = 443;
+                        } else {
+                            // For WebRTC, SRS use 1985 as default API port.
+                            ret.port = 1985;
+                        }
+                    }
+                }
+
+                return ret;
+            },
+            fill_query: function (query_string, obj) {
+                // pure user query object.
+                obj.user_query = {};
+
+                if (query_string.length === 0) {
+                    return;
+                }
+
+                // split again for angularjs.
+                if (query_string.indexOf("?") >= 0) {
+                    query_string = query_string.split("?")[1];
+                }
+
+                var queries = query_string.split("&");
+                for (var i = 0; i < queries.length; i++) {
+                    var elem = queries[i];
+
+                    var query = elem.split("=");
+                    obj[query[0]] = query[1];
+                    obj.user_query[query[0]] = query[1];
+                }
+
+                // alias domain for vhost.
+                if (obj.domain) {
+                    obj.vhost = obj.domain;
+                }
+            }
+        };
+
+        self.pc = new RTCPeerConnection(null);
+        self.pc.onaddstream = function (event) {
+            if (self.onaddstream) {
+                self.onaddstream(event);
+            }
+        };
+
+        return self;
+    }
+
+    var flvPlayer = null;
+    var hlsPlayer = null;
+
+    var stopPlayers = function () {
+        if (flvPlayer) {
+            flvPlayer.destroy();
+            flvPlayer = null;
+        }
+        if (hlsPlayer) {
+            hlsPlayer.destroy();
+            hlsPlayer = null;
+        }
+    };
+
+    var hide_for_error = function () {
+        $('#main_flash_alert').show();
+        $('#main_info').hide();
+        $('#main_tips').hide();
+        $('#video_player').hide();
+        //$('#btn_play').hide();
+
+        stopPlayers();
+    };
+
+    var show_for_ok = function () {
+        $('#main_flash_alert').hide();
+        $('#main_info').show();
+        $('#main_tips').show();
+        $('#video_player').show();
+        //$('#btn_play').show();
+    };
+
+    var start_play_live = function (r) {
+        stopPlayers();
+        if (!r) return;
+
+        // Start play HTTP-FLV.
+        if (r.stream.indexOf('.flv') > 0) {
+            if (!flvjs.isSupported()) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_ok();
+
+            flvPlayer = flvjs.createPlayer({type: 'flv', url: r.url});
+            flvPlayer.attachMediaElement(document.getElementById('video_player'));
+            flvPlayer.load();
+            flvPlayer.play();
+            return;
+        }
+
+        // Start play HLS.
+        if (r.stream.indexOf('.m3u8') > 0) {
+            if (!Hls.isSupported()) {
+                hide_for_error();
+                return;
+            }
+
+            show_for_ok();
+
+            hlsPlayer = new Hls();
+            hlsPlayer.loadSource(r.url);
+            hlsPlayer.attachMedia(document.getElementById('video_player'));
+            return;
+        }
+
+        console.error('不支持的URL', r.url, r);
+        $('#video_player').hide();
+    };
+
+
+    /****
+    * The parameters for this page:
+    *       schema, the protocol schema, rtmp or http.
+    *       server, the ip of the url.
+    *       port, the rtmp port of url.
+    *       vhost, the vhost of url, can equals to server.
+    *       app, the app of url.
+    *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
+    *       autostart, whether auto play the stream.
+    *       buffer, the buffer time in seconds.
+    * extra params:
+    *       shp_identify, hls+ param.
+    * for example:
+    *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream&server=ossrs.net&port=1935&autostart=true&schema=rtmp
+    *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream.flv&server=ossrs.net&port=8080&autostart=true&schema=http
+    */
+    var autoLoadPage = function() {
+        var query = parse_query_string();
+
+        // get the vhost and port to set the default url.
+        // url set to: http://localhost:8080/live/livestream.flv
+        srs_init_flv("#txt_url", "#main_modal");
+        srs_init_flv("#txt_url", "#rtc_player_modal");
+
+        // consts for buffer and max buffer.
+        var bts =  [0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30];
+        var mbts = [0.6, 0.9, 1.2, 1.5, 2.4, 3, 6, 9, 12, 15, 18, 24, 30, 45, 60, 90];
+
+        // the play startup time.
+        var pst = new Date();
+        
+        $("#main_modal").on("show", function(){
+        });
+
+        $("#main_modal").on("hide", function(){
+           
+        });
+
+        $("#btn_generate_link").click(function(){
+            $("#link_modal").modal({show:true, keyboard:true});
+        });
+
+        $("#btn_play").click(function(){
+            $("#main_modal").modal({show:true, keyboard:true});
+            var r = parse_rtmp_url($("#txt_rtmp_url").val());
+            start_play_live(r);
+        });
+
+        if (true) {
+            for (var i = 0; i < bts.length; i++) {
+                var bt = bts[i];
+                var bt_id = "#btn_bt_" + bt.toFixed(1).replace(".", "_");
+
+                var bt_fun = function(id, v){
+                    $(bt_id).click(function(){
+                        select_buffer_time(id, v);
+
+                        // remember the chagned buffer.
+                        if (Number(query.buffer) != srs_player.buffer_time) {
+                            query.buffer = srs_player.buffer_time;
+                            apply_url_change();
+                        }
+
+                    });
+                };
+                bt_fun(bt_id, bt);
+            }
+        }
+        if (true) {
+            for (var i = 0; i < mbts.length; i++) {
+                var mbt = mbts[i];
+                var mbt_id = "#btn_mbt_" + mbt.toFixed(1).replace(".", "_");
+
+                var mbt_fun = function(id, v){
+                    $(mbt_id).click(function(){
+                        select_max_buffer_time(id, v);
+                    });
+                };
+                mbt_fun(mbt_id, mbt);
+            }
+        }
+
+        if (true){
+            $("#btn_sip_query_session").click(function(){
+                url = $("#txt_api_url").val();
+
+                $("#txt_api_url").val();
+
+                var apiurl = url + "/api/v1/gb28181?action=sip_query_session"
+                var ret = http_get(apiurl);
+                $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+
+                if (ret != undefined && ret.code == 0){
+                    refreshSipSessionList(ret.data);
+                }
+
+            });
+
+            var time_query = function(){
+                $("#btn_sip_query_session").click();
+                setTimeout(function () {$("#btn_sip_query_session").click()}, 1000);
+            }
+
+            $("#btn_sip_unregister").click(function(){
+                var id = $("#sipSessionId").text();
+
+                if (id.indexOf("id:") != -1) {
+                    var str = id.split(":")
+
+                    url = $("#txt_api_url").val();
+                    var apiurl = url + "/api/v1/gb28181?action=sip_unregister&id=" + str[1];
+                    var ret = http_get(apiurl);
+
+                    $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+
+                    if (ret != undefined && ret.code == 0){
+                        time_query();
+                    }
+                }
+            });
+
+            $("#btn_sip_invite").click(function(){
+                var text = $("#sipSessionId").text();
+                if (text.indexOf("-->") != -1) {
+                    var str = text.split("-->");
+                    id = str[0];
+                    var str2 = str[1].split(":")
+                    chid = str2[1];
+
+                    url = $("#txt_api_url").val();
+                    var apiurl = url + "/api/v1/gb28181?action=sip_invite&id=" + id + "&chid="+chid;
+                    var ret = http_get(apiurl);
+                    $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+
+                    if (ret != undefined && ret.code == 0){
+                        time_query();
+                    }
+                }
+            });
+
+            $("#btn_sip_bye").click(function(){
+                var text = $("#sipSessionId").text();
+                if (text.indexOf("-->") != -1) {
+                    var str = text.split("-->");
+                    id = str[0];
+                    var str2 = str[1].split(":")
+                    chid = str2[1];
+
+                    url = $("#txt_api_url").val();
+                    var apiurl = url + "/api/v1/gb28181?action=sip_bye&id=" + id + "&chid="+chid;
+                    var ret = http_get(apiurl);
+                    $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+
+                    if (ret != undefined && ret.code == 0){
+                        time_query();
+                    }
+                }
+            });
+
+            $("#btn_sip_querycatalog").click(function(){
+                var text = $("#sipSessionId").text();
+                if (text.indexOf("-->") != -1) {
+                    var str = text.split("-->");
+                    id = str[0];
+                    var str2 = str[1].split(":")
+                    chid = str2[0];
+
+                    url = $("#txt_api_url").val();
+                    var apiurl = url + "/api/v1/gb28181?action=sip_query_catalog&id=" + id;
+                    var ret = http_get(apiurl);
+                    $('#sipSessionMessage').html(syntaxHighlight(ret)); 
+                    if (ret != undefined && ret.code == 0){
+                        time_query();
+                    }
+                }
+            });
+
+            $("#btn_query_channel").click(function(){
+                url = $("#txt_api_url").val();
+                var apiurl = url + "/api/v1/gb28181?action=query_channel"
+                var ret = http_get(apiurl);
+                $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+
+                if (ret != undefined && ret.code == 0){
+                    refreshGb28181ChList(ret.data);
+                }
+            });
+
+            $("#btn_delete_channel").click(function(){
+                var str = $("#gb28181ChannelId").text();
+                var str_array = str.split("@")
+                var chid = "";
+                var id = "";
+                if (str_array.length != 2){
+                    return;
+                }
+                id = str_array[0];
+                chid = str_array[1];
+                url = $("#txt_api_url").val();
+                var apiurl = url + "/api/v1/gb28181?action=delete_channel&id=" + id + "&chid="+chid;
+                var ret = http_get(apiurl);
+                $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+                if (ret != undefined && ret.code == 0){
+                    $("#btn_query_channel").click();
+                }
+            });
+
+            var call_ptz_cmd = function(cmd) {
+                var str = $("#gb28181ChannelId").text();
+                var str_array = str.split("@")
+                var chid = "";
+                var id = "";
+                if (str_array.length < 1){
+                    return;
+                }
+
+                var speed = "136";
+               
+                id = str_array[0];
+                chid = str_array[1];
+                
+                url = $("#txt_api_url").val();
+                var apiurl = url + "/api/v1/gb28181?action=sip_ptz&id=" + id + "&chid="+chid+ "&ptzcmd="+cmd + "&speed=" + speed;
+                var ret = http_get(apiurl);
+                $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+            };
+
+            var ptz_cmd = ["up", "down", "right", "left", "zoomin", "zoomout"]
+            for (var i=0; i<ptz_cmd.length; i++){
+                var bt_fun = function(id, cmd){
+                    $(bt_id).mousedown(function(){
+                        call_ptz_cmd(cmd);
+                    });
+                    $(bt_id).mouseup(function(){
+                        call_ptz_cmd("stop");
+                    });
+                };
+
+                var bt_id = "#btn_ptz_"+ptz_cmd[i]+ "_rtc";
+                bt_fun(bt_id, ptz_cmd[i]);
+
+                bt_id = "#btn_ptz_"+ptz_cmd[i];
+                bt_fun(bt_id, ptz_cmd[i]);
+            }
+
+            $("#btn_create_channel").click(function(){
+                $("#create_channel_modal").modal({show: true, keyboard: false});
+            });
+
+            $("#btn_channel_cancel").click(function(){
+                $("#create_channel_modal").modal('hide');
+            });
+
+            $("#btn_channel_submit").click(function(){
+                var chid = $("#txt_channel_id").val();
+                var app = $("#txt_app").val();
+                var stream = $("#txt_stream").val();
+                var port_mode = $("#sel_ch_mode_type").val();
+
+                if (chid == ""){
+                    alert("通道id不能为空")
+                    return
+                }
+
+                url = $("#txt_api_url").val();
+                var apiurl = url + "/api/v1/gb28181?action=create_channel&id=" + chid + "&app=" + app + "&stream=" + stream + "&port_mode="+ port_mode
+                var ret = http_get(apiurl);
+                $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
+                if (ret != undefined && ret.code == 0){
+                    $("#btn_query_channel").click();
+                }
+
+                $("#create_channel_modal").modal('hide');
+            });
+
+            var sdk = null; // Global handler to do cleanup when replaying.
+            var startPlay = function() {
+                $('#rtc_media_player').show();
+
+                // Close PC when user replay.
+                if (sdk) {
+                    sdk.close();
+                }
+
+                sdk = new SrsRtcPlayerAsync();
+                sdk.onaddstream = function (event) {
+                    console.log('Start play, event: ', event);
+                    $('#rtc_media_player').prop('srcObject', event.stream);
+                };
+
+                // For example:
+                //      webrtc://r.ossrs.net/live/livestream
+                var url = $("#txt_rtc_url").val();
+                sdk.play(url).then(function(session){
+                    $('#sessionid').html(session.sessionid);
+                    $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+                }).catch(function (reason) {
+                    sdk.close();
+                    $('#rtc_media_player').hide();
+                    console.error(reason);
+                });
+            };
+
+            $("#btn_rtc_play").click(function(){
+                $('#rtc_media_player').width(srs_get_player_width);
+                $('#rtc_media_player').height(srs_get_player_height);
+                $("#rtc_player_modal").modal({show: true, keyboard: false});
+                
+                startPlay();
+            });
+
+
+            $("#rtc_player_modal").on("hide", function(){
+                if (sdk) {
+                    sdk.close();
+                }
+             });
+
+        }
+    };
+</script>
+</html>

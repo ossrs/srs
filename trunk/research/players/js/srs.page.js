@@ -12,13 +12,6 @@ function srs_get_player_modal() { return 740; }
 function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
-// get the default vhost for players.
-function srs_get_player_vhost() { return "players"; }
-// the api server port, for chat room.
-function srs_get_api_server_port() { return 8085; }
-// the srs http server port
-function srs_get_srs_http_server_port() { return 8080; }
-
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -29,35 +22,24 @@ function srs_get_srs_http_server_port() { return 8080; }
 function update_nav() {
     $("#srs_index").attr("href", "index.html" + window.location.search);
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
+    $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
+    $("#nav_rtc_publisher").attr("href", "rtc_publisher.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);
-    $("#nav_jwplayer6").attr("href", "jwplayer6.html" + window.location.search);
-    $("#nav_osmf").attr("href", "osmf.html" + window.location.search);
     $("#nav_vlc").attr("href", "vlc.html" + window.location.search);
 }
 
 // Special extra params, such as auth_key.
 function user_extra_params(query, params) {
     var queries = params || [];
-    var server = (query.server == undefined)? window.location.hostname:query.server;
-    var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
-
-    // Note that ossrs.net provides only web service,
-    // that is migrating to r.ossrs.net
-    if (vhost == "ossrs.net") {
-        vhost = "r.ossrs.net";
-    }
-    if (server == "ossrs.net") {
-        server = "r.ossrs.net";
-    }
 
     for (var key in query.user_query) {
-        if (key == 'app' || key == 'autostart' || key == 'dir'
-            || key == 'filename' || key == 'host' || key == 'hostname'
-            || key == 'http_port' || key == 'pathname' || key == 'port'
-            || key == 'server' || key == 'stream' || key == 'buffer'
-            || key == 'schema' || key == 'vhost'
+        if (key === 'app' || key === 'autostart' || key === 'dir'
+            || key === 'filename' || key === 'host' || key === 'hostname'
+            || key === 'http_port' || key === 'pathname' || key === 'port'
+            || key === 'server' || key === 'stream' || key === 'buffer'
+            || key === 'schema' || key === 'vhost' || key === 'api'
         ) {
             continue;
         }
@@ -70,75 +52,42 @@ function user_extra_params(query, params) {
     return queries;
 }
 
+function is_default_port(schema, port) {
+    return (schema === 'http' && port === 80)
+        || (schema === 'https' && port === 443)
+        || (schema === 'webrtc' && port === 1985)
+        || (schema === 'rtmp' && port === 1935);
+}
+
 /**
 @param server the ip of server. default to window.location.hostname
-@param vhost the vhost of rtmp. default to window.location.hostname
-@param port the port of rtmp. default to 1935
-@param app the app of rtmp. default to live.
-@param stream the stream of rtmp. default to livestream.
+@param vhost the vhost of HTTP-FLV. default to window.location.hostname
+@param port the port of HTTP-FLV. default to 1935
+@param app the app of HTTP-FLV. default to live.
+@param stream the stream of HTTP-FLV. default to livestream.flv
 */
-function build_default_rtmp_url() {
+function build_default_flv_url() {
     var query = parse_query_string();
 
-    var schema = (!query.schema)? "rtmp":query.schema;
+    var schema = (!query.schema)? "http":query.schema;
     var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.port)? schema=="http"?80:1935:query.port;
+    var port = (!query.port)? (schema==="http"? 8080:1935) : Number(query.port);
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
-    var stream = (!query.stream)? "livestream":query.stream;
-
-    // Note that ossrs.net provides only web service,
-    // that is migrating to r.ossrs.net
-    if (vhost == "ossrs.net") {
-        vhost = "r.ossrs.net";
-    }
-    if (server == "ossrs.net") {
-        server = "r.ossrs.net";
-    }
+    var stream = (!query.stream)? "livestream.flv":query.stream;
 
     var queries = [];
-    if (server != vhost && vhost != "__defaultVhost__") {
+    if (server !== vhost && vhost !== "__defaultVhost__") {
         queries.push("vhost=" + vhost);
     }
     queries = user_extra_params(query, queries);
 
-    var uri = schema + "://" + server + ":" + port + "/" + app + "/" + stream + "?" + queries.join('&');
-    while (uri.indexOf("?") == uri.length - 1) {
-        uri = uri.substr(0, uri.length - 1);
+    var uri = schema + "://" + server;
+    if (!is_default_port(schema, port)) {
+        uri += ":" + port;
     }
-
-    return uri;
-}
-// for the chat to init the publish url.
-function build_default_publish_rtmp_url() {
-    var query = parse_query_string();
-
-    var schema = (!query.schema)? "rtmp":query.schema;
-    var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.port)? schema=="http"?80:1935:query.port;
-    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
-    var app = (!query.app)? "live":query.app;
-    var stream = (!query.stream)? "demo":query.stream;
-
-    // Note that ossrs.net provides only web service,
-    // that is migrating to r.ossrs.net
-    if (vhost == "ossrs.net") {
-        vhost = "r.ossrs.net";
-    }
-    if (server == "ossrs.net") {
-        server = "r.ossrs.net";
-    }
-
-    var queries = [];
-    if (server != vhost && vhost != "__defaultVhost__") {
-        queries.push("vhost=" + vhost);
-    }
-    if (query.shp_identify) {
-        queries.push("shp_identify=" + query.shp_identify);
-    }
-
-    var uri = schema + "://" + server + ":" + port + "/" + app + "/" + stream + "?" + queries.join('&');
-    while (uri.indexOf("?") == uri.length - 1) {
+    uri += "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.indexOf("?") === uri.length - 1) {
         uri = uri.substr(0, uri.length - 1);
     }
 
@@ -148,96 +97,73 @@ function build_default_publish_rtmp_url() {
 function build_default_bandwidth_rtmp_url() {
     var query = parse_query_string();
 
+    var schema = 'rtmp';
     var server = (!query.server)? window.location.hostname:query.server;
     var port = (!query.port)? 1935:query.port;
     var vhost = "bandcheck.srs.com";
     var app = (!query.app)? "app":query.app;
     var key = (!query.key)? "35c9b402c12a7246868752e2878f7e0e":query.key;
 
-    // Note that ossrs.net provides only web service,
-    // that is migrating to r.ossrs.net
-    if (vhost == "ossrs.net") {
-        vhost = "r.ossrs.net";
+    var uri = schema + "://" + server;
+    if (!is_default_port(schema, port)) {
+        uri += ":" + port;
     }
-    if (server == "ossrs.net") {
-        server = "r.ossrs.net";
-    }
+    uri += "/" + app + "?key=" + key + "&vhost=" + vhost;
 
-    return "rtmp://" + server + ":" + port + "/" + app + "?key=" + key + "&vhost=" + vhost;
+    return uri;
 }
 
-/**
-@param server the ip of server. default to window.location.hostname
-@param vhost the vhost of hls. default to window.location.hostname
-@param hls_vhost the vhost of hls. override the server if specified.
-@param hls_port the port of hls. default to window.location.port
-@param app the app of hls. default to live.
-@param stream the stream of hls. default to livestream.
-*/
-function build_default_hls_url() {
-    var query = parse_query_string();
-
-    // Note that ossrs.net provides only web service,
-    // that is migrating to r.ossrs.net
-    if (query.hls_vhost == "ossrs.net") {
-        query.hls_vhost = "r.ossrs.net";
+function build_default_rtc_url(query) {
+    // Use target to overwrite server, vhost and eip.
+    console.log('?target=x.x.x.x to overwrite server, vhost and eip.');
+    if (query.target) {
+        query.server = query.vhost = query.eip = query.target;
+        query.user_query.eip = query.target;
+        delete query.target;
     }
 
-    // for http, use hls_vhost to override server if specified.
-    var server = window.location.hostname;
-    if (query.server != undefined) {
-        server = query.server;
-    } else if (query.hls_vhost != undefined) {
-        server = query.hls_vhost;
-    }
-    
-    var port = (!query.hls_port)? window.location.port:query.hls_port;
+    var server = (!query.server)? window.location.hostname:query.server;
+    var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
-    var stream = (!query.stream)? "demo":query.stream;
+    var stream = (!query.stream)? "livestream":query.stream;
+    var api = query.api? ':'+query.api : '';
 
-    if (!port) {
-        port = 8080;
+    var queries = [];
+    if (server !== vhost && vhost !== "__defaultVhost__") {
+        queries.push("vhost=" + vhost);
     }
-    
-    if (stream.indexOf(".flv") >= 0) {
-        return "http://" + server + ":" + port + "/" + app + "/" + stream;
+    if (query.schema && window.location.protocol !== query.schema + ':') {
+        queries.push('schema=' + query.schema);
     }
-    return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
-}
+    queries = user_extra_params(query, queries);
+
+    var uri = "webrtc://" + server + api + "/" + app + "/" + stream + "?" + queries.join('&');
+    while (uri.lastIndexOf("?") === uri.length - 1) {
+        uri = uri.substr(0, uri.length - 1);
+    }
+
+    return uri;
+};
 
 /**
 * initialize the page.
-* @param rtmp_url the div id contains the rtmp stream url to play
+* @param flv_url the div id contains the flv stream url to play
 * @param hls_url the div id contains the hls stream url to play
 * @param modal_player the div id contains the modal player
 */
-function srs_init_rtmp(rtmp_url, modal_player) {
-    srs_init(rtmp_url, null, modal_player);
-}
-function srs_init_hls(hls_url, modal_player) {
-    srs_init(null, hls_url, modal_player);
-}
-function srs_init(rtmp_url, hls_url, modal_player) {
+function srs_init_flv(flv_url, modal_player) {
     update_nav();
-
-    if (rtmp_url) {
-        $(rtmp_url).val(build_default_rtmp_url());
-    }
-    if (hls_url) {
-        $(hls_url).val(build_default_hls_url());
+    if (flv_url) {
+        $(flv_url).val(build_default_flv_url());
     }
     if (modal_player) {
         $(modal_player).width(srs_get_player_modal() + "px");
         $(modal_player).css("margin-left", "-" + srs_get_player_modal() / 2 +"px");
     }
 }
-// for the chat to init the publish url.
-function srs_init_publish(rtmp_url) {
+function srs_init_rtc(id, query) {
     update_nav();
-    
-    if (rtmp_url) {
-        $(rtmp_url).val(build_default_publish_rtmp_url());
-    }
+    $(id).val(build_default_rtc_url(query));
 }
 // for bw to init url
 // url: scheme://host:port/path?query#fragment

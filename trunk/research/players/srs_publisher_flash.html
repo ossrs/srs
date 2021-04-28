@@ -11,7 +11,7 @@
     </style>
 </head>
 <body>
-<img src='https://ossrs.net:8443/gif/v1/sls.gif?site=ossrs.net&path=/player/srspublisher'/>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/srspublisher'/>
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
@@ -19,12 +19,6 @@
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
-                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
-                    <!--<li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>-->
-                    <!--<li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>-->
-                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
                 </ul>
             </div>
         </div>
@@ -316,9 +310,8 @@
     var query = parse_query_string();
     var autoLoadPage = function() {
         // get the vhost and port to set the default url.
-        // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
-        // url set to: rtmp://demo:1935/live/livestream
-        srs_init_rtmp("#txt_url", null);
+        // url set to: http://localhost:8080/live/livestream.flv
+        srs_init_flv("#txt_url", null);
 
         if (query.agent == "true") {
             document.write(navigator.userAgent);
