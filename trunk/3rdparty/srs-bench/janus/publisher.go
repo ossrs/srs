@@ -18,24 +18,42 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-package srs
+package janus
 
 import (
 	"context"
-	"io"
-	"sync"
-	"time"
-
+	"fmt"
 	"github.com/ossrs/go-oryx-lib/errors"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/interceptor"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
+	"io"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
 )
 
-// @see https://github.com/pion/webrtc/blob/master/examples/play-from-disk/main.go
 func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps int, enableAudioLevel, enableTWCC bool) error {
 	ctx = logger.WithContext(ctx)
+
+	u, err := url.Parse(r)
+	if err != nil {
+		return errors.Wrapf(err, "Parse url %v", r)
+	}
+
+	var room int
+	var display string
+	if us := strings.SplitN(u.Path, "/", 3); len(us) >= 3 {
+		if iv, err := strconv.Atoi(us[1]); err != nil {
+			return errors.Wrapf(err, "parse %v", us[1])
+		} else {
+			room = iv
+		}
+
+		display = strings.Join(us[2:], "-")
+	}
 
 	logger.Tf(ctx, "Run publish url=%v, audio=%v, video=%v, fps=%v, audio-level=%v, twcc=%v",
 		r, sourceAudio, sourceVideo, fps, enableAudioLevel, enableTWCC)
@@ -129,11 +147,52 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 		return errors.Wrapf(err, "Set offer %v", offer)
 	}
 
-	answer, err := apiRtcRequest(ctx, "/rtc/v1/publish", r, offer.SDP)
-	if err != nil {
-		return errors.Wrapf(err, "Api request offer=%v", offer.SDP)
+	// Signaling API
+	api := newJanusAPI(fmt.Sprintf("http://%v/janus", u.Host))
+
+	webrtcUpCtx, webrtcUpCancel := context.WithCancel(ctx)
+	api.onWebrtcUp = func(sender, sessionID uint64) {
+		logger.Tf(ctx, "Event webrtcup: DTLS/SRTP done, from=(sender:%v,session:%v)", sender, sessionID)
+		webrtcUpCancel()
+	}
+	api.onMedia = func(sender, sessionID uint64, mtype string, receiving bool) {
+		logger.Tf(ctx, "Event media: %v receiving=%v, from=(sender:%v,session:%v)", mtype, receiving, sender, sessionID)
+	}
+	api.onSlowLink = func(sender, sessionID uint64, media string, lost uint64, uplink bool) {
+		logger.Tf(ctx, "Event slowlink: %v lost=%v, uplink=%v, from=(sender:%v,session:%v)", media, lost, uplink, sender, sessionID)
+	}
+	api.onPublisher = func(sender, sessionID uint64, publishers []publisherInfo) {
+		logger.Tf(ctx, "Event publisher: %v, from=(sender:%v,session:%v)", publishers, sender, sessionID)
+	}
+	api.onUnPublished = func(sender, sessionID, id uint64) {
+		logger.Tf(ctx, "Event unpublish: %v, from=(sender:%v,session:%v)", id, sender, sessionID)
+	}
+	api.onLeave = func(sender, sessionID, id uint64) {
+		logger.Tf(ctx, "Event leave: %v, from=(sender:%v,session:%v)", id, sender, sessionID)
 	}
 
+	if err := api.Create(ctx); err != nil {
+		return errors.Wrapf(err, "create")
+	}
+	defer api.Close()
+
+	publishHandleID, err := api.AttachPlugin(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "attach plugin")
+	}
+	defer api.DetachPlugin(ctx, publishHandleID)
+
+	if err := api.JoinAsPublisher(ctx, publishHandleID, room, display); err != nil {
+		return errors.Wrapf(err, "join as publisher")
+	}
+
+	answer, err := api.Publish(ctx, publishHandleID, offer.SDP)
+	if err != nil {
+		return errors.Wrapf(err, "join as publisher")
+	}
+	defer api.UnPublish(ctx, publishHandleID)
+
+	// Setup the offer-answer
 	if err := pc.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeAnswer, SDP: answer,
 	}); err != nil {
@@ -175,6 +234,13 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 			cancel()
 		}
 	})
+
+	// OK, DTLS/SRTP ok.
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-webrtcUpCtx.Done():
+	}
 
 	// Wait for event from context or tracks.
 	var wg sync.WaitGroup
@@ -277,20 +343,6 @@ func startPublish(ctx context.Context, r, sourceAudio, sourceVideo string, fps i
 					continue
 				}
 				logger.Wf(ctx, "Ignore video err %+v", err)
-			}
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(5 * time.Second):
-				gStatRTC.PeerConnection = pc.GetStats()
 			}
 		}
 	}()

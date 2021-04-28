@@ -41,9 +41,9 @@ type statRTC struct {
 	PeerConnection interface{} `json:"random-pc"`
 }
 
-var StatRTC statRTC
+var gStatRTC statRTC
 
-func HandleStat(ctx context.Context, mux *http.ServeMux, l string) {
+func handleStat(ctx context.Context, mux *http.ServeMux, l string) {
 	if strings.HasPrefix(l, ":") {
 		l = "127.0.0.1" + l
 	}
@@ -54,7 +54,7 @@ func HandleStat(ctx context.Context, mux *http.ServeMux, l string) {
 			Code int         `json:"code"`
 			Data interface{} `json:"data"`
 		}{
-			0, &StatRTC,
+			0, &gStatRTC,
 		}
 
 		b, err := json.Marshal(res)

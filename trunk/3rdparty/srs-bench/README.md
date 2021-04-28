@@ -184,4 +184,41 @@ yum install -y python2-pip &&
 pip install lxml && pip install gcovr
 ```
 
+## Janus
+
+支持Janus的压测，使用选项`-sfu janus`可以查看帮助：
+
+```bash
+./objs/srs_bench -sfu janus --help
+```
+
+首先需要启动Janus，推荐使用[janus-docker](https://github.com/winlinvip/janus-docker#usage):
+
+```bash
+ip=$(ifconfig en0 inet|grep inet|awk '{print $2}') &&
+sed -i '' "s/nat_1_1_mapping.*/nat_1_1_mapping=\"$ip\"/g" janus.jcfg &&
+docker run --rm -it -p 8080:8080 -p 8443:8443 -p 20000-20010:20000-20010/udp \
+    -v $(pwd)/janus.jcfg:/usr/local/etc/janus/janus.jcfg \
+    -v $(pwd)/janus.plugin.videoroom.jcfg:/usr/local/etc/janus/janus.plugin.videoroom.jcfg \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/janus:v1.0.7
+```
+
+> 若启动成功，打开页面，可以自动入会：[http://localhost:8080](http://localhost:8080)
+
+模拟5个推流入会，可以在页面看到入会的流：
+
+```bash
+make -j10 && ./objs/srs_bench -sfu janus \
+  -pr webrtc://localhost:8080/2345/livestream \
+  -sa avatar.ogg -sv avatar.h264 -fps 25 -sn 5
+```
+
+模拟5个拉流入会，只拉流不推流：
+
+```bash
+make -j10 && ./objs/srs_bench -sfu janus \
+  -sr webrtc://localhost:8080/2345/livestream \
+  -nn 5
+```
+
 2021.01, Winlin

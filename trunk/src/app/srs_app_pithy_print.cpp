@@ -165,6 +165,33 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
     return new_stage || stage->can_print();
 }
 
+SrsAlonePithyPrint::SrsAlonePithyPrint() : info_(0)
+{
+    //stage work for one print
+    info_.nb_clients = 1;
+
+    previous_tick_ = srs_get_system_time();
+}
+
+SrsAlonePithyPrint::~SrsAlonePithyPrint()
+{
+}
+
+void SrsAlonePithyPrint::elapse()
+{
+    srs_utime_t diff = srs_get_system_time() - previous_tick_;
+    previous_tick_ = srs_get_system_time();
+
+    diff = srs_max(0, diff);
+
+    info_.elapse(diff);
+}
+
+bool SrsAlonePithyPrint::can_print()
+{
+    return info_.can_print();
+}
+
 // The global stage manager for pithy print, multiple stages.
 static SrsStageManager* _srs_stages = new SrsStageManager();
 

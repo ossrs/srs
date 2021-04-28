@@ -18,61 +18,31 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-package main
+package janus
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"github.com/ossrs/go-oryx-lib/logger"
-	"github.com/ossrs/srs-bench/janus"
-	"github.com/ossrs/srs-bench/srs"
-	"io/ioutil"
-	"os"
-	"os/signal"
-	"syscall"
+	"encoding/json"
+	"math/rand"
+	"strings"
 )
 
-func main() {
-	var sfu string
-	fl := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	fl.SetOutput(ioutil.Discard)
-	fl.StringVar(&sfu, "sfu", "srs", "The SFU server, srs or janus")
-	_ = fl.Parse(os.Args[1:])
+func newTransactionID() string {
+	sb := strings.Builder{}
+	for i := 0; i < 12; i++ {
+		sb.WriteByte(byte('a') + byte(rand.Int()%26))
+	}
+	return sb.String()
+}
 
-	ctx := context.Background()
-	if sfu == "srs" {
-		srs.Parse(ctx)
-	} else if sfu == "janus" {
-		janus.Parse(ctx)
+func escapeJSON(s string) string {
+	var o map[string]interface{}
+	if err := json.Unmarshal([]byte(s), &o); err != nil {
+		return s
+	}
+
+	if b, err := json.Marshal(o); err != nil {
+		return s
 	} else {
-		fmt.Println(fmt.Sprintf("Usage: %v [Options]", os.Args[0]))
-		fmt.Println(fmt.Sprintf("Options:"))
-		fmt.Println(fmt.Sprintf("   -sfu    The target SFU, srs or janus. Default: srs"))
-		os.Exit(-1)
+		return string(b)
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
-		for sig := range sigs {
-			logger.Wf(ctx, "Quit for signal %v", sig)
-			cancel()
-		}
-	}()
-
-	var err error
-	if sfu == "srs" {
-		err = srs.Run(ctx)
-	} else if sfu == "janus" {
-		err = janus.Run(ctx)
-	}
-
-	if err != nil {
-		logger.Wf(ctx, "srs err %+v", err)
-		return
-	}
-
-	logger.Tf(ctx, "Done")
 }
