@@ -605,6 +605,8 @@ srs_error_t SrsRtcPlayStream::cycle()
         }
     }
 
+    SrsStatistic* stat = SrsStatistic::instance();
+
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtc sender thread");
