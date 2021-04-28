@@ -36,21 +36,13 @@ Play the following streams by [players](https://ossrs.net):
 
 It's also very easy to build from source:
 
-**>>> Step 1:** Get SRS.
-
 ```
 git clone -b 3.0release https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git
-```
-
-> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
-
-**>>> Step 2:** Build and run SRS.
-
-```
+cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git &&
 ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
+> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
 > Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]), or use [docker][docker-dev].
 
 <a name="srs-30-wiki"></a>
