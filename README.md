@@ -238,6 +238,8 @@ Other important wiki:
 
 ## V3 changes
 
+* <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)][r3.0r5] released. 122750 lines.</strong>
+* v3.0, 2021-04-28, Upgrade players. 3.0.161
 * <strong>v3.0, 2021-04-24, [3.0 release4(3.0.160)][r3.0r4] released. 122750 lines.</strong>
 * v3.0, 2021-04-24, Package players and console to zip and docker. 3.0.160
 * v3.0, 2021-04-24, Add srs-console to research/console. 3.0.159
@@ -876,6 +878,7 @@ Other important wiki:
 
 ## Releases
 
+* 2021-04-28, [Release v3.0-r5][r3.0r5], 3.0 release5, 3.0.161, 122750 lines.
 * 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.160, 122750 lines.
 * 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
 * 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
@@ -1867,6 +1870,7 @@ Winlin
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0r5]: https://github.com/ossrs/srs/releases/tag/v3.0-r5
 [r3.0r4]: https://github.com/ossrs/srs/releases/tag/v3.0-r4
 [r3.0r3]: https://github.com/ossrs/srs/releases/tag/v3.0-r3
 [r3.0r2]: https://github.com/ossrs/srs/releases/tag/v3.0-r2

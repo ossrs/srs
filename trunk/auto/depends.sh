@@ -422,9 +422,7 @@ html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=l
 
 # copy players to nginx html dir.
 rm -rf ${SRS_OBJS}/nginx/html/players &&
-ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players
 
 # for favicon.ico
 rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
