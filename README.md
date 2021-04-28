@@ -61,8 +61,17 @@ cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git
 ./objs/srs -c conf/srs.conf
 ```
 
-Strongly recommend reading bellow wikis:
+<a name="srs-30-wiki"></a>
+<a name="wiki"></a>
 
+From here, please read wikis:
+
+* [SRS 3.0 English Wiki][v3_EN_Home], please read Wiki first.
+* [SRS 3.0 中文Wiki][v3_CN_Home]，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
+
+Fast index for Wikis:
+
+* Overview? ([CN][v3_EN_Home], [EN][v3_CN_Home])
 * How to deliver RTMP streaming?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
 * How to build RTMP Edge-Cluster?([CN][v3_CN_SampleRTMPCluster], [EN][v3_EN_SampleRTMPCluster])
 * How to build RTMP Origin-Cluster?([CN][v3_CN_SampleOriginCluster], [EN][v3_EN_SampleOriginCluster])
@@ -70,9 +79,7 @@ Strongly recommend reading bellow wikis:
 * How to deliver HLS streaming?([CN][v3_CN_SampleHLS], [EN][v3_EN_SampleHLS])
 * How to deliver low-latency streaming?([CN][v3_CN_SampleRealtime], [EN][v3_EN_SampleRealtime])
 
-<a name="srs-30-wiki"></a>
-<a name="wiki"></a>
-Other documents:
+Other important wiki:
 
 * Usage: How to transode RTMP stream by FFMPEG?([CN][v2_CN_SampleFFMPEG], [EN][v2_EN_SampleFFMPEG])
 * Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v3_CN_SampleHttpFlvCluster], [EN][v3_EN_SampleHttpFlvCluster])
@@ -80,8 +87,6 @@ Other documents:
 * Usage: How to forward stream to other servers?([CN][v3_CN_SampleForward], [EN][v3_EN_SampleForward])
 * Usage: How to improve edge performance for multiple CPUs? ([CN][v3_CN_REUSEPORT], [EN][v3_EN_REUSEPORT])
 * Usage: How to file a bug or contact us? ([CN][v1_CN_Contact], [EN][v1_EN_Contact])
-* [SRS 3.0 English Wiki][v3_EN_Home]
-* [SRS 3.0 Chinese Wiki][v3_CN_Home]
 
 ## Features
 
