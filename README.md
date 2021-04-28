@@ -43,9 +43,8 @@ Play the following streams by [players](https://ossrs.net):
 It's also very easy to build from source:
 
 ```
-git clone -b 4.0release https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git &&
-./configure && make && ./objs/srs -c conf/srs.conf
+git clone -b 4.0release https://gitee.com/ossrs/srs.git srs &&
+cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
 > Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
@@ -1269,10 +1268,10 @@ A big THANK YOU goes to:
 
 ## Mirrors
 
-OSChina: [https://gitee.com/winlinvip/srs.oschina][oschina], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
+Gitee: [https://gitee.com/ossrs/srs][gitee], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+git clone https://gitee.com/ossrs/srs.git &&
 cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
@@ -1293,12 +1292,12 @@ git clone https://github.com/ossrs/srs.git
 
 | Branch | Cost | Size | CMD |
 | --- | --- | --- | --- |
-| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/winlinvip/srs.oschina.git |
-| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
-| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/winlinvip/srs.oschina.git |
-| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
-| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/winlinvip/srs.oschina.git |
-| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
+| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/ossrs/srs.git |
+| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/ossrs/srs.git |
+| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/ossrs/srs.git |
+| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/ossrs/srs.git |
+| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/ossrs/srs.git |
+| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/ossrs/srs.git |
 
 ## System Requirements
 
@@ -1349,7 +1348,7 @@ Winlin
 [libx264]: http://www.videolan.org/
 [srs]: https://github.com/ossrs/srs
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
-[oschina]: https://gitee.com/winlinvip/srs.oschina
+[gitee]: https://gitee.com/ossrs/srs
 [srs-dolphin]: https://github.com/ossrs/srs-dolphin
 [oryx]: https://github.com/ossrs/go-oryx
 [srs-bench]: https://github.com/ossrs/srs-bench
