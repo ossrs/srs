@@ -56,6 +56,10 @@
     SessionID: <span id='sessionid'></span>
 
     <label></label>
+    Audio: <span id='acodecs'></span><br/>
+    Video: <span id='vcodecs'></span>
+
+    <label></label>
     Simulator: <a href='#' id='simulator-drop'>Drop</a>
 
     <footer>
@@ -79,6 +83,14 @@
             sdk.onaddstream = function (event) {
                 console.log('Start publish, event: ', event);
                 $('#rtc_media_player').prop('srcObject', event.stream);
+            };
+
+            // https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#getting_the_supported_codecs
+            sdk.pc.onicegatheringstatechange = function (event) {
+                if (sdk.pc.iceGatheringState === "complete") {
+                    $('#acodecs').html(SrsRtcFormatSenders(sdk.pc.getSenders(), "audio"));
+                    $('#vcodecs').html(SrsRtcFormatSenders(sdk.pc.getSenders(), "video"));
+                }
             };
 
             // For example:

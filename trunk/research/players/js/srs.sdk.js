@@ -470,3 +470,32 @@ function SrsRtcPlayerAsync() {
     return self;
 }
 
+// Format the codec of RTCRtpSender, kind(audio/video) is optional filter.
+// https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#getting_the_supported_codecs
+function SrsRtcFormatSenders(senders, kind) {
+    var codecs = [];
+    senders.forEach(function (sender) {
+        sender.getParameters().codecs.forEach(function(c) {
+            if (kind && sender.track.kind !== kind) {
+                return;
+            }
+
+            if (c.mimeType.indexOf('/red') > 0 || c.mimeType.indexOf('/rtx') > 0 || c.mimeType.indexOf('/fec') > 0) {
+                return;
+            }
+
+            var s = '';
+
+            s += c.mimeType.replace('audio/', '').replace('video/', '');
+            s += ', ' + c.clockRate + 'HZ';
+            if (sender.track.kind === "audio") {
+                s += ', channels: ' + c.channels;
+            }
+            s += ', pt: ' + c.payloadType;
+
+            codecs.push(s);
+        });
+    });
+    return codecs.join(", ");
+}
+
