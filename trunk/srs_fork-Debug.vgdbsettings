@@ -19,7 +19,7 @@
         <UserName>root</UserName>
       </RemoteHost>
       <LocalDirectory>$(ProjectDir)</LocalDirectory>
-      <RemoteDirectory>/home/chenhaibo/code/srs_fork/trunk</RemoteDirectory>
+      <RemoteDirectory>/home/chenhaibo/code/srs_pr/trunk</RemoteDirectory>
       <FileMasks>
         <string>*.cpp</string>
         <string>*.h</string>
@@ -63,6 +63,7 @@
       <WorkingDirectory>$(RemoteSourceDir)</WorkingDirectory>
       <Environment>
         <Records />
+        <EnvironmentSetupFiles />
       </Environment>
       <BackgroundMode xsi:nil="true" />
     </BuildCommand>
@@ -120,7 +121,7 @@
     <LaunchGDBSettings xsi:type="GDBLaunchParametersNewInstance">
       <DebuggedProgram>$(RemoteSourceDir)/objs/srs</DebuggedProgram>
       <GDBServerPort>2000</GDBServerPort>
-      <ProgramArguments>-c conf/rtc.conf</ProgramArguments>
+      <ProgramArguments>-c conf/rtc.conf </ProgramArguments>
       <WorkingDirectory>$(RemoteSourceDir)</WorkingDirectory>
     </LaunchGDBSettings>
     <GenerateCtrlBreakInsteadOfCtrlC>false</GenerateCtrlBreakInsteadOfCtrlC>
