@@ -243,6 +243,18 @@ ISrsRtcServerHijacker::~ISrsRtcServerHijacker()
 {
 }
 
+SrsRtcUserConfig::SrsRtcUserConfig()
+{
+    req_ = new SrsRequest();
+    publish_ = false;
+    dtls_ = srtp_ = true;
+}
+
+SrsRtcUserConfig::~SrsRtcUserConfig()
+{
+    srs_freep(req_);
+}
+
 SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
@@ -505,27 +517,26 @@ srs_error_t SrsRtcServer::listen_api()
     return err;
 }
 
-srs_error_t SrsRtcServer::create_session(
-    SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
-    bool publish, bool dtls, bool srtp,
-    SrsRtcConnection** psession
-) {
+srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession)
+{
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
+
+    SrsRequest* req = ruc->req_;
 
     SrsRtcStream* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 
-    if (publish && !source->can_publish()) {
+    if (ruc->publish_ && !source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
 
     // TODO: FIXME: add do_create_session to error process.
     SrsRtcConnection* session = new SrsRtcConnection(this, cid);
-    if ((err = do_create_session(session, req, remote_sdp, local_sdp, mock_eip, publish, dtls, srtp)) != srs_success) {
+    if ((err = do_create_session(ruc, local_sdp, session)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "create session");
     }
@@ -535,26 +546,25 @@ srs_error_t SrsRtcServer::create_session(
     return err;
 }
 
-srs_error_t SrsRtcServer::do_create_session(
-    SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
-    bool publish, bool dtls, bool srtp
-)
+srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session)
 {
     srs_error_t err = srs_success;
 
+    SrsRequest* req = ruc->req_;
+
     // first add publisher/player for negotiate sdp media info
-    if (publish) {
-        if ((err = session->add_publisher(req, remote_sdp, local_sdp)) != srs_success) {
+    if (ruc->publish_) {
+        if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add publisher");
         }
     } else {
-        if ((err = session->add_player(req, remote_sdp, local_sdp)) != srs_success) {
+        if ((err = session->add_player(ruc, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add player");
         }
     }
 
     // All tracks default as inactive, so we must enable them.
-    session->set_all_tracks_status(req->get_stream_url(), publish, true);
+    session->set_all_tracks_status(req->get_stream_url(), ruc->publish_, true);
 
     std::string local_pwd = srs_random_str(32);
     std::string local_ufrag = "";
@@ -563,7 +573,7 @@ srs_error_t SrsRtcServer::do_create_session(
     while (true) {
         local_ufrag = srs_random_str(8);
 
-        username = local_ufrag + ":" + remote_sdp.get_ice_ufrag();
+        username = local_ufrag + ":" + ruc->remote_sdp_.get_ice_ufrag();
         if (!_srs_rtc_manager->find_by_name(username)) {
             break;
         }
@@ -575,13 +585,13 @@ srs_error_t SrsRtcServer::do_create_session(
     local_sdp.set_fingerprint(_srs_rtc_dtls_certificate->get_fingerprint());
 
     // We allows to mock the eip of server.
-    if (!mock_eip.empty()) {
+    if (!ruc->eip_.empty()) {
         string host;
         int port = _srs_config->get_rtc_server_listen();
-        srs_parse_hostport(mock_eip, host, port);
+        srs_parse_hostport(ruc->eip_, host, port);
 
         local_sdp.add_candidate(host, port, "host");
-        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", mock_eip.c_str(), host.c_str(), port);
+        srs_trace("RTC: Use candidate mock_eip %s as %s:%d", ruc->eip_.c_str(), host.c_str(), port);
     } else {
         std::vector<string> candidate_ips = get_candidate_ips();
         for (int i = 0; i < (int)candidate_ips.size(); ++i) {
@@ -594,11 +604,11 @@ srs_error_t SrsRtcServer::do_create_session(
     local_sdp.session_negotiate_ = local_sdp.session_config_;
 
     // Setup the negotiate DTLS role.
-    if (remote_sdp.get_dtls_role() == "active") {
+    if (ruc->remote_sdp_.get_dtls_role() == "active") {
         local_sdp.session_negotiate_.dtls_role = "passive";
-    } else if (remote_sdp.get_dtls_role() == "passive") {
+    } else if (ruc->remote_sdp_.get_dtls_role() == "passive") {
         local_sdp.session_negotiate_.dtls_role = "active";
-    } else if (remote_sdp.get_dtls_role() == "actpass") {
+    } else if (ruc->remote_sdp_.get_dtls_role() == "actpass") {
         local_sdp.session_negotiate_.dtls_role = local_sdp.session_config_.dtls_role;
     } else {
         // @see: https://tools.ietf.org/html/rfc4145#section-4.1
@@ -608,13 +618,13 @@ srs_error_t SrsRtcServer::do_create_session(
     }
     local_sdp.set_dtls_role(local_sdp.session_negotiate_.dtls_role);
 
-    session->set_remote_sdp(remote_sdp);
+    session->set_remote_sdp(ruc->remote_sdp_);
     // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);
     session->set_state(WAITING_STUN);
 
     // Before session initialize, we must setup the local SDP.
-    if ((err = session->initialize(req, dtls, srtp, username)) != srs_success) {
+    if ((err = session->initialize(req, ruc->dtls_, ruc->srtp_, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
