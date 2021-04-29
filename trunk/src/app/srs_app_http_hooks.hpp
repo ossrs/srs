@@ -100,5 +100,25 @@ private:
     static srs_error_t do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };
 
+class SrsHttpHooksController
+{
+private:
+    SrsHttpHooksController();
+public:
+    virtual ~SrsHttpHooksController();
+public:
+    static srs_error_t http_hooks_on_connect(SrsRequest* req);
+    static void http_hooks_on_close(SrsRequest* req, int64_t send_bytes, int64_t recv_bytes);
+    static srs_error_t http_hooks_on_publish(SrsRequest* req);
+    static void http_hooks_on_unpublish(SrsRequest* req);
+    static srs_error_t http_hooks_on_play(SrsRequest* req);
+    static void http_hooks_on_stop(SrsRequest* req);
+    static srs_error_t http_hooks_on_dvr(SrsContextId cid, SrsRequest* req, std::string file);
+    static srs_error_t http_hooks_on_hls(SrsContextId cid, SrsRequest* req, std::string file, std::string ts_url,
+        std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
+    static srs_error_t http_hooks_on_hls_notify(SrsContextId cid, SrsRequest* req, std::string ts_url);
+};
+
+
 #endif
 

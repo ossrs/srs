@@ -714,74 +714,26 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage* r)
 {
     srs_error_t err = srs_success;
-    
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
 
     // Create request to report for the specified connection.
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsRequest* nreq = hr->to_request(req->vhost);
     SrsAutoFree(SrsRequest, nreq);
-    
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-    
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_play(nreq->vhost);
-        
-        if (!conf) {
-            return err;
-        }
-        
-        hooks = conf->args;
-    }
-    
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_play(url, nreq)) != srs_success) {
-            return srs_error_wrap(err, "http on_play %s", url.c_str());
-        }
-    }
-    
-    return err;
+
+    return SrsHttpHooksController::http_hooks_on_play(nreq);
+
 }
 
 void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage* r)
 {
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return;
-    }
+    srs_error_t err = srs_success;
 
     // Create request to report for the specified connection.
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsRequest* nreq = hr->to_request(req->vhost);
     SrsAutoFree(SrsRequest, nreq);
-    
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-    
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(nreq->vhost);
-        
-        if (!conf) {
-            srs_info("ignore the empty http callback: on_stop");
-            return;
-        }
-        
-        hooks = conf->args;
-    }
-    
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, nreq);
-    }
-    
-    return;
+
+    return SrsHttpHooksController::http_hooks_on_stop(nreq);
 }
 
 srs_error_t SrsLiveStream::streaming_send_messages(ISrsBufferEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)

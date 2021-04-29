@@ -101,35 +101,7 @@ SrsDvrAsyncCallOnHls::~SrsDvrAsyncCallOnHls()
 
 srs_error_t SrsDvrAsyncCallOnHls::call()
 {
-    srs_error_t err = srs_success;
-    
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
-    
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-    
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_hls(req->vhost);
-        
-        if (!conf) {
-            return err;
-        }
-        
-        hooks = conf->args;
-    }
-    
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_hls(cid, url, req, path, ts_url, m3u8, m3u8_url, seq_no, duration)) != srs_success) {
-            return srs_error_wrap(err, "callback on_hls %s", url.c_str());
-        }
-    }
-    
-    return err;
+    return SrsHttpHooksController::http_hooks_on_hls(cid, req, path, ts_url, m3u8, m3u8_url, seq_no, duration);
 }
 
 string SrsDvrAsyncCallOnHls::to_string()
@@ -151,36 +123,7 @@ SrsDvrAsyncCallOnHlsNotify::~SrsDvrAsyncCallOnHlsNotify()
 
 srs_error_t SrsDvrAsyncCallOnHlsNotify::call()
 {
-    srs_error_t err = srs_success;
-    
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
-    
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-    
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_hls_notify(req->vhost);
-        
-        if (!conf) {
-            return err;
-        }
-        
-        hooks = conf->args;
-    }
-    
-    int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_hls_notify(cid, url, req, ts_url, nb_notify)) != srs_success) {
-            return srs_error_wrap(err, "callback on_hls_notify %s", url.c_str());
-        }
-    }
-    
-    return err;
+    return SrsHttpHooksController::http_hooks_on_hls_notify(cid, req, ts_url);
 }
 
 string SrsDvrAsyncCallOnHlsNotify::to_string()

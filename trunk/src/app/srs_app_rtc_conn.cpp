@@ -398,6 +398,8 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     _srs_config->unsubscribe(this);
 
+    stop();
+
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
     srs_freep(trd_);
@@ -529,6 +531,10 @@ srs_error_t SrsRtcPlayStream::start()
         return err;
     }
 
+    if ((err = http_hooks_on_play()) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_play");
+    }
+
     srs_freep(trd_);
     trd_ = new SrsFastCoroutine("rtc_sender", this, cid_);
 
@@ -563,6 +569,8 @@ srs_error_t SrsRtcPlayStream::start()
 
 void SrsRtcPlayStream::stop()
 {
+    http_hooks_on_stop();
+
     if (trd_) {
         trd_->stop();
     }
@@ -888,6 +896,17 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
     return err;
 }
 
+srs_error_t SrsRtcPlayStream::http_hooks_on_play()
+{
+    return SrsHttpHooksController::http_hooks_on_play(req_);
+}
+
+void SrsRtcPlayStream::http_hooks_on_stop()
+{
+    return SrsHttpHooksController::http_hooks_on_stop(req_);
+}
+
+
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
     timer_ = new SrsHourGlass("publish", this, 100 * SRS_UTIME_MILLISECONDS);
@@ -917,6 +936,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
+    http_hooks_on_unpublish();
+
     // TODO: FIXME: Should remove and delete source.
     if (source) {
         source->set_publish_stream(NULL);
@@ -1026,6 +1047,10 @@ srs_error_t SrsRtcPublishStream::start()
 
     if (is_started) {
         return err;
+    }
+
+    if ((err = http_hooks_on_publish()) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
     }
 
     if ((err = timer_->tick(SRS_TICKID_TWCC, 100 * SRS_UTIME_MILLISECONDS)) != srs_success) {
@@ -1609,6 +1634,16 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     if (audio_track) {
         return audio_track->update_send_report_time(ntp);
     }
+}
+
+srs_error_t SrsRtcPublishStream::http_hooks_on_publish()
+{
+    return SrsHttpHooksController::http_hooks_on_publish(req_);
+}
+
+void SrsRtcPublishStream::http_hooks_on_unpublish()
+{
+    return SrsHttpHooksController::http_hooks_on_unpublish(req_);
 }
 
 SrsRtcConnectionStatistic::SrsRtcConnectionStatistic()

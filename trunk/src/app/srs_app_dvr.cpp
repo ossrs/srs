@@ -548,32 +548,7 @@ SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
 
 srs_error_t SrsDvrAsyncCallOnDvr::call()
 {
-    srs_error_t err = srs_success;
-    
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
-    
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-    
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_dvr(req->vhost);
-        if (conf) {
-            hooks = conf->args;
-        }
-    }
-    
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_dvr(cid, url, req, path)) != srs_success) {
-            return srs_error_wrap(err, "callback on_dvr %s", url.c_str());
-        }
-    }
-    
-    return err;
+    return SrsHttpHooksController::http_hooks_on_dvr(cid, req, path);
 }
 
 string SrsDvrAsyncCallOnDvr::to_string()
