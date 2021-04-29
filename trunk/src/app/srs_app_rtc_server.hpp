@@ -92,6 +92,7 @@ public:
     // Original variables from API.
     SrsSdp remote_sdp_;
     std::string eip_;
+    std::string codec_;
 
     // Generated data.
     SrsRequest* req_;
