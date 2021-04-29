@@ -57,7 +57,7 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
-
+#include "srs_app_http_hooks.hpp"
 #include <srs_protocol_kbps.hpp>
 
 SrsPps* _srs_pps_sstuns = new SrsPps();
@@ -558,7 +558,7 @@ srs_error_t SrsRtcPlayStream::start()
 
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_, req_, NULL, SrsRtmpConnPlay)) != srs_success) {
+    if ((err = stat->on_client(cid_, req_, session_, SrsRtmpConnPlay)) != srs_success) {
         srs_trace("webrtc: add client failed!");
     }
 
@@ -1081,7 +1081,7 @@ srs_error_t SrsRtcPublishStream::start()
 
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_, req, NULL, SrsRtmpConnFMLEPublish)) != srs_success) {
+    if ((err = stat->on_client(cid_, req, session_, SrsRtmpConnFMLEPublish)) != srs_success) {
         srs_trace("webrtc: add client failed!");
     }
 
@@ -1638,12 +1638,12 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
 
 srs_error_t SrsRtcPublishStream::http_hooks_on_publish()
 {
-    return SrsHttpHooksController::http_hooks_on_publish(req_);
+    return SrsHttpHooksController::http_hooks_on_publish(req);
 }
 
 void SrsRtcPublishStream::http_hooks_on_unpublish()
 {
-    return SrsHttpHooksController::http_hooks_on_unpublish(req_);
+    return SrsHttpHooksController::http_hooks_on_unpublish(req);
 }
 
 SrsRtcConnectionStatistic::SrsRtcConnectionStatistic()
@@ -1864,6 +1864,11 @@ const SrsContextId& SrsRtcConnection::get_id()
 std::string SrsRtcConnection::desc()
 {
     return "RtcConn";
+}
+
+void SrsRtcConnection::expire()
+{
+    _srs_rtc_manager->remove(this);
 }
 
 void SrsRtcConnection::switch_to_context()
