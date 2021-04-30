@@ -25,10 +25,10 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 > To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
   -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
@@ -127,6 +127,7 @@ Other important wiki:
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Support AV1 codec for WebRTC, [#2324][bug #2324].
 - [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
@@ -163,7 +164,7 @@ Other important wiki:
 
 ## V4 changes
 
-* v4.0, 2021-04-29, RTC: Support av1 for Chrome M90. 4.0.91
+* v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
 * v4.0, 2021-04-24, Player: Change the default from RTMP to HTTP-FLV.
 * v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90
@@ -1872,6 +1873,8 @@ Winlin
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #2106]: https://github.com/ossrs/srs/issues/2106
 [bug #2011]: https://github.com/ossrs/srs/issues/2011
+[bug #2324]: https://github.com/ossrs/srs/issues/2324
+[bug #1500]: https://github.com/ossrs/srs/issues/1500
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
