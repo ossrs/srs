@@ -25,10 +25,10 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
 > To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
   -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
