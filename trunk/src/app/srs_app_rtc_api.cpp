@@ -134,65 +134,69 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    string codec = r->query_get("codec");
     // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, srtp=%s, dtls=%s",
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
         streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
-        srtp.c_str(), dtls.c_str());
+        codec.c_str(), srtp.c_str(), dtls.c_str()
+    );
+
+    // The RTC user config object.
+    SrsRtcUserConfig ruc;
+    ruc.eip_ = eip;
+    ruc.codec_ = codec;
+    ruc.publish_ = false;
+    ruc.dtls_ = (dtls != "false");
+
+    if (srtp.empty()) {
+        ruc.srtp_ = _srs_config->get_rtc_server_encrypt();
+    } else {
+        ruc.srtp_ = (srtp != "false");
+    }
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
-    SrsSdp remote_sdp;
-    if ((err = remote_sdp.parse(remote_sdp_str)) != srs_success) {
+    if ((err = ruc.remote_sdp_.parse(remote_sdp_str)) != srs_success) {
         return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
-    if ((err = check_remote_sdp(remote_sdp)) != srs_success) {
+    if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
         return srs_error_wrap(err, "remote sdp check failed");
     }
 
-    SrsRequest request;
-    request.app = app;
-    request.stream = stream_name;
+    ruc.req_->app = app;
+    ruc.req_->stream = stream_name;
 
     // TODO: FIXME: Parse vhost.
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
     if (parsed_vhost) {
-        request.vhost = parsed_vhost->arg0();
+        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     SrsSdp local_sdp;
 
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
-    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc.req_->vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc.req_->vhost);
 
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc.req_->vhost);
     if (server_enabled && !rtc_enabled) {
-        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+        srs_warn("RTC disabled in vhost %s", ruc.req_->vhost.c_str());
     }
     if (!server_enabled || !rtc_enabled) {
         return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
-            server_enabled, rtc_enabled, request.vhost.c_str());
+            server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
     }
-
-    bool srtp_enabled = true;
-    if (srtp.empty()) {
-        srtp_enabled = _srs_config->get_rtc_server_encrypt();
-    } else {
-        srtp_enabled = (srtp != "false");
-    }
-
-    bool dtls_enabled = (dtls != "false");
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
-    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, false, dtls_enabled, srtp_enabled, &session)) != srs_success) {
-        return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", dtls_enabled, srtp_enabled, eip.c_str());
+    if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
+        return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc.dtls_, ruc.srtp_, eip.c_str());
     }
 
     ostringstream os;
@@ -213,7 +217,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, dtls=%u, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
-        dtls_enabled, srtp_enabled, remote_sdp_str.length(), local_sdp_str.length());
+        ruc.dtls_, ruc.srtp_, remote_sdp_str.length(), local_sdp_str.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_str.c_str());
 
@@ -301,7 +305,7 @@ srs_error_t SrsGoApiRtcPlay::exchange_sdp(SrsRequest* req, const SrsSdp& remote_
                     }
                 }
 
-                // Only choose one match opus codec.
+                // Only choose one match opus.
                 break;
             }
 
@@ -498,52 +502,60 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    string codec = r->query_get("codec");
 
-    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str());
+    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
+        codec.c_str()
+    );
+
+    // The RTC user config object.
+    SrsRtcUserConfig ruc;
+    ruc.eip_ = eip;
+    ruc.codec_ = codec;
+    ruc.publish_ = true;
+    ruc.dtls_ = ruc.srtp_ = true;
 
     // TODO: FIXME: It seems remote_sdp doesn't represents the full SDP information.
-    SrsSdp remote_sdp;
-    if ((err = remote_sdp.parse(remote_sdp_str)) != srs_success) {
+    if ((err = ruc.remote_sdp_.parse(remote_sdp_str)) != srs_success) {
         return srs_error_wrap(err, "parse sdp failed: %s", remote_sdp_str.c_str());
     }
 
-    if ((err = check_remote_sdp(remote_sdp)) != srs_success) {
+    if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
         return srs_error_wrap(err, "remote sdp check failed");
     }
 
-    SrsRequest request;
-    request.app = app;
-    request.stream = stream_name;
+    ruc.req_->app = app;
+    ruc.req_->stream = stream_name;
 
     // TODO: FIXME: Parse vhost.
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
     if (parsed_vhost) {
-        request.vhost = parsed_vhost->arg0();
+        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     SrsSdp local_sdp;
 
     // TODO: FIXME: move to create_session.
     // Config for SDP and session.
-    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(request.vhost);
-    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(request.vhost);
+    local_sdp.session_config_.dtls_role = _srs_config->get_rtc_dtls_role(ruc.req_->vhost);
+    local_sdp.session_config_.dtls_version = _srs_config->get_rtc_dtls_version(ruc.req_->vhost);
 
     // Whether enabled.
     bool server_enabled = _srs_config->get_rtc_server_enabled();
-    bool rtc_enabled = _srs_config->get_rtc_enabled(request.vhost);
+    bool rtc_enabled = _srs_config->get_rtc_enabled(ruc.req_->vhost);
     if (server_enabled && !rtc_enabled) {
-        srs_warn("RTC disabled in vhost %s", request.vhost.c_str());
+        srs_warn("RTC disabled in vhost %s", ruc.req_->vhost.c_str());
     }
     if (!server_enabled || !rtc_enabled) {
         return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
-            server_enabled, rtc_enabled, request.vhost.c_str());
+            server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
-    if ((err = server_->create_session(&request, remote_sdp, local_sdp, eip, true, true, true, &session)) != srs_success) {
+    if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
     }
 
@@ -674,7 +686,7 @@ srs_error_t SrsGoApiRtcPublish::exchange_sdp(SrsRequest* req, const SrsSdp& remo
                     }
                 }
 
-                // Only choose one match opus codec.
+                // Only choose one match opus.
                 break;
             }
 
