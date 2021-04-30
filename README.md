@@ -157,6 +157,7 @@ Other important wiki:
 
 ## V4 changes
 
+* v4.0, 2021-04-29, RTC: Support av1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
 * v4.0, 2021-04-24, Player: Change the default from RTMP to HTTP-FLV.
 * v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90

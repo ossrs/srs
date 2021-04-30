@@ -2771,6 +2771,38 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 // Only choose one match opus codec.
                 break;
             }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
+            }
+
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                // Generate video payload for av1.
+                SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
+                break;
+            }
         } else if (remote_media_desc.is_video()) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
             if (payloads.empty()) {
@@ -3050,6 +3082,14 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
+            }
+
+            remote_payload = payloads.at(0);
+            track_descs = source->get_track_desc("video", "AV1X");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");

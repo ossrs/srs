@@ -134,18 +134,20 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    string codec = r->query_get("codec");
     // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, srtp=%s, dtls=%s",
+    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
         streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
-        srtp.c_str(), dtls.c_str()
+        codec.c_str(), srtp.c_str(), dtls.c_str()
     );
 
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.eip_ = eip;
+    ruc.codec_ = codec;
     ruc.publish_ = false;
     ruc.dtls_ = (dtls != "false");
 
@@ -500,14 +502,17 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    string codec = r->query_get("codec");
 
-    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str()
+    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
+        codec.c_str()
     );
 
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.eip_ = eip;
+    ruc.codec_ = codec;
     ruc.publish_ = true;
     ruc.dtls_ = ruc.srtp_ = true;
 
