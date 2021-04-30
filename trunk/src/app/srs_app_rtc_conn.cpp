@@ -1806,19 +1806,21 @@ const SrsContextId& SrsRtcConnection::context_id()
     return cid_;
 }
 
-srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
+
+    SrsRequest* req = ruc->req_;
 
     SrsRtcStreamDescription* stream_desc = new SrsRtcStreamDescription();
     SrsAutoFree(SrsRtcStreamDescription, stream_desc);
 
     // TODO: FIXME: Change to api of stream desc.
-    if ((err = negotiate_publish_capability(req, remote_sdp, stream_desc)) != srs_success) {
+    if ((err = negotiate_publish_capability(ruc, stream_desc)) != srs_success) {
         return srs_error_wrap(err, "publish negotiate");
     }
 
-    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, remote_sdp.is_unified())) != srs_success) {
+    if ((err = generate_publish_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified())) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -1846,9 +1848,11 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRequest* req, const SrsSdp& remot
 }
 
 // TODO: FIXME: Error when play before publishing.
-srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp)
+srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sdp)
 {
     srs_error_t err = srs_success;
+
+    SrsRequest* req = ruc->req_;
 
     if (_srs_rtc_hijacker) {
         if ((err = _srs_rtc_hijacker->on_before_play(this, req)) != srs_success) {
@@ -1857,7 +1861,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
     }
 
     std::map<uint32_t, SrsRtcTrackDescription*> play_sub_relations;
-    if ((err = negotiate_play_capability(req, remote_sdp, play_sub_relations)) != srs_success) {
+    if ((err = negotiate_play_capability(ruc, play_sub_relations)) != srs_success) {
         return srs_error_wrap(err, "play negotiate");
     }
 
@@ -1882,7 +1886,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRequest* req, const SrsSdp& remote_s
         ++it;
     }
 
-    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, remote_sdp.is_unified())) != srs_success) {
+    if ((err = generate_play_local_sdp(req, local_sdp, stream_desc, ruc->remote_sdp_.is_unified())) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
@@ -2667,7 +2671,7 @@ bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
     return false;
 }
 
-srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, const SrsSdp& remote_sdp, SrsRtcStreamDescription* stream_desc)
+srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcStreamDescription* stream_desc)
 {
     srs_error_t err = srs_success;
 
@@ -2675,13 +2679,16 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "stream description is NULL");
     }
 
+    SrsRequest* req = ruc->req_;
+    const SrsSdp& remote_sdp = ruc->remote_sdp_;
+
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
     // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
-    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
-        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+    for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_.at(i);
 
         SrsRtcTrackDescription* track_desc = new SrsRtcTrackDescription();
         SrsAutoFree(SrsRtcTrackDescription, track_desc);
@@ -2711,26 +2718,64 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
             }
 
-            for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                // if the playload is opus, and the encoding_param_ is channel
-                SrsAudioPayload* audio_payload = new SrsAudioPayload(iter->payload_type_, iter->encoding_name_, iter->clock_rate_, ::atol(iter->encoding_param_.c_str()));
-                audio_payload->set_opus_param_desc(iter->format_specific_param_);
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                // if the payload is opus, and the encoding_param_ is channel
+                SrsAudioPayload* audio_payload = new SrsAudioPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
+                audio_payload->set_opus_param_desc(payload.format_specific_param_);
+
                 // TODO: FIXME: Only support some transport algorithms.
-                for (int j = 0; j < (int)iter->rtcp_fb_.size(); ++j) {
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
                     if (nack_enabled) {
-                        if (iter->rtcp_fb_.at(j) == "nack" || iter->rtcp_fb_.at(j) == "nack pli") {
-                            audio_payload->rtcp_fbs_.push_back(iter->rtcp_fb_.at(j));
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            audio_payload->rtcp_fbs_.push_back(rtcp_fb);
                         }
                     }
                     if (twcc_enabled && remote_twcc_id) {
-                        if (iter->rtcp_fb_.at(j) == "transport-cc") {
-                            audio_payload->rtcp_fbs_.push_back(iter->rtcp_fb_.at(j));
+                        if (rtcp_fb == "transport-cc") {
+                            audio_payload->rtcp_fbs_.push_back(rtcp_fb);
                         }
                     }
                 }
+
                 track_desc->type_ = "audio";
                 track_desc->set_codec_payload((SrsCodecPayload*)audio_payload);
                 // Only choose one match opus codec.
+                break;
+            }
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
+            }
+
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                // Generate video payload for av1.
+                SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
                 break;
             }
         } else if (remote_media_desc.is_video()) {
@@ -2740,13 +2785,15 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
             }
 
             std::deque<SrsMediaPayloadType> backup_payloads;
-            for (std::vector<SrsMediaPayloadType>::iterator iter = payloads.begin(); iter != payloads.end(); ++iter) {
-                if (iter->format_specific_param_.empty()) {
-                    backup_payloads.push_front(*iter);
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType& payload = payloads.at(j);
+
+                if (payload.format_specific_param_.empty()) {
+                    backup_payloads.push_front(payload);
                     continue;
                 }
                 H264SpecificParam h264_param;
-                if ((err = srs_parse_h264_fmtp(iter->format_specific_param_, h264_param)) != srs_success) {
+                if ((err = srs_parse_h264_fmtp(payload.format_specific_param_, h264_param)) != srs_success) {
                     srs_error_reset(err); continue;
                 }
 
@@ -2754,21 +2801,23 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
                 bool profile_matched = (!has_42e01f || h264_param.profile_level_id == "42e01f");
 
                 // Try to pick the "best match" H.264 payload type.
-                if (h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1" && profile_matched) {
+                if (profile_matched && h264_param.packetization_mode == "1" && h264_param.level_asymmerty_allow == "1") {
                     // if the playload is opus, and the encoding_param_ is channel
-                    SrsVideoPayload* video_payload = new SrsVideoPayload(iter->payload_type_, iter->encoding_name_, iter->clock_rate_);
-                    video_payload->set_h264_param_desc(iter->format_specific_param_);
+                    SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+                    video_payload->set_h264_param_desc(payload.format_specific_param_);
 
                     // TODO: FIXME: Only support some transport algorithms.
-                    for (int j = 0; j < (int)iter->rtcp_fb_.size(); ++j) {
+                    for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                        const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
                         if (nack_enabled) {
-                            if (iter->rtcp_fb_.at(j) == "nack" || iter->rtcp_fb_.at(j) == "nack pli") {
-                                video_payload->rtcp_fbs_.push_back(iter->rtcp_fb_.at(j));
+                            if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                                video_payload->rtcp_fbs_.push_back(rtcp_fb);
                             }
                         }
                         if (twcc_enabled && remote_twcc_id) {
-                            if (iter->rtcp_fb_.at(j) == "transport-cc") {
-                                video_payload->rtcp_fbs_.push_back(iter->rtcp_fb_.at(j));
+                            if (rtcp_fb == "transport-cc") {
+                                video_payload->rtcp_fbs_.push_back(rtcp_fb);
                             }
                         }
                     }
@@ -2779,34 +2828,35 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
                     break;
                 }
 
-                backup_payloads.push_back(*iter);
+                backup_payloads.push_back(payload);
             }
 
             // Try my best to pick at least one media payload type.
             if (!track_desc->media_ && ! backup_payloads.empty()) {
-                SrsMediaPayloadType media_pt= backup_payloads.front();
-                // if the playload is opus, and the encoding_param_ is channel
-                SrsVideoPayload* video_payload = new SrsVideoPayload(media_pt.payload_type_, media_pt.encoding_name_, media_pt.clock_rate_);
+                const SrsMediaPayloadType& payload = backup_payloads.front();
 
-                std::vector<std::string> rtcp_fbs = media_pt.rtcp_fb_;
+                // if the playload is opus, and the encoding_param_ is channel
+                SrsVideoPayload* video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
                 // TODO: FIXME: Only support some transport algorithms.
-                for (int j = 0; j < (int)rtcp_fbs.size(); ++j) {
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string& rtcp_fb = payload.rtcp_fb_.at(k);
+
                     if (nack_enabled) {
-                        if (rtcp_fbs.at(j) == "nack" || rtcp_fbs.at(j) == "nack pli") {
-                            video_payload->rtcp_fbs_.push_back(rtcp_fbs.at(j));
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
                         }
                     }
 
                     if (twcc_enabled && remote_twcc_id) {
-                        if (rtcp_fbs.at(j) == "transport-cc") {
-                            video_payload->rtcp_fbs_.push_back(rtcp_fbs.at(j));
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
                         }
                     }
                 }
 
                 track_desc->set_codec_payload((SrsCodecPayload*)video_payload);
-
-                srs_warn("choose backup H.264 payload type=%d", backup_payloads.front().payload_type_);
+                srs_warn("choose backup H.264 payload type=%d", payload.payload_type_);
             }
 
             // TODO: FIXME: Support RRTR?
@@ -2820,8 +2870,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
 
         std::string track_id;
-        for (int i = 0; i < (int)remote_media_desc.ssrc_infos_.size(); ++i) {
-            SrsSSRCInfo ssrc_info = remote_media_desc.ssrc_infos_.at(i);
+        for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+            const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+
             // ssrc have same track id, will be description in the same track description.
             if(track_id != ssrc_info.msid_tracker_) {
                 SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
@@ -2839,8 +2890,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRequest* req, cons
         }
 
         // set track fec_ssrc and rtx_ssrc
-        for (int i = 0; i < (int)remote_media_desc.ssrc_groups_.size(); ++i) {
-            SrsSSRCGroup ssrc_group = remote_media_desc.ssrc_groups_.at(i);
+        for (int j = 0; j < (int)remote_media_desc.ssrc_groups_.size(); ++j) {
+            const SrsSSRCGroup& ssrc_group = remote_media_desc.ssrc_groups_.at(j);
+
             SrsRtcTrackDescription* track_desc = stream_desc->find_track_description_by_ssrc(ssrc_group.ssrcs_[0]);
             if (!track_desc) {
                 continue;
@@ -2962,9 +3014,12 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
     return err;
 }
 
-srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const SrsSdp& remote_sdp, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
+srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
 {
     srs_error_t err = srs_success;
+
+    SrsRequest* req = ruc->req_;
+    const SrsSdp& remote_sdp = ruc->remote_sdp_;
 
     bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
     bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
@@ -2976,8 +3031,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
         return srs_error_wrap(err, "fetch rtc source");
     }
 
-    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
-        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_[i];
+    for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
+        const SrsMediaDesc& remote_media_desc = remote_sdp.media_descs_.at(i);
 
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
@@ -3002,6 +3057,14 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
+        } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
+            }
+
+            remote_payload = payloads.at(0);
+            track_descs = source->get_track_desc("video", "AV1X");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
@@ -3011,7 +3074,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
             remote_payload = payloads.at(0);
             for (int j = 0; j < (int)payloads.size(); j++) {
-                SrsMediaPayloadType& payload = payloads.at(j);
+                const SrsMediaPayloadType& payload = payloads.at(j);
 
                 // If exists 42e01f profile, choose it; otherwise, use the first payload.
                 // TODO: FIME: Should check packetization-mode=1 also.
@@ -3024,8 +3087,8 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
             track_descs = source->get_track_desc("video", "H264");
         }
 
-        for (int i = 0; i < (int)track_descs.size(); ++i) {
-            SrsRtcTrackDescription* track = track_descs[i]->copy();
+        for (int j = 0; j < (int)track_descs.size(); ++j) {
+            SrsRtcTrackDescription* track = track_descs.at(j)->copy();
 
             // Use remote/source/offer PayloadType.
             track->media_->pt_of_publisher_ = track->media_->pt_;
@@ -3071,86 +3134,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, const S
 
             track->set_direction("sendonly");
             sub_relations.insert(make_pair(publish_ssrc, track));
-        }
-    }
-
-    return err;
-}
-
-srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRequest* req, SrsRtcStreamDescription* req_stream_desc,
-        std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
-{
-    srs_error_t err = srs_success;
-
-    SrsRtcStream* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "fetch rtc source");
-    }
-
-    std::vector<SrsRtcTrackDescription*> src_track_descs;
-    //negotiate audio media
-    if(NULL != req_stream_desc->audio_track_desc_) {
-        SrsRtcTrackDescription* req_audio_track = req_stream_desc->audio_track_desc_;
-        int remote_twcc_id = req_audio_track->get_rtp_extension_id(kTWCCExt);
-
-        src_track_descs = source->get_track_desc("audio", "opus");
-        if (src_track_descs.size() > 0) {
-            // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
-            SrsRtcTrackDescription *track = src_track_descs[0]->copy();
-
-            // Use remote/source/offer PayloadType.
-            track->media_->pt_of_publisher_ = track->media_->pt_;
-            track->media_->pt_ = req_audio_track->media_->pt_;
-
-            if (req_audio_track->red_ && track->red_) {
-                track->red_->pt_of_publisher_ = track->red_->pt_;
-                track->red_->pt_ = req_audio_track->red_->pt_;
-            }
-
-            track->del_rtp_extension_desc(kTWCCExt);
-            if (remote_twcc_id > 0) {
-                track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
-            }
-
-            track->mid_ = req_audio_track->mid_;
-            sub_relations.insert(make_pair(track->ssrc_, track));
-            track->set_direction("sendonly");
-            track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        }
-    }
-
-    //negotiate video media
-    std::vector<SrsRtcTrackDescription*> req_video_tracks = req_stream_desc->video_track_descs_;
-    src_track_descs = source->get_track_desc("video", "h264");
-    for(int i = 0; i < (int)req_video_tracks.size(); ++i) {
-        SrsRtcTrackDescription* req_video = req_video_tracks.at(i);
-        int remote_twcc_id = req_video->get_rtp_extension_id(kTWCCExt);
-
-        for(int j = 0; j < (int)src_track_descs.size(); ++j) {
-            SrsRtcTrackDescription* src_video = src_track_descs.at(j);
-            if(req_video->id_ == src_video->id_) {
-                // FIXME: use source sdp or subscribe sdp? native subscribe may have no sdp
-                SrsRtcTrackDescription *track = src_video->copy();
-
-                // Use remote/source/offer PayloadType.
-                track->media_->pt_of_publisher_ = track->media_->pt_;
-                track->media_->pt_ = req_video->media_->pt_;
-
-                if (req_video->red_ && track->red_) {
-                    track->red_->pt_of_publisher_ = track->red_->pt_;
-                    track->red_->pt_ = req_video->red_->pt_;
-                }
-
-                track->del_rtp_extension_desc(kTWCCExt);
-                if (remote_twcc_id > 0) {
-                    track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
-                }
-
-                track->mid_ = req_video->mid_;
-                sub_relations.insert(make_pair(track->ssrc_, track));
-                track->set_direction("sendonly");
-                track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-            }
         }
     }
 
