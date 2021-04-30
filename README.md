@@ -127,6 +127,7 @@ Other important wiki:
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Support AV1 codec for WebRTC, [#2324][bug #2324].
 - [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
@@ -157,7 +158,7 @@ Other important wiki:
 
 ## V4 changes
 
-* v4.0, 2021-04-29, RTC: Support av1 for Chrome M90. 4.0.91
+* v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
 * v4.0, 2021-04-24, Player: Change the default from RTMP to HTTP-FLV.
 * v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90
@@ -1866,6 +1867,8 @@ Winlin
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #2106]: https://github.com/ossrs/srs/issues/2106
 [bug #2011]: https://github.com/ossrs/srs/issues/2011
+[bug #2324]: https://github.com/ossrs/srs/issues/2324
+[bug #1500]: https://github.com/ossrs/srs/issues/1500
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
