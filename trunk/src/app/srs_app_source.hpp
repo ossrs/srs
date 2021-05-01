@@ -500,7 +500,8 @@ public:
     virtual void on_unpublish() = 0;
 };
 
-// live streaming source.
+// The live streaming source.
+// TODO: FIXME: Rename to SrsLiveStream.
 class SrsSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
