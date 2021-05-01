@@ -45,7 +45,7 @@ class SrsCommonMessage;
 class SrsMessageArray;
 class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
-class SrsAudioRecode;
+class SrsAudioTranscoder;
 class SrsRtpPacket2;
 class SrsRtpPacketCacheHelper;
 class SrsSample;
@@ -56,7 +56,6 @@ class SrsRtpRingBuffer;
 class SrsRtpNackForReceiver;
 class SrsJsonObject;
 class SrsErrorPithyPrint;
-class SrsRtcDummyBridger;
 
 class SrsNtp
 {
@@ -164,8 +163,20 @@ public:
     virtual void on_consumers_finished() = 0;
 };
 
+// SrsRtcStream bridge to SrsSource
+class ISrsRtcSourceBridger
+{
+public:
+    ISrsRtcSourceBridger();
+    virtual ~ISrsRtcSourceBridger();
+public:
+    virtual srs_error_t on_publish() = 0;
+    virtual srs_error_t on_rtp(SrsRtpPacket2 *pkt) = 0;
+    virtual void on_unpublish() = 0;
+};
+
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
-class SrsRtcStream
+class SrsRtcStream : public ISrsFastTimer
 {
 private:
     // For publish, it's the publish client id.
@@ -177,10 +188,10 @@ private:
     SrsContextId _pre_source_id;
     SrsRequest* req;
     ISrsRtcPublishStream* publish_stream_;
-    // Transmux RTMP to RTC.
-    SrsRtcDummyBridger* bridger_;
     // Steam description for this steam.
     SrsRtcStreamDescription* stream_desc_;
+    // The Source bridger, bridger stream to other source.
+    ISrsRtcSourceBridger* bridger_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -204,8 +215,8 @@ public:
     // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
-    // Get the bridger.
-    ISrsSourceBridger* bridger();
+public:
+    void set_bridger(ISrsRtcSourceBridger *bridger);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -239,6 +250,9 @@ public:
     bool has_stream_desc();
     void set_stream_desc(SrsRtcStreamDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
 };
 
 // A helper class, to release the packet to cache.
@@ -263,10 +277,9 @@ private:
     SrsMetaCache* meta;
 private:
     bool discard_aac;
-    SrsAudioRecode* codec;
+    SrsAudioTranscoder* codec_;
     bool discard_bframe;
     bool merge_nalus;
-    uint32_t audio_timestamp;
     uint16_t audio_sequence;
     uint16_t video_sequence;
     uint32_t audio_ssrc;
@@ -280,8 +293,8 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
-    srs_error_t transcode(char* adts_audio, int nn_adts_audio);
-    srs_error_t package_opus(char* data, int size, SrsRtpPacketCacheHelper* helper);
+    srs_error_t transcode(SrsAudioFrame* audio);
+    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacketCacheHelper* helper);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
@@ -292,26 +305,53 @@ private:
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacketCacheHelper*>& helpers);
     srs_error_t consume_packets(std::vector<SrsRtpPacketCacheHelper*>& helpers);
 };
-#endif
 
-class SrsRtcDummyBridger : public ISrsSourceBridger
+class SrsRtmpFromRtcBridger : public ISrsRtcSourceBridger
 {
 private:
-    SrsRtcStream* rtc_;
-    // The optional implementation bridger, ignore if NULL.
-    ISrsSourceBridger* impl_;
+    SrsSource *source_;
+    SrsAudioTranscoder *codec_;
+    bool is_first_audio;
+    bool is_first_video;
+    // The format, codec information.
+    SrsRtmpFormat* format;
+
+    //TODO:use SrsRtpRingBuffer
+    //TODO:jitter buffer class
+    struct RtcPacketCache {
+        bool in_use;
+        uint16_t sn;
+        uint32_t ts;
+        SrsRtpPacket2* pkt;
+    };
+    const static uint16_t s_cache_size = 512;
+    RtcPacketCache cache_video_pkts_[s_cache_size];
+    uint16_t header_sn_;
+    uint16_t lost_sn_;
+    int64_t key_frame_ts_;
 public:
-    SrsRtcDummyBridger(SrsRtcStream* s);
-    virtual ~SrsRtcDummyBridger();
+    SrsRtmpFromRtcBridger(SrsSource *src);
+    virtual ~SrsRtmpFromRtcBridger();
+public:
+    srs_error_t initialize(SrsRequest* r);
 public:
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* audio);
-    virtual srs_error_t on_video(SrsSharedPtrMessage* video);
+    virtual srs_error_t on_rtp(SrsRtpPacket2 *pkt);
     virtual void on_unpublish();
-public:
-    // Setup a new implementation bridger, which might be NULL to free previous one.
-    void setup(ISrsSourceBridger* impl);
+private:
+    srs_error_t trancode_audio(SrsRtpPacket2 *pkt);
+    void packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header);
+    srs_error_t packet_video(SrsRtpPacket2* pkt);
+    srs_error_t packet_video_key_frame(SrsRtpPacket2* pkt);
+    srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
+    int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
+    void clear_cached_video();
+    inline uint16_t cache_index(uint16_t current_sn) {
+        return current_sn%s_cache_size;
+    }
+    bool check_frame_complete(const uint16_t start, const uint16_t end);
 };
+#endif
 
 // TODO: FIXME: Rename it.
 class SrsCodecPayload

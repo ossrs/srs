@@ -998,6 +998,30 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
     }
     source->set_publish_stream(this);
 
+    // Bridge to rtmp
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
+    bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req->vhost);
+    if (rtc_to_rtmp) {
+        SrsSource *rtmp = NULL;
+        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
+
+        // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
+        if (!rtmp->can_publish(false)) {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
+        }
+
+        SrsRtmpFromRtcBridger *bridger = new SrsRtmpFromRtcBridger(rtmp);
+        if ((err = bridger->initialize(r)) != srs_success) {
+            srs_freep(bridger);
+            return srs_error_wrap(err, "create bridger");
+        }
+
+        source->set_bridger(bridger);
+    }
+#endif
+
     return err;
 }
 

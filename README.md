@@ -22,13 +22,13 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:v4.0.85
 ```
 
-> To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
+> To enable WebRTC, user MUST set the env `CANDIDATE`, see [wiki](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate).
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
   -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
@@ -67,8 +67,7 @@ Fast index for Wikis:
 * How to deliver HTTP-FLV streaming?([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv])
 * How to deliver HLS streaming?([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS])
 * How to deliver low-latency streaming?([CN][v4_CN_SampleRealtime], [EN][v4_EN_SampleRealtime])
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
-* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
+* How to use WebRTC? ([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC])
 
 Other important wiki:
 
@@ -127,6 +126,7 @@ Other important wiki:
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Support AV1 codec for WebRTC, [#2324][bug #2324].
 - [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
@@ -163,7 +163,10 @@ Other important wiki:
 
 ## V4 changes
 
-* v4.0, 2021-04-29, RTC: Support av1 for Chrome M90. 4.0.91
+* v5.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
+* v5.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94
+* v4.0, 2021-05-01, Timer: Extract and apply shared FastTimer. 4.0.93
+* v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
 * v4.0, 2021-04-24, Player: Change the default from RTMP to HTTP-FLV.
 * v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90
@@ -1263,8 +1266,8 @@ Maintainers of SRS project:
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
 * [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
-* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
-* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
+* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
 
 A big THANK YOU goes to:
@@ -1387,6 +1390,8 @@ Winlin
 [v4_EN_SampleForward]: https://github.com/ossrs/srs/wiki/v4_EN_SampleForward
 [v4_CN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_CN_SampleRealtime
 [v4_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRealtime
+[v4_CN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC
+[v4_EN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC
 [v4_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_CN_SampleARM
 [v4_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_EN_SampleARM
 [v4_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest
@@ -1817,7 +1822,6 @@ Winlin
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #1509]: https://github.com/ossrs/srs/issues/1509
 [bug #1575]: https://github.com/ossrs/srs/issues/1575
-[bug #307]: https://github.com/ossrs/srs/issues/307
 [bug #1070]: https://github.com/ossrs/srs/issues/1070
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
 [bug #1547]: https://github.com/ossrs/srs/issues/1547
@@ -1872,6 +1876,8 @@ Winlin
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #2106]: https://github.com/ossrs/srs/issues/2106
 [bug #2011]: https://github.com/ossrs/srs/issues/2011
+[bug #2324]: https://github.com/ossrs/srs/issues/2324
+[bug #1500]: https://github.com/ossrs/srs/issues/1500
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
