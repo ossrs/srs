@@ -3789,8 +3789,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux" && n != "dash"
                 && n != "http_static" && n != "hds" && n != "exec"
-                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "nack"
-                && n != "twcc") {
+                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -3941,7 +3940,8 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
                     if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
-                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt") {
+                        && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
+                        && m != "pli_for_rtmp") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5104,7 +5104,7 @@ bool SrsConfig::get_rtc_enabled(string vhost)
 
 bool SrsConfig::get_rtc_bframe_discard(string vhost)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc(vhost);
 
@@ -5117,7 +5117,7 @@ bool SrsConfig::get_rtc_bframe_discard(string vhost)
         return DEFAULT;
     }
 
-    return conf->arg0() == "discard";
+    return conf->arg0() != "keep";
 }
 
 bool SrsConfig::get_rtc_aac_discard(string vhost)
@@ -5214,7 +5214,7 @@ int SrsConfig::get_rtc_drop_for_pt(string vhost)
 {
     static int DEFAULT = 0;
 
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
         return DEFAULT;
     }
@@ -5227,22 +5227,57 @@ int SrsConfig::get_rtc_drop_for_pt(string vhost)
     return ::atoi(conf->arg0().c_str());
 }
 
+bool SrsConfig::get_rtc_to_rtmp(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtc_to_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+srs_utime_t SrsConfig::get_rtc_pli_for_rtmp(string vhost)
+{
+    static srs_utime_t DEFAULT = 6 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("pli_for_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    srs_utime_t v = (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    if (v < 500 * SRS_UTIME_MILLISECONDS || v > 30 * SRS_UTIME_SECONDS) {
+        srs_warn("Reset pli %dms to %dms", srsu2msi(v), srsu2msi(DEFAULT));
+        return DEFAULT;
+    }
+
+    return v;
+}
+
 bool SrsConfig::get_rtc_nack_enabled(string vhost)
 {
     static bool DEFAULT = true;
 
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
         return DEFAULT;
     }
 
     conf = conf->get("nack");
     if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 
@@ -5253,17 +5288,12 @@ bool SrsConfig::get_rtc_nack_no_copy(string vhost)
 {
     static bool DEFAULT = true;
 
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
         return DEFAULT;
     }
 
-    conf = conf->get("nack");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("no_copy");
+    conf = conf->get("nack_no_copy");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -5275,18 +5305,13 @@ bool SrsConfig::get_rtc_twcc_enabled(string vhost)
 {
     static bool DEFAULT = true;
 
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_rtc(vhost);
     if (!conf) {
         return DEFAULT;
     }
 
     conf = conf->get("twcc");
     if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 

@@ -487,7 +487,7 @@ public:
 // Global singleton instance.
 extern SrsSourceManager* _srs_sources;
 
-// For two sources to bridge with each other.
+// For RTMP2RTC, bridge SrsSource to SrsRtcStream
 class ISrsSourceBridger
 {
 public:
@@ -500,7 +500,8 @@ public:
     virtual void on_unpublish() = 0;
 };
 
-// live streaming source.
+// The live streaming source.
+// TODO: FIXME: Rename to SrsLiveStream.
 class SrsSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
@@ -534,7 +535,7 @@ private:
     // The event handler.
     ISrsSourceHandler* handler;
     // The source bridger for other source.
-    ISrsSourceBridger* bridger;
+    ISrsSourceBridger* bridger_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -562,7 +563,7 @@ public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void bridge_to(ISrsSourceBridger* v);
+    void set_bridger(ISrsSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

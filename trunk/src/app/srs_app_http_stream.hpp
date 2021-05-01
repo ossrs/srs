@@ -179,6 +179,7 @@ public:
 };
 
 // HTTP Live Streaming, to transmux RTMP to HTTP FLV or other format.
+// TODO: FIXME: Rename to SrsHttpLive
 class SrsLiveStream : public ISrsHttpHandler
 {
 private:

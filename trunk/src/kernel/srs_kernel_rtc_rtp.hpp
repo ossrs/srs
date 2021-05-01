@@ -353,6 +353,8 @@ public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer* buf);
     virtual srs_error_t decode(SrsBuffer* buf);
+public:
+    bool is_keyframe();
 };
 
 // For object cache manager to stat the object dropped.
