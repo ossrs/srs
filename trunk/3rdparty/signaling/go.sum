@@ -1,0 +1,9 @@
+github.com/ossrs/go-oryx-lib v0.0.8 h1:k8ml3ZLsjIMoQEdZdWuy8zkU0w/fbJSyHvT/s9NyeCc=
+github.com/ossrs/go-oryx-lib v0.0.8/go.mod h1:i2tH4TZBzAw5h+HwGrNOKvP/nmZgSQz0OEnLLdzcT/8=
+golang.org/x/net v0.0.0-20210502030024-e5908800b52b h1:jCRjgm6WJHzM8VQrm/es2wXYqqbq0NZ1yXFHHgzkiVQ=
+golang.org/x/net v0.0.0-20210502030024-e5908800b52b/go.mod h1:OJAsFXCWl8Ukc7SiCT/9KSuxbyM7479/AVlXFRxuMCk=
+golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
