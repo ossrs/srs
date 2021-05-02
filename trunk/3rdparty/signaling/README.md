@@ -14,7 +14,7 @@ cd srs/trunk && ./configure && make && ./objs/srs -c conf/rtc.conf
 Build and run signaling:
 
 ```bash
-make && ./objs/signaling
+cd srs/trunk/3rdparty/signaling && make && ./objs/signaling
 ```
 
 Open the H5 demos:
