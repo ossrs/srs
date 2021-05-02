@@ -119,6 +119,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         api = prop->to_str();
     }
 
+    string tid;
+    if ((prop = req->ensure_property_string("tid")) != NULL) {
+        tid = prop->to_str();
+    }
+
     // TODO: FIXME: Parse vhost.
     // Parse app and stream from streamurl.
     string app;
@@ -139,9 +144,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
-    srs_trace("RTC play %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
-        codec.c_str(), srtp.c_str(), dtls.c_str()
+    srs_trace("RTC play %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
+        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(),
+        eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str()
     );
 
     // The RTC user config object.
@@ -488,6 +493,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         api = prop->to_str();
     }
 
+    string tid;
+    if ((prop = req->ensure_property_string("tid")) != NULL) {
+        tid = prop->to_str();
+    }
+
     // Parse app and stream from streamurl.
     string app;
     string stream_name;
@@ -504,9 +514,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     string eip = r->query_get("eip");
     string codec = r->query_get("codec");
 
-    srs_trace("RTC publish %s, api=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
-        streamurl.c_str(), api.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(), eip.c_str(),
-        codec.c_str()
+    srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(),
+        remote_sdp_str.length(), eip.c_str(), codec.c_str()
     );
 
     // The RTC user config object.

@@ -80,6 +80,25 @@ Other important wiki:
 * Usage: How to improve edge performance for multiple CPUs? ([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT])
 * Usage: How to file a bug or contact us? ([CN][v4_CN_Contact], [EN][v4_EN_Contact])
 
+## Ports
+
+The ports used by SRS:
+
+* tcp://1935, for RTMP live streaming server.
+* tcp://1985, HTTP API server.
+* tcp://1990, HTTPS API server.
+* tcp://8080, HTTP live streaming server.
+* tcp://8088, HTTPS live streaming server.
+* udp://8000, [WebRTC Media](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC) server.
+* udp://1980, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+* udp://8935, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
+* tcp://554, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
+* tcp://8936, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
+* tcp://5060, Stream Caster: [Push GB28181 SIP](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://9000, Stream Caster: [Push GB28181 Media(bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://58200-58300, Stream Caster: [Push GB28181 Media(no-bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://10080, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
+
 ## Features
 
 - [x] Using coroutine by ST, it's really simple and stupid enough.
@@ -157,8 +176,9 @@ Other important wiki:
 
 ## V4 changes
 
-* v5.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
-* v5.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94
+* v4.0, 2021-05-02, Add one to one demo. 4.0.96
+* v4.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
+* v4.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94
 * v4.0, 2021-05-01, Timer: Extract and apply shared FastTimer. 4.0.93
 * v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
