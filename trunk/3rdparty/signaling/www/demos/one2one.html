@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/srs.sdk.js"></script>
+    <script type="text/javascript" src="js/srs.sig.js"></script>
+</head>
+<body>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/rtcpublisher'/>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li class="active"><a href="#">一对一通话</a></li>
+                    <li>
+                        <a href="https://github.com/ossrs/signaling">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/signaling?style=social">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="form-inline">
+        SRS:
+        <input type="text" id="txt_host" class="input-medium" value="">
+        Room:
+        <input type="text" id="txt_room" class="input-small" value="live">
+        Display:
+        <input type="text" id="txt_display" class="input-small" value="">
+        <button class="btn btn-primary" id="btn_start">开始通话</button>
+    </div>
+
+    <div class="row">
+        <div class="span5">
+            <label></label>
+            <video id="rtc_media_publisher" width="320" autoplay muted controls></video>
+
+            <label></label>
+            <span id='self'></span>
+        </div>
+        <div class="span6">
+            <label></label>
+            <video id="rtc_media_player" width="320" autoplay muted controls></video>
+
+            <label></label>
+            <span id='peer'></span>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var sig = null;
+    var publisher = null;
+    var player = null;
+    $(function(){
+        console.log('?wss=x to specify the websocket schema, ws or wss');
+        console.log('?wsh=x to specify the websocket server ip');
+        console.log('?wsp=x to specify the websocket server port');
+        console.log('?host=x to specify the SRS server');
+        console.log('?room=x to specify the room to join');
+        console.log('?display=x to specify your nick name');
+
+        var startDemo = async function () {
+            var host = $('#txt_host').val();
+            var room = $('#txt_room').val();
+            var display = $('#txt_display').val();
+
+            // Connect to signaling first.
+            if (sig) {
+                sig.close();
+            }
+            sig = new SrsRtcSignalingAsync();
+            sig.onmessage = function (msg) {
+                console.log('Notify: ', msg);
+                msg.participants.forEach(function (participant) {
+                    if (participant.display === display || !participant.publishing) return;
+                    startPlay(host, room, participant.display);
+                });
+            };
+            await sig.connect(conf.wsSchema, conf.wsHost, room, display);
+
+            let r0 = await sig.send({action:'join', room:room, display:display});
+            console.log('Signaling: join ok', r0);
+
+            // For one to one demo, alert and ignore when room is full.
+            if (r0.participants.length > 2) {
+                alert('Room is full, already ' + (r0.participants.length - 1) + ' participants');
+                sig.close();
+                return;
+            }
+
+            // Start publish media if signaling is ok.
+            await startPublish(host, room, display);
+            let r1 = await sig.send({action:'publish', room:room, display:display});
+            console.log('Signaling: publish ok', r1);
+
+            // Play the stream already in room.
+            r0.participants.forEach(function(participant) {
+                if (participant.display === display || !participant.publishing) return;
+                startPlay(host, room, participant.display);
+            });
+        };
+
+        var startPublish = function (host, room, display) {
+            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            $('#rtc_media_publisher').show();
+
+            if (publisher) {
+                publisher.close();
+            }
+            publisher = new SrsRtcPublisherAsync();
+            publisher.onaddstream = function (event) {
+                console.log('Start publish, event: ', event);
+                $('#rtc_media_publisher').prop('srcObject', event.stream);
+            };
+
+            return publisher.publish(url).then(function(session){
+                $('#self').text('Self: ' + display);
+            }).catch(function (reason) {
+                publisher.close();
+                $('#rtc_media_publisher').hide();
+                console.error(reason);
+            });
+        };
+
+        var startPlay = function (host, room, display) {
+            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            $('#rtc_media_player').show();
+
+            if (player) {
+                player.close();
+            }
+
+            player = new SrsRtcPlayerAsync();
+            player.onaddstream = function (event) {
+                console.log('Start play, event: ', event);
+                $('#rtc_media_player').prop('srcObject', event.stream);
+            };
+
+            player.play(url).then(function(session){
+                $('#peer').text('Peer: ' + display);
+                $('#rtc_media_player').prop('muted', false);
+            }).catch(function (reason) {
+                player.close();
+                $('#rtc_media_player').hide();
+                console.error(reason);
+            });
+        };
+
+        $('#rtc_media_publisher').hide();
+        $('#rtc_media_player').hide();
+        $("#btn_start").click(startDemo);
+
+        // Pass-by to SRS url.
+        let conf = SrsRtcSignalingParse(window.location);
+        $('#txt_host').val(conf.host);
+        conf.room && $('#txt_room').val(conf.room);
+        $('#txt_display').val(conf.display);
+        if (conf.autostart) {
+            startDemo();
+        }
+    });
+</script>
+</body>
+</html>
+

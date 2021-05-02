@@ -432,6 +432,10 @@ ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/f
 rm -rf ${SRS_OBJS}/nginx/html/console &&
 ln -sf `pwd`/research/console ${SRS_OBJS}/nginx/html/console
 
+# For SRS signaling.
+rm -rf ${SRS_OBJS}/nginx/html/demos &&
+ln -sf `pwd`/3rdparty/signaling/www/demos ${SRS_OBJS}/nginx/html/demos
+
 # For home page index.html
 rm -rf ${SRS_OBJS}/nginx/html/index.html &&
 ln -sf `pwd`/research/api-server/static-dir/index.html ${SRS_OBJS}/nginx/html/index.html
