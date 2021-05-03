@@ -45,19 +45,22 @@
     </div>
 
     <div class="row">
-        <div class="span5">
+        <div class="span4">
             <label></label>
-            <video id="rtc_media_publisher" width="320" autoplay muted controls></video>
+            <video id="rtc_media_publisher" width="310" autoplay muted controls></video>
 
             <label></label>
             <span id='self'></span>
         </div>
         <div class="span6">
             <label></label>
-            <video id="rtc_media_player" width="320" autoplay muted controls></video>
+            <video id="rtc_media_player" width="310" autoplay muted controls></video>
 
             <label></label>
             <span id='peer'></span>
+            <a href="javascript:control_refresh_peer()">Refresh</a>
+            <input type="text" id="txt_alert" class="input-medium" value="">
+            <a href="javascript:control_alert_peer()">Alert</a>
         </div>
     </div>
 </div>
@@ -65,6 +68,8 @@
     var sig = null;
     var publisher = null;
     var player = null;
+    var control_refresh_peer = null;
+    var control_alert_peer = null;
     $(function(){
         console.log('?wss=x to specify the websocket schema, ws or wss');
         console.log('?wsh=x to specify the websocket server ip');
@@ -85,12 +90,31 @@
             sig = new SrsRtcSignalingAsync();
             sig.onmessage = function (msg) {
                 console.log('Notify: ', msg);
-                msg.participants.forEach(function (participant) {
-                    if (participant.display === display || !participant.publishing) return;
-                    startPlay(host, room, participant.display);
-                });
+                if (msg.event === 'publish') {
+                    msg.participants.forEach(function (participant) {
+                        if (participant.display === display || !participant.publishing) return;
+                        startPlay(host, room, participant.display);
+                    });
+                } else if (msg.event === 'control') {
+                    if (msg.param === 'refresh') {
+                        setTimeout(function () {
+                            window.location.href = window.location.href;
+                        }, 500);
+                    } else if (msg.param === 'alert') {
+                        alert('From ' + msg.peer.display + ': ' + msg.data);
+                    }
+                }
             };
             await sig.connect(conf.wsSchema, conf.wsHost, room, display);
+
+            control_refresh_peer = async function () {
+                let r1 = await sig.send({action:'control', room:room, display:display, call:'refresh'});
+                console.log('Signaling: control peer to refresh ok', r1);
+            };
+            control_alert_peer = async function () {
+                let r1 = await sig.send({action:'control', room:room, display:display, call:'alert', data:$('#txt_alert').val()});
+                console.log('Signaling: control peer to alert ok', r1);
+            };
 
             let r0 = await sig.send({action:'join', room:room, display:display});
             console.log('Signaling: join ok', r0);

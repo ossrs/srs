@@ -106,6 +106,7 @@ function SrsRtcSignalingParse(location) {
     host = host? host.split('&')[0] : location.hostname;
 
     let room = location.href.split('room=')[1];
+    room = room? room.split('&')[0] : null;
 
     let display = location.href.split('display=')[1];
     display = display? display.split('&')[0] : new Date().getTime().toString(16).substr(3);

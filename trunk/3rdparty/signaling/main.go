@@ -96,7 +96,7 @@ func (v *Room) Remove(p *Participant) {
 	}
 }
 
-func (v *Room) Notify(ctx context.Context, peer *Participant, event string) {
+func (v *Room) Notify(ctx context.Context, peer *Participant, event, param, data string) {
 	var participants []*Participant
 	func() {
 		v.lock.RLock()
@@ -112,12 +112,15 @@ func (v *Room) Notify(ctx context.Context, peer *Participant, event string) {
 		res := struct {
 			Action       string         `json:"action"`
 			Event        string         `json:"event"`
+			Param        string         `json:"param,omitempty"`
+			Data         string         `json:"data,omitempty"`
 			Room         string         `json:"room"`
 			Self         *Participant   `json:"self"`
 			Peer         *Participant   `json:"peer"`
 			Participants []*Participant `json:"participants"`
 		}{
-			"notify", event, v.Name, r, peer, participants,
+			"notify", event, param, data,
+			v.Name, r, peer, participants,
 		}
 
 		b, err := json.Marshal(struct {
@@ -228,7 +231,6 @@ func main() {
 				}
 
 				var res interface{}
-				var p *Participant
 				if action.Message.Action == "join" {
 					obj := struct {
 						Message struct {
@@ -241,7 +243,7 @@ func main() {
 					}
 
 					r, _ := rooms.LoadOrStore(obj.Message.Room, &Room{Name: obj.Message.Room})
-					p = &Participant{Room: r.(*Room), Display: obj.Message.Display, Out: outMessages}
+					p := &Participant{Room: r.(*Room), Display: obj.Message.Display, Out: outMessages}
 					if err := r.(*Room).Add(p); err != nil {
 						return errors.Wrapf(err, "join")
 					}
@@ -258,7 +260,7 @@ func main() {
 						action.Message.Action, obj.Message.Room, p, r.(*Room).Participants,
 					}
 
-					go r.(*Room).Notify(ctx, p, action.Message.Action)
+					go r.(*Room).Notify(ctx, p, action.Message.Action, "", "")
 				} else if action.Message.Action == "publish" {
 					obj := struct {
 						Message struct {
@@ -276,7 +278,24 @@ func main() {
 					// Now, the peer is publishing.
 					p.Publishing = true
 
-					go r.(*Room).Notify(ctx, p, action.Message.Action)
+					go r.(*Room).Notify(ctx, p, action.Message.Action, "", "")
+				} else if action.Message.Action == "control" {
+					obj := struct {
+						Message struct {
+							Room    string `json:"room"`
+							Display string `json:"display"`
+							Call    string `json:"call"`
+							Data    string `json:"data"`
+						} `json:"msg"`
+					}{}
+					if err := json.Unmarshal(m, &obj); err != nil {
+						return errors.Wrapf(err, "Unmarshal %s", m)
+					}
+
+					r, _ := rooms.LoadOrStore(obj.Message.Room, &Room{Name: obj.Message.Room})
+					p := r.(*Room).Get(obj.Message.Display)
+
+					go r.(*Room).Notify(ctx, p, action.Message.Action, obj.Message.Call, obj.Message.Data)
 				} else {
 					return errors.Errorf("Invalid message %s", m)
 				}
