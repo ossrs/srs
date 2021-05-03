@@ -13,10 +13,10 @@ if [[ ! -d ~/git/signaling ]]; then
 fi
 
 echo "Copy signaling"
-cp -R ~/git/signaling/* signaling/
+cp -R signaling/* ~/git/signaling/ && (cd ~/git/signaling && git st)
 
 echo "Copy httpx-static"
-cp -R ~/git/go-oryx/httpx-static/* httpx-static/
+cp -R httpx-static/* ~/git/go-oryx/httpx-static/ && (cd ~/git/go-oryx && git st)
 
 echo "Copy srs-bench"
-cp -R ~/git/srs-bench/* srs-bench/
+cp -R srs-bench/* ~/git/srs-bench/ && (cd ~/git/srs-bench && git st)
