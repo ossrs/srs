@@ -45,14 +45,14 @@
     </div>
 
     <div class="row">
-        <div class="span4">
+        <div class="span4 hide" id="publisher">
             <label></label>
             <video id="rtc_media_publisher" width="310" autoplay muted controls></video>
 
             <label></label>
             <span id='self'></span>
         </div>
-        <div class="span6">
+        <div class="span6 hide" id="player">
             <label></label>
             <video id="rtc_media_player" width="310" autoplay muted controls></video>
 
@@ -141,6 +141,7 @@
         var startPublish = function (host, room, display) {
             var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
             $('#rtc_media_publisher').show();
+            $('#publisher').show();
 
             if (publisher) {
                 publisher.close();
@@ -163,6 +164,7 @@
         var startPlay = function (host, room, display) {
             var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
             $('#rtc_media_player').show();
+            $('#player').show();
 
             if (player) {
                 player.close();
@@ -184,15 +186,13 @@
             });
         };
 
-        $('#rtc_media_publisher').hide();
-        $('#rtc_media_player').hide();
-        $("#btn_start").click(startDemo);
-
         // Pass-by to SRS url.
         let conf = SrsRtcSignalingParse(window.location);
         $('#txt_host').val(conf.host);
         conf.room && $('#txt_room').val(conf.room);
         $('#txt_display').val(conf.display);
+
+        $("#btn_start").click(startDemo);
         if (conf.autostart) {
             startDemo();
         }
