@@ -1012,6 +1012,10 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
             return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
         }
 
+        // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
+        // especially for stream merging.
+        rtmp->set_cache(false);
+
         SrsRtmpFromRtcBridger *bridger = new SrsRtmpFromRtcBridger(rtmp);
         if ((err = bridger->initialize(r)) != srs_success) {
             srs_freep(bridger);

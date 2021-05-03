@@ -63,6 +63,25 @@
             <a href="javascript:control_alert_peer()">Alert</a>
         </div>
     </div>
+
+    <div class="accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a href="#" id="ff_preview" target="_blank" class="accordion-toggle">
+                    FFmpeg合流转直播预览：rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                </a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    ffmpeg -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_first"></span> -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_second"></span> \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex "[1:v]scale=w=96:h=72[ckout];[0:v][ckout]overlay=x=W-w-10:y=H-h-10[out]" -map "[out]" \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -c:v libx264 -profile:v high -preset medium \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex amix -c:a aac \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -f flv -y rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script type="text/javascript">
     var sig = null;
@@ -139,6 +158,10 @@
         };
 
         var startPublish = function (host, room, display) {
+            $(".ff_first").each(function(i,e) {
+                $(e).text(display);
+            });
+
             var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
             $('#rtc_media_publisher').show();
             $('#publisher').show();
@@ -153,7 +176,7 @@
             };
 
             return publisher.publish(url).then(function(session){
-                $('#self').text('Self: ' + display);
+                $('#self').text('Self: ' + url);
             }).catch(function (reason) {
                 publisher.close();
                 $('#rtc_media_publisher').hide();
@@ -162,6 +185,10 @@
         };
 
         var startPlay = function (host, room, display) {
+            $(".ff_second").each(function(i,e) {
+                $(e).text(display);
+            });
+
             var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
             $('#rtc_media_player').show();
             $('#player').show();
@@ -191,6 +218,14 @@
         $('#txt_host').val(conf.host);
         conf.room && $('#txt_room').val(conf.room);
         $('#txt_display').val(conf.display);
+
+        $(".ff_host").each(function(i,e) {
+            $(e).text(conf.host);
+        });
+        $(".ff_app").each(function(i,e) {
+            $(e).text($('#txt_room').val());
+        });
+        $('#ff_preview').attr('href', 'http://ossrs.net/players/srs_player.html?app=' + $('#txt_room').val() + '&stream=merge.flv&server=' + conf.host + '&vhost=' + conf.host + '&autostart=true');
 
         $("#btn_start").click(startDemo);
         if (conf.autostart) {
