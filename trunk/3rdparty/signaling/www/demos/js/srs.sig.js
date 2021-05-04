@@ -119,6 +119,7 @@ function SrsRtcSignalingParse(location) {
         query = query.replace('wss=' + wsSchema, '');
         query = query.replace('wsh=' + wsHost, '');
         query = query.replace('wsp=' + wsPort, '');
+        query = query.replace('host=' + host, '');
         if (room) {
             query = query.replace('room=' + room, '');
         }
@@ -130,6 +131,9 @@ function SrsRtcSignalingParse(location) {
         }
         query = query.replace('?&', '?');
         if (query.lastIndexOf('?') === query.length - 1) {
+            query = query.substr(0, query.length - 1);
+        }
+        if (query.lastIndexOf('&') === query.length - 1) {
             query = query.substr(0, query.length - 1);
         }
     }
