@@ -67,25 +67,62 @@
 
     <label></label>
 
-    <div class="accordion hide" id="srs_merge">
+    <div class="accordion hide srs_merge">
         <div class="accordion-group">
             <div class="accordion-heading">
-                <a href="#" id="ff_preview" target="_blank" class="accordion-toggle">
-                    FFmpeg合流转直播预览：rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
-                </a>
+                <a href="javascript:void(0)" class="accordion-toggle">FFmpeg合流转直播</a>
             </div>
             <div class="accordion-body collapse in">
-                <div class="accordion-inner">
+                <div class="accordion-inner" style="overflow:auto">
                     ffmpeg -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_first"></span> -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_second"></span> \ <br/>
                     &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex "[1:v]scale=w=96:h=72[ckout];[0:v][ckout]overlay=x=W-w-10:y=H-h-10[out]" -map "[out]" \ <br/>
                     &nbsp;&nbsp;&nbsp;&nbsp; -c:v libx264 -profile:v high -preset medium \ <br/>
                     &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex amix -c:a aac \ <br/>
-                    &nbsp;&nbsp;&nbsp;&nbsp; -f flv -y rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                    &nbsp;&nbsp;&nbsp;&nbsp; -f flv -y
+                    <span id="ff_output">
+                        rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                    </span>
+                    <span id="ff_wxvideo"></span>
+                    && <br/>
+                    echo "ok"
+                </div>
+                <div class="accordion-inner">
+                    <a href="#" id="ff_preview" target="_blank" class="accordion-toggle">
+                        预览：rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <label></label>
+
+    <div class="accordion hide srs_merge">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a href="javascript:void(0)" class="accordion-toggle">
+                    视频号推流信息
+                </a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    推流地址 <input type="text" id="txt_wx_video_tcurl" class="input-xxlarge">
+                </div>
+                <div class="accordion-inner">
+                    推流密钥 <input type="text" id="txt_wx_video_stream" class="input-xxlarge">
+                </div>
+                <div class="accordion-inner">
+                    <button class="btn btn-primary" id="btn_apply">应用</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
+<footer class="footer">
+    <div class="container">
+            <p>&copy; SRS 2020</p>
+    </div>
+</footer>
 <script type="text/javascript">
     var sig = null;
     var publisher = null;
@@ -134,9 +171,9 @@
                 }
 
                 if (msg.participants.length >= 2) {
-                    $('#srs_merge').show();
+                    $('.srs_merge').show();
                 } else {
-                    $('#srs_merge').hide();
+                    $('.srs_merge').hide();
                 }
             };
             await sig.connect(conf.wsSchema, conf.wsHost, room, display);
@@ -172,7 +209,7 @@
             });
 
             if (r0.participants.length >= 2) {
-                $('#srs_merge').show();
+                $('.srs_merge').show();
             }
         };
 
@@ -249,6 +286,18 @@
         // Update href for all navs.
         $('ul.srs_nav').children('li').not('.srs_ignore').children('a').not("[href='#']").each(function (i, e) {
             $(e).attr('href', $(e).attr('href') + conf.rawQuery);
+        });
+
+        $('#btn_apply').click(function () {
+            if ($('#txt_wx_video_tcurl').val() !== '' && $('#txt_wx_video_stream').val() !== '') {
+                $('#ff_wxvideo').text('"' + $('#txt_wx_video_tcurl').val() + $('#txt_wx_video_stream').val() + '"').show();
+                $('#ff_output').hide();
+                $('#ff_preview').parent().hide();
+            } else {
+                $('#ff_wxvideo').hide();
+                $('#ff_output').show();
+                $('#ff_preview').parent().show();
+            }
         });
 
         $("#btn_start").click(startDemo);
