@@ -190,10 +190,16 @@ func main() {
 		var self *Participant
 		go func() {
 			<-ctx.Done()
-			if self != nil {
-				self.Room.Remove(self)
-				logger.Tf(ctx, "Remove client %v", self)
+			if self == nil {
+				return
 			}
+
+			// Notify other peers that we're quiting.
+			// @remark The ctx(of self) is done, so we must use a new context.
+			go self.Room.Notify(context.Background(), self, "leave", "", "")
+
+			self.Room.Remove(self)
+			logger.Tf(ctx, "Remove client %v", self)
 		}()
 
 		inMessages := make(chan []byte, 0)

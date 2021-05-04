@@ -114,6 +114,7 @@ function SrsRtcSignalingParse(location) {
     autostart = autostart && autostart.split('&')[0] === 'true';
 
     // Remove data in query.
+    let rawQuery = query;
     if (query) {
         query = query.replace('wss=' + wsSchema, '');
         query = query.replace('wsh=' + wsHost, '');
@@ -128,7 +129,7 @@ function SrsRtcSignalingParse(location) {
             query = query.replace('&&', '&');
         }
         query = query.replace('?&', '?');
-        if (query.lastIndexOf('?') == query.length - 1) {
+        if (query.lastIndexOf('?') === query.length - 1) {
             query = query.substr(0, query.length - 1);
         }
     }
@@ -137,7 +138,7 @@ function SrsRtcSignalingParse(location) {
     wsHost = wsPort? wsHost.split(':')[0] + ':' + wsPort : wsHost;
 
     return {
-        query: query, wsSchema: wsSchema, wsHost: wsHost, host: host,
+        query: query, rawQuery: rawQuery, wsSchema: wsSchema, wsHost: wsHost, host: host,
         room: room, display: display, autostart: autostart,
     };
 }

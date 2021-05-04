@@ -7,7 +7,19 @@
 <body>
 <h3><a href="https://github.com/ossrs/signaling">Signaling</a> works!</h3>
 <p>
-    Run demo for <a href="one2one.html?autostart=true">WebRTC: One to One over SFU(SRS)</a><br/>
-    点击进入<a href="one2one.html?autostart=true">SRS一对一通话演示</a>
+    Run demo for <a class="srs_demo" href="one2one.html?autostart=true">WebRTC: One to One over SFU(SRS)</a><br/>
+    点击进入<a class="srs_demo" href="one2one.html?autostart=true">SRS一对一通话演示</a>
 </p>
+<p>
+    Run demo for <a class="srs_demo" href="room.html?autostart=true">WebRTC: Video Room over SFU(SRS)</a><br/>
+    点击进入<a class="srs_demo" href="room.html?autostart=true">SRS多人通话演示</a>
+</p>
+<script>
+    let roomName = new Date().getTime().toString(16).substr(3);
+    let elems = document.getElementsByClassName('srs_demo');
+    for (var i = 0; i < elems.length; i++) {
+        let elem = elems.item(i);
+        elem.setAttribute('href', elem.getAttribute('href') + '&room=' + roomName);
+    }
+</script>
 </body>
