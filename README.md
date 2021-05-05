@@ -182,6 +182,8 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-04, Add video room demo. 4.0.98
+* v4.0, 2021-05-03, Add RTC stream merging demo by FFmpeg. 4.0.97
 * v4.0, 2021-05-02, Add one to one demo. 4.0.96
 * v4.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
 * v4.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94

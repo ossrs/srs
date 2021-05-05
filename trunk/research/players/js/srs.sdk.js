@@ -57,7 +57,7 @@ function SrsRtcPublisherAsync() {
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
         var stream = await navigator.mediaDevices.getUserMedia(
-            {audio: true, video: {height: {max: 320}}}
+            {audio: true, video: {width: {max: 320}}}
         );
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
         stream.getTracks().forEach(function (track) {
@@ -69,7 +69,8 @@ function SrsRtcPublisherAsync() {
         var session = await new Promise(function (resolve, reject) {
             // @see https://github.com/rtcdn/rtcdn-draft
             var data = {
-                api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
+                api: conf.apiUrl, tid: conf.tid, streamurl: conf.streamUrl,
+                clientip: null, sdp: offer.sdp
             };
             console.log("Generated offer: ", data);
 
@@ -101,7 +102,7 @@ function SrsRtcPublisherAsync() {
 
     // Close the publisher.
     self.close = function () {
-        self.pc.close();
+        self.pc && self.pc.close();
         self.pc = null;
     };
 
@@ -141,7 +142,10 @@ function SrsRtcPublisherAsync() {
 
             var streamUrl = urlObject.url;
 
-            return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+            return {
+                apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
+                tid: new Date().getTime().toString(16)
+            };
         },
         parse: function (url) {
             // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
@@ -289,7 +293,8 @@ function SrsRtcPlayerAsync() {
         var session = await new Promise(function(resolve, reject) {
             // @see https://github.com/rtcdn/rtcdn-draft
             var data = {
-                api: conf.apiUrl, streamurl: conf.streamUrl, clientip: null, sdp: offer.sdp
+                api: conf.apiUrl, tid: conf.tid, streamurl: conf.streamUrl,
+                clientip: null, sdp: offer.sdp
             };
             console.log("Generated offer: ", data);
 
@@ -315,7 +320,7 @@ function SrsRtcPlayerAsync() {
 
     // Close the player.
     self.close = function() {
-        self.pc.close();
+        self.pc && self.pc.close();
         self.pc = null;
     };
 
@@ -354,7 +359,10 @@ function SrsRtcPlayerAsync() {
 
             var streamUrl = urlObject.url;
 
-            return {apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port};
+            return {
+                apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
+                tid: new Date().getTime().toString(16)
+            };
         },
         parse: function (url) {
             // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri

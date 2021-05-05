@@ -1,4 +1,4 @@
 #!/bin/bash
 
-for file in $(git remote); do echo ""; git push $file; done
+for file in $(git remote); do echo ""; git push $file $@; done
 
