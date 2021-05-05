@@ -57,7 +57,7 @@ function SrsRtcPublisherAsync() {
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
         var stream = await navigator.mediaDevices.getUserMedia(
-            {audio: true, video: {height: {max: 320}}}
+            {audio: true, video: {width: {max: 320}}}
         );
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
         stream.getTracks().forEach(function (track) {
@@ -144,7 +144,7 @@ function SrsRtcPublisherAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: new Date().getTime().toString(16)
+                tid: Number(new Date().getTime() + parseInt(String(Math.random() * 10000000000))).toString(16)
             };
         },
         parse: function (url) {
@@ -361,7 +361,7 @@ function SrsRtcPlayerAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: new Date().getTime().toString(16)
+                tid: Number(new Date().getTime() + parseInt(String(Math.random() * 10000000000))).toString(16)
             };
         },
         parse: function (url) {
