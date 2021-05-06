@@ -452,7 +452,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 continue;
             }
             
-            // SRS3.0, change the folowing like a shadow:
+            // SRS3.0, change the bellow like a shadow:
             //      time_jitter, mix_correct, atc, atc_auto, mw_latency, gop_cache, queue_length
             //  SRS1/2:
             //      vhost { shadow; }
@@ -489,7 +489,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 continue;
             }
 
-            // SRS3.0, change the folowing like a shadow:
+            // SRS3.0, change the bellow like a shadow:
             //      mode, origin, token_traverse, vhost, debug_srs_upnode
             //  SRS1/2:
             //      vhost { shadow; }
@@ -502,6 +502,33 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 SrsConfDirective* shadow = cluster->get_or_create(conf->name);
                 shadow->args = conf->args;
                 srs_warn("transform: vhost.%s to vhost.cluster.%s of %s", n.c_str(), n.c_str(), dir->name.c_str());
+                
+                srs_freep(conf);
+                continue;
+            }
+
+            // SRS4.0, move nack/twcc to rtc:
+            //      vhost { nack {enabled; no_copy;} twcc {enabled} }
+            // as:
+            //      vhost { rtc { nack on; nack_no_copy on; twcc on; } }
+            if (n == "nack" || n == "twcc") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* rtc = dir->get_or_create("rtc");
+                if (n == "nack") {
+                    if (conf->get("enabled")) {
+                        rtc->get_or_create("nack")->args = conf->get("enabled")->args;
+                    }
+
+                    if (conf->get("no_copy")) {
+                        rtc->get_or_create("nack_no_copy")->args = conf->get("no_copy")->args;
+                    }
+                } else if (n == "twcc") {
+                    if (conf->get("enabled")) {
+                        rtc->get_or_create("twcc")->args = conf->get("enabled")->args;
+                    }
+                }
+                srs_warn("transform: vhost.%s to vhost.rtc.%s of %s", n.c_str(), n.c_str(), dir->name.c_str());
                 
                 srs_freep(conf);
                 continue;
