@@ -182,6 +182,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-06, RTC: Fix config bug for nack and twcc. 4.0.99
 * v4.0, 2021-05-04, Add video room demo. 4.0.98
 * v4.0, 2021-05-03, Add RTC stream merging demo by FFmpeg. 4.0.97
 * v4.0, 2021-05-02, Add one to one demo. 4.0.96
