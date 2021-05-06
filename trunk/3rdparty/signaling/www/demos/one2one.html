@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>
+    <meta charset="utf-8">
+    <style>
+        body{
+            padding-top: 30px;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="js/srs.sdk.js"></script>
+    <script type="text/javascript" src="js/srs.sig.js"></script>
+</head>
+<body>
+<img src='https://ossrs.net/gif/v1/sls.gif?site=ossrs.net&path=/player/one2one'/>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a class="brand" href="https://github.com/ossrs/srs">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav srs_nav">
+                    <li class="active"><a href="#">一对一通话</a></li>
+                    <li><a href="room.html">多人通话</a></li>
+                    <li class="srs_ignore">
+                        <a href="https://github.com/ossrs/signaling">
+                            <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/signaling?style=social">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="form-inline">
+        SRS:
+        <input type="text" id="txt_host" class="input-medium" value="">
+        Room:
+        <input type="text" id="txt_room" class="input-small" value="live">
+        Display:
+        <input type="text" id="txt_display" class="input-small" value="">
+        <button class="btn btn-primary" id="btn_start">开始通话</button>
+    </div>
+
+    <div class="row">
+        <div class="span4 hide" id="publisher">
+            <label></label>
+            <video id="rtc_media_publisher" width="310" autoplay muted controls></video>
+
+            <label></label>
+            <span id='self'></span>
+        </div>
+        <div class="span6 hide" id="player">
+            <label></label>
+            <video id="rtc_media_player" width="310" autoplay muted controls></video>
+
+            <label></label>
+            <span id='peer'></span>
+            <a href="javascript:control_refresh_peer()">Refresh</a>
+            <input type="text" id="txt_alert" class="input-medium" value="">
+            <a href="javascript:control_alert_peer()">Alert</a>
+        </div>
+    </div>
+
+    <label></label>
+
+    <div class="accordion hide srs_merge">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a href="javascript:void(0)" class="accordion-toggle">FFmpeg合流转直播</a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner" style="overflow:auto">
+                    ffmpeg -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_first"></span> -f flv -i rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/<span class="ff_second"></span> \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex "[1:v]scale=w=96:h=72[ckout];[0:v][ckout]overlay=x=W-w-10:y=H-h-10[out]" -map "[out]" \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -c:v libx264 -profile:v high -preset medium \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -filter_complex amix -c:a aac \ <br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; -f flv -y
+                    <span id="ff_output">
+                        rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                    </span>
+                    <span id="ff_wxvideo"></span>
+                    && <br/>
+                    echo "ok"
+                </div>
+                <div class="accordion-inner">
+                    <a href="#" id="ff_preview" target="_blank" class="accordion-toggle">
+                        预览：rtmp://<span class="ff_host"></span>/<span class="ff_app"></span>/merge
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <label></label>
+
+    <div class="accordion hide srs_merge">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a href="javascript:void(0)" class="accordion-toggle">
+                    视频号推流信息
+                </a>
+            </div>
+            <div class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    推流地址 <input type="text" id="txt_wx_video_tcurl" class="input-xxlarge">
+                </div>
+                <div class="accordion-inner">
+                    推流密钥 <input type="text" id="txt_wx_video_stream" class="input-xxlarge">
+                </div>
+                <div class="accordion-inner">
+                    <button class="btn btn-primary" id="btn_apply">应用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="footer">
+    <div class="container">
+            <p>&copy; SRS 2020</p>
+    </div>
+</footer>
+<script type="text/javascript">
+    var sig = null;
+    var publisher = null;
+    var player = null;
+    var control_refresh_peer = null;
+    var control_alert_peer = null;
+    $(function(){
+        console.log('?wss=x to specify the websocket schema, ws or wss');
+        console.log('?wsh=x to specify the websocket server ip');
+        console.log('?wsp=x to specify the websocket server port');
+        console.log('?host=x to specify the SRS server');
+        console.log('?room=x to specify the room to join');
+        console.log('?display=x to specify your nick name');
+
+        var startDemo = async function () {
+            var host = $('#txt_host').val();
+            var room = $('#txt_room').val();
+            var display = $('#txt_display').val();
+
+            // Connect to signaling first.
+            if (sig) {
+                sig.close();
+            }
+            sig = new SrsRtcSignalingAsync();
+            sig.onmessage = function (msg) {
+                console.log('Notify: ', msg);
+
+                if (msg.event === 'leave') {
+                    $('#player').hide();
+                }
+
+                if (msg.event === 'publish') {
+                    if (msg.peer && msg.peer.publishing && msg.peer.display !== display) {
+                        startPlay(host, room, msg.peer.display);
+                    }
+                }
+
+                if (msg.event === 'control') {
+                    if (msg.param === 'refresh') {
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 500);
+                    } else if (msg.param === 'alert') {
+                        alert('From ' + msg.peer.display + ': ' + msg.data);
+                    }
+                }
+
+                if (msg.participants.length >= 2) {
+                    $('.srs_merge').show();
+                } else {
+                    $('.srs_merge').hide();
+                }
+            };
+            await sig.connect(conf.wsSchema, conf.wsHost, room, display);
+
+            control_refresh_peer = async function () {
+                let r1 = await sig.send({action:'control', room:room, display:display, call:'refresh'});
+                console.log('Signaling: control peer to refresh ok', r1);
+            };
+            control_alert_peer = async function () {
+                let r1 = await sig.send({action:'control', room:room, display:display, call:'alert', data:$('#txt_alert').val()});
+                console.log('Signaling: control peer to alert ok', r1);
+            };
+
+            let r0 = await sig.send({action:'join', room:room, display:display});
+            console.log('Signaling: join ok', r0);
+
+            // For one to one demo, alert and ignore when room is full.
+            if (r0.participants.length > 2) {
+                alert('Room is full, already ' + (r0.participants.length - 1) + ' participants');
+                sig.close();
+                return;
+            }
+
+            // Start publish media if signaling is ok.
+            await startPublish(host, room, display);
+            let r1 = await sig.send({action:'publish', room:room, display:display});
+            console.log('Signaling: publish ok', r1);
+
+            // Play the stream already in room.
+            r0.participants.forEach(function(participant) {
+                if (participant.display === display || !participant.publishing) return;
+                startPlay(host, room, participant.display);
+            });
+
+            if (r0.participants.length >= 2) {
+                $('.srs_merge').show();
+            }
+        };
+
+        var startPublish = function (host, room, display) {
+            $(".ff_first").each(function(i,e) {
+                $(e).text(display);
+            });
+
+            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            $('#rtc_media_publisher').show();
+            $('#publisher').show();
+
+            if (publisher) {
+                publisher.close();
+            }
+            publisher = new SrsRtcPublisherAsync();
+            publisher.onaddstream = function (event) {
+                console.log('Start publish, event: ', event);
+                $('#rtc_media_publisher').prop('srcObject', event.stream);
+            };
+
+            return publisher.publish(url).then(function(session){
+                $('#self').text('Self: ' + url);
+            }).catch(function (reason) {
+                publisher.close();
+                $('#rtc_media_publisher').hide();
+                console.error(reason);
+            });
+        };
+
+        var startPlay = function (host, room, display) {
+            $(".ff_second").each(function(i,e) {
+                $(e).text(display);
+            });
+
+            var url = 'webrtc://' + host + '/' + room + '/' + display + conf.query;
+            $('#rtc_media_player').show();
+            $('#player').show();
+
+            if (player) {
+                player.close();
+            }
+
+            player = new SrsRtcPlayerAsync();
+            player.onaddstream = function (event) {
+                console.log('Start play, event: ', event);
+                $('#rtc_media_player').prop('srcObject', event.stream);
+            };
+
+            player.play(url).then(function(session){
+                $('#peer').text('Peer: ' + display);
+                $('#rtc_media_player').prop('muted', false);
+            }).catch(function (reason) {
+                player.close();
+                $('#rtc_media_player').hide();
+                console.error(reason);
+            });
+        };
+
+        // Pass-by to SRS url.
+        let conf = SrsRtcSignalingParse(window.location);
+        $('#txt_host').val(conf.host);
+        conf.room && $('#txt_room').val(conf.room);
+        $('#txt_display').val(conf.display);
+
+        $(".ff_host").each(function(i,e) {
+            $(e).text(conf.host);
+        });
+        $(".ff_app").each(function(i,e) {
+            $(e).text($('#txt_room').val());
+        });
+        $('#ff_preview').attr('href', 'http://ossrs.net/players/srs_player.html?app=' + $('#txt_room').val() + '&stream=merge.flv&server=' + conf.host + '&vhost=' + conf.host + '&autostart=true');
+
+        // Update href for all navs.
+        $('ul.srs_nav').children('li').not('.srs_ignore').children('a').not("[href='#']").each(function (i, e) {
+            $(e).attr('href', $(e).attr('href') + conf.rawQuery);
+        });
+
+        $('#btn_apply').click(function () {
+            if ($('#txt_wx_video_tcurl').val() !== '' && $('#txt_wx_video_stream').val() !== '') {
+                $('#ff_wxvideo').text('"' + $('#txt_wx_video_tcurl').val() + $('#txt_wx_video_stream').val() + '"').show();
+                $('#ff_output').hide();
+                $('#ff_preview').parent().hide();
+            } else {
+                $('#ff_wxvideo').hide();
+                $('#ff_output').show();
+                $('#ff_preview').parent().show();
+            }
+        });
+
+        $("#btn_start").click(startDemo);
+        if (conf.autostart) {
+            startDemo();
+        }
+    });
+</script>
+</body>
+</html>
+

@@ -55,6 +55,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_app_rtc_source.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -959,23 +960,47 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsSource* source)
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
-    
+
+    // Check whether RTC stream is busy.
+#ifdef SRS_RTC
+    SrsRtcStream *rtc = NULL;
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
+    if (rtc_server_enabled && rtc_enabled && !info->edge) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req, &rtc)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
+
+        if (!rtc->can_publish()) {
+            return srs_error_new(ERROR_RTC_SOURCE_BUSY, "rtc stream %s busy", req->get_stream_url().c_str());
+        }
+    }
+#endif
+
+    // Check whether RTMP stream is busy.
     if (!source->can_publish(info->edge)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp: stream %s is busy", req->get_stream_url().c_str());
     }
-    
-    // when edge, ignore the publish event, directly proxy it.
-    if (info->edge) {
-        if ((err = source->on_edge_start_publish()) != srs_success) {
-            return srs_error_wrap(err, "rtmp: edge start publish");
+
+    // Bridge to RTC streaming.
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
+    if (rtc) {
+        SrsRtcFromRtmpBridger *bridger = new SrsRtcFromRtmpBridger(rtc);
+        if ((err = bridger->initialize(req)) != srs_success) {
+            srs_freep(bridger);
+            return srs_error_wrap(err, "bridger init");
         }
-    } else {
-        if ((err = source->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "rtmp: source publish");
-        }
+
+        source->set_bridger(bridger);
     }
-    
-    return err;
+#endif
+
+    // Start publisher now.
+    if (info->edge) {
+        return source->on_edge_start_publish();
+    } else {
+        return source->on_publish();
+    }
 }
 
 void SrsRtmpConn::release_publish(SrsSource* source)

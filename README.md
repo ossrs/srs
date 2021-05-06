@@ -22,13 +22,13 @@ docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     ossrs/srs:v4.0.85
 ```
 
-> To enable WebRTC, user MUST set the env `CANDIDATE`, see [#307](https://github.com/ossrs/srs/issues/307#issue-76908382).
+> To enable WebRTC, user MUST set the env `CANDIDATE`, see [wiki](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate).
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.200kbps.768x320.flv) by:
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
   -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 > Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
@@ -43,9 +43,8 @@ Play the following streams by [players](https://ossrs.net):
 It's also very easy to build from source:
 
 ```
-git clone -b develop https://gitee.com/winlinvip/srs.oschina.git srs &&
-cd srs/trunk && git remote set-url origin https://github.com/ossrs/srs.git &&
-./configure && make && ./objs/srs -c conf/srs.conf
+git clone -b develop https://gitee.com/ossrs/srs.git srs &&
+cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
 > Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
@@ -68,8 +67,7 @@ Fast index for Wikis:
 * How to deliver HTTP-FLV streaming?([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv])
 * How to deliver HLS streaming?([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS])
 * How to deliver low-latency streaming?([CN][v4_CN_SampleRealtime], [EN][v4_EN_SampleRealtime])
-* Usage: How to play WebRTC from SRS? [#307](https://github.com/ossrs/srs/issues/307)
-* Usage: How to publish WebRTC to SRS? [#307](https://github.com/ossrs/srs/issues/307)
+* How to use WebRTC? ([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC])
 
 Other important wiki:
 
@@ -81,6 +79,25 @@ Other important wiki:
 * Usage: How to forward stream to other servers?([CN][v4_CN_SampleForward], [EN][v4_EN_SampleForward])
 * Usage: How to improve edge performance for multiple CPUs? ([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT])
 * Usage: How to file a bug or contact us? ([CN][v4_CN_Contact], [EN][v4_EN_Contact])
+
+## Ports
+
+The ports used by SRS:
+
+* tcp://1935, for RTMP live streaming server.
+* tcp://1985, HTTP API server.
+* tcp://1990, HTTPS API server.
+* tcp://8080, HTTP live streaming server.
+* tcp://8088, HTTPS live streaming server.
+* udp://8000, [WebRTC Media](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC) server.
+* udp://1980, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+* udp://8935, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
+* tcp://554, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
+* tcp://8936, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
+* tcp://5060, Stream Caster: [Push GB28181 SIP](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://9000, Stream Caster: [Push GB28181 Media(bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://58200-58300, Stream Caster: [Push GB28181 Media(no-bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
+* udp://10080, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
 
 ## Features
 
@@ -128,6 +145,7 @@ Other important wiki:
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support client address changing for WebRTC, [#307][bug #307].
 - [x] [Experimental] Support transcode RTMP/AAC to WebRTC/Opus, [#307][bug #307].
+- [x] [Experimental] Support AV1 codec for WebRTC, [#2324][bug #2324].
 - [x] [Experimental] Enhance HTTP Stream Server for HTTP-FLV, HTTPS, HLS etc. [#1657][bug #1657].
 - [x] [Experimental] Support push stream by GB28181, [#1500][bug #1500].
 - [x] [Experimental] Support DVR in MP4 format, read [#738][bug #738].
@@ -164,6 +182,13 @@ Other important wiki:
 
 ## V4 changes
 
+* v4.0, 2021-05-04, Add video room demo. 4.0.98
+* v4.0, 2021-05-03, Add RTC stream merging demo by FFmpeg. 4.0.97
+* v4.0, 2021-05-02, Add one to one demo. 4.0.96
+* v4.0, 2021-04-20, Support RTC2RTMP bridger and shared FastTimer. 4.0.95
+* v4.0, 2021-04-20, Refine transcoder to support aac2opus and opus2aac. 4.0.94
+* v4.0, 2021-05-01, Timer: Extract and apply shared FastTimer. 4.0.93
+* v4.0, 2021-04-29, RTC: Support AV1 for Chrome M90. 4.0.91
 * v4.0, 2021-04-24, Change push-RTSP as deprecated feature.
 * v4.0, 2021-04-24, Player: Change the default from RTMP to HTTP-FLV.
 * v4.0, 2021-04-24, Disable CherryPy by --cherrypy=off. 4.0.90
@@ -244,6 +269,8 @@ Other important wiki:
 
 ## V3 changes
 
+* <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)][r3.0r5] released. 122750 lines.</strong>
+* v3.0, 2021-04-28, Upgrade players. 3.0.161
 * <strong>v3.0, 2021-04-24, [3.0 release4(3.0.160)][r3.0r4] released. 122750 lines.</strong>
 * v3.0, 2021-04-24, Package players and console to zip and docker. 3.0.160
 * v3.0, 2021-04-24, Add srs-console to research/console. 3.0.159
@@ -882,6 +909,7 @@ Other important wiki:
 
 ## Releases
 
+* 2021-04-28, [Release v3.0-r5][r3.0r5], 3.0 release5, 3.0.161, 122750 lines.
 * 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.160, 122750 lines.
 * 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
 * 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
@@ -1260,8 +1288,8 @@ Maintainers of SRS project:
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
 * [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
-* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
-* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_RTCWiki) module.
+* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
+* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
 
 A big THANK YOU goes to:
@@ -1272,10 +1300,10 @@ A big THANK YOU goes to:
 
 ## Mirrors
 
-OSChina: [https://gitee.com/winlinvip/srs.oschina][oschina], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
+Gitee: [https://gitee.com/ossrs/srs][gitee], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
 ```
-git clone https://gitee.com/winlinvip/srs.oschina.git srs &&
+git clone https://gitee.com/ossrs/srs.git &&
 cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
@@ -1296,12 +1324,12 @@ git clone https://github.com/ossrs/srs.git
 
 | Branch | Cost | Size | CMD |
 | --- | --- | --- | --- |
-| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/winlinvip/srs.oschina.git |
-| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
-| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/winlinvip/srs.oschina.git |
-| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
-| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/winlinvip/srs.oschina.git |
-| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/winlinvip/srs.oschina.git |
+| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/ossrs/srs.git |
+| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/ossrs/srs.git |
+| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/ossrs/srs.git |
+| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/ossrs/srs.git |
+| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/ossrs/srs.git |
+| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/ossrs/srs.git |
 
 ## System Requirements
 
@@ -1352,7 +1380,7 @@ Winlin
 [libx264]: http://www.videolan.org/
 [srs]: https://github.com/ossrs/srs
 [csdn]: https://code.csdn.net/winlinvip/srs-csdn
-[oschina]: https://gitee.com/winlinvip/srs.oschina
+[gitee]: https://gitee.com/ossrs/srs
 [srs-dolphin]: https://github.com/ossrs/srs-dolphin
 [oryx]: https://github.com/ossrs/go-oryx
 [srs-bench]: https://github.com/ossrs/srs-bench
@@ -1384,6 +1412,8 @@ Winlin
 [v4_EN_SampleForward]: https://github.com/ossrs/srs/wiki/v4_EN_SampleForward
 [v4_CN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_CN_SampleRealtime
 [v4_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRealtime
+[v4_CN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC
+[v4_EN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC
 [v4_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_CN_SampleARM
 [v4_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_EN_SampleARM
 [v4_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest
@@ -1814,7 +1844,6 @@ Winlin
 [bug #1543]: https://github.com/ossrs/srs/issues/1543
 [bug #1509]: https://github.com/ossrs/srs/issues/1509
 [bug #1575]: https://github.com/ossrs/srs/issues/1575
-[bug #307]: https://github.com/ossrs/srs/issues/307
 [bug #1070]: https://github.com/ossrs/srs/issues/1070
 [bug #1580]: https://github.com/ossrs/srs/issues/1580
 [bug #1547]: https://github.com/ossrs/srs/issues/1547
@@ -1869,10 +1898,13 @@ Winlin
 [bug #1998]: https://github.com/ossrs/srs/issues/1998
 [bug #2106]: https://github.com/ossrs/srs/issues/2106
 [bug #2011]: https://github.com/ossrs/srs/issues/2011
+[bug #2324]: https://github.com/ossrs/srs/issues/2324
+[bug #1500]: https://github.com/ossrs/srs/issues/1500
 [bug #zzzzzzzzzzzzz]: https://github.com/ossrs/srs/issues/zzzzzzzzzzzzz
 
 [exo #828]: https://github.com/google/ExoPlayer/pull/828
 
+[r3.0r5]: https://github.com/ossrs/srs/releases/tag/v3.0-r5
 [r3.0r4]: https://github.com/ossrs/srs/releases/tag/v3.0-r4
 [r3.0r3]: https://github.com/ossrs/srs/releases/tag/v3.0-r3
 [r3.0r2]: https://github.com/ossrs/srs/releases/tag/v3.0-r2

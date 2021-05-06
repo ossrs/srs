@@ -1,6 +1,7 @@
 package vnet
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -22,7 +23,7 @@ func (v *UDPProxy) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err
 func (v *aUDPProxyWorker) Deliver(sourceAddr, destAddr net.Addr, b []byte) (nn int, err error) {
 	addr, ok := sourceAddr.(*net.UDPAddr)
 	if !ok {
-		return 0, nil
+		return 0, fmt.Errorf("invalid addr %v", sourceAddr) // nolint:goerr113
 	}
 
 	// nolint:godox // TODO: Support deliver packet from real server to vnet.

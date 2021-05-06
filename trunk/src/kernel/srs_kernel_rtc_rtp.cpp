@@ -1054,6 +1054,33 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     return err;
 }
 
+bool SrsRtpPacket2::is_keyframe()
+{
+    // False if audio packet
+    if(SrsFrameTypeAudio == frame_type) {
+        return false;
+    }
+
+    // It's normal H264 video rtp packet
+    if (nalu_type == kStapA) {
+        SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(payload_);
+        if(NULL != stap_payload->get_sps() || NULL != stap_payload->get_pps()) {
+            return true;
+        }
+    } else if (nalu_type == kFuA) {
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(payload_);
+        if(SrsAvcNaluTypeIDR == fua_payload->nalu_type) {
+            return true;
+        }
+    } else {
+        if((SrsAvcNaluTypeIDR == nalu_type) || (SrsAvcNaluTypeSPS == nalu_type) || (SrsAvcNaluTypePPS == nalu_type)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
 SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
 SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));

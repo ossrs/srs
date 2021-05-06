@@ -6,7 +6,7 @@
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
     <style>
         body{
-            padding-top: 55px;
+            padding-top: 30px;
         }
         #main_modal {
             width: 700px;
@@ -149,6 +149,35 @@
 </script>
 <script type="text/javascript">
     var bandwidth = null;
+
+    // for bw to init url
+    // url: scheme://host:port/path?query#fragment
+    function srs_init_bwt(rtmp_url, hls_url) {
+        update_nav();
+
+        if (rtmp_url) {
+            $(rtmp_url).val(build_default_bandwidth_rtmp_url());
+        }
+    }
+    // for the bandwidth tool to init page
+    function build_default_bandwidth_rtmp_url() {
+        var query = parse_query_string();
+
+        var schema = 'rtmp';
+        var server = (!query.server)? window.location.hostname:query.server;
+        var port = (!query.port)? 1935:query.port;
+        var vhost = "bandcheck.srs.com";
+        var app = (!query.app)? "app":query.app;
+        var key = (!query.key)? "35c9b402c12a7246868752e2878f7e0e":query.key;
+
+        var uri = schema + "://" + server;
+        if (!is_default_port(schema, port)) {
+            uri += ":" + port;
+        }
+        uri += "/" + app + "?key=" + key + "&vhost=" + vhost;
+
+        return uri;
+    }
 
     var autoLoadPage = function() {
         srs_init_bwt("#txt_url");

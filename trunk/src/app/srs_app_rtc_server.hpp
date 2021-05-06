@@ -31,6 +31,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_rtc_sdp.hpp>
 
 #include <string>
 
@@ -84,6 +85,25 @@ public:
     virtual srs_error_t on_udp_packet(SrsUdpMuxSocket* skt, SrsRtcConnection* session, bool* pconsumed) = 0;
 };
 
+// The user config for RTC publish or play.
+class SrsRtcUserConfig
+{
+public:
+    // Original variables from API.
+    SrsSdp remote_sdp_;
+    std::string eip_;
+    std::string codec_;
+
+    // Generated data.
+    SrsRequest* req_;
+    bool publish_;
+    bool dtls_;
+    bool srtp_;
+public:
+    SrsRtcUserConfig();
+    virtual ~SrsRtcUserConfig();
+};
+
 // The RTC server instance, listen UDP port, handle UDP packet, manage RTC connections.
 class SrsRtcServer : public ISrsUdpMuxHandler, public ISrsFastTimer, public ISrsReloadHandler
 {
@@ -111,16 +131,9 @@ public:
     srs_error_t listen_api();
 public:
     // Peer start offering, we answer it.
-    srs_error_t create_session(
-        SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp, const std::string& mock_eip,
-        bool publish, bool dtls, bool srtp,
-        SrsRtcConnection** psession
-    );
+    srs_error_t create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection** psession);
 private:
-    srs_error_t do_create_session(
-        SrsRtcConnection* session, SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp,
-        const std::string& mock_eip, bool publish, bool dtls, bool srtp
-    );
+    srs_error_t do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sdp, SrsRtcConnection* session);
 public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsFastTimer

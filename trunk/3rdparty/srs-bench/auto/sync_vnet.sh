@@ -27,7 +27,7 @@ go test -race ./...
 if [[ $? -ne 0 ]]; then echo "fail"; exit -1; fi
 
 echo "golangci-lint run --skip-files conn_map_test.go,router_test.go" &&
-golangci-lint run --skip-files conn_map_test.go,a_test.go
+golangci-lint run --skip-files conn_map_test.go,router_test.go
 if [[ $? -ne 0 ]]; then echo "fail"; exit -1; fi
 
 echo "OK"
