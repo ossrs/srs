@@ -487,6 +487,15 @@ public:
     virtual bool auto_reload_for_docker();
     // For tcmalloc, get the release rate.
     virtual double tcmalloc_release_rate();
+// Thread pool section.
+public:
+    virtual bool get_circuit_breaker();
+    virtual int get_high_threshold();
+    virtual int get_high_pulse();
+    virtual int get_critical_threshold();
+    virtual int get_critical_pulse();
+    virtual int get_dying_threshold();
+    virtual int get_dying_pulse();
 // stream_caster section
 public:
     // Get all stream_caster in config file.

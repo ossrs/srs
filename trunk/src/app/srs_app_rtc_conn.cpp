@@ -57,6 +57,7 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_threads.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
@@ -72,6 +73,8 @@ SrsPps* _srs_pps_conn = new SrsPps();
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
+extern SrsPps* _srs_pps_snack3;
+extern SrsPps* _srs_pps_snack4;
 
 extern SrsPps* _srs_pps_rnack;
 extern SrsPps* _srs_pps_rnack2;
@@ -1299,6 +1302,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuf
         }
     }
 
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
+    }
+
     // For NACK to handle packet.
     // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_) {
@@ -1546,6 +1555,12 @@ srs_error_t SrsRtcPublishStream::on_timer(srs_utime_t interval)
     // For TWCC feedback.
     if (twcc_enabled_) {
         ++_srs_pps_twcc->sugar;
+
+        // If circuit-breaker is dropping packet, disable TWCC.
+        if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+            ++_srs_pps_snack4->sugar;
+            return err;
+        }
 
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
@@ -2334,9 +2349,11 @@ srs_error_t SrsRtcConnection::on_timer(srs_utime_t interval)
 
     ++_srs_pps_conn->sugar;
 
-    // For publisher to send NACK.
-    // TODO: FIXME: Merge with hybrid system clock.
-    srs_update_system_time();
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
+    }
 
     std::map<std::string, SrsRtcPublishStream*>::iterator it;
     for (it = publishers_.begin(); it != publishers_.end(); it++) {
