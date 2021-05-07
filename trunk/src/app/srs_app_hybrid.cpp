@@ -141,7 +141,8 @@ SrsHybridServer::SrsHybridServer()
 {
     // Note that the timer depends on other global variables,
     // so we MUST never create it in constructor.
-    timer_ = NULL;
+    timer20ms_ = NULL;
+    timer5s_ = NULL;
 
     clock_monitor_ = new SrsClockWallMonitor();
 }
@@ -149,7 +150,8 @@ SrsHybridServer::SrsHybridServer()
 SrsHybridServer::~SrsHybridServer()
 {
     srs_freep(clock_monitor_);
-    srs_freep(timer_);
+    srs_freep(timer20ms_);
+    srs_freep(timer5s_);
 
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
@@ -174,19 +176,33 @@ srs_error_t SrsHybridServer::initialize()
     }
 
     // Create global shared timer.
-    timer_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
+    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
+    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     // Start the timer first.
-    if ((err = timer_->start()) != srs_success) {
+    if ((err = timer20ms_->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
     }
 
-    // The hybrid server start a timer, do routines of hybrid server.
-    timer_->subscribe(5 * SRS_UTIME_SECONDS, this);
+    if ((err = timer100ms_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
 
-    // A monitor to check the clock wall deviation, per clock tick.
-    timer_->subscribe(20 * SRS_UTIME_MILLISECONDS, clock_monitor_);
+    if ((err = timer1s_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
 
+    if ((err = timer5s_->start()) != srs_success) {
+        return srs_error_wrap(err, "start timer");
+    }
+
+    // Register some timers.
+    timer20ms_->subscribe(clock_monitor_);
+    timer5s_->subscribe(this);
+
+    // Initialize all hybrid servers.
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
@@ -237,12 +253,27 @@ SrsServerAdapter* SrsHybridServer::srs()
     return NULL;
 }
 
-SrsFastTimer* SrsHybridServer::timer()
+SrsFastTimer* SrsHybridServer::timer20ms()
 {
-    return timer_;
+    return timer20ms_;
 }
 
-srs_error_t SrsHybridServer::on_timer(srs_utime_t interval, srs_utime_t tick)
+SrsFastTimer* SrsHybridServer::timer100ms()
+{
+    return timer100ms_;
+}
+
+SrsFastTimer* SrsHybridServer::timer1s()
+{
+    return timer1s_;
+}
+
+SrsFastTimer* SrsHybridServer::timer5s()
+{
+    return timer5s_;
+}
+
+srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 

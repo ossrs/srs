@@ -76,10 +76,6 @@ extern SrsPps* _srs_pps_snack2;
 extern SrsPps* _srs_pps_rnack;
 extern SrsPps* _srs_pps_rnack2;
 
-#define SRS_TICKID_RTCP 0
-#define SRS_TICKID_TWCC 1
-#define SRS_TICKID_SEND_NACKS 2
-
 ISrsRtcTransport::ISrsRtcTransport()
 {
 }
@@ -384,13 +380,17 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     nack_no_copy_ = false;
 
     _srs_config->subscribe(this);
-    timer_ = new SrsHourGlass("play", this, 1000 * SRS_UTIME_MILLISECONDS);
     nack_epp = new SrsErrorPithyPrint();
     pli_worker_ = new SrsRtcPLIWorker(this);
+
+    cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
+    cache_track0_ = cache_track1_ = cache_track2_ = NULL;
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+    _srs_hybrid->timer1s()->unsubscribe(this);
+
     // TODO: FIXME: Should not do callback in de-constructor?
     if (_srs_rtc_hijacker) {
         _srs_rtc_hijacker->on_stop_play(session_, this, req_);
@@ -401,7 +401,6 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
     srs_freep(trd_);
-    srs_freep(timer_);
     srs_freep(req_);
 
     if (true) {
@@ -532,9 +531,8 @@ srs_error_t SrsRtcPlayStream::start()
         return srs_error_wrap(err, "rtc_sender");
     }
 
-    if ((err = timer_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
+    // The timer for play, process TWCC in the future.
+    _srs_hybrid->timer1s()->subscribe(this);
 
     if ((err = pli_worker_->start()) != srs_success) {
         return srs_error_wrap(err, "start pli worker");
@@ -629,44 +627,62 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Maybe refine for performance issue.
-    if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
-        srs_warn("RTC: Drop for ssrc %u not found", pkt->header.get_ssrc());
+    uint32_t ssrc = pkt->header.get_ssrc();
+
+    // Try to find track from cache.
+    SrsRtcSendTrack* track = NULL;
+    if (cache_ssrc0_ == ssrc) {
+        track = cache_track0_;
+    } else if (cache_ssrc1_ == ssrc) {
+        track = cache_track1_;
+    } else if (cache_ssrc2_ == ssrc) {
+        track = cache_track2_;
+    }
+
+    // Find by original tracks and build fast cache.
+    if (!track) {
+        if (pkt->is_audio()) {
+            map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.find(ssrc);
+            if (it != audio_tracks_.end()) {
+                track = it->second;
+            }
+        } else {
+            map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.find(ssrc);
+            if (it != video_tracks_.end()) {
+                track = it->second;
+            }
+        }
+
+        if (track && !cache_ssrc2_) {
+            if (!cache_ssrc0_) {
+                cache_ssrc0_ = ssrc;
+                cache_track0_ = track;
+            } else if (!cache_ssrc1_) {
+                cache_ssrc1_ = ssrc;
+                cache_track1_ = track;
+            } else if (!cache_ssrc2_) {
+                cache_ssrc2_ = ssrc;
+                cache_track2_ = track;
+            }
+        }
+    }
+
+    // Ignore if no track found.
+    if (!track) {
+        srs_warn("RTC: Drop for ssrc %u not found", ssrc);
         return err;
     }
 
-    // For audio, we transcoded AAC to opus in extra payloads.
-    SrsRtcAudioSendTrack* audio_track = NULL;
-    SrsRtcVideoSendTrack* video_track = NULL;
-    if (pkt->is_audio()) {
-        // TODO: FIXME: Any simple solution?
-        audio_track = audio_tracks_[pkt->header.get_ssrc()];
-
-        if ((err = audio_track->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-        }
-
-        // TODO: FIXME: Padding audio to the max payload in RTP packets.
-    } else {
-        // TODO: FIXME: Any simple solution?
-        video_track = video_tracks_[pkt->header.get_ssrc()];
-
-        if ((err = video_track->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-        }
+    // Consume packet by track.
+    if ((err = track->on_rtp(pkt)) != srs_success) {
+        return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header.get_sequence());
     }
 
     // For NACK to handle packet.
     // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_) {
-        if (audio_track) {
-            if ((err = audio_track->on_nack(&pkt)) != srs_success) {
-                return srs_error_wrap(err, "on nack");
-            }
-        } else if (video_track) {
-            if ((err = video_track->on_nack(&pkt)) != srs_success) {
-                return srs_error_wrap(err, "on nack");
-            }
+        if ((err = track->on_nack(&pkt)) != srs_success) {
+            return srs_error_wrap(err, "on nack");
         }
     }
 
@@ -702,7 +718,7 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
     srs_trace("RTC: Init tracks %s ok", merged_log.str().c_str());
 }
 
-srs_error_t SrsRtcPlayStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcPlayStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
@@ -875,8 +891,6 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
 
 SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid)
 {
-    timer_ = new SrsHourGlass("publish", this, 100 * SRS_UTIME_MILLISECONDS);
-
     cid_ = cid;
     is_started = false;
     session_ = session;
@@ -902,6 +916,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
+    _srs_hybrid->timer100ms()->unsubscribe(this);
+
     // TODO: FIXME: Should remove and delete source.
     if (source) {
         source->set_publish_stream(NULL);
@@ -928,7 +944,6 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     }
     audio_tracks_.clear();
 
-    srs_freep(timer_);
     srs_freep(pli_worker_);
     srs_freep(twcc_epp_);
     srs_freep(pli_epp);
@@ -1037,17 +1052,8 @@ srs_error_t SrsRtcPublishStream::start()
         return err;
     }
 
-    if ((err = timer_->tick(SRS_TICKID_TWCC, 100 * SRS_UTIME_MILLISECONDS)) != srs_success) {
-        return srs_error_wrap(err, "twcc tick");
-    }
-
-    if ((err = timer_->tick(SRS_TICKID_RTCP, 1000 * SRS_UTIME_MILLISECONDS)) != srs_success) {
-        return srs_error_wrap(err, "rtcp tick");
-    }
-
-    if ((err = timer_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
+    // For publisher timer, such as TWCC and RR.
+    _srs_hybrid->timer100ms()->subscribe(this);
 
     if ((err = source->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");
@@ -1512,7 +1518,7 @@ srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcPublishStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
@@ -1522,7 +1528,8 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
         return err;
     }
 
-    if (type == SRS_TICKID_RTCP) {
+    // For RR and RRTR.
+    if (true) {
         ++_srs_pps_rr->sugar;
 
         if ((err = send_rtcp_rr()) != srs_success) {
@@ -1536,7 +1543,8 @@ srs_error_t SrsRtcPublishStream::notify(int type, srs_utime_t interval, srs_utim
         }
     }
 
-    if (twcc_enabled_ && type == SRS_TICKID_TWCC) {
+    // For TWCC feedback.
+    if (twcc_enabled_) {
         ++_srs_pps_twcc->sugar;
 
         // We should not depends on the received packet,
@@ -1672,7 +1680,6 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     req = NULL;
     cid_ = cid;
     stat_ = new SrsRtcConnectionStatistic();
-    timer_ = new SrsHourGlass("conn", this, 20 * SRS_UTIME_MILLISECONDS);
     hijacker_ = NULL;
 
     sendonly_skt = NULL;
@@ -1699,10 +1706,10 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
 
 SrsRtcConnection::~SrsRtcConnection()
 {
+    _srs_hybrid->timer20ms()->unsubscribe(this);
+
     _srs_rtc_manager->unsubscribe(this);
 
-    srs_freep(timer_);
-    
     // Cleanup publishers.
     for(map<string, SrsRtcPublishStream*>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {
         SrsRtcPublishStream* publisher = it->second;
@@ -1946,13 +1953,8 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
         return srs_error_wrap(err, "init");
     }
 
-    if ((err = timer_->tick(SRS_TICKID_SEND_NACKS, 20 * SRS_UTIME_MILLISECONDS)) != srs_success) {
-        return srs_error_wrap(err, "tick nack");
-    }
-
-    if ((err = timer_->start()) != srs_success) {
-        return srs_error_wrap(err, "start timer");
-    }
+    // The RTC connection start a timer, handle nacks.
+    _srs_hybrid->timer20ms()->subscribe(this);
 
     // TODO: FIXME: Support reload.
     session_timeout = _srs_config->get_rtc_stun_timeout(req->vhost);
@@ -2326,25 +2328,23 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
     sendonly_skt = addr_cache;
 }
 
-srs_error_t SrsRtcConnection::notify(int type, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcConnection::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
     ++_srs_pps_conn->sugar;
 
     // For publisher to send NACK.
-    if (type == SRS_TICKID_SEND_NACKS) {
-        // TODO: FIXME: Merge with hybrid system clock.
-        srs_update_system_time();
+    // TODO: FIXME: Merge with hybrid system clock.
+    srs_update_system_time();
 
-        std::map<std::string, SrsRtcPublishStream*>::iterator it;
-        for (it = publishers_.begin(); it != publishers_.end(); it++) {
-            SrsRtcPublishStream* publisher = it->second;
+    std::map<std::string, SrsRtcPublishStream*>::iterator it;
+    for (it = publishers_.begin(); it != publishers_.end(); it++) {
+        SrsRtcPublishStream* publisher = it->second;
 
-            if ((err = publisher->check_send_nacks()) != srs_success) {
-                srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
-                srs_freep(err);
-            }
+        if ((err = publisher->check_send_nacks()) != srs_success) {
+            srs_warn("ignore nack err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
         }
     }
 
