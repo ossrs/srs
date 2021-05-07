@@ -194,8 +194,11 @@ srs_error_t SrsFastTimer::cycle()
             return srs_error_wrap(err, "quit");
         }
 
+        ++_srs_pps_timer->sugar;
+
         for (int i = 0; i < (int)handlers_.size(); i++) {
             ISrsFastTimer* timer = handlers_.at(i);
+
             if ((err = timer->on_timer(interval_)) != srs_success) {
                 srs_freep(err); // Ignore any error for shared timer.
             }
