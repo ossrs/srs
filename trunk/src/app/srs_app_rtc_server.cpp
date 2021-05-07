@@ -281,7 +281,7 @@ srs_error_t SrsRtcServer::initialize()
     srs_error_t err = srs_success;
 
     // The RTC server start a timer, do routines of RTC server.
-    _srs_hybrid->timer()->subscribe(5 * SRS_UTIME_SECONDS, this);
+    _srs_hybrid->timer5s()->subscribe(this);
 
     // Initialize the black hole.
     if ((err = _srs_blackhole->initialize()) != srs_success) {
@@ -633,7 +633,7 @@ SrsRtcConnection* SrsRtcServer::find_session_by_username(const std::string& user
     return dynamic_cast<SrsRtcConnection*>(conn);
 }
 
-srs_error_t SrsRtcServer::on_timer(srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 

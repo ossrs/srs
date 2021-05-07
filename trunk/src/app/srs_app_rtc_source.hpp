@@ -201,6 +201,10 @@ private:
     bool is_delivering_packets_;
     // Notify stream event to event handler
     std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
+private:
+    // The PLI for RTC2RTMP.
+    srs_utime_t pli_for_rtmp_;
+    srs_utime_t pli_elapsed_;
 public:
     SrsRtcStream();
     virtual ~SrsRtcStream();
@@ -252,7 +256,7 @@ public:
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
 // interface ISrsFastTimer
 private:
-    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // A helper class, to release the packet to cache.
