@@ -382,6 +382,9 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
     _srs_config->subscribe(this);
     nack_epp = new SrsErrorPithyPrint();
     pli_worker_ = new SrsRtcPLIWorker(this);
+
+    cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
+    cache_track0_ = cache_track1_ = cache_track2_ = NULL;
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
@@ -624,44 +627,62 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Maybe refine for performance issue.
-    if (!audio_tracks_.count(pkt->header.get_ssrc()) && !video_tracks_.count(pkt->header.get_ssrc())) {
-        srs_warn("RTC: Drop for ssrc %u not found", pkt->header.get_ssrc());
+    uint32_t ssrc = pkt->header.get_ssrc();
+
+    // Try to find track from cache.
+    SrsRtcSendTrack* track = NULL;
+    if (cache_ssrc0_ == ssrc) {
+        track = cache_track0_;
+    } else if (cache_ssrc1_ == ssrc) {
+        track = cache_track1_;
+    } else if (cache_ssrc2_ == ssrc) {
+        track = cache_track2_;
+    }
+
+    // Find by original tracks and build fast cache.
+    if (!track) {
+        if (pkt->is_audio()) {
+            map<uint32_t, SrsRtcAudioSendTrack*>::iterator it = audio_tracks_.find(ssrc);
+            if (it != audio_tracks_.end()) {
+                track = it->second;
+            }
+        } else {
+            map<uint32_t, SrsRtcVideoSendTrack*>::iterator it = video_tracks_.find(ssrc);
+            if (it != video_tracks_.end()) {
+                track = it->second;
+            }
+        }
+
+        if (track && !cache_ssrc2_) {
+            if (!cache_ssrc0_) {
+                cache_ssrc0_ = ssrc;
+                cache_track0_ = track;
+            } else if (!cache_ssrc1_) {
+                cache_ssrc1_ = ssrc;
+                cache_track1_ = track;
+            } else if (!cache_ssrc2_) {
+                cache_ssrc2_ = ssrc;
+                cache_track2_ = track;
+            }
+        }
+    }
+
+    // Ignore if no track found.
+    if (!track) {
+        srs_warn("RTC: Drop for ssrc %u not found", ssrc);
         return err;
     }
 
-    // For audio, we transcoded AAC to opus in extra payloads.
-    SrsRtcAudioSendTrack* audio_track = NULL;
-    SrsRtcVideoSendTrack* video_track = NULL;
-    if (pkt->is_audio()) {
-        // TODO: FIXME: Any simple solution?
-        audio_track = audio_tracks_[pkt->header.get_ssrc()];
-
-        if ((err = audio_track->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-        }
-
-        // TODO: FIXME: Padding audio to the max payload in RTP packets.
-    } else {
-        // TODO: FIXME: Any simple solution?
-        video_track = video_tracks_[pkt->header.get_ssrc()];
-
-        if ((err = video_track->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "video track, SSRC=%u, SEQ=%u", pkt->header.get_ssrc(), pkt->header.get_sequence());
-        }
+    // Consume packet by track.
+    if ((err = track->on_rtp(pkt)) != srs_success) {
+        return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header.get_sequence());
     }
 
     // For NACK to handle packet.
     // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_) {
-        if (audio_track) {
-            if ((err = audio_track->on_nack(&pkt)) != srs_success) {
-                return srs_error_wrap(err, "on nack");
-            }
-        } else if (video_track) {
-            if ((err = video_track->on_nack(&pkt)) != srs_success) {
-                return srs_error_wrap(err, "on nack");
-            }
+        if ((err = track->on_nack(&pkt)) != srs_success) {
+            return srs_error_wrap(err, "on nack");
         }
     }
 

@@ -65,6 +65,7 @@ class SrsErrorPithyPrint;
 class SrsPithyPrint;
 class SrsStatistic;
 class SrsRtcUserConfig;
+class SrsRtcSendTrack;
 
 const uint8_t kSR   = 200;
 const uint8_t kRR   = 201;
@@ -228,6 +229,14 @@ private:
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
     // The pithy print for special stage.
     SrsErrorPithyPrint* nack_epp;
+private:
+    // Fast cache for tracks.
+    uint32_t cache_ssrc0_;
+    uint32_t cache_ssrc1_;
+    uint32_t cache_ssrc2_;
+    SrsRtcSendTrack* cache_track0_;
+    SrsRtcSendTrack* cache_track1_;
+    SrsRtcSendTrack* cache_track2_;
 private:
     // For merged-write messages.
     int mw_msgs;
