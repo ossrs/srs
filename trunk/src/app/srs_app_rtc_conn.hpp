@@ -223,7 +223,6 @@ private:
 private:
     SrsRequest* req_;
     SrsRtcStream* source_;
-    SrsHourGlass* timer_;
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
@@ -292,7 +291,6 @@ class SrsRtcPublishStream : public ISrsFastTimer, public ISrsRtpPacketDecodeHand
 {
 private:
     SrsContextId cid_;
-    SrsHourGlass* timer_;
     uint64_t nn_audio_frames;
     SrsRtcPLIWorker* pli_worker_;
     SrsErrorPithyPrint* twcc_epp_;
@@ -415,7 +413,6 @@ private:
     SrsRtcServer* server_;
     SrsRtcConnectionStateType state_;
     ISrsRtcTransport* transport_;
-    SrsHourGlass* timer_;
 private:
     iovec* cache_iov_;
     SrsBuffer* cache_buffer_;
