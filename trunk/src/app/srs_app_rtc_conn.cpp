@@ -535,6 +535,7 @@ srs_error_t SrsRtcPlayStream::start()
     }
 
     // The timer for play, process TWCC in the future.
+    // @see SrsRtcPlayStream::on_timer()
     _srs_hybrid->timer1s()->subscribe(this);
 
     if ((err = pli_worker_->start()) != srs_success) {
@@ -1056,6 +1057,7 @@ srs_error_t SrsRtcPublishStream::start()
     }
 
     // For publisher timer, such as TWCC and RR.
+    // @see SrsRtcPublishStream::on_timer()
     _srs_hybrid->timer100ms()->subscribe(this);
 
     if ((err = source->on_publish()) != srs_success) {
@@ -1716,6 +1718,8 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     pp_address_change = new SrsErrorPithyPrint();
     pli_epp = new SrsErrorPithyPrint();
 
+    nack_enabled_ = false;
+
     _srs_rtc_manager->subscribe(this);
 }
 
@@ -1969,14 +1973,18 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     }
 
     // The RTC connection start a timer, handle nacks.
+    // @see SrsRtcConnection::on_timer()
     _srs_hybrid->timer20ms()->subscribe(this);
 
     // TODO: FIXME: Support reload.
     session_timeout = _srs_config->get_rtc_stun_timeout(req->vhost);
     last_stun_time = srs_get_system_time();
 
-    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms", username.c_str(),
-        r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role.c_str(), cfg->dtls_version.c_str(), srsu2msi(session_timeout));
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
+
+    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms, nack=%d",
+        username.c_str(), r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role.c_str(), cfg->dtls_version.c_str(),
+        srsu2msi(session_timeout), nack_enabled_);
 
     return err;
 }
@@ -2346,6 +2354,10 @@ void SrsRtcConnection::update_sendonly_socket(SrsUdpMuxSocket* skt)
 srs_error_t SrsRtcConnection::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
+
+    if (!nack_enabled_) {
+        return err;
+    }
 
     ++_srs_pps_conn->sugar;
 

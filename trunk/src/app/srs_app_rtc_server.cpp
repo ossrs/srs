@@ -281,6 +281,7 @@ srs_error_t SrsRtcServer::initialize()
     srs_error_t err = srs_success;
 
     // The RTC server start a timer, do routines of RTC server.
+    // @see SrsRtcServer::on_timer()
     _srs_hybrid->timer5s()->subscribe(this);
 
     // Initialize the black hole.

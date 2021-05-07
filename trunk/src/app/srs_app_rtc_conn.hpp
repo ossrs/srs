@@ -454,6 +454,8 @@ private:
     SrsErrorPithyPrint* pp_address_change;
     // Pithy print for PLI request.
     SrsErrorPithyPrint* pli_epp;
+private:
+    bool nack_enabled_;
 public:
     SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();

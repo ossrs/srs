@@ -71,6 +71,7 @@ srs_error_t SrsCircuitBreaker::initialize()
     dying_pulse_ = _srs_config->get_dying_pulse();
 
     // Update the water level for circuit breaker.
+    // @see SrsCircuitBreaker::on_timer()
     _srs_hybrid->timer1s()->subscribe(this);
 
     srs_trace("CircuitBreaker: enabled=%d, high=%dx%d, critical=%dx%d, dying=%dx%d", enabled_,

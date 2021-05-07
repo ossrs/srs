@@ -504,8 +504,10 @@ srs_error_t SrsRtcStream::on_publish()
             return srs_error_wrap(err, "bridger on publish");
         }
 
-        // For SrsRtcStream::on_timer()
+        // The PLI interval for RTC2RTMP.
         pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
+
+        // @see SrsRtcStream::on_timer()
         _srs_hybrid->timer100ms()->subscribe(this);
     }
 
