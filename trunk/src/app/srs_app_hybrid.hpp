@@ -68,7 +68,10 @@ class SrsHybridServer : public ISrsFastTimer
 {
 private:
     std::vector<ISrsHybridServer*> servers;
-    SrsFastTimer* timer_;
+    SrsFastTimer* timer20ms_;
+    SrsFastTimer* timer100ms_;
+    SrsFastTimer* timer1s_;
+    SrsFastTimer* timer5s_;
     SrsClockWallMonitor* clock_monitor_;
 public:
     SrsHybridServer();
@@ -81,10 +84,13 @@ public:
     virtual void stop();
 public:
     virtual SrsServerAdapter* srs();
-    SrsFastTimer* timer();
+    SrsFastTimer* timer20ms();
+    SrsFastTimer* timer100ms();
+    SrsFastTimer* timer1s();
+    SrsFastTimer* timer5s();
 // interface ISrsFastTimer
 private:
-    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 extern SrsHybridServer* _srs_hybrid;

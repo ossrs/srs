@@ -30,6 +30,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 class SrsCoroutine;
 
@@ -112,28 +113,31 @@ public:
     virtual ~ISrsFastTimer();
 public:
     // Tick when timer is active.
-    virtual srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick) = 0;
+    virtual srs_error_t on_timer(srs_utime_t interval) = 0;
 };
 
 // The fast timer, shared by objects, for high performance.
 // For example, we should never start a timer for each connection or publisher or player,
 // instead, we should start only one fast timer in server.
-class SrsFastTimer : public ISrsHourGlass
+class SrsFastTimer : public ISrsCoroutineHandler
 {
 private:
-    SrsHourGlass* timer_;
-    std::map<int, ISrsFastTimer*> handlers_;
+    SrsCoroutine* trd_;
+    srs_utime_t interval_;
+    std::vector<ISrsFastTimer*> handlers_;
 public:
-    SrsFastTimer(std::string label, srs_utime_t resolution);
+    SrsFastTimer(std::string label, srs_utime_t interval);
     virtual ~SrsFastTimer();
 public:
     srs_error_t start();
 public:
-    void subscribe(srs_utime_t interval, ISrsFastTimer* timer);
+    void subscribe(ISrsFastTimer* timer);
     void unsubscribe(ISrsFastTimer* timer);
-// Interface ISrsHourGlass
+// Interface ISrsCoroutineHandler
 private:
-    virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
+    // Cycle the hourglass, which will sleep resolution every time.
+    // and call handler when ticked.
+    virtual srs_error_t cycle();
 };
 
 // To monitor the system wall clock timer deviation.
@@ -144,7 +148,7 @@ public:
     virtual ~SrsClockWallMonitor();
 // interface ISrsFastTimer
 private:
-    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 #endif

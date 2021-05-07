@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-07, RTC: Refine FastTimer to fixed interval. 4.0.101
 * v4.0, 2021-05-06, RTC: Fix config bug for nack and twcc. 4.0.99
 * v4.0, 2021-05-04, Add video room demo. 4.0.98
 * v4.0, 2021-05-03, Add RTC stream merging demo by FFmpeg. 4.0.97

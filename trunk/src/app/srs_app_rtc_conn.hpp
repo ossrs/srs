@@ -211,8 +211,8 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : virtual public ISrsCoroutineHandler, virtual public ISrsReloadHandler
-    , virtual public ISrsHourGlass, virtual public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
+class SrsRtcPlayStream : public ISrsCoroutineHandler, public ISrsReloadHandler
+    , public ISrsFastTimer, public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
 {
 private:
     SrsContextId cid_;
@@ -261,9 +261,9 @@ private:
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
-// interface ISrsHourGlass
-public:
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
 public:
     srs_error_t on_rtcp(SrsRtcpCommon* rtcp);
 private:
@@ -278,8 +278,8 @@ public:
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
-class SrsRtcPublishStream : virtual public ISrsHourGlass, virtual public ISrsRtpPacketDecodeHandler
-    , virtual public ISrsRtcPublishStream, virtual public ISrsRtcPLIWorkerHandler
+class SrsRtcPublishStream : public ISrsFastTimer, public ISrsRtpPacketDecodeHandler
+    , public ISrsRtcPublishStream, public ISrsRtcPLIWorkerHandler
 {
 private:
     SrsContextId cid_;
@@ -346,9 +346,9 @@ private:
 public:
     void request_keyframe(uint32_t ssrc);
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
-// interface ISrsHourGlass
-public:
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
 public:
     void simulate_nack_drop(int nn);
 private:
@@ -393,8 +393,7 @@ public:
 //
 // For performance, we use non-virtual public from resource,
 // see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtcConnection : public ISrsResource
-    , virtual public ISrsHourGlass, virtual public ISrsDisposingHandler
+class SrsRtcConnection : public ISrsResource, public ISrsFastTimer, public ISrsDisposingHandler
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -506,9 +505,9 @@ public:
     bool is_alive();
     void alive();
     void update_sendonly_socket(SrsUdpMuxSocket* skt);
-// interface ISrsHourGlass
-public:
-    virtual srs_error_t notify(int type, srs_utime_t interval, srs_utime_t tick);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
 public:
     // send rtcp
     srs_error_t send_rtcp(char *data, int nb_data);

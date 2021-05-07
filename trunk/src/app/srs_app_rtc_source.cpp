@@ -346,6 +346,8 @@ SrsRtcStream::SrsRtcStream()
 
     req = NULL;
     bridger_ = NULL;
+
+    pli_for_rtmp_ = pli_elapsed_ = 0;
 }
 
 SrsRtcStream::~SrsRtcStream()
@@ -498,8 +500,8 @@ srs_error_t SrsRtcStream::on_publish()
         }
 
         // For SrsRtcStream::on_timer()
-        srs_utime_t pli_for_rtmp = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
-        _srs_hybrid->timer()->subscribe(pli_for_rtmp, this);
+        pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
+        _srs_hybrid->timer100ms()->subscribe(this);
     }
 
     // TODO: FIXME: Handle by statistic.
@@ -532,7 +534,7 @@ void SrsRtcStream::on_unpublish()
     //free bridger resource
     if (bridger_) {
         // For SrsRtcStream::on_timer()
-        _srs_hybrid->timer()->unsubscribe(this);
+        _srs_hybrid->timer100ms()->unsubscribe(this);
 
         bridger_->on_unpublish();
         srs_freep(bridger_);
@@ -626,13 +628,21 @@ std::vector<SrsRtcTrackDescription*> SrsRtcStream::get_track_desc(std::string ty
     return track_descs;
 }
 
-srs_error_t SrsRtcStream::on_timer(srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
     if (!publish_stream_) {
         return err;
     }
+
+    pli_elapsed_ += interval;
+    if (pli_elapsed_ < pli_for_rtmp_) {
+        return err;
+    }
+
+    // Request PLI and reset the timer.
+    pli_elapsed_ = 0;
 
     for (int i = 0; i < (int)stream_desc_->video_track_descs_.size(); i++) {
         SrsRtcTrackDescription* desc = stream_desc_->video_track_descs_.at(i);
@@ -1530,7 +1540,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
         if (stap_payload) {
-            for (int j = 0; j < stap_payload->nalus.size(); ++j) {
+            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
                 nb_payload += 4 + sample->size;
             }
@@ -1594,7 +1604,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
         if (stap_payload) {
-            for (int j = 0; j < stap_payload->nalus.size(); ++j) {
+            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
                 payload.write_4bytes(sample->size);
                 payload.write_bytes(sample->bytes, sample->size);

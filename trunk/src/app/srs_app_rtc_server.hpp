@@ -138,7 +138,7 @@ public:
     SrsRtcConnection* find_session_by_username(const std::string& ufrag);
 // interface ISrsFastTimer
 private:
-    srs_error_t on_timer(srs_utime_t interval, srs_utime_t tick);
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // The RTC server adapter.
