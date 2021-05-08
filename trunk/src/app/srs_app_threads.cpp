@@ -33,6 +33,7 @@
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_log.hpp>
 
 #include <string>
 using namespace std;
