@@ -63,9 +63,10 @@ public:
 public:
     SrsPps();
     virtual ~SrsPps();
-public:
+private:
     // Setup the clock, use global clock if not set.
     void set_clock(SrsWallClock* clk);
+public:
     // Update with the nn which is target.
     void update();
     // Update with the nn.
