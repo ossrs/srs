@@ -37,7 +37,111 @@ extern SrsPps* _srs_pps_snack2;
 extern SrsPps* _srs_pps_snack3;
 extern SrsPps* _srs_pps_snack4;
 
-SrsPps* _srs_pps_aloss2 = new SrsPps();
+SrsPps* _srs_pps_aloss2 = NULL;
+
+extern SrsPps* _srs_pps_ids;
+extern SrsPps* _srs_pps_fids;
+extern SrsPps* _srs_pps_fids_level0;
+extern SrsPps* _srs_pps_dispose;
+
+extern SrsPps* _srs_pps_timer;
+
+extern SrsPps* _srs_pps_snack;
+extern SrsPps* _srs_pps_snack2;
+extern SrsPps* _srs_pps_snack3;
+extern SrsPps* _srs_pps_snack4;
+extern SrsPps* _srs_pps_sanack;
+extern SrsPps* _srs_pps_svnack;
+
+extern SrsPps* _srs_pps_rnack;
+extern SrsPps* _srs_pps_rnack2;
+extern SrsPps* _srs_pps_rhnack;
+extern SrsPps* _srs_pps_rmnack;
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+extern SrsPps* _srs_pps_recvfrom;
+extern SrsPps* _srs_pps_recvfrom_eagain;
+extern SrsPps* _srs_pps_sendto;
+extern SrsPps* _srs_pps_sendto_eagain;
+
+extern SrsPps* _srs_pps_read;
+extern SrsPps* _srs_pps_read_eagain;
+extern SrsPps* _srs_pps_readv;
+extern SrsPps* _srs_pps_readv_eagain;
+extern SrsPps* _srs_pps_writev;
+extern SrsPps* _srs_pps_writev_eagain;
+
+extern SrsPps* _srs_pps_recvmsg;
+extern SrsPps* _srs_pps_recvmsg_eagain;
+extern SrsPps* _srs_pps_sendmsg;
+extern SrsPps* _srs_pps_sendmsg_eagain;
+
+extern SrsPps* _srs_pps_epoll;
+extern SrsPps* _srs_pps_epoll_zero;
+extern SrsPps* _srs_pps_epoll_shake;
+extern SrsPps* _srs_pps_epoll_spin;
+
+extern SrsPps* _srs_pps_sched_15ms;
+extern SrsPps* _srs_pps_sched_20ms;
+extern SrsPps* _srs_pps_sched_25ms;
+extern SrsPps* _srs_pps_sched_30ms;
+extern SrsPps* _srs_pps_sched_35ms;
+extern SrsPps* _srs_pps_sched_40ms;
+extern SrsPps* _srs_pps_sched_80ms;
+extern SrsPps* _srs_pps_sched_160ms;
+extern SrsPps* _srs_pps_sched_s;
+#endif
+
+extern SrsPps* _srs_pps_clock_15ms;
+extern SrsPps* _srs_pps_clock_20ms;
+extern SrsPps* _srs_pps_clock_25ms;
+extern SrsPps* _srs_pps_clock_30ms;
+extern SrsPps* _srs_pps_clock_35ms;
+extern SrsPps* _srs_pps_clock_40ms;
+extern SrsPps* _srs_pps_clock_80ms;
+extern SrsPps* _srs_pps_clock_160ms;
+extern SrsPps* _srs_pps_timer_s;
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+extern SrsPps* _srs_pps_thread_run;
+extern SrsPps* _srs_pps_thread_idle;
+extern SrsPps* _srs_pps_thread_yield;
+extern SrsPps* _srs_pps_thread_yield2;
+#endif
+
+extern SrsPps* _srs_pps_rpkts;
+extern SrsPps* _srs_pps_addrs;
+extern SrsPps* _srs_pps_fast_addrs;
+
+extern SrsPps* _srs_pps_spkts;
+
+extern SrsPps* _srs_pps_sstuns;
+extern SrsPps* _srs_pps_srtcps;
+extern SrsPps* _srs_pps_srtps;
+
+extern SrsPps* _srs_pps_pli;
+extern SrsPps* _srs_pps_twcc;
+extern SrsPps* _srs_pps_rr;
+extern SrsPps* _srs_pps_pub;
+extern SrsPps* _srs_pps_conn;
+
+extern SrsPps* _srs_pps_rstuns;
+extern SrsPps* _srs_pps_rrtps;
+extern SrsPps* _srs_pps_rrtcps;
+
+extern SrsPps* _srs_pps_aloss2;
+
+extern SrsPps* _srs_pps_cids_get;
+extern SrsPps* _srs_pps_cids_set;
+
+extern SrsPps* _srs_pps_objs_msgs;
+
+extern SrsPps* _srs_pps_objs_rtps;
+extern SrsPps* _srs_pps_objs_rraw;
+extern SrsPps* _srs_pps_objs_rfua;
+extern SrsPps* _srs_pps_objs_rbuf;
+extern SrsPps* _srs_pps_objs_rothers;
+extern SrsPps* _srs_pps_objs_drop;
 
 SrsCircuitBreaker::SrsCircuitBreaker()
 {
@@ -151,12 +255,122 @@ srs_error_t srs_thread_initialize()
 {
     srs_error_t err = srs_success;
 
-    // init st
+    // The clock wall object.
+    _srs_clock = new SrsWallClock();
+
+    // The pps cids depends by st init.
+    _srs_pps_cids_get = new SrsPps();
+    _srs_pps_cids_set = new SrsPps();
+
+    // Initialize ST, which depends on pps cids.
     if ((err = srs_st_init()) != srs_success) {
         return srs_error_wrap(err, "initialize st failed");
     }
 
+    // The global hybrid server.
     _srs_hybrid = new SrsHybridServer();
+
+    // Initialize global pps, which depends on _srs_clock
+    _srs_pps_ids = new SrsPps();
+    _srs_pps_fids = new SrsPps();
+    _srs_pps_fids_level0 = new SrsPps();
+    _srs_pps_dispose = new SrsPps();
+
+    _srs_pps_timer = new SrsPps();
+
+    _srs_pps_snack = new SrsPps();
+    _srs_pps_snack2 = new SrsPps();
+    _srs_pps_snack3 = new SrsPps();
+    _srs_pps_snack4 = new SrsPps();
+    _srs_pps_sanack = new SrsPps();
+    _srs_pps_svnack = new SrsPps();
+
+    _srs_pps_rnack = new SrsPps();
+    _srs_pps_rnack2 = new SrsPps();
+    _srs_pps_rhnack = new SrsPps();
+    _srs_pps_rmnack = new SrsPps();
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    _srs_pps_recvfrom = new SrsPps();
+    _srs_pps_recvfrom_eagain = new SrsPps();
+    _srs_pps_sendto = new SrsPps();
+    _srs_pps_sendto_eagain = new SrsPps();
+
+    _srs_pps_read = new SrsPps();
+    _srs_pps_read_eagain = new SrsPps();
+    _srs_pps_readv = new SrsPps();
+    _srs_pps_readv_eagain = new SrsPps();
+    _srs_pps_writev = new SrsPps();
+    _srs_pps_writev_eagain = new SrsPps();
+
+    _srs_pps_recvmsg = new SrsPps();
+    _srs_pps_recvmsg_eagain = new SrsPps();
+    _srs_pps_sendmsg = new SrsPps();
+    _srs_pps_sendmsg_eagain = new SrsPps();
+
+    _srs_pps_epoll = new SrsPps();
+    _srs_pps_epoll_zero = new SrsPps();
+    _srs_pps_epoll_shake = new SrsPps();
+    _srs_pps_epoll_spin = new SrsPps();
+
+    _srs_pps_sched_15ms = new SrsPps();
+    _srs_pps_sched_20ms = new SrsPps();
+    _srs_pps_sched_25ms = new SrsPps();
+    _srs_pps_sched_30ms = new SrsPps();
+    _srs_pps_sched_35ms = new SrsPps();
+    _srs_pps_sched_40ms = new SrsPps();
+    _srs_pps_sched_80ms = new SrsPps();
+    _srs_pps_sched_160ms = new SrsPps();
+    _srs_pps_sched_s = new SrsPps();
+#endif
+
+    _srs_pps_clock_15ms = new SrsPps();
+    _srs_pps_clock_20ms = new SrsPps();
+    _srs_pps_clock_25ms = new SrsPps();
+    _srs_pps_clock_30ms = new SrsPps();
+    _srs_pps_clock_35ms = new SrsPps();
+    _srs_pps_clock_40ms = new SrsPps();
+    _srs_pps_clock_80ms = new SrsPps();
+    _srs_pps_clock_160ms = new SrsPps();
+    _srs_pps_timer_s = new SrsPps();
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    _srs_pps_thread_run = new SrsPps();
+    _srs_pps_thread_idle = new SrsPps();
+    _srs_pps_thread_yield = new SrsPps();
+    _srs_pps_thread_yield2 = new SrsPps();
+#endif
+
+    _srs_pps_rpkts = new SrsPps();
+    _srs_pps_addrs = new SrsPps();
+    _srs_pps_fast_addrs = new SrsPps();
+
+    _srs_pps_spkts = new SrsPps();
+
+    _srs_pps_sstuns = new SrsPps();
+    _srs_pps_srtcps = new SrsPps();
+    _srs_pps_srtps = new SrsPps();
+
+    _srs_pps_pli = new SrsPps();
+    _srs_pps_twcc = new SrsPps();
+    _srs_pps_rr = new SrsPps();
+    _srs_pps_pub = new SrsPps();
+    _srs_pps_conn = new SrsPps();
+
+    _srs_pps_rstuns = new SrsPps();
+    _srs_pps_rrtps = new SrsPps();
+    _srs_pps_rrtcps = new SrsPps();
+
+    _srs_pps_aloss2 = new SrsPps();
+
+    _srs_pps_objs_msgs = new SrsPps();
+
+    _srs_pps_objs_rtps = new SrsPps();
+    _srs_pps_objs_rraw = new SrsPps();
+    _srs_pps_objs_rfua = new SrsPps();
+    _srs_pps_objs_rbuf = new SrsPps();
+    _srs_pps_objs_rothers = new SrsPps();
+    _srs_pps_objs_drop = new SrsPps();
 
     return err;
 }

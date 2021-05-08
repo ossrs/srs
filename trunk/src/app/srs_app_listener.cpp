@@ -45,11 +45,11 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_rpkts = new SrsPps();
-SrsPps* _srs_pps_addrs = new SrsPps();
-SrsPps* _srs_pps_fast_addrs = new SrsPps();
+SrsPps* _srs_pps_rpkts = NULL;
+SrsPps* _srs_pps_addrs = NULL;
+SrsPps* _srs_pps_fast_addrs = NULL;
 
-SrsPps* _srs_pps_spkts = new SrsPps();
+SrsPps* _srs_pps_spkts = NULL;
 
 // set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535

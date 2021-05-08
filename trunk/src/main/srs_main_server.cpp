@@ -92,7 +92,10 @@ srs_error_t do_main(int argc, char** argv)
     if ((err = srs_thread_initialize()) != srs_success) {
         return srs_error_wrap(err, "thread init");
     }
-    
+
+    // For background context id.
+    _srs_context->set_id(_srs_context->generate_id());
+
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -220,10 +223,8 @@ srs_error_t do_main(int argc, char** argv)
     return err;
 }
 
-int main(int argc, char** argv) {
-    // For background context id.
-    _srs_context->set_id(_srs_context->generate_id());
-
+int main(int argc, char** argv)
+{
     srs_error_t err = do_main(argc, argv);
 
     if (err != srs_success) {
