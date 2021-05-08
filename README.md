@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-08, Refine global or thread-local variables initialize. 4.0.104
 * v4.0, 2021-05-07, RTC: Support circuit breaker. 4.0.103
 * v4.0, 2021-05-07, RTC: Refine play stream find track. 4.0.102
 * v4.0, 2021-05-07, RTC: Refine FastTimer to fixed interval. 4.0.101

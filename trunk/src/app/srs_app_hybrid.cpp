@@ -208,10 +208,11 @@ SrsServer* SrsServerAdapter::instance()
 
 SrsHybridServer::SrsHybridServer()
 {
-    // Note that the timer depends on other global variables,
-    // so we MUST never create it in constructor.
-    timer20ms_ = NULL;
-    timer5s_ = NULL;
+    // Create global shared timer.
+    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
+    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
+    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     clock_monitor_ = new SrsClockWallMonitor();
 }
@@ -219,7 +220,10 @@ SrsHybridServer::SrsHybridServer()
 SrsHybridServer::~SrsHybridServer()
 {
     srs_freep(clock_monitor_);
+
     srs_freep(timer20ms_);
+    srs_freep(timer100ms_);
+    srs_freep(timer1s_);
     srs_freep(timer5s_);
 
     vector<ISrsHybridServer*>::iterator it;
@@ -238,17 +242,6 @@ void SrsHybridServer::register_server(ISrsHybridServer* svr)
 srs_error_t SrsHybridServer::initialize()
 {
     srs_error_t err = srs_success;
-
-    // init st
-    if ((err = srs_st_init()) != srs_success) {
-        return srs_error_wrap(err, "initialize st failed");
-    }
-
-    // Create global shared timer.
-    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
-    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
-    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
-    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     // Start the timer first.
     if ((err = timer20ms_->start()) != srs_success) {
@@ -478,5 +471,5 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsHybridServer* _srs_hybrid = new SrsHybridServer();
+SrsHybridServer* _srs_hybrid = NULL;
 

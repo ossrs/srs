@@ -87,6 +87,11 @@ SrsServer* _srs_server = NULL;
 srs_error_t do_main(int argc, char** argv)
 {
     srs_error_t err = srs_success;
+
+    // Initialize global or thread-local variables.
+    if ((err = srs_thread_initialize()) != srs_success) {
+        return srs_error_wrap(err, "thread init");
+    }
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());

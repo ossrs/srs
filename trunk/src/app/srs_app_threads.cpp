@@ -83,12 +83,12 @@ srs_error_t SrsCircuitBreaker::initialize()
 
 bool SrsCircuitBreaker::hybrid_high_water_level()
 {
-    return enabled_ && hybrid_critical_water_level() || hybrid_high_water_level_;
+    return enabled_ && (hybrid_critical_water_level() || hybrid_high_water_level_);
 }
 
 bool SrsCircuitBreaker::hybrid_critical_water_level()
 {
-    return enabled_ && hybrid_dying_water_level() || hybrid_critical_water_level_;
+    return enabled_ && (hybrid_dying_water_level() || hybrid_critical_water_level_);
 }
 
 bool SrsCircuitBreaker::hybrid_dying_water_level()
@@ -133,7 +133,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     // The hybrid thread cpu and memory.
     float thread_percent = stat->percent * 100;
 
-    if (enabled_ && hybrid_high_water_level() || hybrid_critical_water_level() || _srs_pps_snack2->r10s()) {
+    if (enabled_ && (hybrid_high_water_level() || hybrid_critical_water_level() || _srs_pps_snack2->r10s())) {
         srs_trace("CircuitBreaker: cpu=%.2f%%,%dMB, break=%d,%d,%d, cond=%.2f%%, snk=%d,%d,%d",
             u->percent * 100, memory,
             hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(), // Whether Circuit-Break is enable.
@@ -146,4 +146,18 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 }
 
 SrsCircuitBreaker* _srs_circuit_breaker = new SrsCircuitBreaker();
+
+srs_error_t srs_thread_initialize()
+{
+    srs_error_t err = srs_success;
+
+    // init st
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "initialize st failed");
+    }
+
+    _srs_hybrid = new SrsHybridServer();
+
+    return err;
+}
 
