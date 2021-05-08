@@ -37,6 +37,10 @@
 #include <string>
 using namespace std;
 
+extern ISrsLog* _srs_log;
+extern ISrsContext* _srs_context;
+extern SrsConfig* _srs_config;
+
 extern SrsStageManager* _srs_stages;
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
@@ -274,6 +278,11 @@ SrsCircuitBreaker* _srs_circuit_breaker = NULL;
 srs_error_t srs_thread_initialize()
 {
     srs_error_t err = srs_success;
+
+    // Root global objects.
+    _srs_log = new SrsFileLog();
+    _srs_context = new SrsThreadContext();
+    _srs_config = new SrsConfig();
 
     // The clock wall object.
     _srs_clock = new SrsWallClock();

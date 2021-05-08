@@ -70,10 +70,10 @@ srs_error_t run_hybrid_server();
 void show_macro_features();
 
 // @global log and context.
-ISrsLog* _srs_log = new SrsFileLog();
-ISrsContext* _srs_context = new SrsThreadContext();
+ISrsLog* _srs_log = NULL;
+ISrsContext* _srs_context = NULL;
 // @global config object for app module.
-SrsConfig* _srs_config = new SrsConfig();
+SrsConfig* _srs_config = NULL;
 
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
