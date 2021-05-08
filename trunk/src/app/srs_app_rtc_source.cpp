@@ -52,17 +52,17 @@
 #include <srs_protocol_kbps.hpp>
 
 // The NACK sent by us(SFU).
-SrsPps* _srs_pps_snack = new SrsPps();
-SrsPps* _srs_pps_snack2 = new SrsPps();
-SrsPps* _srs_pps_snack3 = new SrsPps();
-SrsPps* _srs_pps_snack4 = new SrsPps();
-SrsPps* _srs_pps_sanack = new SrsPps();
-SrsPps* _srs_pps_svnack = new SrsPps();
+SrsPps* _srs_pps_snack = NULL;
+SrsPps* _srs_pps_snack2 = NULL;
+SrsPps* _srs_pps_snack3 = NULL;
+SrsPps* _srs_pps_snack4 = NULL;
+SrsPps* _srs_pps_sanack = NULL;
+SrsPps* _srs_pps_svnack = NULL;
 
-SrsPps* _srs_pps_rnack = new SrsPps();
-SrsPps* _srs_pps_rnack2 = new SrsPps();
-SrsPps* _srs_pps_rhnack = new SrsPps();
-SrsPps* _srs_pps_rmnack = new SrsPps();
+SrsPps* _srs_pps_rnack = NULL;
+SrsPps* _srs_pps_rnack2 = NULL;
+SrsPps* _srs_pps_rhnack = NULL;
+SrsPps* _srs_pps_rmnack = NULL;
 
 extern SrsPps* _srs_pps_aloss2;
 
@@ -249,7 +249,7 @@ void SrsRtcConsumer::on_stream_change(SrsRtcStreamDescription* desc)
 
 SrsRtcStreamManager::SrsRtcStreamManager()
 {
-    lock = NULL;
+    lock = srs_mutex_new();
 }
 
 SrsRtcStreamManager::~SrsRtcStreamManager()
@@ -260,11 +260,6 @@ SrsRtcStreamManager::~SrsRtcStreamManager()
 srs_error_t SrsRtcStreamManager::fetch_or_create(SrsRequest* r, SrsRtcStream** pps)
 {
     srs_error_t err = srs_success;
-
-    // Lazy create lock, because ST is not ready in SrsRtcStreamManager constructor.
-    if (!lock) {
-        lock = srs_mutex_new();
-    }
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
@@ -315,7 +310,7 @@ SrsRtcStream* SrsRtcStreamManager::fetch(SrsRequest* r)
     return source;
 }
 
-SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
+SrsRtcStreamManager* _srs_rtc_sources = NULL;
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
 {

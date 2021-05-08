@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_threads.hpp>
 
 #include <string>
 using namespace std;
@@ -54,7 +55,7 @@ bool _srs_in_docker = false;
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
-    if ((err = srs_st_init()) != srs_success) {
+    if ((err = srs_thread_initialize()) != srs_success) {
         return srs_error_wrap(err, "init st");
     }
 

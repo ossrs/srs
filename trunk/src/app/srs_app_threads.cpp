@@ -27,9 +27,33 @@
 #include <srs_app_hybrid.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_pithy_print.hpp>
+#include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 #include <string>
 using namespace std;
+
+extern ISrsLog* _srs_log;
+extern ISrsContext* _srs_context;
+extern SrsConfig* _srs_config;
+
+extern SrsStageManager* _srs_stages;
+extern SrsRtcBlackhole* _srs_blackhole;
+extern SrsResourceManager* _srs_rtc_manager;
+
+extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
+extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
+extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
+
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
+
+extern SrsResourceManager* _srs_rtc_manager;
+extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
 #include <srs_protocol_kbps.hpp>
 
@@ -37,7 +61,111 @@ extern SrsPps* _srs_pps_snack2;
 extern SrsPps* _srs_pps_snack3;
 extern SrsPps* _srs_pps_snack4;
 
-SrsPps* _srs_pps_aloss2 = new SrsPps();
+SrsPps* _srs_pps_aloss2 = NULL;
+
+extern SrsPps* _srs_pps_ids;
+extern SrsPps* _srs_pps_fids;
+extern SrsPps* _srs_pps_fids_level0;
+extern SrsPps* _srs_pps_dispose;
+
+extern SrsPps* _srs_pps_timer;
+
+extern SrsPps* _srs_pps_snack;
+extern SrsPps* _srs_pps_snack2;
+extern SrsPps* _srs_pps_snack3;
+extern SrsPps* _srs_pps_snack4;
+extern SrsPps* _srs_pps_sanack;
+extern SrsPps* _srs_pps_svnack;
+
+extern SrsPps* _srs_pps_rnack;
+extern SrsPps* _srs_pps_rnack2;
+extern SrsPps* _srs_pps_rhnack;
+extern SrsPps* _srs_pps_rmnack;
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+extern SrsPps* _srs_pps_recvfrom;
+extern SrsPps* _srs_pps_recvfrom_eagain;
+extern SrsPps* _srs_pps_sendto;
+extern SrsPps* _srs_pps_sendto_eagain;
+
+extern SrsPps* _srs_pps_read;
+extern SrsPps* _srs_pps_read_eagain;
+extern SrsPps* _srs_pps_readv;
+extern SrsPps* _srs_pps_readv_eagain;
+extern SrsPps* _srs_pps_writev;
+extern SrsPps* _srs_pps_writev_eagain;
+
+extern SrsPps* _srs_pps_recvmsg;
+extern SrsPps* _srs_pps_recvmsg_eagain;
+extern SrsPps* _srs_pps_sendmsg;
+extern SrsPps* _srs_pps_sendmsg_eagain;
+
+extern SrsPps* _srs_pps_epoll;
+extern SrsPps* _srs_pps_epoll_zero;
+extern SrsPps* _srs_pps_epoll_shake;
+extern SrsPps* _srs_pps_epoll_spin;
+
+extern SrsPps* _srs_pps_sched_15ms;
+extern SrsPps* _srs_pps_sched_20ms;
+extern SrsPps* _srs_pps_sched_25ms;
+extern SrsPps* _srs_pps_sched_30ms;
+extern SrsPps* _srs_pps_sched_35ms;
+extern SrsPps* _srs_pps_sched_40ms;
+extern SrsPps* _srs_pps_sched_80ms;
+extern SrsPps* _srs_pps_sched_160ms;
+extern SrsPps* _srs_pps_sched_s;
+#endif
+
+extern SrsPps* _srs_pps_clock_15ms;
+extern SrsPps* _srs_pps_clock_20ms;
+extern SrsPps* _srs_pps_clock_25ms;
+extern SrsPps* _srs_pps_clock_30ms;
+extern SrsPps* _srs_pps_clock_35ms;
+extern SrsPps* _srs_pps_clock_40ms;
+extern SrsPps* _srs_pps_clock_80ms;
+extern SrsPps* _srs_pps_clock_160ms;
+extern SrsPps* _srs_pps_timer_s;
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+extern SrsPps* _srs_pps_thread_run;
+extern SrsPps* _srs_pps_thread_idle;
+extern SrsPps* _srs_pps_thread_yield;
+extern SrsPps* _srs_pps_thread_yield2;
+#endif
+
+extern SrsPps* _srs_pps_rpkts;
+extern SrsPps* _srs_pps_addrs;
+extern SrsPps* _srs_pps_fast_addrs;
+
+extern SrsPps* _srs_pps_spkts;
+
+extern SrsPps* _srs_pps_sstuns;
+extern SrsPps* _srs_pps_srtcps;
+extern SrsPps* _srs_pps_srtps;
+
+extern SrsPps* _srs_pps_pli;
+extern SrsPps* _srs_pps_twcc;
+extern SrsPps* _srs_pps_rr;
+extern SrsPps* _srs_pps_pub;
+extern SrsPps* _srs_pps_conn;
+
+extern SrsPps* _srs_pps_rstuns;
+extern SrsPps* _srs_pps_rrtps;
+extern SrsPps* _srs_pps_rrtcps;
+
+extern SrsPps* _srs_pps_aloss2;
+
+extern SrsPps* _srs_pps_cids_get;
+extern SrsPps* _srs_pps_cids_set;
+
+extern SrsPps* _srs_pps_objs_msgs;
+
+extern SrsPps* _srs_pps_objs_rtps;
+extern SrsPps* _srs_pps_objs_rraw;
+extern SrsPps* _srs_pps_objs_rfua;
+extern SrsPps* _srs_pps_objs_rbuf;
+extern SrsPps* _srs_pps_objs_rothers;
+extern SrsPps* _srs_pps_objs_drop;
 
 SrsCircuitBreaker::SrsCircuitBreaker()
 {
@@ -83,12 +211,12 @@ srs_error_t SrsCircuitBreaker::initialize()
 
 bool SrsCircuitBreaker::hybrid_high_water_level()
 {
-    return enabled_ && hybrid_critical_water_level() || hybrid_high_water_level_;
+    return enabled_ && (hybrid_critical_water_level() || hybrid_high_water_level_);
 }
 
 bool SrsCircuitBreaker::hybrid_critical_water_level()
 {
-    return enabled_ && hybrid_dying_water_level() || hybrid_critical_water_level_;
+    return enabled_ && (hybrid_dying_water_level() || hybrid_critical_water_level_);
 }
 
 bool SrsCircuitBreaker::hybrid_dying_water_level()
@@ -133,7 +261,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     // The hybrid thread cpu and memory.
     float thread_percent = stat->percent * 100;
 
-    if (enabled_ && hybrid_high_water_level() || hybrid_critical_water_level() || _srs_pps_snack2->r10s()) {
+    if (enabled_ && (hybrid_high_water_level() || hybrid_critical_water_level() || _srs_pps_snack2->r10s())) {
         srs_trace("CircuitBreaker: cpu=%.2f%%,%dMB, break=%d,%d,%d, cond=%.2f%%, snk=%d,%d,%d",
             u->percent * 100, memory,
             hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(), // Whether Circuit-Break is enable.
@@ -145,5 +273,150 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsCircuitBreaker* _srs_circuit_breaker = new SrsCircuitBreaker();
+SrsCircuitBreaker* _srs_circuit_breaker = NULL;
+
+srs_error_t srs_thread_initialize()
+{
+    srs_error_t err = srs_success;
+
+    // Root global objects.
+    _srs_log = new SrsFileLog();
+    _srs_context = new SrsThreadContext();
+    _srs_config = new SrsConfig();
+
+    // The clock wall object.
+    _srs_clock = new SrsWallClock();
+
+    // The pps cids depends by st init.
+    _srs_pps_cids_get = new SrsPps();
+    _srs_pps_cids_set = new SrsPps();
+
+    // Initialize ST, which depends on pps cids.
+    if ((err = srs_st_init()) != srs_success) {
+        return srs_error_wrap(err, "initialize st failed");
+    }
+
+    // The global objects which depends on ST.
+    _srs_hybrid = new SrsHybridServer();
+    _srs_rtc_sources = new SrsRtcStreamManager();
+    _srs_sources = new SrsSourceManager();
+    _srs_stages = new SrsStageManager();
+    _srs_blackhole = new SrsRtcBlackhole();
+    _srs_rtc_manager = new SrsResourceManager("RTC", true);
+    _srs_circuit_breaker = new SrsCircuitBreaker();
+
+    _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
+    _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
+    _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
+
+    _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
+    _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
+
+    _srs_rtc_manager = new SrsResourceManager("RTC", true);
+    _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+
+    // Initialize global pps, which depends on _srs_clock
+    _srs_pps_ids = new SrsPps();
+    _srs_pps_fids = new SrsPps();
+    _srs_pps_fids_level0 = new SrsPps();
+    _srs_pps_dispose = new SrsPps();
+
+    _srs_pps_timer = new SrsPps();
+
+    _srs_pps_snack = new SrsPps();
+    _srs_pps_snack2 = new SrsPps();
+    _srs_pps_snack3 = new SrsPps();
+    _srs_pps_snack4 = new SrsPps();
+    _srs_pps_sanack = new SrsPps();
+    _srs_pps_svnack = new SrsPps();
+
+    _srs_pps_rnack = new SrsPps();
+    _srs_pps_rnack2 = new SrsPps();
+    _srs_pps_rhnack = new SrsPps();
+    _srs_pps_rmnack = new SrsPps();
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    _srs_pps_recvfrom = new SrsPps();
+    _srs_pps_recvfrom_eagain = new SrsPps();
+    _srs_pps_sendto = new SrsPps();
+    _srs_pps_sendto_eagain = new SrsPps();
+
+    _srs_pps_read = new SrsPps();
+    _srs_pps_read_eagain = new SrsPps();
+    _srs_pps_readv = new SrsPps();
+    _srs_pps_readv_eagain = new SrsPps();
+    _srs_pps_writev = new SrsPps();
+    _srs_pps_writev_eagain = new SrsPps();
+
+    _srs_pps_recvmsg = new SrsPps();
+    _srs_pps_recvmsg_eagain = new SrsPps();
+    _srs_pps_sendmsg = new SrsPps();
+    _srs_pps_sendmsg_eagain = new SrsPps();
+
+    _srs_pps_epoll = new SrsPps();
+    _srs_pps_epoll_zero = new SrsPps();
+    _srs_pps_epoll_shake = new SrsPps();
+    _srs_pps_epoll_spin = new SrsPps();
+
+    _srs_pps_sched_15ms = new SrsPps();
+    _srs_pps_sched_20ms = new SrsPps();
+    _srs_pps_sched_25ms = new SrsPps();
+    _srs_pps_sched_30ms = new SrsPps();
+    _srs_pps_sched_35ms = new SrsPps();
+    _srs_pps_sched_40ms = new SrsPps();
+    _srs_pps_sched_80ms = new SrsPps();
+    _srs_pps_sched_160ms = new SrsPps();
+    _srs_pps_sched_s = new SrsPps();
+#endif
+
+    _srs_pps_clock_15ms = new SrsPps();
+    _srs_pps_clock_20ms = new SrsPps();
+    _srs_pps_clock_25ms = new SrsPps();
+    _srs_pps_clock_30ms = new SrsPps();
+    _srs_pps_clock_35ms = new SrsPps();
+    _srs_pps_clock_40ms = new SrsPps();
+    _srs_pps_clock_80ms = new SrsPps();
+    _srs_pps_clock_160ms = new SrsPps();
+    _srs_pps_timer_s = new SrsPps();
+
+#if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
+    _srs_pps_thread_run = new SrsPps();
+    _srs_pps_thread_idle = new SrsPps();
+    _srs_pps_thread_yield = new SrsPps();
+    _srs_pps_thread_yield2 = new SrsPps();
+#endif
+
+    _srs_pps_rpkts = new SrsPps();
+    _srs_pps_addrs = new SrsPps();
+    _srs_pps_fast_addrs = new SrsPps();
+
+    _srs_pps_spkts = new SrsPps();
+
+    _srs_pps_sstuns = new SrsPps();
+    _srs_pps_srtcps = new SrsPps();
+    _srs_pps_srtps = new SrsPps();
+
+    _srs_pps_pli = new SrsPps();
+    _srs_pps_twcc = new SrsPps();
+    _srs_pps_rr = new SrsPps();
+    _srs_pps_pub = new SrsPps();
+    _srs_pps_conn = new SrsPps();
+
+    _srs_pps_rstuns = new SrsPps();
+    _srs_pps_rrtps = new SrsPps();
+    _srs_pps_rrtcps = new SrsPps();
+
+    _srs_pps_aloss2 = new SrsPps();
+
+    _srs_pps_objs_msgs = new SrsPps();
+
+    _srs_pps_objs_rtps = new SrsPps();
+    _srs_pps_objs_rraw = new SrsPps();
+    _srs_pps_objs_rfua = new SrsPps();
+    _srs_pps_objs_rbuf = new SrsPps();
+    _srs_pps_objs_rothers = new SrsPps();
+    _srs_pps_objs_drop = new SrsPps();
+
+    return err;
+}
 

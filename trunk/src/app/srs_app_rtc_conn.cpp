@@ -61,15 +61,15 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_sstuns = new SrsPps();
-SrsPps* _srs_pps_srtcps = new SrsPps();
-SrsPps* _srs_pps_srtps = new SrsPps();
+SrsPps* _srs_pps_sstuns = NULL;
+SrsPps* _srs_pps_srtcps = NULL;
+SrsPps* _srs_pps_srtps = NULL;
 
-SrsPps* _srs_pps_pli = new SrsPps();
-SrsPps* _srs_pps_twcc = new SrsPps();
-SrsPps* _srs_pps_rr = new SrsPps();
-SrsPps* _srs_pps_pub = new SrsPps();
-SrsPps* _srs_pps_conn = new SrsPps();
+SrsPps* _srs_pps_pli = NULL;
+SrsPps* _srs_pps_twcc = NULL;
+SrsPps* _srs_pps_rr = NULL;
+SrsPps* _srs_pps_pub = NULL;
+SrsPps* _srs_pps_conn = NULL;
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
