@@ -1081,12 +1081,12 @@ bool SrsRtpPacket2::is_keyframe()
     return false;
 }
 
-SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
-SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
-SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
+SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = NULL;
+SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = NULL;
+SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = NULL;
 
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = NULL;
+SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = NULL;
 
 SrsRtpRawPayload::SrsRtpRawPayload()
 {

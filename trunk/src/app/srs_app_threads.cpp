@@ -27,9 +27,29 @@
 #include <srs_app_hybrid.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_rtc_source.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_pithy_print.hpp>
+#include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtc_conn.hpp>
 
 #include <string>
 using namespace std;
+
+extern SrsStageManager* _srs_stages;
+extern SrsRtcBlackhole* _srs_blackhole;
+extern SrsResourceManager* _srs_rtc_manager;
+
+extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
+extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
+extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
+
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
+extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
+
+extern SrsResourceManager* _srs_rtc_manager;
+extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
 #include <srs_protocol_kbps.hpp>
 
@@ -249,7 +269,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsCircuitBreaker* _srs_circuit_breaker = new SrsCircuitBreaker();
+SrsCircuitBreaker* _srs_circuit_breaker = NULL;
 
 srs_error_t srs_thread_initialize()
 {
@@ -267,8 +287,24 @@ srs_error_t srs_thread_initialize()
         return srs_error_wrap(err, "initialize st failed");
     }
 
-    // The global hybrid server.
+    // The global objects which depends on ST.
     _srs_hybrid = new SrsHybridServer();
+    _srs_rtc_sources = new SrsRtcStreamManager();
+    _srs_sources = new SrsSourceManager();
+    _srs_stages = new SrsStageManager();
+    _srs_blackhole = new SrsRtcBlackhole();
+    _srs_rtc_manager = new SrsResourceManager("RTC", true);
+    _srs_circuit_breaker = new SrsCircuitBreaker();
+
+    _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
+    _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
+    _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
+
+    _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
+    _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
+
+    _srs_rtc_manager = new SrsResourceManager("RTC", true);
+    _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 
     // Initialize global pps, which depends on _srs_clock
     _srs_pps_ids = new SrsPps();

@@ -166,7 +166,7 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t* pnn)
 }
 
 // The global stage manager for pithy print, multiple stages.
-static SrsStageManager* _srs_stages = new SrsStageManager();
+SrsStageManager* _srs_stages = NULL;
 
 SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {

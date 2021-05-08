@@ -249,7 +249,7 @@ void SrsRtcConsumer::on_stream_change(SrsRtcStreamDescription* desc)
 
 SrsRtcStreamManager::SrsRtcStreamManager()
 {
-    lock = NULL;
+    lock = srs_mutex_new();
 }
 
 SrsRtcStreamManager::~SrsRtcStreamManager()
@@ -260,11 +260,6 @@ SrsRtcStreamManager::~SrsRtcStreamManager()
 srs_error_t SrsRtcStreamManager::fetch_or_create(SrsRequest* r, SrsRtcStream** pps)
 {
     srs_error_t err = srs_success;
-
-    // Lazy create lock, because ST is not ready in SrsRtcStreamManager constructor.
-    if (!lock) {
-        lock = srs_mutex_new();
-    }
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
@@ -315,7 +310,7 @@ SrsRtcStream* SrsRtcStreamManager::fetch(SrsRequest* r)
     return source;
 }
 
-SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
+SrsRtcStreamManager* _srs_rtc_sources = NULL;
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
 {

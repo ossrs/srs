@@ -1684,17 +1684,18 @@ srs_error_t SrsMetaCache::update_vsh(SrsSharedPtrMessage* msg)
     return vformat->on_video(msg);
 }
 
-SrsSourceManager* _srs_sources = new SrsSourceManager();
+SrsSourceManager* _srs_sources = NULL;
 
 SrsSourceManager::SrsSourceManager()
 {
-    lock = NULL;
-    timer_ = NULL;
+    lock = srs_mutex_new();
+    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsSourceManager::~SrsSourceManager()
 {
     srs_mutex_destroy(lock);
+    srs_freep(timer_);
 }
 
 srs_error_t SrsSourceManager::initialize()
@@ -1705,11 +1706,6 @@ srs_error_t SrsSourceManager::initialize()
 srs_error_t SrsSourceManager::fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     srs_error_t err = srs_success;
-
-    // Lazy create lock, because ST is not ready in SrsSourceManager constructor.
-    if (!lock) {
-        lock = srs_mutex_new();
-    }
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
@@ -1777,9 +1773,6 @@ void SrsSourceManager::dispose()
 srs_error_t SrsSourceManager::setup_ticks()
 {
     srs_error_t err = srs_success;
-
-    srs_freep(timer_);
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
 
     if ((err = timer_->tick(1, 1 * SRS_UTIME_SECONDS)) != srs_success) {
         return srs_error_wrap(err, "tick");
