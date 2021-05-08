@@ -78,8 +78,9 @@ SrsBufferCache::~SrsBufferCache()
 
 srs_error_t SrsBufferCache::update(SrsSource* s, SrsRequest* r)
 {
-    srs_freep(req);
-    req = r->copy();
+    // @see https://github.com/ossrs/srs/issues/2311
+    req->update_auth(r);
+
     source = s;
     
     return srs_success;
@@ -530,10 +531,11 @@ SrsLiveStream::~SrsLiveStream()
 srs_error_t SrsLiveStream::update(SrsSource* s, SrsRequest* r)
 {
     source = s;
-    
-    srs_freep(req);
-    req = r->copy()->as_http();
-    
+
+    // @see https://github.com/ossrs/srs/issues/2311
+    req->update_auth(r);
+    req->as_http();
+
     return srs_success;
 }
 
