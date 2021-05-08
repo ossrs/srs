@@ -63,5 +63,8 @@ private:
 
 extern SrsCircuitBreaker* _srs_circuit_breaker;
 
+// Initialize global or thread-local variables.
+extern srs_error_t srs_thread_initialize();
+
 #endif
 

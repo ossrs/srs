@@ -46,9 +46,9 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 extern SrsPps* _srs_pps_rpkts;
-SrsPps* _srs_pps_rstuns = new SrsPps();
-SrsPps* _srs_pps_rrtps = new SrsPps();
-SrsPps* _srs_pps_rrtcps = new SrsPps();
+SrsPps* _srs_pps_rstuns = NULL;
+SrsPps* _srs_pps_rrtps = NULL;
+SrsPps* _srs_pps_rrtcps = NULL;
 extern SrsPps* _srs_pps_addrs;
 extern SrsPps* _srs_pps_fast_addrs;
 
@@ -132,10 +132,10 @@ void SrsRtcBlackhole::sendto(void* data, int len)
     srs_sendto(blackhole_stfd, data, len, (sockaddr*)blackhole_addr, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcBlackhole* _srs_blackhole = new SrsRtcBlackhole();
+SrsRtcBlackhole* _srs_blackhole = NULL;
 
 // @global dtls certficate for rtc module.
-SrsDtlsCertificate* _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+SrsDtlsCertificate* _srs_rtc_dtls_certificate = NULL;
 
 // TODO: Should support error response.
 // For STUN packet, 0x00 is binding request, 0x01 is binding success response.
@@ -777,5 +777,5 @@ void RtcServerAdapter::stop()
 {
 }
 
-SrsResourceManager* _srs_rtc_manager = new SrsResourceManager("RTC", true);
+SrsResourceManager* _srs_rtc_manager = NULL;
 

@@ -44,10 +44,10 @@ extern unsigned long long _st_stat_recvfrom;
 extern unsigned long long _st_stat_recvfrom_eagain;
 extern unsigned long long _st_stat_sendto;
 extern unsigned long long _st_stat_sendto_eagain;
-SrsPps* _srs_pps_recvfrom = new SrsPps();
-SrsPps* _srs_pps_recvfrom_eagain = new SrsPps();
-SrsPps* _srs_pps_sendto = new SrsPps();
-SrsPps* _srs_pps_sendto_eagain = new SrsPps();
+SrsPps* _srs_pps_recvfrom = NULL;
+SrsPps* _srs_pps_recvfrom_eagain = NULL;
+SrsPps* _srs_pps_sendto = NULL;
+SrsPps* _srs_pps_sendto_eagain = NULL;
 
 extern unsigned long long _st_stat_read;
 extern unsigned long long _st_stat_read_eagain;
@@ -55,30 +55,30 @@ extern unsigned long long _st_stat_readv;
 extern unsigned long long _st_stat_readv_eagain;
 extern unsigned long long _st_stat_writev;
 extern unsigned long long _st_stat_writev_eagain;
-SrsPps* _srs_pps_read = new SrsPps();
-SrsPps* _srs_pps_read_eagain = new SrsPps();
-SrsPps* _srs_pps_readv = new SrsPps();
-SrsPps* _srs_pps_readv_eagain = new SrsPps();
-SrsPps* _srs_pps_writev = new SrsPps();
-SrsPps* _srs_pps_writev_eagain = new SrsPps();
+SrsPps* _srs_pps_read = NULL;
+SrsPps* _srs_pps_read_eagain = NULL;
+SrsPps* _srs_pps_readv = NULL;
+SrsPps* _srs_pps_readv_eagain = NULL;
+SrsPps* _srs_pps_writev = NULL;
+SrsPps* _srs_pps_writev_eagain = NULL;
 
 extern unsigned long long _st_stat_recvmsg;
 extern unsigned long long _st_stat_recvmsg_eagain;
 extern unsigned long long _st_stat_sendmsg;
 extern unsigned long long _st_stat_sendmsg_eagain;
-SrsPps* _srs_pps_recvmsg = new SrsPps();
-SrsPps* _srs_pps_recvmsg_eagain = new SrsPps();
-SrsPps* _srs_pps_sendmsg = new SrsPps();
-SrsPps* _srs_pps_sendmsg_eagain = new SrsPps();
+SrsPps* _srs_pps_recvmsg = NULL;
+SrsPps* _srs_pps_recvmsg_eagain = NULL;
+SrsPps* _srs_pps_sendmsg = NULL;
+SrsPps* _srs_pps_sendmsg_eagain = NULL;
 
 extern unsigned long long _st_stat_epoll;
 extern unsigned long long _st_stat_epoll_zero;
 extern unsigned long long _st_stat_epoll_shake;
 extern unsigned long long _st_stat_epoll_spin;
-SrsPps* _srs_pps_epoll = new SrsPps();
-SrsPps* _srs_pps_epoll_zero = new SrsPps();
-SrsPps* _srs_pps_epoll_shake = new SrsPps();
-SrsPps* _srs_pps_epoll_spin = new SrsPps();
+SrsPps* _srs_pps_epoll = NULL;
+SrsPps* _srs_pps_epoll_zero = NULL;
+SrsPps* _srs_pps_epoll_shake = NULL;
+SrsPps* _srs_pps_epoll_spin = NULL;
 
 extern unsigned long long _st_stat_sched_15ms;
 extern unsigned long long _st_stat_sched_20ms;
@@ -89,26 +89,26 @@ extern unsigned long long _st_stat_sched_40ms;
 extern unsigned long long _st_stat_sched_80ms;
 extern unsigned long long _st_stat_sched_160ms;
 extern unsigned long long _st_stat_sched_s;
-SrsPps* _srs_pps_sched_15ms = new SrsPps();
-SrsPps* _srs_pps_sched_20ms = new SrsPps();
-SrsPps* _srs_pps_sched_25ms = new SrsPps();
-SrsPps* _srs_pps_sched_30ms = new SrsPps();
-SrsPps* _srs_pps_sched_35ms = new SrsPps();
-SrsPps* _srs_pps_sched_40ms = new SrsPps();
-SrsPps* _srs_pps_sched_80ms = new SrsPps();
-SrsPps* _srs_pps_sched_160ms = new SrsPps();
-SrsPps* _srs_pps_sched_s = new SrsPps();
+SrsPps* _srs_pps_sched_15ms = NULL;
+SrsPps* _srs_pps_sched_20ms = NULL;
+SrsPps* _srs_pps_sched_25ms = NULL;
+SrsPps* _srs_pps_sched_30ms = NULL;
+SrsPps* _srs_pps_sched_35ms = NULL;
+SrsPps* _srs_pps_sched_40ms = NULL;
+SrsPps* _srs_pps_sched_80ms = NULL;
+SrsPps* _srs_pps_sched_160ms = NULL;
+SrsPps* _srs_pps_sched_s = NULL;
 #endif
 
-SrsPps* _srs_pps_clock_15ms = new SrsPps();
-SrsPps* _srs_pps_clock_20ms = new SrsPps();
-SrsPps* _srs_pps_clock_25ms = new SrsPps();
-SrsPps* _srs_pps_clock_30ms = new SrsPps();
-SrsPps* _srs_pps_clock_35ms = new SrsPps();
-SrsPps* _srs_pps_clock_40ms = new SrsPps();
-SrsPps* _srs_pps_clock_80ms = new SrsPps();
-SrsPps* _srs_pps_clock_160ms = new SrsPps();
-SrsPps* _srs_pps_timer_s = new SrsPps();
+SrsPps* _srs_pps_clock_15ms = NULL;
+SrsPps* _srs_pps_clock_20ms = NULL;
+SrsPps* _srs_pps_clock_25ms = NULL;
+SrsPps* _srs_pps_clock_30ms = NULL;
+SrsPps* _srs_pps_clock_35ms = NULL;
+SrsPps* _srs_pps_clock_40ms = NULL;
+SrsPps* _srs_pps_clock_80ms = NULL;
+SrsPps* _srs_pps_clock_160ms = NULL;
+SrsPps* _srs_pps_timer_s = NULL;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 extern int _st_active_count;
@@ -116,10 +116,10 @@ extern unsigned long long _st_stat_thread_run;
 extern unsigned long long _st_stat_thread_idle;
 extern unsigned long long _st_stat_thread_yield;
 extern unsigned long long _st_stat_thread_yield2;
-SrsPps* _srs_pps_thread_run = new SrsPps();
-SrsPps* _srs_pps_thread_idle = new SrsPps();
-SrsPps* _srs_pps_thread_yield = new SrsPps();
-SrsPps* _srs_pps_thread_yield2 = new SrsPps();
+SrsPps* _srs_pps_thread_run = NULL;
+SrsPps* _srs_pps_thread_idle = NULL;
+SrsPps* _srs_pps_thread_yield = NULL;
+SrsPps* _srs_pps_thread_yield2 = NULL;
 #endif
 
 extern SrsPps* _srs_pps_objs_rtps;
@@ -139,10 +139,11 @@ ISrsHybridServer::~ISrsHybridServer()
 
 SrsHybridServer::SrsHybridServer()
 {
-    // Note that the timer depends on other global variables,
-    // so we MUST never create it in constructor.
-    timer20ms_ = NULL;
-    timer5s_ = NULL;
+    // Create global shared timer.
+    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
+    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
+    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
+    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     clock_monitor_ = new SrsClockWallMonitor();
 }
@@ -150,7 +151,10 @@ SrsHybridServer::SrsHybridServer()
 SrsHybridServer::~SrsHybridServer()
 {
     srs_freep(clock_monitor_);
+
     srs_freep(timer20ms_);
+    srs_freep(timer100ms_);
+    srs_freep(timer1s_);
     srs_freep(timer5s_);
 
     vector<ISrsHybridServer*>::iterator it;
@@ -169,17 +173,6 @@ void SrsHybridServer::register_server(ISrsHybridServer* svr)
 srs_error_t SrsHybridServer::initialize()
 {
     srs_error_t err = srs_success;
-
-    // init st
-    if ((err = srs_st_init()) != srs_success) {
-        return srs_error_wrap(err, "initialize st failed");
-    }
-
-    // Create global shared timer.
-    timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
-    timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
-    timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
-    timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     // Start the timer first.
     if ((err = timer20ms_->start()) != srs_success) {
@@ -409,5 +402,5 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsHybridServer* _srs_hybrid = new SrsHybridServer();
+SrsHybridServer* _srs_hybrid = NULL;
 

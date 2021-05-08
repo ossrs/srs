@@ -35,8 +35,8 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_cids_get = new SrsPps();
-SrsPps* _srs_pps_cids_set = new SrsPps();
+SrsPps* _srs_pps_cids_get = NULL;
+SrsPps* _srs_pps_cids_set = NULL;
 
 #define SRS_BASIC_LOG_SIZE 8192
 
