@@ -644,13 +644,14 @@ srs_error_t SrsRtcStream::on_timer(srs_utime_t interval)
         return err;
     }
 
-    pli_elapsed_ += interval;
-    if (pli_elapsed_ < pli_for_rtmp_) {
-        return err;
-    }
-
     // Request PLI and reset the timer.
-    pli_elapsed_ = 0;
+    if (true) {
+        pli_elapsed_ += interval;
+        if (pli_elapsed_ < pli_for_rtmp_) {
+            return err;
+        }
+        pli_elapsed_ = 0;
+    }
 
     for (int i = 0; i < (int)stream_desc_->video_track_descs_.size(); i++) {
         SrsRtcTrackDescription* desc = stream_desc_->video_track_descs_.at(i);
