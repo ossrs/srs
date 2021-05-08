@@ -43,6 +43,7 @@
 #include <srs_protocol_json.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_threads.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -53,6 +54,8 @@
 // The NACK sent by us(SFU).
 SrsPps* _srs_pps_snack = new SrsPps();
 SrsPps* _srs_pps_snack2 = new SrsPps();
+SrsPps* _srs_pps_snack3 = new SrsPps();
+SrsPps* _srs_pps_snack4 = new SrsPps();
 SrsPps* _srs_pps_sanack = new SrsPps();
 SrsPps* _srs_pps_svnack = new SrsPps();
 
@@ -60,6 +63,8 @@ SrsPps* _srs_pps_rnack = new SrsPps();
 SrsPps* _srs_pps_rnack2 = new SrsPps();
 SrsPps* _srs_pps_rhnack = new SrsPps();
 SrsPps* _srs_pps_rmnack = new SrsPps();
+
+extern SrsPps* _srs_pps_aloss2;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
@@ -499,8 +504,10 @@ srs_error_t SrsRtcStream::on_publish()
             return srs_error_wrap(err, "bridger on publish");
         }
 
-        // For SrsRtcStream::on_timer()
+        // The PLI interval for RTC2RTMP.
         pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
+
+        // @see SrsRtcStream::on_timer()
         _srs_hybrid->timer100ms()->subscribe(this);
     }
 
@@ -575,6 +582,12 @@ void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
 srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
+
+    // If circuit-breaker is dying, drop packet.
+    if (_srs_circuit_breaker->hybrid_dying_water_level()) {
+        _srs_pps_aloss2->sugar += (int64_t)consumers.size();
+        return err;
+    }
 
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);

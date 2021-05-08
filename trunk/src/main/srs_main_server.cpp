@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_threads.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -477,6 +478,11 @@ srs_error_t run_hybrid_server()
     // Do some system initialize.
     if ((err = _srs_hybrid->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
+    }
+
+    // Circuit breaker to protect server, which depends on hybrid.
+    if ((err = _srs_circuit_breaker->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init circuit breaker");
     }
 
     // Should run util hybrid servers all done.
