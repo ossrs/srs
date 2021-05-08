@@ -57,6 +57,7 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_app_threads.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
@@ -72,6 +73,8 @@ SrsPps* _srs_pps_conn = new SrsPps();
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
+extern SrsPps* _srs_pps_snack3;
+extern SrsPps* _srs_pps_snack4;
 
 extern SrsPps* _srs_pps_rnack;
 extern SrsPps* _srs_pps_rnack2;
@@ -532,6 +535,7 @@ srs_error_t SrsRtcPlayStream::start()
     }
 
     // The timer for play, process TWCC in the future.
+    // @see SrsRtcPlayStream::on_timer()
     _srs_hybrid->timer1s()->subscribe(this);
 
     if ((err = pli_worker_->start()) != srs_success) {
@@ -1053,6 +1057,7 @@ srs_error_t SrsRtcPublishStream::start()
     }
 
     // For publisher timer, such as TWCC and RR.
+    // @see SrsRtcPublishStream::on_timer()
     _srs_hybrid->timer100ms()->subscribe(this);
 
     if ((err = source->on_publish()) != srs_success) {
@@ -1297,6 +1302,12 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuf
         if ((err = _srs_rtc_hijacker->on_rtp_packet(session_, this, req, pkt)) != srs_success) {
             return srs_error_wrap(err, "on rtp packet");
         }
+    }
+
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
     }
 
     // For NACK to handle packet.
@@ -1547,6 +1558,12 @@ srs_error_t SrsRtcPublishStream::on_timer(srs_utime_t interval)
     if (twcc_enabled_) {
         ++_srs_pps_twcc->sugar;
 
+        // If circuit-breaker is dropping packet, disable TWCC.
+        if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+            ++_srs_pps_snack4->sugar;
+            return err;
+        }
+
         // We should not depends on the received packet,
         // instead we should send feedback every Nms.
         if ((err = send_periodic_twcc()) != srs_success) {
@@ -1700,6 +1717,8 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     nn_simulate_player_nack_drop = 0;
     pp_address_change = new SrsErrorPithyPrint();
     pli_epp = new SrsErrorPithyPrint();
+
+    nack_enabled_ = false;
 
     _srs_rtc_manager->subscribe(this);
 }
@@ -1954,14 +1973,18 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     }
 
     // The RTC connection start a timer, handle nacks.
+    // @see SrsRtcConnection::on_timer()
     _srs_hybrid->timer20ms()->subscribe(this);
 
     // TODO: FIXME: Support reload.
     session_timeout = _srs_config->get_rtc_stun_timeout(req->vhost);
     last_stun_time = srs_get_system_time();
 
-    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms", username.c_str(),
-        r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role.c_str(), cfg->dtls_version.c_str(), srsu2msi(session_timeout));
+    nack_enabled_ = _srs_config->get_rtc_nack_enabled(req->vhost);
+
+    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms, nack=%d",
+        username.c_str(), r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role.c_str(), cfg->dtls_version.c_str(),
+        srsu2msi(session_timeout), nack_enabled_);
 
     return err;
 }
@@ -2332,11 +2355,17 @@ srs_error_t SrsRtcConnection::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
+    if (!nack_enabled_) {
+        return err;
+    }
+
     ++_srs_pps_conn->sugar;
 
-    // For publisher to send NACK.
-    // TODO: FIXME: Merge with hybrid system clock.
-    srs_update_system_time();
+    // If circuit-breaker is enabled, disable nack.
+    if (_srs_circuit_breaker->hybrid_critical_water_level()) {
+        ++_srs_pps_snack4->sugar;
+        return err;
+    }
 
     std::map<std::string, SrsRtcPublishStream*>::iterator it;
     for (it = publishers_.begin(); it != publishers_.end(); it++) {
