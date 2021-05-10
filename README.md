@@ -182,6 +182,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-09, Refine tid for sdk and demos. 4.0.106
 * v4.0, 2021-05-08, Refine shared fast timer. 4.0.105
 * v4.0, 2021-05-08, Refine global or thread-local variables initialize. 4.0.104
 * v4.0, 2021-05-07, RTC: Support circuit breaker. 4.0.103
@@ -1136,13 +1137,21 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
 
+| Update     |    SFU        |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-10 | SRS/v4.0.105  | 2000     |   players     |   ~94% x1 |   462MB   | 1      | G7 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1000     |   players     |   ~90% x1 |   180MB   | 1      | G5 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 800      |   players     |   ~94% x1 |   444MB   | 1      | G5 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 700      |   players     |   ~93% x2 |   430MB   | 24     | G5 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1700     |   publishers  |   ~92% x1 |   334MB   | 1      | G7 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 950      |   publishers  |   ~92% x1 |   132MB   | 1      | G5 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 550      |   publishers  |   ~86% x1 |   1.3GB   | 1      | G5 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 350      |   publishers  |   ~93% x2 |   405MB   | 23     | G5 2CPU |
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Threads | 
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------- |
-|   2021-03-31  |   4.0.87  |   550         |   publishers  |   ~86%     |   1.3GB   | 1      |
-|   2021-03-31  |   4.0.87  |   800         |   players     |   ~94%     |   444MB   | 1      |
-
-> Note: CentOS7, 500Kbps, 4CPU, 2.5 GHz Intel Xeon Platinum 8163/8269CY.
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)/G7-2.7GHZ(IceLake)](https://help.aliyun.com/document_detail/25378.html), 
+> [SRS/v4.0.87](https://github.com/ossrs/srs/commit/d6c16a7e236e03eba754c763e865464ec82d4516), 
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939), 
+> [Janus/v0.11.1](https://github.com/meetecho/janus-gateway/releases/tag/v0.11.1).
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**

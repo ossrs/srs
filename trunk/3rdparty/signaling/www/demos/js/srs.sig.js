@@ -59,7 +59,7 @@ function SrsRtcSignalingAsync() {
     // The message is a json object.
     self.send = async function (message) {
         return new Promise(function (resolve, reject) {
-            var r = {tid: Number(new Date().getTime() + parseInt(String(Math.random() * 10000000000))).toString(16), msg: message};
+            var r = {tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7), msg: message};
             self._internals.msgs[r.tid] = {resolve: resolve, reject: reject};
             self.ws.send(JSON.stringify(r));
         });
@@ -108,7 +108,7 @@ function SrsRtcSignalingParse(location) {
     room = room? room.split('&')[0] : null;
 
     let display = location.href.split('display=')[1];
-    display = display? display.split('&')[0] : Number(new Date().getTime() + parseInt(String(Math.random() * 10000000000))).toString(16).substr(3);
+    display = display? display.split('&')[0] : Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).toString(16).substr(0, 7);
 
     let autostart = location.href.split('autostart=')[1];
     autostart = autostart && autostart.split('&')[0] === 'true';
