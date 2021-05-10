@@ -144,7 +144,7 @@ function SrsRtcPublisherAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: new Date().getTime().toString(16)
+                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7)
             };
         },
         parse: function (url) {
@@ -361,7 +361,7 @@ function SrsRtcPlayerAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: new Date().getTime().toString(16)
+                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7)
             };
         },
         parse: function (url) {
