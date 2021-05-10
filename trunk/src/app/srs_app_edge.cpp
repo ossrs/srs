@@ -588,7 +588,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
             SrsCommonMessage* msg = NULL;
             err = sdk->recv_message(&msg);
             
-            srs_verbose("edge loop recv message. ret=%d", ret);
+            srs_verbose("edge loop recv message.");
             if (err != srs_success && srs_error_code(err) != ERROR_SOCKET_TIMEOUT) {
                 srs_error("edge push get server control message failed. err=%s", srs_error_desc(err).c_str());
                 send_error_code = srs_error_code(err);
