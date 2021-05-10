@@ -83,7 +83,7 @@ srs_error_t srs_st_init()
 
     // Switch to the background cid.
     _srs_context->set_id(cid);
-    srs_trace("st_init success, use %s", st_get_eventsys_name());
+    srs_info("st_init success, use %s", st_get_eventsys_name());
     
     return srs_success;
 }

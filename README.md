@@ -1131,13 +1131,21 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
 
+| Update     |    SFU        |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-10 | SRS/v4.0.105  | 2000     |   players     |   ~94% x1 |   462MB   | 1      | ECS/G7 2.7GHZ 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1000     |   players     |   ~90% x1 |   180MB   | 1      | ECS/G5 2.5GHZ 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 800      |   players     |   ~94% x1 |   444MB   | 1      | ECS/G5 2.5GHZ 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 700      |   players     |   ~93% x2 |   430MB   | 24     | ECS/G5 2.5GHZ 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1700     |   publishers  |   ~92% x1 |   334MB   | 1      | ECS/G7 2.7GHZ 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 950      |   publishers  |   ~92% x1 |   132MB   | 1      | ECS/G5 2.5GHZ 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 550      |   publishers  |   ~86% x1 |   1.3GB   | 1      | ECS/G5 2.5GHZ 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 350      |   publishers  |   ~93% x2 |   405MB   | 23     | ECS/G5 2.5GHZ 2CPU |
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Threads | 
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------- |
-|   2021-03-31  |   4.0.87  |   550         |   publishers  |   ~86%     |   1.3GB   | 1      |
-|   2021-03-31  |   4.0.87  |   800         |   players     |   ~94%     |   444MB   | 1      |
-
-> Note: CentOS7, 500Kbps, 4CPU, 2.5 GHz Intel Xeon Platinum 8163/8269CY.
+> Note: CentOS7, 600Kbps, [ECS/G5(SkyLake)/G7(IceLake)](https://help.aliyun.com/document_detail/25378.html), 
+> [SRS/v4.0.87](https://github.com/ossrs/srs/commit/d6c16a7e236e03eba754c763e865464ec82d4516), 
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939), 
+> [Janus/v0.11.1](https://github.com/meetecho/janus-gateway/releases/tag/v0.11.1).
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**
