@@ -123,7 +123,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
             // The error is set in http_errno.
             enum http_errno code;
 	        if ((code = HTTP_PARSER_ERRNO(&parser)) != HPE_OK) {
-	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, nparsed=%d, err=%d/%s %s",
+	            return srs_error_new(ERROR_HTTP_PARSE_HEADER, "parse %dB, consumed=%d, err=%d/%s %s",
 	                buffer->size(), consumed, code, http_errno_name(code), http_errno_description(code));
 	        }
 
@@ -139,7 +139,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
 	                }
 	            }
 	        }
-            srs_info("size=%d, nparsed=%d, consumed=%d", buffer->size(), (int)nparsed, consumed);
+            srs_info("size=%d, consumed=%d", buffer->size(), consumed);
 
 	        // Only consume the header bytes.
             buffer->read_slice(consumed);
