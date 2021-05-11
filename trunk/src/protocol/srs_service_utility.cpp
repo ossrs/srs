@@ -290,8 +290,8 @@ void retrieve_local_ips()
         }
     }
     
-    srs_trace(ss0.str().c_str());
-    srs_trace(ss1.str().c_str());
+    srs_trace("%s", ss0.str().c_str());
+    srs_trace("%s", ss1.str().c_str());
     
     freeifaddrs(ifap);
 }
