@@ -26,6 +26,6 @@
 
 #define VERSION_MAJOR       4
 #define VERSION_MINOR       0
-#define VERSION_REVISION    106
+#define VERSION_REVISION    107
 
 #endif
