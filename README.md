@@ -1121,6 +1121,15 @@ The data for publishing RTMP was benchmarked by [SB][srs-bench]:
 |   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
 |   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
 
+| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-11 | SRS/v4.0.105     | 2300     |   publishers  |   ~89% x1 |   1.1GB   | 1       | G5 8CPU |
+| 2021-05-11 | NginxRTMP/v1.2.1 | 1300     |   publishers  |   ~84% x1 |   198MB   | 1       | G5 8CPU |
+
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
+> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
+
 <a name="play-http-flv-benchmark"></a>
 **Play HTTP FLV benchmark**
 
@@ -1160,13 +1169,13 @@ The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/f
 **Latency benchmark**
 
 The latency between encoder and player with realtime config([CN][v4_CN_LowLatency], [EN][v4_EN_LowLatency]):
-|   
 
-|   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
-| ------------- | --------- | --------- | --------- | --------- | --------  |
-|   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
-|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
-|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   Update      |    SRS    | Protocol |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
+| ------------- | --------- | --------- | --------- | --------- | --------- | --------  |
+|   2014-12-16  |   2.0.72  | RTMP      |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
+|   2014-12-12  |   2.0.70  | RTMP      |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
+|   2014-12-03  |   1.0.10  | RTMP      |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   2021-04-02  |   4.0.87  | WebRTC    |   x       |   80ms    |   x       |   x       |
 
 > 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
 
