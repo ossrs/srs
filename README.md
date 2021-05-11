@@ -1095,6 +1095,15 @@ The data for playing RTMP was benchmarked by [SB][srs-bench]:
 |   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
 |   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
 
+| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-11 | SRS/v4.0.105     | 4000     |   players     |   ~94% x1 |   419MB   | 1       | G5 8CPU |
+| 2021-05-11 | NginxRTMP/v1.2.1 | 2400     |   players     |   ~92% x1 |   173MB   | 1       | G5 8CPU |
+
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
+> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
+
 <a name="publish-rtmp-benchmark"></a>
 **Publish RTMP benchmark**
 
