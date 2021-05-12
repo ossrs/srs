@@ -76,7 +76,7 @@ SrsBufferCache::~SrsBufferCache()
     srs_freep(req);
 }
 
-srs_error_t SrsBufferCache::update(SrsSource* s, SrsRequest* r)
+srs_error_t SrsBufferCache::update_auth(SrsSource* s, SrsRequest* r)
 {
     srs_freep(req);
     req = r->copy();
@@ -527,7 +527,7 @@ SrsLiveStream::~SrsLiveStream()
     srs_freep(req);
 }
 
-srs_error_t SrsLiveStream::update(SrsSource* s, SrsRequest* r)
+srs_error_t SrsLiveStream::update_auth(SrsSource* s, SrsRequest* r)
 {
     source = s;
     
@@ -953,9 +953,10 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         }
         srs_trace("http: mount flv stream for sid=%s, mount=%s", sid.c_str(), mount.c_str());
     } else {
+        // The entry exists, we reuse it and update the request of stream and cache.
         entry = sflvs[sid];
-        entry->stream->update(s, r);
-        entry->cache->update(s, r);
+        entry->stream->update_auth(s, r);
+        entry->cache->update_auth(s, r);
     }
     
     if (entry->stream) {

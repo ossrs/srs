@@ -270,6 +270,7 @@ The ports used by SRS:
 
 ## V3 changes
 
+* v3.0, 2021-05-12, Fix [#2311][bug #2311], Copy the request for stat client. 3.0.162
 * <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)][r3.0r5] released. 122750 lines.</strong>
 * v3.0, 2021-04-28, Upgrade players. 3.0.161
 * <strong>v3.0, 2021-04-24, [3.0 release4(3.0.160)][r3.0r4] released. 122750 lines.</strong>
@@ -1906,6 +1907,7 @@ Winlin
 [bug #1987]: https://github.com/ossrs/srs/issues/1987
 [bug #1548]: https://github.com/ossrs/srs/issues/1548
 [bug #1694]: https://github.com/ossrs/srs/issues/1694
+[bug #2311]: https://github.com/ossrs/srs/issues/2311
 [bug #413]: https://github.com/ossrs/srs/issues/413
 [bug #2091]: https://github.com/ossrs/srs/issues/2091
 [bug #1342]: https://github.com/ossrs/srs/issues/1342
