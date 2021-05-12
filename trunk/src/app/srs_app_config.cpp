@@ -452,7 +452,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 continue;
             }
             
-            // SRS3.0, change the folowing like a shadow:
+            // SRS3.0, change the bellow like a shadow:
             //      time_jitter, mix_correct, atc, atc_auto, mw_latency, gop_cache, queue_length
             //  SRS1/2:
             //      vhost { shadow; }
@@ -489,7 +489,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 continue;
             }
 
-            // SRS3.0, change the folowing like a shadow:
+            // SRS3.0, change the bellow like a shadow:
             //      mode, origin, token_traverse, vhost, debug_srs_upnode
             //  SRS1/2:
             //      vhost { shadow; }
@@ -502,6 +502,33 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 SrsConfDirective* shadow = cluster->get_or_create(conf->name);
                 shadow->args = conf->args;
                 srs_warn("transform: vhost.%s to vhost.cluster.%s of %s", n.c_str(), n.c_str(), dir->name.c_str());
+                
+                srs_freep(conf);
+                continue;
+            }
+
+            // SRS4.0, move nack/twcc to rtc:
+            //      vhost { nack {enabled; no_copy;} twcc {enabled} }
+            // as:
+            //      vhost { rtc { nack on; nack_no_copy on; twcc on; } }
+            if (n == "nack" || n == "twcc") {
+                it = dir->directives.erase(it);
+                
+                SrsConfDirective* rtc = dir->get_or_create("rtc");
+                if (n == "nack") {
+                    if (conf->get("enabled")) {
+                        rtc->get_or_create("nack")->args = conf->get("enabled")->args;
+                    }
+
+                    if (conf->get("no_copy")) {
+                        rtc->get_or_create("nack_no_copy")->args = conf->get("no_copy")->args;
+                    }
+                } else if (n == "twcc") {
+                    if (conf->get("enabled")) {
+                        rtc->get_or_create("twcc")->args = conf->get("enabled")->args;
+                    }
+                }
+                srs_warn("transform: vhost.%s to vhost.rtc.%s of %s", n.c_str(), n.c_str(), dir->name.c_str());
                 
                 srs_freep(conf);
                 continue;
@@ -3581,6 +3608,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
+            && n != "circuit_breaker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -3939,7 +3967,8 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
+                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy"
+                        && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
                         && m != "pli_for_rtmp") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
@@ -4291,6 +4320,125 @@ double SrsConfig::tcmalloc_release_rate()
     trr = srs_min(10, trr);
     trr = srs_max(0, trr);
     return trr;
+}
+
+bool SrsConfig::get_circuit_breaker()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+int SrsConfig::get_high_threshold()
+{
+    static int DEFAULT = 90;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("high_threshold");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_high_pulse()
+{
+    static int DEFAULT = 2;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("high_pulse");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_critical_threshold()
+{
+    static int DEFAULT = 95;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("critical_threshold");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_critical_pulse()
+{
+    static int DEFAULT = 1;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("critical_pulse");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_dying_threshold()
+{
+    static int DEFAULT = 99;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("dying_threshold");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_dying_pulse()
+{
+    static int DEFAULT = 5;
+
+    SrsConfDirective* conf = root->get("circuit_breaker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("dying_pulse");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()

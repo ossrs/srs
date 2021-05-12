@@ -43,6 +43,7 @@
 #include <srs_protocol_json.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_threads.hpp>
 #include <srs_app_statistic.hpp>
 
 #ifdef SRS_FFMPEG_FIT
@@ -52,15 +53,19 @@
 #include <srs_protocol_kbps.hpp>
 
 // The NACK sent by us(SFU).
-SrsPps* _srs_pps_snack = new SrsPps();
-SrsPps* _srs_pps_snack2 = new SrsPps();
-SrsPps* _srs_pps_sanack = new SrsPps();
-SrsPps* _srs_pps_svnack = new SrsPps();
+SrsPps* _srs_pps_snack = NULL;
+SrsPps* _srs_pps_snack2 = NULL;
+SrsPps* _srs_pps_snack3 = NULL;
+SrsPps* _srs_pps_snack4 = NULL;
+SrsPps* _srs_pps_sanack = NULL;
+SrsPps* _srs_pps_svnack = NULL;
 
-SrsPps* _srs_pps_rnack = new SrsPps();
-SrsPps* _srs_pps_rnack2 = new SrsPps();
-SrsPps* _srs_pps_rhnack = new SrsPps();
-SrsPps* _srs_pps_rmnack = new SrsPps();
+SrsPps* _srs_pps_rnack = NULL;
+SrsPps* _srs_pps_rnack2 = NULL;
+SrsPps* _srs_pps_rhnack = NULL;
+SrsPps* _srs_pps_rmnack = NULL;
+
+extern SrsPps* _srs_pps_aloss2;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType     = 111;
@@ -245,7 +250,7 @@ void SrsRtcConsumer::on_stream_change(SrsRtcStreamDescription* desc)
 
 SrsRtcStreamManager::SrsRtcStreamManager()
 {
-    lock = NULL;
+    lock = srs_mutex_new();
 }
 
 SrsRtcStreamManager::~SrsRtcStreamManager()
@@ -256,11 +261,6 @@ SrsRtcStreamManager::~SrsRtcStreamManager()
 srs_error_t SrsRtcStreamManager::fetch_or_create(SrsRequest* r, SrsRtcStream** pps)
 {
     srs_error_t err = srs_success;
-
-    // Lazy create lock, because ST is not ready in SrsRtcStreamManager constructor.
-    if (!lock) {
-        lock = srs_mutex_new();
-    }
 
     // Use lock to protect coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
@@ -311,7 +311,7 @@ SrsRtcStream* SrsRtcStreamManager::fetch(SrsRequest* r)
     return source;
 }
 
-SrsRtcStreamManager* _srs_rtc_sources = new SrsRtcStreamManager();
+SrsRtcStreamManager* _srs_rtc_sources = NULL;
 
 ISrsRtcPublishStream::ISrsRtcPublishStream()
 {
@@ -347,6 +347,8 @@ SrsRtcStream::SrsRtcStream()
 
     req = NULL;
     bridger_ = NULL;
+
+    pli_for_rtmp_ = pli_elapsed_ = 0;
 }
 
 SrsRtcStream::~SrsRtcStream()
@@ -498,9 +500,11 @@ srs_error_t SrsRtcStream::on_publish()
             return srs_error_wrap(err, "bridger on publish");
         }
 
-        // For SrsRtcStream::on_timer()
-        srs_utime_t pli_for_rtmp = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
-        _srs_hybrid->timer()->subscribe(pli_for_rtmp, this);
+        // The PLI interval for RTC2RTMP.
+        pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req->vhost);
+
+        // @see SrsRtcStream::on_timer()
+        _srs_hybrid->timer100ms()->subscribe(this);
     }
 
     // TODO: FIXME: Handle by statistic.
@@ -535,7 +539,7 @@ void SrsRtcStream::on_unpublish()
     //free bridger resource
     if (bridger_) {
         // For SrsRtcStream::on_timer()
-        _srs_hybrid->timer()->unsubscribe(this);
+        _srs_hybrid->timer100ms()->unsubscribe(this);
 
         bridger_->on_unpublish();
         srs_freep(bridger_);
@@ -578,6 +582,12 @@ void SrsRtcStream::set_publish_stream(ISrsRtcPublishStream* v)
 srs_error_t SrsRtcStream::on_rtp(SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
+
+    // If circuit-breaker is dying, drop packet.
+    if (_srs_circuit_breaker->hybrid_dying_water_level()) {
+        _srs_pps_aloss2->sugar += (int64_t)consumers.size();
+        return err;
+    }
 
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
@@ -631,12 +641,21 @@ std::vector<SrsRtcTrackDescription*> SrsRtcStream::get_track_desc(std::string ty
     return track_descs;
 }
 
-srs_error_t SrsRtcStream::on_timer(srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsRtcStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
     if (!publish_stream_) {
         return err;
+    }
+
+    // Request PLI and reset the timer.
+    if (true) {
+        pli_elapsed_ += interval;
+        if (pli_elapsed_ < pli_for_rtmp_) {
+            return err;
+        }
+        pli_elapsed_ = 0;
     }
 
     for (int i = 0; i < (int)stream_desc_->video_track_descs_.size(); i++) {
@@ -1535,7 +1554,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
         if (stap_payload) {
-            for (int j = 0; j < stap_payload->nalus.size(); ++j) {
+            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
                 nb_payload += 4 + sample->size;
             }
@@ -1599,7 +1618,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 
         SrsRtpSTAPPayload* stap_payload = dynamic_cast<SrsRtpSTAPPayload*>(pkt->payload());
         if (stap_payload) {
-            for (int j = 0; j < stap_payload->nalus.size(); ++j) {
+            for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
                 payload.write_4bytes(sample->size);
                 payload.write_bytes(sample->bytes, sample->size);

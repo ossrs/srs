@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_app_threads.hpp>
 #ifdef SRS_RTC
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -69,10 +70,10 @@ srs_error_t run_hybrid_server();
 void show_macro_features();
 
 // @global log and context.
-ISrsLog* _srs_log = new SrsFileLog();
-ISrsContext* _srs_context = new SrsThreadContext();
+ISrsLog* _srs_log = NULL;
+ISrsContext* _srs_context = NULL;
 // @global config object for app module.
-SrsConfig* _srs_config = new SrsConfig();
+SrsConfig* _srs_config = NULL;
 
 // @global version of srs, which can grep keyword "XCORE"
 extern const char* _srs_version;
@@ -86,7 +87,15 @@ SrsServer* _srs_server = NULL;
 srs_error_t do_main(int argc, char** argv)
 {
     srs_error_t err = srs_success;
-    
+
+    // Initialize global or thread-local variables.
+    if ((err = srs_thread_initialize()) != srs_success) {
+        return srs_error_wrap(err, "thread init");
+    }
+
+    // For background context id.
+    _srs_context->set_id(_srs_context->generate_id());
+
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -214,10 +223,8 @@ srs_error_t do_main(int argc, char** argv)
     return err;
 }
 
-int main(int argc, char** argv) {
-    // For background context id.
-    _srs_context->set_id(_srs_context->generate_id());
-
+int main(int argc, char** argv)
+{
     srs_error_t err = do_main(argc, argv);
 
     if (err != srs_success) {
@@ -477,6 +484,11 @@ srs_error_t run_hybrid_server()
     // Do some system initialize.
     if ((err = _srs_hybrid->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
+    }
+
+    // Circuit breaker to protect server, which depends on hybrid.
+    if ((err = _srs_circuit_breaker->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init circuit breaker");
     }
 
     // Should run util hybrid servers all done.

@@ -182,6 +182,13 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-09, Refine tid for sdk and demos. 4.0.106
+* v4.0, 2021-05-08, Refine shared fast timer. 4.0.105
+* v4.0, 2021-05-08, Refine global or thread-local variables initialize. 4.0.104
+* v4.0, 2021-05-07, RTC: Support circuit breaker. 4.0.103
+* v4.0, 2021-05-07, RTC: Refine play stream find track. 4.0.102
+* v4.0, 2021-05-07, RTC: Refine FastTimer to fixed interval. 4.0.101
+* v4.0, 2021-05-06, RTC: Fix config bug for nack and twcc. 4.0.99
 * v4.0, 2021-05-04, Add video room demo. 4.0.98
 * v4.0, 2021-05-03, Add RTC stream merging demo by FFmpeg. 4.0.97
 * v4.0, 2021-05-02, Add one to one demo. 4.0.96
@@ -1094,6 +1101,15 @@ The data for playing RTMP was benchmarked by [SB][srs-bench]:
 |   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
 |   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
 
+| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-11 | SRS/v4.0.105     | 4000     |   players     |   ~94% x1 |   419MB   | 1       | G5 8CPU |
+| 2021-05-11 | NginxRTMP/v1.2.1 | 2400     |   players     |   ~92% x1 |   173MB   | 1       | G5 8CPU |
+
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
+> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
+
 <a name="publish-rtmp-benchmark"></a>
 **Publish RTMP benchmark**
 
@@ -1110,6 +1126,15 @@ The data for publishing RTMP was benchmarked by [SB][srs-bench]:
 |   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    |   [code][p1]  |
 |   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
 |   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
+
+| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-11 | SRS/v4.0.105     | 2300     |   publishers  |   ~89% x1 |   1.1GB   | 1       | G5 8CPU |
+| 2021-05-11 | NginxRTMP/v1.2.1 | 1300     |   publishers  |   ~84% x1 |   198MB   | 1       | G5 8CPU |
+
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
+> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
 
 <a name="play-http-flv-benchmark"></a>
 **Play HTTP FLV benchmark**
@@ -1130,25 +1155,33 @@ The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
 
 The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
 
+| Update     |    SFU        |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
+| ---------- | ------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
+| 2021-05-10 | SRS/v4.0.105  | 2000     |   players     |   ~94% x1 |   462MB   | 1      | G7 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1000     |   players     |   ~90% x1 |   180MB   | 1      | G5 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 800      |   players     |   ~94% x1 |   444MB   | 1      | G5 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 700      |   players     |   ~93% x2 |   430MB   | 24     | G5 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 1700     |   publishers  |   ~92% x1 |   334MB   | 1      | G7 2CPU |
+| 2021-05-10 | SRS/v4.0.105  | 950      |   publishers  |   ~92% x1 |   132MB   | 1      | G5 2CPU |
+| 2021-03-31 | SRS/v4.0.87   | 550      |   publishers  |   ~86% x1 |   1.3GB   | 1      | G5 2CPU |
+| 2021-05-10 | Janus/v0.11.1 | 350      |   publishers  |   ~93% x2 |   405MB   | 23     | G5 2CPU |
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Threads | 
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------- |
-|   2021-03-31  |   4.0.87  |   550         |   publishers  |   ~86%     |   1.3GB   | 1      |
-|   2021-03-31  |   4.0.87  |   800         |   players     |   ~94%     |   444MB   | 1      |
-
-> Note: CentOS7, 500Kbps, 4CPU, 2.5 GHz Intel Xeon Platinum 8163/8269CY.
+> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)/G7-2.7GHZ(IceLake)](https://help.aliyun.com/document_detail/25378.html), 
+> [SRS/v4.0.87](https://github.com/ossrs/srs/commit/d6c16a7e236e03eba754c763e865464ec82d4516), 
+> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939), 
+> [Janus/v0.11.1](https://github.com/meetecho/janus-gateway/releases/tag/v0.11.1).
 
 <a name="latency-benchmark"></a>
 **Latency benchmark**
 
 The latency between encoder and player with realtime config([CN][v4_CN_LowLatency], [EN][v4_EN_LowLatency]):
-|   
 
-|   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
-| ------------- | --------- | --------- | --------- | --------- | --------  |
-|   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
-|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
-|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   Update      |    SRS    | Protocol |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
+| ------------- | --------- | --------- | --------- | --------- | --------- | --------  |
+|   2014-12-16  |   2.0.72  | RTMP      |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
+|   2014-12-12  |   2.0.70  | RTMP      |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
+|   2014-12-03  |   1.0.10  | RTMP      |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   2021-04-02  |   4.0.87  | WebRTC    |   x       |   80ms    |   x       |   x       |
 
 > 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
 

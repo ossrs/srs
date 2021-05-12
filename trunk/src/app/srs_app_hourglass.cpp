@@ -23,6 +23,7 @@
 
 #include <srs_app_hourglass.hpp>
 
+#include <algorithm>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -31,7 +32,7 @@ using namespace std;
 
 #include <srs_protocol_kbps.hpp>
 
-SrsPps* _srs_pps_timer = new SrsPps();
+SrsPps* _srs_pps_timer = NULL;
 
 extern SrsPps* _srs_pps_clock_15ms;
 extern SrsPps* _srs_pps_clock_20ms;
@@ -147,71 +148,63 @@ ISrsFastTimer::~ISrsFastTimer()
 {
 }
 
-SrsFastTimer::SrsFastTimer(std::string label, srs_utime_t resolution)
+SrsFastTimer::SrsFastTimer(std::string label, srs_utime_t interval)
 {
-    timer_ = new SrsHourGlass(label, this, resolution);
+    interval_ = interval;
+    trd_ = new SrsSTCoroutine(label, this, _srs_context->get_id());
 }
 
 SrsFastTimer::~SrsFastTimer()
 {
-    srs_freep(timer_);
+    srs_freep(trd_);
 }
 
 srs_error_t SrsFastTimer::start()
 {
     srs_error_t err = srs_success;
 
-    if ((err = timer_->start()) != srs_success) {
+    if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
     }
 
     return err;
 }
 
-void SrsFastTimer::subscribe(srs_utime_t interval, ISrsFastTimer* timer)
+void SrsFastTimer::subscribe(ISrsFastTimer* timer)
 {
-    static int g_event = 0;
-
-    int event = g_event++;
-
-    // TODO: FIXME: Error leak. Change tick to void in future.
-    timer_->tick(event, interval);
-
-    handlers_[event] = timer;
+    if (std::find(handlers_.begin(), handlers_.end(), timer) == handlers_.end()) {
+        handlers_.push_back(timer);
+    }
 }
 
 void SrsFastTimer::unsubscribe(ISrsFastTimer* timer)
 {
-    for (map<int, ISrsFastTimer*>::iterator it = handlers_.begin(); it != handlers_.end();) {
-        if (it->second != timer) {
-            ++it;
-            continue;
-        }
-
-        handlers_.erase(it++);
-
-        int event = it->first;
-        timer_->untick(event);
+    vector<ISrsFastTimer*>::iterator it = std::find(handlers_.begin(), handlers_.end(), timer);
+    if (it != handlers_.end()) {
+        handlers_.erase(it);
     }
 }
 
-srs_error_t SrsFastTimer::notify(int event, srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsFastTimer::cycle()
 {
     srs_error_t err = srs_success;
 
-    for (map<int, ISrsFastTimer*>::iterator it = handlers_.begin(); it != handlers_.end(); ++it) {
-        ISrsFastTimer* timer = it->second;
-
-        if (event != it->first) {
-            continue;
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "quit");
         }
 
-        if ((err = timer->on_timer(interval, tick)) != srs_success) {
-            return srs_error_wrap(err, "tick for event=%d, interval=%dms, tick=%dms",
-                event, srsu2msi(interval), srsu2msi(tick));
+        ++_srs_pps_timer->sugar;
+
+        for (int i = 0; i < (int)handlers_.size(); i++) {
+            ISrsFastTimer* timer = handlers_.at(i);
+
+            if ((err = timer->on_timer(interval_)) != srs_success) {
+                srs_freep(err); // Ignore any error for shared timer.
+            }
         }
 
-        break;
+        srs_usleep(interval_);
     }
 
     return err;
@@ -225,7 +218,7 @@ SrsClockWallMonitor::~SrsClockWallMonitor()
 {
 }
 
-srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval, srs_utime_t tick)
+srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 

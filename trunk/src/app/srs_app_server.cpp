@@ -1261,9 +1261,6 @@ srs_error_t SrsServer::setup_ticks()
         if ((err = timer_->tick(2, 3 * SRS_UTIME_SECONDS)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
-        if ((err = timer_->tick(3, 3 * SRS_UTIME_SECONDS)) != srs_success) {
-            return srs_error_wrap(err, "tick");
-        }
         if ((err = timer_->tick(4, 6 * SRS_UTIME_SECONDS)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
@@ -1305,7 +1302,6 @@ srs_error_t SrsServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
 
     switch (event) {
         case 2: srs_update_system_rusage(); break;
-        case 3: srs_update_proc_stat(); break;
         case 4: srs_update_disk_stat(); break;
         case 5: srs_update_meminfo(); break;
         case 6: srs_update_platform_info(); break;

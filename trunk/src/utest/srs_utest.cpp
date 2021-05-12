@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_threads.hpp>
 
 #include <string>
 using namespace std;
@@ -41,10 +42,10 @@ int _srs_tmp_port = 11935;
 srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
 
 // kernel module.
-ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
-ISrsContext* _srs_context = new SrsThreadContext();
+ISrsLog* _srs_log = NULL;
+ISrsContext* _srs_context = NULL;
 // app module.
-SrsConfig* _srs_config = new SrsConfig();
+SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
 
@@ -54,9 +55,12 @@ bool _srs_in_docker = false;
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
-    if ((err = srs_st_init()) != srs_success) {
+    if ((err = srs_thread_initialize()) != srs_success) {
         return srs_error_wrap(err, "init st");
     }
+
+    srs_freep(_srs_log);
+    _srs_log = new MockEmptyLog(SrsLogLevelDisabled);
 
     if ((err = _srs_rtc_dtls_certificate->initialize()) != srs_success) {
         return srs_error_wrap(err, "rtc dtls certificate initialize");
