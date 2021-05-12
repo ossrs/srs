@@ -938,6 +938,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
         }
         srs_trace("http: mount flv stream for sid=%s, mount=%s", sid.c_str(), mount.c_str());
     } else {
+        // The entry exists, we reuse it and update the request of stream and cache.
         entry = sflvs[sid];
         entry->stream->update(s, r);
         entry->cache->update(s, r);
