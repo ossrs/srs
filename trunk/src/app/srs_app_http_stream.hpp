@@ -46,7 +46,7 @@ private:
 public:
     SrsBufferCache(SrsSource* s, SrsRequest* r);
     virtual ~SrsBufferCache();
-    virtual srs_error_t update(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t update_auth(SrsSource* s, SrsRequest* r);
 public:
     virtual srs_error_t start();
     virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
@@ -188,7 +188,7 @@ private:
 public:
     SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c);
     virtual ~SrsLiveStream();
-    virtual srs_error_t update(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t update_auth(SrsSource* s, SrsRequest* r);
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
