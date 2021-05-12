@@ -460,10 +460,14 @@ srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpir
     
     // got client.
     client->conn = conn;
-    client->req = req;
     client->type = type;
     stream->nb_clients++;
     vhost->nb_clients++;
+
+    // The req might be freed, in such as SrsLiveStream::update, so we must copy it.
+    // @see https://github.com/ossrs/srs/issues/2311
+    srs_freep(client->req);
+    client->req = req->copy();
     
     return err;
 }
