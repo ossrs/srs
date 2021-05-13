@@ -214,6 +214,7 @@ SrsStatisticClient::SrsStatisticClient()
 
 SrsStatisticClient::~SrsStatisticClient()
 {
+	srs_freep(req);
 }
 
 srs_error_t SrsStatisticClient::dumps(SrsJsonObject* obj)
