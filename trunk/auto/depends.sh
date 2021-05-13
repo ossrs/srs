@@ -700,8 +700,12 @@ if [[ $SRS_SRT == YES ]]; then
             fi
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1.4.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             unzip -q ../../3rdparty/srt-1.4.1.zip && cd srt-1.4.1 &&
-            PKG_CONFIG_PATH=../openssl/lib/pkgconfig ./configure --prefix=`pwd`/_release --disable-shared --enable-static && make ${SRS_JOBS} && make install &&
+            PKG_CONFIG_PATH=../openssl/lib/pkgconfig ./configure --prefix=`pwd`/_release --disable-c++11 --disable-app --disable-shared --enable-static &&
+            make ${SRS_JOBS} && make install &&
             cd .. && rm -rf srt && ln -sf srt-1.4.1/_release srt
+            if [[ -f srt/lib64/libsrt.a ]]; then
+                mv srt/lib64 srt/lib
+            fi
         )
         ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srt-1.4.1 failed, ret=$ret"; exit $ret; fi
         # Always update the links.
