@@ -247,7 +247,7 @@ PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_SRT = YES ]; then
     MODULE_ID="SRT"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    ModuleLibIncs=(${SRS_OBJS_DIR})
+    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
     MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data")
     SRT_INCS=${LibSRTRoot}; MODULE_DIR=${LibSRTRoot} . auto/modules.sh
     SRT_OBJS="${MODULE_OBJS[@]}"
