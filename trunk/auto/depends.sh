@@ -689,15 +689,25 @@ fi
 # SRT module, https://github.com/ossrs/srs/issues/1147#issuecomment-577469119
 #####################################################################################
 if [[ $SRS_SRT == YES ]]; then
-    if [[ -f /usr/local/lib64/libsrt.a && ! -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
-        mkdir -p ${SRS_OBJS}/srt/lib && ln -sf /usr/local/lib64/libsrt.a ${SRS_OBJS}/srt/lib/libsrt.a
-        mkdir -p ${SRS_OBJS}/srt/include && ln -sf /usr/local/include/srt ${SRS_OBJS}/srt/include/
-    fi
     if [[ -f ${SRS_OBJS}/srt/lib/libsrt.a ]]; then
         echo "libsrt-1.4.1 is ok.";
     else
-        echo "no libsrt, please run in docker ossrs/srs:srt or build from source https://github.com/ossrs/srs/issues/1147#issuecomment-577469119";
-        exit -1;
+        echo "Build srt-1.4.1"
+        (
+            if [[ ! -d ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/pkgconfig ]]; then
+                echo "OpenSSL pkgconfig no fond, build srt-1.4.1 failed.";
+                exit -1;
+            fi
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1.4.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            unzip -q ../../3rdparty/srt-1.4.1.zip && cd srt-1.4.1 &&
+            PKG_CONFIG_PATH=../openssl/lib/pkgconfig ./configure --prefix=`pwd`/_release --disable-shared --enable-static && make ${SRS_JOBS} && make install &&
+            cd .. && rm -rf srt && ln -sf srt-1.4.1/_release srt
+        )
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srt-1.4.1 failed, ret=$ret"; exit $ret; fi
+        # Always update the links.
+        (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf srt && ln -sf srt-1.4.1/_release srt)
+        (cd ${SRS_OBJS} && rm -rf srt && ln -sf ${SRS_PLATFORM}/srt-1.4.1/_release srt)
+        if [ ! -f ${SRS_OBJS}/srt/lib/libsrt.a ]; then echo "Build srt-1.4.1 failed."; exit -1; fi
     fi
 fi
 
