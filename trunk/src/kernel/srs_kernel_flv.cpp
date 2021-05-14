@@ -229,19 +229,6 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
     }
 }
 
-bool SrsSharedPtrMessage::recycle()
-{
-    // When recycle, unwrap if not the last reference.
-    if (ptr && ptr->shared_count > 0) {
-        ptr->shared_count--;
-        ptr = NULL;
-        payload = NULL;
-        size = 0;
-    }
-
-    return true;
-}
-
 srs_error_t SrsSharedPtrMessage::create(SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
@@ -369,7 +356,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 
 SrsSharedPtrMessage* SrsSharedPtrMessage::copy2()
 {
-    SrsSharedPtrMessage* copy = _srs_rtp_msg_cache_objs->allocate();
+    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
 
     // We got an object from cache, the ptr might exists, so unwrap it.
     //srs_assert(!copy->ptr);

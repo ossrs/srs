@@ -315,15 +315,6 @@ public:
     SrsRtpPacket2();
     virtual ~SrsRtpPacket2();
 public:
-    // User MUST reset the packet if got from cache,
-    // except copy(we will assign the header and copy payload).
-    void reset();
-private:
-    void recycle_payload();
-    void recycle_shared_buffer();
-public:
-    // Recycle the object to reuse it.
-    virtual bool recycle();
     // Wrap buffer to shared_message, which is managed by us.
     char* wrap(int size);
     char* wrap(char* data, int size);
@@ -357,112 +348,6 @@ public:
     bool is_keyframe();
 };
 
-// For object cache manager to stat the object dropped.
-#include <srs_kernel_kbps.hpp>
-extern SrsPps* _srs_pps_objs_drop;
-
-// The RTP packet or message cache manager.
-template<typename T>
-class SrsRtpObjectCacheManager
-{
-private:
-    bool enabled_;
-    std::vector<T*> cache_objs_;
-    size_t capacity_;
-    size_t object_size_;
-public:
-    // SrsRtpObjectCacheManager::SrsRtpObjectCacheManager
-    SrsRtpObjectCacheManager(size_t size_of_object) {
-        enabled_ = false;
-        capacity_ = 0;
-        object_size_ = size_of_object;
-    }
-    // SrsRtpObjectCacheManager::~SrsRtpObjectCacheManager
-    virtual ~SrsRtpObjectCacheManager() {
-        typedef typename std::vector<T*>::iterator iterator;
-        for (iterator it = cache_objs_.begin(); it != cache_objs_.end(); ++it) {
-            T* obj = *it;
-            srs_freep(obj);
-        }
-    }
-public:
-    // Setup the object cache, shrink if capacity changed.
-    // SrsRtpObjectCacheManager::setup
-    void setup(bool v, uint64_t memory) {
-        enabled_ = v;
-        capacity_ = (size_t)(memory / object_size_);
-
-
-        if (!enabled_) {
-            capacity_ = 0;
-        }
-
-        // Shrink the cache.
-        while (cache_objs_.size() > capacity_) {
-            T* obj = cache_objs_.back();
-            cache_objs_.pop_back();
-            srs_freep(obj);
-        }
-    }
-    // Get the status of object cache.
-    // SrsRtpObjectCacheManager::enabled
-    inline bool enabled() {
-        return enabled_;
-    }
-    // SrsRtpObjectCacheManager::size
-    int size() {
-        return (int)cache_objs_.size();
-    }
-    // SrsRtpObjectCacheManager::capacity
-    int capacity() {
-        return (int)capacity_;
-    }
-    // Try to allocate from cache, create new object if no cache.
-    // SrsRtpObjectCacheManager::allocate
-    T* allocate() {
-        if (!enabled_ || cache_objs_.empty()) {
-            return new T();
-        }
-
-        T* obj = cache_objs_.back();
-        cache_objs_.pop_back();
-
-        return obj;
-    }
-    // Recycle the object to cache.
-    // @remark User can directly free the packet.
-    // SrsRtpObjectCacheManager::recycle
-    void recycle(T* p) {
-        // The p may be NULL, because srs_freep(NULL) is ok.
-        if (!p) {
-            return;
-        }
-
-        // If disabled, drop the object.
-        if (!enabled_) {
-            srs_freep(p);
-            return;
-        }
-
-        // If recycle the object fail, drop the cached object.
-        if (!p->recycle()) {
-            srs_freep(p);
-            return;
-        }
-
-        // If exceed the capacity, drop the object.
-        if (cache_objs_.size() > capacity_) {
-            ++_srs_pps_objs_drop->sugar;
-
-            srs_freep(p);
-            return;
-        }
-
-        // Recycle it.
-        cache_objs_.push_back(p);
-    }
-};
-
 // Single payload data.
 class SrsRtpRawPayload : public ISrsRtpPayloader
 {
@@ -474,8 +359,6 @@ public:
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
-public:
-    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -574,8 +457,6 @@ public:
 public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
-public:
-    bool recycle();
 // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();
@@ -583,16 +464,5 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
     virtual ISrsRtpPayloader* copy();
 };
-
-// For RTP packets cache.
-extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
-extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
-extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
-
-// For shared message cache, with payload.
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
-// For shared message cache, without payload.
-// Note that user must unwrap the shared message, before recycle it.
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
 
 #endif

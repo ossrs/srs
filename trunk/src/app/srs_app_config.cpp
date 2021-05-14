@@ -3679,7 +3679,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "perf_stat" && n != "black_hole"
-                && n != "ip_family" && n != "rtp_cache" && n != "rtp_msg_cache") {
+                && n != "ip_family") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -5048,138 +5048,6 @@ bool SrsConfig::get_rtc_server_perf_stat()
     }
 
     return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
-
-SrsConfDirective* SrsConfig::get_rtc_server_rtp_cache()
-{
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return NULL;
-    }
-
-    conf = conf->get("rtp_cache");
-    if (!conf) {
-        return NULL;
-    }
-
-    return conf;
-}
-
-bool SrsConfig::get_rtc_server_rtp_cache_enabled()
-{
-    static bool DEFAULT = true;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-uint64_t SrsConfig::get_rtc_server_rtp_cache_pkt_size()
-{
-    int DEFAULT = 64 * 1024 * 1024;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("pkt_size");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
-}
-
-uint64_t SrsConfig::get_rtc_server_rtp_cache_payload_size()
-{
-    int DEFAULT = 16 * 1024 * 1024;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("payload_size");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
-}
-
-SrsConfDirective* SrsConfig::get_rtc_server_rtp_msg_cache()
-{
-    SrsConfDirective* conf = root->get("rtc_server");
-    if (!conf) {
-        return NULL;
-    }
-
-    conf = conf->get("rtp_msg_cache");
-    if (!conf) {
-        return NULL;
-    }
-
-    return conf;
-}
-
-bool SrsConfig::get_rtc_server_rtp_msg_cache_enabled()
-{
-    static bool DEFAULT = true;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
-uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_msg_size()
-{
-    int DEFAULT = 16 * 1024 * 1024;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("msg_size");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
-}
-
-uint64_t SrsConfig::get_rtc_server_rtp_msg_cache_buffer_size()
-{
-    int DEFAULT = 512 * 1024 * 1024;
-
-    SrsConfDirective* conf = get_rtc_server_rtp_msg_cache();
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("buffer_size");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return 1024 * (uint64_t)(1024 * ::atof(conf->arg0().c_str()));
 }
 
 bool SrsConfig::get_rtc_server_black_hole()

@@ -47,7 +47,6 @@ class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
 class SrsAudioTranscoder;
 class SrsRtpPacket2;
-class SrsRtpPacketCacheHelper;
 class SrsSample;
 class SrsRtcStreamDescription;
 class SrsRtcTrackDescription;
@@ -259,16 +258,6 @@ private:
     srs_error_t on_timer(srs_utime_t interval);
 };
 
-// A helper class, to release the packet to cache.
-class SrsRtpPacketCacheHelper
-{
-public:
-    SrsRtpPacket2* pkt;
-public:
-    SrsRtpPacketCacheHelper();
-    virtual ~SrsRtpPacketCacheHelper();
-};
-
 #ifdef SRS_FFMPEG_FIT
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
@@ -298,16 +287,16 @@ public:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
     srs_error_t transcode(SrsAudioFrame* audio);
-    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacketCacheHelper* helper);
+    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket2* pkt);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
     srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacketCacheHelper* helper);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t consume_packets(std::vector<SrsRtpPacketCacheHelper*>& helpers);
+    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacket2* pkt);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);
 };
 
 class SrsRtmpFromRtcBridger : public ISrsRtcSourceBridger

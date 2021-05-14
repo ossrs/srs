@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-14, RTC: Remove [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008), no effect. 4.0.110
 * v4.0, 2021-05-14, Change virtual public to public. 4.0.109
 * v4.0, 2021-05-14, Refine id and vid for statistic. 4.0.108
 * v4.0, 2021-05-09, Refine tid for sdk and demos. 4.0.106
