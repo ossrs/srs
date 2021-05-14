@@ -107,12 +107,14 @@ function Ubuntu_prepare()
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             require_sudoer "sudo apt-get install -y --force-yes tcl"
+            sudo apt-get install -y --force-yes tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The tcl is installed."
         fi
 
         cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing cmake."
             require_sudoer "sudo apt-get install -y --force-yes cmake"
+            sudo apt-get install -y --force-yes cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The cmake is installed."
         fi
     fi
@@ -201,12 +203,14 @@ function Centos_prepare()
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             require_sudoer "sudo yum install -y tcl"
+            sudo yum install -y tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The tcl is installed."
         fi
 
         cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing cmake."
             require_sudoer "sudo  yum install -y cmake"
+            sudo yum install -y cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The cmake is installed."
         fi
     fi
