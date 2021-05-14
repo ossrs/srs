@@ -103,6 +103,7 @@ function Ubuntu_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             require_sudoer "sudo apt-get install -y --force-yes tcl"
@@ -196,6 +197,7 @@ function Centos_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             require_sudoer "sudo yum install -y --force-yes tcl"
@@ -307,6 +309,7 @@ function OSX_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             echo "brew install tcl."
