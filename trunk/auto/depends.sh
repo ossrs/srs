@@ -703,6 +703,7 @@ if [[ $SRS_SRT == YES ]]; then
             PKG_CONFIG_PATH=../openssl/lib/pkgconfig ./configure --prefix=`pwd`/_release --disable-c++11 --disable-app --disable-shared --enable-static &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf srt && ln -sf srt-1.4.1/_release srt
+            # Move to lib dir.
             if [[ -f srt/lib64/libsrt.a ]]; then
                 mv srt/lib64 srt/lib
             fi
