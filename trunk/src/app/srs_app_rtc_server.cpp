@@ -659,8 +659,7 @@ srs_error_t SrsRtcServer::on_timer(srs_utime_t interval)
         session->switch_to_context();
 
         string username = session->username();
-        srs_trace("RTC: session destroy by timeout, username=%s, summary: %s", username.c_str(),
-            session->stat_->summary().c_str());
+        srs_trace("RTC: session destroy by timeout, username=%s", username.c_str());
 
         // Use manager to free session and notify other objects.
         _srs_rtc_manager->remove(session);

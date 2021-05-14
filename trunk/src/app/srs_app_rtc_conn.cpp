@@ -460,9 +460,6 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
         track->set_nack_no_copy(nack_no_copy_);
     }
 
-    // Update stat for session.
-    session_->stat_->nn_subscribers++;
-
     return err;
 }
 
@@ -745,8 +742,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_rr(SrsRtcpRR* rtcp)
 
     // TODO: FIXME: Implements it.
 
-    session_->stat_->nn_sr++;
-
     return err;
 }
 
@@ -755,8 +750,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_xr(SrsRtcpXr* rtcp)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: Implements it.
-
-    session_->stat_->nn_xr++;
 
     return err;
 }
@@ -807,8 +800,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack* rtcp)
         return srs_error_wrap(err, "track response nack. id:%s, ssrc=%u", target->get_track_id().c_str(), ssrc);
     }
 
-    session_->stat_->nn_nack++;
-
     return err;
 }
 
@@ -823,8 +814,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_ps_feedback(SrsRtcpPsfbCommon* rtcp)
             if (ssrc) {
                 pli_worker_->request_keyframe(ssrc, cid_);
             }
-
-            session_->stat_->nn_pli++;
             break;
         }
         case kSLI: {
@@ -1074,9 +1063,6 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcStreamDescripti
         track->set_nack_no_copy(nack_no_copy_);
     }
 
-    // Update stat for session.
-    session_->stat_->nn_publishers++;
-
     // Setup the publish stream in source to enable PLI as such.
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
@@ -1193,8 +1179,6 @@ srs_error_t SrsRtcPublishStream::send_rtcp_rr()
         }
     }
 
-    session_->stat_->nn_rr++;
-
     return err;
 }
 
@@ -1216,8 +1200,6 @@ srs_error_t SrsRtcPublishStream::send_rtcp_xr_rrtr()
         }
     }
 
-    session_->stat_->nn_xr++;
-
     return err;
 }
 
@@ -1227,16 +1209,12 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn) {
     srs_utime_t now = srs_get_system_time();
     err = rtcp_twcc_.recv_packet(sn, now);
 
-    session_->stat_->nn_in_twcc++;
-
     return err;
 }
 
 srs_error_t SrsRtcPublishStream::on_rtp(char* data, int nb_data)
 {
     srs_error_t err = srs_success;
-
-    session_->stat_->nn_in_rtp++;
 
     // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop) {
@@ -1586,8 +1564,6 @@ srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId
         srs_freep(err);
     }
 
-    session_->stat_->nn_pli++;
-
     return err;
 }
 
@@ -1655,51 +1631,6 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
-SrsRtcConnectionStatistic::SrsRtcConnectionStatistic()
-{
-    dead = born = srs_get_system_time();
-    nn_publishers = nn_subscribers = 0;
-    nn_rr = nn_xr = 0;
-    nn_sr = nn_nack = nn_pli = 0;
-    nn_in_twcc = nn_in_rtp = nn_in_audios = nn_in_videos = 0;
-    nn_out_twcc = nn_out_rtp = nn_out_audios = nn_out_videos = 0;
-}
-
-SrsRtcConnectionStatistic::~SrsRtcConnectionStatistic()
-{
-}
-
-string SrsRtcConnectionStatistic::summary()
-{
-    dead = srs_get_system_time();
-
-    stringstream ss;
-
-    ss << "alive=" << srsu2msi(dead - born) << "ms";
-
-    if (nn_publishers) ss << ", npub=" << nn_publishers;
-    if (nn_subscribers) ss << ", nsub=" << nn_subscribers;
-
-    if (nn_rr) ss << ", nrr=" << nn_rr;
-    if (nn_xr) ss << ", nxr=" << nn_xr;
-    
-    if (nn_sr) ss << ", nsr=" << nn_sr;
-    if (nn_nack) ss << ", nnack=" << nn_nack;
-    if (nn_pli) ss << ", npli=" << nn_pli;
-
-    if (nn_in_twcc) ss << ", in_ntwcc=" << nn_in_twcc;
-    if (nn_in_rtp) ss << ", in_nrtp=" << nn_in_rtp;
-    if (nn_in_audios) ss << ", in_naudio=" << nn_in_audios;
-    if (nn_in_videos) ss << ", in_nvideo=" << nn_in_videos;
-
-    if (nn_out_twcc) ss << ", out_ntwcc=" << nn_out_twcc;
-    if (nn_out_rtp) ss << ", out_nrtp=" << nn_out_rtp;
-    if (nn_out_audios) ss << ", out_naudio=" << nn_out_audios;
-    if (nn_out_videos) ss << ", out_nvideo=" << nn_out_videos;
-
-    return ss.str();
-}
-
 ISrsRtcConnectionHijacker::ISrsRtcConnectionHijacker()
 {
 }
@@ -1751,7 +1682,6 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
 {
     req = NULL;
     cid_ = cid;
-    stat_ = new SrsRtcConnectionStatistic();
     hijacker_ = NULL;
 
     sendonly_skt = NULL;
@@ -1818,7 +1748,6 @@ SrsRtcConnection::~SrsRtcConnection()
 
     srs_freep(transport_);
     srs_freep(req);
-    srs_freep(stat_);
     srs_freep(pp_address_change);
     srs_freep(pli_epp);
 }
@@ -2304,8 +2233,7 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
         SrsContextRestore(_srs_context->get_id());
         switch_to_context();
 
-        srs_trace("RTC: session destroy by DTLS alert, username=%s, summary: %s",
-            username_.c_str(), stat_->summary().c_str());
+        srs_trace("RTC: session destroy by DTLS alert, username=%s", username_.c_str());
         _srs_rtc_manager->remove(this);
     }
 

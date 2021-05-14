@@ -2192,29 +2192,10 @@ SrsRtcTrackDescription* SrsRtcStreamDescription::find_track_description_by_ssrc(
     return NULL;
 }
 
-SrsRtcTrackStatistic::SrsRtcTrackStatistic()
-{
-    packets = 0;
-    last_packets = 0;
-    bytes = 0;
-    last_bytes = 0;
-    nacks = 0;
-    last_nacks = 0;
-    padding_packets = 0;
-    last_padding_packets = 0;
-    padding_bytes = 0;
-    last_padding_bytes = 0;
-    replay_packets = 0;
-    last_replay_packets = 0;
-    replay_bytes = 0;
-    last_replay_bytes = 0;
-}
-
 SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
 {
     session_ = session;
     track_desc_ = track_desc->copy();
-    statistic_ = new SrsRtcTrackStatistic();
     nack_no_copy_ = false;
 
     if (is_audio) {
@@ -2233,7 +2214,6 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
     srs_freep(rtp_queue_);
     srs_freep(nack_receiver_);
     srs_freep(track_desc_);
-    srs_freep(statistic_);
 }
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
@@ -2341,7 +2321,6 @@ srs_error_t SrsRtcRecvTrack::do_check_send_nacks(uint32_t& timeout_nacks)
 
     uint32_t sent_nacks = 0;
     session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks, timeout_nacks);
-    statistic_->nacks += sent_nacks;
 
     return err;
 }
@@ -2369,13 +2348,6 @@ void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffe
 srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pkt)
 {
     srs_error_t err = srs_success;
-
-    // connection level statistic
-    session_->stat_->nn_in_audios++;
-
-    // track level statistic
-    statistic_->packets++;
-    statistic_->bytes += pkt->nb_bytes();
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");
@@ -2433,13 +2405,6 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcStream* source, SrsRtpPacket2* pk
 {
     srs_error_t err = srs_success;
 
-    // connection level statistic
-    session_->stat_->nn_in_videos++;
-
-    // track level statistic
-    statistic_->packets++;
-    statistic_->bytes += pkt->nb_bytes();
-
     pkt->frame_type = SrsFrameTypeVideo;
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
@@ -2475,7 +2440,6 @@ SrsRtcSendTrack::SrsRtcSendTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
 {
     session_ = session;
     track_desc_ = track_desc->copy();
-    statistic_ = new SrsRtcTrackStatistic();
     nack_no_copy_ = false;
 
     if (is_audio) {
@@ -2491,7 +2455,6 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
 {
     srs_freep(rtp_queue_);
     srs_freep(track_desc_);
-    srs_freep(statistic_);
     srs_freep(nack_epp);
 }
 
@@ -2568,10 +2531,6 @@ srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t>& lost_seqs)
 
     ++_srs_pps_rnack2->sugar;
 
-    SrsRtcTrackStatistic* statistic = statistic_;
-
-    statistic->nacks++;
-
     for(int i = 0; i < (int)lost_seqs.size(); ++i) {
         uint16_t seq = lost_seqs.at(i);
         SrsRtpPacket2* pkt = fetch_rtp_packet(seq);
@@ -2624,14 +2583,6 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket2* pkt)
         // TODO: FIXME: Should update PT for RTX.
     }
 
-    // Update stats.
-    session_->stat_->nn_out_audios++;
-
-    // track level statistic
-    // TODO: FIXME: if send packets failed, statistic is no correct.
-    statistic_->packets++;
-    statistic_->bytes += pkt->nb_bytes();
-
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
@@ -2662,8 +2613,6 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt)
     if (!track_desc_->is_active_) {
         return err;
     }
-
-    SrsRtcTrackStatistic* statistic = statistic_;
     
     pkt->header.set_ssrc(track_desc_->ssrc_);
 
@@ -2677,14 +2626,6 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket2* pkt)
     } else {
         // TODO: FIXME: Should update PT for RTX.
     }
-
-    // Update stats.
-    session_->stat_->nn_out_videos++;
-
-    // track level statistic
-    // TODO: FIXME: if send packets failed, statistic is no correct.
-    statistic->packets++;
-    statistic->bytes += pkt->nb_bytes();
 
     if ((err = session_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
