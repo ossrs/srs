@@ -200,13 +200,13 @@ function Centos_prepare()
         echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
-            require_sudoer "sudo yum install -y --force-yes tcl"
+            require_sudoer "sudo yum install -y tcl"
             echo "The tcl is installed."
         fi
 
         cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing cmake."
-            require_sudoer "sudo  yum install -y --force-yes cmake"
+            require_sudoer "sudo  yum install -y cmake"
             echo "The cmake is installed."
         fi
     fi
