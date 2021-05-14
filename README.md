@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-14, Change virtual public to public. 4.0.109
 * v4.0, 2021-05-14, Refine id and vid for statistic. 4.0.108
 * v4.0, 2021-05-09, Refine tid for sdk and demos. 4.0.106
 * v4.0, 2021-05-08, Refine shared fast timer. 4.0.105

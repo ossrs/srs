@@ -83,8 +83,8 @@ public:
 };
 
 // The client provides the main logic control for RTMP clients.
-class SrsRtmpConn : virtual public ISrsStartableConneciton, virtual public ISrsReloadHandler
-    , virtual public ISrsCoroutineHandler, virtual public ISrsExpire
+class SrsRtmpConn : public ISrsStartableConneciton, public ISrsReloadHandler
+    , public ISrsCoroutineHandler, public ISrsExpire
 {
     // For the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;

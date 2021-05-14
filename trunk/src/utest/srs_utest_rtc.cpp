@@ -708,7 +708,7 @@ srs_error_t MockDtls::do_handshake()
     return err;
 }
 
-class MockDtlsCallback : virtual public ISrsDtlsCallback, virtual public ISrsCoroutineHandler
+class MockDtlsCallback : public ISrsDtlsCallback, public ISrsCoroutineHandler
 {
 public:
     SrsDtls* peer;

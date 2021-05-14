@@ -185,7 +185,7 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-class SrsGoApiRaw : virtual public ISrsHttpHandler, virtual public ISrsReloadHandler
+class SrsGoApiRaw : public ISrsHttpHandler, public ISrsReloadHandler
 {
 private:
     SrsServer* server;
@@ -247,8 +247,8 @@ public:
 #endif
 
 // Handle the HTTP API request.
-class SrsHttpApi : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
-    , virtual public ISrsReloadHandler
+class SrsHttpApi : public ISrsStartableConneciton, public ISrsHttpConnOwner
+    , public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.

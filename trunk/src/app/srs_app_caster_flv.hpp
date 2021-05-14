@@ -47,8 +47,7 @@ class SrsSimpleRtmpClient;
 #include <srs_kernel_file.hpp>
 
 // The stream caster for flv stream over HTTP POST.
-class SrsAppCasterFlv : virtual public ISrsTcpHandler
-    , virtual public ISrsResourceManager, virtual public ISrsHttpHandler
+class SrsAppCasterFlv : public ISrsTcpHandler, public ISrsResourceManager, public ISrsHttpHandler
 {
 private:
     std::string output;
@@ -72,8 +71,7 @@ public:
 };
 
 // The dynamic http connection, never drop the body.
-class SrsDynamicHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
-    , virtual public ISrsReloadHandler
+class SrsDynamicHttpConn : public ISrsStartableConneciton, public ISrsHttpConnOwner, public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.

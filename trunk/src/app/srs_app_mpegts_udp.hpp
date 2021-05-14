@@ -67,7 +67,7 @@ public:
 };
 
 // The mpegts over udp stream caster.
-class SrsMpegtsOverUdp : virtual public ISrsTsHandler, virtual public ISrsUdpHandler
+class SrsMpegtsOverUdp : public ISrsTsHandler, public ISrsUdpHandler
 {
 private:
     SrsTsContext* context;
