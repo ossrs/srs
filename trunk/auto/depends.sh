@@ -102,6 +102,20 @@ function Ubuntu_prepare()
         fi
     fi
 
+    if [[ $SRS_SRT == YES ]]; then
+        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing tcl."
+            require_sudoer "sudo apt-get install -y --force-yes tcl"
+            echo "The tcl is installed."
+        fi
+
+        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing cmake."
+            require_sudoer "sudo apt-get install -y --force-yes cmake"
+            echo "The cmake is installed."
+        fi
+    fi
+
     pkg-config --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "Installing pkg-config."
         require_sudoer "sudo apt-get install -y --force-yes pkg-config"
@@ -178,6 +192,20 @@ function Centos_prepare()
             require_sudoer "sudo yum install -y valgrind-devel"
             sudo yum install -y valgrind-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The valgrind-devel is installed."
+        fi
+    fi
+
+    if [[ $SRS_SRT == YES ]]; then
+        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing tcl."
+            require_sudoer "sudo yum install -y --force-yes tcl"
+            echo "The tcl is installed."
+        fi
+
+        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing cmake."
+            require_sudoer "sudo  yum install -y --force-yes cmake"
+            echo "The cmake is installed."
         fi
     fi
 
@@ -275,6 +303,22 @@ function OSX_prepare()
             echo "brew install libiconv"
             brew install libiconv; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libiconv success"
+        fi
+    fi
+
+    if [[ $SRS_SRT == YES ]]; then
+        tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing tcl."
+            echo "brew install tcl."
+            brew install tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install tcl success"
+        fi
+
+        cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "Installing cmake."
+            echo "brew install cmake."
+            brew install cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install cmake success"
         fi
     fi
 
