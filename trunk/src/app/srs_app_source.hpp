@@ -183,7 +183,7 @@ public:
 };
 
 // The consumer for SrsSource, that is a play client.
-class SrsConsumer : virtual public ISrsWakable
+class SrsConsumer : public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;

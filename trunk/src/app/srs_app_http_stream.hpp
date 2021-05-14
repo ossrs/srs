@@ -231,8 +231,8 @@ public:
 
 // The HTTP Live Streaming Server, to serve FLV/TS/MP3/AAC stream.
 // TODO: Support multiple stream.
-class SrsHttpStreamServer : virtual public ISrsReloadHandler
-, virtual public ISrsHttpMatchHijacker
+class SrsHttpStreamServer : public ISrsReloadHandler
+, public ISrsHttpMatchHijacker
 {
 private:
     SrsServer* server;

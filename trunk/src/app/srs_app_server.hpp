@@ -102,7 +102,7 @@ public:
 };
 
 // A buffered TCP listener.
-class SrsBufferListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsBufferListener : public SrsListener, public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
@@ -117,7 +117,7 @@ public:
 };
 
 // A TCP listener, for rtsp server.
-class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsRtspListener : public SrsListener, public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
@@ -133,7 +133,7 @@ public:
 };
 
 // A TCP listener, for flv stream server.
-class SrsHttpFlvListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsHttpFlvListener : public SrsListener, public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
@@ -179,7 +179,7 @@ public:
     virtual ~SrsGb28181Listener();
 };
 
-class SrsGb28181TcpListener : virtual public SrsListener, virtual public ISrsTcpHandler
+class SrsGb28181TcpListener : public SrsListener, public ISrsTcpHandler
 {
 private:
 	SrsTcpListener* listener;
@@ -262,9 +262,9 @@ public:
 
 // TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : virtual public ISrsReloadHandler, virtual public ISrsSourceHandler
-    , virtual public ISrsResourceManager, virtual public ISrsCoroutineHandler
-    , virtual public ISrsHourGlass
+class SrsServer : public ISrsReloadHandler, public ISrsSourceHandler
+    , public ISrsResourceManager, public ISrsCoroutineHandler
+    , public ISrsHourGlass
 {
 private:
     // TODO: FIXME: Extract an HttpApiServer.

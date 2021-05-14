@@ -47,7 +47,6 @@ class SrsRtcStream;
 class SrsRtcFromRtmpBridger;
 class SrsAudioTranscoder;
 class SrsRtpPacket2;
-class SrsRtpPacketCacheHelper;
 class SrsSample;
 class SrsRtcStreamDescription;
 class SrsRtcTrackDescription;
@@ -259,16 +258,6 @@ private:
     srs_error_t on_timer(srs_utime_t interval);
 };
 
-// A helper class, to release the packet to cache.
-class SrsRtpPacketCacheHelper
-{
-public:
-    SrsRtpPacket2* pkt;
-public:
-    SrsRtpPacketCacheHelper();
-    virtual ~SrsRtpPacketCacheHelper();
-};
-
 #ifdef SRS_FFMPEG_FIT
 class SrsRtcFromRtmpBridger : public ISrsSourceBridger
 {
@@ -298,16 +287,16 @@ public:
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
 private:
     srs_error_t transcode(SrsAudioFrame* audio);
-    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacketCacheHelper* helper);
+    srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket2* pkt);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
     srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacketCacheHelper* helper);
-    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacketCacheHelper*>& helpers);
-    srs_error_t consume_packets(std::vector<SrsRtpPacketCacheHelper*>& helpers);
+    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacket2* pkt);
+    srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket2*>& pkts);
+    srs_error_t consume_packets(std::vector<SrsRtpPacket2*>& pkts);
 };
 
 class SrsRtmpFromRtcBridger : public ISrsRtcSourceBridger
@@ -532,50 +521,10 @@ public:
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
 };
 
-class SrsRtcTrackStatistic
-{
-public:
-	// packets received or sent.
-	uint32_t packets;
-	// packets received or sent at last statistic time.
-    uint32_t last_packets;
-    // bytes received or sent.
-    uint64_t bytes;
-    // bytes received or sent at last statistic time.
-    uint32_t last_bytes;
-
-    // nacks received or sent.
-	uint32_t nacks;
-    // nacks received or sent at last statistic time.
-    uint32_t last_nacks;
-
-    // padding packets received or sent.
-	uint32_t padding_packets;
-    // padding packets received or sent at last statistic time.
-    uint32_t last_padding_packets;
-    // padding bytes received or sent.
-	uint32_t padding_bytes;
-    // padding bytes received or sent at last statistic time.
-    uint32_t last_padding_bytes;
-
-    // replay packets received or sent.
-	uint32_t replay_packets;
-    // replay packets received or sent at last statistic time.
-    uint32_t last_replay_packets;
-    // replay bytes received or sent.
-	uint64_t replay_bytes;
-    // replay bytes received or sent at last statistic time.
-    uint64_t last_replay_bytes;
-
-public:
-    SrsRtcTrackStatistic();
-};
-
 class SrsRtcRecvTrack
 {
 protected:
     SrsRtcTrackDescription* track_desc_;
-    SrsRtcTrackStatistic* statistic_;
 protected:
     SrsRtcConnection* session_;
     SrsRtpRingBuffer* rtp_queue_;
@@ -613,7 +562,7 @@ protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
 };
 
-class SrsRtcAudioRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
+class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc);
@@ -625,7 +574,7 @@ public:
     virtual srs_error_t check_send_nacks();
 };
 
-class SrsRtcVideoRecvTrack : virtual public SrsRtcRecvTrack, virtual public ISrsRtpPacketDecodeHandler
+class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
     SrsRtcVideoRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs);
@@ -642,7 +591,6 @@ class SrsRtcSendTrack
 protected:
     // send track description
     SrsRtcTrackDescription* track_desc_;
-    SrsRtcTrackStatistic* statistic_;
 protected:
     // The owner connection for this track.
     SrsRtcConnection* session_;

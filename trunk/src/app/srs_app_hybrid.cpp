@@ -374,29 +374,20 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
 #endif
 
     string objs_desc;
-    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update(); _srs_pps_objs_rothers->update(); _srs_pps_objs_drop->update();
-    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s() || _srs_pps_objs_rothers->r10s() || _srs_pps_objs_drop->r10s()) {
-        snprintf(buf, sizeof(buf), ", objs=(pkt:%d,raw:%d,fua:%d,msg:%d,oth:%d,buf:%d,drop:%d)",
+    _srs_pps_objs_rtps->update(); _srs_pps_objs_rraw->update(); _srs_pps_objs_rfua->update(); _srs_pps_objs_rbuf->update(); _srs_pps_objs_msgs->update(); _srs_pps_objs_rothers->update();
+    if (_srs_pps_objs_rtps->r10s() || _srs_pps_objs_rraw->r10s() || _srs_pps_objs_rfua->r10s() || _srs_pps_objs_rbuf->r10s() || _srs_pps_objs_msgs->r10s() || _srs_pps_objs_rothers->r10s()) {
+        snprintf(buf, sizeof(buf), ", objs=(pkt:%d,raw:%d,fua:%d,msg:%d,oth:%d,buf:%d)",
             _srs_pps_objs_rtps->r10s(), _srs_pps_objs_rraw->r10s(), _srs_pps_objs_rfua->r10s(),
-            _srs_pps_objs_msgs->r10s(), _srs_pps_objs_rothers->r10s(), _srs_pps_objs_rbuf->r10s(), _srs_pps_objs_drop->r10s());
+            _srs_pps_objs_msgs->r10s(), _srs_pps_objs_rothers->r10s(), _srs_pps_objs_rbuf->r10s());
         objs_desc = buf;
     }
 
-    string cache_desc;
-    if (_srs_rtp_cache->size() || _srs_rtp_raw_cache->size() || _srs_rtp_fua_cache->size() || _srs_rtp_msg_cache_buffers->size() || _srs_rtp_msg_cache_objs->size()) {
-        snprintf(buf, sizeof(buf), ", cache=(pkt:%d-%dw,raw:%d-%dw,fua:%d-%dw,msg:%d-%dw,buf:%d-%dw)",
-            _srs_rtp_cache->size(), _srs_rtp_cache->capacity()/10000, _srs_rtp_raw_cache->size(), _srs_rtp_raw_cache->capacity()/10000,
-            _srs_rtp_fua_cache->size(), _srs_rtp_fua_cache->capacity()/10000, _srs_rtp_msg_cache_objs->size(), _srs_rtp_msg_cache_objs->capacity()/10000,
-            _srs_rtp_msg_cache_buffers->size(), _srs_rtp_msg_cache_buffers->capacity()/10000);
-        cache_desc = buf;
-    }
-
-    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s%s%s%s",
+    srs_trace("Hybrid cpu=%.2f%%,%dMB%s%s%s%s%s%s%s%s%s%s%s",
         u->percent * 100, memory,
         cid_desc.c_str(), timer_desc.c_str(),
         recvfrom_desc.c_str(), io_desc.c_str(), msg_desc.c_str(),
         epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
-        thread_desc.c_str(), free_desc.c_str(), objs_desc.c_str(), cache_desc.c_str()
+        thread_desc.c_str(), free_desc.c_str(), objs_desc.c_str()
     );
 
     return err;

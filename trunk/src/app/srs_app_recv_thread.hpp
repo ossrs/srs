@@ -138,9 +138,9 @@ public:
 
 // The publish recv thread got message and callback the source method to process message.
 // @see: https://github.com/ossrs/srs/issues/237
-class SrsPublishRecvThread : virtual public ISrsMessagePumper, virtual public ISrsReloadHandler
+class SrsPublishRecvThread : public ISrsMessagePumper, public ISrsReloadHandler
 #ifdef SRS_PERF_MERGED_READ
-    , virtual public IMergeReadHandler
+    , public IMergeReadHandler
 #endif
 {
 private:
