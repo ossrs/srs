@@ -68,7 +68,8 @@ public:
     std::string stream;
     std::string url;
     bool active;
-    SrsContextId connection_cid;
+    // The publisher connection id.
+    std::string publisher_id;
     int nb_clients;
     uint64_t nb_frames;
 public:
@@ -101,8 +102,8 @@ public:
 public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
-    // Publish the stream.
-    virtual void publish(SrsContextId cid);
+    // Publish the stream, id is the publisher.
+    virtual void publish(std::string id);
     // Close the stream.
     virtual void close();
 };
@@ -196,8 +197,8 @@ public:
     virtual srs_error_t on_video_frames(SrsRequest* req, int nb_frames);
     // When publish stream.
     // @param req the request object of publish connection.
-    // @param cid the cid of publish connection.
-    virtual void on_stream_publish(SrsRequest* req, SrsContextId cid);
+    // @param publisher_id The id of publish connection.
+    virtual void on_stream_publish(SrsRequest* req, std::string publisher_id);
     // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
@@ -206,17 +207,15 @@ public:
     // @param req, the client request object.
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
-    // TODO: FIXME: We should not use context id as client id.
-    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    // TODO: FIXME: We should not use context id as client id.
-    virtual void on_disconnect(const SrsContextId& id);
+    virtual void on_disconnect(std::string id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
-    virtual void kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta);
+    virtual void kbps_add_delta(std::string id, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
     // @return the server kbps.
     virtual SrsKbps* kbps_sample();
