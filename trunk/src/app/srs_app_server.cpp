@@ -1555,7 +1555,7 @@ void SrsServer::resample_kbps()
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        stat->kbps_add_delta(c->get_id(), conn);
+        stat->kbps_add_delta(c->get_id().c_str(), conn);
     }
     
     // TODO: FXME: support all other connections.
@@ -1662,8 +1662,8 @@ void SrsServer::remove(ISrsResource* c)
     ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
 
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(c->get_id(), conn);
-    stat->on_disconnect(c->get_id());
+    stat->kbps_add_delta(c->get_id().c_str(), conn);
+    stat->on_disconnect(c->get_id().c_str());
 
     // use manager to free it async.
     conn_manager->remove(c);

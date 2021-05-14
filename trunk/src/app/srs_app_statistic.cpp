@@ -34,23 +34,16 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_protocol_utility.hpp>
 
-string srs_generate_id()
+string srs_generate_stat_vid()
 {
-    static int64_t srs_gvid = 0;
-
-    if (srs_gvid == 0) {
-        srs_gvid = getpid();
-    }
-
-    string prefix = "vid";
-    string rand_id = srs_int2str(srs_get_system_time() % 1000);
-    return prefix + "-" + srs_int2str(srs_gvid++) + "-" + rand_id;
+    return "vid-" + srs_random_str(7);
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
-    id = srs_generate_id();
+    id = srs_generate_stat_vid();
     
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
@@ -101,7 +94,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject* obj)
 
 SrsStatisticStream::SrsStatisticStream()
 {
-    id = srs_generate_id();
+    id = srs_generate_stat_vid();
     vhost = NULL;
     active = false;
 
@@ -156,7 +149,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     obj->set("publish", publish);
     
     publish->set("active", SrsJsonAny::boolean(active));
-    publish->set("cid", SrsJsonAny::str(connection_cid.c_str()));
+    publish->set("cid", SrsJsonAny::str(publisher_id.c_str()));
     
     if (!has_video) {
         obj->set("video", SrsJsonAny::null());
@@ -186,9 +179,9 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject* obj)
     return err;
 }
 
-void SrsStatisticStream::publish(SrsContextId cid)
+void SrsStatisticStream::publish(std::string id)
 {
-    connection_cid = cid;
+    publisher_id = id;
     active = true;
     
     vhost->nb_streams++;
@@ -261,7 +254,7 @@ SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
 {
-    _server_id = srs_generate_id();
+    _server_id = srs_generate_stat_vid();
     
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
@@ -407,12 +400,12 @@ srs_error_t SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
     return err;
 }
 
-void SrsStatistic::on_stream_publish(SrsRequest* req, SrsContextId cid)
+void SrsStatistic::on_stream_publish(SrsRequest* req, std::string publisher_id)
 {
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     
-    stream->publish(cid);
+    stream->publish(publisher_id);
 }
 
 void SrsStatistic::on_stream_close(SrsRequest* req)
@@ -438,12 +431,9 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
-srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
-
-    // TODO: FIXME: We should use UUID for client ID.
-    std::string id = cid.c_str();
 
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
@@ -473,11 +463,8 @@ srs_error_t SrsStatistic::on_client(SrsContextId cid, SrsRequest* req, ISrsExpir
     return err;
 }
 
-void SrsStatistic::on_disconnect(const SrsContextId& cid)
+void SrsStatistic::on_disconnect(std::string id)
 {
-    // TODO: FIXME: We should use UUID for client ID.
-    std::string id = cid.c_str();
-
     std::map<std::string, SrsStatisticClient*>::iterator it;
     if ((it = clients.find(id)) == clients.end()) {
         return;
@@ -494,10 +481,8 @@ void SrsStatistic::on_disconnect(const SrsContextId& cid)
     vhost->nb_clients--;
 }
 
-void SrsStatistic::kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta)
+void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
 {
-    // TODO: FIXME: Should not use context id as connection id.
-    std::string id = cid.c_str();
     if (clients.find(id) == clients.end()) {
         return;
     }
