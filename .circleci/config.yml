@@ -24,6 +24,14 @@ jobs:
       - run: |
           echo "Build and run SRS with GB28181" &&
           cd trunk && ./configure --gb28181=on && make
+  build-c7-srt:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT" &&
+          cd trunk && ./configure --srt=on && make
   build-c8-baseline:
     docker:
       - image: ossrs/srs:dev8
@@ -32,6 +40,14 @@ jobs:
       - run: |
           echo "Build and run SRS for CentOS8" &&
           cd trunk && ./configure && make
+  build-c8-srt:
+    docker:
+      - image: ossrs/srs:dev8
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT for CentOS8" &&
+          cd trunk && ./configure --srt=on && make
   build-u20-baseline:
     docker:
       - image: ossrs/srs:dev8
@@ -40,6 +56,14 @@ jobs:
       - run: |
           echo "Build and run SRS for Ubuntu20" &&
           cd trunk && ./configure && make
+  build-u20-srt:
+    docker:
+      - image: ossrs/srs:dev8
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT for Ubuntu20" &&
+          cd trunk && ./configure --srt=on && make
   run-utest:
     docker:
       - image: ossrs/srs:dev
