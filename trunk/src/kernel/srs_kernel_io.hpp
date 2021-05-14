@@ -71,7 +71,7 @@ public:
 /**
  * The reader and seeker.
  */
-class ISrsReadSeeker : virtual public ISrsReader, virtual public ISrsSeeker
+class ISrsReadSeeker : public ISrsReader, public ISrsSeeker
 {
 public:
     ISrsReadSeeker();
@@ -115,7 +115,7 @@ public:
 /**
  * The generally writer, stream and vector writer.
  */
-class ISrsWriter : virtual public ISrsStreamWriter, virtual public ISrsVectorWriter
+class ISrsWriter : public ISrsStreamWriter, public ISrsVectorWriter
 {
 public:
     ISrsWriter();
@@ -125,7 +125,7 @@ public:
 /**
  * The writer and seeker.
  */
-class ISrsWriteSeeker : virtual public ISrsWriter, virtual public ISrsSeeker
+class ISrsWriteSeeker : public ISrsWriter, public ISrsSeeker
 {
 public:
     ISrsWriteSeeker();

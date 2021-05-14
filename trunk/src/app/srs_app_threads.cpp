@@ -46,13 +46,6 @@ extern SrsStageManager* _srs_stages;
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
 
-extern SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache;
-extern SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache;
-extern SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache;
-
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers;
-extern SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs;
-
 extern SrsResourceManager* _srs_rtc_manager;
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 
@@ -166,7 +159,6 @@ extern SrsPps* _srs_pps_objs_rraw;
 extern SrsPps* _srs_pps_objs_rfua;
 extern SrsPps* _srs_pps_objs_rbuf;
 extern SrsPps* _srs_pps_objs_rothers;
-extern SrsPps* _srs_pps_objs_drop;
 
 SrsCircuitBreaker::SrsCircuitBreaker()
 {
@@ -306,13 +298,6 @@ srs_error_t srs_thread_initialize()
     _srs_rtc_manager = new SrsResourceManager("RTC", true);
     _srs_circuit_breaker = new SrsCircuitBreaker();
 
-    _srs_rtp_cache = new SrsRtpObjectCacheManager<SrsRtpPacket2>(sizeof(SrsRtpPacket2));
-    _srs_rtp_raw_cache = new SrsRtpObjectCacheManager<SrsRtpRawPayload>(sizeof(SrsRtpRawPayload));
-    _srs_rtp_fua_cache = new SrsRtpObjectCacheManager<SrsRtpFUAPayload2>(sizeof(SrsRtpFUAPayload2));
-
-    _srs_rtp_msg_cache_buffers = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage) + kRtpPacketSize);
-    _srs_rtp_msg_cache_objs = new SrsRtpObjectCacheManager<SrsSharedPtrMessage>(sizeof(SrsSharedPtrMessage));
-
     _srs_rtc_manager = new SrsResourceManager("RTC", true);
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 
@@ -416,7 +401,6 @@ srs_error_t srs_thread_initialize()
     _srs_pps_objs_rfua = new SrsPps();
     _srs_pps_objs_rbuf = new SrsPps();
     _srs_pps_objs_rothers = new SrsPps();
-    _srs_pps_objs_drop = new SrsPps();
 
     return err;
 }

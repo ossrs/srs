@@ -75,7 +75,7 @@ public:
 /**
  * the reader for the protocol to read from whatever channel.
  */
-class ISrsProtocolReader : virtual public ISrsReader, virtual public ISrsProtocolStatistic
+class ISrsProtocolReader : public ISrsReader, virtual public ISrsProtocolStatistic
 {
 public:
     ISrsProtocolReader();
@@ -97,7 +97,7 @@ public:
 /**
  * the writer for the protocol to write to whatever channel.
  */
-class ISrsProtocolWriter : virtual public ISrsWriter, virtual public ISrsProtocolStatistic
+class ISrsProtocolWriter : public ISrsWriter, virtual public ISrsProtocolStatistic
 {
 public:
     ISrsProtocolWriter();
@@ -114,7 +114,7 @@ public:
 /**
  * The reader and writer.
  */
-class ISrsProtocolReadWriter : virtual public ISrsProtocolReader, virtual public ISrsProtocolWriter
+class ISrsProtocolReadWriter : public ISrsProtocolReader, public ISrsProtocolWriter
 {
 public:
     ISrsProtocolReadWriter();

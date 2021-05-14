@@ -192,7 +192,7 @@ public:
 };
 
 // A worker coroutine to request the PLI.
-class SrsRtcPLIWorker : virtual public ISrsCoroutineHandler
+class SrsRtcPLIWorker : public ISrsCoroutineHandler
 {
 private:
     SrsCoroutine* trd_;
@@ -394,24 +394,6 @@ private:
     void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp);
 };
 
-// The statistics for RTC connection.
-class SrsRtcConnectionStatistic
-{
-public:
-    int nn_publishers; int nn_subscribers;
-    int nn_rr; int nn_xr; int nn_sr; int nn_nack; int nn_pli;
-    uint64_t nn_in_twcc; uint64_t nn_in_rtp; uint64_t nn_in_audios; uint64_t nn_in_videos;
-    uint64_t nn_out_twcc; uint64_t nn_out_rtp; uint64_t nn_out_audios; uint64_t nn_out_videos;
-private:
-    srs_utime_t born;
-    srs_utime_t dead;
-public:
-    SrsRtcConnectionStatistic();
-    virtual ~SrsRtcConnectionStatistic();
-public:
-    std::string summary();
-};
-
 // Callback for RTC connection.
 class ISrsRtcConnectionHijacker
 {
@@ -437,7 +419,7 @@ private:
 
 // A RTC Peer Connection, SDP level object.
 //
-// For performance, we use non-virtual public from resource,
+// For performance, we use non-public from resource,
 // see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
 class SrsRtcConnection : public ISrsResource, public ISrsDisposingHandler
 {
@@ -449,7 +431,6 @@ private:
     SrsRtcConnectionNackTimer* timer_nack_;
 public:
     bool disposing_;
-    SrsRtcConnectionStatistic* stat_;
     ISrsRtcConnectionHijacker* hijacker_;
 private:
     SrsRtcServer* server_;

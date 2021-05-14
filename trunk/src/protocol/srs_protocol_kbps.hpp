@@ -137,7 +137,7 @@ public:
  *      user->set_io(kbps, kbps);
  *   the server never know how many bytes already send/recv, for the connection maybe closed.
  */
-class SrsKbps : virtual public ISrsProtocolStatistic, virtual public ISrsKbpsDelta
+class SrsKbps : public ISrsProtocolStatistic, public ISrsKbpsDelta
 {
 private:
     SrsKbpsSlice is;

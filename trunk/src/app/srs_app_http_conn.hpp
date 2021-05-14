@@ -75,8 +75,8 @@ public:
 };
 
 // The http connection which request the static or stream content.
-class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsCoroutineHandler
-    , virtual public ISrsExpire
+class SrsHttpConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
+    , public ISrsExpire
 {
 protected:
     SrsHttpParser* parser;
@@ -143,8 +143,8 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
-    , virtual public ISrsReloadHandler
+class SrsResponseOnlyHttpConn : public ISrsStartableConneciton, public ISrsHttpConnOwner
+    , public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.

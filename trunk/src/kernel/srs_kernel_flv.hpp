@@ -312,8 +312,6 @@ public:
     SrsSharedPtrMessage();
     virtual ~SrsSharedPtrMessage();
 public:
-    // For object cache to reset and reuse it.
-    bool recycle();
     // Create shared ptr message,
     // copy header, manage the payload of msg,
     // set the payload to NULL to prevent double free.

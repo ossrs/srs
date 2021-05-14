@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 using namespace std;
 
-class MockResponseWriter : virtual public ISrsHttpResponseWriter, virtual public ISrsHttpHeaderFilter
+class MockResponseWriter : public ISrsHttpResponseWriter, public ISrsHttpHeaderFilter
 {
 public:
     SrsHttpResponseWriter* w;

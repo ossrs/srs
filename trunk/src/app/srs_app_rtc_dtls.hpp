@@ -144,7 +144,7 @@ protected:
     virtual bool is_dtls_client() = 0;
 };
 
-class SrsDtlsClientImpl : virtual public SrsDtlsImpl, virtual public ISrsCoroutineHandler
+class SrsDtlsClientImpl : public SrsDtlsImpl, public ISrsCoroutineHandler
 {
 private:
     // ARQ thread, for role active(DTLS client).

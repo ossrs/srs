@@ -154,7 +154,7 @@ The ports used by SRS:
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN][v4_CN_Streamer2], [EN][v4_EN_Streamer2]).
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
-- [x] [Deprecated] Support pushing RTSP, please read [bug #133][bug #133].
+- [x] [Deprecated] Support pushing RTSP, please read [bug #2304][bug #2304].
 - [x] [Deprecated] Support RTMP client library: srs-librtmp([CN][v4_CN_SrsLibrtmp], [EN][v4_EN_SrsLibrtmp])
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing([CN][v4_CN_BandwidthTestTool], [EN][v4_EN_BandwidthTestTool]), please read [#1535][bug #1535].
@@ -182,6 +182,8 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-14, RTC: Remove [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008), no effect. 4.0.110
+* v4.0, 2021-05-14, Change virtual public to public. 4.0.109
 * v4.0, 2021-05-14, Refine id and vid for statistic. 4.0.108
 * v4.0, 2021-05-09, Refine tid for sdk and demos. 4.0.106
 * v4.0, 2021-05-08, Refine shared fast timer. 4.0.105
@@ -649,7 +651,7 @@ The ports used by SRS:
 * v2.0, 2015-02-24, for [#304][bug #304], fix hls bug, write pts/dts error. 2.0.124
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.
 * v2.0, 2015-02-19, refine pithy print to more easyer to use. 2.0.121.
-* v2.0, 2015-02-18, fix [#133][bug #133], support push rtsp to srs. 2.0.120.
+* v2.0, 2015-02-18, fix [#2304][bug #2304], support push rtsp to srs. 2.0.120.
 * v2.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 2.0.119.
 * v2.0, 2015-02-15, for [#304][bug #304], support config default acodec/vcodec. 2.0.118.
 * v2.0, 2015-02-15, for [#304][bug #304], rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.
@@ -1921,6 +1923,7 @@ Winlin
 [bug #2093]: https://github.com/ossrs/srs/issues/2093
 [bug #2188]: https://github.com/ossrs/srs/issues/2188
 [bug #1193]: https://github.com/ossrs/srs/issues/1193
+[bug #2304]: https://github.com/ossrs/srs/issues/2304#issuecomment-826009290
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631

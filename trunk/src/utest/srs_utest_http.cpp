@@ -174,7 +174,7 @@ public:
     }
 };
 
-class MockHttpHandler : virtual public ISrsHttpHandler, virtual public ISrsHttpMatchHijacker
+class MockHttpHandler : public ISrsHttpHandler, public ISrsHttpMatchHijacker
 {
 public:
     string bytes;

@@ -190,9 +190,6 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
 srs_error_t SrsQueueRecvThread::start()
 {
     srs_error_t err = srs_success;
-
-    SrsStatistic* stat = SrsStatistic::instance();
-    rtmp->set_perf(stat);
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "queue recv thread");
