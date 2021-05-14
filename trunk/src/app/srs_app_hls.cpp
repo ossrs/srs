@@ -241,13 +241,8 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
 {
     srs_error_t err = srs_success;
     
-    // @see https://github.com/ossrs/srs/issues/2311
-    if (req) {
-        req->update_auth(r);
-    } 
-    else {
-        req = r->copy();
-    }
+    srs_freep(req);
+    req = r->copy();
 
     hls_entry_prefix = entry_prefix;
     hls_path = path;
