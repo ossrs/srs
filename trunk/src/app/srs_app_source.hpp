@@ -487,7 +487,7 @@ public:
 // Global singleton instance.
 extern SrsLiveSourceManager* _srs_sources;
 
-// For RTMP2RTC, bridge SrsLiveSource to SrsRtcStream
+// For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
 class ISrsLiveSourceBridger
 {
 public:

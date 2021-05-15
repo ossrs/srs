@@ -291,7 +291,7 @@ srs_error_t srs_thread_initialize()
 
     // The global objects which depends on ST.
     _srs_hybrid = new SrsHybridServer();
-    _srs_rtc_sources = new SrsRtcStreamManager();
+    _srs_rtc_sources = new SrsRtcSourceManager();
     _srs_sources = new SrsLiveSourceManager();
     _srs_stages = new SrsStageManager();
     _srs_blackhole = new SrsRtcBlackhole();

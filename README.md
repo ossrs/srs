@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-15, Rename SrsRtcStream* to SrsRtcSource*. 4.0.113
 * v4.0, 2021-05-15, Rename SrsSource* to SrsLiveSource*. 4.0.112
 * v4.0, 2021-05-15, Rename SrsRtpPacket2 to SrsRtpPacket. 4.0.111
 * v4.0, 2021-05-14, RTC: Remove [Object Cache Pool](https://github.com/ossrs/srs/commit/14bfc98122bba369572417c19ebb2a61b373fc45#commitcomment-47655008), no effect. 4.0.110

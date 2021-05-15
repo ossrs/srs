@@ -963,7 +963,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
-    SrsRtcStream *rtc = NULL;
+    SrsRtcSource *rtc = NULL;
     bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
     bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
     if (rtc_server_enabled && rtc_enabled && !info->edge) {

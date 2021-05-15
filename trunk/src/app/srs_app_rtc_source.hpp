@@ -43,12 +43,12 @@ class SrsMetaCache;
 class SrsSharedPtrMessage;
 class SrsCommonMessage;
 class SrsMessageArray;
-class SrsRtcStream;
+class SrsRtcSource;
 class SrsRtcFromRtmpBridger;
 class SrsAudioTranscoder;
 class SrsRtpPacket;
 class SrsSample;
-class SrsRtcStreamDescription;
+class SrsRtcSourceDescription;
 class SrsRtcTrackDescription;
 class SrsRtcConnection;
 class SrsRtpRingBuffer;
@@ -74,20 +74,20 @@ public:
 };
 
 // When RTC stream publish and re-publish.
-class ISrsRtcStreamChangeCallback
+class ISrsRtcSourceChangeCallback
 {
 public:
-    ISrsRtcStreamChangeCallback();
-    virtual ~ISrsRtcStreamChangeCallback();
+    ISrsRtcSourceChangeCallback();
+    virtual ~ISrsRtcSourceChangeCallback();
 public:
-    virtual void on_stream_change(SrsRtcStreamDescription* desc) = 0;
+    virtual void on_stream_change(SrsRtcSourceDescription* desc) = 0;
 };
 
 // The RTC stream consumer, consume packets from RTC stream source.
 class SrsRtcConsumer
 {
 private:
-    SrsRtcStream* source;
+    SrsRtcSource* source;
     std::vector<SrsRtpPacket*> queue;
     // when source id changed, notice all consumers
     bool should_update_source_id;
@@ -98,9 +98,9 @@ private:
     int mw_min_msgs;
 private:
     // The callback for stream change event.
-    ISrsRtcStreamChangeCallback* handler_;
+    ISrsRtcSourceChangeCallback* handler_;
 public:
-    SrsRtcConsumer(SrsRtcStream* s);
+    SrsRtcConsumer(SrsRtcSource* s);
     virtual ~SrsRtcConsumer();
 public:
     // When source id changed, notice client to print.
@@ -113,31 +113,31 @@ public:
     // Wait for at-least some messages incoming in queue.
     virtual void wait(int nb_msgs);
 public:
-    void set_handler(ISrsRtcStreamChangeCallback* h) { handler_ = h; } // SrsRtcConsumer::set_handler()
-    void on_stream_change(SrsRtcStreamDescription* desc);
+    void set_handler(ISrsRtcSourceChangeCallback* h) { handler_ = h; } // SrsRtcConsumer::set_handler()
+    void on_stream_change(SrsRtcSourceDescription* desc);
 };
 
-class SrsRtcStreamManager
+class SrsRtcSourceManager
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsRtcStream*> pool;
+    std::map<std::string, SrsRtcSource*> pool;
 public:
-    SrsRtcStreamManager();
-    virtual ~SrsRtcStreamManager();
+    SrsRtcSourceManager();
+    virtual ~SrsRtcSourceManager();
 public:
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcStream** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
-    virtual SrsRtcStream* fetch(SrsRequest* r);
+    virtual SrsRtcSource* fetch(SrsRequest* r);
 };
 
 // Global singleton instance.
-extern SrsRtcStreamManager* _srs_rtc_sources;
+extern SrsRtcSourceManager* _srs_rtc_sources;
 
 // A publish stream interface, for source to callback with.
 class ISrsRtcPublishStream
@@ -150,11 +150,11 @@ public:
     virtual void request_keyframe(uint32_t ssrc) = 0;
 };
 
-class ISrsRtcStreamEventHandler
+class ISrsRtcSourceEventHandler
 {
 public:
-    ISrsRtcStreamEventHandler();
-    virtual ~ISrsRtcStreamEventHandler();
+    ISrsRtcSourceEventHandler();
+    virtual ~ISrsRtcSourceEventHandler();
 public:
     // stream unpublish, sync API.
     virtual void on_unpublish() = 0;
@@ -162,7 +162,7 @@ public:
     virtual void on_consumers_finished() = 0;
 };
 
-// SrsRtcStream bridge to SrsLiveSource
+// SrsRtcSource bridge to SrsLiveSource
 class ISrsRtcSourceBridger
 {
 public:
@@ -175,7 +175,7 @@ public:
 };
 
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
-class SrsRtcStream : public ISrsFastTimer
+class SrsRtcSource : public ISrsFastTimer
 {
 private:
     // For publish, it's the publish client id.
@@ -188,7 +188,7 @@ private:
     SrsRequest* req;
     ISrsRtcPublishStream* publish_stream_;
     // Steam description for this steam.
-    SrsRtcStreamDescription* stream_desc_;
+    SrsRtcSourceDescription* stream_desc_;
     // The Source bridger, bridger stream to other source.
     ISrsRtcSourceBridger* bridger_;
 private:
@@ -199,14 +199,14 @@ private:
     // Whether stream is delivering data, that is, DTLS is done.
     bool is_delivering_packets_;
     // Notify stream event to event handler
-    std::vector<ISrsRtcStreamEventHandler*> event_handlers_;
+    std::vector<ISrsRtcSourceEventHandler*> event_handlers_;
 private:
     // The PLI for RTC2RTMP.
     srs_utime_t pli_for_rtmp_;
     srs_utime_t pli_elapsed_;
 public:
-    SrsRtcStream();
-    virtual ~SrsRtcStream();
+    SrsRtcSource();
+    virtual ~SrsRtcSource();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     // Update the authentication information in request.
@@ -241,8 +241,8 @@ public:
     virtual void on_unpublish();
 public:
     // For event handler
-    void subscribe(ISrsRtcStreamEventHandler* h);
-    void unsubscribe(ISrsRtcStreamEventHandler* h);
+    void subscribe(ISrsRtcSourceEventHandler* h);
+    void unsubscribe(ISrsRtcSourceEventHandler* h);
 public:
     // Get and set the publisher, passed to consumer to process requests such as PLI.
     ISrsRtcPublishStream* publish_stream();
@@ -251,7 +251,7 @@ public:
     srs_error_t on_rtp(SrsRtpPacket* pkt);
     // Set and get stream description for souce
     bool has_stream_desc();
-    void set_stream_desc(SrsRtcStreamDescription* stream_desc);
+    void set_stream_desc(SrsRtcSourceDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
 // interface ISrsFastTimer
 private:
@@ -263,7 +263,7 @@ class SrsRtcFromRtmpBridger : public ISrsLiveSourceBridger
 {
 private:
     SrsRequest* req;
-    SrsRtcStream* source_;
+    SrsRtcSource* source_;
     // The format, codec information.
     SrsRtmpFormat* format;
     // The metadata cache.
@@ -278,7 +278,7 @@ private:
     uint32_t audio_ssrc;
     uint32_t video_ssrc;
 public:
-    SrsRtcFromRtmpBridger(SrsRtcStream* source);
+    SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
@@ -292,7 +292,7 @@ public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:
     srs_error_t filter(SrsSharedPtrMessage* msg, SrsFormat* format, bool& has_idr, std::vector<SrsSample*>& samples);
-    srs_error_t package_stap_a(SrsRtcStream* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt);
+    srs_error_t package_stap_a(SrsRtcSource* source, SrsSharedPtrMessage* msg, SrsRtpPacket* pkt);
     srs_error_t package_nalus(SrsSharedPtrMessage* msg, const std::vector<SrsSample*>& samples, std::vector<SrsRtpPacket*>& pkts);
     srs_error_t package_single_nalu(SrsSharedPtrMessage* msg, SrsSample* sample, std::vector<SrsRtpPacket*>& pkts);
     srs_error_t package_fu_a(SrsSharedPtrMessage* msg, SrsSample* sample, int fu_payload_size, std::vector<SrsRtpPacket*>& pkts);
@@ -504,7 +504,7 @@ public:
     SrsRtcTrackDescription* copy();
 };
 
-class SrsRtcStreamDescription
+class SrsRtcSourceDescription
 {
 public:
     // the id for this stream;
@@ -513,11 +513,11 @@ public:
     SrsRtcTrackDescription* audio_track_desc_;
     std::vector<SrsRtcTrackDescription*> video_track_descs_;
 public:
-    SrsRtcStreamDescription();
-    virtual ~SrsRtcStreamDescription();
+    SrsRtcSourceDescription();
+    virtual ~SrsRtcSourceDescription();
 
 public:
-    SrsRtcStreamDescription* copy();
+    SrsRtcSourceDescription* copy();
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
 };
 
@@ -556,7 +556,7 @@ public:
     // set to NULL, nack nerver copy it but set the pkt to NULL.
     srs_error_t on_nack(SrsRtpPacket** ppkt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket* pkt) = 0;
+    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 protected:
     virtual srs_error_t do_check_send_nacks(uint32_t& timeout_nacks);
@@ -570,7 +570,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
@@ -582,7 +582,7 @@ public:
 public:
     virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 public:
-    virtual srs_error_t on_rtp(SrsRtcStream* source, SrsRtpPacket* pkt);
+    virtual srs_error_t on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt);
     virtual srs_error_t check_send_nacks();
 };
 
