@@ -39,7 +39,7 @@ class SrsRtspConn;
 class SrsRtspStack;
 class SrsRtspCaster;
 class SrsConfDirective;
-class SrsRtpPacket;
+class SrsRtspPacket;
 class SrsRequest;
 class SrsStSocket;
 class SrsRtmpClient;
@@ -60,7 +60,7 @@ private:
     SrsPithyPrint* pprint;
     SrsUdpListener* listener;
     SrsRtspConn* rtsp;
-    SrsRtpPacket* cache;
+    SrsRtspPacket* cache;
     int stream_id;
     int _port;
 public:
@@ -153,14 +153,14 @@ private:
     virtual srs_error_t do_cycle();
 // internal methods
 public:
-    virtual srs_error_t on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
+    virtual srs_error_t on_rtp_packet(SrsRtspPacket* pkt, int stream_id);
 // Interface ISrsOneCycleThreadHandler
 public:
     virtual srs_error_t cycle();
 private:
-    virtual srs_error_t on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
-    virtual srs_error_t on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
-    virtual srs_error_t kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
+    virtual srs_error_t on_rtp_video(SrsRtspPacket* pkt, int64_t dts, int64_t pts);
+    virtual srs_error_t on_rtp_audio(SrsRtspPacket* pkt, int64_t dts);
+    virtual srs_error_t kickoff_audio_cache(SrsRtspPacket* pkt, int64_t dts);
 private:
     virtual srs_error_t write_sequence_header();
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);

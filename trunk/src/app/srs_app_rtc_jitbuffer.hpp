@@ -44,7 +44,7 @@ class SrsRtpFrameBuffer;
 class SrsRtpDecodingState;
 class SrsGb28181RtmpMuxer;
 class VCMPacket;
-class SrsRtpPacket2;
+class SrsRtpPacket;
 
 ///jittbuffer
 
