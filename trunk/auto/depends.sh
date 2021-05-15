@@ -16,14 +16,11 @@
 #####################################################################################
 function require_sudoer()
 {
-    user_group=`groups 2>&1`
-    if [[ $user_group != "root" ]]; then
-        sudo echo "" >/dev/null 2>&1
-        
-        ret=$?; if [[ 0 -ne $ret ]]; then 
-            echo "\"$1\" require sudoer failed. ret=$ret";
-            exit $ret; 
-        fi
+    sudo echo "" >/dev/null 2>&1
+    
+    ret=$?; if [[ 0 -ne $ret ]]; then 
+        echo "\"$1\" require sudoer failed. ret=$ret";
+        exit $ret; 
     fi
 }
 
