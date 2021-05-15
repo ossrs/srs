@@ -33,7 +33,7 @@
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 
-class SrsRtpPacket2;
+class SrsRtpPacket;
 class SrsRtpQueue;
 class SrsRtpRingBuffer;
 
@@ -51,7 +51,7 @@ private:
     // Capacity of the ring-buffer.
     uint16_t capacity_;
     // Ring bufer.
-    SrsRtpPacket2** queue_;
+    SrsRtpPacket** queue_;
     // Increase one when uint16 flip back, for get_extended_highest_sequence.
     uint64_t nn_seq_flip_backs;
     // Whether initialized, because we use uint16 so we can't use -1.
@@ -74,7 +74,7 @@ public:
     // Move the low position of buffer to seq.
     void advance_to(uint16_t seq);
     // Free the packet at position.
-    void set(uint16_t at, SrsRtpPacket2* pkt);
+    void set(uint16_t at, SrsRtpPacket* pkt);
     void remove(uint16_t at);
     // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
@@ -82,7 +82,7 @@ public:
     // @return If false, the seq is too old.
     bool update(uint16_t seq, uint16_t& nack_first, uint16_t& nack_last);
     // Get the packet by seq.
-    SrsRtpPacket2* at(uint16_t seq);
+    SrsRtpPacket* at(uint16_t seq);
 public:
     // TODO: FIXME: Refine it?
     void notify_nack_list_full();

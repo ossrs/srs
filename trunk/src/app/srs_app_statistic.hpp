@@ -68,7 +68,8 @@ public:
     std::string stream;
     std::string url;
     bool active;
-    SrsContextId connection_cid;
+    // The publisher connection id.
+    std::string publisher_id;
     int nb_clients;
     uint64_t nb_frames;
 public:
@@ -101,8 +102,8 @@ public:
 public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 public:
-    // Publish the stream.
-    virtual void publish(SrsContextId cid);
+    // Publish the stream, id is the publisher.
+    virtual void publish(std::string id);
     // Close the stream.
     virtual void close();
 };
@@ -123,28 +124,7 @@ public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 };
 
-class SrsStatisticCategory
-{
-public:
-    uint64_t nn;
-public:
-    uint64_t a;
-    uint64_t b;
-    uint64_t c;
-    uint64_t d;
-    uint64_t e;
-public:
-    uint64_t f;
-    uint64_t g;
-    uint64_t h;
-    uint64_t i;
-    uint64_t j;
-public:
-    SrsStatisticCategory();
-    virtual ~SrsStatisticCategory();
-};
-
-class SrsStatistic : public ISrsProtocolPerf
+class SrsStatistic
 {
 private:
     static SrsStatistic *_instance;
@@ -168,12 +148,6 @@ private:
     // The server total kbps.
     SrsKbps* kbps;
     SrsWallClock* clk;
-    // The perf stat for mw(merged write).
-    SrsStatisticCategory* perf_iovs;
-    SrsStatisticCategory* perf_msgs;
-    SrsStatisticCategory* perf_rtp;
-    SrsStatisticCategory* perf_rtc;
-    SrsStatisticCategory* perf_bytes;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
@@ -196,8 +170,8 @@ public:
     virtual srs_error_t on_video_frames(SrsRequest* req, int nb_frames);
     // When publish stream.
     // @param req the request object of publish connection.
-    // @param cid the cid of publish connection.
-    virtual void on_stream_publish(SrsRequest* req, SrsContextId cid);
+    // @param publisher_id The id of publish connection.
+    virtual void on_stream_publish(SrsRequest* req, std::string publisher_id);
     // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
@@ -206,17 +180,15 @@ public:
     // @param req, the client request object.
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
-    // TODO: FIXME: We should not use context id as client id.
-    virtual srs_error_t on_client(SrsContextId id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
     //      exists in stat.
-    // TODO: FIXME: We should not use context id as client id.
-    virtual void on_disconnect(const SrsContextId& id);
+    virtual void on_disconnect(std::string id);
     // Sample the kbps, add delta bytes of conn.
     // Use kbps_sample() to get all result of kbps stat.
-    virtual void kbps_add_delta(const SrsContextId& cid, ISrsKbpsDelta* delta);
+    virtual void kbps_add_delta(std::string id, ISrsKbpsDelta* delta);
     // Calc the result for all kbps.
     // @return the server kbps.
     virtual SrsKbps* kbps_sample();
@@ -232,35 +204,6 @@ public:
     // @param start the start index, from 0.
     // @param count the max count of clients to dump.
     virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
-public:
-    // Stat for packets merged written, nb_msgs is the number of RTMP messages.
-    // For example, publish by FFMPEG, Audio and Video frames.
-    virtual void perf_on_msgs(int nb_msgs);
-    virtual srs_error_t dumps_perf_msgs(SrsJsonObject* obj);
-public:
-    // Stat for packets merged written, nb_packets is the number of RTC packets.
-    // For example, a RTMP/AAC audio packet maybe transcoded to two RTC/opus packets.
-    virtual void perf_on_rtc_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_rtc_packets(SrsJsonObject* obj);
-public:
-    // Stat for packets merged written, nb_packets is the number of RTP packets.
-    // For example, a RTC/opus packet maybe package to three RTP packets.
-    virtual void perf_on_rtp_packets(int nb_packets);
-    virtual srs_error_t dumps_perf_rtp_packets(SrsJsonObject* obj);
-public:
-    // Stat for TCP writev, nb_iovs is the total number of iovec.
-    virtual void perf_on_writev_iovs(int nb_iovs);
-    virtual srs_error_t dumps_perf_writev_iovs(SrsJsonObject* obj);
-public:
-    // Stat for bytes, nn_bytes is the size of bytes, nb_padding is padding bytes.
-    virtual void perf_on_rtc_bytes(int nn_bytes, int nn_rtp_bytes, int nn_padding);
-    virtual srs_error_t dumps_perf_bytes(SrsJsonObject* obj);
-public:
-    // Reset all perf stat data.
-    virtual void reset_perf();
-private:
-    virtual void perf_on_packets(SrsStatisticCategory* p, int nb_msgs);
-    virtual srs_error_t dumps_perf(SrsStatisticCategory* p, SrsJsonObject* obj);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
     virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);

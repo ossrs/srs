@@ -53,7 +53,7 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     stream_id = sid;
     // TODO: support listen at <[ip:]port>
     listener = new SrsUdpListener(this, srs_any_address_for_listener(), p);
-    cache = new SrsRtpPacket();
+    cache = new SrsRtspPacket();
     pprint = SrsPithyPrint::create_caster();
 }
 
@@ -83,14 +83,14 @@ srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, c
     if (true) {
         SrsBuffer stream(buf, nb_buf);
         
-        SrsRtpPacket pkt;
+        SrsRtspPacket pkt;
         if ((err = pkt.decode(&stream)) != srs_success) {
             return srs_error_wrap(err, "decode");
         }
         
         if (pkt.chunked) {
             if (!cache) {
-                cache = new SrsRtpPacket();
+                cache = new SrsRtspPacket();
             }
             cache->copy(&pkt);
             cache->payload->append(pkt.payload->bytes(), pkt.payload->length());
@@ -106,7 +106,7 @@ srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, c
             }
         } else {
             srs_freep(cache);
-            cache = new SrsRtpPacket();
+            cache = new SrsRtspPacket();
             cache->reap(&pkt);
         }
     }
@@ -119,7 +119,7 @@ srs_error_t SrsRtpConn::on_udp_packet(const sockaddr* from, const int fromlen, c
     }
     
     // always free it.
-    SrsAutoFree(SrsRtpPacket, cache);
+    SrsAutoFree(SrsRtspPacket, cache);
 
     err = rtsp->on_rtp_packet(cache, stream_id);
     if (err != srs_success) {
@@ -380,7 +380,7 @@ srs_error_t SrsRtspConn::do_cycle()
     return err;
 }
 
-srs_error_t SrsRtspConn::on_rtp_packet(SrsRtpPacket* pkt, int stream_id)
+srs_error_t SrsRtspConn::on_rtp_packet(SrsRtspPacket* pkt, int stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -438,7 +438,7 @@ srs_error_t SrsRtspConn::cycle()
     return err;
 }
 
-srs_error_t SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts)
+srs_error_t SrsRtspConn::on_rtp_video(SrsRtspPacket* pkt, int64_t dts, int64_t pts)
 {
     srs_error_t err = srs_success;
     
@@ -457,7 +457,7 @@ srs_error_t SrsRtspConn::on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pt
     return err;
 }
 
-srs_error_t SrsRtspConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t SrsRtspConn::on_rtp_audio(SrsRtspPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     
@@ -476,7 +476,7 @@ srs_error_t SrsRtspConn::on_rtp_audio(SrsRtpPacket* pkt, int64_t dts)
     return err;
 }
 
-srs_error_t SrsRtspConn::kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts)
+srs_error_t SrsRtspConn::kickoff_audio_cache(SrsRtspPacket* pkt, int64_t dts)
 {
     srs_error_t err = srs_success;
     

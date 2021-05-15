@@ -76,7 +76,7 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     srs_error_t err = srs_success;
     
     // it's ok to use the request object,
-    // SrsSource already copy it and never delete it.
+    // SrsLiveSource already copy it and never delete it.
     req = r;
     
     // the ep(endpoint) to forward to

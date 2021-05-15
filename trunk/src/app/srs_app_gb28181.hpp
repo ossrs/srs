@@ -77,7 +77,7 @@
 #define STREAM_TYPE_AUDIO_PCM       0x9c
 
 class SrsConfDirective;
-class SrsRtpPacket;
+class SrsRtspPacket;
 class SrsRtmpClient;
 class SrsRawH264Stream;
 class SrsRawAacStream;
@@ -100,7 +100,7 @@ class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
 class SrsRtpJitterBuffer;
 class SrsServer;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
 class SrsResourceManager;
 class SrsGb28181Conn;
@@ -108,7 +108,7 @@ class SrsGb28181Caster;
 
 //ps rtp header packet parse
 
-class SrsPsRtpPacket: public SrsRtpPacket
+class SrsPsRtpPacket: public SrsRtspPacket
 {
 public:
     SrsPsRtpPacket();
@@ -326,7 +326,7 @@ private:
     std::string aac_specific_config;
 
     SrsRequest* req;
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsServer* server;
 
     SrsRtpJitterBuffer *jitter_buffer;

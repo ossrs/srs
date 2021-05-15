@@ -257,7 +257,7 @@ public:
 };
 
 // Response reader use st socket.
-class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
+class SrsHttpResponseReader : public ISrsHttpResponseReader
 {
 private:
     ISrsReader* skt;

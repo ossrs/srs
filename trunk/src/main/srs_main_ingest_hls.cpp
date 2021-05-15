@@ -639,7 +639,7 @@ int SrsIngestHlsInput::SrsTsPiece::fetch(string m3u8)
 }
 
 // the context to output to rtmp server
-class SrsIngestHlsOutput : virtual public ISrsTsHandler, virtual public ISrsAacHandler
+class SrsIngestHlsOutput : public ISrsTsHandler, public ISrsAacHandler
 {
 private:
     SrsHttpUri* out_rtmp;

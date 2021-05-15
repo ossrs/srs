@@ -189,7 +189,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd);
 }
 
-srs_error_t SrsEdgeIngester::initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeIngester::initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsRequest* r)
 {
     source = s;
     edge = e;
@@ -468,7 +468,7 @@ void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
     return queue->set_queue_size(queue_size);
 }
 
-srs_error_t SrsEdgeForwarder::initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r)
+srs_error_t SrsEdgeForwarder::initialize(SrsLiveSource* s, SrsPublishEdge* e, SrsRequest* r)
 {
     source = s;
     edge = e;
@@ -671,7 +671,7 @@ SrsPlayEdge::~SrsPlayEdge()
     srs_freep(ingester);
 }
 
-srs_error_t SrsPlayEdge::initialize(SrsSource* source, SrsRequest* req)
+srs_error_t SrsPlayEdge::initialize(SrsLiveSource* source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     
@@ -751,7 +751,7 @@ void SrsPublishEdge::set_queue_size(srs_utime_t queue_size)
     return forwarder->set_queue_size(queue_size);
 }
 
-srs_error_t SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
+srs_error_t SrsPublishEdge::initialize(SrsLiveSource* source, SrsRequest* req)
 {
     srs_error_t err = srs_success;
     

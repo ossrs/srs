@@ -997,9 +997,6 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle clusters");
     }
-    if ((err = http_api_mux->handle("/api/v1/perf", new SrsGoApiPerf())) != srs_success) {
-        return srs_error_wrap(err, "handle perf");
-    }
 #ifdef SRS_GB28181
     if ((err = http_api_mux->handle("/api/v1/gb28181", new SrsGoApiGb28181())) != srs_success) {
         return srs_error_wrap(err, "handle raw");
@@ -1555,7 +1552,7 @@ void SrsServer::resample_kbps()
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        stat->kbps_add_delta(c->get_id(), conn);
+        stat->kbps_add_delta(c->get_id().c_str(), conn);
     }
     
     // TODO: FXME: support all other connections.
@@ -1662,8 +1659,8 @@ void SrsServer::remove(ISrsResource* c)
     ISrsStartableConneciton* conn = dynamic_cast<ISrsStartableConneciton*>(c);
 
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->kbps_add_delta(c->get_id(), conn);
-    stat->on_disconnect(c->get_id());
+    stat->kbps_add_delta(c->get_id().c_str(), conn);
+    stat->on_disconnect(c->get_id().c_str());
 
     // use manager to free it async.
     conn_manager->remove(c);
@@ -1785,7 +1782,7 @@ srs_error_t SrsServer::on_reload_http_stream_updated()
     return err;
 }
 
-srs_error_t SrsServer::on_publish(SrsSource* s, SrsRequest* r)
+srs_error_t SrsServer::on_publish(SrsLiveSource* s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
@@ -1801,7 +1798,7 @@ srs_error_t SrsServer::on_publish(SrsSource* s, SrsRequest* r)
     return err;
 }
 
-void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
+void SrsServer::on_unpublish(SrsLiveSource* s, SrsRequest* r)
 {
     http_server->http_unmount(s, r);
     

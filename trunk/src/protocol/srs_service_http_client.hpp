@@ -46,7 +46,7 @@ class SrsTcpClient;
 #define SRS_HTTP_CLIENT_TIMEOUT (30 * SRS_UTIME_SECONDS)
 
 // The SSL client over TCP transport.
-class SrsSslClient : virtual public ISrsReader, virtual public ISrsStreamWriter
+class SrsSslClient : public ISrsReader, public ISrsStreamWriter
 {
 private:
     SrsTcpClient* transport;

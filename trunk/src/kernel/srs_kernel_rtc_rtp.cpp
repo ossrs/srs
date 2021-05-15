@@ -41,7 +41,6 @@ SrsPps* _srs_pps_objs_rraw = NULL;
 SrsPps* _srs_pps_objs_rfua = NULL;
 SrsPps* _srs_pps_objs_rbuf = NULL;
 SrsPps* _srs_pps_objs_rothers = NULL;
-SrsPps* _srs_pps_objs_drop = NULL;
 
 /* @see https://tools.ietf.org/html/rfc1889#section-5.1
   0                   1                   2                   3
@@ -761,18 +760,18 @@ ISrsRtpPayloader::~ISrsRtpPayloader()
 {
 }
 
-ISrsRtpPacketDecodeHandler::ISrsRtpPacketDecodeHandler()
+ISrsRtspPacketDecodeHandler::ISrsRtspPacketDecodeHandler()
 {
 }
 
-ISrsRtpPacketDecodeHandler::~ISrsRtpPacketDecodeHandler()
+ISrsRtspPacketDecodeHandler::~ISrsRtspPacketDecodeHandler()
 {
 }
 
-SrsRtpPacket2::SrsRtpPacket2()
+SrsRtpPacket::SrsRtpPacket()
 {
     payload_ = NULL;
-    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
+    payload_type_ = SrsRtspPacketPayloadTypeUnknown;
     shared_buffer_ = NULL;
     actual_buffer_size_ = 0;
 
@@ -784,94 +783,13 @@ SrsRtpPacket2::SrsRtpPacket2()
     ++_srs_pps_objs_rtps->sugar;
 }
 
-SrsRtpPacket2::~SrsRtpPacket2()
+SrsRtpPacket::~SrsRtpPacket()
 {
-    recycle_payload();
-    recycle_shared_buffer();
-}
-
-void SrsRtpPacket2::reset()
-{
-    nalu_type = SrsAvcNaluTypeReserved;
-    frame_type = SrsFrameTypeReserved;
-    cached_payload_size = 0;
-    decode_handler = NULL;
-
-    // It's important to reset the header.
-    header = SrsRtpHeader();
-
-    // Recyle the payload again, to ensure the packet is new one.
-    recycle_payload();
-    recycle_shared_buffer();
-}
-
-void SrsRtpPacket2::recycle_payload()
-{
-    if (!payload_) {
-        return;
-    }
-
-    if (payload_type_ == SrsRtpPacketPayloadTypeRaw && _srs_rtp_raw_cache->enabled()) {
-        _srs_rtp_raw_cache->recycle((SrsRtpRawPayload*)payload_);
-        goto cleanup;
-    }
-
-    if (payload_type_ == SrsRtpPacketPayloadTypeFUA2 && _srs_rtp_fua_cache->enabled()) {
-        _srs_rtp_fua_cache->recycle((SrsRtpFUAPayload2*)payload_);
-        goto cleanup;
-    }
-
     srs_freep(payload_);
-
-cleanup:
-    payload_ = NULL;
-    payload_type_ = SrsRtpPacketPayloadTypeUnknown;
-}
-
-void SrsRtpPacket2::recycle_shared_buffer()
-{
-    if (!shared_buffer_) {
-        return;
-    }
-
-    // Only recycle the message for UDP packets.
-    if (shared_buffer_->payload && shared_buffer_->size == kRtpPacketSize) {
-        if (_srs_rtp_msg_cache_objs->enabled() && shared_buffer_->count() > 0) {
-            // Recycle the small shared message objects.
-            _srs_rtp_msg_cache_objs->recycle(shared_buffer_);
-            goto cleanup;
-        }
-
-        if (_srs_rtp_msg_cache_buffers->enabled() && shared_buffer_->count() == 0) {
-            // Recycle the UDP large buffer.
-            _srs_rtp_msg_cache_buffers->recycle(shared_buffer_);
-            goto cleanup;
-        }
-    }
-
     srs_freep(shared_buffer_);
-
-cleanup:
-    shared_buffer_ = NULL;
-    actual_buffer_size_ = 0;
 }
 
-bool SrsRtpPacket2::recycle()
-{
-    // Clear the cache size, it may change when reuse it.
-    cached_payload_size = 0;
-    // Reset the handler, for decode only.
-    decode_handler = NULL;
-
-    // We only recycle the payload and shared messages,
-    // for header and fields, user will reset or copy it.
-    recycle_payload();
-    recycle_shared_buffer();
-
-    return true;
-}
-
-char* SrsRtpPacket2::wrap(int size)
+char* SrsRtpPacket::wrap(int size)
 {
     // The buffer size is larger or equals to the size of packet.
     actual_buffer_size_ = size;
@@ -882,41 +800,28 @@ char* SrsRtpPacket2::wrap(int size)
     }
 
     // Create a large enough message, with under-layer buffer.
-    while (true) {
-        srs_freep(shared_buffer_);
-        shared_buffer_ = _srs_rtp_msg_cache_buffers->allocate();
+    srs_freep(shared_buffer_);
+    shared_buffer_ = new SrsSharedPtrMessage();
 
-        // If got a cached message(which has payload), but it's too small,
-        // we free it and allocate a larger one.
-        if (shared_buffer_->payload && shared_buffer_->size < size) {
-            ++_srs_pps_objs_rothers->sugar;
-            continue;
-        }
+    // Create under-layer buffer for new message
+    // For RTC, we use larger under-layer buffer for each packet.
+    int nb_buffer = srs_max(size, kRtpPacketSize);
+    char* buf = new char[nb_buffer];
+    shared_buffer_->wrap(buf, nb_buffer);
 
-        // Create under-layer buffer for new message
-        if (!shared_buffer_->payload) {
-            // For RTC, we use larger under-layer buffer for each packet.
-            int nb_buffer = srs_max(size, kRtpPacketSize);
-            char* buf = new char[nb_buffer];
-            shared_buffer_->wrap(buf, nb_buffer);
-
-            ++_srs_pps_objs_rbuf->sugar;
-        }
-
-        break;
-    }
+    ++_srs_pps_objs_rbuf->sugar;
 
     return shared_buffer_->payload;
 }
 
-char* SrsRtpPacket2::wrap(char* data, int size)
+char* SrsRtpPacket::wrap(char* data, int size)
 {
     char* buf = wrap(size);
     memcpy(buf, data, size);
     return buf;
 }
 
-char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
+char* SrsRtpPacket::wrap(SrsSharedPtrMessage* msg)
 {
     // Generally, the wrap(msg) is used for RTMP to RTC, which is not generated by RTC,
     // so we do not recycle the msg. It's ok to directly free the msg, event the msg is
@@ -931,9 +836,9 @@ char* SrsRtpPacket2::wrap(SrsSharedPtrMessage* msg)
     return msg->payload;
 }
 
-SrsRtpPacket2* SrsRtpPacket2::copy()
+SrsRtpPacket* SrsRtpPacket::copy()
 {
-    SrsRtpPacket2* cp = _srs_rtp_cache->allocate();
+    SrsRtpPacket* cp = new SrsRtpPacket();
 
     // We got packet from cache, the payload and message MUST be NULL,
     // because we had clear it in recycle.
@@ -956,7 +861,7 @@ SrsRtpPacket2* SrsRtpPacket2::copy()
     return cp;
 }
 
-void SrsRtpPacket2::set_padding(int size)
+void SrsRtpPacket::set_padding(int size)
 {
     header.set_padding(size);
     if (cached_payload_size) {
@@ -964,7 +869,7 @@ void SrsRtpPacket2::set_padding(int size)
     }
 }
 
-void SrsRtpPacket2::add_padding(int size)
+void SrsRtpPacket::add_padding(int size)
 {
     header.set_padding(header.get_padding() + size);
     if (cached_payload_size) {
@@ -972,22 +877,22 @@ void SrsRtpPacket2::add_padding(int size)
     }
 }
 
-void SrsRtpPacket2::set_decode_handler(ISrsRtpPacketDecodeHandler* h)
+void SrsRtpPacket::set_decode_handler(ISrsRtspPacketDecodeHandler* h)
 {
     decode_handler = h;
 }
 
-bool SrsRtpPacket2::is_audio()
+bool SrsRtpPacket::is_audio()
 {
     return frame_type == SrsFrameTypeAudio;
 }
 
-void SrsRtpPacket2::set_extension_types(SrsRtpExtensionTypes* v)
+void SrsRtpPacket::set_extension_types(SrsRtpExtensionTypes* v)
 {
     return header.set_extensions(v);
 }
 
-uint64_t SrsRtpPacket2::nb_bytes()
+uint64_t SrsRtpPacket::nb_bytes()
 {
     if (!cached_payload_size) {
         int nn_payload = (payload_? payload_->nb_bytes():0);
@@ -996,7 +901,7 @@ uint64_t SrsRtpPacket2::nb_bytes()
     return cached_payload_size;
 }
 
-srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
+srs_error_t SrsRtpPacket::encode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
@@ -1020,7 +925,7 @@ srs_error_t SrsRtpPacket2::encode(SrsBuffer* buf)
     return err;
 }
 
-srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
+srs_error_t SrsRtpPacket::decode(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
@@ -1043,8 +948,8 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
 
     // By default, we always use the RAW payload.
     if (!payload_) {
-        payload_ = _srs_rtp_raw_cache->allocate();
-        payload_type_ = SrsRtpPacketPayloadTypeRaw;
+        payload_ = new SrsRtpRawPayload();
+        payload_type_ = SrsRtspPacketPayloadTypeRaw;
     }
 
     if ((err = payload_->decode(buf)) != srs_success) {
@@ -1054,7 +959,7 @@ srs_error_t SrsRtpPacket2::decode(SrsBuffer* buf)
     return err;
 }
 
-bool SrsRtpPacket2::is_keyframe()
+bool SrsRtpPacket::is_keyframe()
 {
     // False if audio packet
     if(SrsFrameTypeAudio == frame_type) {
@@ -1081,13 +986,6 @@ bool SrsRtpPacket2::is_keyframe()
     return false;
 }
 
-SrsRtpObjectCacheManager<SrsRtpPacket2>* _srs_rtp_cache = NULL;
-SrsRtpObjectCacheManager<SrsRtpRawPayload>* _srs_rtp_raw_cache = NULL;
-SrsRtpObjectCacheManager<SrsRtpFUAPayload2>* _srs_rtp_fua_cache = NULL;
-
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_buffers = NULL;
-SrsRtpObjectCacheManager<SrsSharedPtrMessage>* _srs_rtp_msg_cache_objs = NULL;
-
 SrsRtpRawPayload::SrsRtpRawPayload()
 {
     payload = NULL;
@@ -1098,12 +996,6 @@ SrsRtpRawPayload::SrsRtpRawPayload()
 
 SrsRtpRawPayload::~SrsRtpRawPayload()
 {
-}
-
-bool SrsRtpRawPayload::recycle() 
-{ 
-    payload=NULL; nn_payload=0;
-    return true;    
 }
 
 uint64_t SrsRtpRawPayload::nb_bytes()
@@ -1140,7 +1032,7 @@ srs_error_t SrsRtpRawPayload::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpRawPayload::copy()
 {
-    SrsRtpRawPayload* cp = _srs_rtp_raw_cache->allocate();
+    SrsRtpRawPayload* cp = new SrsRtpRawPayload();
 
     cp->payload = payload;
     cp->nn_payload = nn_payload;
@@ -1566,16 +1458,6 @@ SrsRtpFUAPayload2::~SrsRtpFUAPayload2()
 {
 }
 
-bool SrsRtpFUAPayload2::recycle()
-{
-    start = end = false;
-    nri = nalu_type = (SrsAvcNaluType)0;
-
-    payload = NULL;
-    size = 0;
-    return true;
-}
-
 uint64_t SrsRtpFUAPayload2::nb_bytes()
 {
     return 2 + size;
@@ -1643,7 +1525,7 @@ srs_error_t SrsRtpFUAPayload2::decode(SrsBuffer* buf)
 
 ISrsRtpPayloader* SrsRtpFUAPayload2::copy()
 {
-    SrsRtpFUAPayload2* cp = _srs_rtp_fua_cache->allocate();
+    SrsRtpFUAPayload2* cp = new SrsRtpFUAPayload2();
 
     cp->nri = nri;
     cp->start = start;

@@ -77,7 +77,7 @@ public:
 };
 
 // The resource manager remove resource and delete it asynchronously.
-class SrsResourceManager : virtual public ISrsCoroutineHandler, virtual public ISrsResourceManager
+class SrsResourceManager : public ISrsCoroutineHandler, public ISrsResourceManager
 {
 private:
     std::string label_;
@@ -153,8 +153,8 @@ public:
 };
 
 // Interface for connection that is startable.
-class ISrsStartableConneciton : virtual public ISrsConnection
-    , virtual public ISrsStartable, virtual public ISrsKbpsDelta
+class ISrsStartableConneciton : public ISrsConnection
+    , public ISrsStartable, public ISrsKbpsDelta
 {
 public:
     ISrsStartableConneciton();
@@ -164,7 +164,7 @@ public:
 // The basic connection of SRS, for TCP based protocols,
 // all connections accept from listener must extends from this base class,
 // server will add the connection to manager, and delete it when remove.
-class SrsTcpConnection : virtual public ISrsProtocolReadWriter
+class SrsTcpConnection : public ISrsProtocolReadWriter
 {
 private:
     // The underlayer st fd handler.
@@ -196,7 +196,7 @@ public:
 };
 
 // The SSL connection over TCP transport, in server mode.
-class SrsSslConnection : virtual public ISrsProtocolReadWriter
+class SrsSslConnection : public ISrsProtocolReadWriter
 {
 private:
     // The under-layer plaintext transport.

@@ -41,7 +41,7 @@ class SrsRtmpJitter;
 class SrsTsContextWriter;
 class SrsRequest;
 class SrsPithyPrint;
-class SrsSource;
+class SrsLiveSource;
 class SrsOriginHub;
 class SrsFileWriter;
 class SrsSimpleStream;
