@@ -47,14 +47,14 @@ SrsRtpRingBuffer::SrsRtpRingBuffer(int capacity)
     capacity_ = (uint16_t)capacity;
     initialized_ = false;
 
-    queue_ = new SrsRtpPacket2*[capacity_];
-    memset(queue_, 0, sizeof(SrsRtpPacket2*) * capacity);
+    queue_ = new SrsRtpPacket*[capacity_];
+    memset(queue_, 0, sizeof(SrsRtpPacket*) * capacity);
 }
 
 SrsRtpRingBuffer::~SrsRtpRingBuffer()
 {
     for (int i = 0; i < capacity_; ++i) {
-        SrsRtpPacket2* pkt = queue_[i];
+        SrsRtpPacket* pkt = queue_[i];
         srs_freep(pkt);
     }
     srs_freepa(queue_);
@@ -77,9 +77,9 @@ void SrsRtpRingBuffer::advance_to(uint16_t seq)
     begin = seq;
 }
 
-void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket2* pkt)
+void SrsRtpRingBuffer::set(uint16_t at, SrsRtpPacket* pkt)
 {
-    SrsRtpPacket2* p = queue_[at % capacity_];
+    SrsRtpPacket* p = queue_[at % capacity_];
     srs_freep(p);
 
     queue_[at % capacity_] = pkt;
@@ -143,7 +143,7 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t& nack_first, uint16_t& nack
     return true;
 }
 
-SrsRtpPacket2* SrsRtpRingBuffer::at(uint16_t seq) {
+SrsRtpPacket* SrsRtpRingBuffer::at(uint16_t seq) {
     return queue_[seq % capacity_];
 }
 
@@ -165,7 +165,7 @@ void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
 {
     // TODO FIXME Did not consider loopback
     for (uint16_t i = 0; i < capacity_; i++) {
-        SrsRtpPacket2* p = queue_[i];
+        SrsRtpPacket* p = queue_[i];
         if (p && p->header.get_sequence() < seq) {
             srs_freep(p);
             queue_[i] = NULL;
@@ -176,7 +176,7 @@ void SrsRtpRingBuffer::clear_histroy(uint16_t seq)
 void SrsRtpRingBuffer::clear_all_histroy()
 {
     for (uint16_t i = 0; i < capacity_; i++) {
-        SrsRtpPacket2* p = queue_[i];
+        SrsRtpPacket* p = queue_[i];
         if (p) {
             srs_freep(p);
             queue_[i] = NULL;

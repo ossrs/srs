@@ -594,7 +594,7 @@ srs_error_t SrsRtcPlayStream::cycle()
         }
 
         // Wait for amount of packets.
-        SrsRtpPacket2* pkt = NULL;
+        SrsRtpPacket* pkt = NULL;
         consumer->dump_packet(&pkt);
         if (!pkt) {
             // TODO: FIXME: We should check the quit event.
@@ -618,7 +618,7 @@ srs_error_t SrsRtcPlayStream::cycle()
     }
 }
 
-srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket2*& pkt)
+srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket*& pkt)
 {
     srs_error_t err = srs_success;
 
@@ -1287,7 +1287,7 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     }
 
     // Allocate packet form cache.
-    SrsRtpPacket2* pkt = new SrsRtpPacket2();
+    SrsRtpPacket* pkt = new SrsRtpPacket();
 
     // Copy the packet body.
     char* p = pkt->wrap(plaintext, nb_plaintext);
@@ -1305,7 +1305,7 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char* plaintext, int nb_plaint
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuffer* buf)
+srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket*& pkt, SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
 
@@ -1389,7 +1389,7 @@ srs_error_t SrsRtcPublishStream::check_send_nacks()
     return err;
 }
 
-void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt)
+void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt)
 {
     // No payload, ignore.
     if (buf->empty()) {
@@ -2503,7 +2503,7 @@ void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes
     nn_simulate_player_nack_drop--;
 }
 
-srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket2* pkt)
+srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
 
