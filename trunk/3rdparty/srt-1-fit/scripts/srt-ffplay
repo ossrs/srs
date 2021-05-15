@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#
+# SRT - Secure, Reliable, Transport
+# Copyright (c) 2018 Haivision Systems Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+FFPLAY=`type -p ffplay || echo none`
+if [[ $FFPLAY == "none" ]]; then
+	echo >&2 "ERROR: ffplay not available to call. Please install ffplay first."
+	exit 1
+fi
+
+DIRNAME=`dirname $0`
+if [[ ! -x $DIRNAME/srt-live-transmit ]]; then
+	echo >&2 "ERROR: you need 'srt-live-transmit' tool from SRT package in the same directory as this script."
+	exit 1
+fi
+
+SRCLOC=$1
+if [[ -z $SRCLOC ]]; then
+	echo >&2 "Usage: `basename $0` <source URL>"
+	exit 1
+fi
+
+$DIRNAME/srt-live-transmit "$1" file://con/ | ffplay -
+

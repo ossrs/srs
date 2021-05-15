@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-15, SRT: Build SRT from source by SRS. 4.0.115
 * v4.0, 2021-05-15, Rename SrsConsumer* to SrsLiveConsumer*. 4.0.114
 * v4.0, 2021-05-15, Rename SrsRtcStream* to SrsRtcSource*. 4.0.113
 * v4.0, 2021-05-15, Rename SrsSource* to SrsLiveSource*. 4.0.112

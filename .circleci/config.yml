@@ -24,6 +24,14 @@ jobs:
       - run: |
           echo "Build and run SRS with GB28181" &&
           cd trunk && ./configure --gb28181=on && make
+  build-c7-srt:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT" &&
+          cd trunk && ./configure --srt=on && make
   build-c8-baseline:
     docker:
       - image: ossrs/srs:dev8
@@ -32,14 +40,62 @@ jobs:
       - run: |
           echo "Build and run SRS for CentOS8" &&
           cd trunk && ./configure && make
-  build-u20-baseline:
+  build-c8-srt:
     docker:
       - image: ossrs/srs:dev8
     steps:
       - checkout
       - run: |
+          echo "Build and run SRS with SRT for CentOS8" &&
+          cd trunk && ./configure --srt=on && make
+  build-u16-baseline:
+    docker:
+      - image: ossrs/srs:ubuntu16
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS for Ubuntu16" &&
+          cd trunk && ./configure && make
+  build-u16-srt:
+    docker:
+      - image: ossrs/srs:ubuntu16
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT for Ubuntu16" &&
+          cd trunk && ./configure --srt=on && make
+  build-u18-baseline:
+    docker:
+      - image: ossrs/srs:ubuntu18
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS for Ubuntu18" &&
+          cd trunk && ./configure && make
+  build-u18-srt:
+    docker:
+      - image: ossrs/srs:ubuntu18
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT for Ubuntu18" &&
+          cd trunk && ./configure --srt=on && make
+  build-u20-baseline:
+    docker:
+      - image: ossrs/srs:ubuntu20
+    steps:
+      - checkout
+      - run: |
           echo "Build and run SRS for Ubuntu20" &&
           cd trunk && ./configure && make
+  build-u20-srt:
+    docker:
+      - image: ossrs/srs:ubuntu20
+    steps:
+      - checkout
+      - run: |
+          echo "Build and run SRS with SRT for Ubuntu20" &&
+          cd trunk && ./configure --srt=on && make
   run-utest:
     docker:
       - image: ossrs/srs:dev
@@ -76,6 +132,13 @@ workflows:
       - run-regression-test
       - build-c7-noasm
       - build-c7-gb28181
+      - build-c7-srt
       - build-c8-baseline
+      - build-c8-srt
+      - build-u16-baseline
+      - build-u16-srt
+      - build-u18-baseline
+      - build-u18-srt
       - build-u20-baseline
+      - build-u20-srt
       - build-c7-ansi-noff
