@@ -16,11 +16,14 @@
 #####################################################################################
 function require_sudoer()
 {
-    sudo echo "" >/dev/null 2>&1
-    
-    ret=$?; if [[ 0 -ne $ret ]]; then 
-        echo "\"$1\" require sudoer failed. ret=$ret";
-        exit $ret; 
+    user_group=`groups 2>&1`
+    if [[ $user_group != "root" ]]; then
+        sudo echo "" >/dev/null 2>&1
+        
+        ret=$?; if [[ 0 -ne $ret ]]; then 
+            echo "\"$1\" require sudoer failed. ret=$ret";
+            exit $ret; 
+        fi
     fi
 }
 
@@ -103,15 +106,18 @@ function Ubuntu_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             require_sudoer "sudo apt-get install -y --force-yes tcl"
+            sudo apt-get install -y --force-yes tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The tcl is installed."
         fi
 
         cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing cmake."
             require_sudoer "sudo apt-get install -y --force-yes cmake"
+            sudo apt-get install -y --force-yes cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The cmake is installed."
         fi
     fi
@@ -196,15 +202,18 @@ function Centos_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
-            require_sudoer "sudo yum install -y --force-yes tcl"
+            require_sudoer "sudo yum install -y tcl"
+            sudo yum install -y tcl; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The tcl is installed."
         fi
 
         cmake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing cmake."
-            require_sudoer "sudo  yum install -y --force-yes cmake"
+            require_sudoer "sudo  yum install -y cmake"
+            sudo yum install -y cmake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "The cmake is installed."
         fi
     fi
@@ -307,6 +316,7 @@ function OSX_prepare()
     fi
 
     if [[ $SRS_SRT == YES ]]; then
+        echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "Installing tcl."
             echo "brew install tcl."
