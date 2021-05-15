@@ -77,7 +77,7 @@
 #define STREAM_TYPE_AUDIO_PCM       0x9c
 
 class SrsConfDirective;
-class SrsRtpPacket;
+class SrsRtspPacket;
 class SrsRtmpClient;
 class SrsRawH264Stream;
 class SrsRawAacStream;
@@ -108,7 +108,7 @@ class SrsGb28181Caster;
 
 //ps rtp header packet parse
 
-class SrsPsRtpPacket: public SrsRtpPacket
+class SrsPsRtpPacket: public SrsRtspPacket
 {
 public:
     SrsPsRtpPacket();

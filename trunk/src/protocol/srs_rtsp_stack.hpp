@@ -128,7 +128,7 @@ enum SrsRtspTokenState
 
 // The rtp packet.
 // 5. RTP Data Transfer Protocol, @see rfc3550-2003-rtp.pdf, page 12
-class SrsRtpPacket
+class SrsRtspPacket
 {
 public:
     // The version (V): 2 bits
@@ -255,13 +255,13 @@ public:
     // The audio samples, one rtp packets may contains multiple audio samples.
     SrsAudioFrame* audio;
 public:
-    SrsRtpPacket();
-    virtual ~SrsRtpPacket();
+    SrsRtspPacket();
+    virtual ~SrsRtspPacket();
 public:
     // copy the header from src.
-    virtual void copy(SrsRtpPacket* src);
+    virtual void copy(SrsRtspPacket* src);
     // reap the src to this packet, reap the payload.
-    virtual void reap(SrsRtpPacket* src);
+    virtual void reap(SrsRtspPacket* src);
     // decode rtp packet from stream.
     virtual srs_error_t decode(SrsBuffer* stream);
 private:

@@ -53,7 +53,7 @@ class SrsRtcServer;
 class SrsRtcConnection;
 class SrsSharedPtrMessage;
 class SrsRtcStream;
-class SrsRtpPacket2;
+class SrsRtpPacket;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
 class SrsRtpIncommingVideoFrame;
@@ -266,7 +266,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t send_packet(SrsRtpPacket2*& pkt);
+    srs_error_t send_packet(SrsRtpPacket*& pkt);
 public:
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
@@ -310,7 +310,7 @@ private:
 };
 
 // A RTC publish stream, client push and publish stream to SRS.
-class SrsRtcPublishStream : public ISrsRtpPacketDecodeHandler
+class SrsRtcPublishStream : public ISrsRtspPacketDecodeHandler
     , public ISrsRtcPublishStream, public ISrsRtcPLIWorkerHandler
 {
 private:
@@ -367,11 +367,11 @@ private:
     // @remark We copy the plaintext, user should free it.
     srs_error_t on_rtp_plaintext(char* plaintext, int nb_plaintext);
 private:
-    srs_error_t do_on_rtp_plaintext(SrsRtpPacket2*& pkt, SrsBuffer* buf);
+    srs_error_t do_on_rtp_plaintext(SrsRtpPacket*& pkt, SrsBuffer* buf);
 public:
     srs_error_t check_send_nacks();
 public:
-    virtual void on_before_decode_payload(SrsRtpPacket2* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtpPacketPayloadType* ppt);
+    virtual void on_before_decode_payload(SrsRtpPacket* pkt, SrsBuffer* buf, ISrsRtpPayloader** ppayload, SrsRtspPacketPayloadType* ppt);
 private:
     srs_error_t send_periodic_twcc();
 public:
@@ -547,7 +547,7 @@ public:
     // Simulate the NACK to drop nn packets.
     void simulate_nack_drop(int nn);
     void simulate_player_drop_packet(SrsRtpHeader* h, int nn_bytes);
-    srs_error_t do_send_packet(SrsRtpPacket2* pkt);
+    srs_error_t do_send_packet(SrsRtpPacket* pkt);
     // Directly set the status of play track, generally for init to set the default value.
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);
 private:
@@ -579,7 +579,7 @@ public:
     // When stop publish by RTC.
     virtual void on_stop_publish(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req) = 0;
     // When got RTP plaintext packet.
-    virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req, SrsRtpPacket2* pkt) = 0;
+    virtual srs_error_t on_rtp_packet(SrsRtcConnection* session, SrsRtcPublishStream* publisher, SrsRequest* req, SrsRtpPacket* pkt) = 0;
     // When before play by RTC. (wait source to ready in cascade scenario)
     virtual srs_error_t on_before_play(SrsRtcConnection* session, SrsRequest* req) = 0;
     // When start player by RTC.
