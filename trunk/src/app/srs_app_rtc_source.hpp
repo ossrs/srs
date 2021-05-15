@@ -162,7 +162,7 @@ public:
     virtual void on_consumers_finished() = 0;
 };
 
-// SrsRtcStream bridge to SrsSource
+// SrsRtcStream bridge to SrsLiveSource
 class ISrsRtcSourceBridger
 {
 public:
@@ -259,7 +259,7 @@ private:
 };
 
 #ifdef SRS_FFMPEG_FIT
-class SrsRtcFromRtmpBridger : public ISrsSourceBridger
+class SrsRtcFromRtmpBridger : public ISrsLiveSourceBridger
 {
 private:
     SrsRequest* req;
@@ -302,7 +302,7 @@ private:
 class SrsRtmpFromRtcBridger : public ISrsRtcSourceBridger
 {
 private:
-    SrsSource *source_;
+    SrsLiveSource *source_;
     SrsAudioTranscoder *codec_;
     bool is_first_audio;
     bool is_first_video;
@@ -323,7 +323,7 @@ private:
     uint16_t lost_sn_;
     int64_t key_frame_ts_;
 public:
-    SrsRtmpFromRtcBridger(SrsSource *src);
+    SrsRtmpFromRtcBridger(SrsLiveSource *src);
     virtual ~SrsRtmpFromRtcBridger();
 public:
     srs_error_t initialize(SrsRequest* r);

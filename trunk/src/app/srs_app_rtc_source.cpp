@@ -1231,7 +1231,7 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtmpFromRtcBridger::SrsRtmpFromRtcBridger(SrsSource *src)
+SrsRtmpFromRtcBridger::SrsRtmpFromRtcBridger(SrsLiveSource *src)
 {
     source_ = src;
     codec_ = NULL;

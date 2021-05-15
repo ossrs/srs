@@ -57,7 +57,7 @@ using namespace std;
 #include <srs_app_recv_thread.hpp>
 #include <srs_app_http_hooks.hpp>
 
-SrsBufferCache::SrsBufferCache(SrsSource* s, SrsRequest* r)
+SrsBufferCache::SrsBufferCache(SrsLiveSource* s, SrsRequest* r)
 {
     req = r->copy()->as_http();
     source = s;
@@ -76,7 +76,7 @@ SrsBufferCache::~SrsBufferCache()
     srs_freep(req);
 }
 
-srs_error_t SrsBufferCache::update_auth(SrsSource* s, SrsRequest* r)
+srs_error_t SrsBufferCache::update_auth(SrsLiveSource* s, SrsRequest* r)
 {
     srs_freep(req);
     req = r->copy();
@@ -104,7 +104,7 @@ srs_error_t SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgor
         return err;
     }
     
-    // the jitter is get from SrsSource, which means the time_jitter of vhost.
+    // the jitter is get from SrsLiveSource, which means the time_jitter of vhost.
     if ((err = queue->dump_packets(consumer, false, jitter)) != srs_success) {
         return srs_error_wrap(err, "dump packets");
     }
@@ -241,7 +241,7 @@ srs_error_t SrsTsStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*da
 
 bool SrsTsStreamEncoder::has_cache()
 {
-    // for ts stream, use gop cache of SrsSource is ok.
+    // for ts stream, use gop cache of SrsLiveSource is ok.
     return false;
 }
 
@@ -308,7 +308,7 @@ srs_error_t SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, i
 
 bool SrsFlvStreamEncoder::has_cache()
 {
-    // for flv stream, use gop cache of SrsSource is ok.
+    // for flv stream, use gop cache of SrsLiveSource is ok.
     return false;
 }
 
@@ -515,7 +515,7 @@ srs_error_t SrsBufferWriter::writev(const iovec* iov, int iovcnt, ssize_t* pnwri
     return writer->writev(iov, iovcnt, pnwrite);
 }
 
-SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsBufferCache* c)
+SrsLiveStream::SrsLiveStream(SrsLiveSource* s, SrsRequest* r, SrsBufferCache* c)
 {
     source = s;
     cache = c;
@@ -527,7 +527,7 @@ SrsLiveStream::~SrsLiveStream()
     srs_freep(req);
 }
 
-srs_error_t SrsLiveStream::update_auth(SrsSource* s, SrsRequest* r)
+srs_error_t SrsLiveStream::update_auth(SrsLiveSource* s, SrsRequest* r)
 {
     source = s;
     
@@ -893,7 +893,7 @@ srs_error_t SrsHttpStreamServer::initialize()
 }
 
 // TODO: FIXME: rename for HTTP FLV mount.
-srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
+srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
@@ -967,7 +967,7 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsSource* s, SrsRequest* r)
     return err;
 }
 
-void SrsHttpStreamServer::http_unmount(SrsSource* s, SrsRequest* r)
+void SrsHttpStreamServer::http_unmount(SrsLiveSource* s, SrsRequest* r)
 {
     std::string sid = r->get_stream_url();
     
@@ -1000,7 +1000,7 @@ srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost
             return srs_error_wrap(err, "init flv entry");
         }
         
-        // http mount need SrsRequest and SrsSource param, only create a mapping template entry
+        // http mount need SrsRequest and SrsLiveSource param, only create a mapping template entry
         // and do mount automatically on playing http flv if this stream is a new http_remux stream.
         return err;
     }
@@ -1019,7 +1019,7 @@ srs_error_t SrsHttpStreamServer::on_reload_vhost_http_remux_updated(string vhost
             continue;
         }
 
-        SrsSource* source = entry->source;
+        SrsLiveSource* source = entry->source;
         if (_srs_config->get_vhost_http_remux_enabled(vhost)) {
             http_mount(source, req);
         } else {
@@ -1127,7 +1127,7 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         }
     }
     
-    SrsSource* s = NULL;
+    SrsLiveSource* s = NULL;
     if ((err = _srs_sources->fetch_or_create(r, server, &s)) != srs_success) {
         return srs_error_wrap(err, "source create");
     }

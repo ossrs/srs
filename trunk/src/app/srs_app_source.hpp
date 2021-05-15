@@ -41,7 +41,7 @@ class SrsRtmpFormat;
 class SrsConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
-class SrsSource;
+class SrsLiveSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
@@ -182,12 +182,12 @@ public:
     virtual void wakeup() = 0;
 };
 
-// The consumer for SrsSource, that is a play client.
+// The consumer for SrsLiveSource, that is a play client.
 class SrsConsumer : public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsMessageQueue* queue;
     bool paused;
     // when source id changed, notice all consumers
@@ -201,7 +201,7 @@ private:
     srs_utime_t mw_duration;
 #endif
 public:
-    SrsConsumer(SrsSource* s);
+    SrsConsumer(SrsLiveSource* s);
     virtual ~SrsConsumer();
 public:
     // Set the size of queue.
@@ -294,16 +294,16 @@ public:
 // The handler to handle the event of srs source.
 // For example, the http flv streaming module handle the event and
 // mount http when rtmp start publishing.
-class ISrsSourceHandler
+class ISrsLiveSourceHandler
 {
 public:
-    ISrsSourceHandler();
-    virtual ~ISrsSourceHandler();
+    ISrsLiveSourceHandler();
+    virtual ~ISrsLiveSourceHandler();
 public:
     // when stream start publish, mount stream.
-    virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r) = 0;
+    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r) = 0;
     // when stream stop publish, unmount stream.
-    virtual void on_unpublish(SrsSource* s, SrsRequest* r) = 0;
+    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r) = 0;
 };
 
 // The mix queue to correct the timestamp for mix_correct algorithm.
@@ -328,7 +328,7 @@ public:
 class SrsOriginHub : public ISrsReloadHandler
 {
 private:
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsRequest* req;
     bool is_active;
 private:
@@ -356,7 +356,7 @@ public:
 public:
     // Initialize the hub with source and request.
     // @param r The request object, managed by source.
-    virtual srs_error_t initialize(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t initialize(SrsLiveSource* s, SrsRequest* r);
     // Dispose the hub, release utilities resource,
     // For example, delete all HLS pieces.
     virtual void dispose();
@@ -451,26 +451,26 @@ public:
 };
 
 // The source manager to create and refresh all stream sources.
-class SrsSourceManager : public ISrsHourGlass
+class SrsLiveSourceManager : public ISrsHourGlass
 {
 private:
     srs_mutex_t lock;
-    std::map<std::string, SrsSource*> pool;
+    std::map<std::string, SrsLiveSource*> pool;
     SrsHourGlass* timer_;
 public:
-    SrsSourceManager();
-    virtual ~SrsSourceManager();
+    SrsLiveSourceManager();
+    virtual ~SrsLiveSourceManager();
 public:
     virtual srs_error_t initialize();
     //  create source when fetch from cache failed.
     // @param r the client request.
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
-    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
+    virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
-    virtual SrsSource* fetch(SrsRequest* r);
+    virtual SrsLiveSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
     virtual void dispose();
@@ -485,14 +485,14 @@ public:
 };
 
 // Global singleton instance.
-extern SrsSourceManager* _srs_sources;
+extern SrsLiveSourceManager* _srs_sources;
 
-// For RTMP2RTC, bridge SrsSource to SrsRtcStream
-class ISrsSourceBridger
+// For RTMP2RTC, bridge SrsLiveSource to SrsRtcStream
+class ISrsLiveSourceBridger
 {
 public:
-    ISrsSourceBridger();
-    virtual ~ISrsSourceBridger();
+    ISrsLiveSourceBridger();
+    virtual ~ISrsLiveSourceBridger();
 public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
@@ -501,8 +501,7 @@ public:
 };
 
 // The live streaming source.
-// TODO: FIXME: Rename to SrsLiveStream.
-class SrsSource : public ISrsReloadHandler
+class SrsLiveSource : public ISrsReloadHandler
 {
     friend class SrsOriginHub;
 private:
@@ -533,9 +532,9 @@ private:
     // The time of the packet we just got.
     int64_t last_packet_time;
     // The event handler.
-    ISrsSourceHandler* handler;
+    ISrsLiveSourceHandler* handler;
     // The source bridger for other source.
-    ISrsSourceBridger* bridger_;
+    ISrsLiveSourceBridger* bridger_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -552,8 +551,8 @@ private:
     // We will remove the source when source die.
     srs_utime_t die_at;
 public:
-    SrsSource();
-    virtual ~SrsSource();
+    SrsLiveSource();
+    virtual ~SrsLiveSource();
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
@@ -561,9 +560,9 @@ public:
     virtual bool expired();
 public:
     // Initialize the hls with handlers.
-    virtual srs_error_t initialize(SrsRequest* r, ISrsSourceHandler* h);
+    virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void set_bridger(ISrsSourceBridger* v);
+    void set_bridger(ISrsLiveSourceBridger* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);

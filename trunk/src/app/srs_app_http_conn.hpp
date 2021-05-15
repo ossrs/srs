@@ -38,7 +38,7 @@
 #include <srs_app_source.hpp>
 
 class SrsServer;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
 class SrsConsumer;
 class SrsStSocket;
@@ -208,8 +208,8 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
-    virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
-    virtual void http_unmount(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
+    virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
 };
 
 #endif
