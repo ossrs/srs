@@ -677,8 +677,8 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     set_sock_options();
     
     // Create a consumer of source.
-    SrsConsumer* consumer = NULL;
-    SrsAutoFree(SrsConsumer, consumer);
+    SrsLiveConsumer* consumer = NULL;
+    SrsAutoFree(SrsLiveConsumer, consumer);
     if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "rtmp: create consumer");
     }
@@ -709,7 +709,7 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsConsumer* consumer, SrsQueueRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* rtrd)
 {
     srs_error_t err = srs_success;
     
@@ -1111,7 +1111,7 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsLiveSource* source, SrsCommo
     return err;
 }
 
-srs_error_t SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
+srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer* consumer, SrsCommonMessage* msg)
 {
     srs_error_t err = srs_success;
     

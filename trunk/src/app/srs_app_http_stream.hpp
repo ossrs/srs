@@ -49,7 +49,7 @@ public:
     virtual srs_error_t update_auth(SrsLiveSource* s, SrsRequest* r);
 public:
     virtual srs_error_t start();
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 // Interface ISrsEndlessThreadHandler.
 public:
     virtual srs_error_t cycle();
@@ -76,7 +76,7 @@ public:
     // @return true to use gop cache of encoder; otherwise, use SrsLiveSource.
     virtual bool has_cache() = 0;
     // Dumps the cache of encoder to consumer.
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter) = 0;
 };
 
 // Transmux RTMP to HTTP Live Streaming.
@@ -95,7 +95,7 @@ public:
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 public:
     // Write the tags in a time.
     virtual srs_error_t write_tags(SrsSharedPtrMessage** msgs, int count);
@@ -118,7 +118,7 @@ public:
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 // Transmux RTMP with AAC stream to HTTP AAC Streaming.
@@ -137,7 +137,7 @@ public:
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 // Transmux RTMP with MP3 stream to HTTP MP3 Streaming.
@@ -156,7 +156,7 @@ public:
     virtual srs_error_t write_metadata(int64_t timestamp, char* data, int size);
 public:
     virtual bool has_cache();
-    virtual srs_error_t dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
+    virtual srs_error_t dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter);
 };
 
 // Write stream to http response direclty.

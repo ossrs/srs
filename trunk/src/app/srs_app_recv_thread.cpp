@@ -164,7 +164,7 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsLiveConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid)
 	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;

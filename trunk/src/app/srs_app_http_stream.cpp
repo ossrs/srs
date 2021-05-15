@@ -96,7 +96,7 @@ srs_error_t SrsBufferCache::start()
     return err;
 }
 
-srs_error_t SrsBufferCache::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
+srs_error_t SrsBufferCache::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_error_t err = srs_success;
     
@@ -127,8 +127,8 @@ srs_error_t SrsBufferCache::cycle()
     
     // the stream cache will create consumer to cache stream,
     // which will trigger to fetch stream from origin for edge.
-    SrsConsumer* consumer = NULL;
-    SrsAutoFree(SrsConsumer, consumer);
+    SrsLiveConsumer* consumer = NULL;
+    SrsAutoFree(SrsLiveConsumer, consumer);
     if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }
@@ -245,7 +245,7 @@ bool SrsTsStreamEncoder::has_cache()
     return false;
 }
 
-srs_error_t SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
+srs_error_t SrsTsStreamEncoder::dump_cache(SrsLiveConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
 {
     // for ts stream, ignore cache.
     return srs_success;
@@ -312,7 +312,7 @@ bool SrsFlvStreamEncoder::has_cache()
     return false;
 }
 
-srs_error_t SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
+srs_error_t SrsFlvStreamEncoder::dump_cache(SrsLiveConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
 {
     // for flv stream, ignore cache.
     return srs_success;
@@ -412,7 +412,7 @@ bool SrsAacStreamEncoder::has_cache()
     return true;
 }
 
-srs_error_t SrsAacStreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
+srs_error_t SrsAacStreamEncoder::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_assert(cache);
     return cache->dump_cache(consumer, jitter);
@@ -468,7 +468,7 @@ bool SrsMp3StreamEncoder::has_cache()
     return true;
 }
 
-srs_error_t SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
+srs_error_t SrsMp3StreamEncoder::dump_cache(SrsLiveConsumer* consumer, SrsRtmpJitterAlgorithm jitter)
 {
     srs_assert(cache);
     return cache->dump_cache(consumer, jitter);
@@ -585,8 +585,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     w->write_header(SRS_CONSTS_HTTP_OK);
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
-    SrsConsumer* consumer = NULL;
-    SrsAutoFree(SrsConsumer, consumer);
+    SrsLiveConsumer* consumer = NULL;
+    SrsAutoFree(SrsLiveConsumer, consumer);
     if ((err = source->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer");
     }

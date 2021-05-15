@@ -47,7 +47,7 @@
 #include <sys/socket.h>
 
 class SrsUdpMuxSocket;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcConnection;

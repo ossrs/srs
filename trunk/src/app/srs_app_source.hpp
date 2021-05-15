@@ -38,7 +38,7 @@
 
 class SrsFormat;
 class SrsRtmpFormat;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsLiveSource;
@@ -157,8 +157,8 @@ public:
     // @max_count the max count to dequeue, must be positive.
     virtual srs_error_t dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     // Dumps packets to consumer, use specified args.
-    // @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
-    virtual srs_error_t dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
+    // @remark the atc/tba/tbv/ag are same to SrsLiveConsumer.enqueue().
+    virtual srs_error_t dump_packets(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 private:
     // Remove a gop from the front.
     // if no iframe found, clear it.
@@ -183,7 +183,7 @@ public:
 };
 
 // The consumer for SrsLiveSource, that is a play client.
-class SrsConsumer : public ISrsWakable
+class SrsLiveConsumer : public ISrsWakable
 {
 private:
     SrsRtmpJitter* jitter;
@@ -201,8 +201,8 @@ private:
     srs_utime_t mw_duration;
 #endif
 public:
-    SrsConsumer(SrsLiveSource* s);
-    virtual ~SrsConsumer();
+    SrsLiveConsumer(SrsLiveSource* s);
+    virtual ~SrsLiveConsumer();
 public:
     // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
@@ -279,7 +279,7 @@ public:
     // clear the gop cache.
     virtual void clear();
     // dump the cached gop to consumer.
-    virtual srs_error_t dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
+    virtual srs_error_t dump(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
     // used for atc to get the time of gop cache,
     // The atc will adjust the sequence header timestamp to gop cache.
     virtual bool empty();
@@ -433,7 +433,7 @@ public:
     // Dumps cached metadata to consumer.
     // @param dm Whether dumps the metadata.
     // @param ds Whether dumps the sequence header.
-    virtual srs_error_t dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
+    virtual srs_error_t dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 public:
     // Previous exists sequence header.
     virtual SrsSharedPtrMessage* previous_vsh();
@@ -515,7 +515,7 @@ private:
     // deep copy of client request.
     SrsRequest* req;
     // To delivery stream to clients.
-    std::vector<SrsConsumer*> consumers;
+    std::vector<SrsLiveConsumer*> consumers;
     // The time jitter algorithm for vhost.
     SrsRtmpJitterAlgorithm jitter_algorithm;
     // For play, whether use interlaced/mixed algorithm to correct timestamp.
@@ -600,13 +600,13 @@ public:
 public:
     // Create consumer
     // @param consumer, output the create consumer.
-    virtual srs_error_t create_consumer(SrsConsumer*& consumer);
+    virtual srs_error_t create_consumer(SrsLiveConsumer*& consumer);
     // Dumps packets in cache to consumer.
     // @param ds, whether dumps the sequence header.
     // @param dm, whether dumps the metadata.
     // @param dg, whether dumps the gop cache.
-    virtual srs_error_t consumer_dumps(SrsConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
-    virtual void on_consumer_destroy(SrsConsumer* consumer);
+    virtual srs_error_t consumer_dumps(SrsLiveConsumer* consumer, bool ds = true, bool dm = true, bool dg = true);
+    virtual void on_consumer_destroy(SrsLiveConsumer* consumer);
     virtual void set_cache(bool enabled);
     virtual SrsRtmpJitterAlgorithm jitter();
 public:

@@ -39,7 +39,7 @@ class SrsCommonMessage;
 class SrsRtmpConn;
 class SrsLiveSource;
 class SrsRequest;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsHttpConn;
 class SrsResponseOnlyHttpConn;
 
@@ -114,10 +114,10 @@ private:
     SrsRtmpServer* rtmp;
     // The recv thread error code.
     srs_error_t recv_error;
-    SrsConsumer* _consumer;
+    SrsLiveConsumer* _consumer;
 public:
 	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
+    SrsQueueRecvThread(SrsLiveConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
     virtual ~SrsQueueRecvThread();
 public:
     virtual srs_error_t start();

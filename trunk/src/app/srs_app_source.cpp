@@ -329,7 +329,7 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** p
     return err;
 }
 
-srs_error_t SrsMessageQueue::dump_packets(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsMessageQueue::dump_packets(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     srs_error_t err = srs_success;
     
@@ -418,7 +418,7 @@ ISrsWakable::~ISrsWakable()
 {
 }
 
-SrsConsumer::SrsConsumer(SrsLiveSource* s)
+SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 {
     source = s;
     paused = false;
@@ -434,7 +434,7 @@ SrsConsumer::SrsConsumer(SrsLiveSource* s)
 #endif
 }
 
-SrsConsumer::~SrsConsumer()
+SrsLiveConsumer::~SrsLiveConsumer()
 {
     source->on_consumer_destroy(this);
     srs_freep(jitter);
@@ -445,22 +445,22 @@ SrsConsumer::~SrsConsumer()
 #endif
 }
 
-void SrsConsumer::set_queue_size(srs_utime_t queue_size)
+void SrsLiveConsumer::set_queue_size(srs_utime_t queue_size)
 {
     queue->set_queue_size(queue_size);
 }
 
-void SrsConsumer::update_source_id()
+void SrsLiveConsumer::update_source_id()
 {
     should_update_source_id = true;
 }
 
-int64_t SrsConsumer::get_time()
+int64_t SrsLiveConsumer::get_time()
 {
     return jitter->get_time();
 }
 
-srs_error_t SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
+srs_error_t SrsLiveConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsRtmpJitterAlgorithm ag)
 {
     srs_error_t err = srs_success;
     
@@ -504,7 +504,7 @@ srs_error_t SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, SrsR
     return err;
 }
 
-srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
+srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 {
     srs_error_t err = srs_success;
     
@@ -537,7 +537,7 @@ srs_error_t SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 }
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-void SrsConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
+void SrsLiveConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
 {
     if (paused) {
         srs_usleep(SRS_CONSTS_RTMP_PULSE);
@@ -563,7 +563,7 @@ void SrsConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
 }
 #endif
 
-srs_error_t SrsConsumer::on_play_client_pause(bool is_pause)
+srs_error_t SrsLiveConsumer::on_play_client_pause(bool is_pause)
 {
     srs_error_t err = srs_success;
     
@@ -573,7 +573,7 @@ srs_error_t SrsConsumer::on_play_client_pause(bool is_pause)
     return err;
 }
 
-void SrsConsumer::wakeup()
+void SrsLiveConsumer::wakeup()
 {
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (mw_waiting) {
@@ -681,7 +681,7 @@ void SrsGopCache::clear()
     audio_after_last_video_count = 0;
 }
 
-srs_error_t SrsGopCache::dump(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm)
+srs_error_t SrsGopCache::dump(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm)
 {
     srs_error_t err = srs_success;
     
@@ -1561,7 +1561,7 @@ SrsFormat* SrsMetaCache::ash_format()
     return aformat;
 }
 
-srs_error_t SrsMetaCache::dumps(SrsConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
+srs_error_t SrsMetaCache::dumps(SrsLiveConsumer* consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds)
 {
     srs_error_t err = srs_success;
     
@@ -2018,10 +2018,10 @@ srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
         srs_utime_t v = _srs_config->get_queue_length(req->vhost);
         
         if (true) {
-            std::vector<SrsConsumer*>::iterator it;
+            std::vector<SrsLiveConsumer*>::iterator it;
             
             for (it = consumers.begin(); it != consumers.end(); ++it) {
-                SrsConsumer* consumer = *it;
+                SrsLiveConsumer* consumer = *it;
                 consumer->set_queue_size(v);
             }
             
@@ -2066,9 +2066,9 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
     _source_id = id;
     
     // notice all consumer
-    std::vector<SrsConsumer*>::iterator it;
+    std::vector<SrsLiveConsumer*>::iterator it;
     for (it = consumers.begin(); it != consumers.end(); ++it) {
-        SrsConsumer* consumer = *it;
+        SrsLiveConsumer* consumer = *it;
         consumer->update_source_id();
     }
     
@@ -2139,9 +2139,9 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPack
     
     // copy to all consumer
     if (!drop_for_reduce) {
-        std::vector<SrsConsumer*>::iterator it;
+        std::vector<SrsLiveConsumer*>::iterator it;
         for (it = consumers.begin(); it != consumers.end(); ++it) {
-            SrsConsumer* consumer = *it;
+            SrsLiveConsumer* consumer = *it;
             if ((err = consumer->enqueue(meta->data(), atc, jitter_algorithm)) != srs_success) {
                 return srs_error_wrap(err, "consume metadata");
             }
@@ -2226,7 +2226,7 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
-            SrsConsumer* consumer = consumers.at(i);
+            SrsLiveConsumer* consumer = consumers.at(i);
             if ((err = consumer->enqueue(msg, atc, jitter_algorithm)) != srs_success) {
                 return srs_error_wrap(err, "consume message");
             }
@@ -2356,7 +2356,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers.size(); i++) {
-            SrsConsumer* consumer = consumers.at(i);
+            SrsLiveConsumer* consumer = consumers.at(i);
             if ((err = consumer->enqueue(msg, atc, jitter_algorithm)) != srs_success) {
                 return srs_error_wrap(err, "consume video");
             }
@@ -2569,11 +2569,11 @@ void SrsLiveSource::on_unpublish()
     }
 }
 
-srs_error_t SrsLiveSource::create_consumer(SrsConsumer*& consumer)
+srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer*& consumer)
 {
     srs_error_t err = srs_success;
     
-    consumer = new SrsConsumer(this);
+    consumer = new SrsLiveConsumer(this);
     consumers.push_back(consumer);
     
     // for edge, when play edge stream, check the state
@@ -2587,7 +2587,7 @@ srs_error_t SrsLiveSource::create_consumer(SrsConsumer*& consumer)
     return err;
 }
 
-srs_error_t SrsLiveSource::consumer_dumps(SrsConsumer* consumer, bool ds, bool dm, bool dg)
+srs_error_t SrsLiveSource::consumer_dumps(SrsLiveConsumer* consumer, bool ds, bool dm, bool dg)
 {
     srs_error_t err = srs_success;
 
@@ -2630,9 +2630,9 @@ srs_error_t SrsLiveSource::consumer_dumps(SrsConsumer* consumer, bool ds, bool d
     return err;
 }
 
-void SrsLiveSource::on_consumer_destroy(SrsConsumer* consumer)
+void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer* consumer)
 {
-    std::vector<SrsConsumer*>::iterator it;
+    std::vector<SrsLiveConsumer*>::iterator it;
     it = std::find(consumers.begin(), consumers.end(), consumer);
     if (it != consumers.end()) {
         consumers.erase(it);

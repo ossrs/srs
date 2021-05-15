@@ -40,7 +40,7 @@
 class SrsServer;
 class SrsLiveSource;
 class SrsRequest;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsStSocket;
 class SrsHttpParser;
 class ISrsHttpMessage;
