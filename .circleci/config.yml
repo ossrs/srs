@@ -137,6 +137,8 @@ workflows:
       - build-c8-srt
       - build-u16-baseline
       - build-u16-srt
+      - build-u18-baseline
+      - build-u18-srt
       - build-u20-baseline
       - build-u20-srt
       - build-c7-ansi-noff
