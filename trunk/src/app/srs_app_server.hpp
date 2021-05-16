@@ -262,7 +262,7 @@ public:
 
 // TODO: FIXME: Rename to SrsLiveServer.
 // SRS RTMP server, initialize and listen, start connection service thread, destroy client.
-class SrsServer : public ISrsReloadHandler, public ISrsSourceHandler
+class SrsServer : public ISrsReloadHandler, public ISrsLiveSourceHandler
     , public ISrsResourceManager, public ISrsCoroutineHandler
     , public ISrsHourGlass
 {
@@ -394,10 +394,10 @@ public:
     virtual srs_error_t on_reload_http_stream_enabled();
     virtual srs_error_t on_reload_http_stream_disabled();
     virtual srs_error_t on_reload_http_stream_updated();
-// Interface ISrsSourceHandler
+// Interface ISrsLiveSourceHandler
 public:
-    virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
-    virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);
+    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r);
 };
 
 // The SRS server adapter, the master server.

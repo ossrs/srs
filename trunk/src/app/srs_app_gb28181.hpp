@@ -100,7 +100,7 @@ class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
 class SrsRtpJitterBuffer;
 class SrsServer;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
 class SrsResourceManager;
 class SrsGb28181Conn;
@@ -326,7 +326,7 @@ private:
     std::string aac_specific_config;
 
     SrsRequest* req;
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsServer* server;
 
     SrsRtpJitterBuffer *jitter_buffer;

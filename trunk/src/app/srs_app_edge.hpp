@@ -32,7 +32,7 @@
 
 class SrsStSocket;
 class SrsRtmpServer;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
 class SrsPlayEdge;
 class SrsPublishEdge;
@@ -153,7 +153,7 @@ public:
 class SrsEdgeIngester : public ISrsCoroutineHandler
 {
 private:
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsPlayEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;
@@ -163,7 +163,7 @@ public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual srs_error_t initialize(SrsSource* s, SrsPlayEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsRequest* r);
     virtual srs_error_t start();
     virtual void stop();
     virtual std::string get_curr_origin();
@@ -181,7 +181,7 @@ private:
 class SrsEdgeForwarder : public ISrsCoroutineHandler
 {
 private:
-    SrsSource* source;
+    SrsLiveSource* source;
     SrsPublishEdge* edge;
     SrsRequest* req;
     SrsCoroutine* trd;
@@ -200,7 +200,7 @@ public:
 public:
     virtual void set_queue_size(srs_utime_t queue_size);
 public:
-    virtual srs_error_t initialize(SrsSource* s, SrsPublishEdge* e, SrsRequest* r);
+    virtual srs_error_t initialize(SrsLiveSource* s, SrsPublishEdge* e, SrsRequest* r);
     virtual srs_error_t start();
     virtual void stop();
 // Interface ISrsReusableThread2Handler
@@ -225,7 +225,7 @@ public:
     // Always use the req of source,
     // For we assume all client to edge is invalid,
     // if auth open, edge must valid it from origin, then service it.
-    virtual srs_error_t initialize(SrsSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsLiveSource* source, SrsRequest* req);
     // When client play stream on edge.
     virtual srs_error_t on_client_play();
     // When all client stopped play, disconnect to origin.
@@ -248,7 +248,7 @@ public:
 public:
     virtual void set_queue_size(srs_utime_t queue_size);
 public:
-    virtual srs_error_t initialize(SrsSource* source, SrsRequest* req);
+    virtual srs_error_t initialize(SrsLiveSource* source, SrsRequest* req);
     virtual bool can_publish();
     // When client publish stream on edge.
     virtual srs_error_t on_client_publish();

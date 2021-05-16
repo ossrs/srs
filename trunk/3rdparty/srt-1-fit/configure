@@ -1,0 +1,249 @@
+#!/usr/bin/tclsh
+
+#
+# SRT - Secure, Reliable, Transport
+# Copyright (c) 2018 Haivision Systems Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+# This is a general-purpose configure script, which is a user-friendly
+# wrapper to call the "cmake" command.
+
+# There are two options that are handled specifically:
+#
+# --help: show the list of official options
+# --prefix: alias to --cmake-install-prefix
+
+# The processing done automatically on all options by default is:
+# Every option like:
+#    --long-c++-option
+#    --cmake-special-option=ON
+# Turns into:
+#    -DLONG_CXX_OPTION=1
+#    -DCMAKE_SPECIAL_OPTION=ON
+#
+# In the configuration file, "configure-data.tcl", you can add
+# special processing for options and define explicit options
+# in the "::options" dictionary. Explicit options (in contrast
+# to "blind" options) have additional properties:
+#
+# - only those options are mentioned with --help
+# - you can pass a value for this option without = character
+# - you can specify --disable-option instead of --enable-option=0
+#
+# In "configure-data.tcl", beside ::options, you can define "preprocess" and
+# "postprocess" procedures. In "preprocess", use ::optval array to modify the
+# list of options to be processed further. Additionally in "postprocess"
+# procedure you can influence directly the options for "cmake" command in
+# ::cmakeopt variable (modifying ::optval in "postprocess" is useless).
+
+# The idea is that CMakeLists.txt contains things that are highly
+# customizable, but no system or option autodetection AWA "sensible
+# defaults" are provided. This is done by this script.
+
+
+set here [file dirname $argv0]
+
+set options ""
+set toolchain_changers ""
+
+source $here/configure-data.tcl
+
+# Update alias with default alias
+dict set alias --prefix --cmake-install-prefix=
+
+proc resolve opt {
+	set type arg
+	set pos [string first $opt =]
+	if { $pos == -1 } {
+		set type bool
+		set mark ""
+	} else {
+		set type arg
+		set mark [string range $opt $pos+1 end]
+		set opt [string range $opt 0 $pos-1]
+	}
+	set var [string toupper [string map {- _ + x} $opt]]
+	return [list --$opt $var $type $mark]
+}
+
+# Check if a --disable option has its --enable counterpart. If so,
+# then just invert the option.
+proc resolve_disablers {} {
+	set enablers ""
+	set optkeys_len [llength $::optkeys]
+	for {set pos 0} {$pos < $optkeys_len} {incr pos} {
+		set opt [lindex $::optkeys $pos]
+		if { [string match --disable-* $opt] } {
+			set inverted enable-[string range $opt 10 end]
+			if { $inverted in [dict keys $::options] } {
+				lset ::optkeys $pos --$inverted
+				set val $::optval($opt)
+				unset ::optval($opt)
+				if { $val == "" || ![string is boolean $val] } {
+					set ::optval(--$inverted) 0
+				} else {
+					set ::optval(--$inverted) [expr {!$val}]
+				}
+
+				puts "NOTE: $opt changed into --$inverted=$::optval(--$inverted)"
+			}
+		}
+	}
+}
+
+foreach {o desc} $options {
+	lassign [resolve $o] optname optvar opttype optmark
+	set opt($optname) [list $optvar $opttype $optmark]
+	set info($optname) $desc
+}
+
+
+if { $argv == "--help" } {
+	puts stderr "Usage: ./configure \[options\]"
+	puts stderr "OPTIONS:"
+	foreach o [lsort [array names opt]] {
+		lassign $opt($o) unu type mark
+		set imark ""
+		if { $mark != "" } {
+			set imark "=$mark"
+		}
+		puts stderr "\t$o$imark - $info($o)"
+	}
+
+	puts stderr "NOTE1: Option list may be incomplete. Refer to variables in CMakeLists.txt"
+	puts stderr "NOTE2: Non-internal options turn e.g. --enable-c++11 into cmake -DENABLE_CXX11=1"
+	puts stderr "NOTE3: You can use --disable-x instead of --enable-x=0 for the above options."
+	
+	exit 1
+}
+
+if { [info proc init] != "" } {
+	init
+}
+
+#parray opt
+
+set saveopt ""
+set optkeys ""
+
+set dryrun 0
+set type ""
+
+foreach a $argv {
+	if { [info exists val] } { unset val }
+
+	if { $saveopt != "" } {
+		set optval($saveopt) $a
+		set saveopt ""
+		continue
+	}
+
+	if { [string range $a 0 1] != "--" } {
+		error "Unexpected argument '$a'. Options must start with --"
+	}
+
+	if { $a == "--dryrun" } {
+		set dryrun 1
+		continue
+	}
+
+	set type ""
+
+	if { [string first = $a] != -1 } {
+		lassign [split $a =] a val
+	}
+
+	if { [dict exists $::alias $a] } {
+		set aname [dict get $::alias $a]
+		if { [string first = $aname] != -1 } {
+			lassign [split $aname =] a aval
+			set type arg
+		}
+	}
+
+	if { ![info exists opt($a)] } {
+		#puts stderr "WARNING: Unknown option: $a"
+		# But still, simply turn the option to assign-based use.
+		lassign [resolve [string range $a 2 end]] oname var
+		if { ![info exists val] && $type == "" } {
+			set type bool
+		}
+	} else {
+		lassign $opt($a) var type
+	}
+
+	if { $type == "bool" } {
+		if { ![info exists val] } {
+			set val 1
+		}
+		set optval($a) $val
+	} elseif { [info exists val] } {
+		set optval($a) $val
+	} else {
+		set saveopt $a
+	}
+
+	lappend optkeys $a
+}
+
+if { $saveopt != "" } {
+	error "Extra unhandled argument: $saveopt"
+}
+
+set cmakeopt ""
+
+resolve_disablers
+
+if { [info proc preprocess] != "" } {
+	preprocess
+}
+
+# Check if there were new values added not added to optkeys
+foreach a [array names optval] {
+	if { $a ni $optkeys } {
+		lappend optkeys $a
+	}
+}
+
+
+foreach a $optkeys {
+
+	if { ![info exists optval($a)] } {
+		continue  ;# user action might have removed it.
+	}
+
+	if { ![info exists opt($a)] } {
+		#puts stderr "WARNING: Unknown option: $a"
+		# But still, simply turn the option to assign-based use.
+		lassign [resolve [string range $a 2 end]] oname var
+		if { ![info exists val] && $type == "" } {
+			set type bool
+		}
+	} else {
+		lassign $opt($a) var type
+	}
+
+	set val $optval($a)
+	lappend cmakeopt "-D$var=$val"
+}
+
+
+if { [info proc postprocess] != "" } {
+	postprocess
+}
+
+#puts "VARSPEC: $cmakeopt"
+
+set cmd [list cmake $here {*}$cmakeopt]
+puts "Running: $cmd"
+if { !$dryrun} {
+	if { [catch {exec 2>@stderr >@stdout {*}$cmd} result] } {
+		puts "CONFIGURE: cmake reported error: $result"
+	}
+} else {
+	puts "(not really - dry run)"
+}

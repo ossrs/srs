@@ -533,12 +533,12 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage
     return http_static->mux.serve_http(w, r);
 }
 
-srs_error_t SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
+srs_error_t SrsHttpServer::http_mount(SrsLiveSource* s, SrsRequest* r)
 {
     return http_stream->http_mount(s, r);
 }
 
-void SrsHttpServer::http_unmount(SrsSource* s, SrsRequest* r)
+void SrsHttpServer::http_unmount(SrsLiveSource* s, SrsRequest* r)
 {
     http_stream->http_unmount(s, r);
 }

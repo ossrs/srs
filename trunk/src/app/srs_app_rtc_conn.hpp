@@ -47,12 +47,12 @@
 #include <sys/socket.h>
 
 class SrsUdpMuxSocket;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsStunPacket;
 class SrsRtcServer;
 class SrsRtcConnection;
 class SrsSharedPtrMessage;
-class SrsRtcStream;
+class SrsRtcSource;
 class SrsRtpPacket;
 class ISrsCodec;
 class SrsRtpNackForReceiver;
@@ -214,7 +214,7 @@ public:
 
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : public ISrsCoroutineHandler, public ISrsReloadHandler
-    , public ISrsRtcPLIWorkerHandler, public ISrsRtcStreamChangeCallback
+    , public ISrsRtcPLIWorkerHandler, public ISrsRtcSourceChangeCallback
 {
 private:
     SrsContextId cid_;
@@ -223,7 +223,7 @@ private:
     SrsRtcPLIWorker* pli_worker_;
 private:
     SrsRequest* req_;
-    SrsRtcStream* source_;
+    SrsRtcSource* source_;
     // key: publish_ssrc, value: send track to process rtp/rtcp
     std::map<uint32_t, SrsRtcAudioSendTrack*> audio_tracks_;
     std::map<uint32_t, SrsRtcVideoSendTrack*> video_tracks_;
@@ -252,9 +252,9 @@ public:
     virtual ~SrsRtcPlayStream();
 public:
     srs_error_t initialize(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
-// Interface ISrsRtcStreamChangeCallback
+// Interface ISrsRtcSourceChangeCallback
 public:
-    void on_stream_change(SrsRtcStreamDescription* desc);
+    void on_stream_change(SrsRtcSourceDescription* desc);
 // interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
@@ -335,7 +335,7 @@ private:
     SrsErrorPithyPrint* pli_epp;
 private:
     SrsRequest* req;
-    SrsRtcStream* source;
+    SrsRtcSource* source;
     // Simulators.
     int nn_simulate_nack_drop;
 private:
@@ -353,7 +353,7 @@ public:
     SrsRtcPublishStream(SrsRtcConnection* session, const SrsContextId& cid);
     virtual ~SrsRtcPublishStream();
 public:
-    srs_error_t initialize(SrsRequest* req, SrsRtcStreamDescription* stream_desc);
+    srs_error_t initialize(SrsRequest* req, SrsRtcSourceDescription* stream_desc);
     srs_error_t start();
     // Directly set the status of track, generally for init to set the default value.
     void set_all_tracks_status(bool status);
@@ -553,15 +553,15 @@ public:
 private:
     srs_error_t on_binding_request(SrsStunPacket* r);
     // publish media capabilitiy negotiate
-    srs_error_t negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcStreamDescription* stream_desc);
-    srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan);
+    srs_error_t negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcSourceDescription* stream_desc);
+    srs_error_t generate_publish_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan);
     // play media capabilitiy negotiate
     //TODO: Use StreamDescription to negotiate and remove first negotiate_play_capability function
     srs_error_t negotiate_play_capability(SrsRtcUserConfig* ruc, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
     srs_error_t fetch_source_capability(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations);
-    srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcStreamDescription* stream_desc, bool unified_plan);
+    srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan);
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
-    srs_error_t create_publisher(SrsRequest* request, SrsRtcStreamDescription* stream_desc);
+    srs_error_t create_publisher(SrsRequest* request, SrsRtcSourceDescription* stream_desc);
 };
 
 class ISrsRtcHijacker

@@ -37,9 +37,9 @@
 class SrsRtmpServer;
 class SrsCommonMessage;
 class SrsRtmpConn;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsHttpConn;
 class SrsResponseOnlyHttpConn;
 
@@ -114,10 +114,10 @@ private:
     SrsRtmpServer* rtmp;
     // The recv thread error code.
     srs_error_t recv_error;
-    SrsConsumer* _consumer;
+    SrsLiveConsumer* _consumer;
 public:
 	// TODO: FIXME: Refine timeout in time unit.
-    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
+    SrsQueueRecvThread(SrsLiveConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid);
     virtual ~SrsQueueRecvThread();
 public:
     virtual srs_error_t start();
@@ -164,7 +164,7 @@ private:
     srs_error_t recv_error;
     SrsRtmpConn* _conn;
     // The params for conn callback.
-    SrsSource* _source;
+    SrsLiveSource* _source;
     // The error timeout cond
     // @see https://github.com/ossrs/srs/issues/244
     srs_cond_t error;
@@ -173,7 +173,7 @@ private:
     SrsContextId ncid;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, SrsContextId parent_cid);
+        int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsLiveSource* source, SrsContextId parent_cid);
     virtual ~SrsPublishRecvThread();
 public:
     // Wait for error for some timeout.
