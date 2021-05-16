@@ -4,6 +4,10 @@ http-parser-2.1.zip
 nginx-1.5.7.zip
 * for srs to support hls streaming.
 
+srt-1-fit
+srt-1.4.1.tar.gz
+* https://github.com/Haivision/srt/releases/tag/v1.4.1
+
 openssl-1.1.1b.tar.gz    
 openssl-1.1.0e.zip
 openssl-OpenSSL_1_0_2u.tar.gz

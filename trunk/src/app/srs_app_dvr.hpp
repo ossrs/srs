@@ -29,7 +29,7 @@
 #include <string>
 #include <sstream>
 
-class SrsSource;
+class SrsLiveSource;
 class SrsOriginHub;
 class SrsRequest;
 class SrsBuffer;

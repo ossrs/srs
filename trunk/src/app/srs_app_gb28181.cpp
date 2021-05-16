@@ -1432,7 +1432,7 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
     req = r;
     server = s;
     
-    if ((err = _srs_sources->fetch_or_create(req, (ISrsSourceHandler*)server, &source)) != srs_success) {
+    if ((err = _srs_sources->fetch_or_create(req, (ISrsLiveSourceHandler*)server, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
 

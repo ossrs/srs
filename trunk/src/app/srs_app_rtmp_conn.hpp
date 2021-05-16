@@ -38,9 +38,9 @@ class SrsServer;
 class SrsRtmpServer;
 class SrsRequest;
 class SrsResponse;
-class SrsSource;
+class SrsLiveSource;
 class SrsRefer;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsCommonMessage;
 class SrsStSocket;
 class SrsHttpHooks;
@@ -161,15 +161,15 @@ private:
     // The stream(play/publish) service cycle, identify client first.
     virtual srs_error_t stream_service_cycle();
     virtual srs_error_t check_vhost(bool try_default_vhost);
-    virtual srs_error_t playing(SrsSource* source);
-    virtual srs_error_t do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd);
-    virtual srs_error_t publishing(SrsSource* source);
-    virtual srs_error_t do_publishing(SrsSource* source, SrsPublishRecvThread* trd);
-    virtual srs_error_t acquire_publish(SrsSource* source);
-    virtual void release_publish(SrsSource* source);
-    virtual srs_error_t handle_publish_message(SrsSource* source, SrsCommonMessage* msg);
-    virtual srs_error_t process_publish_message(SrsSource* source, SrsCommonMessage* msg);
-    virtual srs_error_t process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
+    virtual srs_error_t playing(SrsLiveSource* source);
+    virtual srs_error_t do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
+    virtual srs_error_t publishing(SrsLiveSource* source);
+    virtual srs_error_t do_publishing(SrsLiveSource* source, SrsPublishRecvThread* trd);
+    virtual srs_error_t acquire_publish(SrsLiveSource* source);
+    virtual void release_publish(SrsLiveSource* source);
+    virtual srs_error_t handle_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
+    virtual srs_error_t process_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
+    virtual srs_error_t process_play_control_msg(SrsLiveConsumer* consumer, SrsCommonMessage* msg);
     virtual void set_sock_options();
 private:
     virtual srs_error_t check_edge_token_traverse_auth();

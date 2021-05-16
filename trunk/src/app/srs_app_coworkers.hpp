@@ -31,7 +31,7 @@
 
 class SrsJsonAny;
 class SrsRequest;
-class SrsSource;
+class SrsLiveSource;
 
 // For origin cluster.
 class SrsCoWorkers
@@ -50,8 +50,8 @@ public:
 private:
     virtual SrsRequest* find_stream_info(std::string vhost, std::string app, std::string stream);
 public:
-    virtual srs_error_t on_publish(SrsSource* s, SrsRequest* r);
-    virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);
+    virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r);
 };
 
 #endif
