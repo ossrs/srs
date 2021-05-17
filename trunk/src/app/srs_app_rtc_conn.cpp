@@ -423,7 +423,7 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_disconnect(cid_);
+    stat->on_disconnect(cid_.c_str());
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
@@ -552,7 +552,7 @@ srs_error_t SrsRtcPlayStream::start()
 
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_, req_, session_, SrsRtmpConnPlay)) != srs_success) {
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtmpConnPlay)) != srs_success) {
         srs_trace("webrtc: add client failed!");
     }
 
@@ -638,7 +638,7 @@ srs_error_t SrsRtcPlayStream::cycle()
         srs_freep(pkt);
 
         // chb: add webrtc kbps statistic
-        stat->kbps_add_delta(cid_, session_);
+        stat->kbps_add_delta(cid_.c_str(), session_);
     }
 }
 
@@ -1042,7 +1042,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
 
     // update the statistic when client coveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_disconnect(cid_);
+    stat->on_disconnect(cid_.c_str());
 
     srs_freep(pli_worker_);
     srs_freep(twcc_epp_);
@@ -1169,7 +1169,7 @@ srs_error_t SrsRtcPublishStream::start()
 
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_, req, session_, SrsRtmpConnFMLEPublish)) != srs_success) {
+    if ((err = stat->on_client(cid_.c_str(), req, session_, SrsRtmpConnFMLEPublish)) != srs_success) {
         srs_trace("webrtc: add client failed!");
     }
 

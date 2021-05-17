@@ -507,9 +507,9 @@ srs_error_t SrsRtcSource::on_publish()
         _srs_hybrid->timer100ms()->subscribe(this);
     }
 
-    // TODO: FIXME: Handle by statistic.
+    // chb TODO: FIXME: Handle by statistic.
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(req, _source_id);
+    stat->on_stream_publish(req, _source_id.c_str());
 
     return err;
 }
