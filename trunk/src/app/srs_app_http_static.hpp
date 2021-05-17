@@ -44,7 +44,7 @@ protected:
 
 // The http static server instance,
 // serve http static file and flv/mp4 vod stream.
-class SrsHttpStaticServer : virtual public ISrsReloadHandler
+class SrsHttpStaticServer : public ISrsReloadHandler
 {
 private:
     SrsServer* server;

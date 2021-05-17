@@ -1,0 +1,56 @@
+#!/bin/bash
+# Now Check if Tcl is installed, run it if so. The backslash extends the comment and hides the line below against Tcl interpreter \
+exec tclsh "$0" "$@" || echo "Please install 'tcl' package first - it's required to run any other scripts here." && exit 1
+
+#
+# SRT - Secure, Reliable, Transport
+# Copyright (c) 2018 Haivision Systems Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+if { [catch {package require Tcl 8.5}] } {
+	puts stderr "Tcl version at least 8.5 required, please upgrade"
+	exit 1
+}
+
+set ok 1
+
+if { [catch {exec pkg-config --exists openssl}] } {
+	set ok 0
+	puts "Openssl: NOT INSTALLED, please install (libssl-dev\[el\], openssl-dev\[el\] etc.)"
+} else {
+	puts "Openssl: found version [exec pkg-config --modversion openssl] -- ok"
+}
+
+
+set nothave [catch {set cmake [exec cmake --version]}]
+
+if { $nothave } {
+	puts "CMake version >= 2.8 required - please install cmake"
+	set ok 0
+} else {
+	set cmakel1 [lindex [split $cmake \n] 0]
+	set cv [lindex $cmakel1 end]
+	if { [package vcompare $cv 2.8] == -1 } {
+		puts "CMake version >= 2.8 required - please upgrade cmake"
+		set ok 0
+	} else {
+		puts "Cmake version $cv -- ok."
+	}
+}
+
+
+# May others also apply
+
+if { $ok } {
+	puts "All dependencies satisfied, you should be good to go."
+	exit 0
+}
+
+puts "Please fix the above findings before compiling"
+exit 1
+
+

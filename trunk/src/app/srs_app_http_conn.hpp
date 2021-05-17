@@ -38,9 +38,9 @@
 #include <srs_app_source.hpp>
 
 class SrsServer;
-class SrsSource;
+class SrsLiveSource;
 class SrsRequest;
-class SrsConsumer;
+class SrsLiveConsumer;
 class SrsStSocket;
 class SrsHttpParser;
 class ISrsHttpMessage;
@@ -75,8 +75,8 @@ public:
 };
 
 // The http connection which request the static or stream content.
-class SrsHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsCoroutineHandler
-    , virtual public ISrsExpire
+class SrsHttpConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
+    , public ISrsExpire
 {
 protected:
     SrsHttpParser* parser;
@@ -143,8 +143,8 @@ public:
 };
 
 // Drop body of request, only process the response.
-class SrsResponseOnlyHttpConn : virtual public ISrsStartableConneciton, virtual public ISrsHttpConnOwner
-    , virtual public ISrsReloadHandler
+class SrsResponseOnlyHttpConn : public ISrsStartableConneciton, public ISrsHttpConnOwner
+    , public ISrsReloadHandler
 {
 private:
     // The manager object to manage the connection.
@@ -208,8 +208,8 @@ public:
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 public:
-    virtual srs_error_t http_mount(SrsSource* s, SrsRequest* r);
-    virtual void http_unmount(SrsSource* s, SrsRequest* r);
+    virtual srs_error_t http_mount(SrsLiveSource* s, SrsRequest* r);
+    virtual void http_unmount(SrsLiveSource* s, SrsRequest* r);
 };
 
 #endif

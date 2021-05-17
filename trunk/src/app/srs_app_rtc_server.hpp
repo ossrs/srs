@@ -40,7 +40,7 @@ class SrsHourGlass;
 class SrsRtcConnection;
 class SrsRequest;
 class SrsSdp;
-class SrsRtcStream;
+class SrsRtcSource;
 class SrsResourceManager;
 
 // The UDP black hole, for developer to use wireshark to catch plaintext packets.

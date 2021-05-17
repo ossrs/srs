@@ -164,7 +164,7 @@ srs_error_t SrsRecvThread::do_cycle()
     return err;
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsLiveConsumer* consumer, SrsRtmpServer* rtmp_sdk, srs_utime_t tm, SrsContextId parent_cid)
 	: trd(this, rtmp_sdk, tm, parent_cid)
 {
     _consumer = consumer;
@@ -190,9 +190,6 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
 srs_error_t SrsQueueRecvThread::start()
 {
     srs_error_t err = srs_success;
-
-    SrsStatistic* stat = SrsStatistic::instance();
-    rtmp->set_perf(stat);
     
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "queue recv thread");
@@ -281,7 +278,7 @@ void SrsQueueRecvThread::on_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* _req,
-	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsSource* source, SrsContextId parent_cid)
+	int mr_sock_fd, srs_utime_t tm, SrsRtmpConn* conn, SrsLiveSource* source, SrsContextId parent_cid)
     : trd(this, rtmp_sdk, tm, parent_cid)
 {
     rtmp = rtmp_sdk;
