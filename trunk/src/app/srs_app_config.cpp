@@ -326,6 +326,23 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
             dir->name = "http_server";
             continue;
         }
+
+        // SRS4.0, removed the support of configs:
+        //      rtc_server { perf_stat; queue_length; }
+        if (dir->name == "rtc_server") {
+            std::vector<SrsConfDirective*>::iterator it;
+            for (it = dir->directives.begin(); it != dir->directives.end();) {
+                SrsConfDirective* conf = *it;
+
+                if (conf->name == "perf_stat" || conf->name == "queue_length") {
+                    dir->directives.erase(it);
+                    srs_freep(conf);
+                    continue;
+                }
+
+                ++it;
+            }
+        }
         
         if (!dir->is_vhost()) {
             continue;
