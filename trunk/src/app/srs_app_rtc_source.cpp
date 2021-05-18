@@ -367,7 +367,58 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 
     req = r->copy();
 
-    return err;
+	// Create default relations to allow play before publishing.
+	// @see https://github.com/ossrs/srs/issues/2362
+	init_for_play_before_publishing();
+
+	return err;
+}
+
+void SrsRtcSource::init_for_play_before_publishing()
+{
+    // If the stream description has already been setup by RTC publisher,
+    // we should ignore and it's ok, because we only need to setup it for bridger.
+    if (stream_desc_) {
+        return;
+    }
+
+    SrsRtcSourceDescription* stream_desc = new SrsRtcSourceDescription();
+    SrsAutoFree(SrsRtcSourceDescription, stream_desc);
+
+    // audio track description
+    if (true) {
+        SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
+        stream_desc->audio_track_desc_ = audio_track_desc;
+
+        audio_track_desc->type_ = "audio";
+        audio_track_desc->id_ = "audio-" + srs_random_str(8);
+
+        uint32_t audio_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        audio_track_desc->ssrc_ = audio_ssrc;
+        audio_track_desc->direction_ = "recvonly";
+
+        audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
+    }
+
+    // video track description
+    if (true) {
+        SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(video_track_desc);
+
+        video_track_desc->type_ = "video";
+        video_track_desc->id_ = "video-" + srs_random_str(8);
+
+        uint32_t video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        video_track_desc->ssrc_ = video_ssrc;
+        video_track_desc->direction_ = "recvonly";
+
+        SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
+        video_track_desc->media_ = video_payload;
+
+        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    }
+
+    set_stream_desc(stream_desc);
 }
 
 void SrsRtcSource::update_auth(SrsRequest* r)
@@ -542,9 +593,6 @@ void SrsRtcSource::on_unpublish()
         srs_freep(bridger_);
     }
 
-    // release unpublish stream description.
-    set_stream_desc(NULL);
-
     // TODO: FIXME: Handle by statistic.
 }
 
@@ -675,46 +723,20 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     audio_sequence = 0;
     video_sequence = 0;
 
-    SrsRtcSourceDescription* stream_desc = new SrsRtcSourceDescription();
-    SrsAutoFree(SrsRtcSourceDescription, stream_desc);
-
-    // audio track description
+    // audio track ssrc
     if (true) {
-        SrsRtcTrackDescription* audio_track_desc = new SrsRtcTrackDescription();
-        stream_desc->audio_track_desc_ = audio_track_desc;
-
-        audio_track_desc->type_ = "audio";
-        audio_track_desc->id_ = "audio-"  + srs_random_str(8);
-
-        audio_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        audio_track_desc->ssrc_ = audio_ssrc;
-        audio_track_desc->direction_ = "recvonly";
-
-        audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
+        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("audio", "opus");
+        if (!descs.empty()) {
+            audio_ssrc = descs.at(0)->ssrc_;
+        }
     }
 
-    // video track description
+    // video track ssrc
     if (true) {
-        SrsRtcTrackDescription* video_track_desc = new SrsRtcTrackDescription();
-        stream_desc->video_track_descs_.push_back(video_track_desc);
-
-        video_track_desc->type_ = "video";
-        video_track_desc->id_ = "video-"  + srs_random_str(8);
-
-        video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-        video_track_desc->ssrc_ = video_ssrc;
-        video_track_desc->direction_ = "recvonly";
-
-        SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        video_track_desc->media_ = video_payload;
-
-        video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
-    }
-
-    // If the stream description has already been setup by RTC publisher,
-    // we should ignore and it's ok, because we only need to setup it for bridger.
-    if (!source_->has_stream_desc()) {
-        source_->set_stream_desc(stream_desc);
+        std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("video", "H264");
+        if (!descs.empty()) {
+            video_ssrc = descs.at(0)->ssrc_;
+        }
     }
 }
 
