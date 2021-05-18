@@ -283,13 +283,10 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_codec")
 fi
 if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip")
-fi
-if [[ $SRS_GB28181 == YES || $SRS_RTC == YES ]]; then
-    MODULE_FILES+=("srs_app_rtc_jitbuffer")
+    MODULE_FILES+=("srs_app_gb28181" "srs_app_gb28181_sip" "srs_app_gb28181_jitter")
 fi
 if [[ $SRS_GB28181 == YES ]]; then
-    MODULE_FILES+=("srs_app_sip")
+    MODULE_FILES+=("srs_app_gb28181_stack")
     ModuleLibIncs+=(${LibIconvRoot})
 fi
 
