@@ -39,7 +39,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_gb28181_sip.hpp>
-#include <srs_app_rtc_jitbuffer.hpp>
+#include <srs_app_gb28181_jitter.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_app_source.hpp>
 #include <srs_service_conn.hpp>

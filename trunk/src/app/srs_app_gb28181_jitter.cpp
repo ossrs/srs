@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_rtc_jitbuffer.hpp>
+#include <srs_app_gb28181_jitter.hpp>
 
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
@@ -1201,7 +1201,7 @@ SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket(uint16_t seq, uint32_t ts
         //CountFrame(*frame);
         // if (previous_state != kStateDecodable &&
         //         previous_state != kStateComplete) {
-        //     /*CountFrame(*frame);*/ //????????????????????�?? by ylr
+        //     /*CountFrame(*frame);
         //     if (continuous) {
         //         // Signal that we have a complete session.
         //         frame_event_->Set();
@@ -1213,7 +1213,7 @@ SrsRtpFrameBufferEnum SrsRtpJitterBuffer::InsertPacket(uint16_t seq, uint32_t ts
     case kDecodableSession: {
         // *retransmitted = (frame->GetNackCount() > 0);
 
-        if (true || continuous) {
+        if (continuous) {
             decodable_frames_.InsertFrame(frame);
             FindAndInsertContinuousFrames(*frame);
         } else {
@@ -1522,7 +1522,9 @@ bool SrsRtpJitterBuffer::NextMaybeIncompleteTimestamp(uint32_t* timestamp)
     SrsRtpFrameBuffer* oldest_frame;
 
     if (decodable_frames_.empty()) {
-        if (incomplete_frames_.size() <= 1) {
+        //in order to solve the problem of bad network, we can wait for more incomplete frames
+        //ex fps=15
+        if (incomplete_frames_.size() < 15) {
             return false;
         }
 
