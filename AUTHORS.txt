@@ -1,5 +1,6 @@
 CONTRIBUTORS ordered by first contribution.
 * winlin<winlin@vip.126.com>
+* chengli.ycl<chengli.ycl@alibaba-inc.com>
 * wenjie.zhao<740936897@qq.com>
 * xiangcheng.liu<liuxc0116@foxmail.com>
 * naijia.liu<youngcow@youngcow.net>
@@ -58,13 +59,16 @@ CONTRIBUTORS ordered by first contribution.
 * XiaLixin<xialx@yuntongxun.com>
 * xiaozhihong<xiaozhihong8@gmail.com>
 * HuyaJohn<xiaozhihong@huya.com>
+* xiaozhihong<hondaxiao@tencent.com>
 * yanghuiwen<cainiaodj@qq.com>
 * Bepartofyou<309554135@qq.com>
+* pengqiang.wpq<pengqiang.wpq@alibaba-inc.com>
 * l<22312935+lam2003@users.noreply.github.com>
 * xfalcon<x-falcon@users.noreply.github.com>
-* cgh<jinxue.cgh@alibaba-inc.com>
-* LiPeng<mozhan.lp@alibaba-inc.com>
-* xiaozhihong<hondaxiao@tencent.com>
+* chengh_math<chengh_math@126.com>
+* jinxue.cgh<jinxue.cgh@alibaba-inc.com>
+* lipeng19811218<lipeng19811218@gmail.com>
+* mozhan.lp<mozhan.lp@alibaba-inc.com>
 * yajun18<yajun18@staff.sina.com.cn>
 * liulichuan<liulichuan@kuaishou.com>
 * yapingcat<caoyapingneu@163.com>
