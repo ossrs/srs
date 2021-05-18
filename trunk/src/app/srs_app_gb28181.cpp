@@ -50,7 +50,8 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_format.hpp>
-#include <srs_app_sip.hpp>
+#include <srs_app_gb28181_stack.hpp>
+#include <srs_app_rtc_source.hpp>
 
 //#define W_PS_FILE
 //#define W_VIDEO_FILE
@@ -1436,10 +1437,38 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
         return srs_error_wrap(err, "create source");
     }
 
-    //TODO: ???
-    // if (!source->can_publish(false)) {
-    //     return srs_error_new(ERROR_GB28181_SESSION_IS_EXIST, "stream %s busy", req->get_stream_url().c_str());
-    // }
+ #ifdef SRS_RTC
+    SrsRtcSource *rtc = NULL;
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req->vhost);
+    if (rtc_server_enabled && rtc_enabled) {
+        if ((err = _srs_rtc_sources->fetch_or_create(req, &rtc)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
+
+        if (!rtc->can_publish()) {
+            return srs_error_new(ERROR_RTC_SOURCE_BUSY, "gb28181 rtc stream %s busy", req->get_stream_url().c_str());
+        }
+    }
+#endif
+
+    // Check whether RTMP stream is busy.
+    if (!source->can_publish(false)) {
+        return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "gb28181 rtmp: stream %s is busy", req->get_stream_url().c_str());
+    }
+
+    // Bridge to RTC streaming.
+#if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
+    if (rtc) {
+        SrsRtcFromRtmpBridger *bridger = new SrsRtcFromRtmpBridger(rtc);
+        if ((err = bridger->initialize(req)) != srs_success) {
+            srs_freep(bridger);
+            return srs_error_wrap(err, "bridger init");
+        }
+
+        source->set_bridger(bridger);
+    }
+#endif
 
     if ((err = source->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on publish");

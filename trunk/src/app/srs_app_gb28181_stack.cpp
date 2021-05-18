@@ -21,7 +21,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <srs_app_sip.hpp>
+#include <srs_app_gb28181_stack.hpp>
 
 #if !defined(SRS_EXPORT_LIBRTMP)
 
