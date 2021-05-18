@@ -442,6 +442,10 @@ public:
     // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
     virtual bool get_daemon();
+private:
+    // Whether user use full.conf
+    virtual bool is_full_config();
+public:
     // Get the max connections limit of system.
     // If  exceed the max connection, SRS will disconnect the connection.
     // @remark, linux will limit the connections of each process,

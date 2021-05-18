@@ -3593,6 +3593,12 @@ srs_error_t SrsConfig::check_config()
     if ((err = check_number_connections()) != srs_success) {
         return srs_error_wrap(err, "check connections");
     }
+
+    // If use the full.conf, fail.
+    if (is_full_config()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
+            "never use full.conf(%s)", config_file.c_str());
+    }
     
     return err;
 }
@@ -3625,7 +3631,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
-            && n != "circuit_breaker"
+            && n != "circuit_breaker" && n != "is_full"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -4144,6 +4150,18 @@ bool SrsConfig::get_daemon()
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::is_full_config()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("is_full");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_root()
