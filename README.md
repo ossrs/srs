@@ -183,6 +183,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-19, Fix [#2362][bug #2362]: Allow WebRTC to play before publishing, for GB28181 as such. 4.0.117
 * v4.0, 2021-05-18, Fix [#2355][bug #2355]: GB28181: Fix play by RTC bug. 4.0.116
 * v4.0, 2021-05-15, SRT: Build SRT from source by SRS. 4.0.115
 * v4.0, 2021-05-15, Rename SrsConsumer* to SrsLiveConsumer*. 4.0.114
@@ -1933,6 +1934,7 @@ Winlin
 [bug #2304]: https://github.com/ossrs/srs/issues/2304#issuecomment-826009290
 [bug #2355]: https://github.com/ossrs/srs/issues/2355
 [bug #307]: https://github.com/ossrs/srs/issues/307
+[bug #2362]: https://github.com/ossrs/srs/issues/2362
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
