@@ -209,6 +209,9 @@ public:
     virtual ~SrsRtcSource();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+private:
+    void init_for_play_before_publishing();
+public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 private:
