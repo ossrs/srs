@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <string>
 #include <sstream>
 
@@ -575,8 +573,6 @@ private:
     // @param pconsumed, output the token parsed length. NULL to ignore.
     virtual srs_error_t recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
 };
-
-#endif
 
 #endif
 

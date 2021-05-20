@@ -23,8 +23,6 @@
 
 #include <srs_rtsp_stack.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <stdlib.h>
 #include <map>
 using namespace std;
@@ -1099,6 +1097,4 @@ srs_error_t SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& stat
     
     return err;
 }
-
-#endif
 

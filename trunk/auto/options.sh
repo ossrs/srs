@@ -349,6 +349,13 @@ function parse_user_option() {
         --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
         --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
 
+        # Removed features.
+        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
+        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
+        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
+        --without-librtmp)              SRS_LIBRTMP=NO              ;;
+        --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
+
         # Deprecated, might be removed in future.
         --with-nginx)                   SRS_NGINX=YES               ;;
         --without-nginx)                SRS_NGINX=NO                ;;
@@ -356,11 +363,6 @@ function parse_user_option() {
         --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
         --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
-        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
-        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
-        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
-        --without-librtmp)              SRS_LIBRTMP=NO              ;;
-        --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
 
         # Ignore the options.
         --demo)                         echo "Ignore $option"       ;;
@@ -476,19 +478,16 @@ function apply_detail_options() {
     
     # if specified export single file, export project first.
     if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        echo "Warning: Ingore --export-librtmp-single"
-        SRS_EXPORT_LIBRTMP_SINGLE=NO
+        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
     fi
 
     # disable almost all features for export srs-librtmp.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        echo "Warning: Ingore --export-librtmp-project"
-        SRS_EXPORT_LIBRTMP_PROJECT=NO
+        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
     fi
 
     if [[ $SRS_LIBRTMP != NO ]]; then
-        echo "Warning: Ingore --librtmp"
-        SRS_LIBRTMP=NO
+        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
     fi
 
     if [[ $SRS_RESEARCH != NO ]]; then

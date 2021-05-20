@@ -39,11 +39,6 @@ function srs_undefine_macro()
     echo "#define ${macro}_BOOL false" >> $file
 }
 
-# export the preset.
-echo "#undef SRS_EXPORT_LIBRTMP" >> $SRS_AUTO_HEADERS_H
-
-echo "" >> $SRS_AUTO_HEADERS_H
-
 #####################################################################################
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
