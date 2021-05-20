@@ -68,10 +68,11 @@ The branch [srs](https://github.com/ossrs/state-threads/tree/srs) will be patche
 - [x] Support macro `MD_ST_NO_ASM` to disable ASM, [#8](https://github.com/ossrs/state-threads/issues/8).
 - [x] Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
 - [x] Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
-- [x] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
+- [ ] Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 - [x] Refine performance for sleep or epoll_wait(0), [#17](https://github.com/ossrs/state-threads/issues/17).
 - [ ] Improve the performance of timer. [9fe8cfe5b](https://github.com/ossrs/state-threads/commit/9fe8cfe5b1c9741a2e671a46215184f267fba400), [7879c2b](https://github.com/ossrs/state-threads/commit/7879c2b), [387cddb](https://github.com/ossrs/state-threads/commit/387cddb)
 - [x] Support utest by gtest and coverage by gcov/gocvr.
+- [ ] Support Multiple Threads for Linux and Darwin. [#19](https://github.com/ossrs/state-threads/issues/19), [srs#2188](https://github.com/ossrs/srs/issues/2188).
 
 ## GDB Tools
 
