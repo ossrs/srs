@@ -68,8 +68,6 @@ SrsPps* _srs_pps_srtps = NULL;
 SrsPps* _srs_pps_pli = NULL;
 SrsPps* _srs_pps_twcc = NULL;
 SrsPps* _srs_pps_rr = NULL;
-SrsPps* _srs_pps_pub = NULL;
-SrsPps* _srs_pps_conn = NULL;
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
