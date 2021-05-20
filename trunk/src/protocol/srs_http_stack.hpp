@@ -28,8 +28,6 @@
 
 #include <srs_kernel_io.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <map>
 #include <string>
 #include <vector>
@@ -548,9 +546,6 @@ public:
     static srs_error_t query_unescape(std::string s, std::string& value);
     static srs_error_t path_unescape(std::string s, std::string& value);
 };
-
-// For #if !defined(SRS_EXPORT_LIBRTMP)
-#endif
 
 // For #ifndef SRS_PROTOCOL_HTTP_HPP
 #endif

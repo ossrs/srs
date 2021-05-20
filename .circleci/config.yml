@@ -6,15 +6,23 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS baseline" &&
+          echo "Build SRS baseline" &&
           cd trunk && ./configure && make
+  build-c7-nortc:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build SRS without RTC" &&
+          cd trunk && ./configure --rtc=off && make
   build-c7-noasm:
     docker:
       - image: ossrs/srs:dev
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS without NASM or SRTP-NASM" &&
+          echo "Build SRS without NASM or SRTP-NASM" &&
           cd trunk && ./configure --nasm=off --srtp-nasm=off && make
   build-c7-gb28181:
     docker:
@@ -22,7 +30,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with GB28181" &&
+          echo "Build SRS with GB28181" &&
           cd trunk && ./configure --gb28181=on && make
   build-c7-srt:
     docker:
@@ -30,7 +38,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with SRT" &&
+          echo "Build SRS with SRT" &&
           cd trunk && ./configure --srt=on && make
   build-c8-baseline:
     docker:
@@ -38,7 +46,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS for CentOS8" &&
+          echo "Build SRS for CentOS8" &&
           cd trunk && ./configure && make
   build-c8-srt:
     docker:
@@ -46,7 +54,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with SRT for CentOS8" &&
+          echo "Build SRS with SRT for CentOS8" &&
           cd trunk && ./configure --srt=on && make
   build-u16-baseline:
     docker:
@@ -54,7 +62,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS for Ubuntu16" &&
+          echo "Build SRS for Ubuntu16" &&
           cd trunk && ./configure && make
   build-u16-srt:
     docker:
@@ -62,7 +70,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with SRT for Ubuntu16" &&
+          echo "Build SRS with SRT for Ubuntu16" &&
           cd trunk && ./configure --srt=on && make
   build-u18-baseline:
     docker:
@@ -70,7 +78,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS for Ubuntu18" &&
+          echo "Build SRS for Ubuntu18" &&
           cd trunk && ./configure && make
   build-u18-srt:
     docker:
@@ -78,7 +86,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with SRT for Ubuntu18" &&
+          echo "Build SRS with SRT for Ubuntu18" &&
           cd trunk && ./configure --srt=on && make
   build-u20-baseline:
     docker:
@@ -86,7 +94,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS for Ubuntu20" &&
+          echo "Build SRS for Ubuntu20" &&
           cd trunk && ./configure && make
   build-u20-srt:
     docker:
@@ -94,7 +102,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS with SRT for Ubuntu20" &&
+          echo "Build SRS with SRT for Ubuntu20" &&
           cd trunk && ./configure --srt=on && make
   run-utest:
     docker:
@@ -121,7 +129,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          echo "Build and run SRS C++98(ANSI), no FFmpeg-fit" &&
+          echo "Build SRS C++98(ANSI), no FFmpeg-fit" &&
           cd trunk && ./configure --cxx11=off --cxx14=off --ffmpeg-fit=off && make
 workflows:
   version: 2
@@ -130,6 +138,7 @@ workflows:
       - build-c7-baseline
       - run-utest
       - run-regression-test
+      - build-c7-nortc
       - build-c7-noasm
       - build-c7-gb28181
       - build-c7-srt

@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <string>
 
 class SrsBuffer;
@@ -62,8 +60,6 @@ public:
      */
     virtual srs_error_t write_audio(int64_t timestamp, char* data, int size);
 };
-
-#endif
 
 #endif
 
