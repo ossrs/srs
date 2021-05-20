@@ -90,33 +90,15 @@ SRS_CLEAN=YES
 SRS_SIMULATOR=NO
 #
 ################################################################
-# presets
-# for x86/x64 pc/servers
+# Preset, for x86_64 servers
 SRS_X86_X64=NO
-# for osx system
+# Preset, for osx/macOS PC.
 SRS_OSX=NO
-# dev, open all features for dev, no gperf/prof/arm.
-SRS_DEV=NO
-# dev, open main server feature for dev, no utest/research/librtmp
-SRS_FAST_DEV=NO
-# demo, for the demo of srs, @see: https://github.com/ossrs/srs/wiki/v1_CN_SampleDemo
-SRS_DEMO=NO
-# raspberry-pi, open hls/ssl/static
-SRS_PI=NO
-# cubieboard, donot open ffmpeg/nginx.
-SRS_CUBIE=NO
-# the most fast compile, nothing, only support vp6 RTMP.
-SRS_FAST=NO
-# only support RTMP with ssl.
-SRS_PURE_RTMP=NO
-# the most fast compile, nothing, only support vp6 RTMP.
-SRS_DISABLE_ALL=NO
-# all features is on
-SRS_ENABLE_ALL=NO
+# Preset, for cross build, for example, on Ubuntu.
+SRS_CROSS_BUILD=NO
 #
 #####################################################################################
-# Toolchain crossbuild for ARM or MIPS.
-SRS_CROSS_BUILD=NO
+# Toolchain cross-build for ARM or MIPS.
 SRS_TOOL_CC=gcc
 SRS_TOOL_CXX=g++
 SRS_TOOL_AR=ar
@@ -368,26 +350,28 @@ function parse_user_option() {
         --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
 
         # Deprecated, might be removed in future.
-        --pi)                           SRS_PI=YES                  ;;
-        --cubie)                        SRS_CUBIE=YES               ;;
-        --dev)                          SRS_DEV=YES                 ;;
-        --fast-dev)                     SRS_FAST_DEV=YES            ;;
-        --demo)                         SRS_DEMO=YES                ;;
-        --fast)                         SRS_FAST=YES                ;;
-        --disable-all)                  SRS_DISABLE_ALL=YES         ;;
-        --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
-        --full)                         SRS_ENABLE_ALL=YES          ;;
-        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
-        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
         --without-nginx)                SRS_NGINX=NO                ;;
         --nginx)                        if [[ $value == off ]]; then SRS_NGINX=NO; else SRS_NGINX=YES; fi    ;;
         --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
         --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
+        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
+        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
         --with-librtmp)                 SRS_LIBRTMP=YES             ;;
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
+
+        # Ignore the options.
+        --demo)                         echo "Ignore $option"       ;;
+        --dev)                          echo "Ignore $option"       ;;
+        --fast-dev)                     echo "Ignore $option"       ;;
+        --pi)                           echo "Ignore $option"       ;;
+        --cubie)                        echo "Ignore $option"       ;;
+        --fast)                         echo "Ignore $option"       ;;
+        --pure-rtmp)                    echo "Ignore $option"       ;;
+        --disable-all)                  echo "Ignore $option"       ;;
+        --full)                         echo "Ignore $option"       ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
