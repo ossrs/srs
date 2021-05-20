@@ -17,7 +17,7 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
-SRS_RTC=YES
+SRS_RTC=RESERVED
 SRS_GB28181=NO
 SRS_CXX11=NO
 SRS_CXX14=NO
@@ -139,7 +139,7 @@ function show_help() {
 
 Presets:
   --x86-64, --x86-x64       For x86/x64 cpu, common pc and servers. Default: $(value2switch $SRS_X86_X64)
-  --arm                     Enable crossbuild for ARM, should also set bellow toolchain options. Default: $(value2switch $SRS_CROSS_BUILD)
+  --arm                     Enable cross-build for ARM, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
 
 Features:
@@ -179,11 +179,11 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 
 Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
-  --cc=<CC>                 Use c compiler CC. Default: $SRS_TOOL_CC
-  --cxx=<CXX>               Use c++ compiler CXX. Default: $SRS_TOOL_CXX
-  --ar=<AR>                 Use archive tool AR. Default: $SRS_TOOL_CXX
-  --ld=<LD>                 Use linker tool LD. Default: $SRS_TOOL_CXX
-  --randlib=<RANDLIB>       Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
+  --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
+  --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
+  --ar=<AR>                 Toolchain: Use archive tool AR. Default: $SRS_TOOL_CXX
+  --ld=<LD>                 Toolchain: Use linker tool LD. Default: $SRS_TOOL_CXX
+  --randlib=<RANDLIB>       Toolchain: Use randlib tool RANDLIB. Default: $SRS_TOOL_CXX
   --extra-flags=<EFLAGS>    Set EFLAGS as CFLAGS and CXXFLAGS. Also passed to ST as EXTRA_CFLAGS.
 
 Experts:
@@ -357,9 +357,17 @@ function parse_user_option() {
         --debug)                        if [[ $value == off ]]; then SRS_DEBUG=NO; else SRS_DEBUG=YES; fi    ;;
         --debug-stats)                  if [[ $value == off ]]; then SRS_DEBUG_STATS=NO; else SRS_DEBUG_STATS=YES; fi    ;;
 
-        # Deprecated, might be removed in future.
+        # Alias for --arm, cross build.
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
+        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
+        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
+        --arm-ubuntu12)                 if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
+        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
+        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
+        --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
+
+        # Deprecated, might be removed in future.
         --pi)                           SRS_PI=YES                  ;;
         --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
@@ -380,12 +388,6 @@ function parse_user_option() {
         --with-librtmp)                 SRS_LIBRTMP=YES             ;;
         --without-librtmp)              SRS_LIBRTMP=NO              ;;
         --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
-        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
-        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
-        --arm-ubuntu12)                 if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
-        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
-        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
-        --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -445,6 +447,11 @@ function apply_detail_options() {
     # set default preset if not specifies
     if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
+    fi
+
+    # Setup the default values if not set.
+    if [[ $SRS_RTC == RESERVED ]]; then
+        SRS_RTC=YES; if [[ $SRS_CROSS_BUILD == YES ]]; then SRS_RTC=NO; fi
     fi
 
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.
@@ -581,12 +588,11 @@ regenerate_options
 #####################################################################################
 function check_option_conflicts() {
     if [[ $SRS_TOOL_CC == '' ||  $SRS_TOOL_CXX == '' ||  $SRS_TOOL_AR == '' ||  $SRS_TOOL_LD == '' ||  $SRS_TOOL_RANDLIB == '' ]]; then
-        echo "No crossbuild tools, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR, ld: $SRS_TOOL_LD, randlib: $SRS_TOOL_RANDLIB"; exit -1
+        echo "Error: No build toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR, ld: $SRS_TOOL_LD, randlib: $SRS_TOOL_RANDLIB"; exit -1
     fi
 
     if [[ $SRS_CROSS_BUILD == YES && ($SRS_TOOL_CC == 'gcc' || $SRS_TOOL_CXX == 'g++' || $SRS_TOOL_AR == 'ar') ]]; then
-        echo "Warning: For crossbuild, must not use default toolchain, cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"
-        SRS_CROSS_BUILD=NO
+        echo "Error: For cross build, should setup the toolchain(./configure -h|grep -i toolchain), cc: $SRS_TOOL_CC, cxx: $SRS_TOOL_CXX, ar: $SRS_TOOL_AR"; exit 1
     fi
 
     if [[ $SRS_NGINX == YES ]]; then
