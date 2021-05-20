@@ -23,8 +23,6 @@
 
 #include <srs_app_gb28181_stack.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>  
@@ -1456,6 +1454,4 @@ void SrsSipStack::req_ptz(std::stringstream& ss, SrsSipRequest *req, uint8_t cmd
     << xmlbody;
 
 }
-
-#endif
 

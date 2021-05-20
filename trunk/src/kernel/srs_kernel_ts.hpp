@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <string>
 #include <map>
 #include <vector>
@@ -1347,8 +1345,6 @@ private:
     virtual srs_error_t flush_audio();
     virtual srs_error_t flush_video();
 };
-
-#endif
 
 #endif
 

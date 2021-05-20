@@ -26,8 +26,6 @@
 
 #include <srs_core.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <string>
 #include <sstream>
 #include <vector>
@@ -182,8 +180,6 @@ public:
     virtual void req_ptz(std::stringstream& ss, SrsSipRequest *req, uint8_t cmd, uint8_t speed,  int priority);
    
 };
-
-#endif
 
 #endif
 

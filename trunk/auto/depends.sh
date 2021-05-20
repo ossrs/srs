@@ -33,16 +33,12 @@ echo "Required tools are ok."
 OS_IS_UBUNTU=NO
 function Ubuntu_prepare()
 {
-    if [ $SRS_CUBIE = YES ]; then
-        echo "For cubieboard, please use ubuntu prepare."
-    else
-        uname -v|grep Ubuntu >/dev/null 2>&1
-        ret=$?; if [[ 0 -ne $ret ]]; then
-            # for debian, we think it's ubuntu also.
-            # for example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
-            if [[ ! -f /etc/debian_version ]]; then
-                return 0;
-            fi
+    uname -v|grep Ubuntu >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        # for debian, we think it's ubuntu also.
+        # for example, the wheezy/sid which is debian armv7 linux, can not identified by uname -v.
+        if [[ ! -f /etc/debian_version ]]; then
+            return 0;
         fi
     fi
 
@@ -380,11 +376,9 @@ function _srs_link_file()
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
 # others is invalid.
-if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO ]]; then
-    if [[ $SRS_PI = NO && $SRS_CUBIE = NO && $SRS_CROSS_BUILD = NO ]]; then
-        echo "Your OS `uname -s` is not supported."
-        exit 1
-    fi
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_CROSS_BUILD = NO ]]; then
+    echo "Your OS `uname -s` is not supported."
+    exit 1
 fi
 
 #####################################################################################

@@ -33,6 +33,8 @@ using namespace std;
 #include <srs_protocol_kbps.hpp>
 
 SrsPps* _srs_pps_timer = NULL;
+SrsPps* _srs_pps_conn = NULL;
+SrsPps* _srs_pps_pub = NULL;
 
 extern SrsPps* _srs_pps_clock_15ms;
 extern SrsPps* _srs_pps_clock_20ms;

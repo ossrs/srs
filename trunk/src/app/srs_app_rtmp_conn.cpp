@@ -961,12 +961,14 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     
     SrsRequest* req = info->req;
 	
-	// @see https://github.com/ossrs/srs/issues/2364
+    // @see https://github.com/ossrs/srs/issues/2364
     // Check whether GB28181 stream is busy.
 #if defined(SRS_GB28181)
-    SrsGb28181RtmpMuxer* gb28181 = _srs_gb28181->fetch_rtmpmuxer(req->stream);
-    if (gb28181 != NULL) {
-        return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "gb28181 stream %s busy", req->get_stream_url().c_str());
+    if (_srs_gb28181 != NULL) {
+        SrsGb28181RtmpMuxer* gb28181 = _srs_gb28181->fetch_rtmpmuxer(req->stream);
+        if (gb28181 != NULL) {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "gb28181 stream %s busy", req->get_stream_url().c_str());
+        }
     }
 #endif
 
