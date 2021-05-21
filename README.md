@@ -181,6 +181,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-21, Fix [#2370][bug #2370] bug for Firefox play stream(published by Chrome). 4.0.121
 * v4.0, 2021-05-21, RTC: Refine sdk, migrate from onaddstream to ontrack. 4.0.120
 * v4.0, 2021-05-21, Tools: Refine configure options. 4.0.119
 * v4.0, 2021-05-20, Fix build fail when disable RTC by --rtc=off. 4.0.118
@@ -1924,6 +1925,7 @@ Winlin
 [bug #2355]: https://github.com/ossrs/srs/issues/2355
 [bug #307]: https://github.com/ossrs/srs/issues/307
 [bug #2362]: https://github.com/ossrs/srs/issues/2362
+[bug #2370]: https://github.com/ossrs/srs/issues/2370
 [bug #yyyyyyyyyyyyy]: https://github.com/ossrs/srs/issues/yyyyyyyyyyyyy
 
 [bug #1631]: https://github.com/ossrs/srs/issues/1631
