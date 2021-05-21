@@ -136,7 +136,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
 
-Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
+Toolchain options:          @see https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
   --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
