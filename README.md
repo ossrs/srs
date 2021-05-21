@@ -176,6 +176,7 @@ The ports used by SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-21, Tools: Refine configure options. 4.0.119
 * v4.0, 2021-05-20, Fix build fail when disable RTC by --rtc=off. 4.0.118
 * v4.0, 2021-05-19, Fix [#2362][bug #2362]: Allow WebRTC to play before publishing, for GB28181 as such. 4.0.117
 * v4.0, 2021-05-18, Fix [#2355][bug #2355]: GB28181: Fix play by RTC bug. 4.0.116
