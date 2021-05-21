@@ -29,6 +29,14 @@
 function SrsRtcPublisherAsync() {
     var self = {};
 
+    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+    self.constraints = {
+        audio: true,
+        video: {
+            width: {ideal: 320, max: 576}
+        }
+    };
+
     // @see https://github.com/rtcdn/rtcdn-draft
     // @url The WebRTC url to play with, for example:
     //      webrtc://r.ossrs.net/live/livestream
@@ -56,9 +64,8 @@ function SrsRtcPublisherAsync() {
         self.pc.addTransceiver("audio", {direction: "sendonly"});
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
-        var stream = await navigator.mediaDevices.getUserMedia(
-            {audio: true, video: {width: {max: 320}}}
-        );
+        var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
+
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
         stream.getTracks().forEach(function (track) {
             self.pc.addTrack(track);
@@ -500,7 +507,8 @@ function SrsRtcPlayerAsync() {
 function SrsRtcFormatSenders(senders, kind) {
     var codecs = [];
     senders.forEach(function (sender) {
-        sender.getParameters().codecs.forEach(function(c) {
+        var params = sender.getParameters();
+        params && params.codecs && params.codecs.forEach(function(c) {
             if (kind && sender.track.kind !== kind) {
                 return;
             }
