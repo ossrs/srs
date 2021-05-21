@@ -769,6 +769,11 @@ if [ $SRS_GPROF = YES ]; then
 else
     echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
 fi
+if [ $SRS_CROSS_BUILD = YES ]; then
+    echo -e "${YELLOW}The cross-build is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Note: The cross-build is disabled.${BLACK}"
+fi
 if [ $SRS_VALGRIND = YES ]; then
     echo -e "${GREEN}The valgrind is enabled.${BLACK}"
 else

@@ -1,19 +1,7 @@
 #!/bin/bash
 
-# variables, parent script must set it:
-
-#####################################################################################
-#####################################################################################
-# parse user options, do this at first
-#####################################################################################
-#####################################################################################
-
-#####################################################################################
-# output variables
-#####################################################################################
-help=no
-
 ################################################################
+help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
@@ -22,15 +10,7 @@ SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
 SRS_NGINX=NO
-SRS_LIBRTMP=NO
-SRS_RESEARCH=NO
 SRS_UTEST=NO
-SRS_GPERF=NO # Performance test: tcmalloc
-SRS_GPERF_MC=NO # Performance test: gperf memory check
-SRS_GPERF_MD=NO # Performance test: gperf memory defence
-SRS_GPERF_MP=NO # Performance test: gperf memory profile
-SRS_GPERF_CP=NO # Performance test: gperf cpu profile
-SRS_GPROF=NO # Performance test: gprof
 # Always enable the bellow features.
 SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
@@ -72,33 +52,30 @@ SRS_LOG_INFO=NO
 SRS_LOG_TRACE=YES
 #
 ################################################################
-# experts
-# donot compile ssl, use system ssl(-lssl) if required.
-# TODO: Use pkg-config to get the openssl path.
-SRS_USE_SYS_SSL=NO
-# export the srs-librtmp to specified project, NO to disable it.
-SRS_EXPORT_LIBRTMP_PROJECT=NO
-# export the srs-librtmp to a single .h and .c, NO to disable it.
-SRS_EXPORT_LIBRTMP_SINGLE=NO
-# valgrind
+# Experts options.
+SRS_USE_SYS_SSL=NO # Use system ssl(-lssl) if required.
 SRS_VALGRIND=NO
-# Set the object files tag name.
-SRS_BUILD_TAG=
-# Whether do "make clean" when configure.
-SRS_CLEAN=YES
-# Whether enable RTC simulate API.
-SRS_SIMULATOR=NO
+SRS_BUILD_TAG= # Set the object files tag name.
+SRS_CLEAN=YES # Whether do "make clean" when configure.
+SRS_SIMULATOR=NO # Whether enable RTC simulate API.
 #
 ################################################################
-# Preset, for x86_64 servers
-SRS_X86_X64=NO
-# Preset, for osx/macOS PC.
-SRS_OSX=NO
-# Preset, for cross build, for example, on Ubuntu.
-SRS_CROSS_BUILD=NO
+# Performance options.
+SRS_GPERF=NO # Performance test: tcmalloc
+SRS_GPERF_MC=NO # Performance test: gperf memory check
+SRS_GPERF_MD=NO # Performance test: gperf memory defence
+SRS_GPERF_MP=NO # Performance test: gperf memory profile
+SRS_GPERF_CP=NO # Performance test: gperf cpu profile
+SRS_GPROF=NO # Performance test: gprof
+#
+################################################################
+# Preset options
+SRS_X86_X64=NO # For x86_64 servers
+SRS_OSX=NO #For osx/macOS PC.
+SRS_CROSS_BUILD=NO #For cross build, for example, on Ubuntu.
 #
 #####################################################################################
-# Toolchain cross-build for ARM or MIPS.
+# Toolchain for cross-build on Ubuntu for ARM or MIPS.
 SRS_TOOL_CC=gcc
 SRS_TOOL_CXX=g++
 SRS_TOOL_AR=ar
@@ -121,7 +98,7 @@ function show_help() {
 
 Presets:
   --x86-64, --x86-x64       For x86/x64 cpu, common pc and servers. Default: $(value2switch $SRS_X86_X64)
-  --arm                     Enable cross-build for ARM, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
+  --cross-build             Enable cross-build for ARM, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
 
 Features:
@@ -159,7 +136,7 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
   --nasm=on|off             Whether build FFMPEG for RTC with nasm. Default: $(value2switch $SRS_NASM)
   --srtp-nasm=on|off        Whether build SRTP with ASM(openssl-asm), requires RTC and openssl-1.0.*. Default: $(value2switch $SRS_SRTP_ASM)
 
-Toolchain options:          @see https://github.com/ossrs/srs/issues/1547#issuecomment-576078411
+Toolchain options:          @see https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
   --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
@@ -175,7 +152,7 @@ Experts:
   --use-shared-st           Use link shared libraries for ST which uses MPL license. Default: $(value2switch $SRS_SHARED_ST)
   --use-shared-srt          Use link shared libraries for SRT which uses MPL license. Default: $(value2switch $SRS_SHARED_SRT)
   --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
-  --simulator=on|off        Whether enable RTC network simulator. Default: $(value2switch $SRS_SIMULATOR)
+  --simulator=on|off        RTC: Whether enable network simulator. Default: $(value2switch $SRS_SIMULATOR)
   --build-tag=<TAG>         Set the build object directory suffix.
 
 Workflow:
@@ -190,6 +167,32 @@ END
 }
 
 function parse_user_option() {
+    # Ignore the options.
+    if [[ $option == '--demo' || $option == '--dev' || $option == '--fast-dev' || $option == '--pi'
+      || $option == '--cubie' || $option == '--fast' || $option == '--pure-rtmp' || $option == '--disable-all'
+      || $option == '--full' || $option == '--with-http-callback' || $option == '--without-http-callback'
+      || $option == '--http-callback' || $option == '--with-http-api' || $option == '--without-http-api'
+      || $option == '--http-api' || $option == '--with-http-server' || $option == '--without-http-server'
+      || $option == '--http-server' || $option == '--with-hls' || $option == '--without-hls'
+      || $option == '--hls' || $option == '--with-dvr' || $option == '--without-dvr'
+      || $option == '--dvr' || $option == '--without-transcode' || $option == '--without-ingest'
+      || $option == '--without-stat' || $option == '--without-stream-caster' || $option == '--without-ssl'
+      || $option == '--without-librtmp' || ($option == '--librtmp' && $(switch2value $value) == NO)
+      || $option == '--without-research' || ($option == '--research' && $(switch2value $value) == NO)
+    ]]; then
+        echo "Ignore option $option $value"; return 0;
+    fi
+
+    # if specified export single file, export project first.
+    if [[ $option == '--export-librtmp-single' || $option == '--export-librtmp-project' || $option == '--with-librtmp' || $option == '--librtmp' ]]; then
+        echo "Error: The $option is not supported yet, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
+    fi
+
+    if [[ $option == '--with-research' || $option == '--research' ]]; then
+        echo "Error: The $option is not supported yet"; exit 1
+    fi
+
+    # Parse options to variables.
     case "$option" in
         -h)                             help=yes                    ;;
         --help)                         help=yes                    ;;
@@ -197,7 +200,7 @@ function parse_user_option() {
         --jobs)                         SRS_JOBS=${value}           ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
 
-        --static)                       if [[ $value == off ]]; then SRS_STATIC=NO; else SRS_STATIC=YES; fi    ;;
+        --static)                       SRS_STATIC=$(switch2value $value) ;;
         --cc)                           SRS_TOOL_CC=${value}        ;;
         --cxx)                          SRS_TOOL_CXX=${value}       ;;
         --ar)                           SRS_TOOL_AR=${value}        ;;
@@ -212,168 +215,123 @@ function parse_user_option() {
 
         --without-srtp-nasm)            SRS_SRTP_ASM=NO             ;;
         --with-srtp-nasm)               SRS_SRTP_ASM=YES            ;;
-        --srtp-nasm)                    if [[ $value == off ]]; then SRS_SRTP_ASM=NO; else SRS_SRTP_ASM=YES; fi    ;;
+        --srtp-nasm)                    SRS_SRTP_ASM=$(switch2value $value) ;;
 
         --without-nasm)                 SRS_NASM=NO                 ;;
         --with-nasm)                    SRS_NASM=YES                ;;
-        --nasm)                         if [[ $value == off ]]; then SRS_NASM=NO; else SRS_NASM=YES; fi    ;;
+        --nasm)                         SRS_NASM=$(switch2value $value) ;;
 
         --with-ssl)                     SRS_SSL=YES                 ;;
-        --ssl)                          if [[ $value == off ]]; then SRS_SSL=NO; else SRS_SSL=YES; fi    ;;
-        --https)                        if [[ $value == off ]]; then SRS_HTTPS=NO; else SRS_HTTPS=YES; fi ;;
-        --ssl-1-0)                      if [[ $value == off ]]; then SRS_SSL_1_0=NO; else SRS_SSL_1_0=YES; fi ;;
-        --ssl-local)                    if [[ $value == off ]]; then SRS_SSL_LOCAL=NO; else SRS_SSL_LOCAL=YES; fi ;;
+        --ssl)                          SRS_SSL=$(switch2value $value) ;;
+        --https)                        SRS_HTTPS=$(switch2value $value) ;;
+        --ssl-1-0)                      SRS_SSL_1_0=$(switch2value $value) ;;
+        --ssl-local)                    SRS_SSL_LOCAL=$(switch2value $value) ;;
 
         --with-hds)                     SRS_HDS=YES                 ;;
         --without-hds)                  SRS_HDS=NO                  ;;
-        --hds)                          if [[ $value == off ]]; then SRS_HDS=NO; else SRS_HDS=YES; fi    ;;
+        --hds)                          SRS_HDS=$(switch2value $value) ;;
 
         --with-transcode)               SRS_TRANSCODE=YES           ;;
-        --without-transcode)            echo "ignore option \"$option\"" ;;
-        --transcode)                    if [[ $value == off ]]; then SRS_TRANSCODE=NO; else SRS_TRANSCODE=YES; fi    ;;
+        --transcode)                    SRS_TRANSCODE=$(switch2value $value) ;;
 
         --with-ingest)                  SRS_INGEST=YES              ;;
-        --without-ingest)               echo "ignore option \"$option\"" ;;
-        --ingest)                       if [[ $value == off ]]; then SRS_INGEST=NO; else SRS_INGEST=YES; fi    ;;
+        --ingest)                       SRS_INGEST=$(switch2value $value) ;;
 
         --with-stat)                    SRS_STAT=YES                ;;
-        --without-stat)                 echo "ignore option \"$option\"" ;;
-        --stat)                         if [[ $value == off ]]; then SRS_STAT=NO; else SRS_STAT=YES; fi    ;;
+        --stat)                         SRS_STAT=$(switch2value $value) ;;
 
         --with-stream-caster)           SRS_STREAM_CASTER=YES       ;;
-        --without-stream-caster)        echo "ignore option \"$option\"" ;;
-        --stream-caster)                if [[ $value == off ]]; then SRS_STREAM_CASTER=NO; else SRS_STREAM_CASTER=YES; fi    ;;
-
-        --with-research)                SRS_RESEARCH=YES            ;;
-        --without-research)             SRS_RESEARCH=NO             ;;
-        --research)                     if [[ $value == off ]]; then SRS_RESEARCH=NO; else SRS_RESEARCH=YES; fi    ;;
+        --stream-caster)                SRS_STREAM_CASTER=$(switch2value $value) ;;
 
         --with-utest)                   SRS_UTEST=YES               ;;
         --without-utest)                SRS_UTEST=NO                ;;
-        --utest)                        if [[ $value == off ]]; then SRS_UTEST=NO; else SRS_UTEST=YES; fi    ;;
-        --cherrypy)                     if [[ $value == off ]]; then SRS_CHERRYPY=NO; else SRS_CHERRYPY=YES; fi    ;;
-        --gcov)                         if [[ $value == off ]]; then SRS_GCOV=NO; else SRS_GCOV=YES; fi    ;;
+        --utest)                        SRS_UTEST=$(switch2value $value) ;;
+        --cherrypy)                     SRS_CHERRYPY=$(switch2value $value) ;;
+        --gcov)                         SRS_GCOV=$(switch2value $value) ;;
 
         --with-srt)                     SRS_SRT=YES                 ;;
         --without-srt)                  SRS_SRT=NO                  ;;
-        --srt)                          if [[ $value == off ]]; then SRS_SRT=NO; else SRS_SRT=YES; fi    ;;
+        --srt)                          SRS_SRT=$(switch2value $value) ;;
 
         --with-rtc)                     SRS_RTC=YES                 ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
-        --rtc)                          if [[ $value == off ]]; then SRS_RTC=NO; else SRS_RTC=YES; fi    ;;
-        --simulator)                    if [[ $value == off ]]; then SRS_SIMULATOR=NO; else SRS_SIMULATOR=YES; fi    ;;
-        --ffmpeg-fit)                   if [[ $value == off ]]; then SRS_FFMPEG_FIT=NO; else SRS_FFMPEG_FIT=YES; fi    ;;
+        --rtc)                          SRS_RTC=$(switch2value $value) ;;
+        --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
+        --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
 
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --without-gb28181)              SRS_GB28181=NO              ;;
-        --gb28181)                      if [[ $value == off ]]; then SRS_GB28181=NO; else SRS_GB28181=YES; fi    ;;
+        --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
 
-        --cxx11)                        if [[ $value == off ]]; then SRS_CXX11=NO; else SRS_CXX11=YES; fi    ;;
-        --cxx14)                        if [[ $value == off ]]; then SRS_CXX14=NO; else SRS_CXX14=YES; fi    ;;
+        --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
+        --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
 
         --with-clean)                   SRS_CLEAN=YES               ;;
         --without-clean)                SRS_CLEAN=NO                ;;
-        --clean)                        if [[ $value == off ]]; then SRS_CLEAN=NO; else SRS_CLEAN=YES; fi    ;;
+        --clean)                        SRS_CLEAN=$(switch2value $value) ;;
 
         --with-gperf)                   SRS_GPERF=YES               ;;
         --without-gperf)                SRS_GPERF=NO                ;;
-        --gperf)                        if [[ $value == off ]]; then SRS_GPERF=NO; else SRS_GPERF=YES; fi    ;;
+        --gperf)                        SRS_GPERF=$(switch2value $value) ;;
 
         --with-gmc)                     SRS_GPERF_MC=YES            ;;
         --without-gmc)                  SRS_GPERF_MC=NO             ;;
-        --gmc)                          if [[ $value == off ]]; then SRS_GPERF_MC=NO; else SRS_GPERF_MC=YES; fi    ;;
+        --gmc)                          SRS_GPERF_MC=$(switch2value $value) ;;
 
         --with-gmd)                     SRS_GPERF_MD=YES            ;;
         --without-gmd)                  SRS_GPERF_MD=NO             ;;
-        --gmd)                          if [[ $value == off ]]; then SRS_GPERF_MD=NO; else SRS_GPERF_MD=YES; fi    ;;
+        --gmd)                          SRS_GPERF_MD=$(switch2value $value) ;;
 
         --with-gmp)                     SRS_GPERF_MP=YES            ;;
         --without-gmp)                  SRS_GPERF_MP=NO             ;;
-        --gmp)                          if [[ $value == off ]]; then SRS_GPERF_MP=NO; else SRS_GPERF_MP=YES; fi    ;;
+        --gmp)                          SRS_GPERF_MP=$(switch2value $value) ;;
 
         --with-gcp)                     SRS_GPERF_CP=YES            ;;
         --without-gcp)                  SRS_GPERF_CP=NO             ;;
-        --gcp)                          if [[ $value == off ]]; then SRS_GPERF_CP=NO; else SRS_GPERF_CP=YES; fi    ;;
+        --gcp)                          SRS_GPERF_CP=$(switch2value $value) ;;
 
         --with-gprof)                   SRS_GPROF=YES               ;;
         --without-gprof)                SRS_GPROF=NO                ;;
-        --gprof)                        if [[ $value == off ]]; then SRS_GPROF=NO; else SRS_GPROF=YES; fi    ;;
+        --gprof)                        SRS_GPROF=$(switch2value $value) ;;
 
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
-        --without-ssl)                  echo "ignore option \"$option\"" ;;
-        --sys-ssl)                      if [[ $value == off ]]; then SRS_USE_SYS_SSL=NO; else SRS_USE_SYS_SSL=YES; fi    ;;
+        --sys-ssl)                      SRS_USE_SYS_SSL=$(switch2value $value) ;;
 
         --use-shared-st)                SRS_SHARED_ST=YES           ;;
-        --shared-st)                    if [[ $value == off ]]; then SRS_SHARED_ST=NO; else SRS_SHARED_ST=YES; fi    ;;
+        --shared-st)                    SRS_SHARED_ST=$(switch2value $value) ;;
 
         --use-shared-srt)               SRS_SHARED_SRT=YES          ;;
-        --shared-srt)                   if [[ $value == off ]]; then SRS_SHARED_SRT=NO; else SRS_SHARED_SRT=YES; fi    ;;
+        --shared-srt)                   SRS_SHARED_SRT=$(switch2value $value) ;;
 
         --with-valgrind)                SRS_VALGRIND=YES            ;;
         --without-valgrind)             SRS_VALGRIND=NO             ;;
-        --valgrind)                     if [[ $value == off ]]; then SRS_VALGRIND=NO; else SRS_VALGRIND=YES; fi    ;;
+        --valgrind)                     SRS_VALGRIND=$(switch2value $value) ;;
 
-        --with-http-callback)           echo "ignore option \"$option\"" ;;
-        --without-http-callback)        echo "ignore option \"$option\"" ;;
-        --http-callback)                echo "ignore option \"$option\"" ;;
-
-        --with-http-api)                echo "ignore option \"$option\"" ;;
-        --without-http-api)             echo "ignore option \"$option\"" ;;
-        --http-api)                     echo "ignore option \"$option\"" ;;
-
-        --with-http-server)             echo "ignore option \"$option\"" ;;
-        --without-http-server)          echo "ignore option \"$option\"" ;;
-        --http-server)                  echo "ignore option \"$option\"" ;;
-
-        --with-hls)                     echo "ignore option \"$option\"" ;;
-        --without-hls)                  echo "ignore option \"$option\"" ;;
-        --hls)                          echo "ignore option \"$option\"" ;;
-
-        --with-dvr)                     echo "ignore option \"$option\"" ;;
-        --without-dvr)                  echo "ignore option \"$option\"" ;;
-        --dvr)                          echo "ignore option \"$option\"" ;;
-
-        --log-verbose)                  if [[ $value == off ]]; then SRS_LOG_VERBOSE=NO; else SRS_LOG_VERBOSE=YES; fi    ;;
-        --log-info)                     if [[ $value == off ]]; then SRS_LOG_INFO=NO; else SRS_LOG_INFO=YES; fi    ;;
-        --log-trace)                    if [[ $value == off ]]; then SRS_LOG_TRACE=NO; else SRS_LOG_TRACE=YES; fi    ;;
-        --debug)                        if [[ $value == off ]]; then SRS_DEBUG=NO; else SRS_DEBUG=YES; fi    ;;
-        --debug-stats)                  if [[ $value == off ]]; then SRS_DEBUG_STATS=NO; else SRS_DEBUG_STATS=YES; fi    ;;
+        --log-verbose)                  SRS_LOG_VERBOSE=$(switch2value $value) ;;
+        --log-info)                     SRS_LOG_INFO=$(switch2value $value) ;;
+        --log-trace)                    SRS_LOG_TRACE=$(switch2value $value) ;;
+        --debug)                        SRS_DEBUG=$(switch2value $value) ;;
+        --debug-stats)                  SRS_DEBUG_STATS=$(switch2value $value) ;;
 
         # Alias for --arm, cross build.
+        --cross-build)                  SRS_CROSS_BUILD=YES         ;;
         --arm)                          SRS_CROSS_BUILD=YES         ;;
         --mips)                         SRS_CROSS_BUILD=YES         ;;
         --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
         --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
-        --arm-ubuntu12)                 if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
+        --arm-ubuntu12)                 SRS_CROSS_BUILD=$(switch2value $value) ;;
         --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
         --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
-        --mips-ubuntu12)                if [[ $value == off ]]; then SRS_CROSS_BUILD=NO; else SRS_CROSS_BUILD=YES; fi    ;;
-
-        # Removed features.
-        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
-        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
-        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
-        --without-librtmp)              SRS_LIBRTMP=NO              ;;
-        --librtmp)                      if [[ $value == off ]]; then SRS_LIBRTMP=NO; else SRS_LIBRTMP=YES; fi    ;;
+        --mips-ubuntu12)                SRS_CROSS_BUILD=$(switch2value $value) ;;
 
         # Deprecated, might be removed in future.
         --with-nginx)                   SRS_NGINX=YES               ;;
         --without-nginx)                SRS_NGINX=NO                ;;
-        --nginx)                        if [[ $value == off ]]; then SRS_NGINX=NO; else SRS_NGINX=YES; fi    ;;
+        --nginx)                        SRS_NGINX=$(switch2value $value) ;;
         --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
-        --ffmpeg-tool)                  if [[ $value == off ]]; then SRS_FFMPEG_TOOL=NO; else SRS_FFMPEG_TOOL=YES; fi    ;;
-
-        # Ignore the options.
-        --demo)                         echo "Ignore $option"       ;;
-        --dev)                          echo "Ignore $option"       ;;
-        --fast-dev)                     echo "Ignore $option"       ;;
-        --pi)                           echo "Ignore $option"       ;;
-        --cubie)                        echo "Ignore $option"       ;;
-        --fast)                         echo "Ignore $option"       ;;
-        --pure-rtmp)                    echo "Ignore $option"       ;;
-        --disable-all)                  echo "Ignore $option"       ;;
-        --full)                         echo "Ignore $option"       ;;
+        --ffmpeg)                       SRS_FFMPEG_TOOL=$(switch2value $value) ;;
+        --ffmpeg-tool)                  SRS_FFMPEG_TOOL=$(switch2value $value) ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -395,20 +353,16 @@ function parse_user_option_to_value_and_option() {
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
-    elif [[ $1 == NO ]]; then
-      echo off;
     else
-      echo undefined;
+      echo off;
     fi
 }
 
 function switch2value() {
-    if [[ $1 == on ]]; then
-      echo YES;
-    elif [[ $1 == off ]]; then
+    if [[ $1 == off ]]; then
       echo NO;
     else
-      echo undefined;
+      echo YES;
     fi
 }
 
@@ -475,25 +429,6 @@ function apply_detail_options() {
     else
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
-    
-    # if specified export single file, export project first.
-    if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
-    fi
-
-    # disable almost all features for export srs-librtmp.
-    if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
-    fi
-
-    if [[ $SRS_LIBRTMP != NO ]]; then
-        echo "Error: srs-librtmp is removed, please read https://github.com/ossrs/srs-librtmp/issues/32"; exit 1
-    fi
-
-    if [[ $SRS_RESEARCH != NO ]]; then
-        echo "Warning: Ingore --research"
-        SRS_RESEARCH=NO
-    fi
 
     if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
         echo "Disable SRTP-ASM, because RTC is disabled."
@@ -554,6 +489,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gcov=$(value2switch $SRS_GCOV)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi

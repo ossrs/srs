@@ -73,15 +73,14 @@
             if (sdk) {
                 sdk.close();
             }
-
             sdk = new SrsRtcPlayerAsync();
-            sdk.onaddstream = function (event) {
-                console.log('Start play, event: ', event);
-                $('#rtc_media_player').prop('srcObject', event.stream);
-            };
 
-            // For example:
-            //      webrtc://r.ossrs.net/live/livestream
+            // https://webrtc.org/getting-started/remote-streams
+            $('#rtc_media_player').prop('srcObject', sdk.stream);
+            // Optional callback, SDK will add track to stream.
+            // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
+
+            // For example: webrtc://r.ossrs.net/live/livestream
             var url = $("#txt_url").val();
             sdk.play(url).then(function(session){
                 $('#sessionid').html(session.sessionid);
