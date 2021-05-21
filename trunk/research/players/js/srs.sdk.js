@@ -62,6 +62,9 @@ function SrsRtcPublisherAsync() {
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
         stream.getTracks().forEach(function (track) {
             self.pc.addTrack(track);
+
+            // Notify about local track when stream is ok.
+            self.ontrack && self.ontrack({track: track});
         });
 
         var offer = await self.pc.createOffer();
@@ -94,9 +97,6 @@ function SrsRtcPublisherAsync() {
         );
         session.simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
 
-        // Notify about local stream when success.
-        self.onaddstream && self.onaddstream({stream: stream});
-
         return session;
     };
 
@@ -107,7 +107,10 @@ function SrsRtcPublisherAsync() {
     };
 
     // The callback when got local stream.
-    self.onaddstream = function (event) {
+    // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
+    self.ontrack = function (event) {
+        // Add track to stream of SDK.
+        self.stream.addTrack(event.track);
     };
 
     // Internal APIs.
@@ -253,6 +256,11 @@ function SrsRtcPublisherAsync() {
 
     self.pc = new RTCPeerConnection(null);
 
+    // To keep api consistent between player and publisher.
+    // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
+    // @see https://webrtc.org/getting-started/media-devices
+    self.stream = new MediaStream();
+
     return self;
 }
 
@@ -324,8 +332,12 @@ function SrsRtcPlayerAsync() {
         self.pc = null;
     };
 
-    // The callback when got remote stream.
-    self.onaddstream = function (event) {};
+    // The callback when got remote track.
+    // Note that the onaddstream is deprecated, @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/onaddstream
+    self.ontrack = function (event) {
+        // https://webrtc.org/getting-started/remote-streams
+        self.stream.addTrack(event.track);
+    };
 
     // Internal APIs.
     self.__internal = {
@@ -469,9 +481,14 @@ function SrsRtcPlayerAsync() {
     };
 
     self.pc = new RTCPeerConnection(null);
-    self.pc.onaddstream = function (event) {
-        if (self.onaddstream) {
-            self.onaddstream(event);
+
+    // Create a stream to add track to the stream, @see https://webrtc.org/getting-started/remote-streams
+    self.stream = new MediaStream();
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/ontrack
+    self.pc.ontrack = function(event) {
+        if (self.ontrack) {
+            self.ontrack(event);
         }
     };
 

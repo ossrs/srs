@@ -78,12 +78,13 @@
             if (sdk) {
                 sdk.close();
             }
-
             sdk = new SrsRtcPublisherAsync();
-            sdk.onaddstream = function (event) {
-                console.log('Start publish, event: ', event);
-                $('#rtc_media_player').prop('srcObject', event.stream);
-            };
+
+            // User should set the stream when publish is done, @see https://webrtc.org/getting-started/media-devices
+            // However SRS SDK provides a consist API like https://webrtc.org/getting-started/remote-streams
+            $('#rtc_media_player').prop('srcObject', sdk.stream);
+            // Optional callback, SDK will add track to stream.
+            // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
 
             // https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#getting_the_supported_codecs
             sdk.pc.onicegatheringstatechange = function (event) {
@@ -93,8 +94,7 @@
                 }
             };
 
-            // For example:
-            //      webrtc://r.ossrs.net/live/livestream
+            // For example: webrtc://r.ossrs.net/live/livestream
             var url = $("#txt_url").val();
             sdk.publish(url).then(function(session){
                 $('#sessionid').html(session.sessionid);
