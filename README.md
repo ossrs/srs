@@ -110,8 +110,6 @@ The ports used by SRS:
 - [x] Support transmux RTMP to HTTP-FLV/MP3/AAC/TS, please read wiki([CN][v4_CN_DeliveryHttpStream], [EN][v4_CN_DeliveryHttpStream]).
 - [x] Support ingesting([CN][v4_CN_Ingest], [EN][v4_EN_Ingest]) other protocols to SRS by FFMPEG.
 - [x] Support RTMP long time(>4.6hours) publishing/playing, with the timestamp corrected.
-- [x] Support publishing h264 raw stream([CN][v4_CN_SrsLibrtmp2], [EN][v4_EN_SrsLibrtmp2]) by srs-librtmp([CN][v4_CN_SrsLibrtmp], [EN][v4_EN_SrsLibrtmp]).
-- [x] Support publishing aac adts raw stream([CN][v4_CN_SrsLibrtmp3], [EN][v4_EN_SrsLibrtmp3]) by srs-librtmp([CN][v4_CN_SrsLibrtmp], [EN][v4_EN_SrsLibrtmp]).
 - [x] Support native HTTP server([CN][v4_CN_SampleHTTP], [EN][v4_EN_SampleHTTP]) for http api and http live streaming.
 - [x] Support HTTP CORS for js in http api and http live streaming.
 - [x] Support HTTP API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]) for system management.
@@ -155,10 +153,10 @@ The ports used by SRS:
 - [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Deprecated] Support pushing RTSP, please read [bug #2304][bug #2304].
-- [x] [Deprecated] Support RTMP client library: srs-librtmp([CN][v4_CN_SrsLibrtmp], [EN][v4_EN_SrsLibrtmp])
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]) and [#1535][bug #1535].
-- [x] [Deprecated] Support bandwidth testing([CN][v4_CN_BandwidthTestTool], [EN][v4_EN_BandwidthTestTool]), please read [#1535][bug #1535].
+- [x] [Deprecated] Support bandwidth testing, please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication, please read [#1535][bug #1535].
+- [x] [Removed] Support RTMP client library: [srs-librtmp](https://github.com/ossrs/srs-librtmp).
 - [ ] Enhanced forwarding with vhost and variables, [#1342][bug #1342].
 - [ ] Support DVR to Cloud Storage, [#1193][bug #1193].
 - [ ] Support transmux RTC to RTMP, [#2093][bug #2093].
@@ -383,7 +381,7 @@ The ports used by SRS:
 * v3.0, 2019-12-24, For [#1508][bug #1508], support chunk length and content in multiple parts.
 * v3.0, 2019-12-23, Merge SRS2 for running srs-librtmp on Windows. 3.0.80
 * v3.0, 2019-12-23, For [#1535][bug #1535], deprecate Adobe FMS/AMS edge token traversing([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication. 3.0.79
-* v3.0, 2019-12-23, For [#1535][bug #1535], deprecate BWT(bandwidth testing)([CN][v4_CN_BandwidthTestTool], [EN][v4_EN_BandwidthTestTool]). 3.0.78
+* v3.0, 2019-12-23, For [#1535][bug #1535], deprecate BWT(bandwidth testing). 3.0.78
 * v3.0, 2019-12-23, For [#1535][bug #1535], deprecate Adobe HDS(f4m)([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]). 3.0.77
 * v3.0, 2019-12-20, Fix [#1508][bug #1508], http-client support read chunked response. 3.0.76
 * v3.0, 2019-12-20, For [#1508][bug #1508], refactor srs_is_digital, support all zeros.
@@ -839,7 +837,6 @@ The ports used by SRS:
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
-* v1.0, 2014-03-02, add wiki [srs-librtmp][v4_CN_SrsLibrtmp], [SRS for arm][v4_CN_SrsLinuxArm], [product][v4_CN_Product]
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
@@ -1464,8 +1461,6 @@ Winlin
 [v4_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_EN_SampleDemo
 [v4_CN_OriginCluster]: https://github.com/ossrs/srs/wiki/v4_CN_OriginCluster
 [v4_EN_OriginCluster]: https://github.com/ossrs/srs/wiki/v4_EN_OriginCluster
-[v4_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLibrtmp#publish-h264-raw-data
-[v4_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLibrtmp#publish-h264-raw-data
 [v4_CN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v4_CN_REUSEPORT
 [v4_EN_REUSEPORT]: https://github.com/ossrs/srs/wiki/v4_EN_REUSEPORT
 [v4_CN_Sample]: https://github.com/ossrs/srs/wiki/v4_CN_Sample
@@ -1519,12 +1514,8 @@ Winlin
 [v4_EN_FFMPEG]: https://github.com/ossrs/srs/wiki/v4_EN_FFMPEG
 [v4_CN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v4_CN_HTTPCallback
 [v4_EN_HTTPCallback]: https://github.com/ossrs/srs/wiki/v4_EN_HTTPCallback
-[v4_CN_BandwidthTestTool]: https://github.com/ossrs/srs/wiki/v4_CN_BandwidthTestTool
-[v4_EN_BandwidthTestTool]: https://github.com/ossrs/srs/wiki/v4_EN_BandwidthTestTool
 [v4_CN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_CN_SampleDemo
 [v4_EN_SampleDemo]: https://github.com/ossrs/srs/wiki/v4_EN_SampleDemo
-[v4_CN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLibrtmp
-[v4_EN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLibrtmp
 [v4_CN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm
 [v4_EN_SrsLinuxArm]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLinuxArm
 [v4_CN_LinuxService]: https://github.com/ossrs/srs/wiki/v4_CN_LinuxService
@@ -1545,10 +1536,6 @@ Winlin
 [v4_EN_SampleHTTP]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHTTP
 [v4_CN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v4_CN_FlvVodStream
 [v4_EN_FlvVodStream]: https://github.com/ossrs/srs/wiki/v4_EN_FlvVodStream
-[v4_CN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLibrtmp#publish-h264-raw-data
-[v4_EN_SrsLibrtmp2]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLibrtmp#publish-h264-raw-data
-[v4_CN_SrsLibrtmp3]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLibrtmp#publish-audio-raw-stream
-[v4_EN_SrsLibrtmp3]: https://github.com/ossrs/srs/wiki/v4_EN_SrsLibrtmp#publish-audio-raw-stream
 [v4_CN_Security]: https://github.com/ossrs/srs/wiki/v4_CN_Security
 [v4_EN_Security]: https://github.com/ossrs/srs/wiki/v4_EN_Security
 [v4_CN_DeliveryHttpStream]: https://github.com/ossrs/srs/wiki/v4_CN_DeliveryHttpStream
@@ -1569,7 +1556,6 @@ Winlin
 [v4_CN_Performance#performancereport4k]: https://github.com/ossrs/srs/wiki/v4_CN_Performance#performancereport4k
 [v4_CN_DRM#tokentraverse]: https://github.com/ossrs/srs/wiki/v4_CN_DRM#tokentraverse
 [v4_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v4_CN_RaspberryPi
-[v4_CN_SrsLibrtmp]: https://github.com/ossrs/srs/wiki/v4_CN_SrsLibrtmp
 [v4_CN_Build]: https://github.com/ossrs/srs/wiki/v4_CN_Build
 [v4_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency
 [v4_CN_HowToAskQuestion]: https://github.com/ossrs/srs/wiki/v4_CN_HowToAskQuestion
