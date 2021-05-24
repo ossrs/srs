@@ -9,29 +9,35 @@ SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支�
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/GB28181.
 
-> Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+> Note: SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
 
 <a name="product"></a>
 ## Usage
 
-Recommend running SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
+Recommend running SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images). 
+Please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#config-candidate]) for WebRTC:
 
 ```bash
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:v4.0.85
+   ossrs/srs:v4.0.117 ./objs/srs -c conf/srs.conf
 ```
 
-> To enable WebRTC, user MUST set the env `CANDIDATE`, see [wiki](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate).
+Or build SRS from source(or [mirrors](#mirrors)), by CentOS7(or Linux([CN][v4_CN_Build],[EN][v4_EN_Build])):
+
+```
+git clone -b 4.0release https://gitee.com/ossrs/srs.git &&
+cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
+```
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by FFmpeg. 
+It's also ok to publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
-  -c copy -f flv -y rtmp://localhost/live/livestream
+docker run --rm -it --network=host ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
 ```
-> Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
 
 Play the following streams by [players](https://ossrs.net):
 
@@ -39,17 +45,6 @@ Play the following streams by [players](https://ossrs.net):
 * H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
 * H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
 * H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
-
-It's also very easy to build from source:
-
-```
-git clone -b 4.0release https://gitee.com/ossrs/srs.git srs &&
-cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
-```
-
-> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
-
-> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v4_CN_Build],[EN][v4_EN_Build]), or use [docker][docker-dev].
 
 <a name="srs-40-wiki"></a>
 <a name="wiki"></a>
@@ -1453,6 +1448,8 @@ Winlin
 [v4_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRealtime
 [v4_CN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC
 [v4_EN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC
+[v4_CN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate
+[v4_EN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC#config-candidate
 [v4_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_CN_SampleARM
 [v4_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_EN_SampleARM
 [v4_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest
