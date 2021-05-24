@@ -17,15 +17,23 @@ SRS is a simple, high efficiency and realtime video server, supports RTMP/HLS/HT
 Recommend running SRS by [docker][docker-srs3], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
 
 ```bash
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3
+docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3 \
+  ./objs/srs -c conf/srs.conf
+```
+
+Or build SRS from source(or [mirrors](#mirrors)), by CentOS7(or Linux([CN][v3_CN_Build],[EN][v3_EN_Build])):
+
+```
+git clone -b 3.0release https://gitee.com/ossrs/srs.git &&
+cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
 [stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
 
 ```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
-  -c copy -f flv -y rtmp://localhost/live/livestream
+docker run --rm -it --network=host ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 
 Play the following streams by [players](https://ossrs.net):
@@ -33,17 +41,6 @@ Play the following streams by [players](https://ossrs.net):
 * VLC(RTMP): rtmp://localhost/live/livestream
 * H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
 * H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
-
-It's also very easy to build from source:
-
-```
-git clone -b 3.0release https://gitee.com/ossrs/srs.git &&
-cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
-```
-
-> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
-
-> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v3_CN_Build],[EN][v3_EN_Build]), or use [docker][docker-dev].
 
 <a name="srs-30-wiki"></a>
 <a name="wiki"></a>
