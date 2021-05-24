@@ -23,8 +23,6 @@
 
 #include <srs_http_stack.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 #include <stdlib.h>
 #include <sstream>
 #include <algorithm>
@@ -1345,9 +1343,6 @@ srs_error_t SrsHttpUri::path_unescape(std::string s, std::string& value)
 {
   return unescapse(s, value, encodePathSegment);
 }
-
-// For #if !defined(SRS_EXPORT_LIBRTMP)
-#endif
 
 // LCOV_EXCL_START
 

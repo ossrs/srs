@@ -960,7 +960,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     srs_error_t err = srs_success;
     
     SrsRequest* req = info->req;
-
+	
     // @see https://github.com/ossrs/srs/issues/2364
     // Check whether GB28181 stream is busy.
 #if defined(SRS_GB28181)

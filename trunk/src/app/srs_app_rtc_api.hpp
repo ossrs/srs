@@ -34,8 +34,6 @@ class SrsSdp;
 
 class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
-public:
-    static uint32_t ssrc_num;
 private:
     SrsRtcServer* server_;
 public:
@@ -45,14 +43,11 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
 
 class SrsGoApiRtcPublish : public ISrsHttpHandler
 {
-public:
-    static uint32_t ssrc_num;
 private:
     SrsRtcServer* server_;
 public:
@@ -62,7 +57,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t exchange_sdp(SrsRequest* req, const SrsSdp& remote_sdp, SrsSdp& local_sdp);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
 

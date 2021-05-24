@@ -23,8 +23,6 @@
 
 #include <srs_kernel_mp3.hpp>
 
-#if !defined(SRS_EXPORT_LIBRTMP)
-
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
@@ -125,6 +123,4 @@ srs_error_t SrsMp3Transmuxer::write_audio(int64_t timestamp, char* data, int siz
     
     return err;
 }
-
-#endif
 

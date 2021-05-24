@@ -69,8 +69,6 @@ SrsPps* _srs_pps_srtps = NULL;
 SrsPps* _srs_pps_pli = NULL;
 SrsPps* _srs_pps_twcc = NULL;
 SrsPps* _srs_pps_rr = NULL;
-SrsPps* _srs_pps_pub = NULL;
-SrsPps* _srs_pps_conn = NULL;
 
 extern SrsPps* _srs_pps_snack;
 extern SrsPps* _srs_pps_snack2;
@@ -79,6 +77,9 @@ extern SrsPps* _srs_pps_snack4;
 
 extern SrsPps* _srs_pps_rnack;
 extern SrsPps* _srs_pps_rnack2;
+
+extern SrsPps* _srs_pps_pub;
+extern SrsPps* _srs_pps_conn;
 
 ISrsRtcTransport::ISrsRtcTransport()
 {
@@ -3172,6 +3173,10 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
             SrsRtcTrackDescription* track = track_descs.at(j)->copy();
+
+            // We should clear the extmaps of source(publisher).
+            // @see https://github.com/ossrs/srs/issues/2370
+            track->extmaps_.clear();
 
             // Use remote/source/offer PayloadType.
             track->media_->pt_of_publisher_ = track->media_->pt_;
