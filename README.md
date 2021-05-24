@@ -850,7 +850,7 @@ The ports used by SRS:
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
 * v1.0, 2014-02-28, add wiki [BuildArm][v4_CN_Build], [FFMPEG][v4_CN_FFMPEG], [Reload][v4_CN_Reload]
-* v1.0, 2014-02-27, add wiki [LowLatency][v4_CN_LowLatency], [HTTPCallback][v4_CN_HTTPCallback], [ServerSideScript][v4_CN_ServerSideScript], [IDE][v4_CN_IDE]
+* v1.0, 2014-02-27, add wiki [LowLatency][v4_CN_LowLatency], [HTTPCallback][v4_CN_HTTPCallback]
 * v1.0, 2014-01-19, add wiki [DeliveryHLS][v4_CN_DeliveryHLS]
 * v1.0, 2014-01-12, add wiki [HowToAskQuestion][v4_CN_HowToAskQuestion], [RtmpUrlVhost][v4_CN_RtmpUrlVhost]
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
@@ -1573,9 +1573,7 @@ Winlin
 [v4_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v4_CN_RaspberryPi
 [v4_CN_LowLatency#merged-read]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-read
 [v4_CN_Product]: https://github.com/ossrs/srs/wiki/v4_CN_Product
-[v4_CN_ServerSideScript]: https://github.com/ossrs/srs/wiki/v4_CN_ServerSideScript
 [v4_EN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#merged-write
-[v4_CN_IDE]: https://github.com/ossrs/srs/wiki/v4_CN_IDE
 [v4_CN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-write
 [v4_CN_NgExec]:https://github.com/ossrs/srs/wiki/v4_CN_NgExec
 [v4_EN_NgExec]:https://github.com/ossrs/srs/wiki/v4_EN_NgExec
