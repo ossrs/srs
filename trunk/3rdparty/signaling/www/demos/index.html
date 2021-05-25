@@ -19,7 +19,16 @@
     let elems = document.getElementsByClassName('srs_demo');
     for (var i = 0; i < elems.length; i++) {
         let elem = elems.item(i);
-        elem.setAttribute('href', elem.getAttribute('href') + '&room=' + roomName);
+
+        // Use random room.
+        let href = elem.getAttribute('href') + '&room=' + roomName;
+
+        // For run demos on SRS http server.
+        if (window.location.port === '8080') {
+            href += '&wsp=1989';
+        }
+
+        elem.setAttribute('href', href);
     }
 </script>
 </body>
