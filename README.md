@@ -9,7 +9,7 @@ SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支�
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/GB28181.
 
-> Note: SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
+SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
 
 <a name="product"></a>
 ## Usage
