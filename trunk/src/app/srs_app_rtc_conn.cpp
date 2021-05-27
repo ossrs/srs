@@ -3304,7 +3304,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.sendonly_ = true;
         } else if (audio_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (audio_track->direction_ == "inactive_") {
+        } else if (audio_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
