@@ -1302,14 +1302,13 @@ Remark:
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  MediaSource(2)      |                            |                |
-|  (RTSP,FILE,         |                            |                |
-|   HTTP,HLS,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
-|   Device,            |                            |                |
+|  (MPEGTSoverUDP      |                            |                |
+|   HTTP-FLV,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
+|   GB28181,SRT,       |                            |                |
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
 +----------------------+----------------------------+----------------+
-
 ```
 
 Remark:
