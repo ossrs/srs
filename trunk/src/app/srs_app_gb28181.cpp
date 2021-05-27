@@ -2602,7 +2602,7 @@ srs_error_t SrsGb28181Conn::do_cycle()
             if (index + RTP_TCP_HEADER + packet_len >= left_data_len){
                 break;
             }
-            processor->on_udp_packet((sockaddr*)peer_sockaddr, addr_len, buf + index + RTP_TCP_HEADER, packet_len);
+            processor->on_tcp_packet((sockaddr*)peer_sockaddr, addr_len, buf + index + RTP_TCP_HEADER, packet_len);
             index = index + RTP_TCP_HEADER + packet_len;
         }
         if (index != 0) { //update left data
