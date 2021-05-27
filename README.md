@@ -79,15 +79,20 @@ Other important wiki:
 
 ## Ports
 
-The ports used by SRS:
+The ports used by SRS, kernel services:
 
-* tcp://1935, for RTMP live streaming server.
-* tcp://1985, HTTP API server.
-* tcp://1990, HTTPS API server.
-* tcp://8080, HTTP live streaming server.
+* tcp://1935, for RTMP live streaming server([CN][v4_CN_DeliveryRTMP],[EN][v4_EN_DeliveryRTMP]).
+* tcp://1985, HTTP API server, for HTTP-API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]), WebRTC([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]), etc.
+* tcp://8080, HTTP live streaming server, HTTP-FLV([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv]), HLS([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS]) as such.
+* udp://8000, WebRTC Media([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]) server.
+
+For optional HTTPS services, which might be provided by other web servers:
+
 * tcp://8088, HTTPS live streaming server.
-* udp://8000, [WebRTC Media](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC) server.
-* udp://1980, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+* tcp://1990, HTTPS API server.
+
+For optional stream caster services, to push streams to SRS:
+
 * udp://8935, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
 * tcp://554, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
 * tcp://8936, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
@@ -95,6 +100,10 @@ The ports used by SRS:
 * udp://9000, Stream Caster: [Push GB28181 Media(bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
 * udp://58200-58300, Stream Caster: [Push GB28181 Media(no-bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
 * udp://10080, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
+  
+For external services to work with SRS:
+
+* udp://1989, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
 
 ## Features
 
