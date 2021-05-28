@@ -330,6 +330,8 @@ function SrsRtcPlayerAsync() {
         await self.pc.setRemoteDescription(
             new RTCSessionDescription({type: 'answer', sdp: session.sdp})
         );
+        session.simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
+
         return session;
     };
 

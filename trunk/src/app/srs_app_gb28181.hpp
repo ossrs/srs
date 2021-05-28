@@ -94,7 +94,6 @@ class SrsSipRequest;
 class SrsGb28181RtmpMuxer;
 class SrsGb28181Config;
 class SrsGb28181PsRtpProcessor;
-class SrsGb28181TcpPsRtpProcessor;
 class SrsGb28181SipService;
 class SrsGb28181StreamChannel;
 class SrsGb28181SipSession;
@@ -176,37 +175,12 @@ private:
 // Interface ISrsUdpHandler
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    virtual srs_error_t on_tcp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 public:
     virtual srs_error_t on_rtp_packet_jitter(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
     virtual srs_error_t on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
-class SrsGb28181TcpPsRtpProcessor
-{
-private:
-	SrsPithyPrint* pprint;
-	SrsGb28181Config* config;
-	std::map<std::string, SrsPsRtpPacket*> cache_ps_rtp_packet;
-	std::map<std::string, SrsPsRtpPacket*> pre_packet;
-	std::string channel_id;
-	bool auto_create_channel;
-public:
-	SrsGb28181TcpPsRtpProcessor(SrsGb28181Config* c, std::string sid);
-	virtual ~SrsGb28181TcpPsRtpProcessor();
-private:
-	bool can_send_ps_av_packet();
-	void dispose();
-	void clear_pre_packet();
-	SrsGb28181RtmpMuxer* create_rtmpmuxer(std::string channel_id, uint32_t ssrc);
-	srs_error_t rtmpmuxer_enqueue_data(SrsGb28181RtmpMuxer *muxer, uint32_t ssrc,
-		int peer_port, std::string address_string, SrsPsRtpPacket *pkt);
-	// Interface ISrsTcpHandler
-public:
-	virtual srs_error_t on_rtp(char* buf, int nb_buf, std::string ip, int port);
-public:
-	virtual srs_error_t on_rtp_packet_jitter(char* buf, int nb_buf, std::string ip, int port);
-	virtual srs_error_t on_rtp_packet(char* buf, int nb_buf, std::string ip, int port);
-};
 
 //ps stream processing parsing interface
 class ISrsPsStreamHander
@@ -581,9 +555,9 @@ private:
 	SrsRtspStack* rtsp;
 	SrsGb28181Caster* caster;
 	SrsCoroutine* trd;
-	SrsGb28181TcpPsRtpProcessor *processor;
+	SrsGb28181PsRtpProcessor *processor;
 public:
-	SrsGb28181Conn(SrsGb28181Caster* c, srs_netfd_t fd, SrsGb28181TcpPsRtpProcessor *rtp_processor);
+	SrsGb28181Conn(SrsGb28181Caster* c, srs_netfd_t fd, SrsGb28181PsRtpProcessor *rtp_processor);
 	virtual ~SrsGb28181Conn();
 public:
 	virtual srs_error_t serve();
@@ -603,7 +577,7 @@ class SrsGb28181Caster : public ISrsTcpHandler
 private:
 	std::string output;
 	SrsGb28181Config *config;
-	SrsGb28181TcpPsRtpProcessor *rtp_processor;
+	SrsGb28181PsRtpProcessor *rtp_processor;
 private:
 	std::vector<SrsGb28181Conn*> clients;
 	SrsResourceManager* manager;
