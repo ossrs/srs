@@ -23,7 +23,7 @@
             <div class="nav-collapse collapse">
                 <ul class="nav srs_nav">
                     <li><a href="one2one.html">一对一通话</a></li>
-                    <li class="active"><a href="#">多人通话</a></li>
+                    <li class="active"><a href="room.html">多人通话</a></li>
                     <li class="srs_ignore">
                         <a href="https://github.com/ossrs/signaling">
                             <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/ossrs/signaling?style=social">
@@ -139,10 +139,7 @@
                 publisher.close();
             }
             publisher = new SrsRtcPublisherAsync();
-            publisher.onaddstream = function (event) {
-                console.log('Start publish, event: ', event);
-                $('#rtc_media_publisher').prop('srcObject', event.stream);
-            };
+            $('#rtc_media_publisher').prop('srcObject', publisher.stream);
 
             return publisher.publish(url).then(function(session){
                 $('#self').text('Self: ' + url);
@@ -178,10 +175,7 @@
             video.show();
             ui.show();
 
-            player.onaddstream = function (event) {
-                console.log('Start play, event: ', event);
-                video.prop('srcObject', event.stream);
-            };
+            video.prop('srcObject', player.stream);
 
             player.play(url).then(function(session){
                 ui.children('#peer').text('Peer: ' + url);
@@ -200,7 +194,7 @@
         $('#txt_display').val(conf.display);
 
         // Update href for all navs.
-        $('ul.srs_nav').children('li').not('.srs_ignore').children('a').not("[href='#']").each(function (i, e) {
+        $('ul.srs_nav').children('li').not('.srs_ignore').children('a').each(function (i, e) {
             $(e).attr('href', $(e).attr('href') + conf.rawQuery);
         });
 
