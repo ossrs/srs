@@ -184,6 +184,12 @@ enum SrsAudioAacFrameTrait
     SrsAudioOpusFrameTraitRaw = 2,
     SrsAudioOpusFrameTraitSamplingRate = 4,
     SrsAudioOpusFrameTraitAudioLevel = 8,
+
+    // For g711a, the frame trait.
+    SrsAudioG711aFrameTraitRaw = 16,
+
+    // For g711mu, the frame trait.
+    SrsAudiG711muFrameTraitAudioLevel = 32,
 };
 
 /**
@@ -777,6 +783,9 @@ private:
     //          Demux the sampels from RAW data.
     virtual srs_error_t audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
     virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_g711a_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_g711mu_demux(SrsBuffer* stream, int64_t timestamp);
+
 public:
     // Directly demux the sequence header, without RTMP packet header.
     virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);
