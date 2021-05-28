@@ -2991,7 +2991,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.sendonly_ = true;
         } else if (audio_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (audio_track->direction_ == "inactive_") {
+        } else if (audio_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
@@ -3024,7 +3024,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.sendonly_ = true;
         } else if (video_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (video_track->direction_ == "inactive_") {
+        } else if (video_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
@@ -3265,7 +3265,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
         local_media_desc.sendonly_ = true;
     } else if (track->direction_ == "sendrecv") {
         local_media_desc.sendrecv_ = true;
-    } else if (track->direction_ == "inactive_") {
+    } else if (track->direction_ == "inactive") {
         local_media_desc.inactive_ = true;
     }
 
@@ -3329,7 +3329,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.sendonly_ = true;
         } else if (audio_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (audio_track->direction_ == "inactive_") {
+        } else if (audio_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
