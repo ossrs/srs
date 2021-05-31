@@ -1790,7 +1790,7 @@ Winlin
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://ossrs.net/srs.release/releases/
 
-[LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
+[LICENSE]: https://github.com/ossrs/srs/blob/3.0release/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
 
 [srs_CN]: https://github.com/ossrs/srs/wiki/v3_CN_Home
