@@ -180,6 +180,7 @@ For external services to work with SRS:
 
 ## V4 changes
 
+* v4.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 4.0.124
 * v4.0, 2021-05-28, Fix bugs for GB28181 and RTC. 4.0.123
 * v4.0, 2021-05-21, Fix [#2370][bug #2370] bug for Firefox play stream(published by Chrome). 4.0.121
 * v4.0, 2021-05-21, RTC: Refine sdk, migrate from onaddstream to ontrack. 4.0.120
