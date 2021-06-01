@@ -188,6 +188,7 @@ For external services to work with SRS:
 
 ## V4 changes
 
+* v4.0, 2021-06-01, Support --shared-ffmpeg to link with *.so for LGPL license. 4.0.126
 * v4.0, 2021-06-01, Support --shared-srt to link with *.so for MPL license. 4.0.125
 * v4.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 4.0.124
 * v4.0, 2021-05-28, Fix bugs for GB28181 and RTC. 4.0.123
