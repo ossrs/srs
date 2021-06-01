@@ -143,6 +143,7 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
   LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
   LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
+  if [[ $SRS_SHARED_FFMPEG == YES ]]; then LibFfmpegFile="-L${SRS_OBJS_DIR}/ffmpeg/lib -lavcodec -lswresample -lavutil -L${SRS_OBJS_DIR}/opus/lib -lopus"; fi
 fi
 
 # openssl-1.1.0e, for the RTMP complex handshake.
