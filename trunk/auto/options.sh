@@ -40,9 +40,14 @@ SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=NO
 # If enabled, link shared libraries for libst.so which uses MPL license.
+# See https://github.com/ossrs/srs/wiki/LicenseMixing#state-threads
 SRS_SHARED_ST=NO
 # If enabled, link shared libraries for libsrt.so which uses MPL license.
+# See https://github.com/ossrs/srs/wiki/LicenseMixing#srt
 SRS_SHARED_SRT=NO
+# If enabled, link shared libraries for FFmpeg which is LGPL license.
+# See https://github.com/ossrs/srs/wiki/LicenseMixing#ffmpeg
+SRS_SHARED_FFMPEG=NO
 # whether enable the gcov
 SRS_GCOV=NO
 # whether enable the log verbose/info/trace level.
@@ -149,8 +154,9 @@ Experts:
   --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
   --ssl-1-0=on|off          Whether use openssl-1.0.*. Default: $(value2switch $SRS_SSL_1_0)
   --ssl-local=on|off        Whether use local openssl, not system even exists. Default: $(value2switch $SRS_SSL_LOCAL)
-  --shared-st=on|off        Use link shared libraries for ST which uses MPL license. Default: $(value2switch $SRS_SHARED_ST)
-  --shared-srt=on|off       Use link shared libraries for SRT which uses MPL license. Default: $(value2switch $SRS_SHARED_SRT)
+  --shared-st=on|off        Use shared libraries for ST which is MPL license. Default: $(value2switch $SRS_SHARED_ST)
+  --shared-srt=on|off       Use shared libraries for SRT which is MPL license. Default: $(value2switch $SRS_SHARED_SRT)
+  --shared-ffmpeg=on|off    Use shared libraries for FFmpeg which is LGPL license. Default: $(value2switch $SRS_SHARED_FFMPEG)
   --clean=on|off            Whether do 'make clean' when configure. Default: $(value2switch $SRS_CLEAN)
   --simulator=on|off        RTC: Whether enable network simulator. Default: $(value2switch $SRS_SIMULATOR)
   --build-tag=<TAG>         Set the build object directory suffix.
@@ -298,10 +304,10 @@ function parse_user_option() {
         --sys-ssl)                      SRS_USE_SYS_SSL=$(switch2value $value) ;;
 
         --use-shared-st)                SRS_SHARED_ST=YES           ;;
-        --shared-st)                    SRS_SHARED_ST=$(switch2value $value) ;;
-
         --use-shared-srt)               SRS_SHARED_SRT=YES          ;;
+        --shared-st)                    SRS_SHARED_ST=$(switch2value $value) ;;
         --shared-srt)                   SRS_SHARED_SRT=$(switch2value $value) ;;
+        --shared-ffmpeg)                SRS_SHARED_FFMPEG=$(switch2value $value) ;;
 
         --with-valgrind)                SRS_VALGRIND=YES            ;;
         --without-valgrind)             SRS_VALGRIND=NO             ;;
@@ -483,6 +489,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static=$(value2switch $SRS_STATIC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-st=$(value2switch $SRS_SHARED_ST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-srt=$(value2switch $SRS_SHARED_SRT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --shared-ffmpeg=$(value2switch $SRS_SHARED_FFMPEG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose=$(value2switch $SRS_LOG_VERBOSE)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info=$(value2switch $SRS_LOG_INFO)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace=$(value2switch $SRS_LOG_TRACE)"
