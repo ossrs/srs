@@ -656,7 +656,7 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 
 #####################################################################################
-# ffmpeg-fix, for WebRTC to transcode AAC with Opus.
+# ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     FFMPEG_OPTIONS=""
@@ -743,7 +743,12 @@ if [[ $SRS_SRT == YES ]]; then
                 exit -1;
             fi
             # Always disable c++11 for libsrt, because only the srt-app requres it.
-            LIBSRT_OPTIONS="--disable-app --enable-shared=0 --enable-static --enable-c++11=0"
+            LIBSRT_OPTIONS="--disable-app  --enable-static --enable-c++11=0"
+            if [[ $SRS_SHARED_SRT == YES ]]; then
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
+            else
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
+            fi
             # Start build libsrt.
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             cp -R ../../3rdparty/srt-1-fit srt-1-fit && cd srt-1-fit &&
