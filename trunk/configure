@@ -135,7 +135,7 @@ END
 #
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
-if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-lst"; fi
+if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
 
 # srtp
 if [[ $SRS_RTC == YES ]]; then
@@ -167,6 +167,7 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     SrsSRTRoot="${SRS_WORKDIR}/src/srt"
     LibSRTRoot="${SRS_OBJS_DIR}/srt/include"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
+    if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-L${SRS_OBJS_DIR}/srt/lib -lsrt"; fi
 fi
 
 # For iconv on macOS only, CentOS seems ok.
