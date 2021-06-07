@@ -201,6 +201,23 @@ bool SrsFlvAudio::aac(char* data, int size)
     return sound_format == SrsAudioCodecIdAAC;
 }
 
+bool SrsFlvAudio::codec_params(char* data, int size, SrsAudioCodecId& codec_id, SrsAudioSampleRate& sample_rate, SrsAudioSampleBits& sample_bits, SrsAudioChannels&  channels)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    uint8_t sound_format = data[0];
+    codec_id = (SrsAudioCodecId)((sound_format >> 4) & 0x0F);
+    sample_rate = (SrsAudioSampleRate)((sound_format >> 2) & 0x03);
+    sample_bits = (SrsAudioSampleBits)(SrsAudioSampleBits)((sound_format >> 1) & 0x01);
+    channels = (SrsAudioChannels)(sound_format & 0x01);
+
+    //add private opus codec param later!!!
+    return true;
+}
+
 /**
  * the public data, event HLS disable, others can use it.
  */
