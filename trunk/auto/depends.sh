@@ -636,6 +636,10 @@ if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit sta
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_RTC == YES ]]; then
+    # Only build static libraries if no shared FFmpeg.
+    if [[ $SRS_SHARED_FFMPEG == NO ]]; then
+        OPUS_OPTIONS="--disable-shared"
+    fi
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/_release/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
@@ -643,7 +647,7 @@ if [[ $SRS_RTC == YES ]]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             tar xf ../../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
-            ./configure --prefix=`pwd`/_release --enable-static --disable-shared && make ${SRS_JOBS} && make install
+            ./configure --prefix=`pwd`/_release --enable-static $OPUS_OPTIONS && make ${SRS_JOBS} && make install
             cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
         )
     fi
@@ -656,7 +660,7 @@ if [[ $SRS_RTC == YES ]]; then
 fi
 
 #####################################################################################
-# ffmpeg-fix, for WebRTC to transcode AAC with Opus.
+# ffmpeg-fit, for WebRTC to transcode AAC with Opus.
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     FFMPEG_OPTIONS=""
@@ -668,6 +672,10 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     # If no nasm, we disable the x86asm.
     nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         FFMPEG_OPTIONS="--disable-x86asm"
+    fi
+    # Only build static libraries if no shared FFmpeg.
+    if [[ $SRS_SHARED_FFMPEG == YES ]]; then
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-shared"
     fi
 
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/_release/lib/libavcodec.a ]]; then
@@ -743,7 +751,12 @@ if [[ $SRS_SRT == YES ]]; then
                 exit -1;
             fi
             # Always disable c++11 for libsrt, because only the srt-app requres it.
-            LIBSRT_OPTIONS="--disable-app --enable-shared=0 --enable-static --enable-c++11=0"
+            LIBSRT_OPTIONS="--disable-app  --enable-static --enable-c++11=0"
+            if [[ $SRS_SHARED_SRT == YES ]]; then
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
+            else
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
+            fi
             # Start build libsrt.
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             cp -R ../../3rdparty/srt-1-fit srt-1-fit && cd srt-1-fit &&
