@@ -22,7 +22,7 @@
             <a class="brand" href="https://github.com/ossrs/srs">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav srs_nav">
-                    <li class="active"><a href="#">一对一通话</a></li>
+                    <li class="active"><a href="one2one.html">一对一通话</a></li>
                     <li><a href="room.html">多人通话</a></li>
                     <li class="srs_ignore">
                         <a href="https://github.com/ossrs/signaling">
@@ -226,10 +226,7 @@
                 publisher.close();
             }
             publisher = new SrsRtcPublisherAsync();
-            publisher.onaddstream = function (event) {
-                console.log('Start publish, event: ', event);
-                $('#rtc_media_publisher').prop('srcObject', event.stream);
-            };
+            $('#rtc_media_publisher').prop('srcObject', publisher.stream);
 
             return publisher.publish(url).then(function(session){
                 $('#self').text('Self: ' + url);
@@ -254,10 +251,7 @@
             }
 
             player = new SrsRtcPlayerAsync();
-            player.onaddstream = function (event) {
-                console.log('Start play, event: ', event);
-                $('#rtc_media_player').prop('srcObject', event.stream);
-            };
+            $('#rtc_media_player').prop('srcObject', player.stream);
 
             player.play(url).then(function(session){
                 $('#peer').text('Peer: ' + display);
@@ -284,7 +278,7 @@
         $('#ff_preview').attr('href', 'http://ossrs.net/players/srs_player.html?app=' + $('#txt_room').val() + '&stream=merge.flv&server=' + conf.host + '&vhost=' + conf.host + '&autostart=true');
 
         // Update href for all navs.
-        $('ul.srs_nav').children('li').not('.srs_ignore').children('a').not("[href='#']").each(function (i, e) {
+        $('ul.srs_nav').children('li').not('.srs_ignore').children('a').each(function (i, e) {
             $(e).attr('href', $(e).attr('href') + conf.rawQuery);
         });
 

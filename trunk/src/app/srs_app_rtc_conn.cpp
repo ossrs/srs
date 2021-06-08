@@ -1,25 +1,8 @@
-/**
- * The MIT License (MIT)
- *
- * Copyright (c) 2013-2021 John
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+//
+// Copyright (c) 2013-2021 John
+//
+// SPDX-License-Identifier: MIT
+//
 
 #include <srs_app_rtc_conn.hpp>
 
@@ -3044,7 +3027,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.sendonly_ = true;
         } else if (audio_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (audio_track->direction_ == "inactive_") {
+        } else if (audio_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
@@ -3077,7 +3060,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
             local_media_desc.sendonly_ = true;
         } else if (video_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (video_track->direction_ == "inactive_") {
+        } else if (video_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 
@@ -3318,7 +3301,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
         local_media_desc.sendonly_ = true;
     } else if (track->direction_ == "sendrecv") {
         local_media_desc.sendrecv_ = true;
-    } else if (track->direction_ == "inactive_") {
+    } else if (track->direction_ == "inactive") {
         local_media_desc.inactive_ = true;
     }
 
@@ -3382,7 +3365,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
             local_media_desc.sendonly_ = true;
         } else if (audio_track->direction_ == "sendrecv") {
             local_media_desc.sendrecv_ = true;
-        } else if (audio_track->direction_ == "inactive_") {
+        } else if (audio_track->direction_ == "inactive") {
             local_media_desc.inactive_ = true;
         }
 

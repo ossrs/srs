@@ -9,47 +9,44 @@ SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支�
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT/GB28181.
 
-> Remark: Although SRS is licenced under [MIT][LICENSE], but there are some depended libraries which are distributed using their own licenses, please read [License Mixing][LicenseMixing].
+SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
 
 <a name="product"></a>
+<a name="usage-docker"></a>
 ## Usage
 
-Recommend running SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
+Run SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images), 
+please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#config-candidate]) if WebRTC enabled:
 
 ```bash
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 \
+docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:v4.0.85
+    ossrs/srs:v4.0.117 ./objs/srs -c conf/srs.conf
 ```
 
-> To enable WebRTC, user MUST set the env `CANDIDATE`, see [wiki](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate).
-
-Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
-
-```bash
-docker run --rm --network=host ossrs/srs:encoder ffmpeg -re -i ./doc/source.flv \
-  -c copy -f flv -y rtmp://localhost/live/livestream
-```
-> Note: If WebRTC enabled, you can publish by [H5](http://localhost:8080/players/rtc_publisher.html?autostart=true).
-
-Play the following streams by [players](https://ossrs.net):
-
-* VLC(RTMP): rtmp://localhost/live/livestream
-* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
-* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
-* H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
-
-It's also very easy to build from source:
+<a name="usage-source"></a>
+Or build SRS from source(or [mirrors](#mirrors)), by CentOS7(or Linux([CN][v4_CN_Build],[EN][v4_EN_Build])):
 
 ```
-git clone -b develop https://gitee.com/ossrs/srs.git srs &&
+git clone -b develop https://gitee.com/ossrs/srs.git &&
 cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
-> Note: We use [mirrors(gitee)](#mirrors) here, but it's also ok to `git clone https://github.com/ossrs/srs.git`
+Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
+[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by FFmpeg. 
+It's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled:
 
-> Remark: Recommend to use Centos7 64bits, please read wiki([CN][v4_CN_Build],[EN][v4_EN_Build]), or use [docker][docker-dev].
+```bash
+docker run --rm -it --network=host ossrs/srs:encoder \
+  ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
+```
+
+Play the following streams by [players](https://ossrs.net):
+
+* RTMP (by [VLC](https://www.videolan.org/)): rtmp://localhost/live/livestream
+* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
+* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
+* H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
 
 <a name="srs-40-wiki"></a>
 <a name="wiki"></a>
@@ -82,15 +79,20 @@ Other important wiki:
 
 ## Ports
 
-The ports used by SRS:
+The ports used by SRS, kernel services:
 
-* tcp://1935, for RTMP live streaming server.
-* tcp://1985, HTTP API server.
-* tcp://1990, HTTPS API server.
-* tcp://8080, HTTP live streaming server.
+* tcp://1935, for RTMP live streaming server([CN][v4_CN_DeliveryRTMP],[EN][v4_EN_DeliveryRTMP]).
+* tcp://1985, HTTP API server, for HTTP-API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]), WebRTC([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]), etc.
+* tcp://8080, HTTP live streaming server, HTTP-FLV([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv]), HLS([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS]) as such.
+* udp://8000, WebRTC Media([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]) server.
+
+For optional HTTPS services, which might be provided by other web servers:
+
 * tcp://8088, HTTPS live streaming server.
-* udp://8000, [WebRTC Media](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC) server.
-* udp://1980, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+* tcp://1990, HTTPS API server.
+
+For optional stream caster services, to push streams to SRS:
+
 * udp://8935, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
 * tcp://554, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
 * tcp://8936, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
@@ -98,6 +100,10 @@ The ports used by SRS:
 * udp://9000, Stream Caster: [Push GB28181 Media(bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
 * udp://58200-58300, Stream Caster: [Push GB28181 Media(no-bundle)](https://github.com/ossrs/srs/issues/1500#issuecomment-606695679) server.
 * udp://10080, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
+  
+For external services to work with SRS:
+
+* udp://1989, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
 
 ## Features
 
@@ -175,12 +181,17 @@ The ports used by SRS:
 
 ## V5 changes
 
+* v4.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 5.0.3
 * v5.0, 2021-05-19, ST: Simplify it, only Linux/Darwin, epoll/kqueue, single process. 5.0.2
 * v5.0, 2021-03-17, Live: Refine edge to follow client and HTTP/302. 5.0.1
 * v5.0, 2021-03-15, Init SRS/5. 5.0.0
 
 ## V4 changes
 
+* v4.0, 2021-06-01, Support --shared-ffmpeg to link with *.so for LGPL license. 4.0.126
+* v4.0, 2021-06-01, Support --shared-srt to link with *.so for MPL license. 4.0.125
+* v4.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 4.0.124
+* v4.0, 2021-05-28, Fix bugs for GB28181 and RTC. 4.0.123
 * v4.0, 2021-05-21, Fix [#2370][bug #2370] bug for Firefox play stream(published by Chrome). 4.0.121
 * v4.0, 2021-05-21, RTC: Refine sdk, migrate from onaddstream to ontrack. 4.0.120
 * v4.0, 2021-05-21, Tools: Refine configure options. 4.0.119
@@ -1303,14 +1314,13 @@ Remark:
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  MediaSource(2)      |                            |                |
-|  (RTSP,FILE,         |                            |                |
-|   HTTP,HLS,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
-|   Device,            |                            |                |
+|  (MPEGTSoverUDP      |                            |                |
+|   HTTP-FLV,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
+|   GB28181,SRT,       |                            |                |
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
 +----------------------+----------------------------+----------------+
-
 ```
 
 Remark:
@@ -1460,6 +1470,8 @@ Winlin
 [v4_EN_SampleRealtime]: https://github.com/ossrs/srs/wiki/v4_EN_SampleRealtime
 [v4_CN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC
 [v4_EN_WebRTC]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC
+[v4_CN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate
+[v4_EN_WebRTC#config-candidate]: https://github.com/ossrs/srs/wiki/v4_EN_WebRTC#config-candidate
 [v4_CN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_CN_SampleARM
 [v4_EN_SampleARM]: https://github.com/ossrs/srs/wiki/v4_EN_SampleARM
 [v4_CN_SampleIngest]: https://github.com/ossrs/srs/wiki/v4_CN_SampleIngest
