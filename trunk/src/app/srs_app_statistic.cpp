@@ -1,8 +1,25 @@
-//
-// Copyright (c) 2013-2021 Winlin
-//
-// SPDX-License-Identifier: MIT
-//
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-2021 Winlin
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include <srs_app_statistic.hpp>
 
@@ -19,6 +36,8 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
 
+#include <srs_app_utility.hpp>
+#include <srs_app_gb28181.hpp>
 string srs_generate_stat_vid()
 {
     return "vid-" + srs_random_str(7);
@@ -100,6 +119,8 @@ SrsStatisticStream::SrsStatisticStream()
     
     nb_clients = 0;
     nb_frames = 0;
+
+    last_non_zero_client = srs_get_system_time();
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -221,6 +242,61 @@ SrsStatistic::SrsStatistic()
     clk = new SrsWallClock();
     kbps = new SrsKbps(clk);
     kbps->set_io(NULL, NULL);
+
+    timer30s_ = new SrsFastTimer("stat", 30 * SRS_UTIME_SECONDS);
+    srs_error_t err = srs_success;
+    if ((err = timer30s_->start()) != srs_success)
+    {
+        srs_trace("start timer error");
+        ::exit(-1);
+    }
+
+    timer30s_->subscribe(this);
+}
+
+srs_error_t SrsStatistic::on_timer(srs_utime_t interval)
+{
+    srs_error_t err = srs_success;
+    if (true)
+    {
+        std::map<std::string, SrsStatisticStream *>::iterator it;
+        for (it = streams.begin(); it != streams.end(); it++)
+        {
+            SrsStatisticStream *stream = it->second;
+            if (!stream->active)
+            {
+                continue;
+            }
+            std::vector<std::string> tmp = srs_string_split(stream->stream, "@");
+            if (tmp.size() != 2 || tmp[0].empty() || tmp[1].empty())
+            {
+                // 非gb28181视频
+                srs_trace("dpg: ignore non gb streams %s", stream->stream.c_str());
+                continue;
+            }
+
+            if (stream->nb_clients > 0)
+            {
+                stream->last_non_zero_client = srs_get_system_time();
+                continue;
+            }
+
+            srs_utime_t duration = srs_duration(stream->last_non_zero_client, srs_get_system_time());
+            if (duration > 60 * SRS_UTIME_SECONDS)
+            {
+                //有流， 超过60s没有人观看了
+                std::string id = tmp[0];
+                std::string chid = tmp[1];
+                srs_trace("dpg: no client %u seconds, auto idle drop streams %s", duration / SRS_UTIME_SECONDS, stream->stream.c_str());
+
+                if ((err = _srs_gb28181->notify_sip_bye(id, chid)) != srs_success)
+                {
+                    return srs_error_wrap(err, "%s notify sip bye", stream->stream.c_str());
+                }
+            }
+        }
+    }
+    return err;
 }
 
 SrsStatistic::~SrsStatistic()
@@ -254,6 +330,8 @@ SrsStatistic::~SrsStatistic()
     rvhosts.clear();
     streams.clear();
     rstreams.clear();
+
+    srs_freep(timer30s_);
 }
 
 SrsStatistic* SrsStatistic::instance()
@@ -404,7 +482,7 @@ srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire*
     client->type = type;
     stream->nb_clients++;
     vhost->nb_clients++;
-
+    stream->last_non_zero_client = srs_get_system_time();
     // The req might be freed, in such as SrsLiveStream::update, so we must copy it.
     // @see https://github.com/ossrs/srs/issues/2311
     srs_freep(client->req);

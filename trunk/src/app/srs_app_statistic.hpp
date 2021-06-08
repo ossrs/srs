@@ -15,6 +15,7 @@
 
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_app_hourglass.hpp>
 
 class SrsKbps;
 class SrsWallClock;
@@ -45,6 +46,8 @@ public:
 struct SrsStatisticStream
 {
 public:
+    srs_utime_t last_non_zero_client; // 最近有客户端时间
+
     std::string id;
     SrsStatisticVhost* vhost;
     std::string app;
@@ -107,8 +110,13 @@ public:
     virtual srs_error_t dumps(SrsJsonObject* obj);
 };
 
-class SrsStatistic
+class SrsStatistic:public ISrsFastTimer
 {
+private:
+    // auto clean gb streams
+    SrsFastTimer *timer30s_;
+    virtual srs_error_t on_timer(srs_utime_t interval);
+
 private:
     static SrsStatistic *_instance;
     // The id to identify the sever.
