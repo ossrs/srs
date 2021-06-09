@@ -2089,7 +2089,8 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
 
     media_payload_type.encoding_name_ = name_;
     media_payload_type.clock_rate_ = sample_;
-    if (channel_ != 0) {
+    //according to rfc4566, page 26, if channel=1, we can omit it as Chrome and Firefox
+    if (channel_ != 0 && channel_ != 1) {
         media_payload_type.encoding_param_ = srs_int2str(channel_);
     }
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
