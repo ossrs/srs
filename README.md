@@ -180,7 +180,7 @@ For external services to work with SRS:
 
 ## Chnagelogs
 
-Please read [CHANGELOG](CHANGELOG).
+Please read [CHANGELOG](CHANGELOG.md#chnagelog).
 
 ## Releases
 
@@ -240,104 +240,8 @@ Please read [CHANGELOG](CHANGELOG).
 
 ## Compare
 
-Comparing with other media servers, SRS is much better and stronger, for details please read Product([CN][v4_CN_Compare]/[EN][v4_EN_Compare]).
-
-<a name="stream-delivery"></a>
-**Stream Delivery**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
-|   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
-|   HTTP FLV    |   Stable  |   X       |   X       |   X       |   X       |
-|   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
-|   HDS         | Experiment|   X       |   X       |   Stable  |   Stable  |
-|   MPEG-DASH   | Experiment|   X       |   X       |   X       |   X       |
-|   SRT         | Experiment|   X       |   X       |   X       |   Stable  |
-|   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
-
-<a name="cluster"></a>
-**Cluster**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
-|   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
-|   VHOST       |   Stable  |   X       |   X       |   Stable  |   Stable  |
-|   Reload      |   Stable  |   X       |   X       |   X       |   X       |
-|   Forward     |   Stable  |   X       |   X       |   X       |   X       |
-|   ATC         |   Stable  |   X       |   X       |   X       |   X       |
-|   Docker      |   Stable  |   X       |   X       |   X       |   X       |
-
-<a name="stream-service"></a>
-**Stream Service**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
-|   DVR API     |   Stable  |   Stable  |   X       |   X       |   X       |
-|   DVR MP4     |   Stable  |   X       |   X       |   X       |   X       |
-|   EXEC        |   Stable  |   Stable  |   X       |   X       |   X       |
-|   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
-|   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
-| HTTP RAW API  |   Stable  |   X       |   X       |   X       |   X       |
-|   HTTP hooks  |   Stable  |   X       |   X       |   X       |   X       |
-|   GopCache    |   Stable  |   X       |   X       |   Stable  |   X       |
-|   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
-| Token Traverse|   Stable  |   X       |   X       |   Stable  |   X       |
-
-<a name="efficiency"></a>
-**Efficiency**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
-|MultipleProcess| [Stable][v4_CN_ReusePort] |   Stable  |   X       |   X       |   X       |
-|   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
-|   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
-
-<a name="stream-caster"></a>
-**Stream Caster**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   Ingest      |   Stable  |   X       |   X       |   X       |   X       |
-|   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
-|   Push RTSP   | Experiment|   X       |   Stable  |   X       |   Stable  |
-| Push HTTP FLV | Experiment|   X       |   X       |   X       |   X       |
-
-<a name="debug-system"></a>
-**Debug System**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   BW check    |   Stable  |   X       |   X       |   X       |   X       |
-| Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
-
-<a name="docs"></a>
-**Docs**
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   Demos       |   Stable  |   X       |   X       |   X       |   X       |
-|   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
-
-<a name="others"></a>
-**Others** 
-
-|   Feature     |   SRS     |   NGINX   | CRTMPD    | AMS       |   WOWZA   |
-|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
-| Client Library|   Stable  |   X       |   X       |   X       |   X       |
-
-Remark:
-
-1. Concurrency: We only benchmark the concurrency of single process.
-1. MultipleProcess: SRS supports multiple processes by [go-oryx][oryx].
-1. HLS aonly: HLS supports audio only mode without video stream.
-1. BW check: The bandwidth check feature is used to detect the bandwidth between server and client.
-1. Security: The security includes access control, token authentication and referer check.
-1. Reload: SRS and Nginx supports reload, but nginx-rtmp doesn't.
+Comparing with other media servers, SRS is much better and stronger, for details please 
+read Product([CN][v4_CN_Compare]/[EN][v4_EN_Compare]).
 
 ## Performance
 
@@ -457,99 +361,30 @@ We used FMLE as encoder for benchmark. The latency of server was 0.1s+,
 and the bottleneck was the encoder. For more information, read 
 [bug #257][bug #257-c0].
 
-<a name="hls-overhead"></a>
-**HLS overhead**
-
-About the overhead of HLS overhead, we compared FFMPEG and SRS.
-
-| Bitrate   |   Duration    |   FLV(KB)     |   HLS(KB)     |   Overhead    |
-| -------   |   --------    |   -------     |   --------    |   ---------   |
-| 275kbps   |   600s        |   11144       |   12756       |   14.46%      |
-| 260kbps   |   1860s       |   59344       |   68004       |   14.59%      |
-| 697kbps   |   60s         |   5116        |   5476        |   7.03%       |
-| 565kbps   |   453s        |   31316       |   33544       |   7.11%       |
-| 565kbps   |   1813s       |   125224      |   134140      |   7.12%       |
-| 861kbps   |   497s        |   52316       |   54924       |   4.98%       |
-| 857kbps   |   1862s       |   195008      |   204768      |   5.00%       |
-| 1301kbps  |   505s        |   80320       |   83676       |   4.17%       |
-| 1312kbps  |   1915s       |   306920      |   319680      |   4.15%       |
-| 2707kbps  |   600s        |   198356      |   204560      |   3.12%       |
-| 2814kbps  |   1800s       |   618456      |   637660      |   3.10%       |
-| 2828kbps  |   60s         |   20716       |   21356       |   3.08%       |
-| 2599kbps  |   307s        |   97580       |   100672      |   3.16%       |
-| 2640kbps  |   1283s       |   413880      |   426912      |   3.14%       |
-| 5254kbps  |   71s         |   45832       |   47056       |   2.67%       |
-| 5147kbps  |   370s        |   195040      |   200280      |   2.68%       |
-| 5158kbps  |   1327s       |   835664      |   858092      |   2.68%       |
-
-The HLS overhead is calc by: (HLS - FLV) / FLV * 100%.
-
-The overhead should be larger than this benchmark(48kbps audio is best overhead), for we fix the [#512][bug #512].
-
 ## Architecture
 
-SRS always use the simplest architecture to solve complex domain problems.
-
-* System arch: the system structure and arch.
-* Modularity arch: the main modularity of SRS.
-* Stream arch: the stream dispatch arch of SRS.
-
-## System Architecture
+The stream architecture of SRS.
 
 ```
-+------------------------------------------------------+
-|                    Application                       |
-|            Origin/Edge/HTTP-FLV/StreamCaster         |
-+---------------+---------------+-----------+----------+
-|   RAW API/    |     EXEC/     |  DVR/HLS  | FLV/TS/  |
-|   API/hook    |   Transcoder  |  HDS/DASH | AMF0/JSON|
-+---------------+---------------+-----------+ RTMP/RTSP|
-|  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
-+---------------+---------------+-----------+----------+
-|              Network(state-threads)                  |
-+------------------------------------------------------+
-|    All Linux/Unix(RHEL,CentOS,Ubuntu,Fedora...)      |
-+------------------------------------------------------+
-```
-
-## Modularity Architecture
-
-```
-+--------------------+---------------------------------+
-|   SRS/SRT server   |       Programs in Main          |
-+--------------------+-------+-------------------------+
-|  App(For SRS)              |      Modules(1)         |
-+----------------------------+-------------------------+
-|   Protocol Stack(RTMP/HTTP/RTSP/JSON/AMF/Service)    |
-+------------------------------------------------------+
-|      Kernel(File, Codec, Stream, LB services)        |
-+------------------------------------------------------+
-|         Core(Macros and very low-level APIs)         |
-+------------------------------------------------------+
-```
-
-Remark:
-
-1. Modules: SRS supports code-level modularity, read [modules][modules].
-
-## Stream Architecture
-
-```
-+---------+              +----------+
-| Publish |              |  Deliver |
-+---|-----+              +----|-----+
-+----------------------+----------------------------+----------------+
++----------+             +----------+
+| Upstream |             |  Deliver |
++---|------+             +----|-----+
++---+------------------+------+---------------------+----------------+
 |     Input            | SRS(Simple RTMP Server)    |     Output     |
 +----------------------+----------------------------+----------------+
 |                      |   +-> DASH ----------------+-> DASH player  |
 |    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
-|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
-|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
+|  (FMLE,OBS,   --RTMP-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
+|  FFmpeg,XSPLIT,      |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
 |  ......)             |   +-> Fowarder ------------+-> RTMP server  |
 |                      |   +-> Transcoder ----------+-> RTMP server  |
 |                      |   +-> EXEC(5) -------------+-> External app |
 |                      |   +-> DVR -----------------+-> FLV file     |
 |                      |   +-> BandwidthTest -------+-> Flash        |
+|                      |   +-> WebRTC --------------+-> Flash        |
++----------------------+                            |                |
+|    WebRTC Client     |   +--> RTMP                |                |
+| (H5,Native...) --RTC-+---+---> WebRTC ------------+-> WebRTC Client|
 +----------------------+                            |                |
 |  MediaSource(2)      |                            |                |
 |  (RTSP,FILE,         |                            |                |
@@ -591,6 +426,8 @@ Maintainers of SRS project:
 * [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
+* [Mozhan](https://github.com/lipeng19811218): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
+* [Jinxue](https://github.com/chen-guanghua): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 
 A big THANK YOU goes to:
 
