@@ -472,7 +472,7 @@ git clone https://github.com/ossrs/srs.git
 
 Supported operating systems and hardware:
 
-* All Linux, both 32 and 64 bits
+* Linux, with x86, x86-64 or arm.
 * Mac, with intel chip.
 * Other OS, such as Windows, please use [docker][docker-srs4].
 
