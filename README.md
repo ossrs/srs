@@ -473,6 +473,7 @@ git clone https://github.com/ossrs/srs.git
 Supported operating systems and hardware:
 
 * All Linux, both 32 and 64 bits
+* Mac, with intel chip.
 * Other OS, such as Windows, please use [docker][docker-srs4].
 
 Beijing, 2013.10<br/>
@@ -766,13 +767,6 @@ Winlin
 [bug #264]: https://github.com/ossrs/srs/issues/264
 [bug #264]: https://github.com/ossrs/srs/issues/264
 [bug #257]: https://github.com/ossrs/srs/issues/257
-[bug #251]: https://github.com/ossrs/srs/issues/251
-[bug #251]: https://github.com/ossrs/srs/issues/251
-[bug #241]: https://github.com/ossrs/srs/issues/241
-[bug #241]: https://github.com/ossrs/srs/issues/241
-[bug #241]: https://github.com/ossrs/srs/issues/241
-[bug #248]: https://github.com/ossrs/srs/issues/248
-[bug #244]: https://github.com/ossrs/srs/issues/244
 [bug #237]: https://github.com/ossrs/srs/issues/237
 [bug #235]: https://github.com/ossrs/srs/issues/235
 [bug #215]: https://github.com/ossrs/srs/issues/215
