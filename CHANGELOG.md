@@ -1,6 +1,6 @@
-# ChnageLog
+# Changelog
 
-The change logs for SRS.
+The changelog for SRS.
 
 ## V5 changes
 

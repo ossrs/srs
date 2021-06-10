@@ -179,9 +179,9 @@ For external services to work with SRS:
 <a name="changes"></a>
 <a name="change-logs"></a>
 
-## Changelogs
+## Changelog
 
-Please read [CHANGELOG](CHANGELOG.md#chnagelog).
+Please read [CHANGELOG](CHANGELOG.md#changelog).
 
 ## Releases
 
