@@ -178,7 +178,7 @@ For external services to work with SRS:
 <a name="history"></a>
 <a name="change-logs"></a>
 
-## Chnagelogs
+## Changelogs
 
 Please read [CHANGELOG](CHANGELOG.md#chnagelog).
 
