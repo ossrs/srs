@@ -2,7 +2,9 @@
 
 The changelog for SRS.
 
-## V4 changes
+<a name="v4-changes"></a>
+
+## SRS 4.0 Changelog
 
 * v4.0, 2021-06-01, Support --shared-ffmpeg to link with *.so for LGPL license. 4.0.126
 * v4.0, 2021-06-01, Support --shared-srt to link with *.so for MPL license. 4.0.125
@@ -114,7 +116,9 @@ The changelog for SRS.
 * v4.0, 2020-01-26, Allow use libsrt.so for SRT is MPL license. 4.0.2
 * v4.0, 2020-01-24, Fix [#1147][bug #1147], support SRT(Secure Reliable Transport). 4.0.1
 
-## V3 changes
+<a name="v3-changes"></a>
+
+## SRS 3.0 Changelog
 
 * v3.0, 2021-05-12, Fix [#2311][bug #2311], Copy the request for stat client. 3.0.162
 * <strong>v3.0, 2021-04-28, [3.0 release5(3.0.161)][r3.0r5] released. 122750 lines.</strong>
@@ -317,7 +321,9 @@ The changelog for SRS.
 * v3.0, 2015-08-28, fix [#471][bug #471], api response the width and height. 3.0.2
 * v3.0, 2015-08-25, fix [#367][bug #367], support nginx-rtmp exec. 3.0.1
 
-## V2 changes
+<a name="v2-changes"></a>
+
+## SRS 2.0 Changelog
 
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
@@ -565,7 +571,9 @@ The changelog for SRS.
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
 
-## V1 changes
+<a name="v1-changes"></a>
+
+## SRS 1.0 Changelog
 
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)][r1.0r0] released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)][r1.0b0] released. 59316 lines.</strong>
