@@ -55,6 +55,7 @@ From here, please read wikis:
 
 * [SRS 4.0 English Wiki][v4_EN_Home], please read Wiki first.
 * [SRS 4.0 中文Wiki][v4_CN_Home]，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
+* [学习路径](https://mp.weixin.qq.com/s/ngZX1wBSRJ8aYX-ZNTGxIg)，如何快速学习和掌握SRS，分层次了解流媒体服务器的知识。
 
 Fast index for Wikis:
 
