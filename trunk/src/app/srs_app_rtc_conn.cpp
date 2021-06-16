@@ -16,6 +16,7 @@ using namespace std;
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <queue>
 #include <sstream>
 
 #include <srs_core_autofree.hpp>
@@ -41,6 +42,8 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_service_log.hpp>
+#include <srs_app_log.hpp>
 
 #include <srs_protocol_kbps.hpp>
 
