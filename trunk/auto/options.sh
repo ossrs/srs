@@ -354,7 +354,7 @@ function parse_user_option_to_value_and_option() {
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
-    else if [[ $1 == RESERVED ]]; then
+    elif [[ $1 == RESERVED ]]; then
       echo reserved;
     else
       echo off;
