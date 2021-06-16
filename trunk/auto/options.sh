@@ -350,14 +350,18 @@ function parse_user_option_to_value_and_option() {
     esac
 }
 
+# For variable values, might be three values: YES, RESERVED, NO(by default).
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
+    elif [[ $1 == RESERVED ]]; then
+      echo reserved;
     else
       echo off;
     fi
 }
 
+# For user options, only off or on(by default).
 function switch2value() {
     if [[ $1 == off ]]; then
       echo NO;
