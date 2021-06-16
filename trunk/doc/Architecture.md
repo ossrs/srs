@@ -38,7 +38,7 @@ The stream architecture of SRS.
 |  MediaSource(2)      |                            |                |
 |  (MPEGTSoverUDP      |                            |                |
 |   HTTP-FLV,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
-|   SRT,               |                            |                |
+|   GB28181,SRT,       |                            |                |
 |   ......)            |                            |                |
 +----------------------+                            |                |
 |  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
