@@ -6,7 +6,6 @@ help=no
 SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=RESERVED
-SRS_GB28181=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
 SRS_NGINX=NO
@@ -115,7 +114,6 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
-  --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
@@ -265,10 +263,6 @@ function parse_user_option() {
         --simulator)                    SRS_SIMULATOR=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
 
-        --with-gb28181)                 SRS_GB28181=YES             ;;
-        --without-gb28181)              SRS_GB28181=NO              ;;
-        --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
-
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
         --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
 
@@ -356,14 +350,18 @@ function parse_user_option_to_value_and_option() {
     esac
 }
 
+# For variable values, might be three values: YES, RESERVED, NO(by default).
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
+    elif [[ $1 == RESERVED ]]; then
+      echo reserved;
     else
       echo off;
     fi
 }
 
+# For user options, only off or on(by default).
 function switch2value() {
     if [[ $1 == off ]]; then
       echo NO;
@@ -384,12 +382,7 @@ do
     parse_user_option
 done
 
-if [ $help = yes ]; then
-    show_help
-    exit 0
-fi
-
-function apply_detail_options() {
+function apply_auto_options() {
     # set default preset if not specifies
     if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
@@ -416,6 +409,28 @@ function apply_detail_options() {
     if [ $SRS_TRANSCODE = YES ]; then SRS_FFMPEG_STUB=YES; fi
     if [ $SRS_INGEST = YES ]; then SRS_FFMPEG_STUB=YES; fi
 
+    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
+        echo "Disable SRTP-ASM, because RTC is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
+        echo "Disable SRTP-ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+}
+
+if [ $help = yes ]; then
+    apply_auto_options
+    show_help
+    exit 0
+fi
+
+#####################################################################################
+# apply options
+#####################################################################################
+
+function apply_detail_options() {
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
     if [ $SRS_STREAM_CASTER = NO ]; then SRS_STREAM_CASTER=YES; echo -e "${YELLOW}[WARN] Always enable StreamCaster.${BLACK}"; fi
@@ -435,17 +450,8 @@ function apply_detail_options() {
     else
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
-        echo "Disable SRTP-ASM, because RTC is disabled."
-        SRS_SRTP_ASM=NO
-    fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
-        echo "Disable SRTP-ASM, because NASM is disabled."
-        SRS_SRTP_ASM=NO
-    fi
 }
+apply_auto_options
 apply_detail_options
 
 function regenerate_options() {
@@ -473,7 +479,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
