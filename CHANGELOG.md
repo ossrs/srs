@@ -6,16 +6,14 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 4.0.127
 * v4.0, 2021-06-01, Support --shared-ffmpeg to link with *.so for LGPL license. 4.0.126
 * v4.0, 2021-06-01, Support --shared-srt to link with *.so for MPL license. 4.0.125
 * v4.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 4.0.124
-* v4.0, 2021-05-28, Fix bugs for GB28181 and RTC. 4.0.123
 * v4.0, 2021-05-21, Fix [#2370][bug #2370] bug for Firefox play stream(published by Chrome). 4.0.121
 * v4.0, 2021-05-21, RTC: Refine sdk, migrate from onaddstream to ontrack. 4.0.120
 * v4.0, 2021-05-21, Tools: Refine configure options. 4.0.119
 * v4.0, 2021-05-20, Fix build fail when disable RTC by --rtc=off. 4.0.118
-* v4.0, 2021-05-19, Fix [#2362][bug #2362]: Allow WebRTC to play before publishing, for GB28181 as such. 4.0.117
-* v4.0, 2021-05-18, Fix [#2355][bug #2355]: GB28181: Fix play by RTC bug. 4.0.116
 * v4.0, 2021-05-15, SRT: Build SRT from source by SRS. 4.0.115
 * v4.0, 2021-05-15, Rename SrsConsumer* to SrsLiveConsumer*. 4.0.114
 * v4.0, 2021-05-15, Rename SrsRtcStream* to SrsRtcSource*. 4.0.113
@@ -63,7 +61,6 @@ The changelog for SRS.
 * v4.0, 2021-01-08, HTML5 video tag resolution adaptive. 4.0.59
 * v4.0, 2021-01-08, Fix memory leak and bugs for RTC. 4.0.58
 * v4.0, 2021-01-06, Merge #2109, Refine srs_string_split.
-* v4.0, 2021-01-06, Merge #2109, Fix bugs for GB28181.
 * v4.0, 2020-12-24, Support disable CherryPy. 4.0.57
 * v4.0, 2020-11-12, For [#1998][bug #1998], Support Firefox, use PT in offer. 4.0.55
 * v4.0, 2020-11-11, For [#1508][bug #1508], Transform http header name to upper camel case. 4.0.54
@@ -81,10 +78,8 @@ The changelog for SRS.
 * v4.0, 2020-07-25, RTC: Support multiple address for client. 4.0.36
 * v4.0, 2020-07-11, Refine log context with random string. 4.0.35
 * v4.0, 2020-07-04, Fix some bugs for RTC. 4.0.34
-* v4.0, 2020-07-03, Merge [#1830][bug #1830] to fix bugs in GB28181. 4.0.33
 * v4.0, 2020-06-24, Support static link c++ libraries. 4.0.32
 * v4.0, 2020-06-23, Change log cid from int to string. 4.0.31
-* v4.0, 2020-06-13, GB28181 with JitterBuffer support. 4.0.30
 * v4.0, 2020-06-03, Support enable C++11. 4.0.29
 * v4.0, 2020-05-31, Remove [srs-librtmp](https://github.com/ossrs/srs/issues/1535#issuecomment-633907655). 4.0.28
 * v4.0, 2020-05-21, For [#307][bug #307], disable GSO and sendmmsg. 4.0.27
@@ -93,10 +88,8 @@ The changelog for SRS.
 * v4.0, 2020-04-30, For [#307][bug #307], support publish RTC with passing opus. 4.0.24
 * v4.0, 2020-04-14, For [#307][bug #307], support sendmmsg, GSO and reuseport. 4.0.23
 * v4.0, 2020-04-05, For [#307][bug #307], SRTP ASM only works with openssl-1.0, auto detect it. 4.0.22
-* v4.0, 2020-04-04, Merge RTC and GB28181, with bugs fixed. 4.0.21
 * v4.0, 2020-04-04, For [#307][bug #307], refine RTC latency from 600ms to 200ms. 4.0.20
 * v4.0, 2020-04-03, For [#307][bug #307], build SRTP with openssl to improve performance. 4.0.19
-* v4.0, 2020-03-31, For [#1500][bug #1500], support push stream by GB28181. 4.0.18
 * v4.0, 2020-03-31, Play stream by WebRTC on iOS/Android/PC browser. 4.0.17
 * v4.0, 2020-03-28, Support multiple OS/Platform build cache. 4.0.16
 * v4.0, 2020-03-28, For [#1250][bug #1250], support macOS, OSX, MacbookPro, Apple Darwin.

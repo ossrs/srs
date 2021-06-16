@@ -205,19 +205,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
-#ifdef SRS_GB28181
-class SrsGoApiGb28181 : public ISrsHttpHandler
-{
-public:
-    SrsGoApiGb28181();
-    virtual ~SrsGoApiGb28181();
-public:
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-private:
-    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
-};
-#endif
-
 #ifdef SRS_GPERF
 class SrsGoApiTcmalloc : public ISrsHttpHandler
 {
