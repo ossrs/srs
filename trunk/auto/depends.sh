@@ -299,6 +299,15 @@ function OSX_prepare()
         echo "Please install pkg-config"; exit -1;
     fi
 
+    if [[ $SRS_GB28181 == YES ]]; then
+        if [[ ! -f /usr/local/opt/libiconv/lib/libiconv.a ]]; then
+            echo "install libiconv"
+            echo "brew install libiconv"
+            brew install libiconv; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libiconv success"
+        fi
+    fi
+
     if [[ $SRS_SRT == YES ]]; then
         echo "SRT enable, install depend tools"
         tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
