@@ -350,6 +350,7 @@ function parse_user_option_to_value_and_option() {
     esac
 }
 
+# For variable values, might be three values: YES, RESERVED, NO(by default).
 function value2switch() {
     if [[ $1 == YES ]]; then
       echo on;
@@ -358,6 +359,7 @@ function value2switch() {
     fi
 }
 
+# For user options, only off or on(by default).
 function switch2value() {
     if [[ $1 == off ]]; then
       echo NO;
@@ -378,12 +380,7 @@ do
     parse_user_option
 done
 
-if [ $help = yes ]; then
-    show_help
-    exit 0
-fi
-
-function apply_detail_options() {
+function apply_auto_options() {
     # set default preset if not specifies
     if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
@@ -410,6 +407,28 @@ function apply_detail_options() {
     if [ $SRS_TRANSCODE = YES ]; then SRS_FFMPEG_STUB=YES; fi
     if [ $SRS_INGEST = YES ]; then SRS_FFMPEG_STUB=YES; fi
 
+    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
+        echo "Disable SRTP-ASM, because RTC is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+
+    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
+        echo "Disable SRTP-ASM, because NASM is disabled."
+        SRS_SRTP_ASM=NO
+    fi
+}
+
+if [ $help = yes ]; then
+    apply_auto_options
+    show_help
+    exit 0
+fi
+
+#####################################################################################
+# apply options
+#####################################################################################
+
+function apply_detail_options() {
     # Always enable HTTP utilies.
     if [ $SRS_HTTP_CORE = NO ]; then SRS_HTTP_CORE=YES; echo -e "${YELLOW}[WARN] Always enable HTTP utilies.${BLACK}"; fi
     if [ $SRS_STREAM_CASTER = NO ]; then SRS_STREAM_CASTER=YES; echo -e "${YELLOW}[WARN] Always enable StreamCaster.${BLACK}"; fi
@@ -429,17 +448,8 @@ function apply_detail_options() {
     else
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_RTC == NO ]]; then
-        echo "Disable SRTP-ASM, because RTC is disabled."
-        SRS_SRTP_ASM=NO
-    fi
-
-    if [[ $SRS_SRTP_ASM == YES && $SRS_NASM == NO ]]; then
-        echo "Disable SRTP-ASM, because NASM is disabled."
-        SRS_SRTP_ASM=NO
-    fi
 }
+apply_auto_options
 apply_detail_options
 
 function regenerate_options() {
