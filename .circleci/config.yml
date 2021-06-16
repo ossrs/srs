@@ -24,6 +24,14 @@ jobs:
       - run: |
           echo "Build SRS without NASM or SRTP-NASM" &&
           cd trunk && ./configure --nasm=off --srtp-nasm=off && make
+  build-c7-gb28181:
+    docker:
+      - image: ossrs/srs:dev
+    steps:
+      - checkout
+      - run: |
+          echo "Build SRS with GB28181" &&
+          cd trunk && ./configure --gb28181=on && make
   build-c7-srt:
     docker:
       - image: ossrs/srs:dev
@@ -103,7 +111,7 @@ jobs:
       - checkout
       - run: |
           echo "Build and run utest for SRS" &&
-          cd trunk && ./configure --utest=on --gcov=on && make &&
+          cd trunk && ./configure --gb28181=on --utest=on --gcov=on && make &&
           ./objs/srs_utest && bash auto/codecov.sh
   run-regression-test:
     docker:
@@ -152,6 +160,7 @@ workflows:
       - build-c7-baseline
       - build-c7-nortc
       - build-c7-noasm
+      - build-c7-gb28181
       - build-c7-srt
       - build-c8-baseline
       - build-c8-srt
