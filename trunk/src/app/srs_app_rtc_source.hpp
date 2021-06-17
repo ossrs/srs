@@ -239,6 +239,7 @@ public:
     bool has_stream_desc();
     void set_stream_desc(SrsRtcSourceDescription* stream_desc);
     std::vector<SrsRtcTrackDescription*> get_track_desc(std::string type, std::string media_type);
+    void update_audio_track_payload(uint8_t pt, std::string encode_name, int sample, int channel);
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);
@@ -259,10 +260,29 @@ private:
     SrsAudioTranscoder* codec_;
     bool discard_bframe;
     bool merge_nalus;
+    bool audio_transcoding;
     uint16_t audio_sequence;
     uint16_t video_sequence;
     uint32_t audio_ssrc;
     uint32_t video_ssrc;
+
+    //AudioAdjustorForG711, adjust the audio size and timestamp, make Chrome Happy (*^_^*)
+    const static uint16_t g711_adjustor_cache_size = 256;
+    struct AudioAdjustorForG711 {
+        uint64_t last_audio_tmiestamp;
+        uint16_t data_size;
+        uint16_t perfer_frame_size;
+        uint8_t  data_cache_buf[g711_adjustor_cache_size];
+
+        AudioAdjustorForG711() {
+            last_audio_tmiestamp = 0;
+            data_size = 0;
+            //for g711a g711mu 8000hz 64kb, 20ms
+            perfer_frame_size = 160;
+        }
+    };
+
+    AudioAdjustorForG711   g711_audio_adjustor_;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
@@ -274,6 +294,9 @@ public:
 private:
     srs_error_t transcode(SrsAudioFrame* audio);
     srs_error_t package_opus(SrsAudioFrame* audio, SrsRtpPacket* pkt);
+    srs_error_t package_g711(SrsAudioFrame* audio, std::vector<SrsRtpPacket*>& pkts);    
+    void update_audio_track_desc(SrsSharedPtrMessage* msg);
+    bool judge_audio_codec_supported_in_webrtc(SrsAudioCodecId codec_id, SrsAudioSampleRate sample_rate, SrsAudioChannels  channels);
 public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
 private:

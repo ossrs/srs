@@ -56,6 +56,16 @@ const int kAudioPayloadType     = 111;
 const int kAudioChannel         = 2;
 const int kAudioSamplerate      = 48000;
 
+// RFC 3551.
+const int kG711aAudioPayloadType     = 8;
+const int kG711aAudioChannel         = 1;
+const int kG711aAudioSamplerate      = 8000;
+
+// RFC 3551.
+const int kG711muAudioPayloadType     = 0;
+const int kG711muAudioChannel         = 1;
+const int kG711muAudioSamplerate      = 8000;
+
 // Firefox defaults as 126, Chrome is 102.
 const int kVideoPayloadType = 102;
 const int kVideoSamplerate  = 90000;
@@ -655,8 +665,12 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
     }
 
     if (type == "audio") {
-        if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
+        if(media_name == "") {
             track_descs.push_back(stream_desc_->audio_track_desc_);
+        } else {
+            if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
+                track_descs.push_back(stream_desc_->audio_track_desc_);
+            }
         }
     }
 
@@ -669,6 +683,21 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
     }
 
     return track_descs;
+}
+
+void SrsRtcSource::update_audio_track_payload(uint8_t pt, std::string encode_name, int sample, int channel)
+{
+    SrsAudioPayload*   audio_payload = NULL;
+    if(stream_desc_ && stream_desc_->audio_track_desc_ && stream_desc_->audio_track_desc_->media_) {
+        audio_payload = (SrsAudioPayload*)stream_desc_->audio_track_desc_->media_;
+    }
+
+    if(audio_payload) {
+        audio_payload->pt_ = pt;
+        audio_payload->name_ = encode_name;
+        audio_payload->sample_ = sample;
+        audio_payload->channel_ = channel;
+    }
 }
 
 srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
@@ -706,6 +735,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     discard_aac = false;
     discard_bframe = false;
     merge_nalus = false;
+    audio_transcoding = true;
     meta = new SrsMetaCache();
     audio_sequence = 0;
     video_sequence = 0;
@@ -790,6 +820,7 @@ void SrsRtcFromRtmpBridger::on_unpublish()
 srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
+    update_audio_track_desc(msg);
 
     // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
@@ -804,7 +835,9 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 
     // ts support audio codec: aac/mp3
     SrsAudioCodecId acodec = format->acodec->id;
-    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3) {
+    if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdMP3 &&
+        acodec != SrsAudioCodecIdReservedG711AlawLogarithmicPCM && acodec != SrsAudioCodecIdReservedG711MuLawLogarithmicPCM &&
+        acodec != SrsAudioCodecIdOpus) {
         return err;
     }
 
@@ -815,6 +848,20 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 
     // ignore sequence header
     srs_assert(format->audio);
+    if (!audio_transcoding) {
+        //add the g711 support
+        if(acodec == SrsAudioCodecIdReservedG711AlawLogarithmicPCM || acodec == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
+            vector<SrsRtpPacket*> pkts;;
+            err = package_g711(format->audio, pkts);
+            if (err != srs_success) {
+                return srs_error_wrap(err, "package g711");
+            }
+            
+            consume_packets(pkts);
+        }
+
+        return err;
+    }
 
     char* adts_audio = NULL;
     int nn_adts_audio = 0;
@@ -895,6 +942,167 @@ srs_error_t SrsRtcFromRtmpBridger::package_opus(SrsAudioFrame* audio, SrsRtpPack
     raw->nn_payload = audio->samples[0].size;
 
     return err;
+}
+
+srs_error_t SrsRtcFromRtmpBridger::package_g711(SrsAudioFrame* audio, std::vector<SrsRtpPacket*>& pkts)
+{
+    srs_error_t err = srs_success;
+    SrsRtpPacket* pkt = NULL;
+    int size_to_merge = 0;
+    int size_left = 0;
+    int data_offset = 0;
+    uint8_t   payload_type;
+
+
+    if(g711_audio_adjustor_.last_audio_tmiestamp == 0) {
+        g711_audio_adjustor_.last_audio_tmiestamp = audio->dts;
+    }
+
+    SrsAudioCodecConfig*  a_codec = audio->acodec();
+    if (a_codec->id == SrsAudioCodecIdReservedG711AlawLogarithmicPCM) {
+        payload_type= kG711aAudioPayloadType;
+    }
+
+    if (a_codec->id == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
+        payload_type= kG711muAudioPayloadType;        
+    }
+    
+    size_left = audio->samples[0].size;
+    //merge the data in cache
+    if(g711_audio_adjustor_.data_size > 0) {
+        size_to_merge = (audio->samples[0].size < (g711_audio_adjustor_.perfer_frame_size-g711_audio_adjustor_.data_size))?audio->samples[0].size:(g711_audio_adjustor_.perfer_frame_size-g711_audio_adjustor_.data_size);
+        
+        memcpy(g711_audio_adjustor_.data_cache_buf+g711_audio_adjustor_.data_size, audio->samples[0].bytes+data_offset, size_to_merge);
+        g711_audio_adjustor_.data_size += size_to_merge;
+        data_offset += size_to_merge;
+        size_left -= size_to_merge;
+    }
+
+    //audio frame ready in cache
+    if(g711_audio_adjustor_.data_size == g711_audio_adjustor_.perfer_frame_size) {
+        pkt = new SrsRtpPacket();
+        pkts.push_back(pkt);
+
+        pkt->header.set_payload_type(payload_type);
+        pkt->header.set_ssrc(audio_ssrc);
+        pkt->frame_type = SrsFrameTypeAudio;
+        pkt->header.set_marker(true);
+        pkt->header.set_sequence(audio_sequence++);
+        pkt->header.set_timestamp((uint32_t)(g711_audio_adjustor_.last_audio_tmiestamp * 8));
+
+        //the birate is 64kb, 8000 B
+        g711_audio_adjustor_.last_audio_tmiestamp += (g711_audio_adjustor_.perfer_frame_size/8);
+
+        SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+        pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
+        raw->payload = pkt->wrap((char *)g711_audio_adjustor_.data_cache_buf, (int)g711_audio_adjustor_.perfer_frame_size);
+        raw->nn_payload = (int)g711_audio_adjustor_.perfer_frame_size;
+    }
+
+    while(size_left > g711_audio_adjustor_.perfer_frame_size) {
+        pkt = new SrsRtpPacket();
+        pkts.push_back(pkt);
+
+        pkt->header.set_payload_type(payload_type);
+        pkt->header.set_ssrc(audio_ssrc);
+        pkt->frame_type = SrsFrameTypeAudio;
+        pkt->header.set_marker(true);
+        pkt->header.set_sequence(audio_sequence++);
+        pkt->header.set_timestamp((uint32_t)(g711_audio_adjustor_.last_audio_tmiestamp * 8));
+
+        //the birate is 64kb, 8000 B
+        g711_audio_adjustor_.last_audio_tmiestamp += (g711_audio_adjustor_.perfer_frame_size/8);
+
+        SrsRtpRawPayload* raw = new SrsRtpRawPayload();
+        pkt->set_payload(raw, SrsRtspPacketPayloadTypeRaw);
+        raw->payload = pkt->wrap((char *)audio->samples[0].bytes+data_offset, (int)g711_audio_adjustor_.perfer_frame_size);
+        raw->nn_payload = (int)g711_audio_adjustor_.perfer_frame_size;
+        size_left -= g711_audio_adjustor_.perfer_frame_size;
+        data_offset += g711_audio_adjustor_.perfer_frame_size;
+    }
+
+    //cache left data
+    if(size_left > 0) {
+        memcpy(g711_audio_adjustor_.data_cache_buf, audio->samples[0].bytes+data_offset, size_left);
+        g711_audio_adjustor_.data_size = size_left;
+    }
+
+    return err;
+}
+
+bool SrsRtcFromRtmpBridger::judge_audio_codec_supported_in_webrtc(SrsAudioCodecId codec_id, SrsAudioSampleRate sample_rate, SrsAudioChannels  channels)
+{
+    bool ret = false;
+    
+    switch(codec_id) {
+        case  SrsAudioCodecIdReservedG711AlawLogarithmicPCM: {
+            ret = true;
+            break;
+        }
+
+        case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM: {
+            ret = true;
+            break;
+        }
+        
+        case SrsAudioCodecIdOpus: {
+            if(channels == SrsAudioChannelsStereo && sample_rate == SrsAudioSampleRateFB48kHz) {
+                ret = true;
+            }
+            break;
+        }
+
+        default: {
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void SrsRtcFromRtmpBridger::update_audio_track_desc(SrsSharedPtrMessage* msg)
+{
+    bool update_stream_desc = false;
+    bool get_audio_codec_params = false;
+    bool audio_supported_in_webrtc = false;
+    SrsAudioCodecId codec_id = SrsAudioCodecIdDisabled;
+    SrsAudioSampleRate sample_rate = SrsAudioSampleRateForbidden;
+    SrsAudioChannels  channels = SrsAudioChannelsForbidden;
+    SrsAudioSampleBits sample_bits = SrsAudioSampleBitsForbidden;
+
+    get_audio_codec_params = SrsFlvAudio::codec_params(msg->payload, msg->size, codec_id, sample_rate, sample_bits, channels);
+    if (!get_audio_codec_params) {
+        return;
+    }
+    
+    audio_supported_in_webrtc = judge_audio_codec_supported_in_webrtc(codec_id, sample_rate, channels);
+    if (!format->acodec) {
+        if(audio_supported_in_webrtc == true ) {
+            if(audio_transcoding == true) {
+                //default audio track desc is opus, 48000, 2 channels
+                audio_transcoding = false;
+                update_stream_desc = true;
+            }
+        }
+    } 
+
+    if(update_stream_desc) {
+        switch(codec_id) {
+            case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM: {
+                source_->update_audio_track_payload(kG711muAudioPayloadType, "pcmu", kG711muAudioSamplerate, kG711muAudioChannel);
+                break;
+            }
+
+            case SrsAudioCodecIdReservedG711AlawLogarithmicPCM: {
+                source_->update_audio_track_payload(kG711aAudioPayloadType, "pcma", kG711aAudioSamplerate, kG711aAudioChannel);
+                break;
+            }
+
+            default:{
+                break;
+            }
+        }
+    }
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
@@ -1908,7 +2116,8 @@ SrsMediaPayloadType SrsAudioPayload::generate_media_payload_type()
 
     media_payload_type.encoding_name_ = name_;
     media_payload_type.clock_rate_ = sample_;
-    if (channel_ != 0) {
+    //according to rfc4566, page 26, if channel=1, we can omit it as Chrome and Firefox
+    if (channel_ != 0 && channel_ != 1) {
         media_payload_type.encoding_param_ = srs_int2str(channel_);
     }
     media_payload_type.rtcp_fb_ = rtcp_fbs_;
