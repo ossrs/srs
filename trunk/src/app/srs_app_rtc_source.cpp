@@ -390,15 +390,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         audio_track_desc->ssrc_ = audio_ssrc;
         audio_track_desc->direction_ = "recvonly";
 
-        SrsAudioPayload*   audio_payload = NULL;
-        audio_payload = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
-        audio_track_desc->medias_.push_back(audio_payload);
-
-        audio_payload = new SrsAudioPayload(kG711aAudioPayloadType, "pcma", kG711aAudioSamplerate, kG711aAudioChannel);
-        audio_track_desc->medias_.push_back(audio_payload);
-
-        audio_payload = new SrsAudioPayload(kG711muAudioPayloadType, "pcmu", kG711muAudioSamplerate, kG711muAudioChannel);
-        audio_track_desc->medias_.push_back(audio_payload);
+        audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
     }
 
     // video track description
@@ -414,7 +406,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         video_track_desc->direction_ = "recvonly";
 
         SrsVideoPayload* video_payload = new SrsVideoPayload(kVideoPayloadType, "H264", kVideoSamplerate);
-        video_track_desc->medias_.push_back(video_payload);
+        video_track_desc->media_ = video_payload;
 
         video_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
     }
@@ -669,7 +661,13 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
     }
 
     if (type == "audio") {
-        track_descs.push_back(stream_desc_->audio_track_desc_);
+        if(media_name == "") {
+            track_descs.push_back(stream_desc_->audio_track_desc_);
+        } else {
+            if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
+                track_descs.push_back(stream_desc_->audio_track_desc_);
+            }
+        }
     }
 
     if (type == "video") {
@@ -685,7 +683,6 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
 
 void SrsRtcSource::update_audio_track_payload(uint8_t pt, std::string encode_name, int sample, int channel)
 {
-    /*
     SrsAudioPayload*   audio_payload = NULL;
     if(stream_desc_ && stream_desc_->audio_track_desc_ && stream_desc_->audio_track_desc_->media_) {
         audio_payload = (SrsAudioPayload*)stream_desc_->audio_track_desc_->media_;
@@ -697,7 +694,6 @@ void SrsRtcSource::update_audio_track_payload(uint8_t pt, std::string encode_nam
         audio_payload->sample_ = sample;
         audio_payload->channel_ = channel;
     }
-    */
 }
 
 srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
@@ -1084,9 +1080,7 @@ void SrsRtcFromRtmpBridger::update_audio_track_desc(SrsSharedPtrMessage* msg)
                 update_stream_desc = true;
             }
         }
-    }
-
-    /* 
+    } 
 
     if(update_stream_desc) {
         switch(codec_id) {
@@ -1105,7 +1099,6 @@ void SrsRtcFromRtmpBridger::update_audio_track_desc(SrsSharedPtrMessage* msg)
             }
         }
     }
-    */
 }
 
 srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
@@ -2231,6 +2224,7 @@ SrsRtcTrackDescription::SrsRtcTrackDescription()
     fec_ssrc_ = 0;
     is_active_ = false;
 
+    media_ = NULL;
     red_ = NULL;
     rtx_ = NULL;
     ulpfec_ = NULL;
@@ -2238,10 +2232,7 @@ SrsRtcTrackDescription::SrsRtcTrackDescription()
 
 SrsRtcTrackDescription::~SrsRtcTrackDescription()
 {
-    for(int i=0; i<medias_.size(); i++) {
-        srs_freep(medias_.at(i));
-    }
-
+    srs_freep(media_);
     srs_freep(red_);
     srs_freep(rtx_);
     srs_freep(ulpfec_);
@@ -2280,9 +2271,9 @@ void SrsRtcTrackDescription::set_direction(std::string direction)
     direction_ = direction;
 }
 
-void SrsRtcTrackDescription::set_codec_payloads(std::vector<SrsCodecPayload*> payloads)
+void SrsRtcTrackDescription::set_codec_payload(SrsCodecPayload* payload)
 {
-    medias_ = payloads;
+    media_ = payload;
 }
 
 void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMediaPayloadType> payloads)
@@ -2345,13 +2336,7 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
     cp->mid_ = mid_;
     cp->msid_ = msid_;
     cp->is_active_ = is_active_;
-    for(int i=0; i<medias_.size(); i++) {
-        if(medias_.at(i))
-        {
-            cp->medias_.push_back(medias_.at(i)->copy());
-        }
-    }
-    
+    cp->media_ = media_ ? media_->copy():NULL;
     cp->red_ = red_ ? red_->copy():NULL;
     cp->rtx_ = rtx_ ? rtx_->copy():NULL;
     cp->ulpfec_ = ulpfec_ ? ulpfec_->copy():NULL;
@@ -2777,28 +2762,17 @@ SrsRtcAudioSendTrack::~SrsRtcAudioSendTrack()
 srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
-    SrsCodecPayload*   media_payload = NULL;
-    uint8_t pt = 0;
 
     if (!track_desc_->is_active_) {
         return err;
     }
-    
-    pt = pkt->header.get_payload_type();
+
     pkt->header.set_ssrc(track_desc_->ssrc_);
 
     // Should update PT, because subscriber may use different PT to publisher.
-    for(int i=0; i<track_desc_->medias_.size(); i++) {
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
         // If PT is media from publisher, change to PT of media for subscriber.
-        if((SrsCodecPayload*)track_desc_->medias_.at(i) != NULL && pt == track_desc_->medias_.at(i)->pt_of_publisher_) {
-            pt = track_desc_->medias_.at(i)->pt_;
-            media_payload = (SrsCodecPayload*)track_desc_->medias_.at(i);
-            break;
-        }
-    }
-
-    if (media_payload) {
-        pkt->header.set_payload_type(pt);
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
         // If PT is RED from publisher, change to PT of RED for subscriber.
         pkt->header.set_payload_type(track_desc_->red_->pt_);
@@ -2832,28 +2806,17 @@ SrsRtcVideoSendTrack::~SrsRtcVideoSendTrack()
 srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket* pkt)
 {
     srs_error_t err = srs_success;
-    SrsCodecPayload*   media_payload = NULL;
-    uint8_t pt = 0;
+
     if (!track_desc_->is_active_) {
         return err;
     }
     
-    pt = pkt->header.get_payload_type();
     pkt->header.set_ssrc(track_desc_->ssrc_);
-    // Should update PT, because subscriber may use different PT to publisher.
-    for(int i=0; i<track_desc_->medias_.size(); i++) {
-        // If PT is media from publisher, change to PT of media for subscriber.
-        if((SrsCodecPayload*)track_desc_->medias_.at(i) != NULL && pt == track_desc_->medias_.at(i)->pt_of_publisher_) {
-            pt = track_desc_->medias_.at(i)->pt_;
-            media_payload = (SrsCodecPayload*)track_desc_->medias_.at(i);
-            break;
-        }
-    }
 
     // Should update PT, because subscriber may use different PT to publisher.
-    if (media_payload) {
+    if (track_desc_->media_ && pkt->header.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
         // If PT is media from publisher, change to PT of media for subscriber.
-        pkt->header.set_payload_type(pt);
+        pkt->header.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
         // If PT is RED from publisher, change to PT of RED for subscriber.
         pkt->header.set_payload_type(track_desc_->red_->pt_);

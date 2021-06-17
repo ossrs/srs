@@ -485,8 +485,8 @@ public:
     // msid_: track stream id
     std::string msid_;
 
-    // supported meida payload, such as opus, h264, g711a, g711mu, g722
-    std::vector<SrsCodecPayload*> medias_;
+    // meida payload, such as opus, h264.
+    SrsCodecPayload* media_;
     SrsCodecPayload* red_;
     SrsCodecPayload* rtx_;
     SrsCodecPayload* ulpfec_;
@@ -502,7 +502,7 @@ public:
     void add_rtp_extension_desc(int id, std::string uri);
     void del_rtp_extension_desc(std::string uri);
     void set_direction(std::string direction);
-    void set_codec_payloads(std::vector<SrsCodecPayload*> payloads);
+    void set_codec_payload(SrsCodecPayload* payload);
     // auxiliary paylod include red, rtx, ulpfec.
     void create_auxiliary_payload(const std::vector<SrsMediaPayloadType> payload_types);
     void set_rtx_ssrc(uint32_t ssrc);
