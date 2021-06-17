@@ -58,7 +58,9 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
         case SrsAudioCodecIdNellymoser8kHzMono:
         case SrsAudioCodecIdNellymoser:
         case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
+            return "pcma";
         case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
+            return "pcmu";
         case SrsAudioCodecIdReserved:
         case SrsAudioCodecIdSpeex:
         case SrsAudioCodecIdReservedMP3_8kHz:
@@ -197,6 +199,23 @@ bool SrsFlvAudio::aac(char* data, int size)
     sound_format = (sound_format >> 4) & 0x0F;
     
     return sound_format == SrsAudioCodecIdAAC;
+}
+
+bool SrsFlvAudio::codec_params(char* data, int size, SrsAudioCodecId& codec_id, SrsAudioSampleRate& sample_rate, SrsAudioSampleBits& sample_bits, SrsAudioChannels&  channels)
+{
+    // 1bytes required.
+    if (size < 1) {
+        return false;
+    }
+    
+    uint8_t sound_format = data[0];
+    codec_id = (SrsAudioCodecId)((sound_format >> 4) & 0x0F);
+    sample_rate = (SrsAudioSampleRate)((sound_format >> 2) & 0x03);
+    sample_bits = (SrsAudioSampleBits)(SrsAudioSampleBits)((sound_format >> 1) & 0x01);
+    channels = (SrsAudioChannels)(sound_format & 0x01);
+
+    //add private opus codec param later!!!
+    return true;
 }
 
 /**
@@ -608,7 +627,8 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     uint8_t v = buffer->read_1bytes();
     SrsAudioCodecId codec = (SrsAudioCodecId)((v >> 4) & 0x0f);
     
-    if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC) {
+    if (codec != SrsAudioCodecIdMP3 && codec != SrsAudioCodecIdAAC &&
+        codec != SrsAudioCodecIdReservedG711AlawLogarithmicPCM && codec != SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
         return err;
     }
     
@@ -628,6 +648,14 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     
     if (codec == SrsAudioCodecIdMP3) {
         return audio_mp3_demux(buffer, timestamp);
+    }
+
+    if (codec == SrsAudioCodecIdReservedG711AlawLogarithmicPCM) {
+        return audio_g711a_demux(buffer, timestamp);
+    }
+
+    if (codec == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
+        return audio_g711mu_demux(buffer, timestamp);
     }
     
     return audio_aac_demux(buffer, timestamp);
@@ -1369,6 +1397,82 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     // mp3 payload.
     if ((err = audio->add_sample(data, size)) != srs_success) {
         return srs_error_wrap(err, "add audio frame");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsFormat::audio_g711a_demux(SrsBuffer* stream, int64_t timestamp)
+{
+    srs_error_t err = srs_success;
+    
+    audio->cts = 0;
+    audio->dts = timestamp;
+    audio->aac_packet_type = SrsAudioG711aFrameTraitRaw;
+    
+    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
+    int8_t sound_format = stream->read_1bytes();
+    
+    int8_t sound_type = sound_format & 0x01;
+    int8_t sound_size = (sound_format >> 1) & 0x01;
+    int8_t sound_rate = (sound_format >> 2) & 0x03;
+    sound_format = (sound_format >> 4) & 0x0f;
+    
+    
+    SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
+    acodec->id = codec_id;
+    
+    acodec->sound_type = (SrsAudioChannels)sound_type;
+    acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
+    acodec->sound_size = (SrsAudioSampleBits)sound_size;
+    
+    srs_assert(acodec->id == SrsAudioCodecIdReservedG711AlawLogarithmicPCM);
+    
+    raw = stream->data() + stream->pos();
+    nb_raw = stream->size() - stream->pos();
+
+    
+    // g711a payload.
+    if ((err = audio->add_sample(raw, nb_raw)) != srs_success) {
+        return srs_error_wrap(err, "add g711a audio frame");
+    }
+    
+    return err;
+}
+
+srs_error_t SrsFormat::audio_g711mu_demux(SrsBuffer* stream, int64_t timestamp)
+{
+    srs_error_t err = srs_success;
+    
+    audio->cts = 0;
+    audio->dts = timestamp;
+    audio->aac_packet_type = SrsAudioG711aFrameTraitRaw;
+    
+    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
+    int8_t sound_format = stream->read_1bytes();
+    
+    int8_t sound_type = sound_format & 0x01;
+    int8_t sound_size = (sound_format >> 1) & 0x01;
+    int8_t sound_rate = (sound_format >> 2) & 0x03;
+    sound_format = (sound_format >> 4) & 0x0f;
+    
+    
+    SrsAudioCodecId codec_id = (SrsAudioCodecId)sound_format;
+    acodec->id = codec_id;
+    
+    acodec->sound_type = (SrsAudioChannels)sound_type;
+    acodec->sound_rate = (SrsAudioSampleRate)sound_rate;
+    acodec->sound_size = (SrsAudioSampleBits)sound_size;
+    
+    srs_assert(acodec->id == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM);
+    
+    raw = stream->data() + stream->pos();
+    nb_raw = stream->size() - stream->pos();
+
+    
+    // g711mu payload
+    if ((err = audio->add_sample(raw, nb_raw)) != srs_success) {
+        return srs_error_wrap(err, "add g711mu audio frame");
     }
     
     return err;

@@ -167,6 +167,12 @@ enum SrsAudioAacFrameTrait
     SrsAudioOpusFrameTraitRaw = 2,
     SrsAudioOpusFrameTraitSamplingRate = 4,
     SrsAudioOpusFrameTraitAudioLevel = 8,
+
+    // For g711a, the frame trait.
+    SrsAudioG711aFrameTraitRaw = 16,
+
+    // For g711mu, the frame trait.
+    SrsAudiG711muFrameTraitAudioLevel = 32,
 };
 
 /**
@@ -202,6 +208,68 @@ enum SrsAudioSampleRate
     SrsAudioSampleRateFB48kHz  = 48, // FB (fullband)
 };
 std::string srs_audio_sample_rate2str(SrsAudioSampleRate v);
+
+
+/**
+ * the public data, event HLS disable, others can use it.
+ */
+/**
+ * the flv sample rate map
+ */
+extern int srs_flv_srates[];
+
+/**
+ * the aac sample rate map
+ */
+extern int srs_aac_srates[];
+
+// The number of aac samplerates, size for srs_aac_srates.
+#define SrsAAcSampleRateNumbers 16
+
+// The impossible aac sample rate index.
+#define SrsAacSampleRateUnset 15
+
+// The max number of NALUs in a video, or aac frame in audio packet.
+#define SrsMaxNbSamples 256
+
+/**
+ * The audio sample size in bits.
+ * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
+ * Size of each audio sample. This parameter only pertains to
+ * uncompressed formats. Compressed formats always decode
+ * to 16 bits internally.
+ *      0 = 8-bit samples
+ *      1 = 16-bit samples
+ */
+enum SrsAudioSampleBits
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioSampleBitsReserved = 2,
+    SrsAudioSampleBitsForbidden = 2,
+    
+    SrsAudioSampleBits8bit = 0,
+    SrsAudioSampleBits16bit = 1,
+};
+std::string srs_audio_sample_bits2str(SrsAudioSampleBits v);
+
+/**
+ * The audio channels.
+ * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
+ * Mono or stereo sound
+ *      0 = Mono sound
+ *      1 = Stereo sound
+ */
+enum SrsAudioChannels
+{
+    // set to the max value to reserved, for array map.
+    SrsAudioChannelsReserved = 2,
+    SrsAudioChannelsForbidden = 2,
+    
+    SrsAudioChannelsMono = 0,
+    SrsAudioChannelsStereo = 1,
+};
+std::string srs_audio_channels2str(SrsAudioChannels v);
+
 
 /**
  * The frame type, for example, audio, video or data.
@@ -272,67 +340,11 @@ public:
      * check codec aac.
      */
     static bool aac(char* data, int size);
+    /**
+     * get codec params.
+     */
+    static bool codec_params(char* data, int size, SrsAudioCodecId& codec_id, SrsAudioSampleRate& sample_rate, SrsAudioSampleBits& sample_bits, SrsAudioChannels&  channels);
 };
-
-/**
- * the public data, event HLS disable, others can use it.
- */
-/**
- * the flv sample rate map
- */
-extern int srs_flv_srates[];
-
-/**
- * the aac sample rate map
- */
-extern int srs_aac_srates[];
-
-// The number of aac samplerates, size for srs_aac_srates.
-#define SrsAAcSampleRateNumbers 16
-
-// The impossible aac sample rate index.
-#define SrsAacSampleRateUnset 15
-
-// The max number of NALUs in a video, or aac frame in audio packet.
-#define SrsMaxNbSamples 256
-
-/**
- * The audio sample size in bits.
- * @doc video_file_format_spec_v10_1.pdf, page 76, E.4.2 Audio Tags
- * Size of each audio sample. This parameter only pertains to
- * uncompressed formats. Compressed formats always decode
- * to 16 bits internally.
- *      0 = 8-bit samples
- *      1 = 16-bit samples
- */
-enum SrsAudioSampleBits
-{
-    // set to the max value to reserved, for array map.
-    SrsAudioSampleBitsReserved = 2,
-    SrsAudioSampleBitsForbidden = 2,
-    
-    SrsAudioSampleBits8bit = 0,
-    SrsAudioSampleBits16bit = 1,
-};
-std::string srs_audio_sample_bits2str(SrsAudioSampleBits v);
-
-/**
- * The audio channels.
- * @doc video_file_format_spec_v10_1.pdf, page 77, E.4.2 Audio Tags
- * Mono or stereo sound
- *      0 = Mono sound
- *      1 = Stereo sound
- */
-enum SrsAudioChannels
-{
-    // set to the max value to reserved, for array map.
-    SrsAudioChannelsReserved = 2,
-    SrsAudioChannelsForbidden = 2,
-    
-    SrsAudioChannelsMono = 0,
-    SrsAudioChannelsStereo = 1,
-};
-std::string srs_audio_channels2str(SrsAudioChannels v);
 
 /**
  * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
@@ -760,6 +772,9 @@ private:
     //          Demux the sampels from RAW data.
     virtual srs_error_t audio_aac_demux(SrsBuffer* stream, int64_t timestamp);
     virtual srs_error_t audio_mp3_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_g711a_demux(SrsBuffer* stream, int64_t timestamp);
+    virtual srs_error_t audio_g711mu_demux(SrsBuffer* stream, int64_t timestamp);
+
 public:
     // Directly demux the sequence header, without RTMP packet header.
     virtual srs_error_t audio_aac_sequence_header_demux(char* data, int size);
