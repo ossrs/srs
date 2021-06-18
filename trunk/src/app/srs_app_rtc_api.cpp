@@ -154,6 +154,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     ruc.req_->app = app;
     ruc.req_->stream = stream_name;
+    
+    // note: my concept extension about tcUrl for rtc
+    // format like "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
+    ruc.req_->tcUrl = streamurl;
 
     // TODO: FIXME: Parse vhost.
     // discovery vhost, resolve the vhost from config

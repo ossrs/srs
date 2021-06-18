@@ -3284,6 +3284,62 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
     }
 }
 
+// note: get [0,1,2] from "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
+bool parse_layers_in_url(std::vector<int>& layers, std::string url) {
+    // webrtc://127.0.0.1/live/livestream?layer=1
+    size_t pos = url.rfind("/");
+    if (pos == string::npos) {
+        return false;
+    }
+    // livestream?layer=1
+    // livestream?layer=1,2,3
+    // livestream?layer=1,2,3&foo=bar
+    auto name = url.substr(pos + 1);
+    pos = name.rfind("?");
+    if (pos == string::npos) {
+        return false;
+    }
+    // layer=1,2,3&foo=bar
+    auto params = name.substr(pos + 1);
+    pos = params.rfind("layer=");
+    if (pos == string::npos) {
+        return false;
+    }
+    // 1,2,3&foo=bar
+    auto layer_param = params.substr(pos+6);
+    pos = layer_param.find("&");
+
+    // 1,2,3
+    auto layers_ = pos == string::npos
+                  ? layer_param
+                  : layer_param.substr(0, pos);
+
+    srs_trace("layers=%s", layers_.c_str());
+    istringstream f(layers_);
+    string s;
+    while (getline(f, s, ';')) {
+        layers.push_back(::atoi(s.c_str()));
+    }
+    return !layers.empty();
+}
+
+std::vector<SrsRtcTrackDescription *> select_video_track_descs(
+        std::vector<SrsRtcTrackDescription *> video_track_descs,
+        std::string url) {
+    srs_trace("stream url: %s", url.c_str());
+    std::vector<int> layers;
+    if (!parse_layers_in_url(layers, url)) {
+        return video_track_descs;
+    }
+    std::vector<SrsRtcTrackDescription *> result;
+    for (auto i: layers) {
+        if (i < video_track_descs.size()) {
+            result.push_back(video_track_descs[i]);
+        }
+    }
+    return result.empty() ? video_track_descs : result;
+}
+
 srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan)
 {
     srs_error_t err = srs_success;
@@ -3370,8 +3426,9 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         }
     }
 
-    for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
-        SrsRtcTrackDescription* track = stream_desc->video_track_descs_[i];
+    auto video_track_descs = select_video_track_descs(stream_desc->video_track_descs_, req->tcUrl);
+    for (int i = 0;  i < (int)video_track_descs.size(); ++i) {
+        SrsRtcTrackDescription* track = video_track_descs[i];
 
         if (!unified_plan) {
             // for plan b, we only add one m= for video track.
