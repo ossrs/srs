@@ -2861,24 +2861,36 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
 
-        std::string track_id;
-        for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-            const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+        if (remote_media_desc.is_audio()) {
+            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
 
-            // ssrc have same track id, will be description in the same track description.
-            if(track_id != ssrc_info.msid_tracker_) {
-                SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                track_desc_copy->msid_ = ssrc_info.msid_;
-
-                if (remote_media_desc.is_audio() && !stream_desc->audio_track_desc_) {
+                // ssrc have same track id, will be description in the same track description.
+                if (!stream_desc->audio_track_desc_) {
+                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
+                    track_desc_copy->msid_ = ssrc_info.msid_;
                     stream_desc->audio_track_desc_ = track_desc_copy;
-                } else if (remote_media_desc.is_video()) {
-                    stream_desc->video_track_descs_.push_back(track_desc_copy);
                 }
             }
-            track_id = ssrc_info.msid_tracker_;
+        } else if (remote_media_desc.is_video()) {
+            std::string track_id;
+            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+
+                // ssrc have same track id, will be description in the same track description.
+                if(track_id != ssrc_info.msid_tracker_) {
+                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
+                    track_desc_copy->msid_ = ssrc_info.msid_;
+                    stream_desc->video_track_descs_.push_back(track_desc_copy);
+                    track_id = ssrc_info.msid_tracker_;
+                }
+            }
+        } else {
+            // todo for other
         }
 
         // set track fec_ssrc and rtx_ssrc
