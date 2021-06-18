@@ -2873,8 +2873,27 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     track_desc_copy->msid_ = ssrc_info.msid_;
                     stream_desc->audio_track_desc_ = track_desc_copy;
                 }
+                srs_info("%d/%d#publish audio ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
+                         (int) remote_media_desc.ssrc_infos_.size(),
+                         ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
             }
         } else if (remote_media_desc.is_video()) {
+            // note: find sim in ssrc_groups_, get ssrc
+            auto groups_end = std::end(remote_media_desc.ssrc_groups_);
+            auto it = std::find_if(std::begin(remote_media_desc.ssrc_groups_), groups_end, [](SrsSSRCGroup const& g) {
+                return g.semantic_ == "SIM";
+            });
+            auto is_single_or_simulcast = [&it, &groups_end] (SrsSSRCInfo const& info) {
+                if (it == groups_end) {
+                    return true;
+                }
+                auto& ssrcs_ = it->ssrcs_;
+                auto ssrcs_end = std::end(ssrcs_);
+                return ssrcs_end != std::find_if(std::begin(ssrcs_), ssrcs_end, [&info](uint32_t ssrc) {
+                    return ssrc == info.ssrc_;
+                });
+            };
+
             std::string track_id;
             for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
                 const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
@@ -2885,8 +2904,21 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     track_desc_copy->ssrc_ = ssrc_info.ssrc_;
                     track_desc_copy->id_ = ssrc_info.msid_tracker_;
                     track_desc_copy->msid_ = ssrc_info.msid_;
-                    stream_desc->video_track_descs_.push_back(track_desc_copy);
+                    if (is_single_or_simulcast(ssrc_info)) {
+                        // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
+                        // todo: support standard simulcast, like "a=simulcast:send a;b;c"
+                        stream_desc->video_track_descs_.push_back(track_desc_copy);
+                        srs_info("%d/%d#publish video track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,(int)remote_media_desc.ssrc_infos_.size(),
+                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+                    } else {
+                        srs_info("%d/%d#ignore track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j, (int)remote_media_desc.ssrc_infos_.size(),
+                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+                    }
                     track_id = ssrc_info.msid_tracker_;
+                } else {
+                    srs_info("%d/%d#ignore track_id_/msid_tracker_=%s, ssrc_=%u, msid_=%s", j, (int)remote_media_desc.ssrc_infos_.size(),
+                             track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str());
+                    track_id = "";
                 }
             }
         } else {
