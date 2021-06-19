@@ -5,7 +5,7 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
-SRS_RTC=RESERVED
+SRS_RTC=YES
 SRS_CXX11=NO
 SRS_CXX14=NO
 SRS_NGINX=NO
@@ -196,6 +196,11 @@ function parse_user_option() {
         echo "Error: The $option is not supported yet"; exit 1
     fi
 
+    if [[ $option == '--arm' || $option == '--mips' || $option == '--with-arm-ubuntu12' || $option == '--with-mips-ubuntu12' ]]; then
+        echo "Error: Removed misleading option $option, please read https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs"
+        exit -1
+    fi
+
     # Parse options to variables.
     case "$option" in
         -h)                             help=yes                    ;;
@@ -315,14 +320,6 @@ function parse_user_option() {
 
         # Alias for --arm, cross build.
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
-        --arm)                          SRS_CROSS_BUILD=YES         ;;
-        --mips)                         SRS_CROSS_BUILD=YES         ;;
-        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
-        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
-        --arm-ubuntu12)                 SRS_CROSS_BUILD=$(switch2value $value) ;;
-        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
-        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
-        --mips-ubuntu12)                SRS_CROSS_BUILD=$(switch2value $value) ;;
 
         # Deprecated, might be removed in future.
         --with-nginx)                   SRS_NGINX=YES               ;;
@@ -384,11 +381,6 @@ function apply_auto_options() {
     # set default preset if not specifies
     if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
-    fi
-
-    # Setup the default values if not set.
-    if [[ $SRS_RTC == RESERVED ]]; then
-        SRS_RTC=YES; if [[ $SRS_CROSS_BUILD == YES ]]; then SRS_RTC=NO; fi
     fi
 
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.

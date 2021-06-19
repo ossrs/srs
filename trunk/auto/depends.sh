@@ -604,6 +604,9 @@ if [[ $SRS_SRTP_ASM == YES ]]; then
     echo "SRTP with openssl(ASM) optimization" &&
     SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
 fi
+if [[ $SRS_CROSS_BUILD == YES ]]; then
+    SRTP_OPTIONS="$SRTP_OPTIONS --host=$(echo $SRS_TOOL_CC|awk -F '-gcc' '{print $1}')"
+fi
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
 if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
     echo "The libsrtp-2-fit is ok.";
@@ -627,10 +630,10 @@ if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit sta
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
-if [[ $SRS_RTC == YES ]]; then
+if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == NO ]]; then
-        OPUS_OPTIONS="--disable-shared"
+        OPUS_OPTIONS="--disable-shared --disable-doc"
     fi
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/_release/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
@@ -639,7 +642,8 @@ if [[ $SRS_RTC == YES ]]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             tar xf ../../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
-            ./configure --prefix=`pwd`/_release --enable-static $OPUS_OPTIONS && make ${SRS_JOBS} && make install
+            ./configure --prefix=`pwd`/_release --enable-static $OPUS_OPTIONS &&
+            make ${SRS_JOBS} && make install &&
             cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
         )
     fi
@@ -656,18 +660,29 @@ fi
 #####################################################################################
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     FFMPEG_OPTIONS=""
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+      FFMPEG_CONFIGURE=./configure
+    else
+      FFMPEG_CONFIGURE="env PKG_CONFIG_PATH=$(cd ${SRS_OBJS}/${SRS_PLATFORM} && pwd)/opus/lib/pkgconfig ./configure"
+    fi
 
     # If disable nasm, disable all ASMs.
-    if [[ $SRS_NASM == NO ]]; then
+    nasm -v >/dev/null 2>&1 && NASM_BIN_OK=YES
+    if [[ $NASM_BIN_OK != YES || $SRS_NASM == NO || $SRS_CROSS_BUILD == YES ]]; then
         FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
-    fi
-    # If no nasm, we disable the x86asm.
-    nasm -v >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        FFMPEG_OPTIONS="--disable-x86asm"
     fi
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-shared"
+    fi
+    # For cross-build.
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --arch=arm --target-os=linux"
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$(echo $SRS_TOOL_CC|awk -F 'gcc' '{print $1}')"
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cc=${SRS_TOOL_CC} --cxx=${SRS_TOOL_CXX} --ar=${SRS_TOOL_AR} --ld=${_ST_LD}"
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=opus --enable-encoder=opus"
+    else
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=libopus --enable-encoder=libopus --enable-libopus"
     fi
 
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/_release/lib/libavcodec.a ]]; then
@@ -678,20 +693,24 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
             # Create a hidden directory .src
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && cp -R ../../../3rdparty/ffmpeg-4-fit/* . &&
-            # For libopus and other codecs.
-            ABS_OBJS=$(cd .. && pwd) &&
             # Build source code.
-            PKG_CONFIG_PATH=$ABS_OBJS/opus/lib/pkgconfig ./configure \
-              --prefix=`pwd`/_release \
-              --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" ${FFMPEG_OPTIONS} \
+            $FFMPEG_CONFIGURE \
+              --prefix=`pwd`/_release --pkg-config=pkg-config ${FFMPEG_OPTIONS} \
+               --disable-everything --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
-              --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuda-llvm --disable-cuvid \
+              --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid \
               --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi \
               --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv \
               --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
-              --enable-decoder=libopus --enable-encoder=aac --enable-encoder=opus --enable-encoder=libopus --enable-libopus &&
+              --enable-encoder=aac &&
+            # See https://www.laoyuyu.me/2019/05/23/android/clang_compile_ffmpeg/
+            if [[ $SRS_CROSS_BUILD == YES ]]; then
+              sed -i -e 's/#define getenv(x) NULL/\/\*#define getenv(x) NULL\*\//g' config.h &&
+              sed -i -e 's/#define HAVE_GMTIME_R 0/#define HAVE_GMTIME_R 1/g' config.h &&
+              sed -i -e 's/#define HAVE_LOCALTIME_R 0/#define HAVE_LOCALTIME_R 1/g' config.h
+            fi &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4-fit/_release ffmpeg
         )

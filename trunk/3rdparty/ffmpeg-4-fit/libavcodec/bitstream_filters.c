@@ -25,7 +25,6 @@
 #include "bsf.h"
 
 extern const AVBitStreamFilter ff_aac_adtstoasc_bsf;
-extern const AVBitStreamFilter ff_av1_frame_split_bsf;
 extern const AVBitStreamFilter ff_av1_metadata_bsf;
 extern const AVBitStreamFilter ff_chomp_bsf;
 extern const AVBitStreamFilter ff_dump_extradata_bsf;
@@ -48,11 +47,9 @@ extern const AVBitStreamFilter ff_mpeg4_unpack_bframes_bsf;
 extern const AVBitStreamFilter ff_mov2textsub_bsf;
 extern const AVBitStreamFilter ff_noise_bsf;
 extern const AVBitStreamFilter ff_null_bsf;
-extern const AVBitStreamFilter ff_prores_metadata_bsf;
 extern const AVBitStreamFilter ff_remove_extradata_bsf;
 extern const AVBitStreamFilter ff_text2movsub_bsf;
 extern const AVBitStreamFilter ff_trace_headers_bsf;
-extern const AVBitStreamFilter ff_truehd_core_bsf;
 extern const AVBitStreamFilter ff_vp9_metadata_bsf;
 extern const AVBitStreamFilter ff_vp9_raw_reorder_bsf;
 extern const AVBitStreamFilter ff_vp9_superframe_bsf;

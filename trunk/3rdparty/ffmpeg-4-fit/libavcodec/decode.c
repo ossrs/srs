@@ -740,7 +740,7 @@ static int apply_cropping(AVCodecContext *avctx, AVFrame *frame)
 int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     AVCodecInternal *avci = avctx->internal;
-    int ret, changed;
+    int ret;
 
     av_frame_unref(frame);
 
@@ -765,51 +765,6 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
 
     avctx->frame_number++;
 
-    if (avctx->flags & AV_CODEC_FLAG_DROPCHANGED) {
-
-        if (avctx->frame_number == 1) {
-            avci->initial_format = frame->format;
-            switch(avctx->codec_type) {
-            case AVMEDIA_TYPE_VIDEO:
-                avci->initial_width  = frame->width;
-                avci->initial_height = frame->height;
-                break;
-            case AVMEDIA_TYPE_AUDIO:
-                avci->initial_sample_rate = frame->sample_rate ? frame->sample_rate :
-                                                                 avctx->sample_rate;
-                avci->initial_channels       = frame->channels;
-                avci->initial_channel_layout = frame->channel_layout;
-                break;
-            }
-        }
-
-        if (avctx->frame_number > 1) {
-            changed = avci->initial_format != frame->format;
-
-           switch(avctx->codec_type) {
-            case AVMEDIA_TYPE_VIDEO:
-                changed |= avci->initial_width  != frame->width ||
-                           avci->initial_height != frame->height;
-                break;
-            case AVMEDIA_TYPE_AUDIO:
-                changed |= avci->initial_sample_rate    != frame->sample_rate ||
-                           avci->initial_sample_rate    != avctx->sample_rate ||
-                           avci->initial_channels       != frame->channels ||
-                           avci->initial_channel_layout != frame->channel_layout;
-                break;
-            }
-
-            if (changed) {
-                avci->changed_frames_dropped++;
-                av_log(avctx, AV_LOG_INFO, "dropped changed frame #%d pts %"PRId64
-                                            " drop count: %d \n",
-                                            avctx->frame_number, frame->pts,
-                                            avci->changed_frames_dropped);
-                av_frame_unref(frame);
-                return AVERROR_INPUT_CHANGED;
-            }
-        }
-    }
     return 0;
 }
 
@@ -1423,7 +1378,6 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
         if (i == n) {
             av_log(avctx, AV_LOG_ERROR, "Invalid return from get_format(): "
                    "%s not in possible list.\n", desc->name);
-            ret = AV_PIX_FMT_NONE;
             break;
         }
 

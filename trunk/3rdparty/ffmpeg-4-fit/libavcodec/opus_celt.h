@@ -28,7 +28,6 @@
 
 #include "opus.h"
 #include "opus_pvq.h"
-#include "opusdsp.h"
 
 #include "mdct15.h"
 #include "libavutil/float_dsp.h"
@@ -41,6 +40,7 @@
 #define CELT_NORM_SCALE              16384
 #define CELT_QTHETA_OFFSET           4
 #define CELT_QTHETA_OFFSET_TWOPHASE  16
+#define CELT_EMPH_COEFF              0.85000610f
 #define CELT_POSTFILTER_MINPERIOD    15
 #define CELT_ENERGY_SILENCE          (-28.0f)
 
@@ -96,7 +96,6 @@ struct CeltFrame {
     AVFloatDSPContext   *dsp;
     CeltBlock           block[2];
     CeltPVQ             *pvq;
-    OpusDSP             opusdsp;
     int channels;
     int output_channels;
     int apply_phase_inv;

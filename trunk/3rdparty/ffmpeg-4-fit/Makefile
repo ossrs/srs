@@ -49,9 +49,6 @@ $(TOOLS): %$(EXESUF): %.o
 target_dec_%_fuzzer$(EXESUF): target_dec_%_fuzzer.o $(FF_DEP_LIBS)
 	$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $^ $(ELIBS) $(FF_EXTRALIBS) $(LIBFUZZER_PATH)
 
-tools/target_dem_fuzzer$(EXESUF): tools/target_dem_fuzzer.o $(FF_DEP_LIBS)
-	$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $^ $(ELIBS) $(FF_EXTRALIBS) $(LIBFUZZER_PATH)
-
 tools/sofa2wavs$(EXESUF): ELIBS = $(FF_EXTRALIBS)
 tools/uncoded_frame$(EXESUF): $(FF_DEP_LIBS)
 tools/uncoded_frame$(EXESUF): ELIBS = $(FF_EXTRALIBS)
@@ -133,7 +130,7 @@ uninstall-data:
 
 clean::
 	$(RM) $(CLEANSUFFIXES)
-	$(RM) $(addprefix compat/,$(CLEANSUFFIXES)) $(addprefix compat/*/,$(CLEANSUFFIXES)) $(addprefix compat/*/*/,$(CLEANSUFFIXES))
+	$(RM) $(addprefix compat/,$(CLEANSUFFIXES)) $(addprefix compat/*/,$(CLEANSUFFIXES))
 	$(RM) -r coverage-html
 	$(RM) -rf coverage.info coverage.info.in lcov
 
@@ -147,14 +144,15 @@ distclean:: clean
 ifeq ($(SRC_LINK),src)
 	$(RM) src
 endif
+	$(RM) -rf doc/examples/pc-uninstalled
 
 config:
 	$(SRC_PATH)/configure $(value FFMPEG_CONFIGURATION)
 
-build: all alltools testprogs
-check: all alltools testprogs fate
+build: all alltools examples testprogs
+check: all alltools examples testprogs fate
 
-$(sort $(OUTDIRS)):
+$(sort $(OBJDIRS)):
 	$(Q)mkdir -p $@
 
 # Dummy rule to stop make trying to rebuild removed or renamed headers

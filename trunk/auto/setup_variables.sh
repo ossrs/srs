@@ -19,6 +19,10 @@ fi
 # Use isolate cache for different SRS version.
 SRS_PLATFORM="${SRS_PLATFORM}-SRS4"
 
+if [[ $SRS_CROSS_BUILD == YES ]]; then
+  SRS_PLATFORM="${SRS_PLATFORM}-CROSSBUILD"
+fi
+
 echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 
 # For src object files on each platform.

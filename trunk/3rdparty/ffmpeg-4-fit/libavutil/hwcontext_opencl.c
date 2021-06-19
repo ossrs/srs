@@ -50,7 +50,7 @@
 #include <mfx/mfxstructures.h>
 #endif
 #include <va/va.h>
-#include <CL/cl_va_api_media_sharing_intel.h>
+#include <CL/va_ext.h>
 #include "hwcontext_vaapi.h"
 #endif
 
@@ -500,9 +500,6 @@ static int opencl_device_create_internal(AVHWDeviceContext *hwdev,
          *device_name_src   = NULL;
     int err, found, p, d;
 
-    av_assert0(selector->enumerate_platforms &&
-               selector->enumerate_devices);
-
     err = selector->enumerate_platforms(hwdev, &nb_platforms, &platforms,
                                         selector->context);
     if (err)
@@ -534,9 +531,9 @@ static int opencl_device_create_internal(AVHWDeviceContext *hwdev,
                 continue;
         }
 
-        err = selector->enumerate_devices(hwdev, platforms[p], platform_name,
-                                          &nb_devices, &devices,
-                                          selector->context);
+        err = opencl_enumerate_devices(hwdev, platforms[p], platform_name,
+                                       &nb_devices, &devices,
+                                       selector->context);
         if (err < 0)
             continue;
 
@@ -1419,9 +1416,8 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
         // from the same component.
         if (step && comp->step != step)
             return AVERROR(EINVAL);
-
+        order = order * 10 + c + 1;
         depth = comp->depth;
-        order = order * 10 + comp->offset / ((depth + 7) / 8) + 1;
         step  = comp->step;
         alpha = (desc->flags & AV_PIX_FMT_FLAG_ALPHA &&
                  c == desc->nb_components - 1);
@@ -1457,10 +1453,14 @@ static int opencl_get_plane_format(enum AVPixelFormat pixfmt,
     case order: image_format->image_channel_order = type; break;
     switch (order) {
         CHANNEL_ORDER(1,    CL_R);
+        CHANNEL_ORDER(2,    CL_R);
+        CHANNEL_ORDER(3,    CL_R);
+        CHANNEL_ORDER(4,    CL_R);
         CHANNEL_ORDER(12,   CL_RG);
+        CHANNEL_ORDER(23,   CL_RG);
         CHANNEL_ORDER(1234, CL_RGBA);
-        CHANNEL_ORDER(2341, CL_ARGB);
         CHANNEL_ORDER(3214, CL_BGRA);
+        CHANNEL_ORDER(4123, CL_ARGB);
 #ifdef CL_ABGR
         CHANNEL_ORDER(4321, CL_ABGR);
 #endif
@@ -1726,13 +1726,10 @@ static void opencl_frames_uninit(AVHWFramesContext *hwfc)
     av_freep(&priv->mapped_frames);
 #endif
 
-    if (priv->command_queue) {
-        cle = clReleaseCommandQueue(priv->command_queue);
-        if (cle != CL_SUCCESS) {
-            av_log(hwfc, AV_LOG_ERROR, "Failed to release frame "
-                   "command queue: %d.\n", cle);
-        }
-        priv->command_queue = NULL;
+    cle = clReleaseCommandQueue(priv->command_queue);
+    if (cle != CL_SUCCESS) {
+        av_log(hwfc, AV_LOG_ERROR, "Failed to release frame "
+               "command queue: %d.\n", cle);
     }
 }
 
