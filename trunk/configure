@@ -118,7 +118,6 @@ cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
-ARFLAGS = -rs
 LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
@@ -455,6 +454,13 @@ cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 .PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
+GCC = ${SRS_TOOL_CC}
+CXX = ${SRS_TOOL_CXX}
+AR = ${SRS_TOOL_AR}
+LINK = ${SRS_TOOL_LD}
+RANDLIB = ${SRS_TOOL_RANDLIB}
+CXXFLAGS = ${CXXFLAGS}
+
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
@@ -539,7 +545,7 @@ clean_cherrypy:
 
 st:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}")
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean && \$(MAKE) ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" CC=\$(GCC) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB))
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 ffmpeg:
