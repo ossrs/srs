@@ -77,6 +77,13 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_X86_X64=NO # For x86_64 servers
 SRS_OSX=NO #For osx/macOS PC.
 SRS_CROSS_BUILD=NO #For cross build, for example, on Ubuntu.
+# For cross build, whether armv7 or armv8(aarch64).
+SRS_CROSS_BUILD_ARMV7=NO
+SRS_CROSS_BUILD_AARCH64=NO
+# For cross build, the host, for example(libsrtp), --host=aarch64-linux-gnu
+SRS_CROSS_BUILD_HOST=
+# For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
+SRS_CROSS_BUILD_PREFIX=
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -381,6 +388,14 @@ function apply_auto_options() {
     # set default preset if not specifies
     if [[ $SRS_X86_X64 == NO && $SRS_OSX == NO && $SRS_CROSS_BUILD == NO ]]; then
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
+    fi
+
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+      SRS_CROSS_BUILD_HOST=$(echo $SRS_TOOL_CC|awk -F '-gcc' '{print $1}')
+      SRS_CROSS_BUILD_PREFIX="${SRS_CROSS_BUILD_HOST}-"
+      echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARMV7=YES
+      echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_AARCH64=YES
+      echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, armv7: $SRS_CROSS_BUILD_ARMV7, aarch64: $SRS_CROSS_BUILD_AARCH64"
     fi
 
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.

@@ -529,7 +529,9 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     OPENSSL_CONFIG="./config"
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-        OPENSSL_CONFIG="./Configure linux-armv4"
+        OPENSSL_CONFIG="./Configure linux-generic32"
+        if [[ $SRS_CROSS_BUILD_ARMV7 == YES ]]; then OPENSSL_CONFIG="./Configure linux-armv4"; fi
+        if [[ $SRS_CROSS_BUILD_AARCH64 == YES ]]; then OPENSSL_CONFIG="./Configure linux-aarch64"; fi
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         # Try to use exists libraries.
         if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO ]]; then
@@ -598,14 +600,16 @@ fi
 #####################################################################################
 # srtp
 #####################################################################################
-SRTP_CONFIG="echo SRTP without openssl(ASM) optimization" && SRTP_OPTIONS=""
+SRTP_OPTIONS=""
 # If use ASM for SRTP, we enable openssl(with ASM).
 if [[ $SRS_SRTP_ASM == YES ]]; then
-    echo "SRTP with openssl(ASM) optimization" &&
-    SRTP_CONFIG="export PKG_CONFIG_PATH=../openssl/lib/pkgconfig" && SRTP_OPTIONS="--enable-openssl"
+    SRTP_OPTIONS="--enable-openssl"
+    SRTP_CONFIGURE="env PKG_CONFIG_PATH=$(cd ${SRS_OBJS}/${SRS_PLATFORM} && pwd)/openssl/lib/pkgconfig ./configure"
+else
+    SRTP_CONFIGURE="./configure"
 fi
 if [[ $SRS_CROSS_BUILD == YES ]]; then
-    SRTP_OPTIONS="$SRTP_OPTIONS --host=$(echo $SRS_TOOL_CC|awk -F '-gcc' '{print $1}')"
+    SRTP_OPTIONS="$SRTP_OPTIONS --host=$SRS_CROSS_BUILD_HOST"
 fi
 # Patched ST from https://github.com/ossrs/state-threads/tree/srs
 if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
@@ -615,7 +619,7 @@ else
     (
         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
-        ${SRTP_CONFIG} && ./configure ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+        $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
         cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
     )
@@ -630,6 +634,7 @@ if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit sta
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.
 #####################################################################################
+# For cross build, we use opus of FFmpeg, so we don't build the libopus.
 if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == NO ]]; then
@@ -677,8 +682,10 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     fi
     # For cross-build.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --arch=arm --target-os=linux"
-        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$(echo $SRS_TOOL_CC|awk -F 'gcc' '{print $1}')"
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --target-os=linux"
+        if [[ $SRS_CROSS_BUILD_ARMV7 ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=arm"; fi
+        if [[ $SRS_CROSS_BUILD_AARCH64 ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=aarch64"; fi
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$SRS_CROSS_BUILD_PREFIX"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cc=${SRS_TOOL_CC} --cxx=${SRS_TOOL_CXX} --ar=${SRS_TOOL_AR} --ld=${_ST_LD}"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=opus --enable-encoder=opus"
     else
