@@ -733,10 +733,13 @@ fi
 #####################################################################################
 # live transcoding, ffmpeg-4.1, x264-core157, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
+# Guess whether the ffmpeg is.
+SYSTEMP_FFMPEG_BIN=/usr/local/bin/ffmpeg
+if [[ ! -f $SYSTEMP_FFMPEG_BIN ]]; then SYSTEMP_FFMPEG_BIN=/usr/local/ffmpeg/bin/ffmpeg; fi
 # Always link the ffmpeg tools if exists.
-if [[ -f /usr/local/bin/ffmpeg && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then
+if [[ -f $SYSTEMP_FFMPEG_BIN && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then
     mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin &&
-    ln -sf /usr/local/bin/ffmpeg ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg &&
+    ln -sf $SYSTEMP_FFMPEG_BIN ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg &&
     (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
 fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
