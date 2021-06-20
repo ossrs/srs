@@ -16,6 +16,9 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-06-20, Guess where FFmpeg is. 4.0.129
+* v4.0, 2021-06-20, Fix [#1685](https://github.com/ossrs/srs/issues/1685), support RTC cross-build for armv7/armv8(aarch64). 4.0.128
+* v4.0, 2021-06-17, Fix [#2214](https://github.com/ossrs/srs/issues/2214), remove detection for gmc and gmp.
 * v4.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 4.0.127
 * v4.0, 2021-06-01, Support --shared-ffmpeg to link with *.so for LGPL license. 4.0.126
 * v4.0, 2021-06-01, Support --shared-srt to link with *.so for MPL license. 4.0.125

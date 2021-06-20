@@ -60,8 +60,6 @@ void print_string(char *s);
 
 void test_bswap(void);
 
-void test_set_to_zero(void);
-
 int main(void)
 {
     /*
@@ -137,7 +135,6 @@ int main(void)
     printf(" } \n");
 
     test_bswap();
-    test_set_to_zero();
 
     return 0;
 }
@@ -230,27 +227,4 @@ void test_bswap(void)
     y = be64_to_cpu(y);
     printf("bswapped octet string: %s\n",
            octet_string_hex_string((uint8_t *)&y, 8));
-}
-
-void test_set_to_zero(void)
-{
-#define BUFFER_SIZE (16)
-    uint8_t buffer[BUFFER_SIZE];
-    size_t i;
-
-    for (i = 0; i < BUFFER_SIZE; i++) {
-        buffer[i] = i & 0xff;
-    }
-    printf("Buffer before: %s\n", octet_string_hex_string(buffer, BUFFER_SIZE));
-    octet_string_set_to_zero(buffer, BUFFER_SIZE);
-    printf("Buffer after: %s\n", octet_string_hex_string(buffer, BUFFER_SIZE));
-    for (i = 0; i < BUFFER_SIZE; i++) {
-        if (buffer[i]) {
-            fprintf(stderr,
-                    "Buffer contents not zero at position %zu (is %d)\n", i,
-                    buffer[i]);
-            abort();
-        }
-    }
-#undef BUFFER_SIZE
 }

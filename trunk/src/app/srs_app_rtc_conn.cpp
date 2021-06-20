@@ -3136,60 +3136,6 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
     return err;
 }
 
-srs_error_t SrsRtcConnection::fetch_source_capability(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*>& sub_relations)
-{
-    srs_error_t err = srs_success;
-
-    bool nack_enabled = _srs_config->get_rtc_nack_enabled(req->vhost);
-    bool twcc_enabled = _srs_config->get_rtc_twcc_enabled(req->vhost);
-
-    SrsRtcSource* source = NULL;
-    if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        return srs_error_wrap(err, "fetch rtc source");
-    }
-
-    std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("audio", "opus");
-    std::vector<SrsRtcTrackDescription*> video_track_desc = source->get_track_desc("video", "H264");
-    
-    track_descs.insert(track_descs.end(), video_track_desc.begin(), video_track_desc.end());
-    for (int i = 0; i < (int)track_descs.size(); ++i) {
-        SrsRtcTrackDescription* track = track_descs[i]->copy();
-        uint32_t publish_ssrc = track->ssrc_;
-
-        int local_twcc_id = track->get_rtp_extension_id(kTWCCExt);
-
-        vector<string> rtcp_fb;
-        track->media_->rtcp_fbs_.swap(rtcp_fb);
-        for (int j = 0; j < (int)rtcp_fb.size(); j++) {
-            if (nack_enabled) {
-                if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
-                    track->media_->rtcp_fbs_.push_back(rtcp_fb.at(j));
-                }
-            }
-            if (twcc_enabled && local_twcc_id) {
-                if (rtcp_fb.at(j) == "transport-cc") {
-                    track->media_->rtcp_fbs_.push_back(rtcp_fb.at(j));
-                }
-                track->add_rtp_extension_desc(local_twcc_id, kTWCCExt);
-            }
-        }
-
-        track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
-
-        // TODO: FIXME: set audio_payload rtcp_fbs_,
-        // according by whether downlink is support transport algorithms.
-        // TODO: FIXME: if we support downlink RTX, MUST assign rtx_ssrc_, rtx_pt, rtx_apt
-        // not support rtx
-        srs_freep(track->rtx_);
-        track->rtx_ssrc_ = 0;
-
-        track->set_direction("sendonly");
-        sub_relations.insert(make_pair(publish_ssrc, track));
-    }
-
-    return err;
-}
-
 void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, SrsSdp& local_sdp)
 {
     local_sdp.media_descs_.push_back(SrsMediaDesc("video"));

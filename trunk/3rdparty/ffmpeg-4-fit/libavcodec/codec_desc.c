@@ -81,7 +81,6 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("Motion JPEG"),
         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
         .mime_types= MT("image/jpeg"),
-        .profiles  = NULL_IF_CONFIG_SMALL(ff_mjpeg_profiles),
     },
     {
         .id        = AV_CODEC_ID_MJPEGB,
@@ -723,7 +722,7 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .id        = AV_CODEC_ID_GIF,
         .type      = AVMEDIA_TYPE_VIDEO,
         .name      = "gif",
-        .long_name = NULL_IF_CONFIG_SMALL("CompuServe GIF (Graphics Interchange Format)"),
+        .long_name = NULL_IF_CONFIG_SMALL("GIF (Graphics Interchange Format)"),
         .props     = AV_CODEC_PROP_LOSSLESS,
         .mime_types= MT("image/gif"),
     },
@@ -1078,7 +1077,6 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .name      = "prores",
         .long_name = NULL_IF_CONFIG_SMALL("Apple ProRes (iCodec Pro)"),
         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
-        .profiles  = NULL_IF_CONFIG_SMALL(ff_prores_profiles),
     },
     {
         .id        = AV_CODEC_ID_JV,
@@ -1691,41 +1689,6 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("RemotelyAnywhere Screen Capture"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
-    {
-        .id        = AV_CODEC_ID_HYMT,
-        .type      = AVMEDIA_TYPE_VIDEO,
-        .name      = "hymt",
-        .long_name = NULL_IF_CONFIG_SMALL("HuffYUV MT"),
-        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
-    },
-    {
-        .id        = AV_CODEC_ID_ARBC,
-        .type      = AVMEDIA_TYPE_VIDEO,
-        .name      = "arbc",
-        .long_name = NULL_IF_CONFIG_SMALL("Gryphon's Anim Compressor"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
-    {
-        .id        = AV_CODEC_ID_AGM,
-        .type      = AVMEDIA_TYPE_VIDEO,
-        .name      = "agm",
-        .long_name = NULL_IF_CONFIG_SMALL("Amuse Graphics Movie"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
-    {
-        .id        = AV_CODEC_ID_LSCR,
-        .type      = AVMEDIA_TYPE_VIDEO,
-        .name      = "lscr",
-        .long_name = NULL_IF_CONFIG_SMALL("LEAD Screen Capture"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
-    {
-        .id        = AV_CODEC_ID_VP4,
-        .type      = AVMEDIA_TYPE_VIDEO,
-        .name      = "vp4",
-        .long_name = NULL_IF_CONFIG_SMALL("On2 VP4"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
 
     /* various PCM "codecs" */
     {
@@ -2267,13 +2230,6 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .type      = AVMEDIA_TYPE_AUDIO,
         .name      = "adpcm_mtaf",
         .long_name = NULL_IF_CONFIG_SMALL("ADPCM MTAF"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
-    {
-        .id        = AV_CODEC_ID_ADPCM_AGM,
-        .type      = AVMEDIA_TYPE_AUDIO,
-        .name      = "adpcm_agm",
-        .long_name = NULL_IF_CONFIG_SMALL("ADPCM AmuseGraphics Movie AGM"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
 
@@ -2978,13 +2934,6 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("ATRAC9 (Adaptive TRansform Acoustic Coding 9)"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
-    {
-        .id        = AV_CODEC_ID_HCOM,
-        .type      = AVMEDIA_TYPE_AUDIO,
-        .name      = "hcom",
-        .long_name = NULL_IF_CONFIG_SMALL("HCOM Audio"),
-        .props     = AV_CODEC_PROP_LOSSY,
-    },
 
     /* subtitle codecs */
     {
@@ -3161,14 +3110,7 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("Timed Text Markup Language"),
         .props     = AV_CODEC_PROP_TEXT_SUB,
     },
-    {
-        .id        = AV_CODEC_ID_ARIB_CAPTION,
-        .type      = AVMEDIA_TYPE_SUBTITLE,
-        .name      = "arib_caption",
-        .long_name = NULL_IF_CONFIG_SMALL("ARIB STD-B24 caption"),
-        .props     = AV_CODEC_PROP_TEXT_SUB,
-        .profiles  = NULL_IF_CONFIG_SMALL(ff_arib_caption_profiles),
-    },
+
 
     /* other kind of codecs and pseudo-codecs */
     {

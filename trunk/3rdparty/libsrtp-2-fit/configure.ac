@@ -263,31 +263,6 @@ if test "$enable_openssl" = "yes"; then
    HMAC_OBJS=crypto/hash/hmac_ossl.o
    AC_SUBST([USE_EXTERNAL_CRYPTO], [1])
 
-   AC_MSG_CHECKING([if OPENSSL_cleanse is broken])
-   AC_RUN_IFELSE([AC_LANG_PROGRAM([
-     #include <stdio.h>
-     #include <openssl/crypto.h>
-   ], [
-     #define BUFFER_SIZE (16)
-     char buffer[[BUFFER_SIZE]];
-     int i;
-     for (i = 0; i < BUFFER_SIZE; i++) {
-       buffer[[i]] = i & 0xff;
-     }
-     OPENSSL_cleanse(buffer, BUFFER_SIZE);
-     for (i = 0; i < BUFFER_SIZE; i++) {
-       if (buffer[[i]]) {
-         printf("Buffer contents not zero at position %d (is %d)\n", i,
-             buffer[[i]]);
-         return 1;
-       }
-     }
-   ])], [openssl_cleanse_broken=no], [
-     openssl_cleanse_broken=yes
-     AC_DEFINE([OPENSSL_CLEANSE_BROKEN], [1], [Define this if OPENSSL_cleanse is broken.])
-   ])
-   AC_MSG_RESULT([$openssl_cleanse_broken])
-
    AC_MSG_CHECKING([whether to leverage OpenSSL KDF algorithm])
    AC_ARG_ENABLE([openssl-kdf],
       [AS_HELP_STRING([--enable-openssl-kdf], [Use OpenSSL KDF algorithm])],

@@ -115,7 +115,6 @@ cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
-ARFLAGS = -rs
 LINK = ${SRS_TOOL_CXX}
 CXXFLAGS = ${CXXFLAGS}
 
@@ -142,7 +141,9 @@ fi
 # FFMPEG for WebRTC transcoding, such as aac to opus.
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
   LibFfmpegRoot="${SRS_OBJS_DIR}/ffmpeg/include"; LibFfmpegFile="${SRS_OBJS_DIR}/ffmpeg/lib/libavcodec.a ${SRS_OBJS_DIR}/ffmpeg/lib/libswresample.a ${SRS_OBJS_DIR}/ffmpeg/lib/libavutil.a"
-  LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
+  if [[ $SRS_CROSS_BUILD == NO ]]; then
+    LibFfmpegRoot="${LibFfmpegRoot} ${SRS_OBJS_DIR}/opus/include"; LibFfmpegFile="${LibFfmpegFile} ${SRS_OBJS_DIR}/opus/lib/libopus.a"
+  fi
   if [[ $SRS_SHARED_FFMPEG == YES ]]; then LibFfmpegFile="-L${SRS_OBJS_DIR}/ffmpeg/lib -lavcodec -lswresample -lavutil -L${SRS_OBJS_DIR}/opus/lib -lopus"; fi
 fi
 
@@ -456,6 +457,13 @@ cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
 .PHONY: clean_srs clean_modules clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
+GCC = ${SRS_TOOL_CC}
+CXX = ${SRS_TOOL_CXX}
+AR = ${SRS_TOOL_AR}
+LINK = ${SRS_TOOL_LD}
+RANDLIB = ${SRS_TOOL_RANDLIB}
+CXXFLAGS = ${CXXFLAGS}
+
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
@@ -534,7 +542,7 @@ clean_st:
 st:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
 	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && \$(MAKE) clean)
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE) ${_ST_MAKE_ARGS})
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM}/st-srs && env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE) ${_ST_MAKE_ARGS} CC=\$(GCC) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB))
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 ffmpeg:

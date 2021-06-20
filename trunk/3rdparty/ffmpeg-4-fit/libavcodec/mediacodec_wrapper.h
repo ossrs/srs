@@ -26,8 +26,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "avcodec.h"
-
 /**
  * The following API around MediaCodec and MediaFormat is based on the
  * NDK one provided by Google since Android 5.0.
