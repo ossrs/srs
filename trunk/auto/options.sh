@@ -398,6 +398,10 @@ function apply_auto_options() {
       echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, armv7: $SRS_CROSS_BUILD_ARMV7, aarch64: $SRS_CROSS_BUILD_AARCH64"
     fi
 
+    if [[ $SRS_OSX == YES ]]; then
+      SRS_TOOL_LD=$SRS_TOOL_CC
+    fi
+
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.
     # TODO: FIXME: Remove c++11 code in SRT of SRS.
     if [[ $SRS_SRT == YES ]]; then

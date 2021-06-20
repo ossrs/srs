@@ -376,13 +376,13 @@ fi
 # state-threads
 #####################################################################################
 # check the cross build flag file, if flag changed, need to rebuild the st.
-_ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_LD=${SRS_TOOL_LD} && _ST_OBJ="LINUX_`uname -r`_DBG"
+_ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="-O0" && _ST_OBJ="LINUX_`uname -r`_DBG"
 if [[ $SRS_VALGRIND == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_VALGRIND"
 fi
 # for osx, use darwin for st, donot use epoll.
 if [[ $SRS_OSX == YES ]]; then
-    _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_LD=${SRS_TOOL_CC} && _ST_OBJ="DARWIN_`uname -r`_DBG"
+    _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
@@ -417,7 +417,7 @@ else
         done &&
         # Build source code.
         make ${_ST_MAKE} EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \
-            CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${_ST_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
+            CC=${SRS_TOOL_CC} AR=${SRS_TOOL_AR} LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} &&
         cd .. && rm -rf st && ln -sf st-srs/${_ST_OBJ} st
     )
 fi
