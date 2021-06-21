@@ -840,8 +840,6 @@ const char *av_frame_side_data_name(enum AVFrameSideDataType type)
     case AV_FRAME_DATA_QP_TABLE_PROPERTIES:         return "QP table properties";
     case AV_FRAME_DATA_QP_TABLE_DATA:               return "QP table data";
 #endif
-    case AV_FRAME_DATA_DYNAMIC_HDR_PLUS: return "HDR Dynamic Metadata SMPTE2094-40 (HDR10+)";
-    case AV_FRAME_DATA_REGIONS_OF_INTEREST: return "Regions Of Interest";
     }
     return NULL;
 }

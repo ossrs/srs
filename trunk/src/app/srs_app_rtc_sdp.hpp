@@ -57,6 +57,9 @@ public:
 public:
     uint32_t ssrc_;
     std::string cname_;
+    // See https://webrtchacks.com/sdp-anatomy/
+    // a=ssrc:2231627014 msid:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS daed9400-d0dd-4db3-b949-422499e96e2d
+    // a=ssrc:2231627014 msid:{msid_} {msid_tracker_}
     std::string msid_;
     std::string msid_tracker_;
     std::string mslabel_;

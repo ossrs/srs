@@ -5897,60 +5897,6 @@ $as_echo "#define OPENSSL 1" >>confdefs.h
    USE_EXTERNAL_CRYPTO=1
 
 
-   { $as_echo "$as_me:${as_lineno-$LINENO}: checking if OPENSSL_cleanse is broken" >&5
-$as_echo_n "checking if OPENSSL_cleanse is broken... " >&6; }
-   if test "$cross_compiling" = yes; then :
-  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "cannot run test program while cross compiling
-See \`config.log' for more details" "$LINENO" 5; }
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-     #include <stdio.h>
-     #include <openssl/crypto.h>
-
-int
-main ()
-{
-
-     #define BUFFER_SIZE (16)
-     char buffer[BUFFER_SIZE];
-     int i;
-     for (i = 0; i < BUFFER_SIZE; i++) {
-       buffer[i] = i & 0xff;
-     }
-     OPENSSL_cleanse(buffer, BUFFER_SIZE);
-     for (i = 0; i < BUFFER_SIZE; i++) {
-       if (buffer[i]) {
-         printf("Buffer contents not zero at position %d (is %d)\n", i,
-             buffer[i]);
-         return 1;
-       }
-     }
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  openssl_cleanse_broken=no
-else
-
-     openssl_cleanse_broken=yes
-
-$as_echo "#define OPENSSL_CLEANSE_BROKEN 1" >>confdefs.h
-
-
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $openssl_cleanse_broken" >&5
-$as_echo "$openssl_cleanse_broken" >&6; }
-
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to leverage OpenSSL KDF algorithm" >&5
 $as_echo_n "checking whether to leverage OpenSSL KDF algorithm... " >&6; }
    # Check whether --enable-openssl-kdf was given.

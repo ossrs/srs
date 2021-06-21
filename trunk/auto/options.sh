@@ -5,7 +5,7 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
-SRS_RTC=RESERVED
+SRS_RTC=YES
 SRS_CXX11=YES
 SRS_CXX14=NO
 SRS_NGINX=NO
@@ -77,6 +77,13 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_X86_X64=NO # For x86_64 servers
 SRS_OSX=NO #For osx/macOS PC.
 SRS_CROSS_BUILD=NO #For cross build, for example, on Ubuntu.
+# For cross build, whether armv7 or armv8(aarch64).
+SRS_CROSS_BUILD_ARMV7=NO
+SRS_CROSS_BUILD_AARCH64=NO
+# For cross build, the host, for example(libsrtp), --host=aarch64-linux-gnu
+SRS_CROSS_BUILD_HOST=
+# For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
+SRS_CROSS_BUILD_PREFIX=
 #
 #####################################################################################
 # Toolchain for cross-build on Ubuntu for ARM or MIPS.
@@ -194,6 +201,11 @@ function parse_user_option() {
 
     if [[ $option == '--with-research' || $option == '--research' ]]; then
         echo "Error: The $option is not supported yet"; exit 1
+    fi
+
+    if [[ $option == '--arm' || $option == '--mips' || $option == '--with-arm-ubuntu12' || $option == '--with-mips-ubuntu12' ]]; then
+        echo "Error: Removed misleading option $option, please read https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs"
+        exit -1
     fi
 
     # Parse options to variables.
@@ -315,14 +327,6 @@ function parse_user_option() {
 
         # Alias for --arm, cross build.
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
-        --arm)                          SRS_CROSS_BUILD=YES         ;;
-        --mips)                         SRS_CROSS_BUILD=YES         ;;
-        --with-arm-ubuntu12)            SRS_CROSS_BUILD=YES         ;;
-        --without-arm-ubuntu12)         SRS_CROSS_BUILD=NO          ;;
-        --arm-ubuntu12)                 SRS_CROSS_BUILD=$(switch2value $value) ;;
-        --with-mips-ubuntu12)           SRS_CROSS_BUILD=YES         ;;
-        --without-mips-ubuntu12)        SRS_CROSS_BUILD=NO          ;;
-        --mips-ubuntu12)                SRS_CROSS_BUILD=$(switch2value $value) ;;
 
         # Deprecated, might be removed in future.
         --with-nginx)                   SRS_NGINX=YES               ;;
@@ -388,9 +392,16 @@ function apply_auto_options() {
         SRS_X86_X64=YES; opt="--x86-x64 $opt";
     fi
 
-    # Setup the default values if not set.
-    if [[ $SRS_RTC == RESERVED ]]; then
-        SRS_RTC=YES; if [[ $SRS_CROSS_BUILD == YES ]]; then SRS_RTC=NO; fi
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+      SRS_CROSS_BUILD_HOST=$(echo $SRS_TOOL_CC|awk -F '-gcc' '{print $1}')
+      SRS_CROSS_BUILD_PREFIX="${SRS_CROSS_BUILD_HOST}-"
+      echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARMV7=YES
+      echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_AARCH64=YES
+      echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, armv7: $SRS_CROSS_BUILD_ARMV7, aarch64: $SRS_CROSS_BUILD_AARCH64"
+    fi
+
+    if [[ $SRS_OSX == YES ]]; then
+      SRS_TOOL_LD=$SRS_TOOL_CC
     fi
 
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.

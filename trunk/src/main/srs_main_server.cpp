@@ -94,14 +94,6 @@ srs_error_t do_main(int argc, char** argv)
     ProfilerStart("gperf.srs.gcp");
 #endif
     
-    // directly compile error when these two macro defines.
-#if defined(SRS_GPERF_MC) && defined(SRS_GPERF_MP)
-#error ("option --with-gmc confict with --with-gmp, "
-    "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-    "Note that since the heap-checker uses the heap-profiling framework internally, "
-    "it is not possible to run both the heap-checker and heap profiler at the same time");
-#endif
-    
     // never use gmp to check memory leak.
 #ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."

@@ -478,19 +478,15 @@ static inline int get_ur_golomb_jpegls(GetBitContext *gb, int k, int limit,
         return buf;
     } else {
         int i;
-        for (i = 0; i + MIN_CACHE_BITS <= limit && SHOW_UBITS(re, gb, MIN_CACHE_BITS) == 0; i += MIN_CACHE_BITS) {
+        for (i = 0; i < limit && SHOW_UBITS(re, gb, 1) == 0; i++) {
             if (gb->size_in_bits <= re_index) {
                 CLOSE_READER(re, gb);
                 return -1;
             }
-            LAST_SKIP_BITS(re, gb, MIN_CACHE_BITS);
+            LAST_SKIP_BITS(re, gb, 1);
             UPDATE_CACHE(re, gb);
         }
-        for (; i < limit && SHOW_UBITS(re, gb, 1) == 0; i++) {
-            SKIP_BITS(re, gb, 1);
-        }
-        LAST_SKIP_BITS(re, gb, 1);
-        UPDATE_CACHE(re, gb);
+        SKIP_BITS(re, gb, 1);
 
         if (i < limit - 1) {
             if (k) {
