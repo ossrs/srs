@@ -17,7 +17,7 @@ else
   SRS_PLATFORM="${SRS_PLATFORM}-${GCC_VERSION}"
 fi
 # Use isolate cache for different SRS version.
-SRS_PLATFORM="${SRS_PLATFORM}-SRS5"
+SRS_PLATFORM="${SRS_PLATFORM}-SRS5-$(uname -m)"
 
 if [[ $SRS_CROSS_BUILD == YES ]]; then
   SRS_PLATFORM="${SRS_PLATFORM}-CROSSBUILD-$(echo $SRS_TOOL_CC|awk -F - '{print $1}')"

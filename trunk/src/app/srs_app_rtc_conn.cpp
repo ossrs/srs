@@ -455,22 +455,26 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
     // Refresh the relation for audio.
     // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
-        uint32_t ssrc = desc->audio_track_desc_->ssrc_;
-        SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
+        if (! audio_tracks_.empty()) {
+            uint32_t ssrc = desc->audio_track_desc_->ssrc_;
+            SrsRtcAudioSendTrack* track = audio_tracks_.begin()->second;
 
-        audio_tracks_.clear();
-        audio_tracks_.insert(make_pair(ssrc, track));
+            audio_tracks_.clear();
+            audio_tracks_.insert(make_pair(ssrc, track));
+        }
     }
 
     // Refresh the relation for video.
     // TODO: FIMXE: Match by label?
     if (desc && desc->video_track_descs_.size() == 1) {
-        SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
-        uint32_t ssrc = vdesc->ssrc_;
-        SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
+        if (! video_tracks_.empty()) {
+            SrsRtcTrackDescription* vdesc = desc->video_track_descs_.at(0);
+            uint32_t ssrc = vdesc->ssrc_;
+            SrsRtcVideoSendTrack* track = video_tracks_.begin()->second;
 
-        video_tracks_.clear();
-        video_tracks_.insert(make_pair(ssrc, track));
+            video_tracks_.clear();
+            video_tracks_.insert(make_pair(ssrc, track));
+        }
     }
 }
 
