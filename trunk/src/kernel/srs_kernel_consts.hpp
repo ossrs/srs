@@ -171,8 +171,6 @@
 #define SRS_CONSTS_LOG_EXEC "EXE"
 // The rtc.
 #define SRS_CONSTS_LOG_RTC "RTC"
-// The gb28181 stream log id.
-#define SRS_CONSTS_LOG_GB28181_CASTER "GBS"
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
