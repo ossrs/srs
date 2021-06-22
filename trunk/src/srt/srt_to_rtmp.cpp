@@ -284,12 +284,14 @@ srs_error_t rtmp_client::connect() {
     _rtmp_conn_ptr = std::make_shared<SrsSimpleRtmpClient>(_url, cto, sto);
 
     if ((err = _rtmp_conn_ptr->connect()) != srs_success) {
+        srs_error("rtmp client in srt2rtmp connect fail url:%s", _url.c_str());
         close();
         return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", 
                             _url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
     
     if ((err = _rtmp_conn_ptr->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
+        srs_error("rtmp client in srt2rtmp  publish fail url:%s", _url.c_str());
         close();
         return srs_error_wrap(err, "publish error, url:%s", _url.c_str());
     }
@@ -406,6 +408,10 @@ srs_error_t rtmp_client::rtmp_write_packet(char type, uint32_t timestamp, char* 
     srs_error_t err = srs_success;
     SrsSharedPtrMessage* msg = NULL;
 
+    if (!_rtmp_conn_ptr) {
+        return srs_error_wrap(err, "rtmp connection is close");
+    }
+
     if ((err = srs_rtmp_create_msg(type, timestamp, data, size, _rtmp_conn_ptr->sid(), &msg)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
@@ -413,6 +419,7 @@ srs_error_t rtmp_client::rtmp_write_packet(char type, uint32_t timestamp, char* 
     
     // send out encoded msg.
     if ((err = _rtmp_conn_ptr->send_and_free_message(msg)) != srs_success) {
+        srs_error("rtmp client in srt2rtmp send message fail, url:%s", _url.c_str());
         close();
         return srs_error_wrap(err, "send messages");
     }
