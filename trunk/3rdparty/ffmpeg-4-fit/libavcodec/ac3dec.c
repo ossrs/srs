@@ -452,7 +452,7 @@ static int decode_exponents(AC3DecodeContext *s,
         prevexp += dexp[i] - 2;
         if (prevexp > 24U) {
             av_log(s->avctx, AV_LOG_ERROR, "exponent %d is out-of-range\n", prevexp);
-            return AVERROR_INVALIDDATA;
+            return -1;
         }
         switch (group_size) {
         case 4: dexps[j++] = prevexp;
@@ -1467,8 +1467,7 @@ static int ac3_decode_frame(AVCodecContext * avctx, void *data,
     int buf_size, full_buf_size = avpkt->size;
     AC3DecodeContext *s = avctx->priv_data;
     int blk, ch, err, offset, ret;
-    int i;
-    int skip = 0, got_independent_frame = 0;
+    int got_independent_frame = 0;
     const uint8_t *channel_map;
     uint8_t extended_channel_map[EAC3_MAX_CHANNELS];
     const SHORTFLOAT *output[AC3_MAX_CHANNELS];
@@ -1478,23 +1477,6 @@ static int ac3_decode_frame(AVCodecContext * avctx, void *data,
     s->superframe_size = 0;
 
     buf_size = full_buf_size;
-    for (i = 1; i < buf_size; i += 2) {
-        if (buf[i] == 0x77 || buf[i] == 0x0B) {
-            if ((buf[i] ^ buf[i-1]) == (0x77 ^ 0x0B)) {
-                i--;
-                break;
-            } else if ((buf[i] ^ buf[i+1]) == (0x77 ^ 0x0B)) {
-                break;
-            }
-        }
-    }
-    if (i >= buf_size)
-        return AVERROR_INVALIDDATA;
-    if (i > 10)
-        return i;
-    buf += i;
-    buf_size -= i;
-
     /* copy input buffer to decoder context to avoid reading past the end
        of the buffer, which can be caused by a damaged input stream. */
     if (buf_size >= 2 && AV_RB16(buf) == 0x770B) {
@@ -1655,11 +1637,6 @@ dependent_frame:
         AC3HeaderInfo hdr;
         int err;
 
-        if (buf_size - s->frame_size <= 16) {
-            skip = buf_size - s->frame_size;
-            goto skip;
-        }
-
         if ((ret = init_get_bits8(&s->gbc, buf + s->frame_size, buf_size - s->frame_size)) < 0)
             return ret;
 
@@ -1680,7 +1657,6 @@ dependent_frame:
             }
         }
     }
-skip:
 
     frame->decode_error_flags = err ? FF_DECODE_ERROR_INVALID_BITSTREAM : 0;
 
@@ -1820,9 +1796,9 @@ skip:
     *got_frame_ptr = 1;
 
     if (!s->superframe_size)
-        return FFMIN(full_buf_size, s->frame_size + skip);
+        return FFMIN(full_buf_size, s->frame_size);
 
-    return FFMIN(full_buf_size, s->superframe_size + skip);
+    return FFMIN(full_buf_size, s->superframe_size);
 }
 
 /**

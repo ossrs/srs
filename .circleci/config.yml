@@ -24,14 +24,6 @@ jobs:
       - run: |
           echo "Build SRS without NASM or SRTP-NASM" &&
           cd trunk && ./configure --nasm=off --srtp-nasm=off && make
-  build-c7-gb28181:
-    docker:
-      - image: ossrs/srs:dev
-    steps:
-      - checkout
-      - run: |
-          echo "Build SRS with GB28181" &&
-          cd trunk && ./configure --gb28181=on && make
   build-c7-srt:
     docker:
       - image: ossrs/srs:dev
@@ -111,7 +103,7 @@ jobs:
       - checkout
       - run: |
           echo "Build and run utest for SRS" &&
-          cd trunk && ./configure --gb28181=on --utest=on --gcov=on && make &&
+          cd trunk && ./configure --utest=on --gcov=on && make &&
           ./objs/srs_utest && bash auto/codecov.sh
   run-regression-test:
     docker:
@@ -131,6 +123,28 @@ jobs:
       - run: |
           echo "Build SRS C++98(ANSI), no FFmpeg-fit" &&
           cd trunk && ./configure --cxx11=off --cxx14=off --ffmpeg-fit=off && make
+  build-cross-build-armv7:
+    docker:
+      - image: ossrs/srs:ubuntu16
+    steps:
+      - checkout
+      - run: |
+          echo "Cross build SRS for armv7" &&
+          cd trunk &&
+          ./configure --cross-build --cc=arm-linux-gnueabihf-gcc --cxx=arm-linux-gnueabihf-g++ \
+            --ar=arm-linux-gnueabihf-ar --ld=arm-linux-gnueabihf-ld --randlib=arm-linux-gnueabihf-randlib &&
+          make
+  build-cross-build-aarch64:
+    docker:
+      - image: ossrs/srs:ubuntu16
+    steps:
+      - checkout
+      - run: |
+          echo "Cross build SRS for aarch64" &&
+          cd trunk &&
+          ./configure --cross-build --cc=aarch64-linux-gnu-gcc --cxx=aarch64-linux-gnu-g++ \
+              --ar=aarch64-linux-gnu-ar --ld=aarch64-linux-gnu-ld --randlib=aarch64-linux-gnu-randlib &&
+          make
 workflows:
   version: 2
   build_and_test:
@@ -140,7 +154,6 @@ workflows:
       - run-regression-test
       - build-c7-nortc
       - build-c7-noasm
-      - build-c7-gb28181
       - build-c7-srt
       - build-c8-baseline
       - build-c8-srt
@@ -151,3 +164,5 @@ workflows:
       - build-u20-baseline
       - build-u20-srt
       - build-c7-ansi-noff
+      - build-cross-build-armv7
+      - build-cross-build-aarch64

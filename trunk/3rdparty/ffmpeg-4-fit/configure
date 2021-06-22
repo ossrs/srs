@@ -218,7 +218,6 @@ External library support:
   --enable-jni             enable JNI support [no]
   --enable-ladspa          enable LADSPA audio filtering [no]
   --enable-libaom          enable AV1 video encoding/decoding via libaom [no]
-  --enable-libaribb24      enable ARIB text and caption decoding via libaribb24 [no]
   --enable-libass          enable libass subtitles rendering,
                            needed for subtitles and ass filter [no]
   --enable-libbluray       enable BluRay reading using libbluray [no]
@@ -227,7 +226,6 @@ External library support:
   --enable-libcelt         enable CELT decoding via libcelt [no]
   --enable-libcdio         enable audio CD grabbing with libcdio [no]
   --enable-libcodec2       enable codec2 en/decoding using libcodec2 [no]
-  --enable-libdav1d        enable AV1 decoding via libdav1d [no]
   --enable-libdavs2        enable AVS2 decoding via libdavs2 [no]
   --enable-libdc1394       enable IIDC-1394 grabbing using libdc1394
                            and libraw1394 [no]
@@ -298,6 +296,7 @@ External library support:
   --enable-lv2             enable LV2 audio filtering [no]
   --disable-lzma           disable lzma [autodetect]
   --enable-decklink        enable Blackmagic DeckLink I/O support [no]
+  --enable-libndi_newtek   enable Newteck NDI I/O support [no]
   --enable-mbedtls         enable mbedTLS, needed for https support
                            if openssl, gnutls or libtls is not used [no]
   --enable-mediacodec      enable Android MediaCodec support [no]
@@ -307,7 +306,6 @@ External library support:
   --enable-opengl          enable OpenGL rendering [no]
   --enable-openssl         enable openssl, needed for https support
                            if gnutls, libtls or mbedtls is not used [no]
-  --enable-pocketsphinx    enable PocketSphinx, needed for asr filter [no]
   --disable-sndio          disable sndio support [autodetect]
   --disable-schannel       disable SChannel SSP, needed for TLS support on
                            Windows if openssl and gnutls are not used [autodetect]
@@ -321,8 +319,7 @@ External library support:
   The following libraries provide various hardware acceleration features:
   --disable-amf            disable AMF video encoding code [autodetect]
   --disable-audiotoolbox   disable Apple AudioToolbox code [autodetect]
-  --enable-cuda-nvcc       enable Nvidia CUDA compiler [no]
-  --disable-cuda-llvm      disable CUDA compilation using clang [autodetect]
+  --enable-cuda-sdk        enable CUDA features that require the CUDA SDK [no]
   --disable-cuvid          disable Nvidia CUVID support [autodetect]
   --disable-d3d11va        disable Microsoft Direct3D 11 video acceleration code [autodetect]
   --disable-dxva2          disable Microsoft DirectX 9 video acceleration code [autodetect]
@@ -371,7 +368,7 @@ Toolchain options:
   --cxx=CXX                use C compiler CXX [$cxx_default]
   --objcc=OCC              use ObjC compiler OCC [$cc_default]
   --dep-cc=DEPCC           use dependency generator DEPCC [$cc_default]
-  --nvcc=NVCC              use Nvidia CUDA compiler NVCC or clang [$nvcc_default]
+  --nvcc=NVCC              use Nvidia CUDA compiler NVCC [$nvcc_default]
   --ld=LD                  use linker LD [$ld_default]
   --pkg-config=PKGCONFIG   use pkg-config tool PKGCONFIG [$pkg_config_default]
   --pkg-config-flags=FLAGS pass additional flags to pkgconf []
@@ -382,7 +379,7 @@ Toolchain options:
   --host-cppflags=HCPPFLAGS use HCPPFLAGS when compiling for host
   --host-ld=HOSTLD         use host linker HOSTLD
   --host-ldflags=HLDFLAGS  use HLDFLAGS when linking for host
-  --host-extralibs=HLIBS   use libs HLIBS when linking for host
+  --host-libs=HLIBS        use libs HLIBS when linking for host
   --host-os=OS             compiler host OS [$target_os]
   --extra-cflags=ECFLAGS   add ECFLAGS to CFLAGS [$CFLAGS]
   --extra-cxxflags=ECFLAGS add ECFLAGS to CXXFLAGS [$CXXFLAGS]
@@ -442,7 +439,6 @@ Optimization options (experts only):
   --disable-mipsdsp        disable MIPS DSP ASE R1 optimizations
   --disable-mipsdspr2      disable MIPS DSP ASE R2 optimizations
   --disable-msa            disable MSA optimizations
-  --disable-msa2           disable MSA2 optimizations
   --disable-mipsfpu        disable floating point MIPS optimizations
   --disable-mmi            disable Loongson SIMD optimizations
   --disable-fast-unaligned consider unaligned accesses slow
@@ -476,7 +472,7 @@ Developer options (useful when working on FFmpeg itself):
   --random-seed=VALUE      seed value for --enable/disable-random
   --disable-valgrind-backtrace do not print a backtrace under Valgrind
                            (only applies to --disable-optimizations builds)
-  --enable-ossfuzz         Enable building fuzzer tool
+  --enable-osfuzz          Enable building fuzzer tool
   --libfuzzer=PATH         path to libfuzzer
   --ignore-tests=TESTS     comma-separated list (without "fate-" prefix
                            in the name) of tests whose result is ignored
@@ -505,13 +501,9 @@ log(){
 }
 
 log_file(){
-    log BEGIN "$1"
-    log_file_i=1
-    while IFS= read -r log_file_line; do
-        printf '%5d\t%s\n' "$log_file_i" "$log_file_line"
-        log_file_i=$(($log_file_i+1))
-    done < "$1" >> "$logfile"
-    log END "$1"
+    log BEGIN $1
+    pr -n -t $1 >> $logfile
+    log END $1
 }
 
 warn(){
@@ -655,26 +647,12 @@ request(){
     done
 }
 
-warn_if_gets_disabled(){
-    for var in $*; do
-        WARN_IF_GETS_DISABLED_LIST="$WARN_IF_GETS_DISABLED_LIST $var"
-    done
-}
-
 enable(){
     set_all yes $*
 }
 
 disable(){
     set_all no $*
-}
-
-disable_with_reason(){
-    disable $1
-    eval "${1}_disable_reason=\"$2\""
-    if requested $1; then
-        die "ERROR: $1 requested, but $2"
-    fi
 }
 
 enable_weak(){
@@ -805,10 +783,10 @@ check_deps(){
 
             [ -n "$dep_ifa" ] && { enabled_all $dep_ifa && enable_weak $cfg; }
             [ -n "$dep_ifn" ] && { enabled_any $dep_ifn && enable_weak $cfg; }
-            enabled_all  $dep_all || { disable_with_reason $cfg "not all dependencies are satisfied: $dep_all"; }
-            enabled_any  $dep_any || { disable_with_reason $cfg "not any dependency is satisfied: $dep_any"; }
-            disabled_all $dep_con || { disable_with_reason $cfg "some conflicting dependencies are unsatisfied: $dep_con"; }
-            disabled_any $dep_sel && { disable_with_reason $cfg "some selected dependency is unsatisfied: $dep_sel"; }
+            enabled_all  $dep_all || { disable $cfg && requested $cfg && die "ERROR: $cfg requested, but not all dependencies are satisfied: $dep_all"; }
+            enabled_any  $dep_any || { disable $cfg && requested $cfg && die "ERROR: $cfg requested, but not any dependency is satisfied: $dep_any"; }
+            disabled_all $dep_con || { disable $cfg && requested $cfg && die "ERROR: $cfg requested, but some conflicting dependencies are unsatisfied: $dep_con"; }
+            disabled_any $dep_sel && { disable $cfg && requested $cfg && die "ERROR: $cfg requested, but some selected dependency is unsatisfied: $dep_sel"; }
 
             enabled $cfg && enable_deep_weak $dep_sel $dep_sgs
 
@@ -1007,10 +985,6 @@ hostcc_o(){
     eval printf '%s\\n' $HOSTCC_O
 }
 
-nvcc_o(){
-    eval printf '%s\\n' $NVCC_O
-}
-
 test_cc(){
     log test_cc "$@"
     cat > $TMPC
@@ -1030,29 +1004,6 @@ test_objcc(){
     cat > $TMPM
     log_file $TMPM
     test_cmd $objcc -Werror=missing-prototypes $CPPFLAGS $CFLAGS $OBJCFLAGS "$@" $OBJCC_C $(cc_o $TMPO) $TMPM
-}
-
-test_nvcc(){
-    log test_nvcc "$@"
-    cat > $TMPCU
-    log_file $TMPCU
-    tmpcu_=$TMPCU
-    tmpo_=$TMPO
-    [ -x "$(command -v cygpath)" ] && tmpcu_=$(cygpath -m $tmpcu_) && tmpo_=$(cygpath -m $tmpo_)
-    test_cmd $nvcc $nvccflags "$@" $NVCC_C $(nvcc_o $tmpo_) $tmpcu_
-}
-
-check_nvcc() {
-    log check_nvcc "$@"
-    name=$1
-    shift 1
-    disabled $name && return
-    disable $name
-    test_nvcc "$@" <<EOF && enable $name
-extern "C" {
-    __global__ void hello(unsigned char *data) {}
-}
-EOF
 }
 
 test_cpp(){
@@ -1723,6 +1674,7 @@ EXTERNAL_LIBRARY_GPL_LIST="
 
 EXTERNAL_LIBRARY_NONFREE_LIST="
     decklink
+    libndi_newtek
     libfdk_aac
     openssl
     libtls
@@ -1730,7 +1682,6 @@ EXTERNAL_LIBRARY_NONFREE_LIST="
 
 EXTERNAL_LIBRARY_VERSION3_LIST="
     gmp
-    libaribb24
     liblensfun
     libopencore_amrnb
     libopencore_amrwb
@@ -1761,7 +1712,6 @@ EXTERNAL_LIBRARY_LIST="
     libcaca
     libcelt
     libcodec2
-    libdav1d
     libdc1394
     libdrm
     libflite
@@ -1810,7 +1760,6 @@ EXTERNAL_LIBRARY_LIST="
     mediacodec
     openal
     opengl
-    pocketsphinx
     vapoursynth
 "
 
@@ -1819,7 +1768,6 @@ HWACCEL_AUTODETECT_LIBRARY_LIST="
     audiotoolbox
     crystalhd
     cuda
-    cuda_llvm
     cuvid
     d3d11va
     dxva2
@@ -1840,7 +1788,6 @@ EXTRALIBS_LIST="
 "
 
 HWACCEL_LIBRARY_NONFREE_LIST="
-    cuda_nvcc
     cuda_sdk
     libnpp
 "
@@ -2006,7 +1953,6 @@ ARCH_EXT_LIST_MIPS="
     mipsdsp
     mipsdspr2
     msa
-    msa2
 "
 
 ARCH_EXT_LIST_LOONGSON="
@@ -2267,7 +2213,6 @@ TOOLCHAIN_FEATURES="
 
 TYPES_LIST="
     kCMVideoCodecType_HEVC
-    kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
     socklen_t
     struct_addrinfo
     struct_group_source_req
@@ -2390,7 +2335,6 @@ CONFIG_EXTRA="
     rtpdec
     rtpenc_chain
     rv34dsp
-    scene_sad
     sinewin
     snappy
     srtp
@@ -2489,7 +2433,6 @@ CMDLINE_SET="
     tempprefix
     toolchain
     valgrind
-    windres
     x86asmexe
 "
 
@@ -2535,7 +2478,6 @@ mipsdsp_deps="mips"
 mipsdspr2_deps="mips"
 mmi_deps="mips"
 msa_deps="mipsfpu"
-msa2_deps="msa"
 
 cpunop_deps="i686"
 x86_64_select="i686"
@@ -2595,8 +2537,8 @@ threads_if_any="$THREADS_LIST"
 
 # subsystems
 cbs_av1_select="cbs"
-cbs_h264_select="cbs"
-cbs_h265_select="cbs"
+cbs_h264_select="cbs golomb"
+cbs_h265_select="cbs golomb"
 cbs_jpeg_select="cbs"
 cbs_mpeg2_select="cbs"
 cbs_vp9_select="cbs"
@@ -2717,7 +2659,6 @@ hap_encoder_select="texturedspenc"
 hevc_decoder_select="bswapdsp cabac golomb hevcparse videodsp"
 huffyuv_decoder_select="bswapdsp huffyuvdsp llviddsp"
 huffyuv_encoder_select="bswapdsp huffman huffyuvencdsp llvidencdsp"
-hymt_decoder_select="huffyuv_decoder"
 iac_decoder_select="imc_decoder"
 imc_decoder_select="bswapdsp fft mdct sinewin"
 indeo3_decoder_select="hpeldsp"
@@ -2728,7 +2669,6 @@ jpegls_decoder_select="mjpeg_decoder"
 jv_decoder_select="blockdsp"
 lagarith_decoder_select="llviddsp"
 ljpeg_encoder_select="idctdsp jpegtables mpegvideoenc"
-lscr_decoder_deps="zlib"
 magicyuv_decoder_select="llviddsp"
 magicyuv_encoder_select="llvidencdsp"
 mdec_decoder_select="blockdsp idctdsp mpegvideo"
@@ -2738,7 +2678,7 @@ mjpeg_decoder_select="blockdsp hpeldsp exif idctdsp jpegtables"
 mjpeg_encoder_select="jpegtables mpegvideoenc"
 mjpegb_decoder_select="mjpeg_decoder"
 mlp_decoder_select="mlp_parser"
-mlp_encoder_select="lpc audio_frame_queue"
+mlp_encoder_select="lpc"
 motionpixels_decoder_select="bswapdsp"
 mp1_decoder_select="mpegaudio"
 mp1float_decoder_select="mpegaudio"
@@ -2820,7 +2760,7 @@ thp_decoder_select="mjpeg_decoder"
 tiff_decoder_suggest="zlib lzma"
 tiff_encoder_suggest="zlib"
 truehd_decoder_select="mlp_parser"
-truehd_encoder_select="lpc audio_frame_queue"
+truehd_encoder_select="lpc"
 truemotion2_decoder_select="bswapdsp"
 truespeech_decoder_select="bswapdsp"
 tscc_decoder_deps="zlib"
@@ -2834,7 +2774,6 @@ vc1image_decoder_select="vc1_decoder"
 vorbis_decoder_select="mdct"
 vorbis_encoder_select="audio_frame_queue mdct"
 vp3_decoder_select="hpeldsp vp3dsp videodsp"
-vp4_decoder_select="vp3_decoder"
 vp5_decoder_select="h264chroma hpeldsp videodsp vp3dsp vp56dsp"
 vp6_decoder_select="h264chroma hpeldsp huffman videodsp vp3dsp vp56dsp"
 vp6a_decoder_select="vp6_decoder"
@@ -2993,10 +2932,8 @@ v4l2_m2m_deps="linux_videodev2_h sem_timedwait"
 
 hwupload_cuda_filter_deps="ffnvcodec"
 scale_npp_filter_deps="ffnvcodec libnpp"
-scale_cuda_filter_deps="ffnvcodec"
-scale_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
-thumbnail_cuda_filter_deps="ffnvcodec"
-thumbnail_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
+scale_cuda_filter_deps="cuda_sdk"
+thumbnail_cuda_filter_deps="cuda_sdk"
 transpose_npp_filter_deps="ffnvcodec libnpp"
 
 amf_deps_any="libdl LoadLibrary"
@@ -3096,7 +3033,6 @@ vc1_parser_select="vc1dsp"
 
 # bitstream_filters
 aac_adtstoasc_bsf_select="adts_header"
-av1_frame_split_bsf_select="cbs_av1"
 av1_metadata_bsf_select="cbs_av1"
 eac3_core_bsf_select="ac3_parser"
 filter_units_bsf_select="cbs"
@@ -3152,11 +3088,9 @@ hevc_videotoolbox_encoder_select="videotoolbox_encoder"
 libaom_av1_decoder_deps="libaom"
 libaom_av1_encoder_deps="libaom"
 libaom_av1_encoder_select="extract_extradata_bsf"
-libaribb24_decoder_deps="libaribb24"
 libcelt_decoder_deps="libcelt"
 libcodec2_decoder_deps="libcodec2"
 libcodec2_encoder_deps="libcodec2"
-libdav1d_decoder_deps="libdav1d"
 libdavs2_decoder_deps="libdavs2"
 libfdk_aac_decoder_deps="libfdk_aac"
 libfdk_aac_encoder_deps="libfdk_aac"
@@ -3317,6 +3251,10 @@ decklink_indev_extralibs="-lstdc++"
 decklink_outdev_deps="decklink threads"
 decklink_outdev_suggest="libklvanc"
 decklink_outdev_extralibs="-lstdc++"
+libndi_newtek_indev_deps="libndi_newtek"
+libndi_newtek_indev_extralibs="-lndi"
+libndi_newtek_outdev_deps="libndi_newtek"
+libndi_newtek_outdev_extralibs="-lndi"
 dshow_indev_deps="IBaseFilter"
 dshow_indev_extralibs="-lpsapi -lole32 -lstrmiids -luuid -loleaut32 -lshlwapi"
 fbdev_indev_deps="linux_fb_h"
@@ -3418,7 +3356,6 @@ afir_filter_deps="avcodec"
 afir_filter_select="fft"
 amovie_filter_deps="avcodec avformat"
 aresample_filter_deps="swresample"
-asr_filter_deps="pocketsphinx"
 ass_filter_deps="libass"
 atempo_filter_deps="avcodec"
 atempo_filter_select="rdft"
@@ -3430,7 +3367,6 @@ bm3d_filter_select="dct"
 boxblur_filter_deps="gpl"
 boxblur_opencl_filter_deps="opencl gpl"
 bs2b_filter_deps="libbs2b"
-colorkey_opencl_filter_deps="opencl"
 colormatrix_filter_deps="gpl"
 convolution_opencl_filter_deps="opencl"
 convolve_filter_deps="avcodec"
@@ -3447,7 +3383,6 @@ deinterlace_qsv_filter_deps="libmfx"
 deinterlace_vaapi_filter_deps="vaapi"
 delogo_filter_deps="gpl"
 denoise_vaapi_filter_deps="vaapi"
-derain_filter_select="dnn"
 deshake_filter_select="pixelutils"
 dilation_opencl_filter_deps="opencl"
 drawtext_filter_deps="libfreetype"
@@ -3463,8 +3398,7 @@ find_rect_filter_deps="avcodec avformat gpl"
 firequalizer_filter_deps="avcodec"
 firequalizer_filter_select="rdft"
 flite_filter_deps="libflite"
-framerate_filter_select="scene_sad"
-freezedetect_filter_select="scene_sad"
+framerate_filter_select="pixelutils"
 frei0r_filter_deps="frei0r libdl"
 frei0r_src_filter_deps="frei0r libdl"
 fspp_filter_deps="gpl"
@@ -3480,10 +3414,8 @@ mcdeint_filter_deps="avcodec gpl"
 movie_filter_deps="avcodec avformat"
 mpdecimate_filter_deps="gpl"
 mpdecimate_filter_select="pixelutils"
-minterpolate_filter_select="scene_sad"
 mptestsrc_filter_deps="gpl"
 negate_filter_deps="lut_filter"
-nlmeans_opencl_filter_deps="opencl"
 nnedi_filter_deps="gpl"
 ocr_filter_deps="libtesseract"
 ocv_filter_deps="libopencv"
@@ -3510,7 +3442,7 @@ sab_filter_deps="gpl swscale"
 scale2ref_filter_deps="swscale"
 scale_filter_deps="swscale"
 scale_qsv_filter_deps="libmfx"
-select_filter_select="scene_sad"
+select_filter_select="pixelutils"
 sharpness_vaapi_filter_deps="vaapi"
 showcqt_filter_deps="avcodec avformat swscale"
 showcqt_filter_suggest="libfontconfig libfreetype"
@@ -3541,8 +3473,6 @@ tinterlace_merge_test_deps="tinterlace_filter"
 tinterlace_pad_test_deps="tinterlace_filter"
 tonemap_filter_deps="const_nan"
 tonemap_opencl_filter_deps="opencl const_nan"
-transpose_opencl_filter_deps="opencl"
-transpose_vaapi_filter_deps="vaapi VAProcPipelineCaps_rotation_flags"
 unsharp_opencl_filter_deps="opencl"
 uspp_filter_deps="gpl avcodec"
 vaguedenoiser_filter_deps="gpl"
@@ -3555,8 +3485,7 @@ zscale_filter_deps="libzimg const_nan"
 scale_vaapi_filter_deps="vaapi"
 vpp_qsv_filter_deps="libmfx"
 vpp_qsv_filter_select="qsvvpp"
-yadif_cuda_filter_deps="ffnvcodec"
-yadif_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
+yadif_cuda_filter_deps="cuda_sdk"
 
 # examples
 avio_dir_cmd_deps="avformat avutil"
@@ -3607,15 +3536,15 @@ swresample_suggest="libm libsoxr"
 swscale_deps="avutil"
 swscale_suggest="libm"
 
-avcodec_extralibs="pthreads_extralibs iconv_extralibs dxva2_extralibs"
+avcodec_extralibs="pthreads_extralibs iconv_extralibs"
 avfilter_extralibs="pthreads_extralibs"
 avutil_extralibs="d3d11va_extralibs nanosleep_extralibs pthreads_extralibs vaapi_drm_extralibs vaapi_x11_extralibs vdpau_x11_extralibs"
 
 # programs
 ffmpeg_deps="avcodec avfilter avformat"
 ffmpeg_select="aformat_filter anull_filter atrim_filter format_filter
-               hflip_filter null_filter
-               transpose_filter trim_filter vflip_filter"
+               null_filter
+               trim_filter"
 ffmpeg_suggest="ole32 psapi shell32"
 ffplay_deps="avcodec avformat swscale swresample sdl2"
 ffplay_select="rdft crop_filter transpose_filter hflip_filter vflip_filter rotate_filter"
@@ -3660,6 +3589,8 @@ version_script='--version-script'
 objformat="elf32"
 x86asmexe_default="nasm"
 windres_default="windres"
+nvcc_default="nvcc"
+nvccflags_default="-gencode arch=compute_30,code=sm_30 -O2"
 striptype="direct"
 
 # OS
@@ -3670,7 +3601,6 @@ host_os=$target_os_default
 if test "$target_os_default" = aix; then
     arch_default=$(uname -p)
     strip_default="strip -X32_64"
-    nm_default="nm -g -X32_64"
 else
     arch_default=$(uname -m)
 fi
@@ -3761,8 +3691,6 @@ mkdir -p ffbuild
 # find source path
 if test -f configure; then
     source_path=.
-elif test -f src/configure; then
-    source_path=src
 else
     source_path=$(cd $(dirname "$0"); pwd)
     case "$source_path" in
@@ -3789,7 +3717,8 @@ find_things_extern(){
 
 find_filters_extern(){
     file=$source_path/$1
-    sed -n 's/^extern AVFilter ff_[avfsinkrc]\{2,5\}_\([[:alnum:]_]\{1,\}\);/\1_filter/p' $file
+    #sed -n "s/^extern AVFilter ff_\([avfsinkrc]\{2,5\}\)_\(\w\+\);/\2_filter/p" $file
+    sed -E -n "s/^extern AVFilter ff_([avfsinkrc]{2,5})_([a-zA-Z0-9_]+);/\2_filter/p" $file
 }
 
 FILTER_LIST=$(find_filters_extern libavfilter/allfilters.c)
@@ -3853,22 +3782,8 @@ die_unknown(){
 }
 
 print_in_columns() {
-    tr ' ' '\n' | sort | tr '\r\n' '  ' | awk -v col_width=24 -v width="$ncols" '
-    {
-        num_cols = width > col_width ? int(width / col_width) : 1;
-        num_rows = int((NF + num_cols-1) / num_cols);
-        y = x = 1;
-        for (y = 1; y <= num_rows; y++) {
-            i = y;
-            for (x = 1; x <= num_cols; x++) {
-                if (i <= NF) {
-                  line = sprintf("%s%-" col_width "s", line, $i);
-                }
-                i = i + num_rows;
-            }
-            print line; line = "";
-        }
-    }' | sed 's/ *$//'
+    cols=$(expr $ncols / 24)
+    cat | tr ' ' '\n' | sort | pr -r "-$cols" -w $ncols -t
 }
 
 show_list() {
@@ -3954,7 +3869,6 @@ for opt do
             name=$(echo "${optval}" | sed "s/,/_${thing}|/g")_${thing}
             list=$(filter "$name" $list)
             [ "$list" = "" ] && warn "Option $opt did not match anything"
-            test $action = enable && warn_if_gets_disabled $list
             $action $list
         ;;
         --enable-yasm|--disable-yasm)
@@ -4148,22 +4062,22 @@ case "$toolchain" in
         # behaviour if the regexp was unable to match anything, since this
         # successfully parses the version number of existing supported
         # versions that require the converter (MSVC 2010 and 2012).
-        cl_major_ver=$(cl.exe 2>&1 | sed -n 's/.*Version \([[:digit:]]\{1,\}\)\..*/\1/p')
+        cl_major_ver=$(cl 2>&1 | sed -n 's/.*Version \([[:digit:]]\{1,\}\)\..*/\1/p')
         if [ -z "$cl_major_ver" ] || [ $cl_major_ver -ge 18 ]; then
-            cc_default="cl.exe"
-            cxx_default="cl.exe"
+            cc_default="cl"
+            cxx_default="cl"
         else
             die "Unsupported MSVC version (2013 or newer required)"
         fi
         ld_default="$source_path/compat/windows/mslink"
-        nm_default="dumpbin.exe -symbols"
-        ar_default="lib.exe"
+        nm_default="dumpbin -symbols"
+        ar_default="lib"
         case "$arch" in
         aarch64|arm64)
-            as_default="armasm64.exe"
+            as_default="armasm64"
             ;;
         arm*)
-            as_default="armasm.exe"
+            as_default="armasm"
             ;;
         esac
         target_os_default="win32"
@@ -4207,11 +4121,6 @@ if test -n "$cross_prefix"; then
     enable cross_compile
 fi
 
-set_default target_os
-if test "$target_os" = android; then
-    cc_default="clang"
-fi
-
 ar_default="${cross_prefix}${ar_default}"
 cc_default="${cross_prefix}${cc_default}"
 cxx_default="${cross_prefix}${cxx_default}"
@@ -4227,22 +4136,8 @@ windres_default="${cross_prefix}${windres_default}"
 
 sysinclude_default="${sysroot}/usr/include"
 
-if enabled cuda_sdk; then
-    warn "Option --enable-cuda-sdk is deprecated. Use --enable-cuda-nvcc instead."
-    enable cuda_nvcc
-fi
-
-if enabled cuda_nvcc; then
-    nvcc_default="nvcc"
-    nvccflags_default="-gencode arch=compute_30,code=sm_30 -O2"
-else
-    nvcc_default="clang"
-    nvccflags_default="--cuda-gpu-arch=sm_30 -O2"
-    NVCC_C=""
-fi
-
 set_default arch cc cxx doxygen pkg_config ranlib strip sysinclude \
-    target_exec x86asmexe nvcc
+    target_exec target_os x86asmexe nvcc
 enabled cross_compile || host_cc_default=$cc
 set_default host_cc
 
@@ -4309,7 +4204,6 @@ tmpfile TMPCPP .cpp
 tmpfile TMPE   $EXESUF
 tmpfile TMPH   .h
 tmpfile TMPM   .m
-tmpfile TMPCU  .cu
 tmpfile TMPO   .o
 tmpfile TMPS   .S
 tmpfile TMPSH  .sh
@@ -4947,6 +4841,7 @@ elif enabled mips; then
                 enable fast_cmov
                 enable fast_unaligned
                 disable aligned_stack
+                disable mipsfpu
                 disable mipsdsp
                 disable mipsdspr2
                 # When gcc version less than 5.3.0, add -fno-expensive-optimizations flag.
@@ -5241,7 +5136,6 @@ case $target_os in
             echo "hwcap_1 = OVERRIDE;" > mapfile &&
             add_ldflags -Wl,-M,mapfile
         nm_default='nm -P -g'
-        striptype=""
         version_script='-M'
         VERSION_SCRIPT_POSTPROCESS_CMD='perl $(SRC_PATH)/compat/solaris/make_sunver.pl - $(OBJS)'
         ;;
@@ -5395,6 +5289,7 @@ case $target_os in
         network_extralibs="-lsocket"
         objformat="coff"
         enable dos_paths
+        add_cppflags -U__STRICT_ANSI__
         ;;
     linux)
         enable section_data_rel_ro
@@ -5465,7 +5360,7 @@ link_name=$(mktemp -u $TMPDIR/name_XXXXXXXX)
 mkdir "$link_dest"
 $ln_s "$link_dest" "$link_name"
 touch "$link_dest/test_file"
-if [ "$source_path" != "." ] && [ "$source_path" != "src" ] && ([ ! -d src ] || [ -L src ]) && [ -e "$link_name/test_file" ]; then
+if [ "$source_path" != "." ] && ([ ! -d src ] || [ -L src ]) && [ -e "$link_name/test_file" ]; then
     # create link to source path
     [ -e src ] && rm src
     $ln_s "$source_path" src
@@ -5507,7 +5402,6 @@ probe_libc(){
             add_${pfx}cppflags -D__printf__=__gnu_printf__
         test_${pfx}cpp_condition windows.h "!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600" &&
             add_${pfx}cppflags -D_WIN32_WINNT=0x0600
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
     elif test_${pfx}cpp_condition _mingw.h "defined __MINGW_VERSION"  ||
          test_${pfx}cpp_condition _mingw.h "defined __MINGW32_VERSION"; then
         eval ${pfx}libc_type=mingw32
@@ -5521,7 +5415,6 @@ probe_libc(){
             add_${pfx}cppflags -D_WIN32_WINNT=0x0600
         eval test \$${pfx_no_}cc_type = "gcc" &&
             add_${pfx}cppflags -D__printf__=__gnu_printf__
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
     elif test_${pfx}cpp_condition crtversion.h "defined _VC_CRT_MAJOR_VERSION"; then
         eval ${pfx}libc_type=msvcrt
         if test_${pfx}cpp_condition crtversion.h "_VC_CRT_MAJOR_VERSION < 14"; then
@@ -5565,11 +5458,6 @@ EOF
     elif test_${pfx}cpp_condition sys/brand.h "defined LABELED_BRAND_NAME"; then
         eval ${pfx}libc_type=solaris
         add_${pfx}cppflags -D__EXTENSIONS__ -D_XOPEN_SOURCE=600
-    elif test_${pfx}cpp_condition sys/version.h "defined __DJGPP__"; then
-        eval ${pfx}libc_type=djgpp
-        add_cppflags -U__STRICT_ANSI__
-        add_cflags "-include $source_path/compat/djgpp/math.h"
-        add_compat djgpp/math.o
     fi
     test_${pfx}cc <<EOF
 #include <time.h>
@@ -5777,7 +5665,6 @@ elif enabled mips; then
     enabled mipsfpu && enabled msa && check_inline_asm_flags msa '"addvi.b $w0, $w1, 1"' '-mmsa' && check_headers msa.h || disable msa
     enabled mipsdsp && check_inline_asm_flags mipsdsp '"addu.qb $t0, $t1, $t2"' '-mdsp'
     enabled mipsdspr2 && check_inline_asm_flags mipsdspr2 '"absq_s.qb $t0, $t1"' '-mdspr2'
-    enabled msa && enabled msa2 && check_inline_asm_flags msa2 '"nxbits.any.b $w0, $w0"' '-mmsa2' && check_headers msa2.h || disable msa2
 
     if enabled bigendian && enabled msa; then
         disable msa
@@ -6068,7 +5955,6 @@ enabled avfoundation && {
 enabled videotoolbox && {
     check_lib coreservices CoreServices/CoreServices.h UTGetOSTypeFromString "-framework CoreServices"
     check_func_headers CoreMedia/CMFormatDescription.h kCMVideoCodecType_HEVC "-framework CoreMedia"
-    check_func_headers CoreVideo/CVPixelBuffer.h kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange "-framework CoreVideo"
 }
 
 check_struct "sys/time.h sys/resource.h" "struct rusage" ru_maxrss
@@ -6079,31 +5965,20 @@ check_type "windows.h d3d11.h" "ID3D11VideoDecoder"
 check_type "windows.h d3d11.h" "ID3D11VideoContext"
 check_type "d3d9.h dxva2api.h" DXVA2_ConfigPictureDecode -D_WIN32_WINNT=0x0602
 
+check_type "va/va.h va/va_dec_hevc.h" "VAPictureParameterBufferHEVC"
+check_struct "va/va.h" "VADecPictureParameterBufferVP9" bit_depth
+check_type "va/va.h va/va_enc_hevc.h" "VAEncPictureParameterBufferHEVC"
+check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
+check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
+check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
+
 check_type "vdpau/vdpau.h" "VdpPictureInfoHEVC"
 
-if [ -z "$nvccflags" ]; then
-    nvccflags=$nvccflags_default
-fi
-
-if enabled x86_64 || enabled ppc64 || enabled aarch64; then
-    nvccflags="$nvccflags -m64"
-else
-    nvccflags="$nvccflags -m32"
-fi
-
-if enabled cuda_nvcc; then
-    nvccflags="$nvccflags -ptx"
-else
-    nvccflags="$nvccflags -S -nocudalib -nocudainc --cuda-device-only -include ${source_link}/compat/cuda/cuda_runtime.h"
-    check_nvcc cuda_llvm
-fi
-
 if ! disabled ffnvcodec; then
-    ffnv_hdr_list="ffnvcodec/nvEncodeAPI.h ffnvcodec/dynlink_cuda.h ffnvcodec/dynlink_cuviddec.h ffnvcodec/dynlink_nvcuvid.h"
-    check_pkg_config ffnvcodec "ffnvcodec >= 9.0.18.0" "$ffnv_hdr_list" "" || \
-      check_pkg_config ffnvcodec "ffnvcodec >= 8.2.15.8 ffnvcodec < 8.3" "$ffnv_hdr_list" "" || \
-      check_pkg_config ffnvcodec "ffnvcodec >= 8.1.24.9 ffnvcodec < 8.2" "$ffnv_hdr_list" "" || \
-      check_pkg_config ffnvcodec "ffnvcodec >= 8.0.14.9 ffnvcodec < 8.1" "$ffnv_hdr_list" ""
+    check_pkg_config ffnvcodec "ffnvcodec >= 8.1.24.2" \
+          "ffnvcodec/nvEncodeAPI.h ffnvcodec/dynlink_cuda.h ffnvcodec/dynlink_cuviddec.h ffnvcodec/dynlink_nvcuvid.h" "" || \
+      check_pkg_config ffnvcodec "ffnvcodec >= 8.0.14.2 ffnvcodec < 8.1" \
+          "ffnvcodec/nvEncodeAPI.h ffnvcodec/dynlink_cuda.h ffnvcodec/dynlink_cuviddec.h ffnvcodec/dynlink_nvcuvid.h" ""
 fi
 
 check_cpp_condition winrt windows.h "!WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)"
@@ -6173,19 +6048,17 @@ for func in $COMPLEX_FUNCS; do
 done
 
 # these are off by default, so fail if requested and not available
-enabled cuda_nvcc         && { check_nvcc cuda_nvcc || die "ERROR: failed checking for nvcc."; }
+enabled cuda_sdk          && require cuda_sdk cuda.h cuCtxCreate -lcuda
 enabled chromaprint       && require chromaprint chromaprint.h chromaprint_get_version -lchromaprint
 enabled decklink          && { require_headers DeckLinkAPI.h &&
                                { test_cpp_condition DeckLinkAPIVersion.h "BLACKMAGIC_DECKLINK_API_VERSION >= 0x0a090500" || die "ERROR: Decklink API version must be >= 10.9.5."; } }
-enabled frei0r            && require_headers "frei0r.h dlfcn.h"
+enabled libndi_newtek     && require_headers Processing.NDI.Lib.h
+enabled frei0r            && require_headers frei0r.h
 enabled gmp               && require gmp gmp.h mpz_export -lgmp
 enabled gnutls            && require_pkg_config gnutls gnutls gnutls/gnutls.h gnutls_global_init
 enabled jni               && { [ $target_os = "android" ] && check_headers jni.h && enabled pthreads || die "ERROR: jni not found"; }
-enabled ladspa            && require_headers "ladspa.h dlfcn.h"
+enabled ladspa            && require_headers ladspa.h
 enabled libaom            && require_pkg_config libaom "aom >= 1.0.0" aom/aom_codec.h aom_codec_version
-enabled libaribb24        && { check_pkg_config libaribb24 "aribb24 > 1.0.3" "aribb24/aribb24.h" arib_instance_new ||
-                               { enabled gpl && require_pkg_config libaribb24 aribb24 "aribb24/aribb24.h" arib_instance_new; } ||
-                               die "ERROR: libaribb24 requires version higher than 1.0.3 or --enable-gpl."; }
 enabled lv2               && require_pkg_config lv2 lilv-0 "lilv/lilv.h" lilv_world_new
 enabled libiec61883       && require libiec61883 libiec61883/iec61883.h iec61883_cmp_connect -lraw1394 -lavc1394 -lrom1394 -liec61883
 enabled libass            && require_pkg_config libass libass ass/ass.h ass_library_init
@@ -6196,8 +6069,7 @@ enabled libcelt           && require libcelt celt/celt.h celt_decode -lcelt0 &&
                                die "ERROR: libcelt must be installed and version must be >= 0.11.0."; }
 enabled libcaca           && require_pkg_config libcaca caca caca.h caca_create_canvas
 enabled libcodec2         && require libcodec2 codec2/codec2.h codec2_create -lcodec2
-enabled libdav1d          && require_pkg_config libdav1d "dav1d >= 0.2.1" "dav1d/dav1d.h" dav1d_version
-enabled libdavs2          && require_pkg_config libdavs2 "davs2 >= 1.6.0" davs2.h davs2_decoder_open
+enabled libdavs2          && require_pkg_config libdavs2 "davs2 >= 1.5.115" davs2.h davs2_decoder_open
 enabled libdc1394         && require_pkg_config libdc1394 libdc1394-2 dc1394/dc1394.h dc1394_new
 enabled libdrm            && require_pkg_config libdrm libdrm xf86drm.h drmGetVersion
 enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aacenc_lib.h" aacEncOpen ||
@@ -6280,11 +6152,13 @@ enabled libvorbis         && require_pkg_config libvorbis vorbis vorbis/codec.h 
 enabled libvpx            && {
     enabled libvpx_vp8_decoder && {
         check_pkg_config libvpx_vp8_decoder "vpx >= 1.4.0" "vpx/vpx_decoder.h vpx/vp8dx.h" vpx_codec_vp8_dx ||
-            check_lib libvpx_vp8_decoder "vpx/vpx_decoder.h vpx/vp8dx.h" "vpx_codec_vp8_dx VPX_IMG_FMT_HIGHBITDEPTH" "-lvpx $libm_extralibs $pthreads_extralibs"
+            check_lib libvpx_vp8_decoder "vpx/vpx_decoder.h vpx/vp8dx.h" "vpx_codec_vp8_dx VPX_IMG_FMT_HIGHBITDEPTH" "-lvpx $libm_extralibs $pthreads_extralibs" ||
+                die "ERROR: libvpx decoder version must be >=1.4.0";
     }
     enabled libvpx_vp8_encoder && {
         check_pkg_config libvpx_vp8_encoder "vpx >= 1.4.0" "vpx/vpx_encoder.h vpx/vp8cx.h" vpx_codec_vp8_cx ||
-            check_lib libvpx_vp8_encoder "vpx/vpx_encoder.h vpx/vp8cx.h" "vpx_codec_vp8_cx VPX_IMG_FMT_HIGHBITDEPTH" "-lvpx $libm_extralibs $pthreads_extralibs"
+            check_lib libvpx_vp8_encoder "vpx/vpx_encoder.h vpx/vp8cx.h" "vpx_codec_vp8_cx VPX_IMG_FMT_HIGHBITDEPTH" "-lvpx $libm_extralibs $pthreads_extralibs" ||
+                die "ERROR: libvpx encoder version must be >=1.4.0";
     }
     enabled libvpx_vp9_decoder && {
         check_pkg_config libvpx_vp9_decoder "vpx >= 1.4.0" "vpx/vpx_decoder.h vpx/vp8dx.h" vpx_codec_vp9_dx ||
@@ -6311,7 +6185,7 @@ enabled libx264           && { check_pkg_config libx264 x264 "stdint.h x264.h" x
 enabled libx265           && require_pkg_config libx265 x265 x265.h x265_api_get &&
                              require_cpp_condition libx265 x265.h "X265_BUILD >= 68"
 enabled libxavs           && require libxavs "stdint.h xavs.h" xavs_encoder_encode "-lxavs $pthreads_extralibs $libm_extralibs"
-enabled libxavs2          && require_pkg_config libxavs2 "xavs2 >= 1.3.0" "stdint.h xavs2.h" xavs2_api_get
+enabled libxavs2          && require_pkg_config libxavs2 "xavs2 >= 1.2.77" "stdint.h xavs2.h" xavs2_api_get
 enabled libxvid           && require libxvid xvid.h xvid_global -lxvidcore
 enabled libzimg           && require_pkg_config libzimg "zimg >= 2.7.0" zimg.h zimg_get_api_version
 enabled libzmq            && require_pkg_config libzmq libzmq zmq.h zmq_ctx_new
@@ -6359,7 +6233,6 @@ enabled openssl           && { check_pkg_config openssl openssl openssl/ssl.h OP
                                check_lib openssl openssl/ssl.h SSL_library_init -lssl32 -leay32 ||
                                check_lib openssl openssl/ssl.h SSL_library_init -lssl -lcrypto -lws2_32 -lgdi32 ||
                                die "ERROR: openssl not found"; }
-enabled pocketsphinx      && require_pkg_config pocketsphinx pocketsphinx pocketsphinx/pocketsphinx.h ps_init
 enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/rk_mpi.h mpp_create &&
                                require_pkg_config rockchip_mpp "rockchip_mpp >= 1.3.7" rockchip/rk_mpi.h mpp_create &&
                                { enabled libdrm ||
@@ -6523,14 +6396,6 @@ if enabled vaapi; then
     fi
 
     check_cpp_condition vaapi_1 "va/va.h" "VA_CHECK_VERSION(1, 0, 0)"
-
-    check_type "va/va.h va/va_dec_hevc.h" "VAPictureParameterBufferHEVC"
-    check_struct "va/va.h" "VADecPictureParameterBufferVP9" bit_depth
-    check_struct "va/va.h va/va_vpp.h" "VAProcPipelineCaps" rotation_flags
-    check_type "va/va.h va/va_enc_hevc.h" "VAEncPictureParameterBufferHEVC"
-    check_type "va/va.h va/va_enc_jpeg.h" "VAEncPictureParameterBufferJPEG"
-    check_type "va/va.h va/va_enc_vp8.h"  "VAEncPictureParameterBufferVP8"
-    check_type "va/va.h va/va_enc_vp9.h"  "VAEncPictureParameterBufferVP9"
 fi
 
 if enabled_all opencl libdrm ; then
@@ -6541,12 +6406,9 @@ if enabled_all opencl libdrm ; then
 fi
 
 if enabled_all opencl vaapi ; then
-    if enabled opencl_drm_beignet ; then
-        enable opencl_vaapi_beignet
-    else
-        check_type "CL/cl.h CL/cl_va_api_media_sharing_intel.h" "clCreateFromVA_APIMediaSurfaceINTEL_fn" &&
-            enable opencl_vaapi_intel_media
-    fi
+    enabled opencl_drm_beignet && enable opencl_vaapi_beignet
+    check_type "CL/cl.h CL/va_ext.h" "clCreateFromVA_APIMediaSurfaceINTEL_fn" &&
+        enable opencl_vaapi_intel_media
 fi
 
 if enabled_all opencl dxva2 ; then
@@ -6570,14 +6432,6 @@ enabled crystalhd && check_lib crystalhd "stdint.h libcrystalhd/libcrystalhd_if.
 if enabled x86; then
     case $target_os in
         mingw32*|mingw64*|win32|win64|linux|cygwin*)
-            ;;
-        *)
-            disable ffnvcodec cuvid nvdec nvenc
-            ;;
-    esac
-elif enabled ppc64 && ! enabled bigendian; then
-    case $target_os in
-        linux)
             ;;
         *)
             disable ffnvcodec cuvid nvdec nvenc
@@ -6646,7 +6500,6 @@ check_disable_warning -Wno-format-zero-length
 check_disable_warning -Wno-pointer-sign
 check_disable_warning -Wno-unused-const-variable
 check_disable_warning -Wno-bool-operation
-check_disable_warning -Wno-char-subscripts
 
 check_disable_warning_headers(){
     warning_flag=-W${1#-Wno-}
@@ -6662,7 +6515,7 @@ EOF
 
 # add some linker flags
 check_ldflags -Wl,--warn-common
-check_ldflags -Wl,-rpath-link=:libpostproc:libswresample:libswscale:libavfilter:libavdevice:libavformat:libavcodec:libavutil:libavresample
+check_ldflags -Wl,-rpath-link=libpostproc:libswresample:libswscale:libavfilter:libavdevice:libavformat:libavcodec:libavutil:libavresample
 enabled rpath && add_ldexeflags -Wl,-rpath,$libdir && add_ldsoflags -Wl,-rpath,$libdir
 test_ldflags -Wl,-Bsymbolic && append SHFLAGS -Wl,-Bsymbolic
 
@@ -6732,6 +6585,16 @@ if [ -z "$optflags" ]; then
     else
         optflags=$cflags_noopt
     fi
+fi
+
+if [ -z "$nvccflags" ]; then
+    nvccflags=$nvccflags_default
+fi
+
+if enabled x86_64 || enabled ppc64 || enabled aarch64; then
+    nvccflags="$nvccflags -m64"
+else
+    nvccflags="$nvccflags -m32"
 fi
 
 check_optflags(){
@@ -6919,17 +6782,10 @@ check_deps $CONFIG_LIST       \
 enabled threads && ! enabled pthreads && ! enabled atomics_native && die "non pthread threading without atomics not supported, try adding --enable-pthreads or --cpu=i486 or higher if you are on x86"
 enabled avresample && warn "Building with deprecated library libavresample"
 
-case $target_os in
-haiku)
+if test $target_os = "haiku"; then
     disable memalign
     disable posix_memalign
-    ;;
-*-dos|freedos|opendos)
-    if test_cpp_condition sys/version.h "defined(__DJGPP__) && __DJGPP__ == 2 && __DJGPP_MINOR__ == 5"; then
-        disable memalign
-    fi
-    ;;
-esac
+fi
 
 flatten_extralibs(){
     nested_entries=
@@ -7155,7 +7011,6 @@ if enabled mips; then
     echo "MIPS DSP R1 enabled       ${mipsdsp-no}"
     echo "MIPS DSP R2 enabled       ${mipsdspr2-no}"
     echo "MIPS MSA enabled          ${msa-no}"
-    echo "MIPS MSA2 enabled         ${msa2-no}"
     echo "LOONGSON MMI enabled      ${mmi-no}"
 fi
 if enabled ppc; then
@@ -7218,15 +7073,6 @@ echo "License: $license"
 
 fi # test "$quiet" != "yes"
 
-if test -n "$WARN_IF_GETS_DISABLED_LIST"; then
-    for cfg in $WARN_IF_GETS_DISABLED_LIST; do
-        if disabled $cfg; then
-            varname=${cfg}_disable_reason
-            eval "warn \"Disabled $cfg because \$$varname\""
-        fi
-    done
-fi
-
 if test -n "$WARNINGS"; then
     printf "\n%s%s$WARNINGS%s" "$warn_color" "$bold_color" "$reset_color"
     enabled fatal_warnings && exit 1
@@ -7243,7 +7089,7 @@ echo "config:$arch:$subarch:$cpu:$target_os:$(esc $cc_ident):$(esc $FFMPEG_CONFI
 enabled stripping || strip="echo skipping strip"
 enabled stripping || striptype=""
 
-config_files="$TMPH ffbuild/config.mak"
+config_files="$TMPH ffbuild/config.mak doc/config.texi"
 
 cat > ffbuild/config.mak <<EOF
 # Automatically generated by configure - do not modify!
@@ -7397,7 +7243,7 @@ cat > $TMPH <<EOF
 #define FFMPEG_CONFIG_H
 #define FFMPEG_CONFIGURATION "$(c_escape $FFMPEG_CONFIGURATION)"
 #define FFMPEG_LICENSE "$(c_escape $license)"
-#define CONFIG_THIS_YEAR 2019
+#define CONFIG_THIS_YEAR 2020
 #define FFMPEG_DATADIR "$(eval c_escape $datadir)"
 #define AVCONV_DATADIR "$(eval c_escape $datadir)"
 #define CC_IDENT "$(c_escape ${cc_ident:-Unknown compiler})"
@@ -7424,6 +7270,12 @@ EOF
 fi
 
 enabled getenv || echo "#define getenv(x) NULL" >> $TMPH
+
+
+mkdir -p doc
+mkdir -p tests
+mkdir -p tests/api
+echo "@c auto-generated by configure - do not modify! " > doc/config.texi
 
 print_config ARCH_   "$config_files" $ARCH_LIST
 print_config HAVE_   "$config_files" $HAVE_LIST
