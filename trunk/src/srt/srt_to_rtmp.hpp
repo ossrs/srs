@@ -89,7 +89,7 @@ private:
 
     int get_sample_rate(char sound_rate);
 
-    void rtmp_write_work();
+    srs_error_t rtmp_write_work();
 
 private:
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);

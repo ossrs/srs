@@ -31,7 +31,7 @@ SRT_DATA_MSG::SRT_DATA_MSG(unsigned char* data_p, unsigned int len, const std::s
 
 SRT_DATA_MSG::~SRT_DATA_MSG() {
     if (_data_p && (_len > 0)) {
-        delete _data_p;
+        delete[] _data_p;
     }
 }
 
