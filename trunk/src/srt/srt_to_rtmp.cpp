@@ -290,9 +290,8 @@ srs_error_t rtmp_client::connect() {
     }
     
     if ((err = _rtmp_conn_ptr->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
-        srs_error("rtmp client in srt2rtmp  publish fail url:%s", _url.c_str());
         close();
-        return srs_error_wrap(err, "publish error, url:%s", _url.c_str());
+        return srs_error_wrap(err, "rtmp client in srt2rtmp  publish fail url:%s", _url.c_str());
     }
     _connect_flag = true;
     return err;
