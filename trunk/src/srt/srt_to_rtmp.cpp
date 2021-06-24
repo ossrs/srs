@@ -291,7 +291,7 @@ srs_error_t rtmp_client::connect() {
     
     if ((err = _rtmp_conn_ptr->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
         close();
-        return srs_error_wrap(err, "publish error, url:%s", _url.c_str());
+        return srs_error_wrap(err, "rtmp client in srt2rtmp  publish fail url:%s", _url.c_str());
     }
     _connect_flag = true;
     return err;
@@ -330,9 +330,9 @@ srs_error_t rtmp_client::write_h264_sps_pps(uint32_t dts, uint32_t pts) {
     
     if (_srs_config->get_srt_mix_correct()) {
         _rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
-        rtmp_write_work();
+        err = rtmp_write_work();
     } else {
-        rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
+        err = rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
     }
 
     // reset sps and pps.
@@ -376,9 +376,9 @@ srs_error_t rtmp_client::write_h264_ipb_frame(char* frame, int frame_size, uint3
     }
     if (_srs_config->get_srt_mix_correct()) {
         _rtmp_queue.insert_rtmp_data((unsigned char*)flv, nb_flv, (int64_t)dts, SrsFrameTypeVideo);
-        rtmp_write_work();
+        err = rtmp_write_work();
     } else {
-        rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
+        err = rtmp_write_packet(SrsFrameTypeVideo, dts, flv, nb_flv);
     }
 
     return err;
@@ -394,9 +394,9 @@ srs_error_t rtmp_client::write_audio_raw_frame(char* frame, int frame_size, SrsR
     }
     if (_srs_config->get_srt_mix_correct()) {
         _rtmp_queue.insert_rtmp_data((unsigned char*)data, size, (int64_t)dts, SrsFrameTypeAudio);
-        rtmp_write_work();
+        err = rtmp_write_work();
     } else {
-        rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
+        err = rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
     }
 
     return err;
@@ -406,31 +406,42 @@ srs_error_t rtmp_client::rtmp_write_packet(char type, uint32_t timestamp, char* 
     srs_error_t err = srs_success;
     SrsSharedPtrMessage* msg = NULL;
 
+    if (!_rtmp_conn_ptr) {
+        //when rtmp connection is closed, it's not error and just return;
+        srs_freepa(data);
+        return err;
+    }
+
     if ((err = srs_rtmp_create_msg(type, timestamp, data, size, _rtmp_conn_ptr->sid(), &msg)) != srs_success) {
-        return srs_error_wrap(err, "create message");
+        return srs_error_wrap(err, "create message fail, url:%s", _url.c_str());
     }
     srs_assert(msg);
     
     // send out encoded msg.
     if ((err = _rtmp_conn_ptr->send_and_free_message(msg)) != srs_success) {
         close();
-        return srs_error_wrap(err, "send messages");
+        return srs_error_wrap(err, "rtmp client in srt2rtmp send message fail, url:%s", _url.c_str());
     }
     
     return err;
 }
 
-void rtmp_client::rtmp_write_work() {
+srs_error_t rtmp_client::rtmp_write_work() {
+    srs_error_t err = srs_success;
     rtmp_packet_info_s packet_info;
     bool ret = false;
     
     do {
         ret = _rtmp_queue.get_rtmp_data(packet_info);
         if (ret) {
-            rtmp_write_packet(packet_info._type, packet_info._dts, (char*)packet_info._data, packet_info._len);
+            err = rtmp_write_packet(packet_info._type, packet_info._dts, (char*)packet_info._data, packet_info._len);
+            if (err != srs_success) {
+                break;
+            }
         }
     } while(ret);
-    return;
+
+    return err;
 }
 
 srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_t dts, uint64_t pts) {
@@ -438,7 +449,7 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
 
     // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
-        return srs_error_wrap(err, "connect");
+        return err;
     }
     dts = dts / 90;
     pts = pts / 90;
@@ -612,6 +623,7 @@ srs_error_t rtmp_client::on_ts_audio(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
 void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type,
                                 uint64_t dts, uint64_t pts)
 {
+    srs_error_t err = srs_success;
     if (!data_ptr || (data_ptr->get_data() == nullptr) || (data_ptr->data_len() == 0)) {
         assert(0);
         return;
@@ -620,11 +632,16 @@ void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media
     auto avs_ptr = std::make_shared<SrsBuffer>((char*)data_ptr->get_data(), data_ptr->data_len());
 
     if (media_type == STREAM_TYPE_VIDEO_H264) {
-        on_ts_video(avs_ptr, dts, pts);
+        err = on_ts_video(avs_ptr, dts, pts);
     } else if (media_type == STREAM_TYPE_AUDIO_AAC) {
-        on_ts_audio(avs_ptr, dts, pts);
+        err = on_ts_audio(avs_ptr, dts, pts);
     } else {
         srs_error("mpegts demux unkown stream type:0x%02x, only support h264+aac", media_type);
+        return;
+    }
+
+    if (err != srs_success) {
+        srs_error("send media data error:", srs_error_code(err));
     }
     return;
 }
