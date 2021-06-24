@@ -225,6 +225,7 @@ namespace srs_internal
                 const BIGNUM *pub_key = NULL;
                 DH_get0_key(pdh, &pub_key, NULL);
                 int32_t key_size = BN_num_bytes(pub_key);
+                srs_trace("#### generate key_size:%d", key_size);
                 if (key_size != 128) {
                     srs_warn("regenerate 128B key, current=%dB", key_size);
                     continue;
