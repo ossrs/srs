@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-06-24, Fix SRT bug. 4.0.131
 * v4.0, 2021-06-21, Fix [#2413](https://github.com/ossrs/srs/issues/2413), fix RTMP to RTC bug 4.0.130
 * v4.0, 2021-06-20, Guess where FFmpeg is. 4.0.129
 * v4.0, 2021-06-20, Fix [#1685](https://github.com/ossrs/srs/issues/1685), support RTC cross-build for armv7/armv8(aarch64). 4.0.128
