@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
 #include <srs_core_mem_watch.hpp>
+#include <srs_app_latest_version.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -486,6 +487,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = NULL;
+    latest_version_ = new SrsLatestVersion();
     
     handler = NULL;
     ppid = ::getppid();
@@ -540,6 +542,7 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
+    srs_freep(latest_version_);
 }
 
 void SrsServer::dispose()
@@ -652,7 +655,18 @@ int SrsServer::initialize_st()
 
 int SrsServer::initialize_signal()
 {
-    return signal_manager->initialize();
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = signal_manager->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // Start the version query coroutine.
+    if ((ret = latest_version_->start()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
 }
 
 int SrsServer::acquire_pid_file()

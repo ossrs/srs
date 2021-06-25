@@ -386,6 +386,8 @@ public:
     virtual std::string         get_work_dir();
     // whether use asprocess mode.
     virtual bool                get_asprocess();
+    // Whether query the latest available version of SRS.
+    virtual bool whether_query_latest_version();
 // stream_caster section
 public:
     /**

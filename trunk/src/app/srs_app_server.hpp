@@ -55,6 +55,7 @@ class SrsTcpListener;
 #ifdef SRS_AUTO_STREAM_CASTER
 class SrsAppCasterFlv;
 #endif
+class SrsLatestVersion;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -267,6 +268,8 @@ private:
     * signal manager which convert gignal to io message.
     */
     SrsSignalManager* signal_manager;
+    // To query the latest available version of SRS.
+    SrsLatestVersion* latest_version_;
     /**
     * handle in server cycle.
     */

@@ -339,6 +339,7 @@ Remark:
 
 ## History
 
+* v2.0, 2021-06-25, For [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 2.0.273
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
 * v2.0, 2020-01-05, Merge [#1551][bug #1551], fix memory leak in RTSP stack. 2.0.270
