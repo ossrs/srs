@@ -50,10 +50,14 @@ function SrsRtcPublisherAsync() {
             self.constraints.video = {  
                 wіdth: 1280, height: 720
             }
+            UpdateNativeCreateOffer(numberOfSimulcastLayers);
+            console.log('kSimulcastApiVersionLegacy')
+        } else if (parameter === 'spec3') {
+            self.constraints.video = {
+                wіdth: 1280, height: 720
+            }
+            console.log('kSimulcastApiVersionSpecCompliant')
         }
-        UpdateNativeCreateOffer(numberOfSimulcastLayers);
-        self.pc.addTransceiver("audio", {direction: "sendonly"});
-        self.pc.addTransceiver("video", {direction: "sendonly"});
 
         if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
             throw new Error(`Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
@@ -62,7 +66,20 @@ function SrsRtcPublisherAsync() {
 
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack
         stream.getTracks().forEach(function (track) {
-            self.pc.addTrack(track);
+            if (track.kind === 'video' && parameter === 'spec3') {
+                self.pc.addTransceiver(track, {
+                    active: true,
+                    direction: "sendonly",
+                    sendEncodings: [
+                        // NOTE: modify from media/engine/simulcast.cc
+                        {rid: "high", active: true, maxBitrate: 5000 * 1024},
+                        {rid: "mid", active: true, maxBitrate: 1500 * 1024, scaleResolutionDownBy: 2},
+                        {rid: "low", active: true, maxBitrate: 400 * 1024, scaleResolutionDownBy: 4},
+                    ]
+                })
+            } else {
+                self.pc.addTrack(track, stream);
+            }
 
             // Notify about local track when stream is ok.
             self.ontrack && self.ontrack({track: track});

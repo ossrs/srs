@@ -18,6 +18,7 @@ function update_nav() {
     $("#nav_rtc_player").attr("href", "rtc_player.html" + window.location.search);
     $("#nav_rtc_publisher").attr("href", "rtc_publisher.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
+    $("#nav_srs_publisher_simulcast").attr("href", "srs_publisher_simulcast.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);
     $("#nav_srs_bwt").attr("href", "srs_bwt.html" + window.location.search);
     $("#nav_vlc").attr("href", "vlc.html" + window.location.search);

@@ -112,6 +112,10 @@ $(function(){
 
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();
+        if (-1 === url.indexOf("?numberOfSimulcastLayers=spec3")) {
+            $("#txt_url").val(`${url}?numberOfSimulcastLayers=spec3`);
+            url = $("#txt_url").val();
+        }
         sdk.publish(url).then(function(session){
             $('#rtc_media_player').prop('srcObject', sdk.stream);
             $('#sessionid').html(session.sessionid);
