@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_coworkers.hpp>
+#include <srs_app_latest_version.hpp>
 
 // system interval in srs_utime_t,
 // all resolution times should be times togother,
@@ -623,6 +624,7 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = new SrsSignalManager(this);
+    latest_version_ = new SrsLatestVersion();
     conn_manager = new SrsCoroutineManager();
     
     handler = NULL;
@@ -659,6 +661,7 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
+    srs_freep(latest_version_);
     srs_freep(conn_manager);
 }
 
@@ -787,7 +790,18 @@ srs_error_t SrsServer::initialize_st()
 
 srs_error_t SrsServer::initialize_signal()
 {
-    return signal_manager->initialize();
+    srs_error_t err = srs_success;
+
+    if ((err = signal_manager->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init signal manager");
+    }
+
+    // Start the version query coroutine.
+    if ((err = latest_version_->start()) != srs_success) {
+        return srs_error_wrap(err, "start version query");
+    }
+
+    return err;
 }
 
 srs_error_t SrsServer::acquire_pid_file()

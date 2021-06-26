@@ -4056,6 +4056,18 @@ bool SrsConfig::get_asprocess()
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
+bool SrsConfig::whether_query_latest_version()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("query_latest_version");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
 bool SrsConfig::empty_ip_ok()
 {
     static bool DEFAULT = true;

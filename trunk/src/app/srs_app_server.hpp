@@ -51,6 +51,7 @@ class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
 class SrsCoroutineManager;
+class SrsLatestVersion;
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -239,6 +240,8 @@ private:
     std::vector<SrsListener*> listeners;
     // Signal manager which convert gignal to io message.
     SrsSignalManager* signal_manager;
+    // To query the latest available version of SRS.
+    SrsLatestVersion* latest_version_;
     // Handle in server cycle.
     ISrsServerCycle* handler;
     // User send the signal, convert to variable.
