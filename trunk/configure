@@ -273,7 +273,7 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_sourc
         "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
         "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
         "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
-        "srs_app_caster_flv" "srs_app_process" "srs_app_ng_exec"
+        "srs_app_caster_flv" "srs_app_latest_version" "srs_app_process" "srs_app_ng_exec"
         "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
         "srs_app_coworkers" "srs_app_hybrid" "srs_app_threads")
 if [[ $SRS_RTC == YES ]]; then
