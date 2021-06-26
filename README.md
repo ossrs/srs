@@ -295,6 +295,7 @@ Remark:
 
 ## Releases
 
+* 2021-06-26, [Release v2.0-r9](https://github.com/ossrs/srs/releases/tag/v2.0-r9), 2.0 release9, 2.0.273, 87552 lines.
 * 2020-01-25, [Release v2.0-r8][r2.0r8], 2.0 release8, 2.0.272, 87292 lines.
 * 2018-11-29, [Release v2.0-r7][r2.0r7], 2.0 release7, 2.0.265, 86994 lines.
 * 2018-10-28, [Release v2.0-r6][r2.0r6], 2.0 release6, 2.0.263, 86994 lines.
@@ -339,6 +340,7 @@ Remark:
 
 ## History
 
+* <strong>v2.0, 2021-06-26, [2.0 release9(2.0.273)](https://github.com/ossrs/srs/releases/tag/v2.0-r9) released. 87552 lines.</strong>
 * v2.0, 2021-06-25, For [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 2.0.273
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
 * v2.0, 2020-01-08, Merge [#1554][bug #1554], support logrotate copytruncate. 2.0.272
