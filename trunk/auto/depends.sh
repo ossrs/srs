@@ -701,15 +701,16 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && cp -R ../../../3rdparty/ffmpeg-4-fit/* . &&
             # Build source code.
             $FFMPEG_CONFIGURE \
-              --prefix=`pwd`/_release --pkg-config=pkg-config ${FFMPEG_OPTIONS} \
-               --disable-everything --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" \
+              --prefix=`pwd`/_release --pkg-config=pkg-config \
+              --pkg-config-flags="--static" --extra-libs="-lpthread" --extra-libs="-lm" \
+              --disable-everything ${FFMPEG_OPTIONS} \
               --disable-programs --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages \
               --disable-avdevice --disable-avformat --disable-swscale --disable-postproc --disable-avfilter --disable-network \
               --disable-dct --disable-dwt --disable-error-resilience --disable-lsp --disable-lzo --disable-faan --disable-pixelutils \
               --disable-hwaccels --disable-devices --disable-audiotoolbox --disable-videotoolbox --disable-cuvid \
               --disable-d3d11va --disable-dxva2 --disable-ffnvcodec --disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi \
               --disable-vdpau --disable-appkit --disable-coreimage --disable-avfoundation --disable-securetransport --disable-iconv \
-              --disable-lzma --disable-sdl2 --disable-everything --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
+              --disable-lzma --disable-sdl2 --enable-decoder=aac --enable-decoder=aac_fixed --enable-decoder=aac_latm \
               --enable-encoder=aac &&
             # See https://www.laoyuyu.me/2019/05/23/android/clang_compile_ffmpeg/
             if [[ $SRS_CROSS_BUILD == YES ]]; then
