@@ -114,8 +114,13 @@ int SrsLatestVersion::query_latest_version()
         return ret;
     }
 
+    // Path with query.
+    string path = uri.get_path();
+    path += "?";
+    path += uri.get_query();
+
     ISrsHttpMessage* msg = NULL;
-    if ((ret = http.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((ret = http.get(path, "", &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
