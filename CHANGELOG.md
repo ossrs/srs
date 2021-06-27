@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
 * v5.0, 2021-06-22, Squash: Support ARM platform. 5.0.5
 * v5.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 5.0.4
 * v5.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 5.0.3
