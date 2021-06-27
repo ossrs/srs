@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-06-28, Merge [#2438](https://github.com/ossrs/srs/pull/2438), fix losing of last HLS ts file 4.0.133
 * v4.0, 2021-06-27, Squash for [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 4.0.132
 * v4.0, 2021-06-24, Merge [#2429](https://github.com/ossrs/srs/pull/2429) to fix SRT bug. 4.0.131
 * v4.0, 2021-06-21, Fix [#2413](https://github.com/ossrs/srs/issues/2413), fix RTMP to RTC bug 4.0.130
