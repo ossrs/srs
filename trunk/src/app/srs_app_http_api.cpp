@@ -1206,7 +1206,12 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
             if (action != "enable" && action != "disable") {
                 return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
             }
-            
+
+            // the vhost must exists.
+            if (!_srs_config->get_vhost(value, false)) {
+                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
+            }
+
             if (!_srs_config->get_dvr_enabled(value)) {
                 return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
             }
