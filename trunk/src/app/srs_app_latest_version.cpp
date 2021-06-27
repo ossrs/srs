@@ -119,8 +119,13 @@ srs_error_t SrsLatestVersion::query_latest_version()
         return err;
     }
 
+    // Path with query.
+    string path = uri.get_path();
+    path += "?";
+    path += uri.get_query();
+
     ISrsHttpMessage* msg = NULL;
-    if ((err = http.get(uri.get_path(), "", &msg)) != srs_success) {
+    if ((err = http.get(path, "", &msg)) != srs_success) {
         return err;
     }
     SrsAutoFree(ISrsHttpMessage, msg);
