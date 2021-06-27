@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_service_log.hpp>
+#include <srs_app_latest_version.hpp>
 
 std::string srs_listener_type2string(SrsListenerType type)
 {
@@ -572,7 +573,8 @@ SrsServer::SrsServer()
     
     signal_manager = new SrsSignalManager(this);
     conn_manager = new SrsResourceManager("TCP", true);
-    
+    latest_version_ = new SrsLatestVersion();
+
     handler = NULL;
     ppid = ::getppid();
     
@@ -612,6 +614,7 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
+    srs_freep(latest_version_);
     srs_freep(conn_manager);
 }
 
@@ -725,7 +728,18 @@ srs_error_t SrsServer::initialize_st()
 
 srs_error_t SrsServer::initialize_signal()
 {
-    return signal_manager->initialize();
+    srs_error_t err = srs_success;
+
+    if ((err = signal_manager->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init signal manager");
+    }
+
+    // Start the version query coroutine.
+    if ((err = latest_version_->start()) != srs_success) {
+        return srs_error_wrap(err, "start version query");
+    }
+
+    return err;
 }
 
 srs_error_t SrsServer::acquire_pid_file()
