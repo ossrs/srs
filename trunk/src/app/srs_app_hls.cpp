@@ -923,16 +923,16 @@ srs_error_t SrsHlsController::on_unpublish()
 {
     srs_error_t err = srs_success;
 
-    if ((err = muxer->on_unpublish()) != srs_success) {
-        return srs_error_wrap(err, "muxer unpublish");
-    }
-    
     if ((err = muxer->flush_audio(tsmc)) != srs_success) {
         return srs_error_wrap(err, "hls: flush audio");
     }
     
     if ((err = muxer->segment_close()) != srs_success) {
         return srs_error_wrap(err, "hls: segment close");
+    }
+
+    if ((err = muxer->on_unpublish()) != srs_success) {
+        return srs_error_wrap(err, "muxer unpublish");
     }
     
     return err;
