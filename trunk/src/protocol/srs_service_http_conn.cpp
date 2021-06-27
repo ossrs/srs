@@ -104,7 +104,8 @@ srs_error_t SrsHttpParser::parse_message(ISrsReader* reader, ISrsHttpMessage** p
     // Initialize the basic information.
     msg->set_basic(hp_header.type, hp_header.method, hp_header.status_code, hp_header.content_length);
     msg->set_header(header, http_should_keep_alive(&hp_header));
-    if ((err = msg->set_url(url, jsonp)) != srs_success) {
+    // For HTTP response, no url.
+    if (type_ != HTTP_RESPONSE && (err = msg->set_url(url, jsonp)) != srs_success) {
         srs_freep(msg);
         return srs_error_wrap(err, "set url=%s, jsonp=%d", url.c_str(), jsonp);
     }

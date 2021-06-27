@@ -207,6 +207,7 @@ Please read [CHANGELOG](CHANGELOG.md#changelog).
 
 ## Releases
 
+* 2021-06-26, [Release v3.0-r6](https://github.com/ossrs/srs/releases/tag/v3.0-r6), 3.0 release6, 3.0.163, 123011 lines.
 * 2021-04-28, [Release v3.0-r5][r3.0r5], 3.0 release5, 3.0.161, 122750 lines.
 * 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.160, 122750 lines.
 * 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
