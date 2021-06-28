@@ -3171,6 +3171,8 @@ srs_error_t SrsConfig::raw_disable_vhost(string vhost, bool& applied)
     applied = false;
     
     SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
     conf->get_or_create("enabled")->set_arg0("off");
     
     if ((err = do_reload_vhost_removed(vhost)) != srs_success) {
@@ -3189,6 +3191,8 @@ srs_error_t SrsConfig::raw_enable_vhost(string vhost, bool& applied)
     applied = false;
     
     SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
     conf->get_or_create("enabled")->set_arg0("on");
     
     if ((err = do_reload_vhost_added(vhost)) != srs_success) {
@@ -3207,6 +3211,8 @@ srs_error_t SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied
     applied = false;
     
     SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
     conf = conf->get_or_create("dvr")->get_or_create("dvr_apply");
     
     if (conf->args.size() == 1 && (conf->arg0() == "all" || conf->arg0() == "none")) {
@@ -3233,6 +3239,8 @@ srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applie
     applied = false;
     
     SrsConfDirective* conf = root->get("vhost", vhost);
+    srs_assert(conf);
+
     conf = conf->get_or_create("dvr")->get_or_create("dvr_apply");
     
     std::vector<string>::iterator it;
