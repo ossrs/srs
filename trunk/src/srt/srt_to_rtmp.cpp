@@ -523,6 +523,7 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         }
         
         // ibp frame.
+        // for Issue: https://github.com/ossrs/srs/issues/2390
         // we only skip pps/sps frame and send left nalus.
         srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", avs_ptr->left() + frame_size, dts);
         if ((err = write_h264_ipb_frame(avs_ptr->head() - frame_size, avs_ptr->left() + frame_size, dts, pts)) != srs_success) {
