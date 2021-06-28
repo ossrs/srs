@@ -1448,9 +1448,12 @@ srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream) {
         }
         // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
         if (!stream->require(nal_len_size + 1)) {
-            srs_error("nal_len_size:%d, PictureLength:%d, i:%d, 0x%02x.", 
-                nal_len_size, PictureLength, i);
-            return srs_error_new(ERROR_HLS_DECODE_ERROR, "avc decode NALU size");
+            srs_error("nal_len_size:%d, PictureLength:%d, i:%d, left len:%d.", 
+                nal_len_size, PictureLength, i, stream->size() - stream->pos());
+            //For some hevc nalu error in the end of packet,
+            //we can deliver the right hevc nalu and dump the wrong nalu.
+            //return srs_sucess to delive the right hevc nalu which has been demuxed.
+            return srs_success;
         }
         int32_t NALUnitLength = 0;
 
