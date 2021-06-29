@@ -466,14 +466,14 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
             return srs_error_wrap(err, "demux annexb");
         }
         
-        //srs_trace_data(frame, frame_size, "video annexb demux:");
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
         
-        // ignore the nalu type sps(7), pps(8), aud(9)
-        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+        // ignore the nalu type aud(9), pad(12)
+        if ((nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter)
+           || (nal_unit_type == SrsAvcNaluTypeFilterData)) {
             continue;
         }
 
@@ -523,12 +523,14 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         }
         
         // ibp frame.
-        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
+        // for Issue: https://github.com/ossrs/srs/issues/2390
+        // we only skip pps/sps frame and send left nalus.
+        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", avs_ptr->left() + frame_size, dts);
+        if ((err = write_h264_ipb_frame(avs_ptr->head() - frame_size, avs_ptr->left() + frame_size, dts, pts)) != srs_success) {
             return srs_error_wrap(err, "write frame");
         }
         _last_live_ts = now_ms();
+        break;
     }
     
     return err;
