@@ -960,7 +960,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
         }
 
         if (!rtc->can_publish()) {
-            return srs_error_new(ERROR_RTC_SOURCE_BUSY, "rtc stream %s busy", req->get_stream_url().c_str());
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtc stream %s busy", req->get_stream_url().c_str());
         }
     }
 #endif
