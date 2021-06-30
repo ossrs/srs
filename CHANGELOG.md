@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-07-01, Merge [#2452](https://github.com/ossrs/srs/pull/2452), fix FFmpeg bug by updating channel_layout. 4.0.138
 * v4.0, 2021-06-30, Merge [#2440](https://github.com/ossrs/srs/pull/2440), fix [#2390](https://github.com/ossrs/srs/issues/2390), SRT bug for zerolatency. 4.0.137
 * v4.0, 2021-06-28, Merge [#2435](https://github.com/ossrs/srs/pull/2435), fix bug for HTTP-RAW-API to check vhost. 4.0.136
 * v4.0, 2021-06-28, Fix [#2431](https://github.com/ossrs/srs/issues/2431), configure FFmpeg bug. 4.0.135 
