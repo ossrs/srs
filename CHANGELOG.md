@@ -806,7 +806,7 @@ Winlin 2021
 [pr #558]: https://github.com/ossrs/srs/pull/558
 [pr #559]: https://github.com/ossrs/srs/pull/559
 
-[authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v4_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

@@ -90,3 +90,5 @@ CONTRIBUTORS ordered by first contribution.
 * johzzy<hellojinqiang@gmail.com>
 * stone<bluestn@163.com>
 * cfw11<34058899+cfw11@users.noreply.github.com>
+* Hung-YiChen<gaod.chen@gmail.com>
+* long<liyalong12345@126.com>

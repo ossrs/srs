@@ -1,6 +1,6 @@
 #!/bin/bash
 
-AFILE=`dirname $0`/../../AUTHORS.txt
+AFILE=`dirname $0`/../AUTHORS.txt
 if [[ ! -f $AFILE ]]; then echo "No file at $AFILE"; exit -1; fi
 
 authors=`git log --format='%ae'|grep -v localhost|grep -v demo|grep -v none|sort|uniq`
