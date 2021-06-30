@@ -23,7 +23,7 @@
 #define RTMP_SIG_SRS_CODE "Leo"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
-#define RTMP_SIG_SRS_AUTHORS "https://github.com/ossrs/srs/blob/4.0release/AUTHORS.txt"
+#define RTMP_SIG_SRS_AUTHORS "https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt"
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR) "." SRS_XSTR(VERSION_MINOR) "." SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY "/" RTMP_SIG_SRS_VERSION "(" RTMP_SIG_SRS_CODE ")"
 #define RTMP_SIG_SRS_DOMAIN "ossrs.net"
