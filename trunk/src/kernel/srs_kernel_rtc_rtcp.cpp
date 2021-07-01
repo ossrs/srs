@@ -474,7 +474,7 @@ SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc)
     header_.version = kRtcpVersion;
     header_.length = 7;
     ssrc_ = sender_ssrc;
-    memset(&rb_, 0, sizeof(SrsRtcpRB));
+    //memset(&rb_, 0, sizeof(SrsRtcpRB));
 }
 
 SrsRtcpRR::~SrsRtcpRR()
