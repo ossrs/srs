@@ -193,7 +193,7 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             } else if (srt_conn_ptr->get_mode() == PUSH_SRT_MODE) {
                 conn_event = SRT_EPOLL_IN | SRT_EPOLL_ERR;
             } else {
-                srs_trace("stream mode error, it shoulde be m=push or m=pull, streamid:%s",
+                srs_trace("stream mode error, it should be m=push or m=pull, streamid:%s",
                     srt_conn_ptr->get_streamid().c_str());
                 srt_conn_ptr->close();
                 return;
