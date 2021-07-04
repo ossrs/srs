@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
 * v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
 * v5.0, 2021-06-22, Squash: Support ARM platform. 5.0.5
 * v5.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 5.0.4
@@ -807,7 +808,7 @@ Winlin 2021
 [pr #558]: https://github.com/ossrs/srs/pull/558
 [pr #559]: https://github.com/ossrs/srs/pull/559
 
-[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v4_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

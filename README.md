@@ -379,7 +379,7 @@ Supported operating systems and hardware:
 Beijing, 2013.10<br/>
 Winlin
 
-[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
 [st]: https://github.com/ossrs/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

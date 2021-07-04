@@ -143,7 +143,7 @@ Winlin 2021
 [p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
 [p23]: https://github.com/ossrs/srs/pull/239
 
-[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
 [st]: https://github.com/ossrs/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs
