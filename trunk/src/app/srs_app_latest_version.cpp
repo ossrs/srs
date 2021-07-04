@@ -54,7 +54,7 @@ srs_error_t SrsLatestVersion::start()
         return srs_success;
     }
 
-    char buf[10];
+    char buf[16];
     srs_random_generate(buf, sizeof(buf));
     for (int i = 0; i < (int)sizeof(buf); i++) {
         buf[i] = 'a' + uint8_t(buf[i])%25;

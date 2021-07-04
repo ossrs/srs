@@ -137,6 +137,8 @@ Other important wiki:
 
 ## V3 changes
 
+* <strong>v3.0, 2021-07-04, [3.0 release7(3.0.164)](https://github.com/ossrs/srs/releases/tag/v3.0-r7) released. 123463 lines.</strong>
+* v3.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 3.0.164
 * <strong>v3.0, 2021-06-26, [3.0 release6(3.0.163)](https://github.com/ossrs/srs/releases/tag/v3.0-r6) released. 123011 lines.</strong>
 * v3.0, 2021-06-26, For [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 3.0.163
 * v3.0, 2021-05-12, Fix [#2311][bug #2311], Copy the request for stat client. 3.0.162
@@ -342,6 +344,8 @@ Other important wiki:
 
 ## V2 changes
 
+* <strong>v2.0, 2021-07-04, [2.0 release9(2.0.274)](https://github.com/ossrs/srs/releases/tag/v2.0-r10) released. 87575 lines.</strong>
+* v2.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 2.0.274
 * <strong>v2.0, 2021-06-26, [2.0 release9(2.0.273)](https://github.com/ossrs/srs/releases/tag/v2.0-r9) released. 87552 lines.</strong>
 * v2.0, 2021-06-25, For [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 2.0.273
 * <strong>v2.0, 2020-01-25, [2.0 release8(2.0.272)][r2.0r8] released. 87292 lines.</strong>
