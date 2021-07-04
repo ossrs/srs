@@ -102,7 +102,7 @@ srs_utime_t srs_get_system_startup_time()
     if (_srs_system_time_startup_time <= 0) {
         srs_update_system_time();
     }
-    
+
     return _srs_system_time_startup_time;
 }
 

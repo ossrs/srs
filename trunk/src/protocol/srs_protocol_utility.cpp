@@ -131,37 +131,36 @@ void srs_parse_query_string(string q, map<string,string>& query)
     }
 }
 
-static bool _random_initialized = false;
-
 void srs_random_generate(char* bytes, int size)
 {
-    if (!_random_initialized) {
-        _random_initialized = true;
-        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
-    }
-    
     for (int i = 0; i < size; i++) {
         // the common value in [0x0f, 0xf0]
-        bytes[i] = 0x0f + (random() % (256 - 0x0f - 0x0f));
+        bytes[i] = 0x0f + (srs_random() % (256 - 0x0f - 0x0f));
     }
 }
 
 std::string srs_random_str(int len)
 {
-    if (!_random_initialized) {
-        _random_initialized = true;
-        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
-    }
-
     static string random_table = "01234567890123456789012345678901234567890123456789abcdefghijklmnopqrstuvwxyz";
 
     string ret;
     ret.reserve(len);
     for (int i = 0; i < len; ++i) {
-        ret.append(1, random_table[random() % random_table.size()]);
+        ret.append(1, random_table[srs_random() % random_table.size()]);
     }
 
     return ret;
+}
+
+long srs_random()
+{
+    static bool _random_initialized = false;
+    if (!_random_initialized) {
+        _random_initialized = true;
+        ::srandom((unsigned long)(srs_update_system_time() | (::getpid()<<13)));
+    }
+
+    return random();
 }
 
 string srs_generate_tc_url(string host, string vhost, string app, int port)
