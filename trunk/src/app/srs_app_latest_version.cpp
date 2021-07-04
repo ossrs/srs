@@ -54,7 +54,7 @@ srs_error_t SrsLatestVersion::start()
         return srs_success;
     }
 
-    server_id_ = srs_random_str(10);
+    server_id_ = srs_random_str(16);
 
     return trd_->start();
 }

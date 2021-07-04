@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_app_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 #include <srtp2/srtp.h>
 #include <openssl/ssl.h>
@@ -297,7 +298,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         X509_NAME* subject = X509_NAME_new();
         srs_assert(subject);
 
-        int serial = rand();
+        int serial = (int)srs_random();
         ASN1_INTEGER_set(X509_get_serialNumber(dtls_cert), serial);
 
         const std::string& aor = RTMP_SIG_SRS_DOMAIN;
