@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_rtmp_utility.hpp>
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
@@ -436,7 +437,7 @@ void SrsIngester::show_ingest_log_message()
     }
     
     // random choose one ingester to report.
-    int index = rand() % (int)ingesters.size();
+    int index = srs_random() % (int)ingesters.size();
     SrsIngesterFFMPEG* ingester = ingesters.at(index);
     
     // reportable

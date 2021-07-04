@@ -116,17 +116,23 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
 
 void srs_random_generate(char* bytes, int size)
 {
-    static bool _random_initialized = false;
-    if (!_random_initialized) {
-        srand(0);
-        _random_initialized = true;
-        srs_trace("srand initialized the random.");
-    }
-    
     for (int i = 0; i < size; i++) {
         // the common value in [0x0f, 0xf0]
-        bytes[i] = 0x0f + (rand() % (256 - 0x0f - 0x0f));
+        bytes[i] = 0x0f + (srs_random() % (256 - 0x0f - 0x0f));
     }
+}
+
+long srs_random()
+{
+    static bool _random_initialized = false;
+    if (!_random_initialized) {
+        _random_initialized = true;
+
+        srandom((unsigned int)srs_get_system_startup_time_us());
+        srs_trace("srandom initialized the random.");
+    }
+
+    return random();
 }
 
 string srs_generate_tc_url(string ip, string vhost, string app, string port, string param)

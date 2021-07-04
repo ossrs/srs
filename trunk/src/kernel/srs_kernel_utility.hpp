@@ -46,6 +46,7 @@ extern int srs_avc_nalu_read_bit(SrsBitStream* stream, int8_t& v);
 // get current system time in ms, use cache to avoid performance problem
 extern int64_t srs_get_system_time_ms();
 extern int64_t srs_get_system_startup_time_ms();
+extern int64_t srs_get_system_startup_time_us();
 // the deamon st-thread will update it.
 extern int64_t srs_update_system_time_ms();
 

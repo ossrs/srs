@@ -484,7 +484,7 @@ namespace _srs_internal
     
     key_block::key_block()
     {
-        offset = (int32_t)rand();
+        offset = (int32_t)srs_random();
         random0 = NULL;
         random1 = NULL;
         
@@ -566,7 +566,7 @@ namespace _srs_internal
     
     digest_block::digest_block()
     {
-        offset = (int32_t)rand();
+        offset = (int32_t)srs_random();
         random0 = NULL;
         random1 = NULL;
         

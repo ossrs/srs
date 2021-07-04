@@ -110,8 +110,16 @@ int64_t srs_get_system_startup_time_ms()
     if (_srs_system_time_startup_time <= 0) {
         srs_update_system_time_ms();
     }
-    
+
     return _srs_system_time_startup_time / 1000;
+}
+int64_t srs_get_system_startup_time_us()
+{
+    if (_srs_system_time_startup_time <= 0) {
+        srs_update_system_time_ms();
+    }
+
+    return _srs_system_time_startup_time;
 }
 int64_t srs_update_system_time_ms()
 {

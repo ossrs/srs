@@ -80,6 +80,8 @@ extern void srs_vhost_resolve(
 * generate ramdom data for handshake.
 */
 extern void srs_random_generate(char* bytes, int size);
+// Generate random value, use srandom(now_us) to init seed if not initialized.
+extern long srs_random();
 
 /**
 * generate the tcUrl.
