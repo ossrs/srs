@@ -1527,7 +1527,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
         // calculate nalu len
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload) {
+        if (fua_payload && fua_payload->size > 0) {
             if (fua_payload->start) {
                 nb_payload += 1 + 4;
             }
@@ -1539,16 +1539,23 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         if (stap_payload) {
             for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
-                nb_payload += 4 + sample->size;
+                if (sample->size > 0) {    
+                    nb_payload += 4 + sample->size;
+                }
             }
             continue;
         }
 
         SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload) {
+        if (raw_payload && raw_payload->nn_payload > 0) {
             nb_payload += 4 + raw_payload->nn_payload;
             continue;
         }
+    }
+
+    if (5 == nb_payload) {
+        srs_warn("empty nalu");
+        return err;
     }
 
     SrsCommonMessage rtmp;
