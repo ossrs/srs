@@ -140,6 +140,7 @@ Other API used by [ossrs.net](https://ossrs.net):
 * `/gif/v1` The statistic API.
 * `/service/v1/` The latest available version API.
 * `/ws-service/v1/` The latest available version API, by websocket.
+* `/im-service/v1/` The latest available version API, by IM.
 
 ## Features
 
