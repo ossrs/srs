@@ -80,12 +80,7 @@ Other important wiki:
 
 ## AUTHORS
 
-There are two types of people that have contributed to the SRS project:
-
-* Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
-* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
-
-Maintainers of SRS project:
+The [TOC(Technical Oversight Committee)](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#toc):
 
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
@@ -96,8 +91,9 @@ Maintainers of SRS project:
 * [Mozhan](https://github.com/lipeng19811218): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Jinxue](https://github.com/chen-guanghua): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 
-A big THANK YOU goes to:
+A big `THANK YOU` goes to:
 
+* All [contributors](https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors) of SRS.
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
 * [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
@@ -375,7 +371,6 @@ Supported operating systems and hardware:
 Beijing, 2013.10<br/>
 Winlin
 
-[authors]: https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
 [st]: https://github.com/ossrs/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
 
 #include "srt_to_rtmp.hpp"
 #include "stringex.hpp"
-#include "time_help.h"
+#include "time_help.hpp"
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_buffer.hpp>
