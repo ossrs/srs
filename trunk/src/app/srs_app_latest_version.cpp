@@ -98,7 +98,7 @@ srs_error_t SrsLatestVersion::query_latest_version()
     stringstream ss;
     ss << "http://api.ossrs.net/service/v1/releases?"
           << "version=v" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_REVISION
-          << "&id=" << server_id_
+          << "&id=" << server_id_ << "&role=srs"
           << "&eip=" << srs_get_public_internet_address()
           << "&ts=" << srsu2ms(srs_get_system_time());
     string url = ss.str();
