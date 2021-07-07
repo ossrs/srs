@@ -165,22 +165,22 @@ workflows:
       - build-cross-build-armv7
       - build-cross-build-aarch64
       - run-utest:
-          - requires:
-              - build-c7-baseline
-              - build-c7-nortc
-              - build-c7-noasm
-              - build-c7-srt
-              - build-c8-baseline
-              - build-c8-srt
-              - build-u16-baseline
-              - build-u16-srt
-              - build-u18-baseline
-              - build-u18-srt
-              - build-u20-baseline
-              - build-u20-srt
-              - build-c7-ansi-noff
-              - build-cross-build-armv7
-              - build-cross-build-aarch64
+        - requires:
+          - build-c7-baseline
+          - build-c7-nortc
+          - build-c7-noasm
+          - build-c7-srt
+          - build-c8-baseline
+          - build-c8-srt
+          - build-u16-baseline
+          - build-u16-srt
+          - build-u18-baseline
+          - build-u18-srt
+          - build-u20-baseline
+          - build-u20-srt
+          - build-c7-ansi-noff
+          - build-cross-build-armv7
+          - build-cross-build-aarch64
       - run-regression-test:
-          - requires:
-            - run-utest
+        - requires:
+          - run-utest
