@@ -1517,8 +1517,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 {
     srs_error_t err = srs_success;
 
-    //type_codec1 + avc_type + composition time + nalu size + nalu
-    int nb_payload = 1 + 1 + 3;
+    int nb_payload = 0;
     uint16_t cnt = end - start + 1;
 
     for (uint16_t i = 0; i < cnt; ++i) {
@@ -1553,10 +1552,13 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         }
     }
 
-    if (5 == nb_payload) {
+    if (0 == nb_payload) {
         srs_warn("empty nalu");
         return err;
     }
+	
+    //type_codec1 + avc_type + composition time + nalu size + nalu
+    nb_payload += 1 + 1 + 3;
 
     SrsCommonMessage rtmp;
     SrsRtpPacket* header = cache_video_pkts_[cache_index(start)].pkt;
