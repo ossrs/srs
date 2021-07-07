@@ -181,6 +181,6 @@ workflows:
               - build-c7-ansi-noff
               - build-cross-build-armv7
               - build-cross-build-aarch64
-      - run-regression-test
+      - run-regression-test:
           - requires:
             - run-utest
