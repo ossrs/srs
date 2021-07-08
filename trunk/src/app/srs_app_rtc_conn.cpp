@@ -2909,7 +2909,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
-        // TODO: FIXME: use one parse paylod from sdp.
+        // TODO: FIXME: use one parse payload from sdp.
 
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("red"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
