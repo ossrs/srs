@@ -747,6 +747,9 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
             line.erase(line.size()-1, 1);
         }
 
+        // Strip the space of line, for pion WebRTC client.
+        line = srs_string_trim_end(line, " ");
+
         if ((err = parse_line(line)) != srs_success) {
             return srs_error_wrap(err, "parse sdp line failed");
         }
