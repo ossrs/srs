@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
 * v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
 * v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
 * v5.0, 2021-06-22, Squash: Support ARM platform. 5.0.5

@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
 
 #include "srt_handle.hpp"
-#include "time_help.h"
+#include "time_help.hpp"
 #include <srt/udt.h>
 #include <stdio.h>
 #include <vector>
