@@ -1587,7 +1587,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         cache_video_pkts_[index].sn = 0;
 
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload) {
+        if (fua_payload && fua_payload->size > 0) {
             if (fua_payload->start) {
                 nalu_len = fua_payload->size + 1;
                 //skip 4 bytes to write nalu_len future
@@ -1612,15 +1612,17 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         if (stap_payload) {
             for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
-                payload.write_4bytes(sample->size);
-                payload.write_bytes(sample->bytes, sample->size);
+		if (sample->size > 0) {  
+		    payload.write_4bytes(sample->size);
+                    payload.write_bytes(sample->bytes, sample->size);
+		}
             }
             srs_freep(pkt);
             continue;
         }
 
         SrsRtpRawPayload* raw_payload = dynamic_cast<SrsRtpRawPayload*>(pkt->payload());
-        if (raw_payload) {
+        if (raw_payload && raw_payload->nn_payload > 0) {
             payload.write_4bytes(raw_payload->nn_payload);
             payload.write_bytes(raw_payload->payload, raw_payload->nn_payload);
             srs_freep(pkt);
