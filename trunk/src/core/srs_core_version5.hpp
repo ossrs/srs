@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -9,6 +9,6 @@
 
 #define VERSION_MAJOR       5
 #define VERSION_MINOR       0
-#define VERSION_REVISION    7
+#define VERSION_REVISION    8
 
 #endif

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -23,7 +23,7 @@
 #define RTMP_SIG_SRS_CODE "Leo"
 #define RTMP_SIG_SRS_URL "https://github.com/ossrs/srs"
 #define RTMP_SIG_SRS_LICENSE "MIT"
-#define RTMP_SIG_SRS_AUTHORS "https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt"
+#define SRS_CONSTRIBUTORS "https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.md#contributors"
 #define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR) "." SRS_XSTR(VERSION_MINOR) "." SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY "/" RTMP_SIG_SRS_VERSION "(" RTMP_SIG_SRS_CODE ")"
 #define RTMP_SIG_SRS_DOMAIN "ossrs.net"

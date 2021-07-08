@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 LiPeng
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //

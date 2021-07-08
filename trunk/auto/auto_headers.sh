@@ -183,15 +183,15 @@ echo "" >> $SRS_AUTO_HEADERS_H
 # generated the contributors from AUTHORS.txt
 #####################################################################################
 if [[ -f AUTHORS.txt ]]; then
-	SRS_CONSTRIBUTORS=`cat AUTHORS.txt|grep "*"|awk '{print $2}'`
-	echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
-	for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
+	RTMP_SIG_SRS_AUTHORS=`cat AUTHORS.txt|grep "^-"|awk -F '`' '{print $2}'`
+	echo "#define RTMP_SIG_SRS_AUTHORS \"\\" >> $SRS_AUTO_HEADERS_H
+	for CONTRIBUTOR in $RTMP_SIG_SRS_AUTHORS; do
 	    CONTRIBUTOR=`echo $CONTRIBUTOR|sed 's/@users.noreply.github.com>/@github>/g'`
 	    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
 	done
 	echo "\"" >> $SRS_AUTO_HEADERS_H
 else
-	echo "#define SRS_CONSTRIBUTORS \"ossrs\"" >> $SRS_AUTO_HEADERS_H
+	echo "#define RTMP_SIG_SRS_AUTHORS \"ossrs\"" >> $SRS_AUTO_HEADERS_H
 fi
 
 # new empty line to auto headers file.
