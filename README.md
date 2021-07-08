@@ -141,6 +141,7 @@ Other API used by [ossrs.net](https://ossrs.net):
 * `/service/v1/` The latest available version API.
 * `/ws-service/v1/` The latest available version API, by websocket.
 * `/im-service/v1/` The latest available version API, by IM.
+* `/code-service/v1/` The latest available version API, by Code verification.
 
 ## Features
 
