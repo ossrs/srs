@@ -118,8 +118,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
     }
 
-    // For client to specifies the EIP of server.
+    // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
+    if (eip.empty()) {
+        eip = r->query_get("candidate");
+    }
     string codec = r->query_get("codec");
     // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
@@ -338,8 +341,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
     }
 
-    // For client to specifies the EIP of server.
+    // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
+    if (eip.empty()) {
+        eip = r->query_get("candidate");
+    }
     string codec = r->query_get("codec");
 
     srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
