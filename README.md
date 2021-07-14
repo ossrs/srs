@@ -1,4 +1,6 @@
 # SRS(Simple Realtime Server)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_shield)
+
 
 ![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/4.0release)
 [![](https://circleci.com/gh/ossrs/srs/tree/4.0release.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/4.0release)
@@ -611,3 +613,7 @@ Winlin
 [release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
 [release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_large)
