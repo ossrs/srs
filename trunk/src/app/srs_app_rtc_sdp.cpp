@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -746,6 +746,9 @@ srs_error_t SrsSdp::parse(const std::string& sdp_str)
         if (!line.empty() && line[line.size()-1] == '\r') {
             line.erase(line.size()-1, 1);
         }
+
+        // Strip the space of line, for pion WebRTC client.
+        line = srs_string_trim_end(line, " ");
 
         if ((err = parse_line(line)) != srs_success) {
             return srs_error_wrap(err, "parse sdp line failed");

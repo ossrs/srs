@@ -6,23 +6,23 @@
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge.png)](../../wikis/Contact#wechat)
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs.png)](http://bbs.ossrs.net)
 
-SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
+SRS/4.0 [Leo](https://github.com/ossrs/srs/wiki/v4_CN_Product#release40) 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
-SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
+SRS/4.0 [Leo](https://github.com/ossrs/srs/wiki/v4_CN_Product#release40) is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
-SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
+SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), but some depended libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
 
 <a name="product"></a>
 <a name="usage-docker"></a>
 ## Usage
 
-Run SRS by [docker][docker-srs4], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images), 
+Run SRS by [docker](https://github.com/ossrs/srs-docker/tree/v4#usage), images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images), 
 please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#config-candidate]) if WebRTC enabled:
 
 ```bash
 docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:v4.0.117 ./objs/srs -c conf/srs.conf
+    ossrs/srs:v4.0.139 ./objs/srs -c conf/srs.conf
 ```
 
 <a name="usage-source"></a>
@@ -76,16 +76,11 @@ Other important wiki:
 * Usage: How to ingest file/stream/device to RTMP?([CN][v4_CN_SampleIngest], [EN][v4_EN_SampleIngest])
 * Usage: How to forward stream to other servers?([CN][v4_CN_SampleForward], [EN][v4_EN_SampleForward])
 * Usage: How to improve edge performance for multiple CPUs? ([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT])
-* Usage: How to file a bug or contact us? ([CN][v4_CN_Contact], [EN][v4_EN_Contact])
+* Usage: How to file a bug or contact us? ([CN](https://github.com/ossrs/srs/wiki/v4_CN_Contact), [EN](https://github.com/ossrs/srs/wiki/v4_EN_Contact))
 
 ## AUTHORS
 
-There are two types of people that have contributed to the SRS project:
-
-* Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
-* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
-
-Maintainers of SRS project:
+The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors](trunk/AUTHORS.md#contributors):
 
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
@@ -96,36 +91,51 @@ Maintainers of SRS project:
 * [Mozhan](https://github.com/lipeng19811218): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Jinxue](https://github.com/chen-guanghua): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 
-A big THANK YOU goes to:
+A big `THANK YOU` also goes to:
 
-* All friends of SRS for [big supports][bigthanks].
-* Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
+* All [contributors](trunk/AUTHORS.md#contributors) of SRS.
+* All friends of SRS for [big supports](https://github.com/ossrs/srs/wiki/Product).
+* [Genes](http://sourceforge.net/users/genes), [Mabbott](http://sourceforge.net/users/mabbott) and [Michael Talyanksy](https://github.com/michaeltalyansky) for [st](https://github.com/ossrs/state-threads/tree/srs).
 
 ## Ports
 
 The ports used by SRS, kernel services:
 
-* tcp://1935, for RTMP live streaming server([CN][v4_CN_DeliveryRTMP],[EN][v4_EN_DeliveryRTMP]).
-* tcp://1985, HTTP API server, for HTTP-API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]), WebRTC([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]), etc.
-* tcp://8080, HTTP live streaming server, HTTP-FLV([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv]), HLS([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS]) as such.
-* udp://8000, WebRTC Media([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]) server.
+* `tcp://1935`, for RTMP live streaming server([CN][v4_CN_DeliveryRTMP],[EN][v4_EN_DeliveryRTMP]).
+* `tcp://1985`, HTTP API server, for HTTP-API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]), WebRTC([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]), etc.
+* `tcp://8080`, HTTP live streaming server, HTTP-FLV([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv]), HLS([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS]) as such.
+* `udp://8000`, WebRTC Media([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]) server.
 
 For optional HTTPS services, which might be provided by other web servers:
 
-* tcp://8088, HTTPS live streaming server.
-* tcp://1990, HTTPS API server.
+* `tcp://8088`, HTTPS live streaming server.
+* `tcp://1990`, HTTPS API server.
 
 For optional stream caster services, to push streams to SRS:
 
-* udp://8935, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
-* tcp://554, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
-* tcp://8936, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
-* udp://10080, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
+* `udp://8935`, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
+* `tcp://554`, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
+* `tcp://8936`, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
+* `udp://10080`, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
   
 For external services to work with SRS:
 
-* udp://1989, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+* `udp://1989`, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
+
+## APIs
+
+The API used by SRS:
+
+* `/api/v1/` The HTTP API path.
+* `/rtc/v1/` The HTTP API path for RTC.
+* `/sig/v1/` The [demo signaling](https://github.com/ossrs/signaling) API.
+  
+Other API used by [ossrs.net](https://ossrs.net):
+
+* `/gif/v1` The statistic API.
+* `/service/v1/` The latest available version API.
+* `/ws-service/v1/` The latest available version API, by websocket.
+* `/im-service/v1/` The latest available version API, by IM.
 
 ## Features
 
@@ -165,7 +175,7 @@ For external services to work with SRS:
 - [x] Improve test coverage for core/kernel/protocol/service.
 - [x] Support docker by [srs-docker](https://github.com/ossrs/srs-docker).
 - [x] Support multiple processes by ReusePort([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT]), [#775][bug #775].
-- [x] Support a simple [mgmt console][console], please read [srs-console][srs-ngb].
+- [x] Support a simple [mgmt console](http://ossrs.net:8080/console), please read [srs-console](https://github.com/ossrs/srs-console).
 - [x] [Experimental] Support playing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support publishing stream by WebRTC, [#307][bug #307].
 - [x] [Experimental] Support mux RTP/RTCP/DTLS/SRTP on one port for WebRTC, [#307][bug #307].
@@ -185,7 +195,7 @@ For external services to work with SRS:
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing, please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication, please read [#1535][bug #1535].
-- [x] [Removed] Support RTMP client library: [srs-librtmp][srs-librtmp].
+- [x] [Removed] Support RTMP client library: [srs-librtmp](https://github.com/ossrs/srs-librtmp).
 - [ ] Support IETF-QUIC for WebRTC Cluster, [#2091][bug #2091].
 - [ ] Enhanced forwarding with vhost and variables, [#1342][bug #1342].
 - [ ] Support DVR to Cloud Storage, [#1193][bug #1193].
@@ -207,11 +217,7 @@ Please read [CHANGELOG](CHANGELOG.md#changelog).
 
 ## Releases
 
-* 2021-04-28, [Release v3.0-r5][r3.0r5], 3.0 release5, 3.0.161, 122750 lines.
-* 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.160, 122750 lines.
-* 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
-* 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
-* 2020-10-10, [Release v3.0-r1][r3.0r1], 3.0 release1, 3.0.144, 122674 lines.
+* 2020-07-04, Release [v4.0.139](https://github.com/ossrs/srs/releases/tag/v4.0.139), 4.0 dev0, v4.0.139, 143245 lines.
 * 2020-06-27, [Release v3.0-r0][r3.0r0], 3.0 release0, 3.0.141, 122674 lines.
 * 2020-03-29, [Release v3.0-b3][r3.0b4], 3.0 beta4, 3.0.139, 122674 lines.
 * 2020-03-18, [Release v3.0-b3][r3.0b3], 3.0 beta3, 3.0.134, 122509 lines.
@@ -251,7 +257,7 @@ Please read [CHANGELOG](CHANGELOG.md#changelog).
 * 2014-04-28, [Release v0.9.2][r1.0a2], support [dvr][v4_CN_DVR], android, [edge][v4_CN_Edge]. 35255 lines.
 * 2014-04-07, [Release v0.9.1][r1.0a0], support [arm][v4_CN_SrsLinuxArm], [init.d][v4_CN_LinuxService], http [server][v4_CN_HTTPServer]/[api][v4_CN_HTTPApi], [ingest][v4_CN_SampleIngest]. 30000 lines.
 * 2013-12-25, [Release v0.9.0][r0.9], support bandwidth test, player/encoder/chat [demos][v4_CN_SampleDemo]. 20926 lines.
-* 2013-12-08, [Release v0.8.0][r0.8], support [http hooks callback][v4_CN_HTTPCallback], update [SB][srs-bench]. 19186 lines.
+* 2013-12-08, [Release v0.8.0][r0.8], support [http hooks callback][v4_CN_HTTPCallback], update [SB](https://github.com/ossrs/srs-bench). 19186 lines.
 * 2013-12-03, [Release v0.7.0][r0.7], support [live stream transcoding][v4_CN_FFMPEG]. 17605 lines.
 * 2013-11-29, [Release v0.6.0][r0.6], support [forward][v4_CN_Forward] stream to origin/edge. 16094 lines.
 * 2013-11-26, [Release v0.5.0][r0.5], support [HLS(m3u8)][v4_CN_DeliveryHLS], fragment and window. 14449 lines.
@@ -322,7 +328,7 @@ Remark:
 
 ## Mirrors
 
-Gitee: [https://gitee.com/ossrs/srs][gitee], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
+Gitee: [https://gitee.com/ossrs/srs](https://gitee.com/ossrs/srs), the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
 ```
 git clone https://gitee.com/ossrs/srs.git &&
@@ -331,14 +337,14 @@ cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 
 > Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
 
-Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab](https://gitlab.com/winlinvip/srs-gitlab), the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
 ```
 git clone https://gitlab.com/winlinvip/srs-gitlab.git srs &&
 cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
 ```
 
-Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
+Github: [https://github.com/ossrs/srs](https://github.com/ossrs/srs), the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
 ```
 git clone https://github.com/ossrs/srs.git
@@ -359,27 +365,10 @@ Supported operating systems and hardware:
 
 * Linux, with x86, x86-64 or arm.
 * Mac, with intel chip.
-* Other OS, such as Windows, please use [docker][docker-srs4].
+* Other OS, such as Windows, please use [docker](https://github.com/ossrs/srs-docker/tree/v4#usage).
 
 Beijing, 2013.10<br/>
 Winlin
-
-[authors]: https://github.com/ossrs/srs/blob/4.0release/AUTHORS.txt
-[bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
-[st]: https://github.com/ossrs/state-threads
-[st2]: https://github.com/ossrs/state-threads/tree/srs
-[state-threads]: https://github.com/ossrs/state-threads/tree/srs
-[nginx]: http://nginx.org/
-[srs]: https://github.com/ossrs/srs
-[gitee]: https://gitee.com/ossrs/srs
-[srs-bench]: https://github.com/ossrs/srs-bench
-[srs-ngb]: https://github.com/ossrs/srs-console
-[srs-librtmp]: https://github.com/ossrs/srs-librtmp
-[gitlab]: https://gitlab.com/winlinvip/srs-gitlab
-[console]: http://ossrs.net:8080/console
-[docker-srs3]: https://github.com/ossrs/srs-docker/tree/v3#usage
-[docker-srs4]: https://github.com/ossrs/srs-docker/tree/v4#usage
-[docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v4_CN_Git]: https://github.com/ossrs/srs/wiki/v4_CN_Git
 [v4_EN_Git]: https://github.com/ossrs/srs/wiki/v4_EN_Git
@@ -590,13 +579,3 @@ Winlin
 [r0.2]: https://github.com/ossrs/srs/releases/tag/v0.2.0
 [r0.1]: https://github.com/ossrs/srs/releases/tag/v0.1.0
 
-
-[v4_CN_Contact]: https://github.com/ossrs/srs/wiki/v4_CN_Contact
-[v4_EN_Contact]: https://github.com/ossrs/srs/wiki/v4_EN_Contact
-
-[LICENSE]: https://github.com/ossrs/srs/blob/develop/LICENSE
-[LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
-
-[release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
-[release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
-[release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40

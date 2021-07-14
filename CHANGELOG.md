@@ -6,6 +6,9 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
+* v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
+* v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
 * v5.0, 2021-06-22, Squash: Support ARM platform. 5.0.5
 * v5.0, 2021-06-16, Change [GB28181](https://github.com/ossrs/srs/issues/1500) to [feature/gb28181](https://github.com/ossrs/srs/tree/feature/gb28181). 5.0.4
 * v5.0, 2021-05-31, Use [SPDX-License-Identifier: MIT](https://spdx.dev/ids/). 5.0.3
@@ -17,6 +20,15 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-07-08, For [#2403](https://github.com/ossrs/srs/issues/2403), fix padding packets for RTMP2RTC. 4.0.140
+* v4.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 4.0.139
+* v4.0, 2021-07-01, Merge [#2452](https://github.com/ossrs/srs/pull/2452), fix FFmpeg bug by updating channel_layout. 4.0.138
+* v4.0, 2021-06-30, Merge [#2440](https://github.com/ossrs/srs/pull/2440), fix [#2390](https://github.com/ossrs/srs/issues/2390), SRT bug for zerolatency. 4.0.137
+* v4.0, 2021-06-28, Merge [#2435](https://github.com/ossrs/srs/pull/2435), fix bug for HTTP-RAW-API to check vhost. 4.0.136
+* v4.0, 2021-06-28, Fix [#2431](https://github.com/ossrs/srs/issues/2431), configure FFmpeg bug. 4.0.135 
+* v4.0, 2021-06-28, Merge [#2444](https://github.com/ossrs/srs/pull/2444), add libavcodec/crystalhd.c for FFmpeg. 4.0.134
+* v4.0, 2021-06-28, Merge [#2438](https://github.com/ossrs/srs/pull/2438), fix losing of last HLS ts file 4.0.133
+* v4.0, 2021-06-27, Squash for [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 4.0.132
 * v4.0, 2021-06-24, Merge [#2429](https://github.com/ossrs/srs/pull/2429) to fix SRT bug. 4.0.131
 * v4.0, 2021-06-21, Fix [#2413](https://github.com/ossrs/srs/issues/2413), fix RTMP to RTC bug 4.0.130
 * v4.0, 2021-06-20, Guess where FFmpeg is. 4.0.129
@@ -799,7 +811,7 @@ Winlin 2021
 [pr #558]: https://github.com/ossrs/srs/pull/558
 [pr #559]: https://github.com/ossrs/srs/pull/559
 
-[authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/develop/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v4_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

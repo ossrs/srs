@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 Bepartofyou
+// Copyright (c) 2013-2021 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -147,6 +147,8 @@ srs_error_t SrsAudioTranscoder::init_dec(SrsAudioCodecId src_codec)
     if (avcodec_open2(dec_, codec, NULL) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not open codec");
     }
+    
+    dec_->channel_layout = av_get_default_channel_layout(dec_->channels);
 
     dec_frame_ = av_frame_alloc();
     if (!dec_frame_) {
