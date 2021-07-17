@@ -2757,6 +2757,36 @@ bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
     return false;
 }
 
+#if __cplusplus >= 201103L
+#else
+bool _is_simulcast_str(SrsSSRCGroup const& g) {
+    return g.semantic_ == "SIM";
+}
+struct IsSingleOrSimulcast {
+    std::vector<SrsSSRCGroup> const& ssrc_groups_;
+    vector<SrsSSRCGroup>::const_iterator groups_end;
+    vector<SrsSSRCGroup>::const_iterator it;
+
+    IsSingleOrSimulcast(std::vector<SrsSSRCGroup> const& ssrc_groups)
+        : ssrc_groups_(ssrc_groups) {
+        groups_end = ssrc_groups_.end();
+        it = std::find_if(ssrc_groups_.begin(), groups_end, _is_simulcast_str);
+    }
+    bool operator()(SrsSSRCInfo const& info) const {
+        if (it == groups_end) {
+            return true;
+        }
+        std::vector<uint32_t> const& ssrcs_ = it->ssrcs_;
+        for (size_t i=0; i<ssrcs_.size(); ++i) {
+            if (ssrcs_[i] == info.ssrc_) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+#endif
+
 srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcSourceDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -2955,24 +2985,73 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
 
-        std::string track_id;
-        for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-            const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+        if (remote_media_desc.is_audio()) {
+            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
 
-            // ssrc have same track id, will be description in the same track description.
-            if(track_id != ssrc_info.msid_tracker_) {
-                SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                track_desc_copy->msid_ = ssrc_info.msid_;
-
-                if (remote_media_desc.is_audio() && !stream_desc->audio_track_desc_) {
+                // ssrc have same track id, will be description in the same track description.
+                if (!stream_desc->audio_track_desc_) {
+                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
+                    track_desc_copy->msid_ = ssrc_info.msid_;
                     stream_desc->audio_track_desc_ = track_desc_copy;
-                } else if (remote_media_desc.is_video()) {
-                    stream_desc->video_track_descs_.push_back(track_desc_copy);
+                }
+                srs_info("%d/%d#publish audio ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
+                         (int) remote_media_desc.ssrc_infos_.size(),
+                         ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+            }
+        } else if (remote_media_desc.is_video()) {
+            // note: find sim in ssrc_groups_, get ssrc
+#if __cplusplus >= 201103L
+            auto groups_end = std::end(remote_media_desc.ssrc_groups_);
+            auto it = std::find_if(std::begin(remote_media_desc.ssrc_groups_), groups_end, [](SrsSSRCGroup const& g) {
+                return g.semantic_ == "SIM";
+            });
+            auto is_single_or_simulcast = [&it, &groups_end] (SrsSSRCInfo const& info) {
+                if (it == groups_end) {
+                    return true;
+                }
+                auto& ssrcs_ = it->ssrcs_;
+                auto ssrcs_end = std::end(ssrcs_);
+                return ssrcs_end != std::find_if(std::begin(ssrcs_), ssrcs_end, [&info](uint32_t ssrc) {
+                    return ssrc == info.ssrc_;
+                });
+            };
+#else
+            IsSingleOrSimulcast is_single_or_simulcast(remote_media_desc.ssrc_groups_);
+#endif
+
+
+            std::string track_id;
+            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+
+                // ssrc have same track id, will be description in the same track description.
+                if(track_id != ssrc_info.msid_tracker_) {
+                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
+                    track_desc_copy->msid_ = ssrc_info.msid_;
+                    if (is_single_or_simulcast(ssrc_info)) {
+                        // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
+                        // todo: support standard simulcast, like "a=simulcast:send a;b;c"
+                        stream_desc->video_track_descs_.push_back(track_desc_copy);
+                        srs_info("%d/%d#publish video track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,(int)remote_media_desc.ssrc_infos_.size(),
+                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+                    } else {
+                        srs_info("%d/%d#ignore track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j, (int)remote_media_desc.ssrc_infos_.size(),
+                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+                    }
+                    track_id = ssrc_info.msid_tracker_;
+                } else {
+                    srs_info("%d/%d#ignore track_id_/msid_tracker_=%s, ssrc_=%u, msid_=%s", j, (int)remote_media_desc.ssrc_infos_.size(),
+                             track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str());
+                    track_id = "";
                 }
             }
-            track_id = ssrc_info.msid_tracker_;
+        } else {
+            // todo for other
         }
 
         // set track fec_ssrc and rtx_ssrc
@@ -3284,6 +3363,62 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
     }
 }
 
+// note: get [0,1,2] from "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
+bool parse_layers_in_url(std::vector<int>& layers, std::string url) {
+    // webrtc://127.0.0.1/live/livestream?layer=1
+    size_t pos = url.rfind("/");
+    if (pos == string::npos) {
+        return false;
+    }
+    // livestream?layer=1
+    // livestream?layer=1,2,3
+    // livestream?layer=1,2,3&foo=bar
+    string name = url.substr(pos + 1);
+    pos = name.rfind("?");
+    if (pos == string::npos) {
+        return false;
+    }
+    // layer=1,2,3&foo=bar
+    string params = name.substr(pos + 1);
+    pos = params.rfind("layer=");
+    if (pos == string::npos) {
+        return false;
+    }
+    // 1,2,3&foo=bar
+    string layer_param = params.substr(pos+6);
+    pos = layer_param.find("&");
+
+    // 1,2,3
+    string layers_ = pos == string::npos
+                  ? layer_param
+                  : layer_param.substr(0, pos);
+
+    srs_trace("layers=%s", layers_.c_str());
+    istringstream f(layers_);
+    string s;
+    while (getline(f, s, ';')) {
+        layers.push_back(::atoi(s.c_str()));
+    }
+    return !layers.empty();
+}
+
+std::vector<SrsRtcTrackDescription *> select_video_track_descs(
+        std::vector<SrsRtcTrackDescription *> video_track_descs,
+        std::string url) {
+    srs_trace("stream url: %s", url.c_str());
+    std::vector<int> layers;
+    if (!parse_layers_in_url(layers, url)) {
+        return video_track_descs;
+    }
+    std::vector<SrsRtcTrackDescription *> result;
+    for (size_t i=0;i<layers.size(); ++i) {
+        if (layers[i] < video_track_descs.size()) {
+            result.push_back(video_track_descs[layers[i]]);
+        }
+    }
+    return result.empty() ? video_track_descs : result;
+}
+
 srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan)
 {
     srs_error_t err = srs_success;
@@ -3370,8 +3505,9 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         }
     }
 
-    for (int i = 0;  i < (int)stream_desc->video_track_descs_.size(); ++i) {
-        SrsRtcTrackDescription* track = stream_desc->video_track_descs_[i];
+    std::vector<SrsRtcTrackDescription *> video_track_descs = select_video_track_descs(stream_desc->video_track_descs_, req->tcUrl);
+    for (int i = 0;  i < (int)video_track_descs.size(); ++i) {
+        SrsRtcTrackDescription* track = video_track_descs[i];
 
         if (!unified_plan) {
             // for plan b, we only add one m= for video track.

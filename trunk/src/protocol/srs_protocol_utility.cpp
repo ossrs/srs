@@ -26,7 +26,7 @@ using namespace std;
 
 /**
  * resolve the vhost in query string
- * @pram vhost, update the vhost if query contains the vhost.
+ * @param vhost, update the vhost if query contains the vhost.
  * @param app, may contains the vhost in query string format:
  *   app?vhost=request_vhost
  *   app...vhost...request_vhost

@@ -44,6 +44,14 @@ function SrsRtcPublisherAsync() {
     //      webrtc://r.ossrs.net/live/livestream?token=xxx
     self.publish = async function (url) {
         var conf = self.__internal.prepareUrl(url);
+        const parameter = QueryParameterByName('numberOfSimulcastLayers', conf.streamUrl);
+        const numberOfSimulcastLayers = parseInt(parameter)
+        if (numberOfSimulcastLayers > 1) {
+            self.constraints.video = {  
+                wіdth: 1280, height: 720
+            }
+        }
+        UpdateNativeCreateOffer(numberOfSimulcastLayers);
         self.pc.addTransceiver("audio", {direction: "sendonly"});
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
@@ -517,3 +525,96 @@ function SrsRtcFormatSenders(senders, kind) {
     return codecs.join(", ");
 }
 
+let enabledSimulcastTypeMapping = {
+    low: true,
+    mid: true,
+    hi: true
+}
+
+const rids_mapping = {
+    low: 0,
+    mid: 1,
+    hi: 2,
+}
+
+
+const rids = Object.values(rids_mapping) // [0,1,2]
+
+
+function UpdateNativeCreateOffer(numberOfSimulcastLayers) {
+    const nativeCreateOffer = window.RTCPeerConnection.prototype.createOffer
+    window.RTCPeerConnection.prototype.createOffer = function () {
+        const offerOptions = arguments.length === 3 ? arguments[2] : arguments[0]
+        if (offerOptions && offerOptions.numberOfSimulcastLayers) {
+            delete offerOptions.numberOfSimulcastLayers
+        }
+
+        // const numberOfSimulcastLayers = rids.length;
+        if (!(numberOfSimulcastLayers > 1)) {
+            return nativeCreateOffer.apply(this, arguments)
+        }
+        return nativeCreateOffer.apply(this, arguments)
+            .then(({ type, sdp }) => {
+                const sections = SDPUtils.splitSections(sdp)
+                /* sdp munging code. Really, its just extracting some information (ssrc, cname and msid) and reusing it.
+                 * It could just set a different set of ssrc instead of trying to reuse the first.
+                 */
+                const firstVideoIndex = sections.findIndex(s => SDPUtils.getKind(s) === 'video')
+                if (firstVideoIndex === -1) {
+                    return new RTCSessionDescription({ type, sdp })
+                }
+
+                let cname
+                let msid
+                SDPUtils.matchPrefix(sections[firstVideoIndex], 'a=ssrc:').forEach(line => {
+                    const media = SDPUtils.parseSsrcMedia(line)
+                    if (media.attribute === 'cname') {
+                        cname = media.value
+                    } else if (media.attribute === 'msid') {
+                        msid = media.value
+                    }
+                })
+                const fidGroupMatch = SDPUtils.matchPrefix(sections[firstVideoIndex], 'a=ssrc-group:FID ')
+                if (fidGroupMatch.length == 0) {
+                    console.log(fidGroupMatch, 'Simulcast use Firefox Style')
+                    return new RTCSessionDescription({ type, sdp })
+                }
+
+                const fidGroup = fidGroupMatch[0].substr(17)
+                const lines = sections[firstVideoIndex].trim().split('\r\n').filter(line => {
+                    return line.indexOf('a=ssrc:') !== 0 && line.indexOf('a=ssrc-group:') !== 0
+                })
+                const simSSRCs = []
+                const [videoSSRC1, rtxSSRC1] = fidGroup.split(' ').map(ssrc => parseInt(ssrc, 10))
+
+                const deltas = rids.slice(0, numberOfSimulcastLayers)
+                console.log("numberOfSimulcastLayers =", numberOfSimulcastLayers)
+                for (let delta of deltas) {
+                    const videoSSRC = videoSSRC1 + delta
+                    const rtxSSRC = rtxSSRC1 + delta
+                    simSSRCs.push(videoSSRC)
+                    lines.push(`a=ssrc-group:FID ${videoSSRC} ${rtxSSRC}`)
+                    lines.push(`a=ssrc:${videoSSRC} cname:${cname}`)
+                    lines.push(`a=ssrc:${videoSSRC} msid:${msid}`)
+                    lines.push(`a=ssrc:${rtxSSRC} cname:${cname}`)
+                    lines.push(`a=ssrc:${rtxSSRC} msid:${msid}`)
+                }
+
+                let ssrcGroupSim = simSSRCs
+                // let ssrcGroupSim = [simSSRCs[1], simSSRCs[2], simSSRCs[0]]
+                lines.push('a=ssrc-group:SIM ' + ssrcGroupSim.join(' '))
+                sections[firstVideoIndex] = lines.join('\r\n') + '\r\n'
+                return new RTCSessionDescription({ type, sdp: sections.join('') })
+            })
+    }
+
+}
+
+function QueryParameterByName(name, url) {
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
