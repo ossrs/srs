@@ -34,5 +34,10 @@
 .idea
 .DS_Store
 
-/cmake-build-debug/
-/CMakeLists.txt
+cmake-build-debug
+/trunk/ide/srs_clion/CMakeCache.txt
+/trunk/ide/srs_clion/CMakeFiles
+/trunk/ide/srs_clion/Makefile
+/trunk/ide/srs_clion/cmake_install.cmake
+/trunk/ide/srs_clion/srs
+/trunk/ide/srs_clion/Testing/
