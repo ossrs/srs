@@ -14,6 +14,13 @@ message("SRS home is ${SRS_DIR}")
 include(ProcessorCount)
 ProcessorCount(JOBS)
 
+# We should always configure SRS for switching between branches.
+IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --osx --jobs=${JOBS}")
+ELSE ()
+    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --jobs=${JOBS}")
+ENDIF ()
+
 set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/openssl/lib/libssl.a
         ${SRS_DIR}/objs/openssl/lib/libcrypto.a
@@ -24,12 +31,7 @@ set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a)
 foreach(DEPS_LIB ${DEPS_LIBS})
     IF (NOT EXISTS ${DEPS_LIB})
-        MESSAGE("${DEPS_LIB} not found")
-        IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-            EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --osx --jobs=${JOBS}")
-        ELSE ()
-            EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --jobs=${JOBS}")
-        ENDIF ()
+        MESSAGE(FATAL_ERROR "${DEPS_LIB} not found")
     ELSE ()
         MESSAGE("${DEPS_LIB} is ok")
     ENDIF ()
