@@ -81,6 +81,10 @@ public:
     std::string semantic_;
     // SSRCs of this type. 
     std::vector<uint32_t> ssrcs_;
+public:
+    bool is_sim() const { // SrsSSRCGroup::is_sim()
+        return semantic_ == "SIM";
+    }
 };
 
 struct H264SpecificParam
@@ -169,6 +173,11 @@ public:
     std::vector<SrsSSRCGroup> ssrc_groups_;
     std::vector<SrsSSRCInfo>  ssrc_infos_;
     std::map<int, std::string> extmaps_;
+
+public:
+    // Whether SSRS is original stream.
+    // @see https://github.com/ossrs/srs/pull/2420#discussion_r655792920
+    bool is_original_ssrc(const SrsSSRCInfo* info) const;
 };
 
 class SrsSdp

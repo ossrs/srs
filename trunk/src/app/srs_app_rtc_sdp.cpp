@@ -714,6 +714,46 @@ SrsSSRCInfo& SrsMediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
     return ssrc_infos_.back();
 }
 
+bool SrsMediaDesc::is_original_ssrc(const SrsSSRCInfo* info) const
+{
+    // For single stream, always true, for example, is_original_ssrc(873618278) is always true.
+    //          m=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100 101 102 121
+    //          a=ssrc-group:FID 873618278 3891855060
+    //          a=ssrc:873618278 cname:3b7IXPmBa7Yd0SiH
+    //          a=ssrc:873618278 msid:- 2bb381df-2c93-493c-8575-6b9cc2e8e900
+    //          a=ssrc:3891855060 msid:- 2bb381df-2c93-493c-8575-6b9cc2e8e900
+    // @see https://github.com/ossrs/srs/pull/2420#discussion_r655792920
+    const SrsSSRCGroup* sim = NULL;
+    for (int i = 0; !sim && i < (int)ssrc_groups_.size(); i++) {
+        const SrsSSRCGroup& g = ssrc_groups_.at(i);
+        sim = g.is_sim()? &g : NULL;
+    }
+    if (!sim) {
+        return true; // For single stream.
+    }
+
+    // For simulcast stream, true if SSRC in SIM, for example, is_original_ssrc(4246894231) is true,
+    // while is_original_ssrc(1412250728) is false.
+    //          m=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100 101 102 121
+    //          a=ssrc-group:FID 4246894231 1412250728
+    //          a=ssrc:4246894231 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc:1412250728 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc-group:FID 4246894232 1412250729
+    //          a=ssrc:4246894232 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc:1412250729 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc-group:FID 4246894233 1412250730
+    //          a=ssrc:4246894233 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc:1412250730 msid:- 1ea00af6-d41d-4805-9dbe-243f4e639150
+    //          a=ssrc-group:SIM 4246894231 4246894232 4246894233
+    // @see https://github.com/ossrs/srs/pull/2420#discussion_r655792920
+    for (int i = 0; i < (int)sim->ssrcs_.size(); i++) {
+        if (info->ssrc_ == sim->ssrcs_.at(i)) {
+            return true; // Match SSRC in SIM group.
+        }
+    }
+    return false;
+}
+
 SrsSdp::SrsSdp()
 {
     in_media_session_ = false;

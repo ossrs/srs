@@ -2757,36 +2757,6 @@ bool srs_sdp_has_h264_profile(const SrsSdp& sdp, const string& profile)
     return false;
 }
 
-#if __cplusplus >= 201103L
-#else
-bool _is_simulcast_str(SrsSSRCGroup const& g) {
-    return g.semantic_ == "SIM";
-}
-struct IsSingleOrSimulcast {
-    std::vector<SrsSSRCGroup> const& ssrc_groups_;
-    vector<SrsSSRCGroup>::const_iterator groups_end;
-    vector<SrsSSRCGroup>::const_iterator it;
-
-    IsSingleOrSimulcast(std::vector<SrsSSRCGroup> const& ssrc_groups)
-        : ssrc_groups_(ssrc_groups) {
-        groups_end = ssrc_groups_.end();
-        it = std::find_if(ssrc_groups_.begin(), groups_end, _is_simulcast_str);
-    }
-    bool operator()(SrsSSRCInfo const& info) const {
-        if (it == groups_end) {
-            return true;
-        }
-        std::vector<uint32_t> const& ssrcs_ = it->ssrcs_;
-        for (size_t i=0; i<ssrcs_.size(); ++i) {
-            if (ssrcs_[i] == info.ssrc_) {
-                return true;
-            }
-        }
-        return false;
-    }
-};
-#endif
-
 srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc, SrsRtcSourceDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -3002,27 +2972,6 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                          ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
             }
         } else if (remote_media_desc.is_video()) {
-            // note: find sim in ssrc_groups_, get ssrc
-#if __cplusplus >= 201103L
-            auto groups_end = std::end(remote_media_desc.ssrc_groups_);
-            auto it = std::find_if(std::begin(remote_media_desc.ssrc_groups_), groups_end, [](SrsSSRCGroup const& g) {
-                return g.semantic_ == "SIM";
-            });
-            auto is_single_or_simulcast = [&it, &groups_end] (SrsSSRCInfo const& info) {
-                if (it == groups_end) {
-                    return true;
-                }
-                auto& ssrcs_ = it->ssrcs_;
-                auto ssrcs_end = std::end(ssrcs_);
-                return ssrcs_end != std::find_if(std::begin(ssrcs_), ssrcs_end, [&info](uint32_t ssrc) {
-                    return ssrc == info.ssrc_;
-                });
-            };
-#else
-            IsSingleOrSimulcast is_single_or_simulcast(remote_media_desc.ssrc_groups_);
-#endif
-
-
             std::string track_id;
             for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
                 const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
@@ -3033,7 +2982,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                     track_desc_copy->ssrc_ = ssrc_info.ssrc_;
                     track_desc_copy->id_ = ssrc_info.msid_tracker_;
                     track_desc_copy->msid_ = ssrc_info.msid_;
-                    if (is_single_or_simulcast(ssrc_info)) {
+                    if (remote_media_desc.is_original_ssrc(&ssrc_info)) {
                         // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
                         // todo: support standard simulcast, like "a=simulcast:send a;b;c"
                         stream_desc->video_track_descs_.push_back(track_desc_copy);
@@ -3051,7 +3000,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 }
             }
         } else {
-            // todo for other
+            // TODO: FIXME: Handle for others.
         }
 
         // set track fec_ssrc and rtx_ssrc
