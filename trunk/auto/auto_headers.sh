@@ -182,11 +182,10 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-if [[ -f AUTHORS.txt ]]; then
-	RTMP_SIG_SRS_AUTHORS=`cat AUTHORS.txt|grep "^-"|awk -F '`' '{print $2}'`
+if [[ -f AUTHORS.md ]]; then
+	RTMP_SIG_SRS_AUTHORS=$(cat AUTHORS.md|grep "^-"|awk -F '`' '{print $2}')
 	echo "#define RTMP_SIG_SRS_AUTHORS \"\\" >> $SRS_AUTO_HEADERS_H
 	for CONTRIBUTOR in $RTMP_SIG_SRS_AUTHORS; do
-	    CONTRIBUTOR=`echo $CONTRIBUTOR|sed 's/@users.noreply.github.com>/@github>/g'`
 	    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
 	done
 	echo "\"" >> $SRS_AUTO_HEADERS_H

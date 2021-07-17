@@ -80,7 +80,7 @@ Other important wiki:
 
 ## AUTHORS
 
-The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc):
+The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors](trunk/AUTHORS.md#contributors):
 
 * [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
 * [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
@@ -91,7 +91,7 @@ The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc):
 * [Mozhan](https://github.com/lipeng19811218): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 * [Jinxue](https://github.com/chen-guanghua): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
 
-A big `THANK YOU` goes to:
+A big `THANK YOU` also goes to:
 
 * All [contributors](trunk/AUTHORS.md#contributors) of SRS.
 * All friends of SRS for [big supports](https://github.com/ossrs/srs/wiki/Product).
