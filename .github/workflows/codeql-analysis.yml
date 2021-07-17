@@ -18,7 +18,8 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ 4.0release, develop ]
   schedule:
-    - cron: '43 11 * * 0'
+    # '20 19 * * 6' means 'At 19:20, only on Saturday' @see https://crontab.cronhub.io/
+    - cron: '20 19 * * 6'
 
 jobs:
   analyze:
