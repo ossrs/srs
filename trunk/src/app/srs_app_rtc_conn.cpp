@@ -3313,17 +3313,11 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
 }
 
 // note: get [0,1,2] from "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
-bool parse_layers_in_url(std::vector<int>& layers, std::string url) {
-    // webrtc://127.0.0.1/live/livestream?layer=1
-    size_t pos = url.rfind("/");
-    if (pos == string::npos) {
-        return false;
-    }
+bool parse_layers_in_url(std::vector<int>& layers, std::string name) {
     // livestream?layer=1
     // livestream?layer=1,2,3
     // livestream?layer=1,2,3&foo=bar
-    string name = url.substr(pos + 1);
-    pos = name.rfind("?");
+    size_t pos = name.rfind("?");
     if (pos == string::npos) {
         return false;
     }
@@ -3454,7 +3448,7 @@ srs_error_t SrsRtcConnection::generate_play_local_sdp(SrsRequest* req, SrsSdp& l
         }
     }
 
-    std::vector<SrsRtcTrackDescription *> video_track_descs = select_video_track_descs(stream_desc->video_track_descs_, req->tcUrl);
+    std::vector<SrsRtcTrackDescription *> video_track_descs = select_video_track_descs(stream_desc->video_track_descs_, req->param);
     for (int i = 0;  i < (int)video_track_descs.size(); ++i) {
         SrsRtcTrackDescription* track = video_track_descs[i];
 
