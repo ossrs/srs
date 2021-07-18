@@ -387,9 +387,6 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibFiles+=("${LibFfmpegFile[*]}")
 fi
-if [[ $SRS_GB28181 == YES ]]; then
-    ModuleLibFiles+=("${LibIconvfile[*]}")
-fi
 #
 for SRS_MODULE in ${SRS_MODULES[*]}; do
     . auto/reset_module.sh && . $SRS_MODULE/config
@@ -427,9 +424,6 @@ if [ $SRS_UTEST = YES ]; then
     fi
     if [[ $SRS_SRT == YES ]]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
-    fi
-    if [[ $SRS_GB28181 == YES ]]; then
-        ModuleLibFiles+=("${LibIconvfile[*]}")
     fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     if [[ $SRS_SRT == YES ]]; then
