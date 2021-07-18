@@ -7,6 +7,7 @@ SRS_HDS=NO
 SRS_SRT=NO
 SRS_RTC=RESERVED
 SRS_GB28181=NO
+SRS_GB28181_ICONV=NO
 SRS_CXX11=YES
 SRS_CXX14=NO
 SRS_NGINX=NO
@@ -111,6 +112,7 @@ Features:
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
+  --gb28181_iconv=on|off    Whether build the GB28181. Default: $(value2switch $SRS_GB28181_ICONV)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
@@ -261,6 +263,8 @@ function parse_user_option() {
 
         --with-gb28181)                 SRS_GB28181=YES             ;;
         --without-gb28181)              SRS_GB28181=NO              ;;
+        --with-gb28181_iconv)           SRS_GB28181_ICONV=YES       ;;
+        --without-gb28181_iconv)        SRS_GB28181_ICONV=NO        ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
 
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
@@ -468,6 +472,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181_iconv=$(value2switch $SRS_GB28181_ICONV)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"

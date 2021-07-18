@@ -41,8 +41,11 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_rtsp_stack.hpp>
 
+#if defined(SRS_GB28181) && defined(SRS_GB28181_ICONV)
 #include <iconv.h>
+#endif
 
+#if defined(SRS_GB28181) && defined(SRS_GB28181_ICONV)
 /* Code (GB2312 <--> UTF-8) Convert Class */
 class CodeConverter
 {
@@ -99,6 +102,7 @@ public:
         return nBytes == 0;
     }
 };
+#endif
 
 unsigned int srs_sip_random(int min,int max)  
 {  
@@ -398,7 +402,7 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
     </Info>
     </Notify>
     */
-
+    #if defined(SRS_GB28181) && defined(SRS_GB28181_ICONV)
     if (CodeConverter::IsUTF8(xml_msg.c_str(), xml_msg.size()) == false) {
         char *outBuf = (char *)calloc(1, xml_msg.size() * 2);
         CodeConverter cc("gb2312", "utf-8");
@@ -407,7 +411,8 @@ srs_error_t SrsSipStack::parse_xml(std::string xml_msg, std::map<std::string, st
         if (outBuf)
             free(outBuf);
     }
-
+    #endif 
+    
     const char* start = xml_msg.c_str();
     const char* end = start + xml_msg.size();
     char* p = (char*)start;
