@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2021 The SRS Authors
+// Copyright (c) 2013-2021 Winlin
 //
 // SPDX-License-Identifier: MIT
 //
@@ -26,7 +26,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
 
 class SrsGoApiRtcPublish : public ISrsHttpHandler
@@ -40,7 +39,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
-    srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler
