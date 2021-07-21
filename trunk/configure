@@ -243,7 +243,7 @@ if [[ $SRS_SRT == YES ]]; then
     MODULE_ID="SRT"
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot} ${LibSRTRoot})
-    MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data")
+    MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data" "srt_log")
     SRT_INCS=(${LibSRTRoot} ${SrsSRTRoot}); MODULE_DIR=${SrsSRTRoot} . auto/modules.sh
     SRT_OBJS="${MODULE_OBJS[@]}"
 fi

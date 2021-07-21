@@ -30,6 +30,7 @@ private:
     //init srt socket and srt epoll
     int init_srt();
     int init_srt_parameter();
+    void init_srt_log();
     
     //srt main epoll loop
     void on_work();
