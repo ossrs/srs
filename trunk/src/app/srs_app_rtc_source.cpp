@@ -2287,7 +2287,12 @@ void SrsRtcSourceDescription::set_video_track_descs(const SrsMediaDesc &remote_m
     if (remote_media_desc.simulcast_spec_version()) {
         // todo check simulcast kSimulcastApiVersionSpecCompliant
         for (size_t i=0; i<remote_media_desc.session_info_.simulcast_.rids.size(); ++i) {
-            video_track_descs_.push_back(track_desc->copy());
+            SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+            // NOTE: here ssrc is 0
+            // track_desc_copy->ssrc_ = 0;
+            track_desc_copy->id_ = remote_media_desc.msid_tracker_;
+            track_desc_copy->msid_ = remote_media_desc.msid_;
+            video_track_descs_.push_back(track_desc_copy);
         }
     } else {
         string track_id;
