@@ -1865,6 +1865,9 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type()
     if (!h264_param_.packetization_mode.empty()) {
         format_specific_param << ";packetization-mode=" << h264_param_.packetization_mode;
     }
+    if (!h264_param_.x_google_bitrate.empty()) {
+        format_specific_param << ";" << h264_param_.x_google_bitrate;
+    }
     if (!h264_param_.profile_level_id.empty()) {
         format_specific_param << ";profile-level-id=" << h264_param_.profile_level_id;
     }

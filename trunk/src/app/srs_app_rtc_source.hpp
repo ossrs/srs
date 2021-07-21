@@ -363,6 +363,7 @@ public:
         std::string profile_level_id;
         std::string packetization_mode;
         std::string level_asymmerty_allow;
+        std::string x_google_bitrate;
     };
     H264SpecificParameter h264_param_;
 
