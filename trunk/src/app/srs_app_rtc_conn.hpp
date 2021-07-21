@@ -404,7 +404,7 @@ private:
 //
 // For performance, we use non-public from resource,
 // see https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtcConnection : public ISrsResource, public ISrsDisposingHandler
+class SrsRtcConnection : public ISrsResource, public ISrsDisposingHandler, public ISrsExpire
 {
     friend class SrsSecurityTransport;
     friend class SrsRtcPlayStream;
@@ -486,6 +486,9 @@ public:
 public:
     virtual const SrsContextId& get_id();
     virtual std::string desc();
+// Interface ISrsExpire.
+public:
+    virtual void expire();
 public:
     void switch_to_context();
     const SrsContextId& context_id();

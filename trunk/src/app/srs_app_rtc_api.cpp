@@ -94,6 +94,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     if ((prop = req->ensure_property_string("clientip")) != NULL) {
         clientip = prop->to_str();
     }
+    if (clientip.empty()) {
+        clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+    }
 
     string api;
     if ((prop = req->ensure_property_string("api")) != NULL) {
@@ -109,16 +112,21 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // Parse app and stream from streamurl.
     string app;
     string stream_name;
-    if (true) {
-        string tcUrl;
-        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
 
-        int port;
-        string schema, host, vhost, param;
-        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    string tcUrl;
+    srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+
+    int port;
+    string schema, host, vhost, param;
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+	
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(vhost);
+    if (parsed_vhost) {
+        vhost = parsed_vhost->arg0();
     }
 
-    // For client to specifies the candidate(EIP) of server.
+    // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
         eip = r->query_get("candidate");
@@ -157,13 +165,12 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     ruc.req_->app = app;
     ruc.req_->stream = stream_name;
-
-    // TODO: FIXME: Parse vhost.
-    // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
-    if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
-    }
+    ruc.req_->tcUrl = tcUrl;
+    ruc.req_->ip = clientip;
+    ruc.req_->host = host;
+    ruc.req_->vhost = vhost;
+    ruc.req_->schema = schema;
+    ruc.req_->param = param;
 
     SrsSdp local_sdp;
 
@@ -288,6 +295,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // Parse req, the request json object, from body.
     SrsJsonObject* req = NULL;
+    SrsAutoFree(SrsJsonObject, req);
     if (true) {
         string req_json;
         if ((err = r->body_read_all(req_json)) != srs_success) {
@@ -318,6 +326,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     if ((prop = req->ensure_property_string("clientip")) != NULL) {
         clientip = prop->to_str();
     }
+    if (clientip.empty()){
+        clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+    }
 
     string api;
     if ((prop = req->ensure_property_string("api")) != NULL) {
@@ -332,13 +343,17 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // Parse app and stream from streamurl.
     string app;
     string stream_name;
-    if (true) {
-        string tcUrl;
-        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+    string tcUrl;
+    srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
 
-        int port;
-        string schema, host, vhost, param;
-        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    int port;
+    string schema, host, vhost, param;
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+	
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(vhost);
+    if (parsed_vhost) {
+        vhost = parsed_vhost->arg0();
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -371,13 +386,12 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     ruc.req_->app = app;
     ruc.req_->stream = stream_name;
-
-    // TODO: FIXME: Parse vhost.
-    // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
-    if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
-    }
+    ruc.req_->tcUrl = tcUrl;
+    ruc.req_->ip = clientip;
+    ruc.req_->host = host;
+    ruc.req_->vhost = vhost;
+    ruc.req_->schema = schema;
+    ruc.req_->param = param;
 
     SrsSdp local_sdp;
 
