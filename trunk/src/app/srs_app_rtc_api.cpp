@@ -126,7 +126,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         vhost = parsed_vhost->arg0();
     }
 
-    // For client to specifies the EIP of server.
+    // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
         eip = r->query_get("candidate");
