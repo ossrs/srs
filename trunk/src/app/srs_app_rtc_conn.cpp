@@ -3076,59 +3076,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
 
         if (remote_media_desc.is_audio()) {
-            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
-
-                // ssrc have same track id, will be description in the same track description.
-                if (!stream_desc->audio_track_desc_) {
-                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                    track_desc_copy->msid_ = ssrc_info.msid_;
-                    stream_desc->audio_track_desc_ = track_desc_copy;
-                }
-                srs_info("%d/%d#publish audio ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
-                         (int) remote_media_desc.ssrc_infos_.size(),
-                         ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
-            }
+            stream_desc->set_audio_track_desc(remote_media_desc, track_desc);
         } else if (remote_media_desc.is_video()) {
-            if (remote_media_desc.simulcast_spec_version()) {
-                // todo check simulcast kSimulcastApiVersionSpecCompliant
-                for (size_t i=0; i<remote_media_desc.session_info_.simulcast_.rids.size(); ++i) {
-                    stream_desc->video_track_descs_.push_back(track_desc->copy());
-                }
-            } else {
-                std::string track_id;
-                for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-                    const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
-
-                    // ssrc have same track id, will be description in the same track description.
-                    if(track_id != ssrc_info.msid_tracker_) {
-                        SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                        track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                        track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                        track_desc_copy->msid_ = ssrc_info.msid_;
-                        if (remote_media_desc.is_original_ssrc(&ssrc_info)) {
-                            // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
-                            // todo: support standard simulcast, like "a=simulcast:send a;b;c"
-                            stream_desc->video_track_descs_.push_back(track_desc_copy);
-                            srs_info("%d/%d#publish video track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,(int)remote_media_desc.ssrc_infos_.size(),
-                                    track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
-                        } else {
-                            srs_info("%d/%d#ignore track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
-                                    (int) remote_media_desc.ssrc_infos_.size(),
-                                    track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(),
-                                    ssrc_info.msid_tracker_.c_str());
-                        }
-                        track_id = ssrc_info.msid_tracker_;
-                    } else {
-                        srs_info("%d/%d#ignore track_id_/msid_tracker_=%s, ssrc_=%u, msid_=%s", j,
-                                    (int) remote_media_desc.ssrc_infos_.size(),
-                                    track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str());
-                        track_id = "";
-                    }
-                }
-            }
+            stream_desc->set_video_track_descs(remote_media_desc, track_desc);
         } else {
             // TODO: FIXME: Handle for others.
         }

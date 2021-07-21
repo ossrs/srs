@@ -504,6 +504,8 @@ public:
     SrsRtcSourceDescription();
     virtual ~SrsRtcSourceDescription();
 
+    void set_audio_track_desc(const SrsMediaDesc &remote_media_desc, SrsRtcTrackDescription *track_desc);
+    void set_video_track_descs(const SrsMediaDesc &remote_media_desc, SrsRtcTrackDescription *track_desc);
 public:
     SrsRtcSourceDescription* copy();
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
