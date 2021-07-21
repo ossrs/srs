@@ -3107,7 +3107,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         local_media_desc.mid_ = audio_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // answer not need set stream_id and track_id;
         // local_media_desc.msid_ = stream_id;
         // local_media_desc.msid_tracker_ = audio_track->id_;
         local_media_desc.extmaps_ = audio_track->extmaps_;
@@ -3140,7 +3140,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         local_media_desc.mid_ = video_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // answer not need set stream_id and track_id;
         //local_media_desc.msid_ = stream_id;
         //local_media_desc.msid_tracker_ = video_track->id_;
         local_media_desc.extmaps_ = video_track->extmaps_;
