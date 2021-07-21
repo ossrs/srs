@@ -76,6 +76,17 @@ void srt2rtmp::insert_ctrl_message(unsigned int msg_type, const std::string& key
     //_notify_cond.notify_one();
     return;
 }
+
+void srt2rtmp::insert_log_message(LOGGER_LEVEL level, const std::string& log_content) {
+    std::unique_lock<std::mutex> locker(_mutex);
+
+    SRT_DATA_MSG_PTR msg_ptr = std::make_shared<SRT_DATA_MSG>(level, log_content);
+    msg_ptr->set_msg_type(SRT_MSG_LOG_TYPE);
+    _msg_queue.push(msg_ptr);
+
+    return;
+}
+
 SRT_DATA_MSG_PTR srt2rtmp::get_data_message() {
     std::unique_lock<std::mutex> locker(_mutex);
     SRT_DATA_MSG_PTR msg_ptr;
@@ -161,6 +172,11 @@ srs_error_t srt2rtmp::cycle() {
                     handle_close_rtmpsession(msg_ptr->get_path());
                     break;
                 }
+                case SRT_MSG_LOG_TYPE:
+                {
+                    handle_log_data(msg_ptr);
+                    break;
+                }
                 default:
                 {
                     srs_error("srt to rtmp get wrong message type(%u), path:%s",
@@ -190,6 +206,36 @@ void srt2rtmp::handle_ts_data(SRT_DATA_MSG_PTR data_ptr) {
 
     rtmp_ptr->receive_ts_data(data_ptr);
 
+    return;
+}
+
+void srt2rtmp::handle_log_data(SRT_DATA_MSG_PTR data_ptr) {
+    switch (data_ptr->get_log_level()) {
+        case SRT_LOGGER_INFO_LEVEL:
+        {
+            srs_info(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_TRACE_LEVEL:
+        {
+            srs_trace(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_WARN_LEVEL:
+        {
+            srs_warn(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_ERROR_LEVEL:
+        {
+            srs_error(data_ptr->get_log_string());
+            break;
+        }
+        default:
+        {
+            srs_trace(data_ptr->get_log_string());
+        }
+    }
     return;
 }
 

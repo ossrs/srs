@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-07-21, Merge [#2474](https://github.com/ossrs/srs/pull/2474), SRT: Use thread-safe log for multiple-threading SRT module. 4.0.143
 * v4.0, 2021-07-17, Fix bugs and enhance code. 4.0.142
 * v4.0, 2021-07-16, Support [CLion and cmake](https://github.com/ossrs/srs/wiki/v4_CN_IDE#clion) to build and debug SRS. 4.0.141
 * v4.0, 2021-07-08, For [#2403](https://github.com/ossrs/srs/issues/2403), fix padding packets for RTMP2RTC. 4.0.140
