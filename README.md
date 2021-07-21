@@ -280,7 +280,7 @@ read Product([CN][v4_CN_Compare]/[EN][v4_EN_Compare]).
 
 ## Performance
 
-Please read [PERFORMANCE](Performance.md#performance).
+Please read [PERFORMANCE](PERFORMANCE.md#performance).
 
 ## Architecture
 
