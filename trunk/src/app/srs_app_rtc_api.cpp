@@ -120,6 +120,9 @@ static srs_error_t do_serve_rtc_request(ISrsHttpResponseWriter* w, ISrsHttpMessa
 
     // For client to specifies the EIP of server.
     string eip = r->query_get("eip");
+    if (eip.empty()) {
+        eip = r->query_get("candidate");
+    }
     string codec = r->query_get("codec");
     // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
