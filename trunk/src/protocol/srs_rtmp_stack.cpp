@@ -1628,7 +1628,9 @@ SrsResponse::~SrsResponse()
 string srs_client_type_string(SrsRtmpConnType type)
 {
     switch (type) {
-        case SrsRtmpConnPlay: return "Play";
+        case SrsRtmpConnPlay:
+        case SrsRtcConnPlay:
+            return "Play";
         case SrsRtmpConnFlashPublish: return "flash-publish";
         case SrsRtmpConnFMLEPublish: return "fmle-publish";
         case SrsRtmpConnHaivisionPublish: return "haivision-publish";
@@ -1638,7 +1640,7 @@ string srs_client_type_string(SrsRtmpConnType type)
 
 bool srs_client_type_is_publish(SrsRtmpConnType type)
 {
-    return type != SrsRtmpConnPlay;
+    return ((type != SrsRtmpConnPlay) && (type != SrsRtcConnPlay));
 }
 
 SrsHandshakeBytes::SrsHandshakeBytes()
