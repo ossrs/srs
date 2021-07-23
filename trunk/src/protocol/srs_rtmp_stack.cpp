@@ -1628,12 +1628,12 @@ SrsResponse::~SrsResponse()
 string srs_client_type_string(SrsRtmpConnType type)
 {
     switch (type) {
-        case SrsRtmpConnPlay:
-        case SrsRtcConnPlay:
-            return "Play";
+        case SrsRtmpConnPlay: return "rtmp-play";
+        case SrsRtcConnPlay: return "rtc-play";
         case SrsRtmpConnFlashPublish: return "flash-publish";
         case SrsRtmpConnFMLEPublish: return "fmle-publish";
         case SrsRtmpConnHaivisionPublish: return "haivision-publish";
+        case SrsRtcConnPublish: return "rtc-publish";
         default: return "Unknown";
     }
 }
