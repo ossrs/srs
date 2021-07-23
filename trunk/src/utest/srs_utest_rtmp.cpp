@@ -1208,16 +1208,20 @@ VOID TEST(ProtocolRTMPTest, RecvMessage3)
     }
 
     if (true) {
-        EXPECT_STREQ("Play", srs_client_type_string(SrsRtmpConnPlay).c_str());
+        EXPECT_STREQ("rtmp-play", srs_client_type_string(SrsRtmpConnPlay).c_str());
+        EXPECT_STREQ("rtc-play", srs_client_type_string(SrsRtcConnPlay).c_str());
+        EXPECT_STREQ("rtc-publish", srs_client_type_string(SrsRtcConnPublish).c_str());
         EXPECT_STREQ("flash-publish", srs_client_type_string(SrsRtmpConnFlashPublish).c_str());
         EXPECT_STREQ("fmle-publish", srs_client_type_string(SrsRtmpConnFMLEPublish).c_str());
         EXPECT_STREQ("haivision-publish", srs_client_type_string(SrsRtmpConnHaivisionPublish).c_str());
         EXPECT_STREQ("Unknown", srs_client_type_string(SrsRtmpConnType(0x0f)).c_str());
 
         EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnFlashPublish));
+        EXPECT_TRUE(srs_client_type_is_publish(SrsRtcConnPublish));
         EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnFMLEPublish));
         EXPECT_TRUE(srs_client_type_is_publish(SrsRtmpConnHaivisionPublish));
         EXPECT_FALSE(srs_client_type_is_publish(SrsRtmpConnPlay));
+        EXPECT_FALSE(srs_client_type_is_publish(SrsRtcConnPlay));
     }
 }
 
