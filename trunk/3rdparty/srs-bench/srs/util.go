@@ -23,13 +23,10 @@ package srs
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -62,6 +59,7 @@ var srsDTLSDropPackets *int
 var srsSchema string
 var srsServer *string
 var srsStream *string
+var srsLiveStream *string
 var srsPublishAudio *string
 var srsPublishVideo *string
 var srsVnetClientIP *string
@@ -71,7 +69,8 @@ func prepareTest() error {
 
 	srsHttps = flag.Bool("srs-https", false, "Whther connect to HTTPS-API")
 	srsServer = flag.String("srs-server", "127.0.0.1", "The RTC server to connect to")
-	srsStream = flag.String("srs-stream", "/rtc/regression", "The RTC stream to play")
+	srsStream = flag.String("srs-stream", "/rtc/regression", "The RTC app/stream to play")
+	srsLiveStream = flag.String("srs-live-stream", "/live/livestream", "The LIVE app/stream to play")
 	srsLog = flag.Bool("srs-log", false, "Whether enable the detail log")
 	srsTimeout = flag.Int("srs-timeout", 5000, "For each case, the timeout in ms")
 	srsPlayPLI = flag.Int("srs-play-pli", 5000, "The PLI interval in seconds for player.")
@@ -130,6 +129,10 @@ func prepareTest() error {
 	return nil
 }
 
+// Request SRS RTC API, the apiPath like "/rtc/v1/play", the r is WebRTC url like
+// "webrtc://localhost/live/livestream", and the offer is SDP in string.
+//
+// Return the response of answer SDP in string.
 func apiRtcRequest(ctx context.Context, apiPath, r, offer string) (string, error) {
 	u, err := url.Parse(r)
 	if err != nil {
@@ -165,41 +168,18 @@ func apiRtcRequest(ctx context.Context, apiPath, r, offer string) (string, error
 		api, "", offer, r,
 	}
 
-	b, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", errors.Wrapf(err, "Marshal body %v", reqBody)
-	}
-	logger.If(ctx, "Request url api=%v with %v", api, string(b))
-	logger.Tf(ctx, "Request url api=%v with %v bytes", api, len(b))
-
-	req, err := http.NewRequest("POST", api, strings.NewReader(string(b)))
-	if err != nil {
-		return "", errors.Wrapf(err, "HTTP request %v", string(b))
-	}
-
-	res, err := http.DefaultClient.Do(req.WithContext(ctx))
-	if err != nil {
-		return "", errors.Wrapf(err, "Do HTTP request %v", string(b))
-	}
-
-	b2, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "Read response for %v", string(b))
-	}
-	logger.If(ctx, "Response from %v is %v", api, string(b2))
-	logger.Tf(ctx, "Response from %v is %v bytes", api, len(b2))
-
 	resBody := struct {
 		Code    int    `json:"code"`
 		Session string `json:"sessionid"`
 		SDP     string `json:"sdp"`
 	}{}
-	if err := json.Unmarshal(b2, &resBody); err != nil {
-		return "", errors.Wrapf(err, "Marshal %v", string(b2))
+
+	if err := apiRequest(ctx, api, reqBody, &resBody); err != nil {
+		return "", errors.Wrapf(err, "request api=%v", api)
 	}
 
 	if resBody.Code != 0 {
-		return "", errors.Errorf("Server fail code=%v %v", resBody.Code, string(b2))
+		return "", errors.Errorf("Server fail code=%v", resBody.Code)
 	}
 	logger.If(ctx, "Parse response to code=%v, session=%v, sdp=%v",
 		resBody.Code, resBody.Session, escapeSDP(resBody.SDP))
@@ -254,6 +234,11 @@ func (v *wallClock) Tick(d time.Duration) time.Duration {
 		return re
 	}
 	return 0
+}
+
+// Do nothing for SDP.
+func testUtilPassBy(s *webrtc.SessionDescription) error {
+	return nil
 }
 
 // Set to active, as DTLS client, to start ClientHello.
@@ -570,6 +555,7 @@ func (v *dtlsRecord) Unmarshal(b []byte) error {
 	return nil
 }
 
+// The func to setup testWebRTCAPI
 type testWebRTCAPIOptionFunc func(api *testWebRTCAPI)
 
 type testWebRTCAPI struct {
@@ -588,24 +574,87 @@ type testWebRTCAPI struct {
 	proxy *vnet_proxy.UDPProxy
 }
 
-func newTestWebRTCAPI(options ...testWebRTCAPIOptionFunc) (*testWebRTCAPI, error) {
+// The func to initialize testWebRTCAPI
+type testWebRTCAPIInitFunc func(api *testWebRTCAPI) error
+
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI
+func registerDefaultCodecs(api *testWebRTCAPI) error {
+	v := api
+
+	if err := v.mediaEngine.RegisterDefaultCodecs(); err != nil {
+		return err
+	}
+
+	if err := webrtc.RegisterDefaultInterceptors(v.mediaEngine, v.registry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI
+func registerMiniCodecs(api *testWebRTCAPI) error {
+	v := api
+
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeOpus, 48000, 2, "minptime=10;useinbandfec=1", nil},
+		PayloadType:        111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return err
+	}
+
+	videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}, {"nack", ""}, {"nack", "pli"}}
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeH264, 90000, 0, "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f", videoRTCPFeedback},
+		PayloadType:        108,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return err
+	}
+
+	// Interceptors for NACK??? @see webrtc.ConfigureNack(v.mediaEngine, v.registry)
+	return nil
+}
+
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI
+func registerMiniCodecsWithoutNack(api *testWebRTCAPI) error {
+	v := api
+
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeOpus, 48000, 2, "minptime=10;useinbandfec=1", nil},
+		PayloadType:        111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return err
+	}
+
+	videoRTCPFeedback := []webrtc.RTCPFeedback{{"goog-remb", ""}, {"ccm", "fir"}}
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{webrtc.MimeTypeH264, 90000, 0, "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f", videoRTCPFeedback},
+		PayloadType:        108,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return err
+	}
+
+	// Interceptors for NACK??? @see webrtc.ConfigureNack(v.mediaEngine, v.registry)
+	return nil
+}
+
+func newTestWebRTCAPI(inits ...testWebRTCAPIInitFunc) (*testWebRTCAPI, error) {
 	v := &testWebRTCAPI{}
 
 	v.mediaEngine = &webrtc.MediaEngine{}
-	if err := v.mediaEngine.RegisterDefaultCodecs(); err != nil {
-		return nil, err
-	}
-
 	v.registry = &interceptor.Registry{}
-	if err := webrtc.RegisterDefaultInterceptors(v.mediaEngine, v.registry); err != nil {
-		return nil, err
-	}
-
-	for _, setup := range options {
-		setup(v)
-	}
-
 	v.settingEngine = &webrtc.SettingEngine{}
+
+	// Apply initialize filter, for example, register default codecs when create publisher/player.
+	for _, setup := range inits {
+		if setup == nil {
+			continue
+		}
+
+		if err := setup(v); err != nil {
+			return nil, err
+		}
+	}
 
 	return v, nil
 }
@@ -657,10 +706,12 @@ func (v *testWebRTCAPI) Setup(vnetClientIP string, options ...testWebRTCAPIOptio
 		return err
 	}
 
+	// Apply options from params, for example, tester to register vnet filter.
 	for _, setup := range options {
 		setup(v)
 	}
 
+	// Apply options in api, for example, publisher register audio-level interceptor.
 	for _, setup := range v.options {
 		setup(v)
 	}
@@ -681,26 +732,28 @@ func (v *testWebRTCAPI) NewPeerConnection(configuration webrtc.Configuration) (*
 type testPlayerOptionFunc func(p *testPlayer) error
 
 type testPlayer struct {
+	onOffer   func(s *webrtc.SessionDescription) error
+	onAnswer  func(s *webrtc.SessionDescription) error
 	pc        *webrtc.PeerConnection
 	receivers []*webrtc.RTPReceiver
 	// We should dispose it.
 	api *testWebRTCAPI
 	// Optional suffix for stream url.
 	streamSuffix string
+	// Optional app/stream to play, use srsStream by default.
+	defaultStream string
 }
 
-func createApiForPlayer(play *testPlayer) error {
-	api, err := newTestWebRTCAPI()
-	if err != nil {
-		return err
-	}
-
-	play.api = api
-	return nil
-}
-
-func newTestPlayer(options ...testPlayerOptionFunc) (*testPlayer, error) {
+// Create test player, the init is used to initialize api which maybe nil,
+// and the options is used to setup the player itself.
+func newTestPlayer(init testWebRTCAPIInitFunc, options ...testPlayerOptionFunc) (*testPlayer, error) {
 	v := &testPlayer{}
+
+	api, err := newTestWebRTCAPI(init)
+	if err != nil {
+		return nil, err
+	}
+	v.api = api
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
@@ -733,6 +786,9 @@ func (v *testPlayer) Close() error {
 
 func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
+	if v.defaultStream != "" {
+		r = fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, v.defaultStream)
+	}
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
 	}
@@ -765,22 +821,35 @@ func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 		return errors.Wrapf(err, "Set offer %v", offer)
 	}
 
-	answer, err := apiRtcRequest(ctx, "/rtc/v1/play", r, offer.SDP)
+	if v.onOffer != nil {
+		if err := v.onOffer(&offer); err != nil {
+			return errors.Wrapf(err, "sdp %v %v", offer.Type, offer.SDP)
+		}
+	}
+
+	answerSDP, err := apiRtcRequest(ctx, "/rtc/v1/play", r, offer.SDP)
 	if err != nil {
 		return errors.Wrapf(err, "Api request offer=%v", offer.SDP)
 	}
 
 	// Run a proxy for real server and vnet.
-	if address, err := parseAddressOfCandidate(answer); err != nil {
-		return errors.Wrapf(err, "parse address of %v", answer)
+	if address, err := parseAddressOfCandidate(answerSDP); err != nil {
+		return errors.Wrapf(err, "parse address of %v", answerSDP)
 	} else if err := v.api.proxy.Proxy(v.api.network, address); err != nil {
 		return errors.Wrapf(err, "proxy %v to %v", v.api.network, address)
 	}
 
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{
-		Type: webrtc.SDPTypeAnswer, SDP: answer,
-	}); err != nil {
-		return errors.Wrapf(err, "Set answer %v", answer)
+	answer := &webrtc.SessionDescription{
+		Type: webrtc.SDPTypeAnswer, SDP: answerSDP,
+	}
+	if v.onAnswer != nil {
+		if err := v.onAnswer(answer); err != nil {
+			return errors.Wrapf(err, "on answerSDP")
+		}
+	}
+
+	if err := pc.SetRemoteDescription(*answer); err != nil {
+		return errors.Wrapf(err, "Set answerSDP %v", answerSDP)
 	}
 
 	handleTrack := func(ctx context.Context, track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) error {
@@ -852,20 +921,18 @@ type testPublisher struct {
 	cancel context.CancelFunc
 }
 
-func createApiForPublisher(pub *testPublisher) error {
-	api, err := newTestWebRTCAPI()
-	if err != nil {
-		return err
-	}
-
-	pub.api = api
-	return nil
-}
-
-func newTestPublisher(options ...testPublisherOptionFunc) (*testPublisher, error) {
+// Create test publisher, the init is used to initialize api which maybe nil,
+// and the options is used to setup the publisher itself.
+func newTestPublisher(init testWebRTCAPIInitFunc, options ...testPublisherOptionFunc) (*testPublisher, error) {
 	sourceVideo, sourceAudio := *srsPublishVideo, *srsPublishAudio
 
 	v := &testPublisher{}
+
+	api, err := newTestWebRTCAPI(init)
+	if err != nil {
+		return nil, err
+	}
+	v.api = api
 
 	for _, opt := range options {
 		if err := opt(v); err != nil {
@@ -882,7 +949,6 @@ func newTestPublisher(options ...testPublisherOptionFunc) (*testPublisher, error
 	}
 
 	// Setup the interceptors for packets.
-	api := v.api
 	api.options = append(api.options, func(api *testWebRTCAPI) {
 		// Filter for RTCP packets.
 		rtcpInterceptor := &rtcpInterceptor{}
