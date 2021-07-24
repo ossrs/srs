@@ -3139,6 +3139,10 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             // We should clear the extmaps of source(publisher).
             // @see https://github.com/ossrs/srs/issues/2370
             track->extmaps_.clear();
+			
+            // We should clear the rtcp_fbs of source(publisher).
+            // @see https://github.com/ossrs/srs/issues/2371
+            track->media_->rtcp_fbs_.clear();
 
             // Use remote/source/offer PayloadType.
             track->media_->pt_of_publisher_ = track->media_->pt_;
@@ -3156,7 +3160,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             uint32_t publish_ssrc = track->ssrc_;
 
             vector<string> rtcp_fb;
-            track->media_->rtcp_fbs_.swap(rtcp_fb);
+            remote_payload.rtcp_fb_.swap(rtcp_fb);
             for (int j = 0; j < (int)rtcp_fb.size(); j++) {
                 if (nack_enabled) {
                     if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {
