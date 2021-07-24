@@ -27,6 +27,7 @@
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_threads.hpp>
+#include <srs_app_statistic.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -540,7 +541,8 @@ srs_error_t SrsRtcSource::on_publish()
         _srs_hybrid->timer100ms()->subscribe(this);
     }
 
-    // TODO: FIXME: Handle by statistic.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_publish(req, _source_id.c_str());
 
     return err;
 }
@@ -576,7 +578,8 @@ void SrsRtcSource::on_unpublish()
         srs_freep(bridger_);
     }
 
-    // TODO: FIXME: Handle by statistic.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_close(req);
 }
 
 void SrsRtcSource::subscribe(ISrsRtcSourceEventHandler* h)
