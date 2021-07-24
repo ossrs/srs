@@ -23,13 +23,10 @@ package srs
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -130,6 +127,10 @@ func prepareTest() error {
 	return nil
 }
 
+// Request SRS RTC API, the apiPath like "/rtc/v1/play", the r is WebRTC url like
+// "webrtc://localhost/live/livestream", and the offer is SDP in string.
+//
+// Return the response of answer SDP in string.
 func apiRtcRequest(ctx context.Context, apiPath, r, offer string) (string, error) {
 	u, err := url.Parse(r)
 	if err != nil {
@@ -165,41 +166,18 @@ func apiRtcRequest(ctx context.Context, apiPath, r, offer string) (string, error
 		api, "", offer, r,
 	}
 
-	b, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", errors.Wrapf(err, "Marshal body %v", reqBody)
-	}
-	logger.If(ctx, "Request url api=%v with %v", api, string(b))
-	logger.Tf(ctx, "Request url api=%v with %v bytes", api, len(b))
-
-	req, err := http.NewRequest("POST", api, strings.NewReader(string(b)))
-	if err != nil {
-		return "", errors.Wrapf(err, "HTTP request %v", string(b))
-	}
-
-	res, err := http.DefaultClient.Do(req.WithContext(ctx))
-	if err != nil {
-		return "", errors.Wrapf(err, "Do HTTP request %v", string(b))
-	}
-
-	b2, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "Read response for %v", string(b))
-	}
-	logger.If(ctx, "Response from %v is %v", api, string(b2))
-	logger.Tf(ctx, "Response from %v is %v bytes", api, len(b2))
-
 	resBody := struct {
 		Code    int    `json:"code"`
 		Session string `json:"sessionid"`
 		SDP     string `json:"sdp"`
 	}{}
-	if err := json.Unmarshal(b2, &resBody); err != nil {
-		return "", errors.Wrapf(err, "Marshal %v", string(b2))
+
+	if err := apiRequest(ctx, api, reqBody, &resBody); err != nil {
+		return "", errors.Wrapf(err, "request api=%v", api)
 	}
 
 	if resBody.Code != 0 {
-		return "", errors.Errorf("Server fail code=%v %v", resBody.Code, string(b2))
+		return "", errors.Errorf("Server fail code=%v", resBody.Code)
 	}
 	logger.If(ctx, "Parse response to code=%v, session=%v, sdp=%v",
 		resBody.Code, resBody.Session, escapeSDP(resBody.SDP))
