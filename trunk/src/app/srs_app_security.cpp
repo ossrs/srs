@@ -72,6 +72,7 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
 
         switch (type) {
             case SrsRtmpConnPlay:
+            case SrsRtcConnPlay:
                 if (rule->arg0() != "play") {
                     break;
                 }
@@ -82,6 +83,7 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
             case SrsRtmpConnFMLEPublish:
             case SrsRtmpConnFlashPublish:
             case SrsRtmpConnHaivisionPublish:
+            case SrsRtcConnPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }
@@ -112,6 +114,7 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
         
         switch (type) {
             case SrsRtmpConnPlay:
+            case SrsRtcConnPlay:               
                 if (rule->arg0() != "play") {
                     break;
                 }
@@ -122,6 +125,7 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
             case SrsRtmpConnFMLEPublish:
             case SrsRtmpConnFlashPublish:
             case SrsRtmpConnHaivisionPublish:
+            case SrsRtcConnPublish:
                 if (rule->arg0() != "publish") {
                     break;
                 }
