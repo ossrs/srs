@@ -58,6 +58,44 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// Test for https://github.com/ossrs/srs/pull/2483
+func TestPR2483_RtcStatApi_PublisherOnly(t *testing.T) {
+	if err := filterTestError(func() error {
+		streamSuffix := fmt.Sprintf("publish-only-%v-%v", os.Getpid(), rand.Int())
+		p, err := newTestPublisher(createApiForPublisher, func(p *testPublisher) error {
+			p.streamSuffix = streamSuffix
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+			var once sync.Once
+			api.registry.Add(newRTCPInterceptor(func(i *rtcpInterceptor) {
+				i.rtcpReader = func(buf []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+					once.Do(func() {
+						stat := newStatAPI(ctx).Streams().FilterByStreamSuffix(p.streamSuffix)
+						logger.Tf(ctx, "Check publishing, streams=%v, stream=%v", len(stat.streams), stat.stream)
+						if stat.stream != nil {
+							cancel() // done
+						}
+					})
+					return i.nextRTCPReader.Read(buf, attributes)
+				}
+			}))
+		}); err != nil {
+			return err
+		}
+
+		return p.Run(ctx, cancel)
+	}()); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
 // Basic use scenario, publish a stream.
 func TestRtcBasic_PublishOnly(t *testing.T) {
 	if err := filterTestError(func() error {
