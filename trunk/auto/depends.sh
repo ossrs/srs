@@ -504,8 +504,6 @@ if [[ $SRS_CHERRYPY == YES ]]; then
     echo "Link players to cherrypy static-dir"
     rm -rf research/api-server/static-dir/players &&
     ln -sf `pwd`/research/players research/api-server/static-dir/players &&
-    rm -f research/api-server/static-dir/crossdomain.xml &&
-    ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
     rm -rf research/api-server/static-dir/live &&
     mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
     ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&

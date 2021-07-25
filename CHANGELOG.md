@@ -6,6 +6,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-07-25, Fix build failed. 4.0.146
 * v4.0, 2021-07-24, Merge [#2373](https://github.com/ossrs/srs/pull/2373), RTC: Fix NACK negotiation bug for Firefox. 4.0.145
 * v4.0, 2021-07-24, Merge [#2483](https://github.com/ossrs/srs/pull/2483), RTC: Support statistic for HTTP-API, HTTP-Callback and Security. 4.0.144
 * v4.0, 2021-07-21, Merge [#2474](https://github.com/ossrs/srs/pull/2474), SRT: Use thread-safe log for multiple-threading SRT module. 4.0.143
