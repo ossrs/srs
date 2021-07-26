@@ -587,6 +587,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
     SrsHttpConn* hc = dynamic_cast<SrsHttpConn*>(hr->connection());
     
+    // update client ip
+    req->ip = hc->remote_ip();    
+
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(_srs_context->get_id().c_str(), req, hc, SrsRtmpConnPlay)) != srs_success) {
