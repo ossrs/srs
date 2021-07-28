@@ -65,6 +65,7 @@
 #endif
 
 #define ST_EVENTSYS_DEFAULT 0
+#define ST_EVENTSYS_SELECT  1
 #define ST_EVENTSYS_ALT     3
 
 #ifdef __cplusplus
