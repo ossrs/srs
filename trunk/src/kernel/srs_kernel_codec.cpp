@@ -1433,6 +1433,7 @@ srs_error_t SrsFormat::hevc_demux_ibmf_format(SrsBuffer* stream) {
     int nal_len_size = 0;
 
     nal_len_size = vcodec->_hevcDecConfRecord.lengthSizeMinusOne;
+    vcodec->NAL_unit_length = nal_len_size;
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
