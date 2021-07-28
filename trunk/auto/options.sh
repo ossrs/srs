@@ -284,6 +284,7 @@ function parse_user_option() {
         --with-iconv)                   SRS_ICONV=YES       ;;
         --without-iconv)                SRS_ICONV=NO        ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
+        --iconv)                        SRS_ICONV=$(switch2value $value) ;;
 
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
         --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
