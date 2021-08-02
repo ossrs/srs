@@ -1,10 +1,11 @@
 # SRS(Simple Realtime Server)
 
 ![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/4.0release)
+[![](https://github.com/ossrs/srs/workflows/CodeQL/badge.svg)](https://github.com/ossrs/srs/actions?query=workflow%3ACodeQL)
 [![](https://circleci.com/gh/ossrs/srs/tree/4.0release.svg?style=svg&circle-token=1ef1d5b5b0cde6c8c282ed856a18199f9e8f85a9)](https://circleci.com/gh/ossrs/srs/tree/4.0release)
 [![](https://codecov.io/gh/ossrs/srs/branch/4.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/4.0release)
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge.png)](../../wikis/Contact#wechat)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs.png)](http://bbs.ossrs.net)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs2.png)](http://bbs.ossrs.net)
 
 SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
@@ -22,7 +23,7 @@ please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#
 ```bash
 docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:v4.0.117 ./objs/srs -c conf/srs.conf
+    ossrs/srs:v4.0.139 ./objs/srs -c conf/srs.conf
 ```
 
 <a name="usage-source"></a>
@@ -140,6 +141,8 @@ Other API used by [ossrs.net](https://ossrs.net):
 * `/gif/v1` The statistic API.
 * `/service/v1/` The latest available version API.
 * `/ws-service/v1/` The latest available version API, by websocket.
+* `/im-service/v1/` The latest available version API, by IM.
+* `/code-service/v1/` The latest available version API, by Code verification.
 
 ## Features
 
@@ -220,12 +223,8 @@ Please read [CHANGELOG](CHANGELOG.md#changelog).
 
 ## Releases
 
-* 2021-06-26, [Release v3.0-r6](https://github.com/ossrs/srs/releases/tag/v3.0-r6), 3.0 release6, 3.0.163, 123011 lines.
-* 2021-04-28, [Release v3.0-r5][r3.0r5], 3.0 release5, 3.0.161, 122750 lines.
-* 2021-04-24, [Release v3.0-r4][r3.0r4], 3.0 release4, 3.0.160, 122750 lines.
-* 2021-01-02, [Release v3.0-r3][r3.0r3], 3.0 release3, 3.0.156, 122736 lines.
-* 2020-10-31, [Release v3.0-r2][r3.0r2], 3.0 release2, 3.0.153, 122663 lines.
-* 2020-10-10, [Release v3.0-r1][r3.0r1], 3.0 release1, 3.0.144, 122674 lines.
+* 2020-07-25, Release [v4.0.146](https://github.com/ossrs/srs/releases/tag/v4.0.146), 4.0 dev1, v4.0.146, 144026 lines.
+* 2020-07-04, Release [v4.0.139](https://github.com/ossrs/srs/releases/tag/v4.0.139), 4.0 dev0, v4.0.139, 143245 lines.
 * 2020-06-27, [Release v3.0-r0][r3.0r0], 3.0 release0, 3.0.141, 122674 lines.
 * 2020-03-29, [Release v3.0-b3][r3.0b4], 3.0 beta4, 3.0.139, 122674 lines.
 * 2020-03-18, [Release v3.0-b3][r3.0b3], 3.0 beta3, 3.0.134, 122509 lines.
@@ -282,7 +281,7 @@ read Product([CN][v4_CN_Compare]/[EN][v4_EN_Compare]).
 
 ## Performance
 
-Please read [PERFORMANCE](Performance.md#performance).
+Please read [PERFORMANCE](PERFORMANCE.md#performance).
 
 ## Architecture
 
@@ -378,7 +377,7 @@ Supported operating systems and hardware:
 Beijing, 2013.10<br/>
 Winlin
 
-[authors]: https://github.com/ossrs/srs/blob/4.0release/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
 [st]: https://github.com/ossrs/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

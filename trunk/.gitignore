@@ -13,6 +13,7 @@
 /ide/srs_xcode/srs_xcode.xcodeproj/xcuserdata/
 /research/aac/
 /research/api-server/static-dir/mse
+/research/api-server/static-dir/crossdomain.xml
 /research/bat/
 /research/big/
 /research/bitch/
@@ -48,4 +49,3 @@ bug
 /research/thread-model/thread-local
 *.gcp
 *.svg
-

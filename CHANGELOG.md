@@ -6,6 +6,16 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-07-25, Fix build failed. 4.0.146
+* v4.0, 2021-07-24, Merge [#2373](https://github.com/ossrs/srs/pull/2373), RTC: Fix NACK negotiation bug for Firefox. 4.0.145
+* v4.0, 2021-07-24, Merge [#2483](https://github.com/ossrs/srs/pull/2483), RTC: Support statistic for HTTP-API, HTTP-Callback and Security. 4.0.144
+* v4.0, 2021-07-21, Merge [#2474](https://github.com/ossrs/srs/pull/2474), SRT: Use thread-safe log for multiple-threading SRT module. 4.0.143
+* v4.0, 2021-07-17, Fix bugs and enhance code. 4.0.142
+* v4.0, 2021-07-16, Support [CLion and cmake](https://github.com/ossrs/srs/wiki/v4_CN_IDE#clion) to build and debug SRS. 4.0.141
+* v4.0, 2021-07-08, For [#2403](https://github.com/ossrs/srs/issues/2403), fix padding packets for RTMP2RTC. 4.0.140
+* v4.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 4.0.139
+* v4.0, 2021-07-01, Merge [#2452](https://github.com/ossrs/srs/pull/2452), fix FFmpeg bug by updating channel_layout. 4.0.138
+* v4.0, 2021-06-30, Merge [#2440](https://github.com/ossrs/srs/pull/2440), fix [#2390](https://github.com/ossrs/srs/issues/2390), SRT bug for zerolatency. 4.0.137
 * v4.0, 2021-06-28, Merge [#2435](https://github.com/ossrs/srs/pull/2435), fix bug for HTTP-RAW-API to check vhost. 4.0.136
 * v4.0, 2021-06-28, Fix [#2431](https://github.com/ossrs/srs/issues/2431), configure FFmpeg bug. 4.0.135 
 * v4.0, 2021-06-28, Merge [#2444](https://github.com/ossrs/srs/pull/2444), add libavcodec/crystalhd.c for FFmpeg. 4.0.134
@@ -793,7 +803,7 @@ Winlin 2021
 [pr #558]: https://github.com/ossrs/srs/pull/558
 [pr #559]: https://github.com/ossrs/srs/pull/559
 
-[authors]: https://github.com/ossrs/srs/blob/develop/AUTHORS.txt
+[authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/v4_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
 [st2]: https://github.com/ossrs/state-threads/tree/srs

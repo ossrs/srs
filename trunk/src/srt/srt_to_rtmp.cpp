@@ -76,6 +76,17 @@ void srt2rtmp::insert_ctrl_message(unsigned int msg_type, const std::string& key
     //_notify_cond.notify_one();
     return;
 }
+
+void srt2rtmp::insert_log_message(LOGGER_LEVEL level, const std::string& log_content) {
+    std::unique_lock<std::mutex> locker(_mutex);
+
+    SRT_DATA_MSG_PTR msg_ptr = std::make_shared<SRT_DATA_MSG>(level, log_content);
+    msg_ptr->set_msg_type(SRT_MSG_LOG_TYPE);
+    _msg_queue.push(msg_ptr);
+
+    return;
+}
+
 SRT_DATA_MSG_PTR srt2rtmp::get_data_message() {
     std::unique_lock<std::mutex> locker(_mutex);
     SRT_DATA_MSG_PTR msg_ptr;
@@ -161,6 +172,11 @@ srs_error_t srt2rtmp::cycle() {
                     handle_close_rtmpsession(msg_ptr->get_path());
                     break;
                 }
+                case SRT_MSG_LOG_TYPE:
+                {
+                    handle_log_data(msg_ptr);
+                    break;
+                }
                 default:
                 {
                     srs_error("srt to rtmp get wrong message type(%u), path:%s",
@@ -190,6 +206,36 @@ void srt2rtmp::handle_ts_data(SRT_DATA_MSG_PTR data_ptr) {
 
     rtmp_ptr->receive_ts_data(data_ptr);
 
+    return;
+}
+
+void srt2rtmp::handle_log_data(SRT_DATA_MSG_PTR data_ptr) {
+    switch (data_ptr->get_log_level()) {
+        case SRT_LOGGER_INFO_LEVEL:
+        {
+            srs_info(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_TRACE_LEVEL:
+        {
+            srs_trace(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_WARN_LEVEL:
+        {
+            srs_warn(data_ptr->get_log_string());
+            break;
+        }
+        case SRT_LOGGER_ERROR_LEVEL:
+        {
+            srs_error(data_ptr->get_log_string());
+            break;
+        }
+        default:
+        {
+            srs_trace(data_ptr->get_log_string());
+        }
+    }
     return;
 }
 
@@ -466,14 +512,14 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
             return srs_error_wrap(err, "demux annexb");
         }
         
-        //srs_trace_data(frame, frame_size, "video annexb demux:");
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
         
-        // ignore the nalu type sps(7), pps(8), aud(9)
-        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+        // ignore the nalu type aud(9), pad(12)
+        if ((nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter)
+           || (nal_unit_type == SrsAvcNaluTypeFilterData)) {
             continue;
         }
 
@@ -523,12 +569,14 @@ srs_error_t rtmp_client::on_ts_video(std::shared_ptr<SrsBuffer> avs_ptr, uint64_
         }
         
         // ibp frame.
-        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
+        // for Issue: https://github.com/ossrs/srs/issues/2390
+        // we only skip pps/sps frame and send left nalus.
+        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", avs_ptr->left() + frame_size, dts);
+        if ((err = write_h264_ipb_frame(avs_ptr->head() - frame_size, avs_ptr->left() + frame_size, dts, pts)) != srs_success) {
             return srs_error_wrap(err, "write frame");
         }
         _last_live_ts = now_ms();
+        break;
     }
     
     return err;

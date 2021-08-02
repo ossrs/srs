@@ -80,13 +80,14 @@ string srs_path_build_timestamp(string template_path)
     }
     
     // to calendar time
-    struct tm* tm;
+    struct tm now;
+    // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
     if (_srs_config->get_utc_time()) {
-        if ((tm = gmtime(&tv.tv_sec)) == NULL) {
+        if (gmtime_r(&tv.tv_sec, &now) == NULL) {
             return path;
         }
     } else {
-        if ((tm = localtime(&tv.tv_sec)) == NULL) {
+        if (localtime_r(&tv.tv_sec, &now) == NULL) {
             return path;
         }
     }
@@ -96,32 +97,32 @@ string srs_path_build_timestamp(string template_path)
     
     // [2006], replace with current year.
     if (true) {
-        snprintf(buf, sizeof(buf), "%04d", 1900 + tm->tm_year);
+        snprintf(buf, sizeof(buf), "%04d", 1900 + now.tm_year);
         path = srs_string_replace(path, "[2006]", buf);
     }
     // [01], replace this const to current month.
     if (true) {
-        snprintf(buf, sizeof(buf), "%02d", 1 + tm->tm_mon);
+        snprintf(buf, sizeof(buf), "%02d", 1 + now.tm_mon);
         path = srs_string_replace(path, "[01]", buf);
     }
     // [02], replace this const to current date.
     if (true) {
-        snprintf(buf, sizeof(buf), "%02d", tm->tm_mday);
+        snprintf(buf, sizeof(buf), "%02d", now.tm_mday);
         path = srs_string_replace(path, "[02]", buf);
     }
     // [15], replace this const to current hour.
     if (true) {
-        snprintf(buf, sizeof(buf), "%02d", tm->tm_hour);
+        snprintf(buf, sizeof(buf), "%02d", now.tm_hour);
         path = srs_string_replace(path, "[15]", buf);
     }
     // [04], repleace this const to current minute.
     if (true) {
-        snprintf(buf, sizeof(buf), "%02d", tm->tm_min);
+        snprintf(buf, sizeof(buf), "%02d", now.tm_min);
         path = srs_string_replace(path, "[04]", buf);
     }
     // [05], repleace this const to current second.
     if (true) {
-        snprintf(buf, sizeof(buf), "%02d", tm->tm_sec);
+        snprintf(buf, sizeof(buf), "%02d", now.tm_sec);
         path = srs_string_replace(path, "[05]", buf);
     }
     // [999], repleace this const to current millisecond.

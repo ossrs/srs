@@ -182,8 +182,8 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-if [[ -f ../AUTHORS.txt ]]; then
-	SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
+if [[ -f AUTHORS.txt ]]; then
+	SRS_CONSTRIBUTORS=`cat AUTHORS.txt|grep "*"|awk '{print $2}'`
 	echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 	for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
 	    CONTRIBUTOR=`echo $CONTRIBUTOR|sed 's/@users.noreply.github.com>/@github>/g'`

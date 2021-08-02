@@ -7,6 +7,7 @@
 #include "srt_conn.hpp"
 #include "time_help.h"
 #include "stringex.hpp"
+#include "srt_log.hpp"
 #include <vector>
 
 #include <srs_app_config.hpp>
@@ -134,7 +135,7 @@ srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn
     } else {
         _vhost = "__default_host__";
     }
-    srs_trace("srt connect construct streamid:%s, mode:%d, subpath:%s, vhost:%s", 
+    srt_log_trace("srt connect construct streamid:%s, mode:%d, subpath:%s, vhost:%s", 
         streamid.c_str(), _mode, _url_subpath.c_str(), _vhost.c_str());
 }
 
@@ -182,7 +183,7 @@ int srt_conn::read(unsigned char* data, int len) {
 
     ret = srt_recv(_conn_fd, (char*)data, len);
     if (ret <= 0) {
-        srs_error("srt read error:%d, socket fd:%d", ret, _conn_fd);
+        srt_log_error("srt read error:%d, socket fd:%d", ret, _conn_fd);
         return ret;
     }
     return ret;
@@ -193,7 +194,7 @@ int srt_conn::write(unsigned char* data, int len) {
 
     ret = srt_send(_conn_fd, (char*)data, len);
     if (ret <= 0) {
-        srs_error("srt write error:%d, socket fd:%d", ret, _conn_fd);
+        srt_log_error("srt write error:%d, socket fd:%d", ret, _conn_fd);
         return ret;
     }
     return ret;

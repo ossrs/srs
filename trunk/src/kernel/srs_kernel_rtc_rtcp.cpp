@@ -474,6 +474,7 @@ SrsRtcpRR::SrsRtcpRR(uint32_t sender_ssrc)
     header_.version = kRtcpVersion;
     header_.length = 7;
     ssrc_ = sender_ssrc;
+    // TODO: FIXME: Fix warning.
     memset(&rb_, 0, sizeof(SrsRtcpRB));
 }
 
