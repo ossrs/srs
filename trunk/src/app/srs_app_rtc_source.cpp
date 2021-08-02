@@ -320,6 +320,85 @@ ISrsRtcSourceBridger::~ISrsRtcSourceBridger()
 {
 }
 
+
+SrsRtcGopCache::SrsRtcGopCache()
+{
+    meet_keyframe = false;
+    cached_rtp_packet_count = 0;
+    enable_rtc_gop_cache = false;
+}
+
+SrsRtcGopCache::~SrsRtcGopCache()
+{
+    clear();
+}
+
+void SrsRtcGopCache::dispose()
+{
+    clear();
+}
+
+void SrsRtcGopCache::set(bool v, int max_size)
+{
+    enable_rtc_gop_cache = v;
+    max_cached_count = max_size;
+    if (!v) {
+        clear();
+        return;
+    }
+}
+
+srs_error_t SrsRtcGopCache::cache(SrsRtpPacket* pkt)
+{
+    srs_error_t err = srs_success;
+    
+    if (!enable_rtc_gop_cache) {
+        return err;
+    }
+    if (cached_rtp_packet_count >= max_cached_count) {
+        return err;
+    }
+    if(pkt->nalu_type == kStapA) {
+        clear();
+        meet_keyframe = true;
+    }
+
+    if (meet_keyframe) {
+        // cache the packet.
+        rtc_gop_cache_vec.push_back(pkt);
+        ++cached_rtp_packet_count;
+    }
+    return err;
+}
+
+void SrsRtcGopCache::clear()
+{
+    std::vector<SrsRtpPacket*>::iterator it;
+    for (it = rtc_gop_cache_vec.begin(); it != rtc_gop_cache_vec.end(); ++it) {
+        SrsRtpPacket* pkt = *it;
+        srs_freep(pkt);
+    }
+    rtc_gop_cache_vec.clear();
+    cached_rtp_packet_count = 0;
+    meet_keyframe = false;
+}
+
+srs_error_t SrsRtcGopCache::dump(SrsRtcConsumer* consumer)
+{
+    srs_error_t err = srs_success;
+    
+    std::vector<SrsRtpPacket*>::iterator it;
+    for (it = rtc_gop_cache_vec.begin(); it != rtc_gop_cache_vec.end(); ++it) {
+        SrsRtpPacket* pkt = *it;
+        if ((err = consumer->enqueue(pkt->copy())) != srs_success) {
+            return srs_error_wrap(err, "enqueue message");
+        }
+    }
+    srs_trace("dispatch rtc cached gop success. count=%d", (int)rtc_gop_cache_vec.size());
+    
+    return err;
+}
+
 SrsRtcSource::SrsRtcSource()
 {
     is_created_ = false;
@@ -332,6 +411,7 @@ SrsRtcSource::SrsRtcSource()
     bridger_ = NULL;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
+    rtc_gop_cache_ = new SrsRtcGopCache();
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -343,6 +423,7 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(req);
     srs_freep(bridger_);
     srs_freep(stream_desc_);
+    srs_freep(rtc_gop_cache_);
 }
 
 srs_error_t SrsRtcSource::initialize(SrsRequest* r)
@@ -356,6 +437,11 @@ srs_error_t SrsRtcSource::initialize(SrsRequest* r)
 	init_for_play_before_publishing();
 
 	return err;
+}
+
+void SrsRtcSource::set_gop(bool rtc_gop_enable, int rtc_gop_max_packets)
+{
+    rtc_gop_cache_->set(rtc_gop_enable, rtc_gop_max_packets);
 }
 
 void SrsRtcSource::init_for_play_before_publishing()
@@ -473,12 +559,7 @@ srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
 
 srs_error_t SrsRtcSource::consumer_dumps(SrsRtcConsumer* consumer, bool ds, bool dm, bool dg)
 {
-    srs_error_t err = srs_success;
-
-    // print status.
-    srs_trace("create consumer, no gop cache");
-
-    return err;
+    return rtc_gop_cache_->dump(consumer);
 }
 
 void SrsRtcSource::on_consumer_destroy(SrsRtcConsumer* consumer)
@@ -553,6 +634,7 @@ void SrsRtcSource::on_unpublish()
     if (!is_created_) {
         return;
     }
+    rtc_gop_cache_->clear();
 
     srs_trace("cleanup when unpublish, created=%u, deliver=%u", is_created_, is_delivering_packets_);
 
@@ -617,6 +699,8 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket* pkt)
         _srs_pps_aloss2->sugar += (int64_t)consumers.size();
         return err;
     }
+
+    rtc_gop_cache_->cache(pkt->copy());
 
     for (int i = 0; i < (int)consumers.size(); i++) {
         SrsRtcConsumer* consumer = consumers.at(i);
@@ -752,6 +836,8 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
     discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
     discard_bframe = _srs_config->get_rtc_bframe_discard(req->vhost);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
+    rtc_gop_enable = _srs_config->get_rtc_gop_cache_enabled(req->vhost);
+    rtc_gop_max_packets = _srs_config->get_rtc_gop_cache_max_packets(req->vhost);
     srs_trace("RTC bridge from RTMP, discard_aac=%d, discard_bframe=%d, merge_nalus=%d",
         discard_aac, discard_bframe, merge_nalus);
 
@@ -761,12 +847,12 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
 srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
     srs_error_t err = srs_success;
-
+   
     // TODO: FIXME: Should sync with bridger?
     if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "source publish");
     }
-
+    source_->set_gop(rtc_gop_enable, rtc_gop_max_packets);
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta->clear();

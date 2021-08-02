@@ -523,6 +523,8 @@ private:
 public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
+    bool get_rtc_gop_cache_enabled(std::string vhost);
+    int get_rtc_gop_cache_max_packets(std::string vhost);
     bool get_rtc_bframe_discard(std::string vhost);
     bool get_rtc_aac_discard(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);

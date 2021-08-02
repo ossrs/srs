@@ -157,6 +157,43 @@ public:
     virtual void on_unpublish() = 0;
 };
 
+
+// RTC cache a gop of video/audio data,
+// delivery at the connect of rtc player,
+// To enable it to fast startup.
+class SrsRtcGopCache
+{
+private:
+    // if disabled the gop cache,
+    // The client will wait for the next keyframe for h264,
+    // and will be black-screen.
+    bool enable_rtc_gop_cache;
+    //when meet keyframe, then start cache packet
+    bool meet_keyframe;
+    // The cached rtp packet count
+    int cached_rtp_packet_count;
+    // avoid cache too much packet when gop size too large.
+    int max_cached_count;
+    // cached gop.
+    std::vector<SrsRtpPacket*> rtc_gop_cache_vec;
+public:
+    SrsRtcGopCache();
+    virtual ~SrsRtcGopCache();
+public:
+    // cleanup when system quit.
+    virtual void dispose();
+    // To enable or disable the gop cache.
+    virtual void set(bool v, int max_size);
+    // only for h264 codec
+    // 1. cache the gop when got h264 keyframe.
+    // @param pkt, directly ptr, copy it if need to save it.
+    virtual srs_error_t cache(SrsRtpPacket* pkt);
+    // clear the rtc gop cache.
+    virtual void clear();
+    // dump the rtc cached gop to consumer.
+    virtual srs_error_t dump(SrsRtcConsumer* consumer);
+};
+
 // A Source is a stream, to publish and to play with, binding to SrsRtcPublishStream and SrsRtcPlayStream.
 class SrsRtcSource : public ISrsFastTimer
 {
@@ -174,6 +211,8 @@ private:
     SrsRtcSourceDescription* stream_desc_;
     // The Source bridger, bridger stream to other source.
     ISrsRtcSourceBridger* bridger_;
+    // The rtc gop cache for client fast startup.
+    SrsRtcGopCache* rtc_gop_cache_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;
@@ -192,6 +231,7 @@ public:
     virtual ~SrsRtcSource();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
+    virtual void set_gop(bool rtc_gop_enable, int rtc_gop_max_packets);
 private:
     void init_for_play_before_publishing();
 public:
@@ -263,6 +303,8 @@ private:
     uint16_t video_sequence;
     uint32_t audio_ssrc;
     uint32_t video_ssrc;
+    bool rtc_gop_enable;
+    int rtc_gop_max_packets;
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
