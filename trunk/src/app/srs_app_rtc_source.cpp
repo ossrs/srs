@@ -910,6 +910,12 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "format consume video");
     }
 
+    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
+    // such as H.263 codec
+    if (!format->vcodec) {
+        return err;
+    }
+
     bool has_idr = false;
     vector<SrsSample*> samples;
     if ((err = filter(msg, format, has_idr, samples)) != srs_success) {
