@@ -782,8 +782,10 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
 
                 srs_error_t err2 = srs_success;
                 if ((err2 = aac->adts_demux(&avs, &frame, &frame_size, codec)) != srs_success) {
+                    // srs_info("gb28181: client_id %s, audio data not aac adts (%#x/%u) %02x %02x %02x %02x\n", 
+                    //          channel_id.c_str(), ssrc, timestamp, p1, p2, p3, p4);  
                     srs_info("gb28181: client_id %s, audio data not aac adts (%#x/%u) %02x %02x %02x %02x\n", 
-                             channel_id.c_str(), ssrc, timestamp, p1, p2, p3, p4);  
+                             channel_id.c_str(), ssrc, timestamp, p1, p2);  
                     srs_error_reset(err);
                 }else{
                     srs_warn("gb28181: client_id %s, ps map is not aac (%s) type, but stream many be aac adts, try update type",
