@@ -379,7 +379,9 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
-    http_hooks_on_stop();
+    if (req_) {
+        http_hooks_on_stop();		
+    }
 
     // TODO: FIXME: Should not do callback in de-constructor?
     if (_srs_rtc_hijacker) {
@@ -1006,9 +1008,10 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
+    if (req) {
+        http_hooks_on_unpublish();
+    }
 
-	http_hooks_on_unpublish();
-	
     srs_freep(timer_rtcp_);
     srs_freep(timer_twcc_);
 
