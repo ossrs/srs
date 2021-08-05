@@ -379,7 +379,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
-	http_hooks_on_stop();
+    http_hooks_on_stop();
 
     // TODO: FIXME: Should not do callback in de-constructor?
     if (_srs_rtc_hijacker) {
