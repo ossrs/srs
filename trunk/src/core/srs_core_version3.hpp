@@ -9,6 +9,6 @@
 
 #define VERSION_MAJOR       3
 #define VERSION_MINOR       0
-#define SRS_VERSION3_REVISION 164
+#define SRS_VERSION3_REVISION 165
 
 #endif
