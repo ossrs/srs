@@ -1022,7 +1022,13 @@ srs_error_t SrsOriginHub::on_video(SrsSharedPtrMessage* shared_video, bool is_se
     if ((err = format->on_video(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume video");
     }
-    
+   
+    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
+    // such as H.263 codec
+    if (!format->vcodec) {
+        return err;
+    }
+ 
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
     if (format->is_avc_sequence_header()) {
