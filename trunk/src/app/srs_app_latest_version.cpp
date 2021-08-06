@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_uuid.hpp>
 
 #include <unistd.h>
 #include <sstream>
@@ -54,12 +55,16 @@ srs_error_t SrsLatestVersion::start()
         return srs_success;
     }
 
-    char buf[16];
-    srs_random_generate(buf, sizeof(buf));
-    for (int i = 0; i < (int)sizeof(buf); i++) {
-        buf[i] = 'a' + uint8_t(buf[i])%25;
+    if (true) {
+        uuid_t uuid;
+        uuid_generate_time(uuid);
+
+        char buf[32];
+        for (int i = 0; i < 16; i++) {
+            snprintf(buf + i * 2, sizeof(buf), "%02x", uuid[i]);
+        }
+        server_id_ = string(buf, sizeof(buf));
     }
-    server_id_ = string(buf, sizeof(buf));
 
     return trd_->start();
 }
