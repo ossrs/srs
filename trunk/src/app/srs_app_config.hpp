@@ -643,6 +643,7 @@ private:
 public:
     // Whether the forwarder enabled.
     virtual bool get_forward_enabled(std::string vhost);
+    virtual bool get_forward_enabled(SrsConfDirective* vhost);
     // Get the forward directive of vhost.
     virtual SrsConfDirective* get_forwards(std::string vhost);
 
@@ -686,6 +687,7 @@ public:
     // Whether vhost http-hooks enabled.
     // @remark, if not enabled, donot callback all http hooks.
     virtual bool get_vhost_http_hooks_enabled(std::string vhost);
+    virtual bool get_vhost_http_hooks_enabled(SrsConfDirective* vhost);
     // Get the on_connect callbacks of vhost.
     // @return the on_connect callback directive, the args is the url to callback.
     virtual SrsConfDirective* get_vhost_on_connect(std::string vhost);
@@ -765,6 +767,7 @@ public:
 public:
     // Whether the secrity of vhost enabled.
     virtual bool get_security_enabled(std::string vhost);
+    virtual bool get_security_enabled(SrsConfDirective* vhost);
     // Get the security rules.
     virtual SrsConfDirective* get_security_rules(std::string vhost);
 // vhost transcode section
@@ -847,6 +850,7 @@ private:
 public:
     // Whether the exec is enabled of vhost.
     virtual bool get_exec_enabled(std::string vhost);
+    virtual bool get_exec_enabled(SrsConfDirective* vhost);
     // Get all exec publish directives of vhost.
     virtual std::vector<SrsConfDirective*> get_exec_publishs(std::string vhost);
     // vhost ingest section
@@ -884,6 +888,7 @@ private:
 public:
     // Whether DASH is enabled.
     virtual bool get_dash_enabled(std::string vhost);
+    virtual bool get_dash_enabled(SrsConfDirective* vhost);
     // Get the duration of segment in srs_utime_t.
     virtual srs_utime_t get_dash_fragment(std::string vhost);
     // Get the period to update MPD in srs_utime_t.
@@ -901,6 +906,7 @@ private:
 public:
     // Whether HLS is enabled.
     virtual bool get_hls_enabled(std::string vhost);
+    virtual bool get_hls_enabled(SrsConfDirective* vhost);
     // Get the HLS m3u8 list ts segment entry prefix info.
     virtual std::string get_hls_entry_prefix(std::string vhost);
     // Get the HLS ts/m3u8 file store path.
@@ -958,6 +964,7 @@ private:
 public:
     // Whether HDS is enabled.
     virtual bool get_hds_enabled(const std::string &vhost);
+    virtual bool get_hds_enabled(SrsConfDirective* vhost);
     // Get the HDS file store path.
     virtual std::string get_hds_path(const std::string &vhost);
     // Get the hds fragment time, in srs_utime_t.
@@ -972,6 +979,7 @@ private:
 public:
     // Whether dvr is enabled.
     virtual bool get_dvr_enabled(std::string vhost);
+    virtual bool get_dvr_enabled(SrsConfDirective* vhost);
     // Get the filter of dvr to apply to.
     // @remark user can use srs_config_apply_filter(conf, req):bool to check it.
     virtual SrsConfDirective* get_dvr_apply(std::string vhost);
@@ -1047,6 +1055,7 @@ public:
 public:
     // Get whether vhost enabled http flv live stream
     virtual bool get_vhost_http_remux_enabled(std::string vhost);
+    virtual bool get_vhost_http_remux_enabled(SrsConfDirective* vhost);
     // Get the fast cache duration for http audio live stream.
     virtual srs_utime_t get_vhost_http_remux_fast_cache(std::string vhost);
     // Get the http flv live stream mount point for vhost.
