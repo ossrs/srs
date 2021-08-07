@@ -23,7 +23,7 @@ please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#
 ```bash
 docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
     --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:v4.0.139 ./objs/srs -c conf/srs.conf
+    ossrs/srs:4 ./objs/srs -c conf/srs.conf
 ```
 
 <a name="usage-source"></a>
