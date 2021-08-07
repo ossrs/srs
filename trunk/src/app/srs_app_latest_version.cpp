@@ -51,6 +51,7 @@ void srs_build_features(stringstream& ss)
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
+    bool gb28181 = false;
 
     SrsConfDirective* root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
@@ -61,6 +62,8 @@ void srs_build_features(stringstream& ss)
             string engine = _srs_config->get_stream_caster_engine(conf);
             if (engine == "rtsp") {
                 rtsp = true;
+            } else if (engine == "gb28181") {
+                gb28181 = true;
             }
         }
 
@@ -129,6 +132,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+    SRS_CHECK_FEATURE(gb28181, ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
