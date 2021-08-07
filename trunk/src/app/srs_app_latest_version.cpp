@@ -129,6 +129,9 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+
+    // Note that simulcast is always on, if RTC is on.
+    SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtc_server_enabled(), "simulcast", ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
