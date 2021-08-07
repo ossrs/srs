@@ -42,10 +42,103 @@ using namespace std;
 // Whether we are in docker, defined in main module.
 extern bool _srs_in_docker;
 
+// Check the feature by cond
+#define SRS_CHECK_FEATURE(cond, ss) if (cond) ss << "&" << #cond << "=1"
+#define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
+#define SRS_CHECK_FEATURE3(cond, key, value, ss) if (cond) ss << "&" << key << "=" << value
+
 void srs_build_features(stringstream& ss)
 {
-    ss << "&docker=" << _srs_in_docker
-        << "&packager=" << SRS_PACKAGER;
+    if (SRS_OSX_BOOL) {
+        ss << "&os=mac";
+    } else {
+        ss << "&os=linux";
+    }
+
+    SRS_CHECK_FEATURE2(_srs_in_docker, "docker", ss);
+    SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
+    SRS_CHECK_FEATURE2(SRS_CROSSBUILD_BOOL, "cross", ss);
+
+    SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtc_server_enabled(), "rtc", ss);
+    SRS_CHECK_FEATURE2(SRS_SRT_BOOL && _srs_config->get_srt_enabled(), "srt", ss);
+    SRS_CHECK_FEATURE2(_srs_config->get_http_api_enabled(), "api", ss);
+    SRS_CHECK_FEATURE2(_srs_config->get_https_api_enabled(), "https", ss);
+    SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
+
+    int nn_vhosts = 0;
+    bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
+    bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
+
+    SrsConfDirective* root = _srs_config->get_root();
+    // Note that we limit the loop, never detect all configs.
+    for (int i = 0; i < (int)root->directives.size() && i < 128; i++) {
+        SrsConfDirective* conf = root->at(i);
+
+        if (!rtsp && conf->is_stream_caster() && _srs_config->get_stream_caster_enabled(conf)) {
+            if (_srs_config->get_stream_caster_engine(conf) == "rtsp") {
+                rtsp = true;
+            }
+        }
+
+        if (conf->is_vhost() && _srs_config->get_vhost_enabled(conf)) {
+            nn_vhosts++;
+            if (!forward && _srs_config->get_forward_enabled(conf)) {
+                forward = true;
+            }
+            if (!edge && _srs_config->get_vhost_is_edge(conf)) {
+                edge = true;
+            }
+            if (!hls && _srs_config->get_hls_enabled(conf)) {
+                hls = true;
+            }
+            if (!dvr && _srs_config->get_dvr_enabled(conf)) {
+                dvr = true;
+            }
+            if (!flv && _srs_config->get_vhost_http_remux_enabled(conf)) {
+                flv = true;
+            }
+            if (!hooks && _srs_config->get_vhost_http_hooks_enabled(conf)) {
+                hooks = true;
+            }
+            if (!dash && _srs_config->get_dash_enabled(conf)) {
+                dash = true;
+            }
+            if (!hds && _srs_config->get_hds_enabled(conf)) {
+                hds = true;
+            }
+            if (!exec && _srs_config->get_exec_enabled(conf)) {
+                exec = true;
+            }
+            if (!security && _srs_config->get_security_enabled(conf)) {
+                security = true;
+            }
+
+            for (int j = 0; j < (int)conf->directives.size(); j++) {
+                SrsConfDirective* prop = conf->directives.at(j);
+                if (!ingest && prop->name == "ingest" && _srs_config->get_ingest_enabled(prop)) {
+                    ingest = true;
+                }
+                if (!transcode && prop->name == "transcode" && _srs_config->get_transcode_enabled(prop)) {
+                    transcode = true;
+                }
+            }
+        }
+    }
+
+    SRS_CHECK_FEATURE2(nn_vhosts, "vhosts", ss);
+    SRS_CHECK_FEATURE(rtsp, ss);
+    SRS_CHECK_FEATURE(forward, ss);
+    SRS_CHECK_FEATURE(ingest, ss);
+    SRS_CHECK_FEATURE(edge, ss);
+    SRS_CHECK_FEATURE(hls, ss);
+    SRS_CHECK_FEATURE(dvr, ss);
+    SRS_CHECK_FEATURE(flv, ss);
+    SRS_CHECK_FEATURE(hooks, ss);
+    SRS_CHECK_FEATURE(dash, ss);
+    SRS_CHECK_FEATURE(hds, ss);
+    SRS_CHECK_FEATURE(exec, ss);
+    SRS_CHECK_FEATURE(transcode, ss);
+    SRS_CHECK_FEATURE(security, ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
@@ -82,34 +175,48 @@ srs_error_t SrsLatestVersion::cycle()
 {
     srs_error_t err = srs_success;
 
-    srs_utime_t starttime = srs_update_system_time();
-    if ((err = query_latest_version()) != srs_success) {
-        srs_warn("query err %s", srs_error_desc(err).c_str());
-        srs_freep(err); // Ignore any error.
-    }
-
-    srs_utime_t first_random_wait = 0;
-    srs_random_generate((char*)&first_random_wait, 8);
-    first_random_wait = srs_utime_t(uint64_t((first_random_wait + starttime + getpid())) % (60 * 60)) * SRS_UTIME_SECONDS; // in s.
-
-    srs_trace("Startup query id=%s, eip=%s, match=%s, stable=%s, wait=%ds, cost=%dms", server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(), stable_version_.c_str(), srsu2msi(first_random_wait)/1000, srsu2msi(srs_update_system_time() - starttime));
-    srs_usleep(first_random_wait);
-
-    while (true) {
-        starttime = srs_update_system_time();
-        if ((err = query_latest_version()) != srs_success) {
+    if (true) {
+        string url;
+        srs_utime_t starttime = srs_update_system_time();
+        if ((err = query_latest_version(url)) != srs_success) {
             srs_warn("query err %s", srs_error_desc(err).c_str());
             srs_freep(err); // Ignore any error.
         }
 
-        srs_trace("Finish query id=%s, eip=%s, match=%s, stable=%s, cost=%dms", server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(), stable_version_.c_str(), srsu2msi(srs_update_system_time() - starttime));
+        srs_utime_t first_random_wait = 0;
+        srs_random_generate((char *) &first_random_wait, 8);
+        first_random_wait = srs_utime_t(uint64_t((first_random_wait + starttime + getpid())) % (60 * 60)) * SRS_UTIME_SECONDS; // in s.
+
+        srs_trace("Startup query id=%s, eip=%s, match=%s, stable=%s, wait=%ds, cost=%dms, url=%s",
+            server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
+            stable_version_.c_str(), srsu2msi(first_random_wait) / 1000, srsu2msi(srs_update_system_time() - starttime),
+            url.c_str());
+        srs_usleep(first_random_wait);
+    }
+
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            break;
+        }
+
+        string url;
+        srs_utime_t starttime = srs_update_system_time();
+        if ((err = query_latest_version(url)) != srs_success) {
+            srs_warn("query err %s", srs_error_desc(err).c_str());
+            srs_freep(err); // Ignore any error.
+        }
+
+        srs_trace("Finish query id=%s, eip=%s, match=%s, stable=%s, cost=%dms, url=%s",
+            server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
+            stable_version_.c_str(), srsu2msi(srs_update_system_time() - starttime), url.c_str());
+
         srs_usleep(3600 * SRS_UTIME_SECONDS); // Every an hour.
     }
 
     return err;
 }
 
-srs_error_t SrsLatestVersion::query_latest_version()
+srs_error_t SrsLatestVersion::query_latest_version(string& url)
 {
     srs_error_t err = srs_success;
 
@@ -121,7 +228,7 @@ srs_error_t SrsLatestVersion::query_latest_version()
           << "&eip=" << srs_get_public_internet_address()
           << "&ts=" << srsu2ms(srs_get_system_time());
     srs_build_features(ss);
-    string url = ss.str();
+    url = ss.str();
 
     SrsHttpUri uri;
     if ((err = uri.initialize(url)) != srs_success) {

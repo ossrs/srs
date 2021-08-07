@@ -3617,6 +3617,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
+            && n != "query_latest_version"
             && n != "circuit_breaker" && n != "is_full"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
@@ -5672,20 +5673,26 @@ int SrsConfig::get_global_chunk_size()
     return ::atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_forward_enabled(string vhost)
-{
+bool SrsConfig::get_forward_enabled(string vhost) {
     static bool DEFAULT = false;
-    
+
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
         return DEFAULT;
     }
-    
-    conf = conf->get("forward");
+
+    return get_forward_enabled(conf);
+}
+
+bool SrsConfig::get_forward_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("forward");
     if (!conf) {
         return DEFAULT;
     }
-    
+
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
@@ -5723,7 +5730,19 @@ bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_vhost_http_hooks_enabled(conf);
+}
+
+bool SrsConfig::get_vhost_http_hooks_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("http_hooks");
     if (!conf) {
         return DEFAULT;
     }
@@ -6053,13 +6072,20 @@ bool SrsConfig::get_security_enabled(string vhost)
     if (!conf) {
         return DEFAULT;
     }
+
+    return get_security_enabled(conf);
+}
+
+bool SrsConfig::get_security_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
     
-    SrsConfDirective* security = conf->get("security");
-    if (!security) {
+    SrsConfDirective* conf = vhost->get("security");
+    if (!conf) {
         return DEFAULT;
     }
     
-    conf = security->get("enabled");
+    conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -6534,7 +6560,19 @@ bool SrsConfig::get_exec_enabled(string vhost)
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_exec(vhost);
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_exec_enabled(conf);
+}
+
+bool SrsConfig::get_exec_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("exec");
     if (!conf) {
         return DEFAULT;
     }
@@ -6745,8 +6783,20 @@ SrsConfDirective* SrsConfig::get_dash(string vhost)
 bool SrsConfig::get_dash_enabled(string vhost)
 {
     static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_dash_enabled(conf);
+}
+
+bool SrsConfig::get_dash_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_dash(vhost);
+    SrsConfDirective* conf = vhost->get("dash");
     if (!conf) {
         return DEFAULT;
     }
@@ -6853,8 +6903,20 @@ SrsConfDirective* SrsConfig::get_hls(string vhost)
 bool SrsConfig::get_hls_enabled(string vhost)
 {
     static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = get_hls(vhost);
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_hls_enabled(conf);
+}
+
+bool SrsConfig::get_hls_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("hls");
     
     if (!conf) {
         return DEFAULT;
@@ -7260,7 +7322,19 @@ bool SrsConfig::get_hds_enabled(const string &vhost)
 {
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_hds(vhost);
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_hds_enabled(conf);
+}
+
+bool SrsConfig::get_hds_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("hds");
     if (!conf) {
         return DEFAULT;
     }
@@ -7337,8 +7411,20 @@ SrsConfDirective* SrsConfig::get_dvr(string vhost)
 bool SrsConfig::get_dvr_enabled(string vhost)
 {
     static bool DEFAULT = false;
-    
-    SrsConfDirective* conf = get_dvr(vhost);
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return get_dvr_enabled(conf);
+}
+
+bool SrsConfig::get_dvr_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("dvr");
     if (!conf) {
         return DEFAULT;
     }
@@ -8116,7 +8202,14 @@ bool SrsConfig::get_vhost_http_remux_enabled(string vhost)
         return DEFAULT;
     }
 
-    conf = conf->get("http_remux");
+    return get_vhost_http_remux_enabled(conf);
+}
+
+bool SrsConfig::get_vhost_http_remux_enabled(SrsConfDirective* vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = vhost->get("http_remux");
     if (!conf) {
         return DEFAULT;
     }
