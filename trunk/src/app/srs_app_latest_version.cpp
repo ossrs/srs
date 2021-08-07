@@ -58,13 +58,15 @@ void srs_build_features(stringstream& ss)
         SrsConfDirective* conf = root->at(i);
 
         if (!rtsp && conf->is_stream_caster() && _srs_config->get_stream_caster_enabled(conf)) {
-            if (_srs_config->get_stream_caster_engine(conf) == "rtsp") {
+            string engine = _srs_config->get_stream_caster_engine(conf);
+            if (engine == "rtsp") {
                 rtsp = true;
             }
         }
 
         if (conf->is_vhost() && _srs_config->get_vhost_enabled(conf)) {
             nn_vhosts++;
+
             if (!forward && _srs_config->get_forward_enabled(conf)) {
                 forward = true;
             }
@@ -96,13 +98,18 @@ void srs_build_features(stringstream& ss)
                 security = true;
             }
 
-            for (int j = 0; j < (int)conf->directives.size(); j++) {
+            for (int j = 0; j < (int)conf->directives.size() && j < 64; j++) {
                 SrsConfDirective* prop = conf->directives.at(j);
+
                 if (!ingest && prop->name == "ingest" && _srs_config->get_ingest_enabled(prop)) {
                     ingest = true;
                 }
                 if (!transcode && prop->name == "transcode" && _srs_config->get_transcode_enabled(prop)) {
                     transcode = true;
+                }
+
+                if (ingest && transcode) {
+                    break;
                 }
             }
         }
