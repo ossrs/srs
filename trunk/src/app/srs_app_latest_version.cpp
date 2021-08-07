@@ -39,6 +39,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
+// Whether we are in docker, defined in main module.
+extern bool _srs_in_docker;
+
+void srs_build_features(stringstream& ss)
+{
+    ss << "&docker=" << _srs_in_docker
+        << "&packager=" << SRS_PACKAGER;
+}
+
 SrsLatestVersion::SrsLatestVersion()
 {
     trd_ = new SrsSTCoroutine("signal", this);
@@ -111,6 +120,7 @@ srs_error_t SrsLatestVersion::query_latest_version()
           << "&id=" << server_id_ << "&role=srs"
           << "&eip=" << srs_get_public_internet_address()
           << "&ts=" << srsu2ms(srs_get_system_time());
+    srs_build_features(ss);
     string url = ss.str();
 
     SrsHttpUri uri;
