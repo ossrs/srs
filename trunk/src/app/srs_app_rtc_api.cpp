@@ -14,7 +14,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_statistic.hpp>
-
+#include <srs_app_utility.hpp>
 #include <unistd.h>
 #include <deque>
 using namespace std;
@@ -96,6 +96,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     if (clientip.empty()) {
         clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.        
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
     }
 
     string api;
@@ -314,6 +319,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
     if (clientip.empty()){
         clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
     }
 
     string api;
