@@ -34,7 +34,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    srs_error_t query_latest_version();
+    srs_error_t query_latest_version(std::string& url);
 };
 
 #endif
