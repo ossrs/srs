@@ -14,7 +14,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_statistic.hpp>
-
+#include <srs_app_utility.hpp>
 #include <unistd.h>
 #include <deque>
 using namespace std;
@@ -94,6 +94,14 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     if ((prop = req->ensure_property_string("clientip")) != NULL) {
         clientip = prop->to_str();
     }
+    if (clientip.empty()) {
+        clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.        
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
+    }
 
     string api;
     if ((prop = req->ensure_property_string("api")) != NULL) {
@@ -105,17 +113,19 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         tid = prop->to_str();
     }
 
-    // TODO: FIXME: Parse vhost.
-    // Parse app and stream from streamurl.
-    string app;
-    string stream_name;
-    if (true) {
-        string tcUrl;
-        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+    // The RTC user config object.
+    SrsRtcUserConfig ruc;
+    ruc.req_->ip = clientip;
 
-        int port;
-        string schema, host, vhost, param;
-        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost, 
+                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    if (parsed_vhost) {
+        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -129,12 +139,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     string dtls = r->query_get("dtls");
 
     srs_trace("RTC play %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
-        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(), remote_sdp_str.length(),
+        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(), remote_sdp_str.length(),
         eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str()
     );
 
-    // The RTC user config object.
-    SrsRtcUserConfig ruc;
     ruc.eip_ = eip;
     ruc.codec_ = codec;
     ruc.publish_ = false;
@@ -153,16 +161,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
         return srs_error_wrap(err, "remote sdp check failed");
-    }
-
-    ruc.req_->app = app;
-    ruc.req_->stream = stream_name;
-
-    // TODO: FIXME: Parse vhost.
-    // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
-    if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     SrsSdp local_sdp;
@@ -288,6 +286,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     // Parse req, the request json object, from body.
     SrsJsonObject* req = NULL;
+    SrsAutoFree(SrsJsonObject, req);
     if (true) {
         string req_json;
         if ((err = r->body_read_all(req_json)) != srs_success) {
@@ -318,6 +317,14 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     if ((prop = req->ensure_property_string("clientip")) != NULL) {
         clientip = prop->to_str();
     }
+    if (clientip.empty()){
+        clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
+    }
 
     string api;
     if ((prop = req->ensure_property_string("api")) != NULL) {
@@ -329,16 +336,19 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         tid = prop->to_str();
     }
 
-    // Parse app and stream from streamurl.
-    string app;
-    string stream_name;
-    if (true) {
-        string tcUrl;
-        srs_parse_rtmp_url(streamurl, tcUrl, stream_name);
+    // The RTC user config object.
+    SrsRtcUserConfig ruc;
+    ruc.req_->ip = clientip;
 
-        int port;
-        string schema, host, vhost, param;
-        srs_discovery_tc_url(tcUrl, schema, host, vhost, app, stream_name, port, param);
+    srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost, 
+                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
+    if (parsed_vhost) {
+        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -349,12 +359,10 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     string codec = r->query_get("codec");
 
     srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
-        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), app.c_str(), stream_name.c_str(),
+        streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app.c_str(), ruc.req_->stream.c_str(),
         remote_sdp_str.length(), eip.c_str(), codec.c_str()
     );
 
-    // The RTC user config object.
-    SrsRtcUserConfig ruc;
     ruc.eip_ = eip;
     ruc.codec_ = codec;
     ruc.publish_ = true;
@@ -367,16 +375,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     if ((err = check_remote_sdp(ruc.remote_sdp_)) != srs_success) {
         return srs_error_wrap(err, "remote sdp check failed");
-    }
-
-    ruc.req_->app = app;
-    ruc.req_->stream = stream_name;
-
-    // TODO: FIXME: Parse vhost.
-    // discovery vhost, resolve the vhost from config
-    SrsConfDirective* parsed_vhost = _srs_config->get_vhost("");
-    if (parsed_vhost) {
-        ruc.req_->vhost = parsed_vhost->arg0();
     }
 
     SrsSdp local_sdp;

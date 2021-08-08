@@ -217,13 +217,14 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
     }
     
     // to calendar time
-    struct tm* tm;
+    struct tm now;
+    // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
     if (utc) {
-        if ((tm = gmtime(&tv.tv_sec)) == NULL) {
+        if (gmtime_r(&tv.tv_sec, &now) == NULL) {
             return false;
         }
     } else {
-        if ((tm = localtime(&tv.tv_sec)) == NULL) {
+        if (localtime_r(&tv.tv_sec, &now) == NULL) {
             return false;
         }
     }
@@ -233,24 +234,24 @@ bool srs_log_header(char* buffer, int size, bool utc, bool dangerous, const char
         if (tag) {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d][%s] ",
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
+                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid.c_str(), errno, tag);
         } else {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%d] ",
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
+                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid.c_str(), errno);
         }
     } else {
         if (tag) {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s][%s] ",
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
+                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid.c_str(), tag);
         } else {
             written = snprintf(buffer, size,
                 "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%s] ",
-                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000),
+                1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, (int)(tv.tv_usec / 1000),
                 level, getpid(), cid.c_str());
         }
     }

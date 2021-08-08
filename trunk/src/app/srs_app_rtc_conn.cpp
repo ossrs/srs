@@ -404,6 +404,10 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
             srs_freep(it->second);
         }
     }
+	
+    // update the statistic when client coveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(cid_.c_str());
 }
 
 srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations)
@@ -528,6 +532,12 @@ srs_error_t SrsRtcPlayStream::start()
         if ((err = _srs_rtc_hijacker->on_start_play(session_, this, req_)) != srs_success) {
             return srs_error_wrap(err, "on start play");
         }
+    }
+	
+    // update the statistic when client discoveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+	return srs_error_wrap(err, "rtc: stat client");
     }
 
     is_started = true;
@@ -998,6 +1008,10 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(twcc_epp_);
     srs_freep(pli_epp);
     srs_freep(req);
+	
+    // update the statistic when client coveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_disconnect(cid_.c_str());
 }
 
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescription* stream_desc)
@@ -1111,6 +1125,12 @@ srs_error_t SrsRtcPublishStream::start()
         if ((err = _srs_rtc_hijacker->on_start_publish(session_, this, req)) != srs_success) {
             return srs_error_wrap(err, "on start publish");
         }
+    }
+	
+    // update the statistic when client discoveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(cid_.c_str(), req, session_, SrsRtcConnPublish)) != srs_success) {
+        return srs_error_wrap(err, "rtc: stat client");
     }
 
     is_started = true;
@@ -1821,6 +1841,11 @@ const SrsContextId& SrsRtcConnection::get_id()
 std::string SrsRtcConnection::desc()
 {
     return "RtcConn";
+}
+
+void SrsRtcConnection::expire()
+{
+    _srs_rtc_manager->remove(this);
 }
 
 void SrsRtcConnection::switch_to_context()
@@ -2884,7 +2909,7 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
             //local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
-        // TODO: FIXME: use one parse paylod from sdp.
+        // TODO: FIXME: use one parse payload from sdp.
 
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("red"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
@@ -3114,6 +3139,10 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             // We should clear the extmaps of source(publisher).
             // @see https://github.com/ossrs/srs/issues/2370
             track->extmaps_.clear();
+			
+            // We should clear the rtcp_fbs of source(publisher).
+            // @see https://github.com/ossrs/srs/issues/2371
+            track->media_->rtcp_fbs_.clear();
 
             // Use remote/source/offer PayloadType.
             track->media_->pt_of_publisher_ = track->media_->pt_;
@@ -3131,7 +3160,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             uint32_t publish_ssrc = track->ssrc_;
 
             vector<string> rtcp_fb;
-            track->media_->rtcp_fbs_.swap(rtcp_fb);
+            remote_payload.rtcp_fb_.swap(rtcp_fb);
             for (int j = 0; j < (int)rtcp_fb.size(); j++) {
                 if (nack_enabled) {
                     if (rtcp_fb.at(j) == "nack" || rtcp_fb.at(j) == "nack pli") {

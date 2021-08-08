@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="srs" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-c conf/clion.conf" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$CMakeCurrentBuildDir$/../../../" PASS_PARENT_ENVS_2="true" PROJECT_NAME="srs" TARGET_NAME="srs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="srs" RUN_TARGET_NAME="srs">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>
