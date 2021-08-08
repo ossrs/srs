@@ -75,8 +75,9 @@ SRS_GPROF=NO # Performance test: gprof
 ################################################################
 # Preset options
 SRS_X86_X64=NO # For x86_64 servers
-SRS_OSX=NO #For osx/macOS PC.
-SRS_CROSS_BUILD=NO #For cross build, for example, on Ubuntu.
+SRS_OSX=NO # For OSX/macOS PC.
+SRS_WINDOWS=NO # For Cygwin/Windows PC or servers.
+SRS_CROSS_BUILD=NO # For cross build, for example, on Ubuntu.
 # For cross build, whether armv7 or armv8(aarch64).
 SRS_CROSS_BUILD_ARMV7=NO
 SRS_CROSS_BUILD_AARCH64=NO
