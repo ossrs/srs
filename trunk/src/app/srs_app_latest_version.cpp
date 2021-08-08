@@ -147,6 +147,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+    SRS_CHECK_FEATURE2(SRS_LAS_BOOL, "las", ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
