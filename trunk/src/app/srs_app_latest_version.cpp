@@ -149,6 +149,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+    SRS_CHECK_FEATURE2(SRS_SCTP_BOOL && _srs_config->get_rtc_server_enabled(), "sctp", ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
