@@ -157,6 +157,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(security, ss);
     SRS_CHECK_FEATURE(gb28181, ss);
     SRS_CHECK_FEATURE(sip, ss);
+    SRS_CHECK_FEATURE2(SRS_H265_BOOL, "h265", ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
