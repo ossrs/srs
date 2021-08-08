@@ -129,6 +129,9 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);
+
+    // For G.711, it's active if rtc is active.
+    SRS_CHECK_FEATURE2(SRS_RTC_BOOL && _srs_config->get_rtc_server_enabled(), "g711", ss);
 }
 
 SrsLatestVersion::SrsLatestVersion()
