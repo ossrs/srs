@@ -750,7 +750,7 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
             if (!descs.empty()) {
                 audio_ssrc = descs.at(0)->ssrc_;
             }
-		}
+        }
     }
 
     // video track ssrc
