@@ -27,6 +27,8 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+private:
+    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 
 class SrsGoApiRtcPublish : public ISrsHttpHandler
@@ -41,6 +43,8 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
+private:
+    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler
