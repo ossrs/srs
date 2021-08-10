@@ -105,7 +105,7 @@ ffmpeg -re -i doc/source.200kbps.768x320.flv -c copy -f flv -y rtmp://localhost/
 if [[ ! -z $(ifconfig en0 inet| grep 'inet '|awk '{print $2}') ]]; then 
   docker run -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
       --rm --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}')\
-      registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v4.0.76 objs/srs -c conf/rtc.conf
+      registry.cn-hangzhou.aliyuncs.com/ossrs/srs:4 objs/srs -c conf/rtc.conf
 fi
 ```
 

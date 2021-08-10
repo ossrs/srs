@@ -6,6 +6,7 @@
 
 #include "srt_server.hpp"
 #include "srt_handle.hpp"
+#include "srt_log.hpp"
 #include <srt/udt.h>
 #include <thread>
 #include <netdb.h>
@@ -20,6 +21,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_utility.hpp>
 
 srt_server::srt_server(unsigned short port):_listen_port(port)
     ,_server_socket(-1)
@@ -74,17 +76,51 @@ int srt_server::init_srt_parameter() {
         srt_setsockopt(_server_socket, 0, SRTO_PEERLATENCY, &recv_latency, opt_len);
     }
     
-    srs_trace("init srt parameter, maxbw:%d, mss:%d, tlpkdrop:%d, connect timeout:%d, \
+    srt_log_trace("init srt parameter, maxbw:%d, mss:%d, tlpkdrop:%d, connect timeout:%d, \
 send buff:%d, recv buff:%d, payload size:%d, latency:%d, recv latency:%d, peer latency:%d",
         maxbw, mss, tlpkdrop, connection_timeout, send_buff, recv_buff, payload_size,
         latency, recv_latency, peer_latency);
     return 0;
 }
+
+void srt_server::init_srt_log() {
+    SrsLogLevel level = srs_get_log_level(_srs_config->get_log_level());
+    switch (level) {
+        case SrsLogLevelInfo:
+        {
+            set_srt_log_level(SRT_LOGGER_INFO_LEVEL);
+            break;
+        }
+        case SrsLogLevelTrace:
+        {
+            set_srt_log_level(SRT_LOGGER_TRACE_LEVEL);
+            break;
+        }
+        case SrsLogLevelWarn:
+        {
+            set_srt_log_level(SRT_LOGGER_WARN_LEVEL);
+            break;
+        }
+        case SrsLogLevelError:
+        {
+            set_srt_log_level(SRT_LOGGER_ERROR_LEVEL);
+            break;
+        }
+        default:
+        {
+            set_srt_log_level(SRT_LOGGER_TRACE_LEVEL);
+        }
+    }
+    return;
+}
+
 int srt_server::init_srt() {
     if (_server_socket != -1) {
         return -1;
     }
 
+    init_srt_log();
+    
     _server_socket = srt_create_socket();
     sockaddr_in sa;
     memset(&sa, 0, sizeof sa);
@@ -97,7 +133,7 @@ int srt_server::init_srt() {
     if ( ret == SRT_ERROR )
     {
         srt_close(_server_socket);
-        srs_error("srt bind error: %d", ret);
+        srt_log_error("srt bind error: %d", ret);
         return -1;
     }
 
@@ -105,7 +141,7 @@ int srt_server::init_srt() {
     if (ret == SRT_ERROR)
     {
         srt_close(_server_socket);
-        srs_error("srt listen error: %d", ret);
+        srt_log_error("srt listen error: %d", ret);
         return -2;
     }
 
@@ -113,7 +149,7 @@ int srt_server::init_srt() {
 
     _pollid = srt_epoll_create();
     if (_pollid < -1) {
-        srs_error("srt server srt_epoll_create error, port=%d", _listen_port);
+        srt_log_error("srt server srt_epoll_create error, port=%d", _listen_port);
         return -1;
     }
     _handle_ptr = std::make_shared<srt_handle>(_pollid);
@@ -121,11 +157,11 @@ int srt_server::init_srt() {
     int events = SRT_EPOLL_IN | SRT_EPOLL_ERR;
     ret = srt_epoll_add_usock(_pollid, _server_socket, &events);
     if (ret < 0) {
-        srs_error("srt server run add epoll error:%d", ret);
+        srt_log_error("srt server run add epoll error:%d", ret);
         return ret;
     }
 
-    srs_trace("srt server listen port=%d, server_fd=%d", _listen_port, _server_socket);
+    srt_log_trace("srt server listen port=%d, server_fd=%d", _listen_port, _server_socket);
     
     return 0;
 }
@@ -139,7 +175,7 @@ int srt_server::start()
     }
 
     run_flag = true;
-    srs_trace("srt server is starting... port(%d)", _listen_port);
+    srt_log_trace("srt server is starting... port(%d)", _listen_port);
     thread_run_ptr = std::make_shared<std::thread>(&srt_server::on_work, this);
     return 0;
 }
@@ -171,18 +207,18 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             //add new srt connect into srt handle
             std::string streamid = UDT::getstreamid(conn_fd);
             if (!is_streamid_valid(streamid)) {
-                srs_trace("srt streamid(%s) error, fd:%d", streamid.c_str(), conn_fd);
+                srt_log_trace("srt streamid(%s) error, fd:%d", streamid.c_str(), conn_fd);
                 srt_close(conn_fd);
                 return;
             }
             SRT_CONN_PTR srt_conn_ptr = std::make_shared<srt_conn>(conn_fd, streamid);
 
             std::string vhost_str = srt_conn_ptr->get_vhost();
-            srs_trace("new srt connection streamid:%s, fd:%d, vhost:%s", 
+            srt_log_trace("new srt connection streamid:%s, fd:%d, vhost:%s", 
                 streamid.c_str(), conn_fd, vhost_str.c_str());
             SrsConfDirective* vhost_p = _srs_config->get_vhost(vhost_str, true);
             if (!vhost_p) {
-                srs_trace("srt streamid(%s): no vhost %s, fd:%d", 
+                srt_log_trace("srt streamid(%s): no vhost %s, fd:%d", 
                     streamid.c_str(), vhost_str.c_str(), conn_fd);
                 srt_conn_ptr->close();
                 return;
@@ -193,7 +229,7 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             } else if (srt_conn_ptr->get_mode() == PUSH_SRT_MODE) {
                 conn_event = SRT_EPOLL_IN | SRT_EPOLL_ERR;
             } else {
-                srs_trace("stream mode error, it shoulde be m=push or m=pull, streamid:%s",
+                srt_log_trace("stream mode error, it shoulde be m=push or m=pull, streamid:%s",
                     srt_conn_ptr->get_streamid().c_str());
                 srt_conn_ptr->close();
                 return;
@@ -204,19 +240,19 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
         }
         case SRTS_CONNECTED:
         {
-            srs_trace("srt connected: socket=%d, mode:%s", input_fd, dscr.c_str());
+            srt_log_trace("srt connected: socket=%d, mode:%s", input_fd, dscr.c_str());
             break;
         }
         case SRTS_BROKEN:
         {
             srt_epoll_remove_usock(_pollid, input_fd);
             srt_close(input_fd);
-            srs_warn("srt close: socket=%d", input_fd);
+            srt_log_warn("srt close: socket=%d", input_fd);
             break;
         }
         default:
         {
-            srs_error("srt server unkown status:%d", status);
+            srt_log_error("srt server unkown status:%d", status);
         }
     }
 }
@@ -229,7 +265,7 @@ void srt_server::srt_handle_data(SRT_SOCKSTATUS status, SRTSOCKET input_fd, cons
 void srt_server::on_work()
 {
     const unsigned int SRT_FD_MAX = 100;
-    srs_trace("srt server is working port(%d)", _listen_port);
+    srt_log_trace("srt server is working port(%d)", _listen_port);
     while (run_flag)
     {
         SRTSOCKET read_fds[SRT_FD_MAX];
@@ -294,9 +330,9 @@ srs_error_t SrtServerAdapter::run()
     // TODO: FIXME: We could start a coroutine to dispatch SRT task to processes.
 
     if(_srs_config->get_srt_enabled()) {
-        srs_trace("srt server is enabled...");
+        srt_log_trace("srt server is enabled...");
         unsigned short srt_port = _srs_config->get_srt_listen_port();
-        srs_trace("srt server listen port:%d", srt_port);
+        srt_log_trace("srt server listen port:%d", srt_port);
         err = srt2rtmp::get_instance()->init();
         if (err != srs_success) {
             return srs_error_wrap(err, "srt start srt2rtmp error");
@@ -307,7 +343,7 @@ srs_error_t SrtServerAdapter::run()
             return srs_error_wrap(err, "srt listen %d", srt_port);
         }
     } else {
-        srs_trace("srt server is disabled...");
+        srt_log_trace("srt server is disabled...");
     }
 
     if(_srs_config->get_srt_enabled()) {
