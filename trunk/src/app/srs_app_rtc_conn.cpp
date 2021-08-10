@@ -379,6 +379,7 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+    // TODO: FIXME: Use SrsAsyncCallWorker in http hooks instead, to covert to async call.
     if (req_) {
         http_hooks_on_stop();		
     }
