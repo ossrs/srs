@@ -21,6 +21,7 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_statistic.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
@@ -78,9 +79,12 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     
     SrsContextId cid = _srs_context->get_id();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_close"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -114,9 +118,12 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     
     SrsContextId cid = _srs_context->get_id();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_publish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -148,9 +155,12 @@ void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
     
     SrsContextId cid = _srs_context->get_id();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_unpublish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -184,9 +194,12 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
     
     SrsContextId cid = _srs_context->get_id();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_play"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -218,9 +231,12 @@ void SrsHttpHooks::on_stop(string url, SrsRequest* req)
     
     SrsContextId cid = _srs_context->get_id();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_stop"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -255,9 +271,12 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, SrsRequest* req, st
     SrsContextId cid = c;
     std::string cwd = _srs_config->cwd();
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_dvr"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -297,9 +316,12 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, SrsRequest* req, st
         ts_url = prefix + "/" + ts_url;
     }
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_hls"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
@@ -341,6 +363,9 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, SrsRequ
         url = ts_url;
     }
     
+    SrsStatistic* stat = SrsStatistic::instance();
+
+    url = srs_string_replace(url, "[server_id]", stat->server_id().c_str());
     url = srs_string_replace(url, "[app]", req->app);
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
