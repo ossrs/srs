@@ -745,6 +745,12 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
         std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("audio", "opus");
         if (!descs.empty()) {
             audio_ssrc = descs.at(0)->ssrc_;
+        } else {
+            //if rtc source is already created and audio is not opus
+            std::vector<SrsRtcTrackDescription*> descs = source->get_track_desc("audio", "");
+            if (!descs.empty()) {
+                audio_ssrc = descs.at(0)->ssrc_;
+            }
         }
     }
 
