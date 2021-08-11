@@ -50,7 +50,7 @@
     </div>
 
     <label></label>
-    <video id="rtc_media_player" width="320" autoplay muted></video>
+    <video id="rtc_media_player" width="320" autoplay muted playsinline></video>
 
     <label></label>
     SessionID: <span id='sessionid'></span>
@@ -81,7 +81,7 @@ $(function(){
 
         // User should set the stream when publish is done, @see https://webrtc.org/getting-started/media-devices
         // However SRS SDK provides a consist API like https://webrtc.org/getting-started/remote-streams
-        $('#rtc_media_player').prop('srcObject', sdk.stream);
+        // $('#rtc_media_player').prop('srcObject', sdk.stream);
         // Optional callback, SDK will add track to stream.
         // sdk.ontrack = function (event) { console.log('Got track', event); sdk.stream.addTrack(event.track); };
 
@@ -98,6 +98,7 @@ $(function(){
         sdk.publish(url).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
+            $('#rtc_media_player').prop('srcObject', sdk.stream);
         }).catch(function (reason) {
             sdk.close();
             $('#rtc_media_player').hide();
