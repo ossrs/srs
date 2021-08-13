@@ -14,14 +14,7 @@ SRS is a simple, high efficiency and realtime video server, supports RTMP/HLS/HT
 <a name="product"></a>
 ## Usage
 
-Recommend running SRS by [docker][docker-srs3], images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images):
-
-```bash
-docker run --rm -p 1935:1935 -p 1985:1985 -p 8080:8080 ossrs/srs:3 \
-  ./objs/srs -c conf/srs.conf
-```
-
-Or build SRS from source(or [mirrors](#mirrors)), by CentOS7(or Linux([CN][v3_CN_Build],[EN][v3_EN_Build])):
+Build SRS from source, please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v3_CN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v3_CN_Home#getting-started) )**:
 
 ```
 git clone -b 3.0release https://gitee.com/ossrs/srs.git &&
@@ -29,11 +22,10 @@ cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
 Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by:
+by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) as:
 
 ```bash
-docker run --rm -it --network=host ossrs/srs:encoder \
-  ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
+ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 
 Play the following streams by [players](https://ossrs.net):
