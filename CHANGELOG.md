@@ -21,6 +21,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-08-13, RTC: Merge [#2526](https://github.com/ossrs/srs/pull/2526), fix codec issue for G.711 or H.263. 4.0.152
 * v4.0, 2021-08-10, RTC: Merge [#2509](https://github.com/ossrs/srs/pull/2514), support http hooks n_play/stop/publish/unpublish. 4.0.151
 * v4.0, 2021-08-07, Merge [#2514](https://github.com/ossrs/srs/pull/2514), Get original client ip instead of proxy ip, for rtc api #2514. 4.0.150
 * v4.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 4.0.149
