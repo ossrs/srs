@@ -17,31 +17,21 @@ SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), 
 <a name="usage-docker"></a>
 ## Usage
 
-Run SRS by [docker](https://github.com/ossrs/srs-docker/tree/v4#usage), images is [here](https://hub.docker.com/r/ossrs/srs/tags) or [there](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/srs/images), 
-please set the CANDIDATE ([CN][v4_CN_WebRTC#config-candidate],[EN][v4_EN_WebRTC#config-candidate]) if WebRTC enabled:
-
-```bash
-docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2}') -p 8000:8000/udp \
-    ossrs/srs:4 ./objs/srs -c conf/srs.conf
-```
-
-<a name="usage-source"></a>
-Or build SRS from source(or [mirrors](#mirrors)), by CentOS7(or Linux([CN][v4_CN_Build],[EN][v4_EN_Build])):
+Build SRS from source, please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )**:
 
 ```
 git clone -b develop https://gitee.com/ossrs/srs.git &&
 cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
 ```
 
-Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish 
-[stream](https://github.com/ossrs/srs/blob/3.0release/trunk/doc/source.flv) by FFmpeg. 
-It's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled:
+Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish
+by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) as:
 
 ```bash
-docker run --rm -it --network=host ossrs/srs:encoder \
-  ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
+ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
 ```
+
+> Note: It's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled.
 
 Play the following streams by [players](https://ossrs.net):
 
@@ -55,12 +45,12 @@ Play the following streams by [players](https://ossrs.net):
 
 From here, please read wikis:
 
-* [SRS 4.0 English Wiki][v4_EN_Home], please read Wiki first.
-* [SRS 4.0 中文Wiki][v4_CN_Home]，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
-* [学习路径](https://mp.weixin.qq.com/s/ngZX1wBSRJ8aYX-ZNTGxIg)，如何快速学习和掌握SRS，分层次了解流媒体服务器的知识。
+* [Getting Started](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started), please read Wiki first.
+* [中文文档：起步](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started)，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
 
 Fast index for Wikis:
 
+* Overview? ([CN][v4_CN_Home], [EN][v4_EN_Home])
 * How to deliver RTMP streaming?([CN][v4_CN_SampleRTMP], [EN][v4_EN_SampleRTMP])
 * How to build RTMP Edge-Cluster?([CN][v4_CN_SampleRTMPCluster], [EN][v4_EN_SampleRTMPCluster])
 * How to build RTMP Origin-Cluster?([CN][v4_CN_SampleOriginCluster], [EN][v4_EN_SampleOriginCluster])
