@@ -540,7 +540,11 @@ srs_error_t SrsDash::on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* form
     if (!enabled) {
         return err;
     }
-    
+
+    if (!format->acodec) {
+        return err;
+    }
+
     if ((err = controller->on_audio(shared_audio, format)) != srs_success) {
         return srs_error_wrap(err, "Consume audio failed");
     }
@@ -555,7 +559,11 @@ srs_error_t SrsDash::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* form
     if (!enabled) {
         return err;
     }
-    
+
+    if (!format->vcodec) {
+        return err;
+    }
+ 
     if ((err = controller->on_video(shared_video, format)) != srs_success) {
         return srs_error_wrap(err, "Consume video failed");
     }
