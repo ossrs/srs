@@ -4858,7 +4858,7 @@ bool SrsConfig::get_rtc_gop_cache_enabled(std::string vhost)
 
 int SrsConfig::get_rtc_gop_cache_max_packets(std::string vhost)
 {
-    static bool DEFAULT = false;
+    static int DEFAULT = 0;
 
     SrsConfDirective* conf = get_rtc(vhost);
 
