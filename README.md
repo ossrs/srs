@@ -46,7 +46,7 @@ Play the following streams by [players](https://ossrs.net):
 From here, please read wikis:
 
 * [Getting Started](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started), please read Wiki first.
-* [中文文档：起步](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started)，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
+* [中文文档：起步](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started)，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
 
 Fast index for Wikis:
 
