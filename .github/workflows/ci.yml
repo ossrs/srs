@@ -3,11 +3,13 @@ name: "CI"
 on:
   push:
     branches:
-      - *
+      - develop
+      - ?.0release
       - feature/*
   pull_request:
     branches:
-      - *
+      - develop
+      - ?.0release
       - feature/*
 
 jobs:
