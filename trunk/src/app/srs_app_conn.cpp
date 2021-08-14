@@ -115,7 +115,7 @@ void SrsResourceManager::add(ISrsResource* conn, bool* exists)
         conns_.push_back(conn);
     } else {
         if (exists) {
-            *exists = false;
+            *exists = true;
         }
     }
 }
