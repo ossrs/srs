@@ -1,0 +1,75 @@
+name: "Release"
+
+on:
+  push:
+    tags:
+      - v3*
+
+jobs:
+  k8s:
+    name: release-k8s
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # The github.ref is, for example, refs/tags/v3.0.145 or refs/tags/v3.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v3.0.145
+      #   SRS_TAG=v3.0-r8
+      #   SRS_MAJOR=3
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        shell: bash
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+
+      - name: Build SRS
+        shell: bash
+        run: |
+          echo "Release ossrs/srs:$SRS_TAG"
+          docker build --tag ossrs/srs:$SRS_TAG trunk
+
+      - name: Login docker hub
+        uses: docker/login-action@v1
+        with:
+          username: "${{ secrets.DOCKER_USERNAME }}"
+          password: "${{ secrets.DOCKER_PASSWORD }}"
+      - name: Push to docker hub
+        shell: bash
+        run: |
+          docker push ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG ossrs/srs:$SRS_MAJOR
+          docker push ossrs/srs:$SRS_MAJOR
+
+      - name: Login Aliyun docker hub
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: https://registry.cn-hangzhou.aliyuncs.com
+          username: "${{ secrets.ACR_USERNAME }}"
+          password: "${{ secrets.ACR_PASSWORD }}"
+      - name: Push to Aliyun docker hub
+        shell: bash
+        run: |
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+
+      - name: Setup KUBCONFIG for Aliyun ACK
+        shell: bash
+        run: |-
+          KUBECONFIG=$RUNNER_TEMP/kubeconfig_$(date +%s)
+          echo "${{ secrets.KUBCONFIG }}" > $KUBECONFIG
+          echo "KUBECONFIG=$KUBECONFIG" >> $GITHUB_ENV
+
+      - name: Release SRS 3.0 to Aliyun ACK
+        shell: bash
+        if: ${{ startsWith(github.ref, 'refs/tags/v3') }}
+        run: |-
+          kubectl set image deploy/srs3-deploy srs=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          kubectl describe deploy/srs3-deploy
