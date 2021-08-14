@@ -1,0 +1,19 @@
+name: "CI"
+
+on:
+  push:
+    branches:
+      - *
+      - feature/*
+  pull_request:
+    branches:
+      - *
+      - feature/*
+
+jobs:
+  actions-build-c7-baseline:
+    name: actions-build-c7-baseline
+    runs-on: ossrs/srs:dev
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "Build SRS baseline" && cd trunk && ./configure && make
