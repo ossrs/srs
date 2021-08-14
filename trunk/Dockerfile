@@ -23,8 +23,8 @@ RUN cp -R 3rdparty/signaling/www/demos /usr/local/srs/objs/nginx/html/
 ############################################################
 FROM centos:7 AS dist
 
-# Expose ports for live streaming
-EXPOSE 1935 1985 8080
+# Expose ports for streaming @see https://github.com/ossrs/srs#ports
+EXPOSE 1935 1985 8080 8000/udp 10080/udp
 
 # FFMPEG 4.1
 COPY --from=build /usr/local/bin/ffmpeg /usr/local/srs/objs/ffmpeg/bin/ffmpeg
