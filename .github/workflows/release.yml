@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - v3*
+      - v4*
 
 jobs:
   k8s:
@@ -73,3 +74,10 @@ jobs:
         run: |-
           kubectl set image deploy/srs3-deploy srs=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           kubectl describe deploy/srs3-deploy
+
+      - name: Release SRS 4.0 to Aliyun ACK
+        shell: bash
+        if: ${{ startsWith(github.ref, 'refs/tags/v4') }}
+        run: |-
+          kubectl set image deploy/srs4-deploy srs4=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          kubectl describe deploy/srs4-deploy

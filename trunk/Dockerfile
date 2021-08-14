@@ -6,7 +6,7 @@ RUN yum install -y gcc make gcc-c++ patch unzip perl git
 # Build and install SRS.
 COPY . /trunk
 WORKDIR /trunk
-RUN ./configure --jobs=2 && make -j2 && make install
+RUN ./configure --srt=on --jobs=2 && make -j2 && make install
 
 # All config files for SRS.
 RUN cp -R conf /usr/local/srs/conf
@@ -16,7 +16,7 @@ RUN cp research/api-server/static-dir/favicon.ico /usr/local/srs/objs/nginx/html
 RUN cp research/players/crossdomain.xml /usr/local/srs/objs/nginx/html/
 RUN cp -R research/console /usr/local/srs/objs/nginx/html/
 RUN cp -R research/players /usr/local/srs/objs/nginx/html/
-#RUN cp -R 3rdparty/signaling/www/demos /usr/local/srs/objs/nginx/html/
+RUN cp -R 3rdparty/signaling/www/demos /usr/local/srs/objs/nginx/html/
 
 ############################################################
 # dist
