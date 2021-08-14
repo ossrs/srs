@@ -3,7 +3,6 @@ name: "Release"
 on:
   push:
     tags:
-      - v3*
       - v4*
 
 jobs:
@@ -20,24 +19,21 @@ jobs:
       ################################################################
       # Tests
       - name: Build test image
-        if: ${{ !startsWith(github.ref, 'refs/tags/v3') }}
         run: docker build --tag srs:test -f trunk/Dockerfile.test trunk
       # For utest
       - name: Run SRS utest
-        if: ${{ !startsWith(github.ref, 'refs/tags/v3') }}
         run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
-        if: ${{ !startsWith(github.ref, 'refs/tags/v3') }}
         run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
 
       ################################################################
       # Build
-      # The github.ref is, for example, refs/tags/v3.0.145 or refs/tags/v3.0-r8
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
       # Generate variables like:
-      #   SRS_TAG=v3.0.145
-      #   SRS_TAG=v3.0-r8
-      #   SRS_MAJOR=3
+      #   SRS_TAG=v4.0.145
+      #   SRS_TAG=v4.0-r8
+      #   SRS_MAJOR=4
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -84,12 +80,6 @@ jobs:
           KUBECONFIG=$RUNNER_TEMP/kubeconfig_$(date +%s)
           echo "${{ secrets.KUBCONFIG }}" > $KUBECONFIG
           echo "KUBECONFIG=$KUBECONFIG" >> $GITHUB_ENV
-      # K8S for SRS 3.0
-      - name: Release SRS 3.0 to Aliyun ACK
-        if: ${{ startsWith(github.ref, 'refs/tags/v3') }}
-        run: |-
-          kubectl set image deploy/srs3-deploy srs=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
-          kubectl describe deploy/srs3-deploy
       # K8S for SRS 4.0
       - name: Release SRS 4.0 to Aliyun ACK
         if: ${{ startsWith(github.ref, 'refs/tags/v4') }}
