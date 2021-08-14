@@ -145,7 +145,7 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream& os)
     return err;
 }
 
-bool SrsSessionInfo::operator=(const SrsSessionInfo& rhs)
+bool SrsSessionInfo::operator==(const SrsSessionInfo& rhs)
 {
     return ice_ufrag_        == rhs.ice_ufrag_ &&
            ice_pwd_          == rhs.ice_pwd_ &&
@@ -153,6 +153,16 @@ bool SrsSessionInfo::operator=(const SrsSessionInfo& rhs)
            fingerprint_algo_ == rhs.fingerprint_algo_ &&
            fingerprint_      == rhs.fingerprint_ &&
            setup_            == rhs.setup_;
+}
+
+SrsSessionInfo &SrsSessionInfo::operator=(SrsSessionInfo other) {
+    std::swap(ice_ufrag_, other.ice_ufrag_);
+    std::swap(ice_pwd_, other.ice_pwd_);
+    std::swap(ice_options_, other.ice_options_);
+    std::swap(fingerprint_algo_, other.fingerprint_algo_);
+    std::swap(fingerprint_, other.fingerprint_);
+    std::swap(setup_, other.setup_);
+    return *this;
 }
 
 SrsSSRCInfo::SrsSSRCInfo()

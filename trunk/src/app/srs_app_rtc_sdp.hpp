@@ -36,7 +36,9 @@ public:
     srs_error_t parse_attribute(const std::string& attribute, const std::string& value);
     srs_error_t encode(std::ostringstream& os);
 
-    bool operator=(const SrsSessionInfo& rhs);
+    bool operator==(const SrsSessionInfo& rhs);
+    // user-defined copy assignment (copy-and-swap idiom)
+    SrsSessionInfo& operator=(SrsSessionInfo other);
 public:
     std::string ice_ufrag_;
     std::string ice_pwd_;
