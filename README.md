@@ -295,6 +295,7 @@ Remark:
 
 ## Releases
 
+* 2021-08-14, [Release v2.0-r11](https://github.com/ossrs/srs/releases/tag/v2.0-r11), 2.0 release11, 2.0.276, 89013 lines.
 * 2021-07-04, [Release v2.0-r10](https://github.com/ossrs/srs/releases/tag/v2.0-r10), 2.0 release10, 2.0.274, 87575 lines.
 * 2021-06-26, [Release v2.0-r9](https://github.com/ossrs/srs/releases/tag/v2.0-r9), 2.0 release9, 2.0.273, 87552 lines.
 * 2020-01-25, [Release v2.0-r8][r2.0r8], 2.0 release8, 2.0.272, 87292 lines.
@@ -341,7 +342,8 @@ Remark:
 
 ## History
 
-* <strong>v2.0, 2021-07-04, [2.0 release9(2.0.274)](https://github.com/ossrs/srs/releases/tag/v2.0-r10) released. 87575 lines.</strong>
+* <strong>v2.0, 2021-08-14, [2.0 release11(2.0.276)](https://github.com/ossrs/srs/releases/tag/v2.0-r11) released. 89013 lines.</strong>
+* <strong>v2.0, 2021-07-04, [2.0 release10(2.0.274)](https://github.com/ossrs/srs/releases/tag/v2.0-r10) released. 87575 lines.</strong>
 * v2.0, 2021-07-04, For [#2424](https://github.com/ossrs/srs/issues/2424), use srandom/random to generate. 2.0.274
 * <strong>v2.0, 2021-06-26, [2.0 release9(2.0.273)](https://github.com/ossrs/srs/releases/tag/v2.0-r9) released. 87552 lines.</strong>
 * v2.0, 2021-06-25, For [#2424](https://github.com/ossrs/srs/issues/2424), query the latest available version. 2.0.273
