@@ -1,18 +1,11 @@
 name: "CodeQL"
 
-on:
-  push:
-    branches: [ 4.0release, develop ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ 4.0release, develop ]
-  schedule:
-    # '20 19 * * 6' means 'At 19:20, only on Saturday' @see https://crontab.cronhub.io/
-    - cron: '20 19 * * 6'
+# @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
+on: [push, pull_request]
 
 jobs:
   analyze:
-    name: codeql-analyze
+    name: actions-codeql-analyze
     runs-on: ubuntu-latest
 
     strategy:
