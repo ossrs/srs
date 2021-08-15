@@ -6,9 +6,9 @@ require (
 	github.com/onsi/ginkgo v1.14.2 // indirect
 	github.com/onsi/gomega v1.10.3 // indirect
 	github.com/pion/datachannel v1.4.21
-	github.com/pion/dtls/v2 v2.0.4
-	github.com/pion/ice/v2 v2.0.14
-	github.com/pion/interceptor v0.0.9
+	github.com/pion/dtls/v2 v2.0.8
+	github.com/pion/ice/v2 v2.0.15
+	github.com/pion/interceptor v0.0.10
 	github.com/pion/logging v0.2.2
 	github.com/pion/randutil v0.1.0
 	github.com/pion/rtcp v1.2.6
@@ -19,5 +19,5 @@ require (
 	github.com/pion/transport v0.12.2
 	github.com/sclevine/agouti v3.0.0+incompatible
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/net v0.0.0-20201201195509-5d6afe98e0b7
+	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
 )

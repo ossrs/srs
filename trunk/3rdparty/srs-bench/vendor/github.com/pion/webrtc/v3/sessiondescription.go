@@ -13,12 +13,8 @@ type SessionDescription struct {
 	parsed *sdp.SessionDescription
 }
 
-// Unmarshal is a helper to deserialize the sdp, and re-use it internally
-// if required
+// Unmarshal is a helper to deserialize the sdp
 func (sd *SessionDescription) Unmarshal() (*sdp.SessionDescription, error) {
-	if sd.parsed != nil {
-		return sd.parsed, nil
-	}
 	sd.parsed = &sdp.SessionDescription{}
 	err := sd.parsed.Unmarshal([]byte(sd.SDP))
 	return sd.parsed, err
