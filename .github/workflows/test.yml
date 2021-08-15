@@ -1,0 +1,138 @@
+name: "Test"
+
+# @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
+on: [push, pull_request]
+
+jobs:
+  build-centos:
+    name: actions-test-build-centos
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Build for CentOS7
+      - name: Build on CentOS7, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
+      - name: Build on CentOS7, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-srt .
+      - name: Build on CentOS7, without WebRTC
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-webrtc .
+      - name: Build on CentOS7, without ASM
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
+      - name: Build on CentOS7, C++98, no FFmpeg
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
+      # Build for CentOS8
+      - name: Build on CentOS8, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
+      - name: Build on CentOS8, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-srt .
+
+  build-ubuntu:
+    name: actions-test-build-ubuntu
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Build for Ubuntu16
+      - name: Build on Ubuntu16, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
+      - name: Build on Ubuntu16, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
+      # Build for Ubuntu18
+      - name: Build on Ubuntu18, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
+      - name: Build on Ubuntu18, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
+      # Build for Ubuntu20
+      - name: Build on Ubuntu20, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
+      - name: Build on Ubuntu20, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-srt .
+
+  build-cross:
+    name: actions-test-build-cross
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Cross Build for ARMv7
+      - name: Cross Build for ARMv7
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
+      # Cross Build for AARCH64
+      - name: Cross Build for AARCH64
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
+
+  build:
+    name: actions-test-build
+    needs:
+      - build-centos
+      - build-ubuntu
+      - build-cross
+    runs-on: ubuntu-20.04
+
+    steps:
+      - run: echo 'Build done'
+
+  utest:
+    name: actions-test-utest
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      ################################################################
+      # Tests
+      - name: Build test image
+        run: docker build --tag srs:test -f trunk/Dockerfile.test .
+      # For utest
+      - name: Run SRS utest
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+      # For regression-test
+      - name: Run SRS regression-test
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+
+  coverage:
+    name: actions-test-coverage
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      ################################################################
+      # Tests
+      - name: Build coverage image
+        run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
+      # For coverage
+      - name: Run SRS covergae
+        if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/pull/') }}
+        run: |
+          # The hash of commit.
+          SRS_SHA=${{ github.sha }}
+          # Note that the root of SRS, must contains .git, for report fixing.
+          SRS_PROJECT=/srs
+          # The github.ref is, for example, refs/heads/4.0release
+          SRS_BRANCH=$(echo ${{ github.ref }}| awk -F 'refs/heads/' '{print $2}'| awk -F '/' '{print $1}')
+          # The github.ref is, for example, refs/pull/2536/merge
+          SRS_PR=$(echo ${{ github.ref }}| awk -F 'refs/pull/' '{print $2}'| awk -F '/' '{print $1}')
+          echo "For ref=${{ github.ref }}, sha=${{ github.sha }}, SRS_BRANCH=$SRS_BRANCH, SRS_PR=$SRS_PR, SRS_SHA=$SRS_SHA, SRS_PROJECT=$SRS_PROJECT"
+          docker run --rm --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
+            srs:cov bash -c 'make && ./objs/srs_utest && bash auto/codecov.sh'
+
+  done:
+    name: actions-test-done
+    needs:
+      - build
+      - utest
+      - coverage
+    runs-on: ubuntu-20.04
+
+    steps:
+      - run: echo 'All done'

@@ -1,5 +1,6 @@
 name: "Release"
 
+# @see https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
 on:
   push:
     tags:
