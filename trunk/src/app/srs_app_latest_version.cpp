@@ -44,6 +44,8 @@ extern bool _srs_in_docker;
 
 void srs_build_features(stringstream& ss)
 {
+    ss << "&os=linux";
+
     ss << "&docker=" << _srs_in_docker
         << "&packager=" << SRS_AUTO_PACKAGER;
 }
