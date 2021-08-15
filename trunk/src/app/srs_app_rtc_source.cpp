@@ -6,6 +6,7 @@
 
 #include <srs_app_rtc_source.hpp>
 
+#include <math.h>
 #include <unistd.h>
 
 #include <srs_app_conn.hpp>
