@@ -183,21 +183,14 @@ srs_error_t SrsLatestVersion::cycle()
     srs_error_t err = srs_success;
 
     if (true) {
-        string url;
-        srs_utime_t starttime = srs_update_system_time();
-        if ((err = query_latest_version(url)) != srs_success) {
-            srs_warn("query err %s", srs_error_desc(err).c_str());
-            srs_freep(err); // Ignore any error.
-        }
-
         srs_utime_t first_random_wait = 0;
         srs_random_generate((char *) &first_random_wait, 8);
-        first_random_wait = srs_utime_t(uint64_t((first_random_wait + starttime + getpid())) % (60 * 60)) * SRS_UTIME_SECONDS; // in s.
+        first_random_wait = srs_utime_t(uint64_t((first_random_wait + srs_update_system_time() + getpid())) % (5 * 60)) * SRS_UTIME_SECONDS; // in s.
 
-        srs_trace("Startup query id=%s, eip=%s, match=%s, stable=%s, wait=%ds, cost=%dms, url=%s",
-            server_id_.c_str(), srs_get_public_internet_address().c_str(), match_version_.c_str(),
-            stable_version_.c_str(), srsu2msi(first_random_wait) / 1000, srsu2msi(srs_update_system_time() - starttime),
-            url.c_str());
+        // Only report after 5+ minutes.
+        first_random_wait += 5 * 60 * SRS_UTIME_SECONDS;
+
+        srs_trace("Startup query id=%s, eip=%s, wait=%ds", server_id_.c_str(), srs_get_public_internet_address().c_str(), srsu2msi(first_random_wait) / 1000);
         srs_usleep(first_random_wait);
     }
 
@@ -233,7 +226,8 @@ srs_error_t SrsLatestVersion::query_latest_version(string& url)
           << "version=v" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_REVISION
           << "&id=" << server_id_ << "&role=srs"
           << "&eip=" << srs_get_public_internet_address()
-          << "&ts=" << srsu2ms(srs_get_system_time());
+          << "&ts=" << srs_get_system_time()
+          << "&alive=" << srsu2ms(srs_get_system_time() - srs_get_system_startup_time()) / 1000;
     srs_build_features(ss);
     url = ss.str();
 

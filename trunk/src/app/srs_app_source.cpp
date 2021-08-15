@@ -931,6 +931,12 @@ srs_error_t SrsOriginHub::on_audio(SrsSharedPtrMessage* shared_audio)
     if ((err = format->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume audio");
     }
+
+    // Ignore if no format->acodec, it means the codec is not parsed, or unsupport/unknown codec
+    // such as G.711 codec
+    if (!format->acodec) {
+        return err;
+    }
     
     // cache the sequence header if aac
     // donot cache the sequence header to gop_cache, return here.
