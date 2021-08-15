@@ -132,7 +132,7 @@ SrsNtp SrsNtp::to_time_ms(uint64_t ntp)
     srs_ntp.ntp_second_ = (ntp & 0xFFFFFFFF00000000ULL) >> 32;
     srs_ntp.ntp_fractions_ = (ntp & 0x00000000FFFFFFFFULL);
     srs_ntp.system_ms_ = (static_cast<uint64_t>(srs_ntp.ntp_second_) * 1000) +
-        (static_cast<double>(static_cast<uint64_t>(srs_ntp.ntp_fractions_) * 1000.0) / kMagicNtpFractionalUnit);
+        round((static_cast<double>(static_cast<uint64_t>(srs_ntp.ntp_fractions_) * 1000.0) / kMagicNtpFractionalUnit));
     return srs_ntp;
 }
 
@@ -2261,6 +2261,8 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp, uint32_t rtp_ti
 
 int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
 {
+    // Have no recv at least 2 sender reports, can't calculate sync time.
+    // TODO: FIXME: use the sample rate from sdp.
     if (last_sender_report_rtp_time1_ <= 0) {
         return -1;
     }
@@ -2273,14 +2275,25 @@ int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
     //   sender_report : rtp_time  = 10960, ntp_time  = 40020
     //   (rtp_time - rtp_time1) / (ntp_time - ntp_time1) = 960 / 20 = 48,
     // Now we can calcualte ntp time(ntp_x) of any given rtp timestamp(rtp_x),
-    // (rtp_x - rtp_time) / (ntp_x - ntp_time) = 48, and then ntp_x = (rtp_x - rtp_time) / 48 + ntp_time;
-    float sys_time_elapsed = last_sender_report_ntp_.system_ms_ - last_sender_report_ntp1_.system_ms_;
-    float rtp_time_elpased = last_sender_report_rtp_time_ - last_sender_report_rtp_time1_;
-    float rate = rtp_time_elpased / sys_time_elapsed;
+    //   (rtp_x - rtp_time) / (ntp_x - ntp_time) = 48   =>   ntp_x = (rtp_x - rtp_time) / 48 + ntp_time;
+    double sys_time_elapsed = static_cast<double>(last_sender_report_ntp_.system_ms_) - static_cast<double>(last_sender_report_ntp1_.system_ms_);
 
-    float delta = (rtp_time - last_sender_report_rtp_time_) / rate;
-    int64_t avsync_time = (uint32_t)delta + last_sender_report_ntp_.system_ms_;
+    // Check sys_time_elapsed is equal to zero.
+    if (fpclassify(sys_time_elapsed) == FP_ZERO) {
+        return -1;
+    }
     
+    double rtp_time_elpased = static_cast<double>(last_sender_report_rtp_time_) - static_cast<double>(last_sender_report_rtp_time1_);
+    int rate = round(rtp_time_elpased / sys_time_elapsed);
+
+    if (rate <= 0) {
+        return -1;
+    }
+
+    double delta = round((rtp_time - last_sender_report_rtp_time_) / rate);
+
+    int64_t avsync_time = delta + last_sender_report_ntp_.system_ms_;
+
     return avsync_time;
 }
 
