@@ -32,7 +32,6 @@ jobs:
         run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
       # For coverage
       - name: Run SRS covergae
-        if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/remotes/') }}
         run: |
           # The hash of commit.
           SRS_SHA=${{ github.sha }}
