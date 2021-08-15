@@ -1,0 +1,88 @@
+name: "Release"
+
+on:
+  push:
+    tags:
+      - v4*
+
+jobs:
+  k8s:
+    name: release-k8s
+    runs-on: ubuntu-20.04
+
+    steps:
+      ################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      ################################################################
+      # Tests
+      - name: Build test image
+        run: docker build --tag srs:test -f trunk/Dockerfile.test trunk
+      # For utest
+      - name: Run SRS utest
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+      # For regression-test
+      - name: Run SRS regression-test
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+
+      ################################################################
+      # Build
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0.145
+      #   SRS_TAG=v4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+      # Build SRS image
+      - name: Build SRS docker image
+        run: |
+          echo "Release ossrs/srs:$SRS_TAG"
+          docker build --tag ossrs/srs:$SRS_TAG trunk
+
+      ################################################################
+      # Docker
+      - name: Login docker hub
+        uses: docker/login-action@v1
+        with:
+          username: "${{ secrets.DOCKER_USERNAME }}"
+          password: "${{ secrets.DOCKER_PASSWORD }}"
+      - name: Push to docker hub
+        run: |
+          docker push ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG ossrs/srs:$SRS_MAJOR
+          docker push ossrs/srs:$SRS_MAJOR
+      # Aliyun ACR
+      - name: Login Aliyun docker hub
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: https://registry.cn-hangzhou.aliyuncs.com
+          username: "${{ secrets.ACR_USERNAME }}"
+          password: "${{ secrets.ACR_PASSWORD }}"
+      - name: Push to Aliyun docker hub
+        run: |
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+
+      ################################################################
+      # K8S
+      - name: Setup KUBCONFIG for Aliyun ACK
+        run: |-
+          KUBECONFIG=$RUNNER_TEMP/kubeconfig_$(date +%s)
+          echo "${{ secrets.KUBCONFIG }}" > $KUBECONFIG
+          echo "KUBECONFIG=$KUBECONFIG" >> $GITHUB_ENV
+      # K8S for SRS 4.0
+      - name: Release SRS 4.0 to Aliyun ACK
+        if: ${{ startsWith(github.ref, 'refs/tags/v4') }}
+        run: |-
+          kubectl set image deploy/srs4-deploy srs4=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          kubectl describe deploy/srs4-deploy

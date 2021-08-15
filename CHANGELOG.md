@@ -21,6 +21,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-08-14, Support Github Actions to publish SRS. 4.0.155
 * v4.0, 2021-08-14, RTC: Merge [#2533](https://github.com/ossrs/srs/pull/2533), fix SDP comparison bug. 4.0.154
 * v4.0, 2021-08-13, RTC: Merge [#2526](https://github.com/ossrs/srs/pull/2526), fix codec issue for G.711 or H.263. 4.0.152
 * v4.0, 2021-08-10, RTC: Merge [#2509](https://github.com/ossrs/srs/pull/2514), support http hooks n_play/stop/publish/unpublish. 4.0.151
