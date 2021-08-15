@@ -13,6 +13,11 @@ mkdir -p $workdir && cd $workdir
 ret=$?; if [[ $ret -ne 0 ]]; then echo "Enter workdir failed, ret=$ret"; exit $ret; fi
 
 CODECOV_ARGS=""
+if [[ $SRS_PROJECT != '' ]]; then
+  # -R root dir  Used when not in git/hg project to identify project root directory
+  # -p dir       Project root directory. Also used when preparing gcov
+  CODECOV_ARGS="$CODECOV_ARGS -R $SRS_PROJECT -p $SRS_PROJECT"
+fi
 if [[ $SRS_BRANCH != '' ]]; then
   # -B branch    Specify the branch name
   CODECOV_ARGS="$CODECOV_ARGS -B $SRS_BRANCH"
@@ -21,10 +26,9 @@ if [[ $SRS_SHA != '' ]]; then
   # -C sha       Specify the commit sha
   CODECOV_ARGS="$CODECOV_ARGS -C $SRS_SHA"
 fi
-if [[ $SRS_PROJECT != '' ]]; then
-  # -R root dir  Used when not in git/hg project to identify project root directory
-  # -p dir       Project root directory. Also used when preparing gcov
-  CODECOV_ARGS="$CODECOV_ARGS -R $SRS_PROJECT -p $SRS_PROJECT"
+if [[ $SRS_PR != '' ]]; then
+  # -P pr        Specify the pull request number
+  CODECOV_ARGS="$CODECOV_ARGS -P $SRS_PR"
 fi
 
 # Upload report with *.gcov
