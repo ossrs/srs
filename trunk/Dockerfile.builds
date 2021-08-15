@@ -56,15 +56,6 @@ COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 
 ########################################################
-FROM ossrs/srs:aarch64 AS aarch64-baseline
-COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
-
-FROM ossrs/srs:aarch64 AS aarch64-srt
-COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
-
-########################################################
 FROM ossrs/srs:ubuntu16 AS ubuntu16-cross-armv7
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --cross-build --cc=arm-linux-gnueabihf-gcc --cxx=arm-linux-gnueabihf-g++ \

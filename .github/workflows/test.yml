@@ -14,20 +14,20 @@ jobs:
 
       # Build for CentOS7
       - name: Build on CentOS7, baseline
-        run: docker build -f trunk/Dockerfile.builds --target centos7-baseline .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
       - name: Build on CentOS7, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target centos7-srt .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-srt .
       - name: Build on CentOS7, without WebRTC
-        run: docker build -f trunk/Dockerfile.builds --target centos7-no-webrtc .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-webrtc .
       - name: Build on CentOS7, without ASM
-        run: docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
-        run: docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
       # Build for CentOS8
       - name: Build on CentOS8, baseline
-        run: docker build -f trunk/Dockerfile.builds --target centos8-baseline .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
       - name: Build on CentOS8, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target centos8-srt .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-srt .
 
   build-ubuntu:
     name: actions-test-build-ubuntu
@@ -39,33 +39,19 @@ jobs:
 
       # Build for Ubuntu16
       - name: Build on Ubuntu16, baseline
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-baseline .
       - name: Build on Ubuntu16, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-srt .
       # Build for Ubuntu18
       - name: Build on Ubuntu18, baseline
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-baseline .
       - name: Build on Ubuntu18, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu18-srt .
       # Build for Ubuntu20
       - name: Build on Ubuntu20, baseline
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-baseline .
       - name: Build on Ubuntu20, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu20-srt .
-
-  build-arm:
-    name: actions-test-build-arm
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      # Build for AARCH64
-      - name: Build for AARCH64, baseline
-        run: docker build -f trunk/Dockerfile.builds --target aarch64-baseline .
-      - name: Build for AARCH64, with SRT
-        run: docker build -f trunk/Dockerfile.builds --target aarch64-srt .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-srt .
 
   build-cross:
     name: actions-test-build-cross
@@ -77,17 +63,16 @@ jobs:
 
       # Cross Build for ARMv7
       - name: Cross Build for ARMv7
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-armv7 .
       # Cross Build for AARCH64
       - name: Cross Build for AARCH64
-        run: docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu16-cross-aarch64 .
 
   build:
     name: actions-test-build
     needs:
       - build-centos
       - build-ubuntu
-      - build-arm
       - build-cross
     runs-on: ubuntu-20.04
 
