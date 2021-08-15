@@ -900,18 +900,22 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
 VOID TEST(KernelRTCTest, Ntp)
 {
     if (true) {
+        // Test small systime, from 0-10000ms.
         for (int i = 0; i < 10000; ++i) {
             srs_utime_t now_ms = i;
+            // Cover systime to ntp
             SrsNtp ntp = SrsNtp::from_time_ms(now_ms);
 
             ASSERT_EQ(ntp.system_ms_, now_ms);
 
+            // Cover ntp to systime
             SrsNtp ntp1 = SrsNtp::to_time_ms(ntp.ntp_);
             ASSERT_EQ(ntp1.system_ms_, now_ms);
         }
     }
 
     if (true) {
+        // Test current systime to ntp.
         srs_utime_t now_ms = srs_get_system_time() / 1000;
         SrsNtp ntp = SrsNtp::from_time_ms(now_ms);
 
@@ -952,6 +956,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
 
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -964,11 +969,13 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
         video_sr->set_rtp_ts(video_rtp_ts);
         publish.on_rtcp_sr(video_sr);
 
+        // Video timebase 90000, fps=25
         video_rtp_ts += 3600;
         video_absolute_ts += 40;
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
 
+        // Received one sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -977,6 +984,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
         publish.on_rtcp_sr(video_sr);
 
         for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
             video_rtp_ts += 3600;
             video_absolute_ts += 40;
             video_rtp_pkt->header.set_timestamp(video_rtp_ts);
@@ -1016,6 +1024,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
 
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -1027,11 +1036,13 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
         video_sr1->set_ntp(ntp.ntp_);
         video_sr1->set_rtp_ts(video_rtp_ts);
 
+        // Video timebase 90000, fps=25
         video_rtp_ts += 3600;
         video_absolute_ts += 40;
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
 
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -1041,10 +1052,12 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
         video_sr2->set_ntp(ntp.ntp_);
         video_sr2->set_rtp_ts(video_rtp_ts);
 
+        // Sender report out of order, sr2 arrived befreo sr1.
         publish.on_rtcp_sr(video_sr2);
         publish.on_rtcp_sr(video_sr1);
 
         for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
             video_rtp_ts += 3600;
             video_absolute_ts += 40;
             video_rtp_pkt->header.set_timestamp(video_rtp_ts);
@@ -1084,6 +1097,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
 
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -1096,11 +1110,13 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
         video_sr->set_rtp_ts(video_rtp_ts);
         publish.on_rtcp_sr(video_sr);
 
+        // Video timebase 90000, fps=25
         video_rtp_ts += 3600;
         video_absolute_ts += 40;
         video_rtp_pkt->header.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
 
+        // Received one sender report, can not calculate absolute time, expect equal to -1.
         EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
 
         ntp = SrsNtp::from_time_ms(video_absolute_ts);
@@ -1109,12 +1125,14 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
         publish.on_rtcp_sr(video_sr);
 
         for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
             video_rtp_ts += 3600;
             video_absolute_ts += 40;
             video_rtp_pkt->header.set_timestamp(video_rtp_ts);
             video->on_rtp(rtc_source, video_rtp_pkt);
             EXPECT_NEAR(video_rtp_pkt->get_avsync_time(), video_absolute_ts, 1);
 
+            // Send sender report every 4 seconds.
             if (i % 100 == 99) {
                 ntp = SrsNtp::from_time_ms(video_absolute_ts);
                 video_sr->set_ntp(ntp.ntp_);
