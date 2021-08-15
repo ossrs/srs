@@ -1,0 +1,40 @@
+name: "Test"
+
+on: [push, pull_request]
+
+jobs:
+  utest:
+    name: actions-test-utest
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      ################################################################
+      # Tests
+      - name: Build test image
+        run: docker build --tag srs:test -f trunk/Dockerfile.test trunk
+      # For utest
+      - name: Run SRS utest
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+  coverage:
+    name: actions-test-coverage
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      ################################################################
+      # Tests
+      - name: Build coverage image
+        run: docker build --tag srs:cov -f trunk/Dockerfile.cov .
+      # For coverage
+      - name: Run SRS covergae
+        if: ${{ startsWith(github.ref, 'refs/heads/') }}
+        run: |
+          SRS_BRANCH=$(echo ${{ github.ref }}| awk -F '/' '{print $3}') && SRS_SHA=${{ github.sha }} && SRS_PROJECT=/srs
+          echo "For ref=${{ github.ref }}, sha=${{ github.sha }}, SRS_BRANCH=$SRS_BRANCH, SRS_SHA=$SRS_SHA, SRS_PROJECT=$SRS_PROJECT"
+          docker run --rm --env SRS_BRANCH=$SRS_BRANCH --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
+            srs:cov bash -c 'make && ./objs/srs_utest && bash auto/coverage.sh'

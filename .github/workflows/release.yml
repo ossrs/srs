@@ -7,7 +7,7 @@ on:
 
 jobs:
   k8s:
-    name: release-k8s
+    name: actions-release-k8s
     runs-on: ubuntu-20.04
 
     steps:
