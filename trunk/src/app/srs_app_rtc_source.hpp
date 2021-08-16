@@ -318,7 +318,7 @@ public:
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
     virtual void on_unpublish();
 private:
-    srs_error_t trancode_audio(SrsRtpPacket *pkt);
+    srs_error_t transcode_audio(SrsRtpPacket *pkt);
     void packet_aac(SrsCommonMessage* audio, char* data, int len, uint32_t pts, bool is_header);
     srs_error_t packet_video(SrsRtpPacket* pkt);
     srs_error_t packet_video_key_frame(SrsRtpPacket* pkt);
@@ -519,9 +519,15 @@ private:
     // By config, whether no copy.
     bool nack_no_copy_;
 protected:
-    // send report ntp and received time.
-    SrsNtp last_sender_report_ntp;
-    uint64_t last_sender_report_sys_time;
+    // Latest sender report ntp and rtp time.
+    SrsNtp last_sender_report_ntp_;
+    int64_t last_sender_report_rtp_time_;
+
+    // Prev sender report ntp and rtp time.
+    SrsNtp last_sender_report_ntp1_;
+    int64_t last_sender_report_rtp_time1_;
+
+    uint64_t last_sender_report_sys_time_;
 public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
@@ -531,7 +537,8 @@ public:
     bool has_ssrc(uint32_t ssrc);
     uint32_t get_ssrc();
     void update_rtt(int rtt);
-    void update_send_report_time(const SrsNtp& ntp);
+    void update_send_report_time(const SrsNtp& ntp, uint32_t rtp_time);
+    int64_t cal_avsync_time(uint32_t rtp_time);
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
     bool set_track_status(bool active);

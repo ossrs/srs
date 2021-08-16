@@ -3,11 +3,16 @@ package dtls
 import (
 	"bytes"
 	"context"
+
+	"github.com/pion/dtls/v2/pkg/protocol"
+	"github.com/pion/dtls/v2/pkg/protocol/alert"
+	"github.com/pion/dtls/v2/pkg/protocol/handshake"
+	"github.com/pion/dtls/v2/pkg/protocol/recordlayer"
 )
 
-func flight2Parse(ctx context.Context, c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert, error) {
+func flight2Parse(ctx context.Context, c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert.Alert, error) {
 	seq, msgs, ok := cache.fullPullMap(state.handshakeRecvSequence,
-		handshakeCachePullRule{handshakeTypeClientHello, cfg.initialEpoch, true, false},
+		handshakeCachePullRule{handshake.TypeClientHello, cfg.initialEpoch, true, false},
 	)
 	if !ok {
 		// Client may retransmit the first ClientHello when HelloVerifyRequest is dropped.
@@ -16,38 +21,38 @@ func flight2Parse(ctx context.Context, c flightConn, state *State, cache *handsh
 	}
 	state.handshakeRecvSequence = seq
 
-	var clientHello *handshakeMessageClientHello
+	var clientHello *handshake.MessageClientHello
 
 	// Validate type
-	if clientHello, ok = msgs[handshakeTypeClientHello].(*handshakeMessageClientHello); !ok {
-		return 0, &alert{alertLevelFatal, alertInternalError}, nil
+	if clientHello, ok = msgs[handshake.TypeClientHello].(*handshake.MessageClientHello); !ok {
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, nil
 	}
 
-	if !clientHello.version.Equal(protocolVersion1_2) {
-		return 0, &alert{alertLevelFatal, alertProtocolVersion}, errUnsupportedProtocolVersion
+	if !clientHello.Version.Equal(protocol.Version1_2) {
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.ProtocolVersion}, errUnsupportedProtocolVersion
 	}
 
-	if len(clientHello.cookie) == 0 {
+	if len(clientHello.Cookie) == 0 {
 		return 0, nil, nil
 	}
-	if !bytes.Equal(state.cookie, clientHello.cookie) {
-		return 0, &alert{alertLevelFatal, alertAccessDenied}, errCookieMismatch
+	if !bytes.Equal(state.cookie, clientHello.Cookie) {
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.AccessDenied}, errCookieMismatch
 	}
 	return flight4, nil, nil
 }
 
-func flight2Generate(c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert, error) {
+func flight2Generate(c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert.Alert, error) {
 	state.handshakeSendSequence = 0
 	return []*packet{
 		{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Version: protocol.Version1_2,
 				},
-				content: &handshake{
-					handshakeMessage: &handshakeMessageHelloVerifyRequest{
-						version: protocolVersion1_2,
-						cookie:  state.cookie,
+				Content: &handshake.Handshake{
+					Message: &handshake.MessageHelloVerifyRequest{
+						Version: protocol.Version1_2,
+						Cookie:  state.cookie,
 					},
 				},
 			},

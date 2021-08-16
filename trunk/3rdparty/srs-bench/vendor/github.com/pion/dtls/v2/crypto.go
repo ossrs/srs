@@ -12,13 +12,16 @@ import (
 	"encoding/binary"
 	"math/big"
 	"time"
+
+	"github.com/pion/dtls/v2/pkg/crypto/elliptic"
+	"github.com/pion/dtls/v2/pkg/crypto/hash"
 )
 
 type ecdsaSignature struct {
 	R, S *big.Int
 }
 
-func valueKeyMessage(clientRandom, serverRandom, publicKey []byte, namedCurve namedCurve) []byte {
+func valueKeyMessage(clientRandom, serverRandom, publicKey []byte, namedCurve elliptic.Curve) []byte {
 	serverECDHParams := make([]byte, 4)
 	serverECDHParams[0] = 3 // named curve
 	binary.BigEndian.PutUint16(serverECDHParams[1:], uint16(namedCurve))
@@ -38,24 +41,24 @@ func valueKeyMessage(clientRandom, serverRandom, publicKey []byte, namedCurve na
 // hash/signature algorithm pair that appears in that extension
 //
 // https://tools.ietf.org/html/rfc5246#section-7.4.2
-func generateKeySignature(clientRandom, serverRandom, publicKey []byte, namedCurve namedCurve, privateKey crypto.PrivateKey, hashAlgorithm hashAlgorithm) ([]byte, error) {
+func generateKeySignature(clientRandom, serverRandom, publicKey []byte, namedCurve elliptic.Curve, privateKey crypto.PrivateKey, hashAlgorithm hash.Algorithm) ([]byte, error) {
 	msg := valueKeyMessage(clientRandom, serverRandom, publicKey, namedCurve)
 	switch p := privateKey.(type) {
 	case ed25519.PrivateKey:
 		// https://crypto.stackexchange.com/a/55483
 		return p.Sign(rand.Reader, msg, crypto.Hash(0))
 	case *ecdsa.PrivateKey:
-		hashed := hashAlgorithm.digest(msg)
-		return p.Sign(rand.Reader, hashed, hashAlgorithm.cryptoHash())
+		hashed := hashAlgorithm.Digest(msg)
+		return p.Sign(rand.Reader, hashed, hashAlgorithm.CryptoHash())
 	case *rsa.PrivateKey:
-		hashed := hashAlgorithm.digest(msg)
-		return p.Sign(rand.Reader, hashed, hashAlgorithm.cryptoHash())
+		hashed := hashAlgorithm.Digest(msg)
+		return p.Sign(rand.Reader, hashed, hashAlgorithm.CryptoHash())
 	}
 
 	return nil, errKeySignatureGenerateUnimplemented
 }
 
-func verifyKeySignature(message, remoteKeySignature []byte, hashAlgorithm hashAlgorithm, rawCertificates [][]byte) error { //nolint:dupl
+func verifyKeySignature(message, remoteKeySignature []byte, hashAlgorithm hash.Algorithm, rawCertificates [][]byte) error { //nolint:dupl
 	if len(rawCertificates) == 0 {
 		return errLengthMismatch
 	}
@@ -78,7 +81,7 @@ func verifyKeySignature(message, remoteKeySignature []byte, hashAlgorithm hashAl
 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
 			return errInvalidECDSASignature
 		}
-		hashed := hashAlgorithm.digest(message)
+		hashed := hashAlgorithm.Digest(message)
 		if !ecdsa.Verify(p, hashed, ecdsaSig.R, ecdsaSig.S) {
 			return errKeySignatureMismatch
 		}
@@ -86,8 +89,8 @@ func verifyKeySignature(message, remoteKeySignature []byte, hashAlgorithm hashAl
 	case *rsa.PublicKey:
 		switch certificate.SignatureAlgorithm {
 		case x509.SHA1WithRSA, x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA:
-			hashed := hashAlgorithm.digest(message)
-			return rsa.VerifyPKCS1v15(p, hashAlgorithm.cryptoHash(), hashed, remoteKeySignature)
+			hashed := hashAlgorithm.Digest(message)
+			return rsa.VerifyPKCS1v15(p, hashAlgorithm.CryptoHash(), hashed, remoteKeySignature)
 		default:
 			return errKeySignatureVerifyUnimplemented
 		}
@@ -104,7 +107,7 @@ func verifyKeySignature(message, remoteKeySignature []byte, hashAlgorithm hashAl
 // CertificateVerify message is sent to explicitly verify possession of
 // the private key in the certificate.
 // https://tools.ietf.org/html/rfc5246#section-7.3
-func generateCertificateVerify(handshakeBodies []byte, privateKey crypto.PrivateKey, hashAlgorithm hashAlgorithm) ([]byte, error) {
+func generateCertificateVerify(handshakeBodies []byte, privateKey crypto.PrivateKey, hashAlgorithm hash.Algorithm) ([]byte, error) {
 	h := sha256.New()
 	if _, err := h.Write(handshakeBodies); err != nil {
 		return nil, err
@@ -116,15 +119,15 @@ func generateCertificateVerify(handshakeBodies []byte, privateKey crypto.Private
 		// https://crypto.stackexchange.com/a/55483
 		return p.Sign(rand.Reader, hashed, crypto.Hash(0))
 	case *ecdsa.PrivateKey:
-		return p.Sign(rand.Reader, hashed, hashAlgorithm.cryptoHash())
+		return p.Sign(rand.Reader, hashed, hashAlgorithm.CryptoHash())
 	case *rsa.PrivateKey:
-		return p.Sign(rand.Reader, hashed, hashAlgorithm.cryptoHash())
+		return p.Sign(rand.Reader, hashed, hashAlgorithm.CryptoHash())
 	}
 
 	return nil, errInvalidSignatureAlgorithm
 }
 
-func verifyCertificateVerify(handshakeBodies []byte, hashAlgorithm hashAlgorithm, remoteKeySignature []byte, rawCertificates [][]byte) error { //nolint:dupl
+func verifyCertificateVerify(handshakeBodies []byte, hashAlgorithm hash.Algorithm, remoteKeySignature []byte, rawCertificates [][]byte) error { //nolint:dupl
 	if len(rawCertificates) == 0 {
 		return errLengthMismatch
 	}
@@ -147,7 +150,7 @@ func verifyCertificateVerify(handshakeBodies []byte, hashAlgorithm hashAlgorithm
 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
 			return errInvalidECDSASignature
 		}
-		hash := hashAlgorithm.digest(handshakeBodies)
+		hash := hashAlgorithm.Digest(handshakeBodies)
 		if !ecdsa.Verify(p, hash, ecdsaSig.R, ecdsaSig.S) {
 			return errKeySignatureMismatch
 		}
@@ -155,8 +158,8 @@ func verifyCertificateVerify(handshakeBodies []byte, hashAlgorithm hashAlgorithm
 	case *rsa.PublicKey:
 		switch certificate.SignatureAlgorithm {
 		case x509.SHA1WithRSA, x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA:
-			hash := hashAlgorithm.digest(handshakeBodies)
-			return rsa.VerifyPKCS1v15(p, hashAlgorithm.cryptoHash(), hash, remoteKeySignature)
+			hash := hashAlgorithm.Digest(handshakeBodies)
+			return rsa.VerifyPKCS1v15(p, hashAlgorithm.CryptoHash(), hash, remoteKeySignature)
 		default:
 			return errKeySignatureVerifyUnimplemented
 		}
@@ -215,18 +218,4 @@ func verifyServerCert(rawCertificates [][]byte, roots *x509.CertPool, serverName
 		Intermediates: intermediateCAPool,
 	}
 	return certificate[0].Verify(opts)
-}
-
-func generateAEADAdditionalData(h *recordLayerHeader, payloadLen int) []byte {
-	var additionalData [13]byte
-	// SequenceNumber MUST be set first
-	// we only want uint48, clobbering an extra 2 (using uint64, Golang doesn't have uint48)
-	binary.BigEndian.PutUint64(additionalData[:], h.sequenceNumber)
-	binary.BigEndian.PutUint16(additionalData[:], h.epoch)
-	additionalData[8] = byte(h.contentType)
-	additionalData[9] = h.protocolVersion.major
-	additionalData[10] = h.protocolVersion.minor
-	binary.BigEndian.PutUint16(additionalData[len(additionalData)-2:], uint16(payloadLen))
-
-	return additionalData[:]
 }

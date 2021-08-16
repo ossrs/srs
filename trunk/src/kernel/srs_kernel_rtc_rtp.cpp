@@ -762,6 +762,7 @@ SrsRtpPacket::SrsRtpPacket()
     frame_type = SrsFrameTypeReserved;
     cached_payload_size = 0;
     decode_handler = NULL;
+    avsync_time_ = -1;
 
     ++_srs_pps_objs_rtps->sugar;
 }
@@ -834,6 +835,8 @@ SrsRtpPacket* SrsRtpPacket::copy()
     cp->cached_payload_size = cached_payload_size;
     // For performance issue, do not copy the unused field.
     cp->decode_handler = decode_handler;
+
+    cp->avsync_time_ = avsync_time_;
 
     return cp;
 }

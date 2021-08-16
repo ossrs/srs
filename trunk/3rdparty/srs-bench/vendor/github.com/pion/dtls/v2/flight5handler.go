@@ -5,52 +5,59 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+
+	"github.com/pion/dtls/v2/pkg/crypto/prf"
+	"github.com/pion/dtls/v2/pkg/crypto/signaturehash"
+	"github.com/pion/dtls/v2/pkg/protocol"
+	"github.com/pion/dtls/v2/pkg/protocol/alert"
+	"github.com/pion/dtls/v2/pkg/protocol/handshake"
+	"github.com/pion/dtls/v2/pkg/protocol/recordlayer"
 )
 
-func flight5Parse(ctx context.Context, c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert, error) {
+func flight5Parse(ctx context.Context, c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) (flightVal, *alert.Alert, error) {
 	_, msgs, ok := cache.fullPullMap(state.handshakeRecvSequence,
-		handshakeCachePullRule{handshakeTypeFinished, cfg.initialEpoch + 1, false, false},
+		handshakeCachePullRule{handshake.TypeFinished, cfg.initialEpoch + 1, false, false},
 	)
 	if !ok {
 		// No valid message received. Keep reading
 		return 0, nil, nil
 	}
 
-	var finished *handshakeMessageFinished
-	if finished, ok = msgs[handshakeTypeFinished].(*handshakeMessageFinished); !ok {
-		return 0, &alert{alertLevelFatal, alertInternalError}, nil
+	var finished *handshake.MessageFinished
+	if finished, ok = msgs[handshake.TypeFinished].(*handshake.MessageFinished); !ok {
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, nil
 	}
 	plainText := cache.pullAndMerge(
-		handshakeCachePullRule{handshakeTypeClientHello, cfg.initialEpoch, true, false},
-		handshakeCachePullRule{handshakeTypeServerHello, cfg.initialEpoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, false, false},
-		handshakeCachePullRule{handshakeTypeServerKeyExchange, cfg.initialEpoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificateRequest, cfg.initialEpoch, false, false},
-		handshakeCachePullRule{handshakeTypeServerHelloDone, cfg.initialEpoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, true, false},
-		handshakeCachePullRule{handshakeTypeClientKeyExchange, cfg.initialEpoch, true, false},
-		handshakeCachePullRule{handshakeTypeCertificateVerify, cfg.initialEpoch, true, false},
-		handshakeCachePullRule{handshakeTypeFinished, cfg.initialEpoch + 1, true, false},
+		handshakeCachePullRule{handshake.TypeClientHello, cfg.initialEpoch, true, false},
+		handshakeCachePullRule{handshake.TypeServerHello, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeServerKeyExchange, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificateRequest, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeServerHelloDone, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, true, false},
+		handshakeCachePullRule{handshake.TypeClientKeyExchange, cfg.initialEpoch, true, false},
+		handshakeCachePullRule{handshake.TypeCertificateVerify, cfg.initialEpoch, true, false},
+		handshakeCachePullRule{handshake.TypeFinished, cfg.initialEpoch + 1, true, false},
 	)
 
-	expectedVerifyData, err := prfVerifyDataServer(state.masterSecret, plainText, state.cipherSuite.hashFunc())
+	expectedVerifyData, err := prf.VerifyDataServer(state.masterSecret, plainText, state.cipherSuite.HashFunc())
 	if err != nil {
-		return 0, &alert{alertLevelFatal, alertInternalError}, err
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 	}
-	if !bytes.Equal(expectedVerifyData, finished.verifyData) {
-		return 0, &alert{alertLevelFatal, alertHandshakeFailure}, errVerifyDataMismatch
+	if !bytes.Equal(expectedVerifyData, finished.VerifyData) {
+		return 0, &alert.Alert{Level: alert.Fatal, Description: alert.HandshakeFailure}, errVerifyDataMismatch
 	}
 
 	return flight5, nil, nil
 }
 
-func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert, error) { //nolint:gocognit
+func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *handshakeConfig) ([]*packet, *alert.Alert, error) { //nolint:gocognit
 	var certBytes [][]byte
 	var privateKey crypto.PrivateKey
 	if len(cfg.localCertificates) > 0 {
 		certificate, err := cfg.getCertificate(cfg.serverName)
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertHandshakeFailure}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.HandshakeFailure}, err
 		}
 		certBytes = certificate.Certificate
 		privateKey = certificate.PrivateKey
@@ -61,62 +68,62 @@ func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *han
 	if state.remoteRequestedCertificate {
 		pkts = append(pkts,
 			&packet{
-				record: &recordLayer{
-					recordLayerHeader: recordLayerHeader{
-						protocolVersion: protocolVersion1_2,
+				record: &recordlayer.RecordLayer{
+					Header: recordlayer.Header{
+						Version: protocol.Version1_2,
 					},
-					content: &handshake{
-						handshakeMessage: &handshakeMessageCertificate{
-							certificate: certBytes,
+					Content: &handshake.Handshake{
+						Message: &handshake.MessageCertificate{
+							Certificate: certBytes,
 						},
 					},
 				},
 			})
 	}
 
-	clientKeyExchange := &handshakeMessageClientKeyExchange{}
+	clientKeyExchange := &handshake.MessageClientKeyExchange{}
 	if cfg.localPSKCallback == nil {
-		clientKeyExchange.publicKey = state.localKeypair.publicKey
+		clientKeyExchange.PublicKey = state.localKeypair.PublicKey
 	} else {
-		clientKeyExchange.identityHint = cfg.localPSKIdentityHint
+		clientKeyExchange.IdentityHint = cfg.localPSKIdentityHint
 	}
 
 	pkts = append(pkts,
 		&packet{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Version: protocol.Version1_2,
 				},
-				content: &handshake{
-					handshakeMessage: clientKeyExchange,
+				Content: &handshake.Handshake{
+					Message: clientKeyExchange,
 				},
 			},
 		})
 
 	serverKeyExchangeData := cache.pullAndMerge(
-		handshakeCachePullRule{handshakeTypeServerKeyExchange, cfg.initialEpoch, false, false},
+		handshakeCachePullRule{handshake.TypeServerKeyExchange, cfg.initialEpoch, false, false},
 	)
 
-	serverKeyExchange := &handshakeMessageServerKeyExchange{}
+	serverKeyExchange := &handshake.MessageServerKeyExchange{}
 
 	// handshakeMessageServerKeyExchange is optional for PSK
 	if len(serverKeyExchangeData) == 0 {
-		alertPtr, err := handleServerKeyExchange(c, state, cfg, &handshakeMessageServerKeyExchange{})
+		alertPtr, err := handleServerKeyExchange(c, state, cfg, &handshake.MessageServerKeyExchange{})
 		if err != nil {
 			return nil, alertPtr, err
 		}
 	} else {
-		rawHandshake := &handshake{}
+		rawHandshake := &handshake.Handshake{}
 		err := rawHandshake.Unmarshal(serverKeyExchangeData)
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertUnexpectedMessage}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.UnexpectedMessage}, err
 		}
 
-		switch h := rawHandshake.handshakeMessage.(type) {
-		case *handshakeMessageServerKeyExchange:
+		switch h := rawHandshake.Message.(type) {
+		case *handshake.MessageServerKeyExchange:
 			serverKeyExchange = h
 		default:
-			return nil, &alert{alertLevelFatal, alertUnexpectedMessage}, errInvalidContentType
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.UnexpectedMessage}, errInvalidContentType
 		}
 	}
 
@@ -124,15 +131,15 @@ func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *han
 	merged := []byte{}
 	seqPred := uint16(state.handshakeSendSequence)
 	for _, p := range pkts {
-		h, ok := p.record.content.(*handshake)
+		h, ok := p.record.Content.(*handshake.Handshake)
 		if !ok {
-			return nil, &alert{alertLevelFatal, alertInternalError}, errInvalidContentType
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, errInvalidContentType
 		}
-		h.handshakeHeader.messageSequence = seqPred
+		h.Header.MessageSequence = seqPred
 		seqPred++
 		raw, err := h.Marshal()
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertInternalError}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 		merged = append(merged, raw...)
 	}
@@ -146,98 +153,98 @@ func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *han
 	// private key in the certificate.
 	if state.remoteRequestedCertificate && len(cfg.localCertificates) > 0 {
 		plainText := append(cache.pullAndMerge(
-			handshakeCachePullRule{handshakeTypeClientHello, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeServerHello, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeServerKeyExchange, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificateRequest, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeServerHelloDone, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeClientKeyExchange, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeClientHello, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeServerHello, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeServerKeyExchange, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificateRequest, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeServerHelloDone, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeClientKeyExchange, cfg.initialEpoch, true, false},
 		), merged...)
 
 		// Find compatible signature scheme
-		signatureHashAlgo, err := selectSignatureScheme(cfg.localSignatureSchemes, privateKey)
+		signatureHashAlgo, err := signaturehash.SelectSignatureScheme(cfg.localSignatureSchemes, privateKey)
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertInsufficientSecurity}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InsufficientSecurity}, err
 		}
 
-		certVerify, err := generateCertificateVerify(plainText, privateKey, signatureHashAlgo.hash)
+		certVerify, err := generateCertificateVerify(plainText, privateKey, signatureHashAlgo.Hash)
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertInternalError}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 		state.localCertificatesVerify = certVerify
 
 		p := &packet{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Version: protocol.Version1_2,
 				},
-				content: &handshake{
-					handshakeMessage: &handshakeMessageCertificateVerify{
-						hashAlgorithm:      signatureHashAlgo.hash,
-						signatureAlgorithm: signatureHashAlgo.signature,
-						signature:          state.localCertificatesVerify,
+				Content: &handshake.Handshake{
+					Message: &handshake.MessageCertificateVerify{
+						HashAlgorithm:      signatureHashAlgo.Hash,
+						SignatureAlgorithm: signatureHashAlgo.Signature,
+						Signature:          state.localCertificatesVerify,
 					},
 				},
 			},
 		}
 		pkts = append(pkts, p)
 
-		h, ok := p.record.content.(*handshake)
+		h, ok := p.record.Content.(*handshake.Handshake)
 		if !ok {
-			return nil, &alert{alertLevelFatal, alertInternalError}, errInvalidContentType
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, errInvalidContentType
 		}
-		h.handshakeHeader.messageSequence = seqPred
+		h.Header.MessageSequence = seqPred
 		// seqPred++ // this is the last use of seqPred
 		raw, err := h.Marshal()
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertInternalError}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 		merged = append(merged, raw...)
 	}
 
 	pkts = append(pkts,
 		&packet{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Version: protocol.Version1_2,
 				},
-				content: &changeCipherSpec{},
+				Content: &protocol.ChangeCipherSpec{},
 			},
 		})
 
 	if len(state.localVerifyData) == 0 {
 		plainText := cache.pullAndMerge(
-			handshakeCachePullRule{handshakeTypeClientHello, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeServerHello, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeServerKeyExchange, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificateRequest, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeServerHelloDone, cfg.initialEpoch, false, false},
-			handshakeCachePullRule{handshakeTypeCertificate, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeClientKeyExchange, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeCertificateVerify, cfg.initialEpoch, true, false},
-			handshakeCachePullRule{handshakeTypeFinished, cfg.initialEpoch + 1, true, false},
+			handshakeCachePullRule{handshake.TypeClientHello, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeServerHello, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeServerKeyExchange, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificateRequest, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeServerHelloDone, cfg.initialEpoch, false, false},
+			handshakeCachePullRule{handshake.TypeCertificate, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeClientKeyExchange, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeCertificateVerify, cfg.initialEpoch, true, false},
+			handshakeCachePullRule{handshake.TypeFinished, cfg.initialEpoch + 1, true, false},
 		)
 
 		var err error
-		state.localVerifyData, err = prfVerifyDataClient(state.masterSecret, append(plainText, merged...), state.cipherSuite.hashFunc())
+		state.localVerifyData, err = prf.VerifyDataClient(state.masterSecret, append(plainText, merged...), state.cipherSuite.HashFunc())
 		if err != nil {
-			return nil, &alert{alertLevelFatal, alertInternalError}, err
+			return nil, &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 	}
 
 	pkts = append(pkts,
 		&packet{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					protocolVersion: protocolVersion1_2,
-					epoch:           1,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Version: protocol.Version1_2,
+					Epoch:   1,
 				},
-				content: &handshake{
-					handshakeMessage: &handshakeMessageFinished{
-						verifyData: state.localVerifyData,
+				Content: &handshake.Handshake{
+					Message: &handshake.MessageFinished{
+						VerifyData: state.localVerifyData,
 					},
 				},
 			},
@@ -248,66 +255,69 @@ func flight5Generate(c flightConn, state *State, cache *handshakeCache, cfg *han
 	return pkts, nil, nil
 }
 
-func initalizeCipherSuite(state *State, cache *handshakeCache, cfg *handshakeConfig, h *handshakeMessageServerKeyExchange, sendingPlainText []byte) (*alert, error) { //nolint:gocognit
-	if state.cipherSuite.isInitialized() {
+func initalizeCipherSuite(state *State, cache *handshakeCache, cfg *handshakeConfig, h *handshake.MessageServerKeyExchange, sendingPlainText []byte) (*alert.Alert, error) { //nolint:gocognit
+	if state.cipherSuite.IsInitialized() {
 		return nil, nil
 	}
 
-	clientRandom := state.localRandom.marshalFixed()
-	serverRandom := state.remoteRandom.marshalFixed()
+	clientRandom := state.localRandom.MarshalFixed()
+	serverRandom := state.remoteRandom.MarshalFixed()
 
 	var err error
 
 	if state.extendedMasterSecret {
 		var sessionHash []byte
-		sessionHash, err = cache.sessionHash(state.cipherSuite.hashFunc(), cfg.initialEpoch, sendingPlainText)
+		sessionHash, err = cache.sessionHash(state.cipherSuite.HashFunc(), cfg.initialEpoch, sendingPlainText)
 		if err != nil {
-			return &alert{alertLevelFatal, alertInternalError}, err
+			return &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 
-		state.masterSecret, err = prfExtendedMasterSecret(state.preMasterSecret, sessionHash, state.cipherSuite.hashFunc())
+		state.masterSecret, err = prf.ExtendedMasterSecret(state.preMasterSecret, sessionHash, state.cipherSuite.HashFunc())
 		if err != nil {
-			return &alert{alertLevelFatal, alertIllegalParameter}, err
+			return &alert.Alert{Level: alert.Fatal, Description: alert.IllegalParameter}, err
 		}
 	} else {
-		state.masterSecret, err = prfMasterSecret(state.preMasterSecret, clientRandom[:], serverRandom[:], state.cipherSuite.hashFunc())
+		state.masterSecret, err = prf.MasterSecret(state.preMasterSecret, clientRandom[:], serverRandom[:], state.cipherSuite.HashFunc())
 		if err != nil {
-			return &alert{alertLevelFatal, alertInternalError}, err
+			return &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 		}
 	}
 
-	if cfg.localPSKCallback == nil {
+	if state.cipherSuite.AuthenticationType() == CipherSuiteAuthenticationTypeCertificate {
 		// Verify that the pair of hash algorithm and signiture is listed.
 		var validSignatureScheme bool
 		for _, ss := range cfg.localSignatureSchemes {
-			if ss.hash == h.hashAlgorithm && ss.signature == h.signatureAlgorithm {
+			if ss.Hash == h.HashAlgorithm && ss.Signature == h.SignatureAlgorithm {
 				validSignatureScheme = true
 				break
 			}
 		}
 		if !validSignatureScheme {
-			return &alert{alertLevelFatal, alertInsufficientSecurity}, errNoAvailableSignatureSchemes
+			return &alert.Alert{Level: alert.Fatal, Description: alert.InsufficientSecurity}, errNoAvailableSignatureSchemes
 		}
 
-		expectedMsg := valueKeyMessage(clientRandom[:], serverRandom[:], h.publicKey, h.namedCurve)
-		if err = verifyKeySignature(expectedMsg, h.signature, h.hashAlgorithm, state.PeerCertificates); err != nil {
-			return &alert{alertLevelFatal, alertBadCertificate}, err
+		expectedMsg := valueKeyMessage(clientRandom[:], serverRandom[:], h.PublicKey, h.NamedCurve)
+		if err = verifyKeySignature(expectedMsg, h.Signature, h.HashAlgorithm, state.PeerCertificates); err != nil {
+			return &alert.Alert{Level: alert.Fatal, Description: alert.BadCertificate}, err
 		}
 		var chains [][]*x509.Certificate
 		if !cfg.insecureSkipVerify {
 			if chains, err = verifyServerCert(state.PeerCertificates, cfg.rootCAs, cfg.serverName); err != nil {
-				return &alert{alertLevelFatal, alertBadCertificate}, err
+				return &alert.Alert{Level: alert.Fatal, Description: alert.BadCertificate}, err
 			}
 		}
 		if cfg.verifyPeerCertificate != nil {
 			if err = cfg.verifyPeerCertificate(state.PeerCertificates, chains); err != nil {
-				return &alert{alertLevelFatal, alertBadCertificate}, err
+				return &alert.Alert{Level: alert.Fatal, Description: alert.BadCertificate}, err
 			}
 		}
 	}
 
-	if err = state.cipherSuite.init(state.masterSecret, clientRandom[:], serverRandom[:], true); err != nil {
-		return &alert{alertLevelFatal, alertInternalError}, err
+	if err = state.cipherSuite.Init(state.masterSecret, clientRandom[:], serverRandom[:], true); err != nil {
+		return &alert.Alert{Level: alert.Fatal, Description: alert.InternalError}, err
 	}
+
+	cfg.writeKeyLog(keyLogLabelTLS12, clientRandom[:], state.masterSecret)
+
 	return nil, nil
 }
