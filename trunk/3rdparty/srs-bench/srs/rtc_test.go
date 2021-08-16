@@ -24,8 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pion/transport/vnet"
-	"github.com/pion/webrtc/v3"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -36,7 +34,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pion/transport/vnet"
+	"github.com/pion/webrtc/v3"
+
 	"github.com/ossrs/go-oryx-lib/errors"
+	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
@@ -1935,4 +1937,163 @@ func TestRTCServerVersion(t *testing.T) {
 		t.Errorf("Invalid version %v", obj.Data)
 		return
 	}
+}
+
+func TestRtcPublishFlvPlay(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// The event notify.
+	var thePublisher *testPublisher
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+
+	streamSuffix := fmt.Sprintf("basic-publish-flvplay-%v-%v", os.Getpid(), rand.Int())
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			// Initialize publisher with private api.
+			if thePublisher, err = newTestPublisher(registerDefaultCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+
+				return pub.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-publishReady.Done():
+			var url string = "http://127.0.0.1:8080" + *srsStream + "-" + streamSuffix + ".flv"
+			logger.Tf(ctx, "Run play flv url=%v", url)
+
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				logger.Tf(ctx, "New request for flv %v failed, err=%v", url, err)
+				return
+			}
+
+			client := http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				logger.Tf(ctx, "Http get flv %v failed, err=%v", url, err)
+				return
+			}
+
+			var f flv.Demuxer
+			if f, err = flv.NewDemuxer(resp.Body); err != nil {
+				logger.Tf(ctx, "Create flv demuxer for %v failed, err=%v", url, err)
+				return
+			}
+			defer f.Close()
+
+			var version uint8
+			var hasVideo, hasAudio bool
+			if version, hasVideo, hasAudio, err = f.ReadHeader(); err != nil {
+				logger.Tf(ctx, "Flv demuxer read header failed, err=%v", err)
+				return
+			}
+
+			// Optional, user can check the header.
+			_ = version
+			_ = hasAudio
+			_ = hasVideo
+
+			var nnVideo, nnAudio int
+			var prevVideoTimestamp, prevAudioTimestamp int64
+
+			for {
+				var tagType flv.TagType
+				var tagSize, timestamp uint32
+				if tagType, tagSize, timestamp, err = f.ReadTagHeader(); err != nil {
+					logger.Tf(ctx, "Flv demuxer read tag header failed, err=%v", err)
+					return
+				}
+
+				var tag []byte
+				if tag, err = f.ReadTag(tagSize); err != nil {
+					logger.Tf(ctx, "Flv demuxer read tag failed, err=%v", err)
+					return
+				}
+
+				if tagType == flv.TagTypeAudio {
+					nnAudio++
+					prevAudioTimestamp = (int64)(timestamp)
+				} else if tagType == flv.TagTypeVideo {
+					nnVideo++
+					prevVideoTimestamp = (int64)(timestamp)
+				}
+
+				if nnAudio >= 10 && nnVideo >= 10 {
+					avDiff := prevVideoTimestamp - prevAudioTimestamp
+					// Check timestamp gap between video and audio, make sure audio timestamp align to video timestamp.
+					if avDiff <= 50 && avDiff >= -50 {
+						logger.Tf(ctx, "Flv recv %v audio, %v video, timestamp gap=%v", nnAudio, nnVideo, avDiff)
+						cancel()
+						break
+					}
+				}
+
+				_ = tag
+			}
+		}
+	}()
 }
