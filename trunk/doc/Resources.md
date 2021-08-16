@@ -1,147 +1,82 @@
-# Performance
+# Resources
 
-The performance benchmark data and corelative commits are listed here.
+The resources of SRS.
 
-* See also: [Performance for x86/x64 Test Guide][v4_CN_Performance].
-* See also: [Performance for RaspberryPi][v4_CN_RaspberryPi].
-* For multiple processes performance, read [#775: REUSEPORT][bug #775] or OriginCluster([CN][v4_EN_OriginCluster]/[EN][v4_EN_OriginCluster]).
-* For RTC benchmark, please use [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage).
+> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
 
-<a name="play-rtmp-benchmark"></a>
-**Play RTMP benchmark**
+## Ports
 
-The data for playing RTMP was benchmarked by [SB][srs-bench]:
+The ports used by SRS, kernel services:
 
+* `tcp://1935`, for RTMP live streaming server([CN][v4_CN_DeliveryRTMP],[EN][v4_EN_DeliveryRTMP]).
+* `tcp://1985`, HTTP API server, for HTTP-API([CN][v4_CN_HTTPApi], [EN][v4_EN_HTTPApi]), WebRTC([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]), etc.
+* `tcp://8080`, HTTP live streaming server, HTTP-FLV([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv]), HLS([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS]) as such.
+* `udp://8000`, WebRTC Media([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC]) server.
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2014-12-07  |   2.0.67  |   10k(10000)  |   players     |   95%     |   656MB   |   [code][p12] |
-|   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
-|   2014-12-05  |   2.0.55  |   8.0k(8000)  |   players     |   89%     |   360MB   |   [code][p10] |
-|   2014-11-22  |   2.0.30  |   7.5k(7500)  |   players     |   87%     |   320MB   |   [code][p9]  |
-|   2014-11-13  |   2.0.15  |   6.0k(6000)  |   players     |   82%     |   203MB   |   [code][p8]  |
-|   2014-11-12  |   2.0.14  |   3.5k(3500)  |   players     |   95%     |   78MB    |   [code][p7]  |
-|   2014-11-12  |   2.0.14  |   2.7k(2700)  |   players     |   69%     |   59MB    |   -           |
-|   2014-11-11  |   2.0.12  |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
-|   2014-11-11  |   1.0.5   |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
-|   2014-07-12  |   0.9.156 |   2.7k(2700)  |   players     |   89%     |   61MB    |   [code][p6]  |
-|   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
-|   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
+For optional HTTPS services, which might be provided by other web servers:
 
-| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
-| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
-| 2021-05-11 | SRS/v4.0.105     | 4000     |   players     |   ~94% x1 |   419MB   | 1       | G5 8CPU |
-| 2021-05-11 | NginxRTMP/v1.2.1 | 2400     |   players     |   ~92% x1 |   173MB   | 1       | G5 8CPU |
+* `tcp://8088`, HTTPS live streaming server.
+* `tcp://1990`, HTTPS API server.
 
-> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
-> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
-> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
+For optional stream caster services, to push streams to SRS:
 
-<a name="publish-rtmp-benchmark"></a>
-**Publish RTMP benchmark**
+* `udp://8935`, Stream Caster: [Push MPEGTS over UDP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-mpeg-ts-over-udp) server.
+* `tcp://554`, Stream Caster: [Push RTSP](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-rtsp-to-srs) server.
+* `tcp://8936`, Stream Caster: [Push HTTP-FLV](https://github.com/ossrs/srs/wiki/v4_CN_Streamer#push-http-flv-to-srs) server.
+* `udp://10080`, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
 
-The data for publishing RTMP was benchmarked by [SB][srs-bench]:
+For external services to work with SRS:
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   [code][p5]  |
-|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
-|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   [code][p3]  |
-|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -           |
-|   2014-12-03  |   2.0.48  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   [code][p2]  |
-|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -           |
-|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    |   [code][p1]  |
-|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
-|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
+* `udp://1989`, [WebRTC Signaling](https://github.com/ossrs/signaling#usage) server.
 
-| Update     |    SFU           |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
-| ---------- | ---------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
-| 2021-05-11 | SRS/v4.0.105     | 2300     |   publishers  |   ~89% x1 |   1.1GB   | 1       | G5 8CPU |
-| 2021-05-11 | NginxRTMP/v1.2.1 | 1300     |   publishers  |   ~84% x1 |   198MB   | 1       | G5 8CPU |
+## APIs
 
-> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)](https://help.aliyun.com/document_detail/25378.html),
-> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
-> [NginxRTMP/v1.2.1](https://github.com/arut/nginx-rtmp-module/releases/tag/v1.2.1).
+The API used by SRS:
 
-<a name="play-http-flv-benchmark"></a>
-**Play HTTP FLV benchmark**
+* `/api/v1/` The HTTP API path.
+* `/rtc/v1/` The HTTP API path for RTC.
+* `/sig/v1/` The [demo signaling](https://github.com/ossrs/signaling) API.
 
-The data for playing HTTP FLV was benchmarked by [SB][srs-bench]:
+Other API used by [ossrs.net](https://ossrs.net):
 
+* `/gif/v1` The statistic API.
+* `/service/v1/` The latest available version API.
+* `/ws-service/v1/` The latest available version API, by websocket.
+* `/im-service/v1/` The latest available version API, by IM.
+* `/code-service/v1/` The latest available version API, by Code verification.
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
-|   2014-05-25  |   2.0.171 |   6.0k(6000)  |   players     |   84%     |   297MB   |   [code][p20] |
-|   2014-05-24  |   2.0.170 |   3.0k(3000)  |   players     |   89%     |   96MB    |   [code][p19] |
-|   2014-05-24  |   2.0.169 |   3.0k(3000)  |   players     |   94%     |   188MB   |   [code][p18] |
-|   2014-05-24  |   2.0.168 |   2.3k(2300)  |   players     |   92%     |   276MB   |   [code][p17] |
-|   2014-05-24  |   2.0.167 |   1.0k(1000)  |   players     |   82%     |   86MB    |   -           |
+## Mirrors
 
-<a name="rtc-benchmark"></a>
-**RTC benchmark**
+Gitee: [https://gitee.com/ossrs/srs][gitee], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
-The RTC benchmark data, by [srs-bench](https://github.com/ossrs/srs-bench/tree/feature/rtc#usage):
+```
+git clone https://gitee.com/ossrs/srs.git &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
+```
 
-| Update     |    SFU        |  Clients |     Type      |    CPU    |  Memory   | Threads | VM   |
-| ---------- | ------------- | -------- | ------------- | --------- | --------  | ------- | ---- |
-| 2021-05-10 | SRS/v4.0.105  | 2000     |   players     |   ~94% x1 |   462MB   | 1      | G7 2CPU |
-| 2021-05-10 | SRS/v4.0.105  | 1000     |   players     |   ~90% x1 |   180MB   | 1      | G5 2CPU |
-| 2021-03-31 | SRS/v4.0.87   | 800      |   players     |   ~94% x1 |   444MB   | 1      | G5 2CPU |
-| 2021-05-10 | Janus/v0.11.1 | 700      |   players     |   ~93% x2 |   430MB   | 24     | G5 2CPU |
-| 2021-05-10 | SRS/v4.0.105  | 1700     |   publishers  |   ~92% x1 |   334MB   | 1      | G7 2CPU |
-| 2021-05-10 | SRS/v4.0.105  | 950      |   publishers  |   ~92% x1 |   132MB   | 1      | G5 2CPU |
-| 2021-03-31 | SRS/v4.0.87   | 550      |   publishers  |   ~86% x1 |   1.3GB   | 1      | G5 2CPU |
-| 2021-05-10 | Janus/v0.11.1 | 350      |   publishers  |   ~93% x2 |   405MB   | 23     | G5 2CPU |
+> Remark: For users in China, recomment to use mirror from CSDN or OSChina, because they are much faster.
 
-> Note: CentOS7, 600Kbps, [ECS/G5-2.5GHZ(SkyLake)/G7-2.7GHZ(IceLake)](https://help.aliyun.com/document_detail/25378.html),
-> [SRS/v4.0.87](https://github.com/ossrs/srs/commit/d6c16a7e236e03eba754c763e865464ec82d4516),
-> [SRS/v4.0.105](https://github.com/ossrs/srs/commit/2ad24b2313e88a85801deaea370204f225555939),
-> [Janus/v0.11.1](https://github.com/meetecho/janus-gateway/releases/tag/v0.11.1).
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab][gitlab], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
-<a name="latency-benchmark"></a>
-**Latency benchmark**
+```
+git clone https://gitlab.com/winlinvip/srs-gitlab.git srs &&
+cd srs && git remote set-url origin https://github.com/ossrs/srs.git && git pull
+```
 
-The latency between encoder and player with realtime config([CN][v4_CN_LowLatency], [EN][v4_EN_LowLatency]):
+Github: [https://github.com/ossrs/srs][srs], the GIT usage([CN][v4_CN_Git], [EN][v4_EN_Git])
 
-|   Update      |    SRS    | Protocol |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
-| ------------- | --------- | --------- | --------- | --------- | --------- | --------  |
-|   2014-12-16  |   2.0.72  | RTMP      |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
-|   2014-12-12  |   2.0.70  | RTMP      |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
-|   2014-12-03  |   1.0.10  | RTMP      |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
-|   2021-04-02  |   4.0.87  | WebRTC    |   x       |   80ms    |   x       |   x       |
+```
+git clone https://github.com/ossrs/srs.git
+```
 
-> 2018-08-05, [c45f72e](https://github.com/ossrs/srs/commit/c45f72ef7bac9c7cf85b9125fc9e3aafd53f396f), Refine HTTP-FLV latency, support realtime mode. 2.0.252
-
-We used FMLE as encoder for benchmark. The latency of server was 0.1s+,
-and the bottleneck was the encoder. For more information, read
-[bug #257][bug #257-c0].
-
-Winlin 2021
-
-
-[p1]: https://github.com/ossrs/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
-[p2]: https://github.com/ossrs/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
-[p3]: https://github.com/ossrs/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff
-[p4]: https://github.com/ossrs/srs/commit/f57801eb46c16755b173984b915a4166922df6a6
-[p5]: https://github.com/ossrs/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da
-[p6]: https://github.com/ossrs/srs/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be
-[p7]: https://github.com/ossrs/srs/commit/8acd143a7a152885b815999162660fd4e7a3f247
-[p8]: https://github.com/ossrs/srs/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1
-[p9]: https://github.com/ossrs/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
-[p10]: https://github.com/ossrs/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
-[p11]: https://github.com/ossrs/srs/commit/9ee138746f83adc26f0e236ec017f4d68a300004
-[p12]: https://github.com/ossrs/srs/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8
-[p13]: https://github.com/ossrs/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
-[p14]: https://github.com/ossrs/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
-[p15]: https://github.com/ossrs/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
-[p16]: https://github.com/ossrs/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
-[p17]: https://github.com/ossrs/srs/commit/fc995473eb02c7cf64b5b212b456e11f34aa7984
-[p18]: https://github.com/ossrs/srs/commit/960341b9b2b9646270ccfd113b4dd784d9826c73
-[p19]: https://github.com/ossrs/srs/commit/4df19ba99a4e4d80cd89b304f9298d343497bec9
-[p20]: https://github.com/ossrs/srs/commit/d12fc7fcc5b2e9e3c8ee5c7da01d0e41c8f8ca4a
-[p21]: https://github.com/ossrs/srs/commit/87519aaae835199e5adb60c0ae2c1cd24939448c
-[p22]: https://github.com/ossrs/srs/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa
-[p23]: https://github.com/ossrs/srs/pull/239
+| Branch | Cost | Size | CMD |
+| --- | --- | --- | --- |
+| 3.0release | 2m19.931s | 262MB | git clone -b 3.0release https://gitee.com/ossrs/srs.git |
+| 3.0release | 0m56.515s | 95MB | git clone -b 3.0release --depth=1 https://gitee.com/ossrs/srs.git |
+| develop | 2m22.430s | 234MB | git clone -b develop https://gitee.com/ossrs/srs.git |
+| develop | 0m46.421s | 42MB | git clone -b develop --depth=1 https://gitee.com/ossrs/srs.git |
+| min | 2m22.865s | 217MB | git clone -b min https://gitee.com/ossrs/srs.git |
+| min | 0m36.472s | 11MB | git clone -b min --depth=1 https://gitee.com/ossrs/srs.git |
 
 [authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40
@@ -198,16 +133,6 @@ Winlin 2021
 [v4_EN_Sample]: https://github.com/ossrs/srs/wiki/v4_EN_Sample
 [v4_CN_Product]: https://github.com/ossrs/srs/wiki/v4_CN_Product
 [v4_EN_Product]: https://github.com/ossrs/srs/wiki/v4_EN_Product
-[v1-wiki-cn]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v1-wiki-en]: https://github.com/ossrs/srs/wiki/v4_EN_Home
-[v2-wiki-cn]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v2-wiki-en]: https://github.com/ossrs/srs/wiki/v4_EN_Home
-[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
-[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
-[v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
-[v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
 [v4_CN_Home]: https://github.com/ossrs/srs/wiki/v4_CN_Home
 [v4_EN_Home]: https://github.com/ossrs/srs/wiki/v4_EN_Home
 
@@ -277,28 +202,6 @@ Winlin 2021
 [v4_EN_SampleHttpFlv]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHttpFlv
 [v4_CN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v4_CN_SampleHttpFlvCluster
 [v4_EN_SampleHttpFlvCluster]: https://github.com/ossrs/srs/wiki/v4_EN_SampleHttpFlvCluster
-[v4_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency
-[v4_EN_LowLatency]: https://github.com/ossrs/srs/wiki/v4_EN_LowLatency
-[v4_EN_LowLatency#merged-read]: https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#merged-read
-[v4_CN_Performance#performancereport4k]: https://github.com/ossrs/srs/wiki/v4_CN_Performance#performancereport4k
-[v4_CN_DRM#tokentraverse]: https://github.com/ossrs/srs/wiki/v4_CN_DRM#tokentraverse
-[v4_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v4_CN_RaspberryPi
-[v4_CN_Build]: https://github.com/ossrs/srs/wiki/v4_CN_Build
-[v4_CN_LowLatency]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency
-[v4_CN_HowToAskQuestion]: https://github.com/ossrs/srs/wiki/v4_CN_HowToAskQuestion
-[v4_CN_Build]: https://github.com/ossrs/srs/wiki/v4_CN_Build
-[v4_CN_Performance]: https://github.com/ossrs/srs/wiki/v4_CN_Performance
-[v4_CN_RaspberryPi]: https://github.com/ossrs/srs/wiki/v4_CN_RaspberryPi
-[v4_CN_LowLatency#merged-read]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-read
-[v4_CN_Product]: https://github.com/ossrs/srs/wiki/v4_CN_Product
-[v4_EN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v4_EN_LowLatency#merged-write
-[v4_CN_LowLatency#merged-write]: https://github.com/ossrs/srs/wiki/v4_CN_LowLatency#merged-write
-[v4_CN_NgExec]:https://github.com/ossrs/srs/wiki/v4_CN_NgExec
-[v4_EN_NgExec]:https://github.com/ossrs/srs/wiki/v4_EN_NgExec
-[v4_CN_ReusePort]:https://github.com/ossrs/srs/wiki/v4_CN_ReusePort
-[v4_EN_ReusePort]:https://github.com/ossrs/srs/wiki/v4_EN_ReusePort
-[v4_CN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_CN_SampleSRT
-[v4_EN_SampleSRT]:https://github.com/ossrs/srs/wiki/v4_EN_SampleSRT
 [v4_CN_SampleDASH]:https://github.com/ossrs/srs/wiki/v4_CN_SampleDASH
 [v4_EN_SampleDASH]:https://github.com/ossrs/srs/wiki/v4_EN_SampleDASH
 
@@ -411,4 +314,3 @@ Winlin 2021
 [release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
 [release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
 [release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40
-

@@ -1,5 +1,9 @@
 # Doc
 
+The reference docs.
+
+> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
+
 ## Live Streaming
 
 1. [amf0_spec_121207.pdf](http://github.com/ossrs/srs/wiki/doc/amf0_spec_121207.pdf), adobe amf0标准
