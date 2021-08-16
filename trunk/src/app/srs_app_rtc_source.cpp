@@ -6,6 +6,7 @@
 
 #include <srs_app_rtc_source.hpp>
 
+#include <math.h>
 #include <unistd.h>
 
 #include <srs_app_conn.hpp>
@@ -132,7 +133,7 @@ SrsNtp SrsNtp::to_time_ms(uint64_t ntp)
     srs_ntp.ntp_second_ = (ntp & 0xFFFFFFFF00000000ULL) >> 32;
     srs_ntp.ntp_fractions_ = (ntp & 0x00000000FFFFFFFFULL);
     srs_ntp.system_ms_ = (static_cast<uint64_t>(srs_ntp.ntp_second_) * 1000) +
-        (static_cast<double>(static_cast<uint64_t>(srs_ntp.ntp_fractions_) * 1000.0) / kMagicNtpFractionalUnit);
+        round((static_cast<double>(static_cast<uint64_t>(srs_ntp.ntp_fractions_) * 1000.0) / kMagicNtpFractionalUnit));
     return srs_ntp;
 }
 
@@ -1310,8 +1311,14 @@ srs_error_t SrsRtmpFromRtcBridger::on_rtp(SrsRtpPacket *pkt)
         return err;
     }
 
+    // Have no received any sender report, can't calculate avsync_time, 
+    // discard it to avoid timestamp problem in live source
+    if (pkt->get_avsync_time() <= 0) {
+        return err;
+    }
+
     if (pkt->is_audio()) {
-        err = trancode_audio(pkt);
+        err = transcode_audio(pkt);
     } else {
         err = packet_video(pkt);
     }
@@ -1325,12 +1332,12 @@ void SrsRtmpFromRtcBridger::on_unpublish()
     source_->on_unpublish();
 }
 
-srs_error_t SrsRtmpFromRtcBridger::trancode_audio(SrsRtpPacket *pkt)
+srs_error_t SrsRtmpFromRtcBridger::transcode_audio(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
     // to common message.
-    uint32_t ts = pkt->header.get_timestamp()/(48000/1000);
+    uint32_t ts = pkt->get_avsync_time();
     if (is_first_audio) {
         int header_len = 0;
         uint8_t* header = NULL;
@@ -1361,7 +1368,7 @@ srs_error_t SrsRtmpFromRtcBridger::trancode_audio(SrsRtpPacket *pkt)
 
     for (std::vector<SrsAudioFrame *>::iterator it = out_pkts.begin(); it != out_pkts.end(); ++it) {
         SrsCommonMessage out_rtmp;
-        out_rtmp.header.timestamp = (*it)->dts*(48000/1000);
+        out_rtmp.header.timestamp = (*it)->dts;
         packet_aac(&out_rtmp, (*it)->samples[0].bytes, (*it)->samples[0].size, ts, is_first_audio);
 
         if ((err = source_->on_audio(&out_rtmp)) != srs_success) {
@@ -1407,7 +1414,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video(SrsRtpPacket* src)
     cache_video_pkts_[index].in_use = true;
     cache_video_pkts_[index].pkt = pkt;
     cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->header.get_timestamp();
+    cache_video_pkts_[index].ts = pkt->get_avsync_time();
 
     // check whether to recovery lost packet and can construct a video frame
     if (lost_sn_ == pkt->header.get_sequence()) {
@@ -1444,7 +1451,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_key_frame(SrsRtpPacket* pkt)
             //type_codec1 + avc_type + composition time + fix header + count of sps + len of sps + sps + count of pps + len of pps + pps
             int nb_payload = 1 + 1 + 3 + 5 + 1 + 2 + sps->size + 1 + 2 + pps->size;
             SrsCommonMessage rtmp;
-            rtmp.header.initialize_video(nb_payload, pkt->header.get_timestamp() / 90, 1);
+            rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
             rtmp.create_payload(nb_payload);
             rtmp.size = nb_payload;
             SrsBuffer payload(rtmp.payload, rtmp.size);
@@ -1472,18 +1479,18 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_key_frame(SrsRtpPacket* pkt)
     }
 
     if (-1 == key_frame_ts_) {
-        key_frame_ts_ = pkt->header.get_timestamp();
+        key_frame_ts_ = pkt->get_avsync_time();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         // Received key frame and clean cache of old p frame pkts
         clear_cached_video();
         srs_trace("set ts=%lld, header=%hu, lost=%hu", key_frame_ts_, header_sn_, lost_sn_);
-    } else if (key_frame_ts_ != pkt->header.get_timestamp()) {
+    } else if (key_frame_ts_ != pkt->get_avsync_time()) {
         //new key frame, clean cache
         int64_t old_ts = key_frame_ts_;
         uint16_t old_header_sn = header_sn_;
         uint16_t old_lost_sn = lost_sn_;
-        key_frame_ts_ = pkt->header.get_timestamp();
+        key_frame_ts_ = pkt->get_avsync_time();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         clear_cached_video();
@@ -1495,7 +1502,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_key_frame(SrsRtpPacket* pkt)
     cache_video_pkts_[index].in_use = true;
     cache_video_pkts_[index].pkt = pkt;
     cache_video_pkts_[index].sn = pkt->header.get_sequence();
-    cache_video_pkts_[index].ts = pkt->header.get_timestamp();
+    cache_video_pkts_[index].ts = pkt->get_avsync_time();
 
     int32_t sn = lost_sn_;
     uint16_t tail_sn = 0;
@@ -1570,12 +1577,12 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
     nb_payload += 1 + 1 + 3;
 
     SrsCommonMessage rtmp;
-    SrsRtpPacket* header = cache_video_pkts_[cache_index(start)].pkt;
-    rtmp.header.initialize_video(nb_payload, header->header.get_timestamp() / 90, 1);
+    SrsRtpPacket* pkt = cache_video_pkts_[cache_index(start)].pkt;
+    rtmp.header.initialize_video(nb_payload, pkt->get_avsync_time(), 1);
     rtmp.create_payload(nb_payload);
     rtmp.size = nb_payload;
     SrsBuffer payload(rtmp.payload, rtmp.size);
-    if (header->is_keyframe()) {
+    if (pkt->is_keyframe()) {
         payload.write_1bytes(0x17); // type(4 bits): key frame; code(4bits): avc
         key_frame_ts_ = -1;
     } else {
@@ -2214,7 +2221,9 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
         nack_receiver_ = new SrsRtpNackForReceiver(rtp_queue_, 1000 * 2 / 3);
     }
 
-    last_sender_report_sys_time = 0;
+    last_sender_report_rtp_time_ = 0;
+    last_sender_report_rtp_time1_ = 0;
+    last_sender_report_sys_time_ = 0;
 }
 
 SrsRtcRecvTrack::~SrsRtcRecvTrack()
@@ -2239,11 +2248,54 @@ void SrsRtcRecvTrack::update_rtt(int rtt)
     nack_receiver_->update_rtt(rtt);
 }
 
-void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp)
+void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp, uint32_t rtp_time)
 {
-    last_sender_report_ntp = ntp;
+    last_sender_report_ntp1_ = last_sender_report_ntp_;
+    last_sender_report_rtp_time1_ = last_sender_report_rtp_time_;
+
+    last_sender_report_ntp_ = ntp;
+    last_sender_report_rtp_time_ = rtp_time;
+
     // TODO: FIXME: Use system wall clock.
-    last_sender_report_sys_time = srs_update_system_time();;
+    last_sender_report_sys_time_ = srs_update_system_time();
+}
+
+int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
+{
+    // Have no recv at least 2 sender reports, can't calculate sync time.
+    // TODO: FIXME: use the sample rate from sdp.
+    if (last_sender_report_rtp_time1_ <= 0) {
+        return -1;
+    }
+
+    // WebRTC using sender report to sync audio/video timestamp, because audio video have different timebase,
+    // typical audio opus is 48000Hz, video is 90000Hz.
+    // We using two sender report point to calculate avsync timestamp(clock time) with any given rtp timestamp.
+    // For example, there are two history sender report of audio as below.
+    //   sender_report1: rtp_time1 = 10000, ntp_time1 = 40000
+    //   sender_report : rtp_time  = 10960, ntp_time  = 40020
+    //   (rtp_time - rtp_time1) / (ntp_time - ntp_time1) = 960 / 20 = 48,
+    // Now we can calcualte ntp time(ntp_x) of any given rtp timestamp(rtp_x),
+    //   (rtp_x - rtp_time) / (ntp_x - ntp_time) = 48   =>   ntp_x = (rtp_x - rtp_time) / 48 + ntp_time;
+    double sys_time_elapsed = static_cast<double>(last_sender_report_ntp_.system_ms_) - static_cast<double>(last_sender_report_ntp1_.system_ms_);
+
+    // Check sys_time_elapsed is equal to zero.
+    if (fpclassify(sys_time_elapsed) == FP_ZERO) {
+        return -1;
+    }
+    
+    double rtp_time_elpased = static_cast<double>(last_sender_report_rtp_time_) - static_cast<double>(last_sender_report_rtp_time1_);
+    int rate = round(rtp_time_elpased / sys_time_elapsed);
+
+    if (rate <= 0) {
+        return -1;
+    }
+
+    double delta = round((rtp_time - last_sender_report_rtp_time_) / rate);
+
+    int64_t avsync_time = delta + last_sender_report_ntp_.system_ms_;
+
+    return avsync_time;
 }
 
 srs_error_t SrsRtcRecvTrack::send_rtcp_rr()
@@ -2251,8 +2303,8 @@ srs_error_t SrsRtcRecvTrack::send_rtcp_rr()
     srs_error_t err = srs_success;
 
     uint32_t ssrc = track_desc_->ssrc_;
-    const uint64_t& last_time = last_sender_report_sys_time;
-    if ((err = session_->send_rtcp_rr(ssrc, rtp_queue_, last_time, last_sender_report_ntp)) != srs_success) {
+    const uint64_t& last_time = last_sender_report_sys_time_;
+    if ((err = session_->send_rtcp_rr(ssrc, rtp_queue_, last_time, last_sender_report_ntp_)) != srs_success) {
         return srs_error_wrap(err, "ssrc=%u, last_time=%" PRId64, ssrc, last_time);
     }
 
@@ -2357,6 +2409,8 @@ srs_error_t SrsRtcAudioRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt
 {
     srs_error_t err = srs_success;
 
+    pkt->set_avsync_time(cal_avsync_time(pkt->header.get_timestamp()));
+
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");
     }
@@ -2414,6 +2468,8 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt
     srs_error_t err = srs_success;
 
     pkt->frame_type = SrsFrameTypeVideo;
+
+    pkt->set_avsync_time(cal_avsync_time(pkt->header.get_timestamp()));
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "source on rtp");

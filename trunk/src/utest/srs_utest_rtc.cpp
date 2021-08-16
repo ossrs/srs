@@ -897,3 +897,248 @@ VOID TEST(KernelRTCTest, DefaultTrackStatus)
     }
 }
 
+VOID TEST(KernelRTCTest, Ntp)
+{
+    if (true) {
+        // Test small systime, from 0-10000ms.
+        for (int i = 0; i < 10000; ++i) {
+            srs_utime_t now_ms = i;
+            // Cover systime to ntp
+            SrsNtp ntp = SrsNtp::from_time_ms(now_ms);
+
+            ASSERT_EQ(ntp.system_ms_, now_ms);
+
+            // Cover ntp to systime
+            SrsNtp ntp1 = SrsNtp::to_time_ms(ntp.ntp_);
+            ASSERT_EQ(ntp1.system_ms_, now_ms);
+        }
+    }
+
+    if (true) {
+        // Test current systime to ntp.
+        srs_utime_t now_ms = srs_get_system_time() / 1000;
+        SrsNtp ntp = SrsNtp::from_time_ms(now_ms);
+
+        ASSERT_EQ(ntp.system_ms_, now_ms);
+
+        SrsNtp ntp1 = SrsNtp::to_time_ms(ntp.ntp_);
+        ASSERT_EQ(ntp1.system_ms_, now_ms);
+    }
+}
+
+VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
+{
+    SrsRtcConnection s(NULL, SrsContextId()); 
+    SrsRtcPublishStream publish(&s, SrsContextId());
+
+    SrsRtcTrackDescription video_ds; 
+    video_ds.type_ = "video"; 
+    video_ds.id_ = "VMo22nfLDn122nfnDNL2"; 
+    video_ds.ssrc_ = 200;
+
+    SrsRtcVideoRecvTrack* video = new SrsRtcVideoRecvTrack(&s, &video_ds);
+    publish.video_tracks_.push_back(video);
+
+    publish.set_all_tracks_status(true);
+
+    SrsRtcSource* rtc_source = new SrsRtcSource();
+    SrsAutoFree(SrsRtcSource, rtc_source);
+    
+    srand(time(NULL));
+
+    if (true)
+    {
+        SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
+        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+
+        uint32_t video_absolute_ts = srs_get_system_time();
+        uint32_t video_rtp_ts = random();
+
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
+
+        SrsRtcpSR* video_sr = new SrsRtcpSR();
+        SrsAutoFree(SrsRtcpSR, video_sr);
+        video_sr->set_ssrc(200);
+
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        // Video timebase 90000, fps=25
+        video_rtp_ts += 3600;
+        video_absolute_ts += 40;
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+
+        // Received one sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        ntp = SrsNtp::from_time_ms(video_absolute_ts);
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
+            video_rtp_ts += 3600;
+            video_absolute_ts += 40;
+            video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+            video->on_rtp(rtc_source, video_rtp_pkt);
+            EXPECT_NEAR(video_rtp_pkt->get_avsync_time(), video_absolute_ts, 1);
+        }
+    }
+}
+
+VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
+{
+    SrsRtcConnection s(NULL, SrsContextId()); 
+    SrsRtcPublishStream publish(&s, SrsContextId());
+
+    SrsRtcTrackDescription video_ds; 
+    video_ds.type_ = "video"; 
+    video_ds.id_ = "VMo22nfLDn122nfnDNL2"; 
+    video_ds.ssrc_ = 200;
+
+    SrsRtcVideoRecvTrack* video = new SrsRtcVideoRecvTrack(&s, &video_ds);
+    publish.video_tracks_.push_back(video);
+
+    publish.set_all_tracks_status(true);
+
+    SrsRtcSource* rtc_source = new SrsRtcSource();
+    SrsAutoFree(SrsRtcSource, rtc_source);
+    
+    srand(time(NULL));
+
+    if (true)
+    {
+        SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
+        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+
+        uint32_t video_absolute_ts = srs_get_system_time();
+        uint32_t video_rtp_ts = random();
+
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
+
+        SrsRtcpSR* video_sr1 = new SrsRtcpSR();
+        SrsAutoFree(SrsRtcpSR, video_sr1);
+        video_sr1->set_ssrc(200);
+
+        video_sr1->set_ntp(ntp.ntp_);
+        video_sr1->set_rtp_ts(video_rtp_ts);
+
+        // Video timebase 90000, fps=25
+        video_rtp_ts += 3600;
+        video_absolute_ts += 40;
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        ntp = SrsNtp::from_time_ms(video_absolute_ts);
+        SrsRtcpSR* video_sr2 = new SrsRtcpSR();
+        SrsAutoFree(SrsRtcpSR, video_sr2);
+        video_sr2->set_ssrc(200);
+        video_sr2->set_ntp(ntp.ntp_);
+        video_sr2->set_rtp_ts(video_rtp_ts);
+
+        // Sender report out of order, sr2 arrived befreo sr1.
+        publish.on_rtcp_sr(video_sr2);
+        publish.on_rtcp_sr(video_sr1);
+
+        for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
+            video_rtp_ts += 3600;
+            video_absolute_ts += 40;
+            video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+            video->on_rtp(rtc_source, video_rtp_pkt);
+            EXPECT_NEAR(video_rtp_pkt->get_avsync_time(), video_absolute_ts, 1);
+        }
+    }
+}
+
+VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
+{
+    SrsRtcConnection s(NULL, SrsContextId()); 
+    SrsRtcPublishStream publish(&s, SrsContextId());
+
+    SrsRtcTrackDescription video_ds; 
+    video_ds.type_ = "video"; 
+    video_ds.id_ = "VMo22nfLDn122nfnDNL2"; 
+    video_ds.ssrc_ = 200;
+
+    SrsRtcVideoRecvTrack* video = new SrsRtcVideoRecvTrack(&s, &video_ds);
+    publish.video_tracks_.push_back(video);
+
+    publish.set_all_tracks_status(true);
+
+    SrsRtcSource* rtc_source = new SrsRtcSource();
+    SrsAutoFree(SrsRtcSource, rtc_source);
+    
+    srand(time(NULL));
+
+    if (true)
+    {
+        SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
+        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+
+        uint32_t video_absolute_ts = srs_get_system_time();
+        uint32_t video_rtp_ts = random();
+
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
+
+        SrsRtcpSR* video_sr = new SrsRtcpSR();
+        SrsAutoFree(SrsRtcpSR, video_sr);
+        video_sr->set_ssrc(200);
+
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        // Video timebase 90000, fps=25
+        video_rtp_ts += 3600;
+        video_absolute_ts += 40;
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+
+        // Received one sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        ntp = SrsNtp::from_time_ms(video_absolute_ts);
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
+            video_rtp_ts += 3600;
+            video_absolute_ts += 40;
+            video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+            video->on_rtp(rtc_source, video_rtp_pkt);
+            EXPECT_NEAR(video_rtp_pkt->get_avsync_time(), video_absolute_ts, 1);
+
+            // Send sender report every 4 seconds.
+            if (i % 100 == 99) {
+                ntp = SrsNtp::from_time_ms(video_absolute_ts);
+                video_sr->set_ntp(ntp.ntp_);
+                video_sr->set_rtp_ts(video_rtp_ts);
+                publish.on_rtcp_sr(video_sr);
+            }
+        }
+    }
+}

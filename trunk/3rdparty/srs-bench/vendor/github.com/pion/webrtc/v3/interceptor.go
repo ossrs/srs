@@ -7,6 +7,7 @@ import (
 
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/nack"
+	"github.com/pion/interceptor/pkg/report"
 	"github.com/pion/rtp"
 )
 
@@ -18,6 +19,27 @@ func RegisterDefaultInterceptors(mediaEngine *MediaEngine, interceptorRegistry *
 		return err
 	}
 
+	if err := ConfigureRTCPReports(interceptorRegistry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ConfigureRTCPReports will setup everything necessary for generating Sender and Receiver Reports
+func ConfigureRTCPReports(interceptorRegistry *interceptor.Registry) error {
+	reciver, err := report.NewReceiverInterceptor()
+	if err != nil {
+		return err
+	}
+
+	sender, err := report.NewSenderInterceptor()
+	if err != nil {
+		return err
+	}
+
+	interceptorRegistry.Add(reciver)
+	interceptorRegistry.Add(sender)
 	return nil
 }
 

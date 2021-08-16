@@ -1521,10 +1521,10 @@ srs_error_t SrsRtcPublishStream::on_rtcp_sr(SrsRtcpSR* rtcp)
     srs_error_t err = srs_success;
     SrsNtp srs_ntp = SrsNtp::to_time_ms(rtcp->get_ntp());
 
-    srs_verbose("sender report, ssrc_of_sender=%u, rtp_time=%u, sender_packet_count=%u, sender_octec_count=%u",
-        rtcp->get_ssrc(), rtcp->get_rtp_ts(), rtcp->get_rtp_send_packets(), rtcp->get_rtp_send_bytes());
+    srs_verbose("sender report, ssrc_of_sender=%u, rtp_time=%u, sender_packet_count=%u, sender_octec_count=%u, ms=%u",
+        rtcp->get_ssrc(), rtcp->get_rtp_ts(), rtcp->get_rtp_send_packets(), rtcp->get_rtp_send_bytes(), srs_ntp.system_ms_);
 
-    update_send_report_time(rtcp->get_ssrc(), srs_ntp);
+    update_send_report_time(rtcp->get_ssrc(), srs_ntp, rtcp->get_rtp_ts());
 
     return err;
 }
@@ -1664,16 +1664,16 @@ void SrsRtcPublishStream::update_rtt(uint32_t ssrc, int rtt)
     }
 }
 
-void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& ntp)
+void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time)
 {
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (video_track) {
-        return video_track->update_send_report_time(ntp);
+        return video_track->update_send_report_time(ntp, rtp_time);
     }
 
     SrsRtcAudioRecvTrack* audio_track = get_audio_track(ssrc);
     if (audio_track) {
-        return audio_track->update_send_report_time(ntp);
+        return audio_track->update_send_report_time(ntp, rtp_time);
     }
 }
 

@@ -11,8 +11,14 @@ import (
 	"time"
 
 	"github.com/pion/dtls/v2/internal/closer"
-	"github.com/pion/dtls/v2/internal/net/connctx"
+	"github.com/pion/dtls/v2/pkg/crypto/elliptic"
+	"github.com/pion/dtls/v2/pkg/crypto/signaturehash"
+	"github.com/pion/dtls/v2/pkg/protocol"
+	"github.com/pion/dtls/v2/pkg/protocol/alert"
+	"github.com/pion/dtls/v2/pkg/protocol/handshake"
+	"github.com/pion/dtls/v2/pkg/protocol/recordlayer"
 	"github.com/pion/logging"
+	"github.com/pion/transport/connctx"
 	"github.com/pion/transport/deadline"
 	"github.com/pion/transport/replaydetector"
 )
@@ -20,15 +26,10 @@ import (
 const (
 	initialTickerInterval = time.Second
 	cookieLength          = 20
-	defaultNamedCurve     = namedCurveX25519
+	defaultNamedCurve     = elliptic.X25519
 	inboundBufferSize     = 8192
 	// Default replay protection window is specified by RFC 6347 Section 4.1.2.6
 	defaultReplayProtectionWindow = 64
-)
-
-var (
-	errApplicationDataEpochZero = errors.New("ApplicationData with epoch of 0")
-	errUnhandledContextType     = errors.New("unhandled contentType")
 )
 
 func invalidKeyingLabels() map[string]bool {
@@ -86,12 +87,12 @@ func createConn(ctx context.Context, nextConn net.Conn, config *Config, isClient
 		return nil, errNilNextConn
 	}
 
-	cipherSuites, err := parseCipherSuites(config.CipherSuites, config.PSK == nil, config.PSK != nil)
+	cipherSuites, err := parseCipherSuites(config.CipherSuites, config.CustomCipherSuites, config.PSK == nil || len(config.Certificates) > 0, config.PSK != nil)
 	if err != nil {
 		return nil, err
 	}
 
-	signatureSchemes, err := parseSignatureSchemes(config.SignatureSchemes, config.InsecureHashes)
+	signatureSchemes, err := signaturehash.ParseSignatureSchemes(config.SignatureSchemes, config.InsecureHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -172,9 +173,11 @@ func createConn(ctx context.Context, nextConn net.Conn, config *Config, isClient
 		verifyPeerCertificate:       config.VerifyPeerCertificate,
 		rootCAs:                     config.RootCAs,
 		clientCAs:                   config.ClientCAs,
+		customCipherSuites:          config.CustomCipherSuites,
 		retransmitInterval:          workerInterval,
 		log:                         logger,
 		initialEpoch:                0,
+		keyLogWriter:                config.KeyLogWriter,
 	}
 
 	var initialFlight flightVal
@@ -260,11 +263,8 @@ func ClientWithContext(ctx context.Context, conn net.Conn, config *Config) (*Con
 
 // ServerWithContext listens for incoming DTLS connections.
 func ServerWithContext(ctx context.Context, conn net.Conn, config *Config) (*Conn, error) {
-	switch {
-	case config == nil:
+	if config == nil {
 		return nil, errNoConfigProvided
-	case config.PSK == nil && len(config.Certificates) == 0:
-		return nil, errServerMustHaveCertificate
 	}
 
 	return createConn(ctx, conn, config, false, nil)
@@ -322,13 +322,13 @@ func (c *Conn) Write(p []byte) (int, error) {
 
 	return len(p), c.writePackets(c.writeDeadline, []*packet{
 		{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					epoch:           c.getLocalEpoch(),
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Epoch:   c.getLocalEpoch(),
+					Version: protocol.Version1_2,
 				},
-				content: &applicationData{
-					data: p,
+				Content: &protocol.ApplicationData{
+					Data: p,
 				},
 			},
 			shouldEncrypt: true,
@@ -370,16 +370,16 @@ func (c *Conn) writePackets(ctx context.Context, pkts []*packet) error {
 	var rawPackets [][]byte
 
 	for _, p := range pkts {
-		if h, ok := p.record.content.(*handshake); ok {
+		if h, ok := p.record.Content.(*handshake.Handshake); ok {
 			handshakeRaw, err := p.record.Marshal()
 			if err != nil {
 				return err
 			}
 
 			c.log.Tracef("[handshake:%v] -> %s (epoch: %d, seq: %d)",
-				srvCliStr(c.state.isClient), h.handshakeHeader.handshakeType.String(),
-				p.record.recordLayerHeader.epoch, h.handshakeHeader.messageSequence)
-			c.handshakeCache.push(handshakeRaw[recordLayerHeaderSize:], p.record.recordLayerHeader.epoch, h.handshakeHeader.messageSequence, h.handshakeHeader.handshakeType, c.state.isClient)
+				srvCliStr(c.state.isClient), h.Header.Type.String(),
+				p.record.Header.Epoch, h.Header.MessageSequence)
+			c.handshakeCache.push(handshakeRaw[recordlayer.HeaderSize:], p.record.Header.Epoch, h.Header.MessageSequence, h.Header.Type, c.state.isClient)
 
 			rawHandshakePackets, err := c.processHandshakePacket(p, h)
 			if err != nil {
@@ -400,7 +400,7 @@ func (c *Conn) writePackets(ctx context.Context, pkts []*packet) error {
 	compactedRawPackets := c.compactRawPackets(rawPackets)
 
 	for _, compactedRawPackets := range compactedRawPackets {
-		if _, err := c.nextConn.Write(ctx, compactedRawPackets); err != nil {
+		if _, err := c.nextConn.WriteContext(ctx, compactedRawPackets); err != nil {
 			return netError(err)
 		}
 	}
@@ -426,18 +426,18 @@ func (c *Conn) compactRawPackets(rawPackets [][]byte) [][]byte {
 }
 
 func (c *Conn) processPacket(p *packet) ([]byte, error) {
-	epoch := p.record.recordLayerHeader.epoch
+	epoch := p.record.Header.Epoch
 	for len(c.state.localSequenceNumber) <= int(epoch) {
 		c.state.localSequenceNumber = append(c.state.localSequenceNumber, uint64(0))
 	}
 	seq := atomic.AddUint64(&c.state.localSequenceNumber[epoch], 1) - 1
-	if seq > maxSequenceNumber {
+	if seq > recordlayer.MaxSequenceNumber {
 		// RFC 6347 Section 4.1.0
 		// The implementation must either abandon an association or rehandshake
 		// prior to allowing the sequence number to wrap.
 		return nil, errSequenceNumberOverflow
 	}
-	p.record.recordLayerHeader.sequenceNumber = seq
+	p.record.Header.SequenceNumber = seq
 
 	rawPacket, err := p.record.Marshal()
 	if err != nil {
@@ -446,7 +446,7 @@ func (c *Conn) processPacket(p *packet) ([]byte, error) {
 
 	if p.shouldEncrypt {
 		var err error
-		rawPacket, err = c.state.cipherSuite.encrypt(p.record, rawPacket)
+		rawPacket, err = c.state.cipherSuite.Encrypt(p.record, rawPacket)
 		if err != nil {
 			return nil, err
 		}
@@ -455,43 +455,43 @@ func (c *Conn) processPacket(p *packet) ([]byte, error) {
 	return rawPacket, nil
 }
 
-func (c *Conn) processHandshakePacket(p *packet, h *handshake) ([][]byte, error) {
+func (c *Conn) processHandshakePacket(p *packet, h *handshake.Handshake) ([][]byte, error) {
 	rawPackets := make([][]byte, 0)
 
 	handshakeFragments, err := c.fragmentHandshake(h)
 	if err != nil {
 		return nil, err
 	}
-	epoch := p.record.recordLayerHeader.epoch
+	epoch := p.record.Header.Epoch
 	for len(c.state.localSequenceNumber) <= int(epoch) {
 		c.state.localSequenceNumber = append(c.state.localSequenceNumber, uint64(0))
 	}
 
 	for _, handshakeFragment := range handshakeFragments {
 		seq := atomic.AddUint64(&c.state.localSequenceNumber[epoch], 1) - 1
-		if seq > maxSequenceNumber {
+		if seq > recordlayer.MaxSequenceNumber {
 			return nil, errSequenceNumberOverflow
 		}
 
-		recordLayerHeader := &recordLayerHeader{
-			protocolVersion: p.record.recordLayerHeader.protocolVersion,
-			contentType:     p.record.recordLayerHeader.contentType,
-			contentLen:      uint16(len(handshakeFragment)),
-			epoch:           p.record.recordLayerHeader.epoch,
-			sequenceNumber:  seq,
+		recordlayerHeader := &recordlayer.Header{
+			Version:        p.record.Header.Version,
+			ContentType:    p.record.Header.ContentType,
+			ContentLen:     uint16(len(handshakeFragment)),
+			Epoch:          p.record.Header.Epoch,
+			SequenceNumber: seq,
 		}
 
-		recordLayerHeaderBytes, err := recordLayerHeader.Marshal()
+		recordlayerHeaderBytes, err := recordlayerHeader.Marshal()
 		if err != nil {
 			return nil, err
 		}
 
-		p.record.recordLayerHeader = *recordLayerHeader
+		p.record.Header = *recordlayerHeader
 
-		rawPacket := append(recordLayerHeaderBytes, handshakeFragment...)
+		rawPacket := append(recordlayerHeaderBytes, handshakeFragment...)
 		if p.shouldEncrypt {
 			var err error
-			rawPacket, err = c.state.cipherSuite.encrypt(p.record, rawPacket)
+			rawPacket, err = c.state.cipherSuite.Encrypt(p.record, rawPacket)
 			if err != nil {
 				return nil, err
 			}
@@ -503,8 +503,8 @@ func (c *Conn) processHandshakePacket(p *packet, h *handshake) ([][]byte, error)
 	return rawPackets, nil
 }
 
-func (c *Conn) fragmentHandshake(h *handshake) ([][]byte, error) {
-	content, err := h.handshakeMessage.Marshal()
+func (c *Conn) fragmentHandshake(h *handshake.Handshake) ([][]byte, error) {
+	content, err := h.Message.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -522,22 +522,22 @@ func (c *Conn) fragmentHandshake(h *handshake) ([][]byte, error) {
 	for _, contentFragment := range contentFragments {
 		contentFragmentLen := len(contentFragment)
 
-		handshakeHeaderFragment := &handshakeHeader{
-			handshakeType:   h.handshakeHeader.handshakeType,
-			length:          h.handshakeHeader.length,
-			messageSequence: h.handshakeHeader.messageSequence,
-			fragmentOffset:  uint32(offset),
-			fragmentLength:  uint32(contentFragmentLen),
+		headerFragment := &handshake.Header{
+			Type:            h.Header.Type,
+			Length:          h.Header.Length,
+			MessageSequence: h.Header.MessageSequence,
+			FragmentOffset:  uint32(offset),
+			FragmentLength:  uint32(contentFragmentLen),
 		}
 
 		offset += contentFragmentLen
 
-		handshakeHeaderFragmentRaw, err := handshakeHeaderFragment.Marshal()
+		headerFragmentRaw, err := headerFragment.Marshal()
 		if err != nil {
 			return nil, err
 		}
 
-		fragmentedHandshake := append(handshakeHeaderFragmentRaw, contentFragment...)
+		fragmentedHandshake := append(headerFragmentRaw, contentFragment...)
 		fragmentedHandshakes = append(fragmentedHandshakes, fragmentedHandshake)
 	}
 
@@ -556,12 +556,12 @@ func (c *Conn) readAndBuffer(ctx context.Context) error {
 	defer poolReadBuffer.Put(bufptr)
 
 	b := *bufptr
-	i, err := c.nextConn.Read(ctx, b)
+	i, err := c.nextConn.ReadContext(ctx, b)
 	if err != nil {
 		return netError(err)
 	}
 
-	pkts, err := unpackDatagram(b[:i])
+	pkts, err := recordlayer.UnpackDatagram(b[:i])
 	if err != nil {
 		return err
 	}
@@ -570,7 +570,7 @@ func (c *Conn) readAndBuffer(ctx context.Context) error {
 	for _, p := range pkts {
 		hs, alert, err := c.handleIncomingPacket(p, true)
 		if alert != nil {
-			if alertErr := c.notify(ctx, alert.alertLevel, alert.alertDescription); alertErr != nil {
+			if alertErr := c.notify(ctx, alert.Level, alert.Description); alertErr != nil {
 				if err == nil {
 					err = alertErr
 				}
@@ -609,7 +609,7 @@ func (c *Conn) handleQueuedPackets(ctx context.Context) error {
 	for _, p := range pkts {
 		_, alert, err := c.handleIncomingPacket(p, false) // don't re-enqueue
 		if alert != nil {
-			if alertErr := c.notify(ctx, alert.alertLevel, alert.alertDescription); alertErr != nil {
+			if alertErr := c.notify(ctx, alert.Level, alert.Description); alertErr != nil {
 				if err == nil {
 					err = alertErr
 				}
@@ -628,8 +628,8 @@ func (c *Conn) handleQueuedPackets(ctx context.Context) error {
 	return nil
 }
 
-func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, error) { //nolint:gocognit
-	h := &recordLayerHeader{}
+func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert.Alert, error) { //nolint:gocognit
+	h := &recordlayer.Header{}
 	if err := h.Unmarshal(buf); err != nil {
 		// Decode error must be silently discarded
 		// [RFC6347 Section-4.1.2.7]
@@ -639,10 +639,10 @@ func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, err
 
 	// Validate epoch
 	remoteEpoch := c.getRemoteEpoch()
-	if h.epoch > remoteEpoch {
-		if h.epoch > remoteEpoch+1 {
+	if h.Epoch > remoteEpoch {
+		if h.Epoch > remoteEpoch+1 {
 			c.log.Debugf("discarded future packet (epoch: %d, seq: %d)",
-				h.epoch, h.sequenceNumber,
+				h.Epoch, h.SequenceNumber,
 			)
 			return false, nil, nil
 		}
@@ -654,22 +654,22 @@ func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, err
 	}
 
 	// Anti-replay protection
-	for len(c.state.replayDetector) <= int(h.epoch) {
+	for len(c.state.replayDetector) <= int(h.Epoch) {
 		c.state.replayDetector = append(c.state.replayDetector,
-			replaydetector.New(c.replayProtectionWindow, maxSequenceNumber),
+			replaydetector.New(c.replayProtectionWindow, recordlayer.MaxSequenceNumber),
 		)
 	}
-	markPacketAsValid, ok := c.state.replayDetector[int(h.epoch)].Check(h.sequenceNumber)
+	markPacketAsValid, ok := c.state.replayDetector[int(h.Epoch)].Check(h.SequenceNumber)
 	if !ok {
 		c.log.Debugf("discarded duplicated packet (epoch: %d, seq: %d)",
-			h.epoch, h.sequenceNumber,
+			h.Epoch, h.SequenceNumber,
 		)
 		return false, nil, nil
 	}
 
 	// Decrypt
-	if h.epoch != 0 {
-		if c.state.cipherSuite == nil || !c.state.cipherSuite.isInitialized() {
+	if h.Epoch != 0 {
+		if c.state.cipherSuite == nil || !c.state.cipherSuite.IsInitialized() {
 			if enqueue {
 				c.encryptedPackets = append(c.encryptedPackets, buf)
 				c.log.Debug("handshake not finished, queuing packet")
@@ -678,7 +678,7 @@ func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, err
 		}
 
 		var err error
-		buf, err = c.state.cipherSuite.decrypt(buf)
+		buf, err = c.state.cipherSuite.Decrypt(buf)
 		if err != nil {
 			c.log.Debugf("%s: decrypt failed: %s", srvCliStr(c.state.isClient), err)
 			return false, nil, nil
@@ -694,35 +694,35 @@ func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, err
 	} else if isHandshake {
 		markPacketAsValid()
 		for out, epoch := c.fragmentBuffer.pop(); out != nil; out, epoch = c.fragmentBuffer.pop() {
-			rawHandshake := &handshake{}
+			rawHandshake := &handshake.Handshake{}
 			if err := rawHandshake.Unmarshal(out); err != nil {
 				c.log.Debugf("%s: handshake parse failed: %s", srvCliStr(c.state.isClient), err)
 				continue
 			}
 
-			_ = c.handshakeCache.push(out, epoch, rawHandshake.handshakeHeader.messageSequence, rawHandshake.handshakeHeader.handshakeType, !c.state.isClient)
+			_ = c.handshakeCache.push(out, epoch, rawHandshake.Header.MessageSequence, rawHandshake.Header.Type, !c.state.isClient)
 		}
 
 		return true, nil, nil
 	}
 
-	r := &recordLayer{}
+	r := &recordlayer.RecordLayer{}
 	if err := r.Unmarshal(buf); err != nil {
-		return false, &alert{alertLevelFatal, alertDecodeError}, err
+		return false, &alert.Alert{Level: alert.Fatal, Description: alert.DecodeError}, err
 	}
 
-	switch content := r.content.(type) {
-	case *alert:
+	switch content := r.Content.(type) {
+	case *alert.Alert:
 		c.log.Tracef("%s: <- %s", srvCliStr(c.state.isClient), content.String())
-		var a *alert
-		if content.alertDescription == alertCloseNotify {
+		var a *alert.Alert
+		if content.Description == alert.CloseNotify {
 			// Respond with a close_notify [RFC5246 Section 7.2.1]
-			a = &alert{alertLevelWarning, alertCloseNotify}
+			a = &alert.Alert{Level: alert.Warning, Description: alert.CloseNotify}
 		}
 		markPacketAsValid()
 		return false, a, &errAlert{content}
-	case *changeCipherSpec:
-		if c.state.cipherSuite == nil || !c.state.cipherSuite.isInitialized() {
+	case *protocol.ChangeCipherSpec:
+		if c.state.cipherSuite == nil || !c.state.cipherSuite.IsInitialized() {
 			if enqueue {
 				c.encryptedPackets = append(c.encryptedPackets, buf)
 				c.log.Debugf("CipherSuite not initialized, queuing packet")
@@ -730,27 +730,27 @@ func (c *Conn) handleIncomingPacket(buf []byte, enqueue bool) (bool, *alert, err
 			return false, nil, nil
 		}
 
-		newRemoteEpoch := h.epoch + 1
+		newRemoteEpoch := h.Epoch + 1
 		c.log.Tracef("%s: <- ChangeCipherSpec (epoch: %d)", srvCliStr(c.state.isClient), newRemoteEpoch)
 
 		if c.getRemoteEpoch()+1 == newRemoteEpoch {
 			c.setRemoteEpoch(newRemoteEpoch)
 			markPacketAsValid()
 		}
-	case *applicationData:
-		if h.epoch == 0 {
-			return false, &alert{alertLevelFatal, alertUnexpectedMessage}, errApplicationDataEpochZero
+	case *protocol.ApplicationData:
+		if h.Epoch == 0 {
+			return false, &alert.Alert{Level: alert.Fatal, Description: alert.UnexpectedMessage}, errApplicationDataEpochZero
 		}
 
 		markPacketAsValid()
 
 		select {
-		case c.decrypted <- content.data:
+		case c.decrypted <- content.Data:
 		case <-c.closed.Done():
 		}
 
 	default:
-		return false, &alert{alertLevelFatal, alertUnexpectedMessage}, fmt.Errorf("%w: %d", errUnhandledContextType, content.contentType())
+		return false, &alert.Alert{Level: alert.Fatal, Description: alert.UnexpectedMessage}, fmt.Errorf("%w: %d", errUnhandledContextType, content.ContentType())
 	}
 	return false, nil, nil
 }
@@ -759,17 +759,17 @@ func (c *Conn) recvHandshake() <-chan chan struct{} {
 	return c.handshakeRecv
 }
 
-func (c *Conn) notify(ctx context.Context, level alertLevel, desc alertDescription) error {
+func (c *Conn) notify(ctx context.Context, level alert.Level, desc alert.Description) error {
 	return c.writePackets(ctx, []*packet{
 		{
-			record: &recordLayer{
-				recordLayerHeader: recordLayerHeader{
-					epoch:           c.getLocalEpoch(),
-					protocolVersion: protocolVersion1_2,
+			record: &recordlayer.RecordLayer{
+				Header: recordlayer.Header{
+					Epoch:   c.getLocalEpoch(),
+					Version: protocol.Version1_2,
 				},
-				content: &alert{
-					alertLevel:       level,
-					alertDescription: desc,
+				Content: &alert.Alert{
+					Level:       level,
+					Description: desc,
 				},
 			},
 			shouldEncrypt: c.isHandshakeCompletedSuccessfully(),
@@ -892,7 +892,7 @@ func (c *Conn) translateHandshakeCtxError(err error) error {
 	if errors.Is(err, context.Canceled) && c.isHandshakeCompletedSuccessfully() {
 		return nil
 	}
-	return &HandshakeError{err}
+	return &HandshakeError{Err: err}
 }
 
 func (c *Conn) close(byUser bool) error {
@@ -902,7 +902,7 @@ func (c *Conn) close(byUser bool) error {
 	if c.isHandshakeCompletedSuccessfully() && byUser {
 		// Discard error from notify() to return non-error on the first user call of Close()
 		// even if the underlying connection is already closed.
-		_ = c.notify(context.Background(), alertLevelWarning, alertCloseNotify)
+		_ = c.notify(context.Background(), alert.Warning, alert.CloseNotify)
 	}
 
 	c.closeLock.Lock()

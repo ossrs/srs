@@ -26,6 +26,10 @@ type candidatePair struct {
 }
 
 func (p *candidatePair) String() string {
+	if p == nil {
+		return ""
+	}
+
 	return fmt.Sprintf("prio %d (local, prio %d) %s <-> %s (remote, prio %d)",
 		p.Priority(), p.local.Priority(), p.local, p.remote, p.remote.Priority())
 }

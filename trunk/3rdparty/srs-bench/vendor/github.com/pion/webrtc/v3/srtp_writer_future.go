@@ -5,6 +5,7 @@ package webrtc
 import (
 	"io"
 	"sync/atomic"
+	"time"
 
 	"github.com/pion/rtp"
 	"github.com/pion/srtp/v2"
@@ -78,6 +79,18 @@ func (s *srtpWriterFuture) Read(b []byte) (n int, err error) {
 	}
 
 	return s.Read(b)
+}
+
+func (s *srtpWriterFuture) SetReadDeadline(t time.Time) error {
+	if value := s.rtcpReadStream.Load(); value != nil {
+		return value.(*srtp.ReadStreamSRTCP).SetReadDeadline(t)
+	}
+
+	if err := s.init(false); err != nil || s.rtcpReadStream.Load() == nil {
+		return err
+	}
+
+	return s.SetReadDeadline(t)
 }
 
 func (s *srtpWriterFuture) WriteRTP(header *rtp.Header, payload []byte) (int, error) {
