@@ -1,156 +1,66 @@
-# SRS(Simple Realtime Server)
+# Architecture
 
-![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/4.0release)
-[![](https://github.com/ossrs/srs/actions/workflows/codeql-analysis.yml/badge.svg?branch=4.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ACodeQL+branch%3A4.0release)
-[![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
-[![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=4.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A4.0release)
-[![](https://codecov.io/gh/ossrs/srs/branch/4.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/4.0release)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge2.png)](../../wikis/Contact#wechat)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs2.png)](http://bbs.ossrs.net)
+The architecture of SRS.
 
-SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
-
-SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
-
-SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
-
-<a name="product"></a>
-<a name="usage-docker"></a>
-## Usage
-
-Build SRS from source, please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )**:
-
-```
-git clone -b 4.0release https://gitee.com/ossrs/srs.git &&
-cd srs/trunk && ./configure && make && ./objs/srs -c conf/srs.conf
-```
-
-Open [http://localhost:8080/](http://localhost:8080/) to check it, then publish
-by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) as:
-
-```bash
-ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
-```
-
-> Note: It's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled.
-
-Play the following streams by [players](https://ossrs.net):
-
-* RTMP (by [VLC](https://www.videolan.org/)): rtmp://localhost/live/livestream
-* H5(HTTP-FLV): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv&port=8080&schema=http)
-* H5(HLS): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8&port=8080&schema=http)
-* H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
-
-<a name="srs-40-wiki"></a>
-<a name="wiki"></a>
-
-From here, please read wikis:
-
-* [Getting Started](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started), please read Wiki first.
-* [中文文档：起步](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started)，不读Wiki一定扑街，不读文档请不要提Issue，不读文档请不要提问题，任何文档中明确说过的疑问都不会解答。
-
-Fast index for Wikis:
-
-* Overview? ([CN][v4_CN_Home], [EN][v4_EN_Home])
-* How to deliver RTMP streaming?([CN][v4_CN_SampleRTMP], [EN][v4_EN_SampleRTMP])
-* How to build RTMP Edge-Cluster?([CN][v4_CN_SampleRTMPCluster], [EN][v4_EN_SampleRTMPCluster])
-* How to build RTMP Origin-Cluster?([CN][v4_CN_SampleOriginCluster], [EN][v4_EN_SampleOriginCluster])
-* How to deliver HTTP-FLV streaming?([CN][v4_CN_SampleHttpFlv], [EN][v4_EN_SampleHttpFlv])
-* How to deliver HLS streaming?([CN][v4_CN_SampleHLS], [EN][v4_EN_SampleHLS])
-* How to deliver low-latency streaming?([CN][v4_CN_SampleRealtime], [EN][v4_EN_SampleRealtime])
-* How to use WebRTC? ([CN][v4_CN_WebRTC], [EN][v4_EN_WebRTC])
-
-Other important wiki:
-
-* Usage: How to delivery DASH(Experimental)?([CN][v4_CN_SampleDASH], [EN][v4_EN_SampleDASH])
-* Usage: How to transode RTMP stream by FFMPEG?([CN][v4_CN_SampleFFMPEG], [EN][v4_EN_SampleFFMPEG])
-* Usage: How to delivery HTTP FLV Live Streaming Cluster?([CN][v4_CN_SampleHttpFlvCluster], [EN][v4_EN_SampleHttpFlvCluster])
-* Usage: How to ingest file/stream/device to RTMP?([CN][v4_CN_SampleIngest], [EN][v4_EN_SampleIngest])
-* Usage: How to forward stream to other servers?([CN][v4_CN_SampleForward], [EN][v4_EN_SampleForward])
-* Usage: How to improve edge performance for multiple CPUs? ([CN][v4_CN_REUSEPORT], [EN][v4_EN_REUSEPORT])
-* Usage: How to file a bug or contact us? ([CN][v4_CN_Contact], [EN][v4_EN_Contact])
-
-## AUTHORS
-
-There are two types of people that have contributed to the SRS project:
-
-* Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
-* [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
-
-Maintainers of SRS project:
-
-* [Winlin](https://github.com/winlinvip): All areas of streaming server and documents.
-* [Wenjie](https://github.com/wenjiegit): The focus of his work is on the [HDS](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_DeliveryHDS) module.
-* [Runner365](https://github.com/runner365): The focus of his work is on the [SRT](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_SRTWiki) module.
-* [John](https://github.com/xiaozhihong): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
-* [B.P.Y(Bepartofyou)](https://github.com/Bepartofyou): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
-* [Lixin](https://github.com/xialixin): Focus on [GB28181](https://github.com/ossrs/srs/issues/1500) module.
-* [Mozhan](https://github.com/lipeng19811218): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
-* [Jinxue](https://github.com/chen-guanghua): Focus on [WebRTC](https://github.com/simple-rtmp-server/srs/wiki/v4_CN_WebRTC) module.
-
-A big THANK YOU goes to:
-
-* All friends of SRS for [big supports][bigthanks].
-* Genes amd Mabbott for creating [st][st]([state-threads][st2]).
-* [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
-
-## Releases
-
-* 2020-08-15, Release [v4.0.156](https://github.com/ossrs/srs/releases/tag/v4.0.156), 4.0 dev4, v4.0.156, 145490 lines.
-* 2020-08-14, Release [v4.0.153](https://github.com/ossrs/srs/releases/tag/v4.0.153), 4.0 dev3, v4.0.153, 145506 lines.
-* 2020-08-07, Release [v4.0.150](https://github.com/ossrs/srs/releases/tag/v4.0.150), 4.0 dev2, v4.0.150, 145289 lines.
-* 2020-07-25, Release [v4.0.146](https://github.com/ossrs/srs/releases/tag/v4.0.146), 4.0 dev1, v4.0.146, 144026 lines.
-* 2020-07-04, Release [v4.0.139](https://github.com/ossrs/srs/releases/tag/v4.0.139), 4.0 dev0, v4.0.139, 143245 lines.
-* 2020-06-27, [Release v3.0-r0][r3.0r0], 3.0 release0, 3.0.141, 122674 lines.
-* 2020-02-02, [Release v3.0-b0][r3.0b0], 3.0 beta0, 3.0.112, 121709 lines.
-* 2019-10-04, [Release v3.0-a0][r3.0a0], 3.0 alpha0, 3.0.56, 107946 lines.
-* 2017-03-03, [Release v2.0-r0][r2.0r0], 2.0 release0, 2.0.234, 86373 lines.
-* 2016-08-06, [Release v2.0-b0][r2.0b0], 2.0 beta0, 2.0.210, 89704 lines.
-* 2015-08-23, [Release v2.0-a0][r2.0a0], 2.0 alpha0, 2.0.185, 89022 lines.
-* 2014-12-05, [Release v1.0-r0][r1.0r0], all bug fixed, 1.0.10, 59391 lines.
-* 2014-10-09, [Release v0.9.8][r1.0b0], all bug fixed, 1.0.0, 59316 lines.
-* 2014-04-07, [Release v0.9.1][r1.0a0], live streaming. 30000 lines.
-* 2013-10-23, [Release v0.1.0][r0.1], rtmp. 8287 lines.
-* 2013-10-17, Created.
-
-## Features
-
-Please read [FEATURES](trunk/doc/Features.md#features).
-
-<a name="history"></a>
-<a name="change-logs"></a>
-
-## Changelog
-
-Please read [CHANGELOG](trunk/doc/CHANGELOG.md#changelog).
-
-## Compare
-
-Comparing with other media servers, SRS is much better and stronger, for details please 
-read Product([CN][v4_CN_Compare]/[EN][v4_EN_Compare]).
-
-## Performance
-
-Please read [PERFORMANCE](trunk/doc/PERFORMANCE.md#performance).
+> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
 
 ## Architecture
 
-Please read [ARCHITECTURE](trunk/doc/Architecture.md#architecture).
+The stream architecture of SRS.
 
-## Ports
+```
++----------+             +----------+
+| Upstream |             |  Deliver |
++---|------+             +----|-----+
++---+------------------+------+---------------------+----------------+
+|     Input            | SRS(Simple RTMP Server)    |     Output     |
++----------------------+----------------------------+----------------+
+|                      |   +-> DASH ----------------+-> DASH player  |
+|    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
+|  (FMLE,OBS,   --RTMP-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
+|  FFmpeg,XSPLIT,      |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
+|  ......)             |   +-> Fowarder ------------+-> RTMP server  |
+|                      |   +-> Transcoder ----------+-> RTMP server  |
+|                      |   +-> EXEC(5) -------------+-> External app |
+|                      |   +-> DVR -----------------+-> FLV file     |
+|                      |   +-> BandwidthTest -------+-> Flash        |
+|                      |   +-> WebRTC --------------+-> Flash        |
++----------------------+                            |                |
+|    WebRTC Client     |   +--> RTMP                |                |
+| (H5,Native...) --RTC-+---+---> WebRTC ------------+-> WebRTC Client|
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (RTSP,FILE,         |                            |                |
+|   HTTP,HLS,   --pull-+->-- Ingester(3) -(rtmp)----+-> SRS          |
+|   Device,            |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  MediaSource(2)      |                            |                |
+|  (MPEGTSoverUDP      |                            |                |
+|   HTTP-FLV,   --push-+->- StreamCaster(4) -(rtmp)-+-> SRS          |
+|   SRT,               |                            |                |
+|   ......)            |                            |                |
++----------------------+                            |                |
+|  FFMPEG --push(srt)--+->- SRTModule(5)  ---(rtmp)-+-> SRS          |
++----------------------+----------------------------+----------------+
+```
 
-Please read [PORTS](trunk/doc/Resources.md#ports).
+Remark:
 
-## APIs
+1. Encoder: Encoder pushs RTMP stream to SRS.
+1. MediaSource: Supports any media source, ingesting by ffmpeg.
+1. Ingester: Forks a ffmpeg(or other tools) to ingest as rtmp to SRS, please read [Ingest][v4_CN_Ingest].
+1. Streamer: Remuxs other protocols to RTMP, please read [Streamer][v4_CN_Streamer].
+1. EXEC: Like NGINX-RTMP, EXEC forks external tools for events, please read [ng-exec][v4_CN_NgExec].
+1. SRTModule: A isolate module which run in [hybrid](https://github.com/ossrs/srs/issues/1147#issuecomment-577574883) model.
 
-Please read [APIS](trunk/doc/Resources.md#apis).
+## System Requirements
 
-## Mirrors
+Supported operating systems and hardware:
 
-Please read [MIRRORS](trunk/doc/Resources.md#mirrors).
-
-Beijing, 2013.10<br/>
-Winlin
+* Linux, with x86, x86-64 or arm.
+* Mac, with intel chip.
+* Other OS, such as Windows, please use [docker][docker-srs4].
 
 [authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://github.com/ossrs/srs/wiki/Product#release40

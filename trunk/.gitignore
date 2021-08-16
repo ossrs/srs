@@ -38,6 +38,7 @@
 ./srs
 *.dSYM/
 *.gcov
+*.gcno
 *.ts
 *.h264
 *.264

@@ -2,6 +2,8 @@
 
 The changelog for SRS.
 
+> Note: Please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )** first.
+
 <a name="v4-changes"></a>
 
 ## SRS 4.0 Changelog
