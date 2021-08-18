@@ -917,35 +917,6 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
     return err;
 }
 
-void SrsRtcPlayStream::http_hooks_on_stop()
-{
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
-        return;
-    }
-
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(req_->vhost);
-
-        if (!conf) {
-            return;
-        }
-
-        hooks = conf->args;
-    }
-
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, req_);
-    }
-
-    return;
-}
-
 SrsRtcPublishRtcpTimer::SrsRtcPublishRtcpTimer(SrsRtcPublishStream* p) : p_(p)
 {
     _srs_hybrid->timer1s()->subscribe(this);
@@ -1768,33 +1739,6 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     SrsRtcAudioRecvTrack* audio_track = get_audio_track(ssrc);
     if (audio_track) {
         return audio_track->update_send_report_time(ntp, rtp_time);
-    }
-}
-
-void SrsRtcPublishStream::http_hooks_on_unpublish()
-{
-    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
-        return;
-    }
-
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_unpublish(req_->vhost);
-
-        if (!conf) {
-            return;
-        }
-
-        hooks = conf->args;
-    }
-
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        SrsHttpHooks::on_unpublish(url, req_);
     }
 }
 
