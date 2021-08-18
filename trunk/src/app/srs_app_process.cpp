@@ -183,22 +183,21 @@ srs_error_t SrsProcess::start()
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
 
-        srs_error_t child_err = srs_success;
         // for the stdout, ignore when not specified.
         // redirect stdout to file if possible.
         if ((err = srs_redirect_output(stdout_file, STDOUT_FILENO)) != srs_success) {
-            child_err = srs_error_wrap(err, "redirect output");
+            err = srs_error_wrap(err, "redirect output");
         }
         
         // for the stderr, ignore when not specified.
         // redirect stderr to file if possible.
         if ((err = srs_redirect_output(stderr_file, STDERR_FILENO)) != srs_success) {
-            child_err = srs_error_wrap(err, "redirect output");
+            err = srs_error_wrap(err, "redirect output");
         }
 
         // No stdin for process, @bug https://github.com/ossrs/srs/issues/1592
         if ((err = srs_redirect_output("/dev/null", STDIN_FILENO)) != srs_success) {
-            child_err = srs_error_wrap(err, "redirect input");
+            err = srs_error_wrap(err, "redirect input");
         }
 
         // should never close the fd 3+, for it myabe used.
@@ -214,8 +213,8 @@ srs_error_t SrsProcess::start()
         }
         
         // output error to stdout and exit child process.
-        if (child_err != srs_success) {
-            fprintf(stdout, "child process error, %s\n", srs_error_desc(child_err).c_str());
+        if (err != srs_success) {
+            fprintf(stdout, "child process error, %s\n", srs_error_desc(err).c_str());
             exit(-1);
         }
         
