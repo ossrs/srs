@@ -806,6 +806,9 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     }
     int8_t numOfSequenceParameterSets = stream->read_1bytes();
     numOfSequenceParameterSets &= 0x1f;
+    if (numOfSequenceParameterSets < 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
+    }
     // Support for multiple SPS, then pick the last one.
     for (int i = 0; i < numOfSequenceParameterSets; ++i) {
         if (!stream->require(2)) {
@@ -827,6 +830,9 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     }
     int8_t numOfPictureParameterSets = stream->read_1bytes();
     numOfPictureParameterSets &= 0x1f;
+    if (numOfPictureParameterSets < 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+    }
     // Support for multiple PPS, then pick the last one.
     for (int i = 0; i < numOfPictureParameterSets; ++i) {
         if (!stream->require(2)) {
