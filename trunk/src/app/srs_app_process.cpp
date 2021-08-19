@@ -206,7 +206,13 @@ srs_error_t SrsProcess::start()
         // ignore the SIGINT and SIGTERM
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
-
+        
+        // redirect standard I/O, if it failed, output error to stdout, and exit child process.
+        if ((err = redirect_io()) != srs_success) {
+            fprintf(stdout, "child process error, %s\n", srs_error_desc(err).c_str());
+            exit(-1);
+        }
+        
         // should never close the fd 3+, for it myabe used.
         // for fd should close at exec, use fnctl to set it.
         
@@ -217,12 +223,6 @@ srs_error_t SrsProcess::start()
                 ppid, cid.c_str(), getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
             fprintf(stdout, "process binary=%s, cli: %s\n", bin.c_str(), cli.c_str());
             fprintf(stdout, "process actual cli: %s\n", actual_cli.c_str());
-        }
-        
-        // output error to stdout and exit child process.
-        if ((err = redirect_io()) != srs_success) {
-            fprintf(stdout, "child process error, %s\n", srs_error_desc(err).c_str());
-            exit(-1);
         }
         
         // memory leak in child process, it's ok.
