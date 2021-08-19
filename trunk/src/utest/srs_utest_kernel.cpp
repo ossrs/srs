@@ -3723,6 +3723,22 @@ VOID TEST(KernelCodecTest, VideoFormatSepcial)
         };
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
     }
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x02, 0x00, 0x00, 0x00, 0x00, // 2 SPS, 
+            0x02, 0x00, 0x00, 0x00, 0x00  // 2 PPS, 
+        };
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
 }
 
 VOID TEST(KernelCodecTest, VideoFormat)
