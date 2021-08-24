@@ -3526,7 +3526,7 @@ srs_error_t SrsConfig::parse_argv(int& i, char** argv)
 void SrsConfig::print_help(char** argv)
 {
     printf(
-           "%s, %s, %s, created by %s\n\n"
+           "%s, %s, %s, created by %sand %s\n\n"
            "Usage: %s <-h?vVgG>|<[-t] -c filename>\n"
            "Options:\n"
            "   -?, -h              : Show this help and exit 0.\n"
@@ -3539,7 +3539,7 @@ void SrsConfig::print_help(char** argv)
            "   %s -t -c %s\n"
            "   %s -c %s\n",
            RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_URL, RTMP_SIG_SRS_LICENSE,
-           RTMP_SIG_SRS_AUTHORS,
+           RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS,
            argv[0], argv[0], argv[0], SRS_CONF_DEFAULT_COFNIG_FILE,
            argv[0], SRS_CONF_DEFAULT_COFNIG_FILE);
 }

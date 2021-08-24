@@ -12,5 +12,5 @@ for author in $authors; do
   username=$(echo $author |awk -F '@' '{print $1}')
   grep $username $AFILE 1>/dev/null 2>/dev/null && continue;
 
-  git log -1 --author="$author" --format='%an<%ae>'| sed 's/ //g'
+  echo "* $(git log -1 --author="$author" --format='`%an<%ae>`'| sed 's/ //g')"
 done
