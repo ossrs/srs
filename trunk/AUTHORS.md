@@ -2,25 +2,26 @@
 
 The TOC(Technical Oversight Committee):
 
-- `winlinvip<winlin@vip.126.com>`
-- `wenjiegit<zhaowenjie@tal.com>`
-- `xialixin<xialixin@kanzhun.com>`
-- `runner365<shiwei05@kuaishou.com>`
-- `xiaozhihong<hondaxiao@tencent.com>`
-- `Bepartofyou<pengqiang.wpq@alibaba-inc.com>`
-- `chen-guanghua<jinxue.cgh@alibaba-inc.com>`
-- `lipeng19811218<mozhan.lp@alibaba-inc.com>`
+- `Winlin<winlin@vip.126.com>`
+- `ZhaoWenjie<zhaowenjie@tal.com>`
+- `ShiWei<shiwei05@kuaishou.com>`
+- `XiaoZhihong<hondaxiao@tencent.com>`
+- `WuPengqiang<pengqiang.wpq@alibaba-inc.com>`
+- `XiaLixin<xialixin@kanzhun.com>`
+- `LiPeng<mozhan.lp@alibaba-inc.com>`
+- `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
+- `ChenHaibo<nmgchenhaibo@foxmail.com>`
 
 ## CONTRIBUTORS
 
 CONTRIBUTORS ordered by first contribution.
 
-* `winlinvip<winlin@vip.126.com>`
-* `winlinvip<winterserver@126.com>`
-* `winlinvip<chengli.ycl@alibaba-inc.com>`
-* `wenjiegit<zhaowenjie@tal.com>`
-* `wenjiegit<740936897@qq.com>`
-* `wenjiegit<wenjie.zhao@chinacache.com>`
+* `Winlin<winlin@vip.126.com>`
+* `Winlin<winterserver@126.com>`
+* `Winlin<chengli.ycl@alibaba-inc.com>`
+* `ZhaoWenjie<zhaowenjie@tal.com>`
+* `ZhaoWenjie<740936897@qq.com>`
+* `ZhaoWenjie<wenjie.zhao@chinacache.com>`
 * `xiangcheng.liu<liuxc0116@foxmail.com>`
 * `naijia.liu<youngcow@youngcow.net>`
 * `alcoholyi<alcoholyi@qq.com>`
@@ -69,33 +70,34 @@ CONTRIBUTORS ordered by first contribution.
 * `qiang.li<qiang.li@verycdn.com.cn>`
 * `HungMingWu<u9089000@gmail.com>`
 * `Himer<xishizhaohua@qq.com>`
-* `xialixin<xialixin@kanzhun.com>`
-* `xialixin<68469352@qq.com>`
-* `xialixin<xlx0625@163.com>`
-* `xialixin<xialx@yuntongxun.com>`
+* `XiaLixin<xialixin@kanzhun.com>`
+* `XiaLixin<68469352@qq.com>`
+* `XiaLixin<xlx0625@163.com>`
+* `XiaLixin<xialx@yuntongxun.com>`
 * `alphonsetai<tyh_123@163.com>`
 * `Michael.Ma<wnpllr@gmail.com>`
 * `lam2003<linmin3@yy.com>`
-* `runner365<shiwei05@kuaishou.com>`
-* `runner365<shi.weibd@hotmail.com>`
+* `ShiWei<shiwei05@kuaishou.com>`
+* `ShiWei<shi.weibd@hotmail.com>`
 * `XiaofengWang<wasphin@gmail.com>`
-* `xiaozhihong<hondaxiao@tencent.com>`
-* `xiaozhihong<xiaozhihong8@gmail.com>`
-* `xiaozhihong<xiaozhihong@huya.com>`
+* `XiaoZhihong<hondaxiao@tencent.com>`
+* `XiaoZhihong<xiaozhihong8@gmail.com>`
+* `XiaoZhihong<xiaozhihong@huya.com>`
 * `yanghuiwen<cainiaodj@qq.com>`
-* `Bepartofyou<309554135@qq.com>`
-* `Bepartofyou<pengqiang.wpq@alibaba-inc.com>`
+* `WuPengqiang<309554135@qq.com>`
+* `WuPengqiang<pengqiang.wpq@alibaba-inc.com>`
 * `l<22312935+lam2003@users.noreply.github.com>`
 * `xfalcon<x-falcon@users.noreply.github.com>`
-* `chen-guanghua<jinxue.cgh@alibaba-inc.com>`
-* `chen-guanghua<chengh_math@126.com>`
-* `lipeng19811218<mozhan.lp@alibaba-inc.com>`
-* `lipeng19811218<lipeng19811218@gmail.com>`
+* `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
+* `ChenGuanghua<chengh_math@126.com>`
+* `LiPeng<mozhan.lp@alibaba-inc.com>`
+* `LiPeng<lipeng19811218@gmail.com>`
 * `yajun18<yajun18@staff.sina.com.cn>`
 * `liulichuan<liulichuan@kuaishou.com>`
 * `yapingcat<caoyapingneu@163.com>`
 * `chenchengbin<chenchengbin@yy.com>`
-* `duiniuluantanqin<nmgchenhaibo@foxmail.com>`
+* `ChenHaibo<495810242@qq.com>`
+* `ChenHaibo<nmgchenhaibo@foxmail.com>`
 * `jasongwq<jasongwq@gmail.com>`
 * `yinjiaoyuan<yinjiaoyuan@163.com>`
 * `PieerePi<pihuibin@hotmail.com>`
@@ -108,3 +110,5 @@ CONTRIBUTORS ordered by first contribution.
 * `cfw11<34058899+cfw11@users.noreply.github.com>`
 * `Hung-YiChen<gaod.chen@gmail.com>`
 * `long<liyalong12345@126.com>`
+* `matthew1838<77285055+matthew1838@users.noreply.github.com>`
+* `rise<rise.worlds@outlook.com>`
