@@ -45,8 +45,6 @@ using namespace srs_internal;
 // @global the version to identify the core.
 const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 
-#define SRS_WIKI_URL_LOG "https://github.com/ossrs/srs/wiki/v1_CN_SrsLog"
-
 // when user config an invalid value, macros to perfer true or false.
 #define SRS_CONF_PERFER_FALSE(conf_arg) conf_arg == "on"
 #define SRS_CONF_PERFER_TRUE(conf_arg) conf_arg != "off"
@@ -2009,7 +2007,7 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no log file");
         }
         if (get_log_tank_file()) {
-            srs_trace("you can check log by: tail -f %s (@see %s)", log_filename.c_str(), SRS_WIKI_URL_LOG);
+            srs_trace("you can check log by: tail -n 30 -f %s", log_filename.c_str());
             srs_trace("please check SRS by: ./etc/init.d/srs status");
         } else {
             srs_trace("write log to console");
@@ -3773,7 +3771,7 @@ srs_error_t SrsConfig::check_normal_config()
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "log file is empty");
         }
         if (get_log_tank_file()) {
-            srs_trace("you can check log by: tail -f %s (@see %s)", log_filename.c_str(), SRS_WIKI_URL_LOG);
+            srs_trace("you can check log by: tail -n 30 -f %s", log_filename.c_str());
             srs_trace("please check SRS by: ./etc/init.d/srs status");
         } else {
             srs_trace("write log to console");
