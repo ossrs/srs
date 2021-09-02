@@ -2,10 +2,13 @@ package dtls
 
 import (
 	"sync"
+
+	"github.com/pion/dtls/v2/pkg/crypto/prf"
+	"github.com/pion/dtls/v2/pkg/protocol/handshake"
 )
 
 type handshakeCacheItem struct {
-	typ             handshakeType
+	typ             handshake.Type
 	isClient        bool
 	epoch           uint16
 	messageSequence uint16
@@ -13,7 +16,7 @@ type handshakeCacheItem struct {
 }
 
 type handshakeCachePullRule struct {
-	typ      handshakeType
+	typ      handshake.Type
 	epoch    uint16
 	isClient bool
 	optional bool
@@ -28,7 +31,7 @@ func newHandshakeCache() *handshakeCache {
 	return &handshakeCache{}
 }
 
-func (h *handshakeCache) push(data []byte, epoch, messageSequence uint16, typ handshakeType, isClient bool) bool { //nolint
+func (h *handshakeCache) push(data []byte, epoch, messageSequence uint16, typ handshake.Type, isClient bool) bool { //nolint
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -74,11 +77,11 @@ func (h *handshakeCache) pull(rules ...handshakeCachePullRule) []*handshakeCache
 }
 
 // fullPullMap pulls all handshakes between rules[0] to rules[len(rules)-1] as map.
-func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRule) (int, map[handshakeType]handshakeMessage, bool) {
+func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRule) (int, map[handshake.Type]handshake.Message, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	ci := make(map[handshakeType]*handshakeCacheItem)
+	ci := make(map[handshake.Type]*handshakeCacheItem)
 	for _, r := range rules {
 		var item *handshakeCacheItem
 		for _, c := range h.cache {
@@ -97,7 +100,7 @@ func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRu
 		}
 		ci[r.typ] = item
 	}
-	out := make(map[handshakeType]handshakeMessage)
+	out := make(map[handshake.Type]handshake.Message)
 	seq := startSeq
 	for _, r := range rules {
 		t := r.typ
@@ -105,16 +108,16 @@ func (h *handshakeCache) fullPullMap(startSeq int, rules ...handshakeCachePullRu
 		if i == nil {
 			continue
 		}
-		rawHandshake := &handshake{}
+		rawHandshake := &handshake.Handshake{}
 		if err := rawHandshake.Unmarshal(i.data); err != nil {
 			return startSeq, nil, false
 		}
-		if uint16(seq) != rawHandshake.handshakeHeader.messageSequence {
+		if uint16(seq) != rawHandshake.Header.MessageSequence {
 			// There is a gap. Some messages are not arrived.
 			return startSeq, nil, false
 		}
 		seq++
-		out[t] = rawHandshake.handshakeMessage
+		out[t] = rawHandshake.Message
 	}
 	return seq, out, true
 }
@@ -133,19 +136,19 @@ func (h *handshakeCache) pullAndMerge(rules ...handshakeCachePullRule) []byte {
 
 // sessionHash returns the session hash for Extended Master Secret support
 // https://tools.ietf.org/html/draft-ietf-tls-session-hash-06#section-4
-func (h *handshakeCache) sessionHash(hf hashFunc, epoch uint16, additional ...[]byte) ([]byte, error) {
+func (h *handshakeCache) sessionHash(hf prf.HashFunc, epoch uint16, additional ...[]byte) ([]byte, error) {
 	merged := []byte{}
 
 	// Order defined by https://tools.ietf.org/html/rfc5246#section-7.3
 	handshakeBuffer := h.pull(
-		handshakeCachePullRule{handshakeTypeClientHello, epoch, true, false},
-		handshakeCachePullRule{handshakeTypeServerHello, epoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificate, epoch, false, false},
-		handshakeCachePullRule{handshakeTypeServerKeyExchange, epoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificateRequest, epoch, false, false},
-		handshakeCachePullRule{handshakeTypeServerHelloDone, epoch, false, false},
-		handshakeCachePullRule{handshakeTypeCertificate, epoch, true, false},
-		handshakeCachePullRule{handshakeTypeClientKeyExchange, epoch, true, false},
+		handshakeCachePullRule{handshake.TypeClientHello, epoch, true, false},
+		handshakeCachePullRule{handshake.TypeServerHello, epoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificate, epoch, false, false},
+		handshakeCachePullRule{handshake.TypeServerKeyExchange, epoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificateRequest, epoch, false, false},
+		handshakeCachePullRule{handshake.TypeServerHelloDone, epoch, false, false},
+		handshakeCachePullRule{handshake.TypeCertificate, epoch, true, false},
+		handshakeCachePullRule{handshake.TypeClientKeyExchange, epoch, true, false},
 	)
 
 	for _, p := range handshakeBuffer {

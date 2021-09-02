@@ -44,7 +44,7 @@ using namespace std;
 #include <srs_app_threads.hpp>
 #include <srs_service_log.hpp>
 #include <srs_app_log.hpp>
-
+#include <srs_app_http_hooks.hpp>
 #include <srs_protocol_kbps.hpp>
 
 SrsPps* _srs_pps_sstuns = NULL;
@@ -379,6 +379,11 @@ SrsRtcPlayStream::SrsRtcPlayStream(SrsRtcConnection* s, const SrsContextId& cid)
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+    // TODO: FIXME: Use SrsAsyncCallWorker in http hooks instead, to covert to async call.
+    if (req_) {
+        http_hooks_on_stop();		
+    }
+
     // TODO: FIXME: Should not do callback in de-constructor?
     if (_srs_rtc_hijacker) {
         _srs_rtc_hijacker->on_stop_play(session_, this, req_);
@@ -866,6 +871,35 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
     return err;
 }
 
+void SrsRtcPlayStream::http_hooks_on_stop()
+{
+    if (!_srs_config->get_vhost_http_hooks_enabled(req_->vhost)) {
+        return;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(req_->vhost);
+
+        if (!conf) {
+            return;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        SrsHttpHooks::on_stop(url, req_);
+    }
+
+    return;
+}
+
 SrsRtcPublishRtcpTimer::SrsRtcPublishRtcpTimer(SrsRtcPublishStream* p) : p_(p)
 {
     _srs_hybrid->timer1s()->subscribe(this);
@@ -975,6 +1009,10 @@ SrsRtcPublishStream::SrsRtcPublishStream(SrsRtcConnection* session, const SrsCon
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
+    if (req) {
+        http_hooks_on_unpublish();
+    }
+
     srs_freep(timer_rtcp_);
     srs_freep(timer_twcc_);
 
@@ -1483,10 +1521,10 @@ srs_error_t SrsRtcPublishStream::on_rtcp_sr(SrsRtcpSR* rtcp)
     srs_error_t err = srs_success;
     SrsNtp srs_ntp = SrsNtp::to_time_ms(rtcp->get_ntp());
 
-    srs_verbose("sender report, ssrc_of_sender=%u, rtp_time=%u, sender_packet_count=%u, sender_octec_count=%u",
-        rtcp->get_ssrc(), rtcp->get_rtp_ts(), rtcp->get_rtp_send_packets(), rtcp->get_rtp_send_bytes());
+    srs_verbose("sender report, ssrc_of_sender=%u, rtp_time=%u, sender_packet_count=%u, sender_octec_count=%u, ms=%u",
+        rtcp->get_ssrc(), rtcp->get_rtp_ts(), rtcp->get_rtp_send_packets(), rtcp->get_rtp_send_bytes(), srs_ntp.system_ms_);
 
-    update_send_report_time(rtcp->get_ssrc(), srs_ntp);
+    update_send_report_time(rtcp->get_ssrc(), srs_ntp, rtcp->get_rtp_ts());
 
     return err;
 }
@@ -1626,16 +1664,43 @@ void SrsRtcPublishStream::update_rtt(uint32_t ssrc, int rtt)
     }
 }
 
-void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& ntp)
+void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time)
 {
     SrsRtcVideoRecvTrack* video_track = get_video_track(ssrc);
     if (video_track) {
-        return video_track->update_send_report_time(ntp);
+        return video_track->update_send_report_time(ntp, rtp_time);
     }
 
     SrsRtcAudioRecvTrack* audio_track = get_audio_track(ssrc);
     if (audio_track) {
-        return audio_track->update_send_report_time(ntp);
+        return audio_track->update_send_report_time(ntp, rtp_time);
+    }
+}
+
+void SrsRtcPublishStream::http_hooks_on_unpublish()
+{
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_unpublish(req->vhost);
+
+        if (!conf) {
+            return;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        SrsHttpHooks::on_unpublish(url, req);
     }
 }
 

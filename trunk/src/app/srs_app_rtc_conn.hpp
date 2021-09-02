@@ -264,6 +264,8 @@ private:
 // Interface ISrsRtcPLIWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
+private:
+    virtual void http_hooks_on_stop();
 };
 
 // A fast timer for publish stream, for RTCP feedback.
@@ -374,7 +376,9 @@ private:
     SrsRtcAudioRecvTrack* get_audio_track(uint32_t ssrc);
     SrsRtcVideoRecvTrack* get_video_track(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);
-    void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp);
+    void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time);
+private:
+    virtual void http_hooks_on_unpublish();
 };
 
 // Callback for RTC connection.

@@ -22,6 +22,48 @@ static const char* id2codec_name(SrsAudioCodecId id)
     }
 }
 
+class SrsFFmpegLogHelper {
+public:
+    SrsFFmpegLogHelper() {
+        av_log_set_callback(ffmpeg_log_callback);
+        av_log_set_level(AV_LOG_TRACE);
+    }
+
+    static void ffmpeg_log_callback(void*, int level, const char* fmt, va_list vl) 
+    {
+        static char buf[4096] = {0};
+        int nbytes = vsnprintf(buf, sizeof(buf), fmt, vl);
+        if (nbytes > 0) {
+            // Srs log is always start with new line, replcae '\n' to '\0', make log easy to read.
+            if (buf[nbytes - 1] == '\n') {
+                buf[nbytes - 1] = '\0';
+            }
+            switch (level) {
+                case AV_LOG_PANIC:
+                case AV_LOG_FATAL:
+                case AV_LOG_ERROR:
+                    srs_error("%s", buf);
+                    break;
+                case AV_LOG_WARNING:
+                    srs_warn("%s", buf);
+                    break;
+                case AV_LOG_INFO:
+                    srs_trace("%s", buf);
+                    break;
+                case AV_LOG_VERBOSE:
+                case AV_LOG_DEBUG:
+                case AV_LOG_TRACE:
+                default:
+                    srs_verbose("%s", buf);
+                    break;
+            }
+        }
+    }
+};
+
+// Register FFmpeg log callback funciton.
+SrsFFmpegLogHelper _srs_ffmpeg_log_helper;
+
 SrsAudioTranscoder::SrsAudioTranscoder()
 {
     dec_ = NULL;
