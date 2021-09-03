@@ -15,14 +15,27 @@
 // For example, http://server/file.flv?start=10240
 // server will write flv header and sequence header,
 // then seek(10240) and response flv tag data.
-class SrsVodStream : public SrsHttpFileServer
+class SrsVodStream : public SrsHttpFileServer, public ISrsFastTimer
 {
+private:
+    // The period of validity of the secret
+    std::map<std::string, srs_utime_t> map_secret_validity_;
+    std::map<std::string, SrsRequest*> map_secret_req_;
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
 protected:
     virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual srs_error_t serve_m3u8_secret(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+private:
+    virtual bool secret_is_exist(std::string secret);
+    virtual void alive(std::string secret);
+    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
+    virtual void http_hooks_on_stop(SrsRequest* req);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // The http static server instance,
