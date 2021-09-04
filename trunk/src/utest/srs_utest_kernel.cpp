@@ -2079,6 +2079,15 @@ VOID TEST(KernelUtilityTest, UtilityString)
     str1 = srs_string_replace(str, "o", "XX");
     EXPECT_STREQ("HellXX, WXXrld! HellXX, SRS!", str1.c_str());
 
+    // origin_str == old_str
+    std::string origin_str = "xxd";
+    str1 = srs_string_replace(origin_str, "xxd", "x1d");
+    EXPECT_STREQ("x1d", str1.c_str());
+
+    // new_str include old_str.
+    str1 = srs_string_replace(str, "Hello", "HelloN");
+    EXPECT_STREQ("HelloN, World! HelloN, SRS!", str1.c_str());
+
     str1 = srs_string_trim_start(str, "x");
     EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
 
