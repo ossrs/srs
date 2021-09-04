@@ -161,7 +161,6 @@ public:
 protected:
     SrsOriginHub* hub;
     SrsDvrSegmenter* segment;
-    SrsAsyncCallWorker* async;
     bool dvr_enabled;
 public:
     SrsDvrPlan();
