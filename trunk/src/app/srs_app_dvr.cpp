@@ -1008,32 +1008,3 @@ srs_error_t SrsDvr::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     return plan->on_video(shared_video, format);
 }
 
-srs_error_t SrsDvr::on_reload_vhost_dvr_apply(string vhost)
-{
-    srs_error_t err = srs_success;
-    
-    SrsConfDirective* conf = _srs_config->get_dvr_apply(req->vhost);
-    bool v = srs_config_apply_filter(conf, req);
-    
-    // the apply changed, republish the dvr.
-    if (v == actived) {
-        return err;
-    }
-    actived = v;
-    
-    on_unpublish();
-    if (!actived) {
-        return err;
-    }
-    
-    if ((err = on_publish()) != srs_success) {
-        return srs_error_wrap(err, "on publish");
-    }
-    if ((err = hub->on_dvr_request_sh()) != srs_success) {
-        return srs_error_wrap(err, "request sh");
-    }
-    
-    return err;
-}
-
-

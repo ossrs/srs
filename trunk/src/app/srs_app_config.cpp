@@ -1406,17 +1406,6 @@ srs_error_t SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload dvr success.", vhost.c_str());
             }
-            // dvr_apply, the dynamic dvr filter.
-            if (true) {
-                // we must reload the dvr_apply, for it's apply to specified stream,
-                // and we donot want one stream reload take effect on another one.
-                // @see https://github.com/ossrs/srs/issues/459#issuecomment-140296597
-                SrsConfDirective* nda = new_vhost->get("dvr")? new_vhost->get("dvr")->get("dvr_apply") : NULL;
-                SrsConfDirective* oda = old_vhost->get("dvr")? old_vhost->get("dvr")->get("dvr_apply") : NULL;
-                if (!srs_directive_equals(nda, oda) && (err = do_reload_vhost_dvr_apply(vhost)) != srs_success) {
-                    return srs_error_wrap(err, "reload dvr_apply");
-                }
-            }
             
             // exec, only one per vhost
             if (!srs_directive_equals(new_vhost->get("exec"), old_vhost->get("exec"))) {
@@ -3201,64 +3190,6 @@ srs_error_t SrsConfig::raw_enable_vhost(string vhost, bool& applied)
     
     return err;
 }
-
-srs_error_t SrsConfig::raw_enable_dvr(string vhost, string stream, bool& applied)
-{
-    srs_error_t err = srs_success;
-    
-    applied = false;
-    
-    SrsConfDirective* conf = root->get("vhost", vhost);
-    srs_assert(conf);
-
-    conf = conf->get_or_create("dvr")->get_or_create("dvr_apply");
-    
-    if (conf->args.size() == 1 && (conf->arg0() == "all" || conf->arg0() == "none")) {
-        conf->args.clear();
-    }
-    
-    if (std::find(conf->args.begin(), conf->args.end(), stream) == conf->args.end()) {
-        conf->args.push_back(stream);
-    }
-    
-    if ((err = do_reload_vhost_dvr_apply(vhost)) != srs_success) {
-        return srs_error_wrap(err, "reload vhost dvr");
-    }
-    
-    applied = true;
-    
-    return err;
-}
-
-srs_error_t SrsConfig::raw_disable_dvr(string vhost, string stream, bool& applied)
-{
-    srs_error_t err = srs_success;
-    
-    applied = false;
-    
-    SrsConfDirective* conf = root->get("vhost", vhost);
-    srs_assert(conf);
-
-    conf = conf->get_or_create("dvr")->get_or_create("dvr_apply");
-    
-    std::vector<string>::iterator it;
-    
-    if ((it = std::find(conf->args.begin(), conf->args.end(), stream)) != conf->args.end()) {
-        conf->args.erase(it);
-    }
-    
-    if (conf->args.empty()) {
-        conf->args.push_back("none");
-    }
-    
-    if ((err = do_reload_vhost_dvr_apply(vhost)) != srs_success) {
-        return srs_error_wrap(err, "reload vhost dvr");
-    }
-    
-    applied = true;
-    
-    return err;
-}
 // LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::do_reload_listen()
@@ -3422,22 +3353,6 @@ srs_error_t SrsConfig::do_reload_vhost_removed(string vhost)
         }
     }
     srs_trace("reload removed vhost %s success.", vhost.c_str());
-    
-    return err;
-}
-
-srs_error_t SrsConfig::do_reload_vhost_dvr_apply(string vhost)
-{
-    srs_error_t err = srs_success;
-    
-    vector<ISrsReloadHandler*>::iterator it;
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((err = subscribe->on_reload_vhost_dvr_apply(vhost)) != srs_success) {
-            return srs_error_wrap(err, "vhost %s notify subscribes dvr_apply failed", vhost.c_str());
-        }
-    }
-    srs_trace("vhost %s reload dvr_apply success.", vhost.c_str());
     
     return err;
 }

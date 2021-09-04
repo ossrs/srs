@@ -250,9 +250,6 @@ public:
     // mux the video packets to dvr.
     // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
-// Interface ISrsReloadHandler
-public:
-    virtual srs_error_t on_reload_vhost_dvr_apply(std::string vhost);
 };
 
 #endif
