@@ -308,6 +308,7 @@ string srs_string_replace(string str, string old_str, string new_str)
     size_t pos = 0;
     while ((pos = ret.find(old_str, pos)) != std::string::npos) {
         ret = ret.replace(pos, old_str.length(), new_str);
+        pos += new_str.length();
     }
     
     return ret;
