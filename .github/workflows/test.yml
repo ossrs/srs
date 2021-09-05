@@ -14,7 +14,7 @@ jobs:
       ################################################################
       # Tests
       - name: Build test image
-        run: docker build --tag srs:test -f trunk/Dockerfile.test trunk
+        run: docker build --tag srs:test -f trunk/Dockerfile.test .
       # For utest
       - name: Run SRS utest
         run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'

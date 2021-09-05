@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           echo "Release ossrs/srs:$SRS_TAG"
-          docker build --tag ossrs/srs:$SRS_TAG trunk
+          docker build --tag ossrs/srs:$SRS_TAG -f trunk/Dockerfile .
 
       - name: Login docker hub
         uses: docker/login-action@v1
