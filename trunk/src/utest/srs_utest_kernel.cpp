@@ -5528,3 +5528,18 @@ VOID TEST(KernelUtilityTest, CoverStringAssign)
     ASSERT_STREQ("", sps.c_str());
 }
 
+VOID TEST(KernelUtilityTest, CoverCheckIPAddrValid)
+{
+    ASSERT_TRUE(srs_check_ip_addr_valid("172.16.254.1"));
+    ASSERT_TRUE(srs_check_ip_addr_valid("2001:0db8:85a3:0:0:8A2E:0370:7334"));
+    ASSERT_FALSE(srs_check_ip_addr_valid(""));
+
+    //IPv4 any addr
+    ASSERT_TRUE(srs_check_ip_addr_valid("0.0.0.0"));
+    //IPV6 any addr
+    ASSERT_TRUE(srs_check_ip_addr_valid("::"));
+
+    ASSERT_FALSE(srs_check_ip_addr_valid("256.256.256.256"));
+    ASSERT_FALSE(srs_check_ip_addr_valid("2001:0db8:85a3:0:0:8A2E:0370:7334:"));
+    ASSERT_FALSE(srs_check_ip_addr_valid("1e1.4.5.6"));
+}
