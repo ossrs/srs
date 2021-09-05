@@ -258,6 +258,24 @@ void srs_parse_endpoint(string hostport, string& ip, int& port)
     }
 }
 
+bool srs_check_ip_addr_valid(string ip)
+{
+    unsigned char buf[sizeof(struct in6_addr)];
+
+    // check ipv4
+    int ret = inet_pton(AF_INET, ip.data(), buf);
+    if (ret > 0) {
+        return true;
+    }
+        
+    ret = inet_pton(AF_INET6, ip.data(), buf);
+    if (ret > 0) {
+        return true;
+    }
+        
+    return false;
+}
+
 string srs_int2str(int64_t value)
 {
     // len(max int64_t) is 20, plus one "+-."
