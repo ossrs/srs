@@ -1198,37 +1198,6 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* 
             } else {
                 // TODO: support other param.
             }
-        } else if (scope == "dvr") {
-            std::string action = r->query_get("param");
-            std::string stream = r->query_get("data");
-            extra += "/" + stream + " to " + action;
-            
-            if (action != "enable" && action != "disable") {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
-            }
-
-            // the vhost must exists.
-            if (!_srs_config->get_vhost(value, false)) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_PARAMS);
-            }
-
-            if (!_srs_config->get_dvr_enabled(value)) {
-                return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_NOT_ALLOWED);
-            }
-            
-            if (action == "enable") {
-                if ((err = _srs_config->raw_enable_dvr(value, stream, applied)) != srs_success) {
-                    int code = srs_error_code(err);
-                    srs_error_reset(err);
-                    return srs_api_response_code(w, r, code);
-                }
-            } else {
-                if ((err = _srs_config->raw_disable_dvr(value, stream, applied)) != srs_success) {
-                    int code = srs_error_code(err);
-                    srs_error_reset(err);
-                    return srs_api_response_code(w, r, code);
-                }
-            }
         } else {
             // TODO: support other scope.
         }
