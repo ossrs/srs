@@ -566,6 +566,8 @@ string SrsDvrAsyncCallOnDvr::to_string()
     return ss.str();
 }
 
+extern SrsAsyncCallWorker* _srs_dvr_async;
+
 SrsDvrPlan::SrsDvrPlan()
 {
     req = NULL;
@@ -573,13 +575,11 @@ SrsDvrPlan::SrsDvrPlan()
     
     dvr_enabled = false;
     segment = NULL;
-    async = new SrsAsyncCallWorker();
 }
 
 SrsDvrPlan::~SrsDvrPlan()
 {
     srs_freep(segment);
-    srs_freep(async);
 }
 
 srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
@@ -599,18 +599,11 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
 
 srs_error_t SrsDvrPlan::on_publish()
 {
-    srs_error_t err = srs_success;
-
-    if ((err = async->start()) != srs_success) {
-        return srs_error_wrap(err, "async");
-    }
-
-    return err;
+    return srs_success;
 }
 
 void SrsDvrPlan::on_unpublish()
 {
-    async->stop();
 }
 
 srs_error_t SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
@@ -663,7 +656,7 @@ srs_error_t SrsDvrPlan::on_reap_segment()
     SrsFragment* fragment = segment->current();
     string fullpath = fragment->fullpath();
     
-    if ((err = async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != srs_success) {
+    if ((err = _srs_dvr_async->execute(new SrsDvrAsyncCallOnDvr(cid, req, fullpath))) != srs_success) {
         return srs_error_wrap(err, "reap segment");
     }
     
@@ -1007,33 +1000,4 @@ srs_error_t SrsDvr::on_video(SrsSharedPtrMessage* shared_video, SrsFormat* forma
     
     return plan->on_video(shared_video, format);
 }
-
-srs_error_t SrsDvr::on_reload_vhost_dvr_apply(string vhost)
-{
-    srs_error_t err = srs_success;
-    
-    SrsConfDirective* conf = _srs_config->get_dvr_apply(req->vhost);
-    bool v = srs_config_apply_filter(conf, req);
-    
-    // the apply changed, republish the dvr.
-    if (v == actived) {
-        return err;
-    }
-    actived = v;
-    
-    on_unpublish();
-    if (!actived) {
-        return err;
-    }
-    
-    if ((err = on_publish()) != srs_success) {
-        return srs_error_wrap(err, "on publish");
-    }
-    if ((err = hub->on_dvr_request_sh()) != srs_success) {
-        return srs_error_wrap(err, "request sh");
-    }
-    
-    return err;
-}
-
 

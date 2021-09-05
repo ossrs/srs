@@ -125,6 +125,7 @@ public:
     unsigned short _DTS_next_AU2;//15bit
     unsigned char _marker_bit2;//1bit
     unsigned short _DTS_next_AU3;//15bit
+    unsigned char _marker_bit3;//1bit
 };
 
 class ts_header {

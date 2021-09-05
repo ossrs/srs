@@ -15,6 +15,7 @@
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_async_call.hpp>
 
 #ifdef SRS_RTC
 #include <srs_app_rtc_dtls.hpp>
@@ -268,6 +269,7 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 }
 
 SrsCircuitBreaker* _srs_circuit_breaker = NULL;
+SrsAsyncCallWorker* _srs_dvr_async = NULL;
 
 srs_error_t srs_thread_initialize()
 {
@@ -407,6 +409,12 @@ srs_error_t srs_thread_initialize()
     _srs_pps_objs_rbuf = new SrsPps();
     _srs_pps_objs_rothers = new SrsPps();
 #endif
+
+    // Create global async worker for DVR.
+    _srs_dvr_async = new SrsAsyncCallWorker();
+    if ((err = _srs_dvr_async->start()) != srs_success) {
+        return srs_error_wrap(err, "dvr async");
+    }
 
     return err;
 }
