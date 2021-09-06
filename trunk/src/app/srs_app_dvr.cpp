@@ -461,6 +461,12 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     SrsAudioSampleBits sound_size = format->acodec->sound_size;
     SrsAudioChannels channels = format->acodec->sound_type;
     
+    //For fix issue 2522, drop g711 audio in MP4
+    if(sound_format == SrsAudioCodecIdReservedG711AlawLogarithmicPCM || sound_format == SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
+        srs_warn("can't mux g711 in MP4, drop it");
+        return err;
+    }
+    
     SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
     if (ct == SrsAudioAacFrameTraitSequenceHeader) {
         enc->acodec = sound_format;
