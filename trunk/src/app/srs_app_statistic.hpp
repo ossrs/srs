@@ -182,7 +182,9 @@ public:
     // Dumps the vhosts to amf0 array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray* arr);
     // Dumps the streams to amf0 array.
-    virtual srs_error_t dumps_streams(SrsJsonArray* arr);
+    // @param start the start index, from 0.
+    // @param count the max count of streams to dump.
+    virtual srs_error_t dumps_streams(SrsJsonArray* arr, int start, int count);
     // Dumps the clients to amf0 array
     // @param start the start index, from 0.
     // @param count the max count of clients to dump.
