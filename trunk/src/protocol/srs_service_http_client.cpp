@@ -322,6 +322,10 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage** ppmsg
         return srs_error_wrap(err, "http: connect server");
     }
     
+    if (path.size() == 0) {
+        path = "/";
+    }
+
     // send POST request to uri
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
