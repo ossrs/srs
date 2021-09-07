@@ -755,8 +755,12 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         if (!stream) {
             SrsJsonArray* data = SrsJsonAny::array();
             obj->set("streams", data);
-            
-            if ((err = stat->dumps_streams(data)) != srs_success) {
+
+            std::string rstart = r->query_get("start");
+            std::string rcount = r->query_get("count");
+            int start = srs_max(0, atoi(rstart.c_str()));
+            int count = srs_max(10, atoi(rcount.c_str()));
+            if ((err = stat->dumps_streams(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_error_reset(err);
                 return srs_api_response_code(w, r, code);
