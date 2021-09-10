@@ -1388,6 +1388,7 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer* stream, int64_t timestamp)
     
     audio->cts = 0;
     audio->dts = timestamp;
+    audio->aac_packet_type = SrsAudioMp3FrameTrait;
     
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();

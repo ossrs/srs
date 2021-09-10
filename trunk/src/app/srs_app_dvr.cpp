@@ -462,7 +462,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     SrsAudioChannels channels = format->acodec->sound_type;
     
     SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
-    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
+    if (ct == SrsAudioAacFrameTraitSequenceHeader || ct == SrsAudioMp3FrameTrait) {
         enc->acodec = sound_format;
         enc->sample_rate = sound_rate;
         enc->sound_bits = sound_size;
