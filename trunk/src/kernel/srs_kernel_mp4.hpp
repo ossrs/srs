@@ -1369,6 +1369,10 @@ enum SrsMp4ObjectType
     SrsMp4ObjectTypeForbidden = 0x00,
     // Audio ISO/IEC 14496-3
     SrsMp4ObjectTypeAac = 0x40,
+    // Audio ISO/IEC 13818-3
+    SrsMp4ObjectTypeMp3 = 0x69,
+    // Audio ISO/IEC 11172-3
+    SrsMp4ObjectTypeMp1a = 0x6B,
 };
 
 // Table 6 — streamType Values
@@ -2072,6 +2076,7 @@ public:
 private:
     virtual srs_error_t copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample);
     virtual srs_error_t do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
+    virtual SrsMp4ObjectType get_audio_object_type();
 };
 
 // A fMP4 encoder, to write the init.mp4 with sequence header.
