@@ -15,6 +15,7 @@
 #include <srs_app_hourglass.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_rtc_sdp.hpp>
+#include <srs_app_async_call.hpp>
 
 #include <string>
 
@@ -94,6 +95,7 @@ private:
     std::vector<SrsUdpMuxListener*> listeners;
     ISrsRtcServerHandler* handler;
     ISrsRtcServerHijacker* hijacker;
+    SrsAsyncCallWorker* async;
 public:
     SrsRtcServer();
     virtual ~SrsRtcServer();
@@ -106,6 +108,7 @@ public:
     // Set the handler for server events.
     void set_handler(ISrsRtcServerHandler* h);
     void set_hijacker(ISrsRtcServerHijacker* h);
+    srs_error_t exec_async_work(ISrsAsyncCallTask* t);
 public:
     // TODO: FIXME: Support gracefully quit.
     // TODO: FIXME: Support reload.

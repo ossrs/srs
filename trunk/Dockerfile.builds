@@ -1,0 +1,67 @@
+########################################################
+FROM ossrs/srs:dev AS centos7-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+FROM ossrs/srs:dev AS centos7-no-webrtc
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --rtc=off && make -j2
+
+FROM ossrs/srs:dev AS centos7-no-asm
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --nasm=off --srtp-nasm=off && make -j2
+
+FROM ossrs/srs:dev AS centos7-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
+
+FROM ossrs/srs:dev AS centos7-ansi-no-ffmpeg
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --cxx11=off --cxx14=off --ffmpeg-fit=off && make -j2
+
+########################################################
+FROM ossrs/srs:dev8 AS centos8-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+FROM ossrs/srs:dev8 AS centos8-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
+
+########################################################
+FROM ossrs/srs:ubuntu16 AS ubuntu16-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+FROM ossrs/srs:ubuntu16 AS ubuntu16-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
+
+########################################################
+FROM ossrs/srs:ubuntu18 AS ubuntu18-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+FROM ossrs/srs:ubuntu18 AS ubuntu18-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
+
+########################################################
+FROM ossrs/srs:ubuntu20 AS ubuntu20-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+FROM ossrs/srs:ubuntu20 AS ubuntu20-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
+
+########################################################
+FROM ossrs/srs:ubuntu16 AS ubuntu16-cross-armv7
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --cross-build --cc=arm-linux-gnueabihf-gcc --cxx=arm-linux-gnueabihf-g++ \
+    --ar=arm-linux-gnueabihf-ar --ld=arm-linux-gnueabihf-ld --randlib=arm-linux-gnueabihf-randlib && make -j2
+
+FROM ossrs/srs:ubuntu16 AS ubuntu16-cross-aarch64
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --cross-build --cc=aarch64-linux-gnu-gcc --cxx=aarch64-linux-gnu-g++ \
+    --ar=aarch64-linux-gnu-ar --ld=aarch64-linux-gnu-ld --randlib=aarch64-linux-gnu-randlib && make -j2

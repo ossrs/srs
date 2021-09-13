@@ -1,0 +1,13 @@
+FROM ossrs/srs:dev
+
+# Install depends tools.
+RUN yum install -y gcc make gcc-c++ patch unzip perl git
+
+# Build and install SRS.
+COPY . /srs
+WORKDIR /srs/trunk
+RUN ./configure --srt=on --utest=on --jobs=2 && make -j2
+RUN cd 3rdparty/srs-bench && make
+
+# Run utest
+RUN ./objs/srs_utest

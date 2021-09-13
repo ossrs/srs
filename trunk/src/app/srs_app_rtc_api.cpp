@@ -14,7 +14,8 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_statistic.hpp>
-
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_utility.hpp>
 #include <unistd.h>
 #include <deque>
 using namespace std;
@@ -96,6 +97,11 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     if (clientip.empty()) {
         clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.        
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
     }
 
     string api;
@@ -121,6 +127,10 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
     if (parsed_vhost) {
         ruc.req_->vhost = parsed_vhost->arg0();
+    }
+
+    if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -237,6 +247,39 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
+srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+            return srs_error_wrap(err, "on_play %s", url.c_str());
+        }
+    }
+
+    return err;
+}
+
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
     server_ = server;
@@ -314,6 +357,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     }
     if (clientip.empty()){
         clientip = dynamic_cast<SrsHttpMessage*>(r)->connection()->remote_ip();
+        // Overwrite by ip from proxy.
+        string oip = srs_get_original_ip(r);
+        if (!oip.empty()) {
+            clientip = oip;
+        }
     }
 
     string api;
@@ -339,6 +387,10 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
     if (parsed_vhost) {
         ruc.req_->vhost = parsed_vhost->arg0();
+    }
+
+	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
     }
 
     // For client to specifies the candidate(EIP) of server.
@@ -441,6 +493,39 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
             if (iter->recvonly_) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "publish API only support sendrecv/sendonly");
             }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
+            return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }
 

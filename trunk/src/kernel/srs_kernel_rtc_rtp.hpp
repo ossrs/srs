@@ -294,6 +294,8 @@ private:
     int cached_payload_size;
     // The helper handler for decoder, use RAW payload if NULL.
     ISrsRtspPacketDecodeHandler* decode_handler;
+private:
+    int64_t avsync_time_;
 public:
     SrsRtpPacket();
     virtual ~SrsRtpPacket();
@@ -329,6 +331,8 @@ public:
     virtual srs_error_t decode(SrsBuffer* buf);
 public:
     bool is_keyframe();
+    void set_avsync_time(int64_t avsync_time) { avsync_time_ = avsync_time; }
+    int64_t get_avsync_time() const { return avsync_time_; }
 };
 
 // Single payload data.

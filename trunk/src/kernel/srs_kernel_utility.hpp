@@ -45,6 +45,9 @@ extern void srs_parse_hostport(std::string hostport, std::string& host, int& por
 // @remark The hostport format in <[ip:]port>, where ip is default to "0.0.0.0".
 extern void srs_parse_endpoint(std::string hostport, std::string& ip, int& port);
 
+// Check whether the ip is valid.
+extern bool srs_check_ip_addr_valid(std::string ip);
+
 // Parse the int64 value to string.
 extern std::string srs_int2str(int64_t value);
 // Parse the float value to string, precise is 2.
