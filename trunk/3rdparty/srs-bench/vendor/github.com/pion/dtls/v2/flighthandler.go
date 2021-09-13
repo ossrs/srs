@@ -2,13 +2,15 @@ package dtls
 
 import (
 	"context"
+
+	"github.com/pion/dtls/v2/pkg/protocol/alert"
 )
 
 // Parse received handshakes and return next flightVal
-type flightParser func(context.Context, flightConn, *State, *handshakeCache, *handshakeConfig) (flightVal, *alert, error)
+type flightParser func(context.Context, flightConn, *State, *handshakeCache, *handshakeConfig) (flightVal, *alert.Alert, error)
 
 // Generate flights
-type flightGenerator func(flightConn, *State, *handshakeCache, *handshakeConfig) ([]*packet, *alert, error)
+type flightGenerator func(flightConn, *State, *handshakeCache, *handshakeConfig) ([]*packet, *alert.Alert, error)
 
 func (f flightVal) getFlightParser() (flightParser, error) {
 	switch f {

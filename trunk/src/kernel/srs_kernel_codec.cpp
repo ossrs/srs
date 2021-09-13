@@ -806,41 +806,55 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer* stream)
     }
     int8_t numOfSequenceParameterSets = stream->read_1bytes();
     numOfSequenceParameterSets &= 0x1f;
-    if (numOfSequenceParameterSets != 1) {
+    if (numOfSequenceParameterSets < 1) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
     }
-    if (!stream->require(2)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS size");
+    // Support for multiple SPS, then pick the first non-empty one.
+    for (int i = 0; i < numOfSequenceParameterSets; ++i) {
+        if (!stream->require(2)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS size");
+        }
+        uint16_t sequenceParameterSetLength = stream->read_2bytes();
+        if (!stream->require(sequenceParameterSetLength)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS data");
+        }
+        if (vcodec->sequenceParameterSetNALUnit.size() > 0) {
+            stream->skip(sequenceParameterSetLength);
+            continue;
+        }
+        if (sequenceParameterSetLength > 0) {
+            vcodec->sequenceParameterSetNALUnit.resize(sequenceParameterSetLength);
+            stream->read_bytes(&vcodec->sequenceParameterSetNALUnit[0], sequenceParameterSetLength);
+        }
     }
-    uint16_t sequenceParameterSetLength = stream->read_2bytes();
-    if (!stream->require(sequenceParameterSetLength)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS data");
-    }
-    if (sequenceParameterSetLength > 0) {
-        vcodec->sequenceParameterSetNALUnit.resize(sequenceParameterSetLength);
-        stream->read_bytes(&vcodec->sequenceParameterSetNALUnit[0], sequenceParameterSetLength);
-    }
+
     // 1 pps
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
     }
     int8_t numOfPictureParameterSets = stream->read_1bytes();
     numOfPictureParameterSets &= 0x1f;
-    if (numOfPictureParameterSets != 1) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
+    if (numOfPictureParameterSets < 1) {
+        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
     }
-    if (!stream->require(2)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
+    // Support for multiple PPS, then pick the first non-empty one.
+    for (int i = 0; i < numOfPictureParameterSets; ++i) {
+        if (!stream->require(2)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
+        }
+        uint16_t pictureParameterSetLength = stream->read_2bytes();
+        if (!stream->require(pictureParameterSetLength)) {
+            return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS data");
+        }
+        if (vcodec->pictureParameterSetNALUnit.size() > 0) {
+            stream->skip(pictureParameterSetLength);
+            continue;
+        }
+        if (pictureParameterSetLength > 0) {
+            vcodec->pictureParameterSetNALUnit.resize(pictureParameterSetLength);
+            stream->read_bytes(&vcodec->pictureParameterSetNALUnit[0], pictureParameterSetLength);
+        }
     }
-    uint16_t pictureParameterSetLength = stream->read_2bytes();
-    if (!stream->require(pictureParameterSetLength)) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS data");
-    }
-    if (pictureParameterSetLength > 0) {
-        vcodec->pictureParameterSetNALUnit.resize(pictureParameterSetLength);
-        stream->read_bytes(&vcodec->pictureParameterSetNALUnit[0], pictureParameterSetLength);
-    }
-    
     return avc_demux_sps();
 }
 

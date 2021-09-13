@@ -243,6 +243,7 @@ SrsRtcServer::SrsRtcServer()
 {
     handler = NULL;
     hijacker = NULL;
+    async = new SrsAsyncCallWorker();
 
     _srs_config->subscribe(this);
 }
@@ -258,6 +259,9 @@ SrsRtcServer::~SrsRtcServer()
             srs_freep(listener);
         }
     }
+
+    async->stop();
+    srs_freep(async);
 }
 
 srs_error_t SrsRtcServer::initialize()
@@ -272,6 +276,8 @@ srs_error_t SrsRtcServer::initialize()
     if ((err = _srs_blackhole->initialize()) != srs_success) {
         return srs_error_wrap(err, "black hole");
     }
+
+    async->start();
 
     return err;
 }
@@ -289,6 +295,11 @@ void SrsRtcServer::set_handler(ISrsRtcServerHandler* h)
 void SrsRtcServer::set_hijacker(ISrsRtcServerHijacker* h)
 {
     hijacker = h;
+}
+
+srs_error_t SrsRtcServer::exec_async_work(ISrsAsyncCallTask * t)
+{
+    return async->execute(t);
 }
 
 srs_error_t SrsRtcServer::listen_udp()

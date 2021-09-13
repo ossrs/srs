@@ -26,7 +26,7 @@ class SrsRtpRingBuffer;
 //                                           \___(no received, in nack list)
 //      * seq1: The packet is done, we have already got and processed it.
 //      * seq2,seq3,...,seq10,seq12,seq13: Theses packets are in queue and wait to be processed.
-//      * seq10: This packet is lost or not received, we will put it in the nack list.
+//      * seq11: This packet is lost or not received, we will put it in the nack list.
 // We store the received packets in ring buffer.
 class SrsRtpRingBuffer
 {

@@ -495,12 +495,16 @@ srs_error_t SrsStatistic::dumps_vhosts(SrsJsonArray* arr)
     return err;
 }
 
-srs_error_t SrsStatistic::dumps_streams(SrsJsonArray* arr)
+srs_error_t SrsStatistic::dumps_streams(SrsJsonArray* arr, int start, int count)
 {
     srs_error_t err = srs_success;
-    
-    std::map<std::string, SrsStatisticStream*>::iterator it;
-    for (it = streams.begin(); it != streams.end(); it++) {
+
+    std::map<std::string, SrsStatisticStream*>::iterator it = streams.begin();
+    for (int i = 0; i < start + count && it != streams.end(); it++, i++) {
+        if (i < start) {
+            continue;
+        }
+
         SrsStatisticStream* stream = it->second;
         
         SrsJsonObject* obj = SrsJsonAny::object();

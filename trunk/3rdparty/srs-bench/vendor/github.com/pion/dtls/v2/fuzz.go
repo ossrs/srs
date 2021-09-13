@@ -4,7 +4,7 @@ package dtls
 
 import "fmt"
 
-func partialHeaderMismatch(a, b recordLayerHeader) bool {
+func partialHeaderMismatch(a, b recordlayer.Header) bool {
 	// Ignoring content length for now.
 	a.contentLen = b.contentLen
 	return a != b
@@ -26,10 +26,10 @@ func FuzzRecordLayer(data []byte) int {
 	if err = nr.Unmarshal(data); err != nil {
 		panic(err) // nolint
 	}
-	if partialHeaderMismatch(nr.recordLayerHeader, r.recordLayerHeader) {
+	if partialHeaderMismatch(nr.recordlayer.Header, r.recordlayer.Header) {
 		panic( // nolint
 			fmt.Sprintf("header mismatch: %+v != %+v",
-				nr.recordLayerHeader, r.recordLayerHeader,
+				nr.recordlayer.Header, r.recordlayer.Header,
 			),
 		)
 	}

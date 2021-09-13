@@ -89,6 +89,7 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                 field_p->_transport_private_data_length = data_p[pos];
                 pos++;
                 memcpy(field_p->_private_data_byte, data_p + pos, field_p->_transport_private_data_length);
+                pos += field_p->_transport_private_data_length;
             }
             if( field_p->_adaptation_field_extension_flag == 1 ) {
                 //adaptation_field_extension_length 8 uimsbf

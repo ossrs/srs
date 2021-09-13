@@ -3064,7 +3064,11 @@ srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char* data, int size
     if ((err = format->on_audio(timestamp, data, size)) != srs_success) {
         return srs_error_wrap(err, "ts: format on audio");
     }
-    
+
+    if (!format->acodec) {
+        return err;
+    }
+
     // ts support audio codec: aac/mp3
     srs_assert(format->acodec && format->audio);
     if (format->acodec->id != SrsAudioCodecIdAAC && format->acodec->id != SrsAudioCodecIdMP3) {
@@ -3100,7 +3104,11 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char* data, int size
     if ((err = format->on_video(timestamp, data, size)) != srs_success) {
         return srs_error_wrap(err, "ts: on video");
     }
-    
+
+    if (!format->vcodec) {
+        return err;
+    }
+
     // ignore info frame,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format->video && format->vcodec);

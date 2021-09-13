@@ -5,6 +5,7 @@ package webrtc
 import (
 	"io"
 	"sync"
+	"time"
 
 	"github.com/pion/interceptor"
 	"github.com/pion/randutil"
@@ -231,6 +232,12 @@ func (r *RTPSender) ReadRTCP() ([]rtcp.Packet, interceptor.Attributes, error) {
 	}
 
 	return pkts, attributes, nil
+}
+
+// SetReadDeadline sets the deadline for the Read operation.
+// Setting to zero means no deadline.
+func (r *RTPSender) SetReadDeadline(t time.Time) error {
+	return r.srtpStream.SetReadDeadline(t)
 }
 
 // hasSent tells if data has been ever sent for this instance
