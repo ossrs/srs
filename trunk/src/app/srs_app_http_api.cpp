@@ -1112,19 +1112,6 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         }
 
         return srs_api_response_code(w, r, 0);
-    } else if(action == "sip_raw_data"){
-        if (id.empty()){
-            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
-        }
-
-        std::string body;
-        r->body_read_all(body);
-
-        if ((err = _srs_gb28181->notify_sip_raw_data(id, body)) != srs_success) {
-            return srs_error_wrap(err, "notify sip raw data");
-        }
-
-        return srs_api_response_code(w, r, 0);
     } else if(action == "sip_unregister"){
         if (id.empty()){
             return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
