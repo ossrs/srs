@@ -501,7 +501,6 @@ public:
     //sip api
     srs_error_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);
     srs_error_t notify_sip_bye(std::string id, std::string chid);
-    srs_error_t notify_sip_raw_data(std::string id, std::string data);
     srs_error_t notify_sip_unregister(std::string id);
     srs_error_t notify_sip_query_catalog(std::string id);
     srs_error_t notify_sip_ptz(std::string id, std::string chid, std::string cmd, uint8_t speed, int priority);
