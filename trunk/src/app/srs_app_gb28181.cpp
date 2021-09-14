@@ -2433,18 +2433,6 @@ srs_error_t SrsGb28181Manger::notify_sip_ptz(std::string id, std::string chid, s
     return sip_service->send_ptz(&req, chid, cmd, speed, priority);
 }
 
-srs_error_t SrsGb28181Manger::notify_sip_raw_data(std::string id, std::string data)
-{
-    if (!sip_service){
-        return srs_error_new(ERROR_GB28181_SIP_NOT_RUN, "sip not run");
-    }
-
-    SrsSipRequest req;
-    req.sip_auth_id = id;
-    return sip_service->send_sip_raw_data(&req, data);
-
-}
-
 srs_error_t SrsGb28181Manger::notify_sip_unregister(std::string id)
 {
     if (!sip_service){
