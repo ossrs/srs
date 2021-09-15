@@ -236,32 +236,32 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
         return srs_error_wrap(err, "final request");
     }
 
+    alive(ctx, req->copy());
+
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
     if ((err = stat->on_client(ctx, req, NULL, SrsRtmpConnPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 
-    alive(ctx, req->copy());
-
     return err;
 }
 
-bool SrsVodStream::ctx_is_exist(std::string secret)
+bool SrsVodStream::ctx_is_exist(std::string ctx)
 {
-    return (map_ctx_info_.find(secret) != map_ctx_info_.end());
+    return (map_ctx_info_.find(ctx) != map_ctx_info_.end());
 }
 
-void SrsVodStream::alive(std::string secret, SrsRequest* req)
+void SrsVodStream::alive(std::string ctx, SrsRequest* req)
 {
     std::map<std::string, SrsM3u8CtxInfo>::iterator it;
-    if ((it = map_ctx_info_.find(secret)) != map_ctx_info_.end()) {
+    if ((it = map_ctx_info_.find(ctx)) != map_ctx_info_.end()) {
         it->second.request_time = srs_get_system_time();
     } else {
         SrsM3u8CtxInfo info;
         info.req = req;
         info.request_time = srs_get_system_time();
-        map_ctx_info_.insert(make_pair(secret, info));
+        map_ctx_info_.insert(make_pair(ctx, info));
     }
 }
 
@@ -334,7 +334,7 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
 
     std::map<std::string, SrsM3u8CtxInfo>::iterator it;
     for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
-        string secret = it->first;
+        string ctx = it->first;
         SrsRequest* req = it->second.req;
         srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
         if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
@@ -342,7 +342,7 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
             srs_freep(req);
 
             SrsStatistic* stat = SrsStatistic::instance();
-            stat->on_disconnect(secret);
+            stat->on_disconnect(ctx);
             map_ctx_info_.erase(it);
 
             break;

@@ -24,7 +24,7 @@ struct SrsM3u8CtxInfo
 class SrsVodStream : public SrsHttpFileServer, public ISrsFastTimer
 {
 private:
-    // The period of validity of the secret
+    // The period of validity of the ctx
     std::map<std::string, SrsM3u8CtxInfo> map_ctx_info_;
 public:
     SrsVodStream(std::string root_dir);
@@ -34,8 +34,8 @@ protected:
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 private:
-    virtual bool ctx_is_exist(std::string secret);
-    virtual void alive(std::string secret, SrsRequest* req);
+    virtual bool ctx_is_exist(std::string ctx);
+    virtual void alive(std::string ctx, SrsRequest* req);
     virtual srs_error_t http_hooks_on_play(SrsRequest* req);
     virtual void http_hooks_on_stop(SrsRequest* req);
 // interface ISrsFastTimer
