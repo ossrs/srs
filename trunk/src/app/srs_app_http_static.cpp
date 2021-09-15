@@ -216,7 +216,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     ss << "#EXTM3U" << SRS_CONSTS_LF;
     ss << "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1" << SRS_CONSTS_LF;
     ss << hr->path() << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
-    if (!hr->query().empty() && !srs_string_contains(hr->query(), "hls_ctx"))
+    if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty())
     {
         ss << "&" << hr->query();
     }
