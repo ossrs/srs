@@ -11,6 +11,12 @@
 
 #include <srs_app_http_conn.hpp>
 
+struct SrsM3u8CtxInfo
+{
+    srs_utime_t request_time;
+    SrsRequest* req;
+};
+
 // The flv vod stream supports flv?start=offset-bytes.
 // For example, http://server/file.flv?start=10240
 // server will write flv header and sequence header,
@@ -19,18 +25,17 @@ class SrsVodStream : public SrsHttpFileServer, public ISrsFastTimer
 {
 private:
     // The period of validity of the secret
-    std::map<std::string, srs_utime_t> map_secret_validity_;
-    std::map<std::string, SrsRequest*> map_secret_req_;
+    std::map<std::string, SrsM3u8CtxInfo> map_ctx_info_;
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
 protected:
     virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
-    virtual srs_error_t serve_m3u8_secret(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 private:
-    virtual bool secret_is_exist(std::string secret);
-    virtual void alive(std::string secret);
+    virtual bool ctx_is_exist(std::string secret);
+    virtual void alive(std::string secret, SrsRequest* req);
     virtual srs_error_t http_hooks_on_play(SrsRequest* req);
     virtual void http_hooks_on_stop(SrsRequest* req);
 // interface ISrsFastTimer

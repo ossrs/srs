@@ -296,14 +296,14 @@ protected:
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
     // For HLS protocol.
     // When the request url, like as "http://127.0.0.1:8080/live/livestream.m3u8", 
-    // returns the response like as "http://127.0.0.1:8080/live/livestream.m3u8?srs_secret=12345678" .
-    // SRS use "srs_secret" to keep track of subsequent requests that is short-connection.
+    // returns the response like as "http://127.0.0.1:8080/live/livestream.m3u8?hls_ctx=12345678" .
+    // SRS use "hls_ctx" to keep track of subsequent requests that is short-connection.
     // Remark 1: 
-    //           Fill the parameter "srs_secret" by yourself in the first request is allowed, SRS will use it.
+    //           Fill the parameter "hls_ctx" by yourself in the first request is allowed, SRS will use it.
     //           And MUST make sure it is unique.
     // Remark 2:
-    //           If use two same "srs_secret" in different requests, SRS cannot detect so that they will be treated as one.
-    virtual srs_error_t serve_m3u8_secret(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    //           If use two same "hls_ctx" in different requests, SRS cannot detect so that they will be treated as one.
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     // Copy the fs to response writer in size bytes.
     virtual srs_error_t copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int size);

@@ -37,7 +37,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_statistic.hpp>
 
-#define SRS_SECRET_IN_HLS "srs_secret"
+#define SRS_CONTEXT_IN_HLS "hls_ctx"
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 {
@@ -47,12 +47,11 @@ SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 SrsVodStream::~SrsVodStream()
 {
     _srs_hybrid->timer5s()->unsubscribe(this);
-    std::map<std::string, SrsRequest*>::iterator it;
-    for (it = map_secret_req_.begin(); it != map_secret_req_.end(); ++it) {
-        srs_freep(it->second);
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
+        srs_freep(it->second.req);
     }
-    map_secret_req_.clear();
-    map_secret_validity_.clear();
+    map_ctx_info_.clear();
 }
 
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
@@ -186,7 +185,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     return err;
 }
 
-srs_error_t SrsVodStream::serve_m3u8_secret(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
     srs_error_t err = srs_success;
 
@@ -196,27 +195,33 @@ srs_error_t SrsVodStream::serve_m3u8_secret(ISrsHttpResponseWriter * w, ISrsHttp
     SrsRequest* req = hr->to_request(hr->host())->as_http();
     SrsAutoFree(SrsRequest, req);
 
-    string secret = r->query_get(SRS_SECRET_IN_HLS);
-    if (!secret.empty() && secret_is_exist(secret)) {
-        alive(secret);
-        return SrsHttpFileServer::serve_m3u8_secret(w, r, fullpath);
+    string ctx = hr->query_get(SRS_CONTEXT_IN_HLS);
+    if (!ctx.empty() && ctx_is_exist(ctx)) {
+        alive(ctx, NULL);
+        return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
     if ((err = http_hooks_on_play(req)) != srs_success) {
         return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
-    if (secret.empty()) {
+    if (ctx.empty()) {
         // make sure unique
         do {
-            secret = srs_random_str(8);
-        } while (secret_is_exist(secret));
+            ctx = srs_random_str(8);  // the same as cid
+        } while (ctx_is_exist(ctx));
     }
 
-    std::string res = "#EXTM3U\r";
-    res += "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\r";
-    res += hr->path() + "?" + SRS_SECRET_IN_HLS + "=" + secret;
+    std::stringstream ss;
+    ss << "#EXTM3U" << SRS_CONSTS_LF;
+    ss << "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1" << SRS_CONSTS_LF;
+    ss << hr->path() << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
+    if (!hr->query().empty() && !srs_string_contains(hr->query(), "hls_ctx"))
+    {
+        ss << "&" << hr->query();
+    }
 
+    std::string res = ss.str();
     int length = res.length();
 
     w->header()->set_content_length(length);
@@ -233,25 +238,31 @@ srs_error_t SrsVodStream::serve_m3u8_secret(ISrsHttpResponseWriter * w, ISrsHttp
 
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(secret, req, NULL, SrsRtmpConnPlay)) != srs_success) {
+    if ((err = stat->on_client(ctx, req, NULL, SrsRtmpConnPlay)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 
-    // save req for on_disconnect when timeout
-    map_secret_req_.insert(make_pair(secret, req->copy()));
-    alive(secret);
+    alive(ctx, req->copy());
 
     return err;
 }
 
-bool SrsVodStream::secret_is_exist(std::string secret)
+bool SrsVodStream::ctx_is_exist(std::string secret)
 {
-    return (map_secret_validity_.find(secret) != map_secret_validity_.end());
+    return (map_ctx_info_.find(secret) != map_ctx_info_.end());
 }
 
-void SrsVodStream::alive(std::string secret)
+void SrsVodStream::alive(std::string secret, SrsRequest* req)
 {
-    map_secret_validity_[secret] = srs_get_system_time();
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    if ((it = map_ctx_info_.find(secret)) != map_ctx_info_.end()) {
+        it->second.request_time = srs_get_system_time();
+    } else {
+        SrsM3u8CtxInfo info;
+        info.req = req;
+        info.request_time = srs_get_system_time();
+        map_ctx_info_.insert(make_pair(secret, info));
+    }
 }
 
 srs_error_t SrsVodStream::http_hooks_on_play(SrsRequest* req)
@@ -321,19 +332,18 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    std::map<std::string, srs_utime_t>::iterator it;
-    for (it = map_secret_validity_.begin(); it != map_secret_validity_.end(); ++it) {
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
         string secret = it->first;
-        SrsRequest* req = map_secret_req_[secret];
+        SrsRequest* req = it->second.req;
         srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
-        if (it->second + (2 * hls_window) < srs_get_system_time()) {
+        if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
             http_hooks_on_stop(req);
             srs_freep(req);
-            map_secret_req_.erase(secret);
 
             SrsStatistic* stat = SrsStatistic::instance();
             stat->on_disconnect(secret);
-            map_secret_validity_.erase(it);
+            map_ctx_info_.erase(it);
 
             break;
         }

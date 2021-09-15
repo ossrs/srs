@@ -1189,7 +1189,7 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
-    // should return "srs_secret"
+    // should return "hls_ctx"
     if (true) {
         SrsHttpMuxEntry e;
         e.pattern = "/";
@@ -1204,10 +1204,10 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?srs_secret=", w);
+        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?hls_ctx=", w);
     }
 
-    // should return "srs_secret"
+    // should return "hls_ctx"
     if (true) {
         SrsHttpMuxEntry e;
         e.pattern = "/";
@@ -1219,10 +1219,10 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
 
         MockResponseWriter w;
         SrsHttpMessage r(NULL, NULL);
-        HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?srs_secret=123456", false));
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.m3u8?hls_ctx=123456", false));
 
         HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
-        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?srs_secret=123456", w);
+        __MOCK_HTTP_EXPECT_STRCT(200, "index.m3u8?hls_ctx=123456", w);
     }
 }
 

@@ -528,7 +528,7 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
 
 srs_error_t SrsHttpFileServer::serve_m3u8_file(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
-    return serve_m3u8_secret(w, r, fullpath);
+    return serve_m3u8_ctx(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
@@ -545,7 +545,7 @@ srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsH
     return serve_file(w, r, fullpath);
 }
 
-srs_error_t SrsHttpFileServer::serve_m3u8_secret(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+srs_error_t SrsHttpFileServer::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
     // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
