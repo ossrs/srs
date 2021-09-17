@@ -68,6 +68,7 @@ void srs_build_features(stringstream& ss)
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
+    bool flv2 = false;
 
     SrsConfDirective* root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
@@ -78,6 +79,8 @@ void srs_build_features(stringstream& ss)
             string engine = _srs_config->get_stream_caster_engine(conf);
             if (engine == "rtsp") {
                 rtsp = true;
+            } else if (engine == "flv") {
+                flv2 = true;
             }
         }
 
@@ -134,6 +137,7 @@ void srs_build_features(stringstream& ss)
 
     SRS_CHECK_FEATURE2(nn_vhosts, "vhosts", ss);
     SRS_CHECK_FEATURE(rtsp, ss);
+    SRS_CHECK_FEATURE(flv2, ss);
     SRS_CHECK_FEATURE(forward, ss);
     SRS_CHECK_FEATURE(ingest, ss);
     SRS_CHECK_FEATURE(edge, ss);
