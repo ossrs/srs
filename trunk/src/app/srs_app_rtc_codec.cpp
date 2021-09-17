@@ -10,16 +10,32 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-static const char* id2codec_name(SrsAudioCodecId id)
+static const AVCodec* srs_find_decoder_by_id(SrsAudioCodecId id)
 {
-    switch (id) {
-    case SrsAudioCodecIdAAC:
-        return "aac";
-    case SrsAudioCodecIdOpus:
-        return "libopus";
-    default:
-        return "";
+    if (id == SrsAudioCodecIdAAC) {
+        return avcodec_find_decoder_by_name("aac");
+    } else if (id == SrsAudioCodecIdOpus) {
+        const AVCodec* codec = avcodec_find_decoder_by_name("libopus");
+        if (!codec) {
+            codec = avcodec_find_decoder_by_name("opus");
+        }
+        return codec;
     }
+    return NULL;
+}
+
+static const AVCodec* srs_find_encoder_by_id(SrsAudioCodecId id)
+{
+    if (id == SrsAudioCodecIdAAC) {
+        return avcodec_find_encoder_by_name("aac");
+    } else if (id == SrsAudioCodecIdOpus) {
+        const AVCodec* codec = avcodec_find_encoder_by_name("libopus");
+        if (!codec) {
+            codec = avcodec_find_encoder_by_name("opus");
+        }
+        return codec;
+    }
+    return NULL;
 }
 
 class SrsFFmpegLogHelper {
@@ -175,10 +191,9 @@ void SrsAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
 
 srs_error_t SrsAudioTranscoder::init_dec(SrsAudioCodecId src_codec)
 {
-    const char* codec_name = id2codec_name(src_codec);
-    const AVCodec *codec = avcodec_find_decoder_by_name(codec_name);
+    const AVCodec *codec = srs_find_decoder_by_id(src_codec);
     if (!codec) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "Codec not found by name(%d,%s)", src_codec, codec_name);
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Codec not found by %d", src_codec);
     }
 
     dec_ = avcodec_alloc_context3(codec);
@@ -208,15 +223,14 @@ srs_error_t SrsAudioTranscoder::init_dec(SrsAudioCodecId src_codec)
 
 srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_channels, int dst_samplerate, int dst_bit_rate)
 {
-    const char* codec_name = id2codec_name(dst_codec);
-    const AVCodec *codec = avcodec_find_encoder_by_name(codec_name);
+    const AVCodec *codec = srs_find_encoder_by_id(dst_codec);
     if (!codec) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "Codec not found by name(%d,%s)", dst_codec, codec_name);
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Codec not found by %d", dst_codec);
     }
 
     enc_ = avcodec_alloc_context3(codec);
     if (!enc_) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio codec context(%d,%s)", dst_codec, codec_name);
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio codec context %d", dst_codec);
     }
 
     enc_->sample_rate = dst_samplerate;
@@ -228,6 +242,7 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
     if (dst_codec == SrsAudioCodecIdOpus) {
         //TODO: for more level setting
         enc_->compression_level = 1;
+        enc_->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
     } else if (dst_codec == SrsAudioCodecIdAAC) {
         enc_->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
     }
