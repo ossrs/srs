@@ -9,16 +9,16 @@
 #     $MODULE_DIR the src dir of utest code. ie. src/utest
 #     $LINK_OPTIONS the link options for utest. ie. -lpthread -ldl
 
-FILE=${SRS_OBJS}/utest/${SRS_MAKEFILE}
+FILE=${SRS_OBJS}/${SRS_PLATFORM}/utest/${SRS_MAKEFILE}
 # create dir for Makefile
-mkdir -p ${SRS_OBJS}/utest
+mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/utest
 
 # the prefix to generate the objs/utest/Makefile
 # dirs relative to current dir(objs/utest), it's trunk/objs/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
 SRS_TRUNK_PREFIX=../../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
-GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
+GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/${SRS_PLATFORM}/gtest
 
 cat << END > ${FILE}
 # user must run make the ${SRS_OBJS_DIR}/utest dir
