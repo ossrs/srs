@@ -791,7 +791,12 @@ if [[ $SRS_SRT == YES ]]; then
             cp -rf ${SRS_WORKDIR}/3rdparty/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM} && 
 			cd srt-1-fit &&
             PKG_CONFIG_PATH=${SRS_3RD_OPENSSL_PATH}/lib/pkgconfig ./configure --prefix=${SRS_3RD_SRT_PATH} $LIBSRT_OPTIONS &&
-            make ${SRS_JOBS} && make install
+            make ${SRS_JOBS} && make install &&
+			
+			# If exists lib64 of libsrt, link it to lib
+            if [[ -d ${SRS_3RD_SRT_PATH}/lib64 ]]; then
+                mv ${SRS_3RD_SRT_PATH}/lib64 ${SRS_3RD_SRT_PATH}/lib
+            fi
         )
         ret=$?; if [[ $ret -ne 0 ]]; then echo "Build srt-1-fit failed, ret=$ret"; exit $ret; fi
     fi
