@@ -329,12 +329,12 @@ OS_IS_WINDOWS_CYGWIN64=NO
 function windows_cygwin64_prepare()
 {
 # TODO auto install cygwin64 tools ?
-	if [[ $OSTYPE == cygwin ]]; then
-		OS_IS_WINDOWS_CYGWIN64=YES
-		SRS_WINDOWS=YES
-	fi
-	
-	return 0
+    if [[ $OSTYPE == cygwin ]]; then
+        OS_IS_WINDOWS_CYGWIN64=YES
+        SRS_WINDOWS=YES
+    fi
+
+    return 0
 }
 
 windows_cygwin64_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "windows_cygwin64 prepare failed, ret=$ret"; exit $ret; fi
@@ -380,7 +380,7 @@ function _srs_link_file()
 #####################################################################################
 # Only supports:
 #       linux, centos/ubuntu as such,
-#		windows(with cygwin64 toolchain)
+#       windows(with cygwin64 toolchain)
 #       cross build for embeded system, for example, mips or arm,
 #       directly build on arm/mips, for example, pi or cubie,
 #       export srs-librtmp
@@ -407,7 +407,7 @@ if [[ $SRS_OSX == YES ]]; then
 fi
 # for windows/cygwin
 if [[ $OS_IS_WINDOWS_CYGWIN64 = YES ]]; then
-	_ST_MAKE=cygwin64-debug && _ST_OBJ="CYGWIN64_`uname -s`_DBG"
+    _ST_MAKE=cygwin64-debug && _ST_OBJ="CYGWIN64_`uname -s`_DBG"
 fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
@@ -433,11 +433,11 @@ else
     echo "Building state-threads.";
     (
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs &&
-		cp -rf ${SRS_WORKDIR}/3rdparty/st-srs ${SRS_OBJS}/${SRS_PLATFORM} &&
+        cp -rf ${SRS_WORKDIR}/3rdparty/st-srs ${SRS_OBJS}/${SRS_PLATFORM} &&
         cd ${SRS_OBJS}/${SRS_PLATFORM}/st-srs  &&
         # Build source code.
         env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" make ${_ST_MAKE_ARGS} &&
-		cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/* ${SRS_3RD_ST_PATH}
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/${_ST_OBJ}/* ${SRS_3RD_ST_PATH}
     )
 fi
 # check status
@@ -592,7 +592,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         echo "Building $OPENSSL_CANDIDATE.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/${OPENSSL_CANDIDATE} &&
-			cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             ${OPENSSL_UNZIP} && cd $OPENSSL_CANDIDATE && ${OPENSSL_CONFIG} --prefix=${SRS_3RD_OPENSSL_PATH} $OPENSSL_OPTIONS &&
             make CC=${SRS_TOOL_CC} AR="${OPENSSL_AR}" LD=${SRS_TOOL_LD} RANDLIB=${SRS_TOOL_RANDLIB} ${SRS_JOBS} && make install_sw
         )
@@ -627,10 +627,10 @@ else
     echo "Building libsrtp-2-fit.";
     (
         rm -rf ${SRS_3RD_SRTP2_PATH} && 
-		cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+        cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         rm -rf libsrtp-2-fit && 
-		cp -R ${SRS_WORKDIR}/3rdparty/libsrtp-2-fit . && 
-		cd libsrtp-2-fit &&
+        cp -R ${SRS_WORKDIR}/3rdparty/libsrtp-2-fit . && 
+        cd libsrtp-2-fit &&
         $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_3RD_SRTP2_PATH} &&
         make ${SRS_JOBS} && make install
     )
@@ -654,12 +654,12 @@ if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
         echo "Building opus-1.3.1.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && 
-			cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             tar xf ${SRS_WORKDIR}/3rdparty/opus-1.3.1.tar.gz && 
-			cd opus-1.3.1 &&
+            cd opus-1.3.1 &&
             ./configure --prefix=${SRS_3RD_OPUS_PATH} --enable-static $OPUS_OPTIONS &&
             make ${SRS_JOBS} && 
-			make install
+            make install
         )
     fi
     # check status
@@ -704,8 +704,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
         echo "Building ffmpeg-4-fit.";
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit &&
-			cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM} &&
-			cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && 
+            cp -rf ${SRS_WORKDIR}/3rdparty/ffmpeg-4-fit ${SRS_OBJS}/${SRS_PLATFORM} &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit && 
             # Build source code.
             $FFMPEG_CONFIGURE \
               --prefix=${SRS_3RD_FFMPEG_PATH} --pkg-config=pkg-config \
@@ -775,20 +775,20 @@ if [[ $SRS_SRT == YES ]]; then
             else
                 LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
             fi
-			
-			if [[ $SRS_WINDOWS == YES ]]; then
-				LIBSRT_OPTIONS="$LIBSRT_OPTIONS --cygwin-use-posix"
-			fi
-			
+            
+            if [[ $SRS_WINDOWS == YES ]]; then
+                LIBSRT_OPTIONS="$LIBSRT_OPTIONS --cygwin-use-posix"
+            fi
+            
             # Start build libsrt.
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit && 
-			cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             cp -rf ${SRS_WORKDIR}/3rdparty/srt-1-fit ${SRS_OBJS}/${SRS_PLATFORM} && 
-			cd srt-1-fit &&
+            cd srt-1-fit &&
             PKG_CONFIG_PATH=${SRS_3RD_OPENSSL_PATH}/lib/pkgconfig ./configure --prefix=${SRS_3RD_SRT_PATH} $LIBSRT_OPTIONS &&
             make ${SRS_JOBS} && make install &&
-			
-			# If exists lib64 of libsrt, link it to lib
+            
+            # If exists lib64 of libsrt, link it to lib
             if [[ -d ${SRS_3RD_SRT_PATH}/lib64 ]]; then
                 mv ${SRS_3RD_SRT_PATH}/lib64 ${SRS_3RD_SRT_PATH}/lib
             fi
@@ -808,7 +808,7 @@ if [ $SRS_UTEST = YES ]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             unzip -q ${SRS_WORKDIR}/3rdparty/gtest-1.6.0.zip &&
-			mv ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 ${SRS_OBJS}/${SRS_PLATFORM}/gtest
+            mv ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 ${SRS_OBJS}/${SRS_PLATFORM}/gtest
         )
     fi
     # check status
