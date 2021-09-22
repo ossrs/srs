@@ -5,6 +5,10 @@ OS_KERNEL_NAME=$(uname -s)
 OS_KERNRL_RELEASE=$(uname -r|awk -F '-' '{print $1}')
 OS_PREFIX="Platform"
 
+if [[ $OSTYPE == cygwin ]]; then
+	OS_KERNRL_RELEASE=$(uname -r|awk -F '(' '{print $1}')
+fi
+
 # Build platform cache.
 SRS_PLATFORM="${SRS_BUILD_TAG}${OS_PREFIX}-${OS_KERNEL_NAME}-${OS_KERNRL_RELEASE}"
 # Build platform cache with gcc version.
@@ -23,17 +27,29 @@ if [[ $SRS_CROSS_BUILD == YES ]]; then
   SRS_PLATFORM="${SRS_PLATFORM}-CROSSBUILD-$(echo $SRS_TOOL_CC|awk -F - '{print $1}')"
 fi
 
+# 3rdparty lib path
+SRS_3RD_ST_PATH=${SRS_OBJS}/st
+SRS_3RD_FFMPEG_PATH=${SRS_OBJS}/ffmpeg
+SRS_3RD_OPUS_PATH=${SRS_OBJS}/opus
+SRS_3RD_SRTP2_PATH=${SRS_OBJS}/srtp2
+SRS_3RD_OPENSSL_PATH=${SRS_OBJS}/openssl
+SRS_3RD_SRT_PATH=${SRS_OBJS}/srt
+
 echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS_DIR: ${SRS_OBJS_DIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 
 # For src object files on each platform.
 (
     mkdir -p ${SRS_OBJS_DIR} && cd ${SRS_OBJS_DIR} &&
     rm -rf src utest srs srs_utest research include lib srs_hls_ingester srs_mp4_parser &&
-    mkdir -p ${SRS_PLATFORM}/src && ln -sf ${SRS_PLATFORM}/src &&
-    mkdir -p ${SRS_PLATFORM}/utest && ln -sf ${SRS_PLATFORM}/utest &&
-    mkdir -p ${SRS_PLATFORM}/research && ln -sf ${SRS_PLATFORM}/research &&
-    mkdir -p ${SRS_PLATFORM}/include && ln -sf ${SRS_PLATFORM}/include &&
-    mkdir -p ${SRS_PLATFORM}/lib && ln -sf ${SRS_PLATFORM}/lib
+    mkdir -p ${SRS_PLATFORM}/src  &&
+    mkdir -p ${SRS_PLATFORM}/research &&
+    mkdir -p ${SRS_PLATFORM}/include &&
+    mkdir -p ${SRS_PLATFORM}/lib &&
+	mkdir -p ${SRS_3RD_ST_PATH} &&
+	mkdir -p ${SRS_3RD_FFMPEG_PATH} &&
+	mkdir -p ${SRS_3RD_OPUS_PATH} &&
+	mkdir -p ${SRS_3RD_SRTP2_PATH} &&
+	mkdir -p ${SRS_3RD_OPENSSL_PATH}
 )
 if [[ $SRS_CLEAN == NO ]]; then
   echo "Fast cleanup, if need to do full cleanup, please use: make clean"

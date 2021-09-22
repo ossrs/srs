@@ -226,10 +226,6 @@ static inline __attribute__((const)) int is_power_of_2(unsigned long num)
     return (num != 0 && ((num & (num - 1)) == 0));
 }
 
-#ifndef HAVE_LOFF_T
-typedef int64_t loff_t;
-#endif
-
 #if !defined(HAVE_DIRFD) && (!defined(HAVE_DECL_DIRFD) || HAVE_DECL_DIRFD == 0) && defined(HAVE_DIR_DD_FD)
 #include <sys/types.h>
 #include <dirent.h>
@@ -1074,8 +1070,6 @@ void uuid_generate(uuid_t out)
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
-#include <sys/syscall.h>
 
 //#include "randutils.h"
 
