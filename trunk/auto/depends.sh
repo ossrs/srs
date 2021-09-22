@@ -739,13 +739,12 @@ fi
 SYSTEMP_FFMPEG_BIN=/usr/local/bin/ffmpeg
 if [[ ! -f $SYSTEMP_FFMPEG_BIN ]]; then SYSTEMP_FFMPEG_BIN=/usr/local/ffmpeg/bin/ffmpeg; fi
 # Always link the ffmpeg tools if exists.
-if [[ -f $SYSTEMP_FFMPEG_BIN && ! -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then
-    mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin &&
-    ln -sf $SYSTEMP_FFMPEG_BIN ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg &&
-    (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
+if [[ -f $SYSTEMP_FFMPEG_BIN && ! -f ${SRS_OBJS}/ffmpeg ]]; then
+    mkdir -p ${SRS_OBJS}/ffmpeg/bin &&
+    cp -f $SYSTEMP_FFMPEG_BIN ${SRS_OBJS}/ffmpeg/bin/ffmpeg
 fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg/bin/ffmpeg ]]; then
+    if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-4.1 is ok.";
     else
         echo -e "${RED}Error: No FFmpeg found at /usr/local/bin/ffmpeg${BLACK}"
@@ -753,10 +752,6 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
         echo -e "${RED}    or download from http://ffmpeg.org/download.html${BLACK}"
         echo -e "${RED}    or disable it by --without-ffmpeg${BLACK}"
         exit -1;
-    fi
-    # Always update the links.
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg ]]; then
-        (cd ${SRS_OBJS} && rm -rf ffmpeg && ln -sf ${SRS_PLATFORM}/ffmpeg)
     fi
 fi
 
