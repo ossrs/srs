@@ -388,7 +388,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, req);
+        SrsHttpHooks::on_stop(cid, url, req);
     }
 
     return err;
