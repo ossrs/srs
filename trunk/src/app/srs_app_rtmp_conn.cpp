@@ -1431,7 +1431,7 @@ void SrsRtmpConn::http_hooks_on_stop()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, req);
+        SrsHttpHooks::on_stop(_srs_context->get_id(), url, req);
     }
     
     return;

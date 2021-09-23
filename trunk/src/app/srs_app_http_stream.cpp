@@ -764,7 +764,7 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage* r)
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, nreq);
+        SrsHttpHooks::on_stop(_srs_context->get_id(), url, nreq);
     }
     
     return;
