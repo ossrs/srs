@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 5.0.12
 * v4.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
 * v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
 * v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
@@ -23,6 +24,8 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 4.0.163
+* v4.0, 2021-09-23, Merge [#2618](https://github.com/ossrs/srs/pull/2618) to fix FUA bug.
 * v4.0, 2021-09-05, RTC: Merge [#2581](https://github.com/ossrs/srs/pull/2581), Fix listen ipv6 and port. 4.0.161
 * v4.0, 2021-09-04, For [#2282](https://github.com/ossrs/srs/pull/2282), [#2181](https://github.com/ossrs/srs/issues/2181), Move DVR async worker from SrsDvrPlan to global.
 * v4.0, 2021-09-04, For [#2282](https://github.com/ossrs/srs/pull/2282), [#2181](https://github.com/ossrs/srs/issues/2181), Remove reload for dvr_apply. 4.0.160
