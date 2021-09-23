@@ -364,7 +364,7 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
 
     string upath = r->path();
     string fullpath = srs_http_fs_fullpath(dir, entry->pattern, upath);
-    
+
     // stat current dir, if exists, return error.
     if (!_srs_path_exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s",
@@ -380,6 +380,8 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMes
         return serve_flv_file(w, r, fullpath);
     } else if (srs_string_ends_with(fullpath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
+    } else if (srs_string_ends_with(upath, ".m3u8")) {
+        return serve_m3u8_file(w, r, fullpath);
     }
     
     // serve common static file.
@@ -524,6 +526,11 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
     return serve_mp4_stream(w, r, fullpath, start, end);
 }
 
+srs_error_t SrsHttpFileServer::serve_m3u8_file(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+{
+    return serve_m3u8_ctx(w, r, fullpath);
+}
+
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
@@ -532,6 +539,13 @@ srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsH
 }
 
 srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
+{
+    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
+    return serve_file(w, r, fullpath);
+}
+
+srs_error_t SrsHttpFileServer::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
     // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
