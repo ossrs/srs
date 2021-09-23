@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_service_utility.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_hybrid.hpp>
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
