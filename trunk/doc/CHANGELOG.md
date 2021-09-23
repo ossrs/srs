@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 5.0.12
 * v4.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
 * v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
 * v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
