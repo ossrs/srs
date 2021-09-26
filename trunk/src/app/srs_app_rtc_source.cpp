@@ -1715,6 +1715,10 @@ bool SrsRtmpFromRtcBridger::check_frame_complete(const uint16_t start, const uin
     for (uint16_t i = 0; i < cnt; ++i) {
         int index = cache_index((start + i));
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+        if (!pkt) {
+            // fix crash when pkt->payload() if pkt is nullptr;
+            continue;
+        }
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
         if (fua_payload) {
             if (fua_payload->start) {
