@@ -1033,7 +1033,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_unpublish(url, req);
+        SrsHttpHooks::on_unpublish(cid, url, req);
     }
 
     return err;
