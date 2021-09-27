@@ -43,7 +43,7 @@ public:
     // The on_unpublish hook, when client(encoder) stop publish stream.
     // @param url the api server url, to process the event.
     //         ignore if empty.
-    static void on_unpublish(std::string url, SrsRequest* req);
+    static void on_unpublish(SrsContextId cid, std::string url, SrsRequest* req);
     // The on_play hook, when client start to play stream.
     // @param url the api server url, to valid the client.
     //         ignore if empty.
@@ -51,7 +51,7 @@ public:
     // The on_stop hook, when client stop to play the stream.
     // @param url the api server url, to process the event.
     //         ignore if empty.
-    static void on_stop(std::string url, SrsRequest* req);
+    static void on_stop(SrsContextId cid, std::string url, SrsRequest* req);
     // The on_dvr hook, when reap a dvr file.
     // @param url the api server url, to process the event.
     //         ignore if empty.

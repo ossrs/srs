@@ -151,12 +151,10 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     return err;
 }
 
-void SrsHttpHooks::on_unpublish(string url, SrsRequest* req)
+void SrsHttpHooks::on_unpublish(SrsContextId cid, string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
-    
-    SrsContextId cid = _srs_context->get_id();
-    
+
     SrsStatistic* stat = SrsStatistic::instance();
 
     SrsJsonObject* obj = SrsJsonAny::object();
@@ -227,12 +225,10 @@ srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
     return err;
 }
 
-void SrsHttpHooks::on_stop(string url, SrsRequest* req)
+void SrsHttpHooks::on_stop(SrsContextId cid, string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
-    
-    SrsContextId cid = _srs_context->get_id();
-    
+
     SrsStatistic* stat = SrsStatistic::instance();
 
     SrsJsonObject* obj = SrsJsonAny::object();
