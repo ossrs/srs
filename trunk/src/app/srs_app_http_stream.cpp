@@ -727,7 +727,7 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage* r)
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_play(url, nreq)) != srs_success) {
+        if ((err = SrsHttpHooks::on_play(_srs_context->get_id(), url, nreq)) != srs_success) {
             return srs_error_wrap(err, "http on_play %s", url.c_str());
         }
     }

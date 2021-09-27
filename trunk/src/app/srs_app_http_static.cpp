@@ -202,15 +202,18 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
         return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
-    if ((err = http_hooks_on_play(req)) != srs_success) {
-        return srs_error_wrap(err, "HLS: http_hooks_on_play");
-    }
-
     if (ctx.empty()) {
         // make sure unique
         do {
-            ctx = srs_random_str(8);  // the same as cid
+            ctx = srs_random_str(8);  // simulate cid
         } while (ctx_is_exist(ctx));
+    }
+
+    SrsContextId cid = SrsContextId();
+    cid.set_value(ctx);
+
+    if ((err = http_hooks_on_play(cid, req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
     std::stringstream ss;
@@ -266,7 +269,7 @@ void SrsVodStream::alive(std::string ctx, SrsRequest* req)
     }
 }
 
-srs_error_t SrsVodStream::http_hooks_on_play(SrsRequest* req)
+srs_error_t SrsVodStream::http_hooks_on_play(SrsContextId cid, SrsRequest* req)
 {
     srs_error_t err = srs_success;
 
@@ -291,7 +294,7 @@ srs_error_t SrsVodStream::http_hooks_on_play(SrsRequest* req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+        if ((err = SrsHttpHooks::on_play(cid, url, req)) != srs_success) {
             return srs_error_wrap(err, "http on_play %s", url.c_str());
         }
     }
@@ -299,7 +302,7 @@ srs_error_t SrsVodStream::http_hooks_on_play(SrsRequest* req)
     return err;
 }
 
-void SrsVodStream::http_hooks_on_stop(SrsRequest* req)
+void SrsVodStream::http_hooks_on_stop(SrsContextId cid, SrsRequest* req)
 {
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return;
@@ -323,7 +326,7 @@ void SrsVodStream::http_hooks_on_stop(SrsRequest* req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        SrsHttpHooks::on_stop(url, req);
+        SrsHttpHooks::on_stop(cid, url, req);
     }
 
     return;
@@ -339,7 +342,9 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
         SrsRequest* req = it->second.req;
         srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
         if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
-            http_hooks_on_stop(req);
+            SrsContextId cid = SrsContextId();
+            cid.set_value(ctx);
+            http_hooks_on_stop(cid, req);
             srs_freep(req);
 
             SrsStatistic* stat = SrsStatistic::instance();
