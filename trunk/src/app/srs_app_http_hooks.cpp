@@ -188,11 +188,9 @@ void SrsHttpHooks::on_unpublish(SrsContextId cid, string url, SrsRequest* req)
     return;
 }
 
-srs_error_t SrsHttpHooks::on_play(string url, SrsRequest* req)
+srs_error_t SrsHttpHooks::on_play(SrsContextId cid, string url, SrsRequest* req)
 {
     srs_error_t err = srs_success;
-    
-    SrsContextId cid = _srs_context->get_id();
     
     SrsStatistic* stat = SrsStatistic::instance();
 

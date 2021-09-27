@@ -272,7 +272,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+        if ((err = SrsHttpHooks::on_play(_srs_context->get_id(), url, req)) != srs_success) {
             return srs_error_wrap(err, "on_play %s", url.c_str());
         }
     }

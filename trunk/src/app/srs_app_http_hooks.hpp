@@ -47,7 +47,7 @@ public:
     // The on_play hook, when client start to play stream.
     // @param url the api server url, to valid the client.
     //         ignore if empty.
-    static srs_error_t on_play(std::string url, SrsRequest* req);
+    static srs_error_t on_play(SrsContextId cid, std::string url, SrsRequest* req);
     // The on_stop hook, when client stop to play the stream.
     // @param url the api server url, to process the event.
     //         ignore if empty.
