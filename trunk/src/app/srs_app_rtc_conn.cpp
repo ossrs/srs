@@ -3338,6 +3338,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             }
 
             track->set_direction("sendonly");
+            // fixme: order of track
             sub_relations.insert(make_pair(publish_ssrc, track));
             if (track->rid_.ssrc > 0) {
                 srs_info("publish_ssrc=%u, play ssrc=%u, rid ssrc=%u, rid=%s", publish_ssrc, track->ssrc_, track->rid_.ssrc, track->rid_.rid.c_str());
@@ -3399,7 +3400,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
 }
 
 // note: get [0,1,2] from "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
-bool parse_layers_in_url(std::vector<int>& layers, std::string name) {
+bool parse_layers_in_url(std::vector<std::string>& layers, std::string name) {
     // livestream?layer=1
     // livestream?layer=1,2,3
     // livestream?layer=1,2,3&foo=bar
@@ -3426,23 +3427,39 @@ bool parse_layers_in_url(std::vector<int>& layers, std::string name) {
     istringstream f(layers_);
     string s;
     while (getline(f, s, ';')) {
-        layers.push_back(::atoi(s.c_str()));
+        layers.push_back(s);
     }
     return !layers.empty();
+}
+
+void add_desc_to_vector(std::vector<SrsRtcTrackDescription *>& result, SrsRtcTrackDescription *desc) {
+    if (result.cend() == std::find(result.cbegin(), result.cend(), desc)) {
+        result.push_back(desc);
+    }
 }
 
 std::vector<SrsRtcTrackDescription *> select_video_track_descs(
         std::vector<SrsRtcTrackDescription *> video_track_descs,
         std::string url) {
     srs_trace("stream url: %s", url.c_str());
-    std::vector<int> layers;
-    if (!parse_layers_in_url(layers, url)) {
+    std::vector<std::string> layers;
+    if (video_track_descs.empty() || !parse_layers_in_url(layers, url)) {
         return video_track_descs;
     }
     std::vector<SrsRtcTrackDescription *> result;
     for (size_t i=0;i<layers.size(); ++i) {
-        if (layers[i] < video_track_descs.size()) {
-            result.push_back(video_track_descs[layers[i]]);
+        int layer = ::atoi(layers[i].c_str());
+        bool is_index = std::to_string(layer) == layers[i] && layer >= 0 && layer < (int)video_track_descs.size();
+        if (is_index) {
+            add_desc_to_vector(result, video_track_descs[layer]);
+        } else {
+            for (auto& desc: video_track_descs) {
+                assert(desc);
+                if (desc->rid_.rid == layers[i]) {
+                    result.push_back(desc);
+                    add_desc_to_vector(result, desc);
+                }
+            }
         }
     }
     return result.empty() ? video_track_descs : result;
