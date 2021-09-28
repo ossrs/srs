@@ -2184,6 +2184,15 @@ int SrsRtcTrackDescription::get_rtp_extension_id(std::string uri)
     return 0;
 }
 
+int SrsRtcTrackDescription::get_rtp_extension_id(ExtMapFieldEnum field) {
+    for (std::map<int, std::string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+        if(kExtMapFieldArray[field] == it->second) {
+            return it->first;
+        }
+    }
+    return 0;
+}
+
 SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
 {
     SrsRtcTrackDescription* cp = new SrsRtcTrackDescription();
@@ -2202,6 +2211,7 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
     cp->red_ = red_ ? red_->copy():NULL;
     cp->rtx_ = rtx_ ? rtx_->copy():NULL;
     cp->ulpfec_ = ulpfec_ ? ulpfec_->copy():NULL;
+    cp->rid_ = rid_;
 
     return cp;
 }
@@ -2430,6 +2440,24 @@ srs_error_t SrsRtcRecvTrack::do_check_send_nacks(uint32_t& timeout_nacks)
     session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks, timeout_nacks);
 
     return err;
+}
+
+bool SrsRtcRecvTrack::active_as(const SrsRidInfo &rid_info) {
+    if (track_desc_->ssrc_ > 0) {
+        return false;
+    }
+    track_desc_->ssrc_ = rid_info.ssrc;
+    track_desc_->rid_ = rid_info;
+
+    // TODO: Improve the generation of FEC SSRC and RTX SSRC
+    track_desc_->set_fec_ssrc(rid_info.ssrc + 1);
+    track_desc_->set_rtx_ssrc(rid_info.ssrc + 2);
+
+    // if (track_desc_->is_active_) {
+    //     return false;
+    // }
+    // track_desc_->is_active_ = true;
+    return true;
 }
 
 SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)

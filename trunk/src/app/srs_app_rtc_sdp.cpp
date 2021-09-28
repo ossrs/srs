@@ -7,6 +7,7 @@
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
+#include <arpa/inet.h> // for ntohs in linux
 
 #include <iostream>
 #include <sstream>
@@ -110,8 +111,29 @@ srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const 
     } else if (attribute == "setup") {
         // @see: https://tools.ietf.org/html/rfc4145#section-4
         setup_ = value;
+    } else if (attribute == "simulcast") {
+        // kSimulcastApiVersionSpecCompliant
+        // todo
+        // a=simulcast:send 0;1;2
+        // ignore attribute=simulcast, value=send 0;1;2
+        // ignore attribute=rid, value=0 send
+        // ignore attribute=rid, value=1 send
+        // ignore attribute=rid, value=2 send
+        std::istringstream is(value);
+        FETCH(is, simulcast_.direction);
+        FETCH(is, simulcast_.line);
+        srs_warn("kSimulcastApiVersionSpecCompliant parse: %s %s", simulcast_.direction.c_str(), simulcast_.line.c_str());
+    } else if (attribute == "rid") {
+        // a=rid:0 send
+        // a=rid:1 send
+        // a=rid:2 send
+        SrsRidInfo rid;
+        std::istringstream is(value);
+        FETCH(is, rid.rid);
+        FETCH(is, rid.direction);
+        simulcast_.rids.push_back(rid);
     } else {
-        srs_trace("ignore attribute=%s, value=%s", attribute.c_str(), value.c_str());
+        srs_trace("ignore attribute='%s', value='%s'", attribute.c_str(), value.c_str());
     }
 
     return err;
@@ -390,7 +412,7 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         os << kCRLF;
     }
 
-    for(map<int, string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
+    for(map<int, string>::iterator it = extmaps_.data.begin(); it != extmaps_.data.end(); ++it) {
         os << "a=extmap:"<< it->first<< " "<< it->second<< kCRLF;
     }
     if (sendonly_) {
@@ -420,11 +442,19 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         }
     }
 
-    for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
-        SrsSSRCInfo& ssrc_info = *iter;
+    if (simulcast_spec_version()) {
+        srs_warn("kSimulcastApiVersionSpecCompliant %s %s", session_info_.simulcast_.direction.c_str(), session_info_.simulcast_.line.c_str());
+        // todo check simulcast kSimulcastApiVersionSpecCompliant
+        if ((err = session_info_.simulcast_.encode(os)) != srs_success) {
+            return srs_error_wrap(err, "encode simulcast failed");
+        }
+    } else {
+        for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
+            SrsSSRCInfo &ssrc_info = *iter;
 
-        if ((err = ssrc_info.encode(os)) != srs_success) {
-            return srs_error_wrap(err, "encode ssrc failed");
+            if ((err = ssrc_info.encode(os)) != srs_success) {
+                return srs_error_wrap(err, "encode ssrc failed");
+            }
         }
     }
 
@@ -503,12 +533,13 @@ srs_error_t SrsMediaDesc::parse_attr_extmap(const std::string& value)
     std::istringstream is(value);
     int id = 0;
     FETCH(is, id);
-    if(extmaps_.end() != extmaps_.find(id)) {
+    if(extmaps_.data.end() != extmaps_.data.find(id)) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "duplicate ext id: %d", id);
     }
     string ext;
     FETCH(is, ext);
-    extmaps_[id] = ext;
+    // note: check extmap get rid_ext_id, ridrtx_ext_id, mid_ext_id
+    extmaps_.parse_extmap(id, ext);
     return err;
 }
 
@@ -1175,5 +1206,211 @@ srs_error_t SrsSdp::update_msid(string id)
     }
 
     return err;
+}
+
+srs_error_t SrsSimulcastInfo::encode(ostringstream &os) {
+    srs_error_t err = srs_success;
+
+    // a=simulcast:send 0;1;2
+    // a=rid:0 send
+    // a=rid:1 send
+    // a=rid:2 send
+    // check direction he rids rid.direction is send
+    for (auto& rid: rids) {
+        os << "a=rid:" << rid.rid << " recv" << kCRLF;
+    }
+    os << "a=simulcast:recv " << line << kCRLF;
+
+    return err;
+}
+
+void SrsExtMapInfo::parse_extmap(int id, std::string ext) {
+    data[id] = ext;
+    parse_ext_id(id, ext);
+}
+
+void SrsExtMapInfo::parse_ext_id(int id, std::string ext) {
+    // a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level
+    // a=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time
+    // a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
+    // a=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid
+    // a=extmap:5 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id
+    // a=extmap:6 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id
+    //
+    // a=extmap:14 urn:ietf:params:rtp-hdrext:toffset
+    // a=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time
+    // a=extmap:13 urn:3gpp:video-orientation
+    // a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
+    // a=extmap:12 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay
+    // a=extmap:11 http://www.webrtc.org/experiments/rtp-hdrext/video-content-type
+    // a=extmap:7 http://www.webrtc.org/experiments/rtp-hdrext/video-timing
+    // a=extmap:8 http://www.webrtc.org/experiments/rtp-hdrext/color-space
+    // a=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid
+    // a=extmap:5 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id
+    // a=extmap:6 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id
+
+    for (size_t i=0; i<kExtMapFieldSize; ++i) {
+        if (ext == kExtMapFieldArray[i]) {
+            ext_id_list_[i] = id;
+        }
+    }
+}
+namespace {
+    typedef struct rtp_header
+    {
+#ifdef ARCH_IS_BIG_ENDIAN
+        uint16_t version:2;
+        uint16_t padding:1;
+        uint16_t extension:1;
+        uint16_t csrccount:4;
+        uint16_t markerbit:1;
+        uint16_t type:7;
+#else
+        uint16_t csrccount:4;
+        uint16_t extension:1;
+        uint16_t padding:1;
+        uint16_t version:2;
+        uint16_t type:7;
+        uint16_t markerbit:1;
+#endif
+        uint16_t seq_number;
+        uint32_t timestamp;
+        uint32_t ssrc;
+        uint32_t csrc[16];
+    } rtp_header;
+    typedef rtp_header janus_rtp_header;
+
+    typedef struct janus_rtp_header_extension {
+        uint16_t type;
+        uint16_t length;
+    } janus_rtp_header_extension;
+
+/* Static helper to quickly find the extension data */
+static int janus_rtp_header_extension_find(char *buf, int len, int id,
+                                           uint8_t *byte, uint32_t *word, char **ref) {
+    if(!buf || len < 12)
+        return -1;
+    janus_rtp_header *rtp = (janus_rtp_header *)buf;
+    if (rtp->version != 2) {
+        return -1;
+    }
+    int hlen = 12;
+    if(rtp->csrccount)	/* Skip CSRC if needed */
+        hlen += rtp->csrccount*4;
+    if(rtp->extension) {
+        janus_rtp_header_extension *ext = (janus_rtp_header_extension *)(buf+hlen);
+        int extlen = ntohs(ext->length)*4;
+        hlen += 4;
+        if(len > (hlen + extlen)) {
+            /* 1-Byte extension */
+            if(ntohs(ext->type) == 0xBEDE) {
+                const uint8_t padding = 0x00, reserved = 0xF;
+                uint8_t extid = 0, idlen;
+                int i = 0;
+                while(i < extlen) {
+                    extid = (uint8_t)buf[hlen+i] >> 4;
+                    if(extid == reserved) {
+                        break;
+                    } else if(extid == padding) {
+                        i++;
+                        continue;
+                    }
+                    idlen = ((uint8_t)buf[hlen+i] & 0xF)+1;
+                    if(extid == id) {
+                        /* Found! */
+                        if(byte)
+                            *byte = (uint8_t)buf[hlen+i+1];
+                        if(word && idlen >= 3 && (i+3) < extlen) {
+                            memcpy(word, buf+hlen+i, sizeof(uint32_t));
+                            *word = ntohl(*word);
+                        }
+                        if(ref)
+                            *ref = &buf[hlen+i];
+                        return 0;
+                    }
+                    i += 1 + idlen;
+                }
+            }
+            hlen += extlen;
+        }
+    }
+    return -1;
+}
+
+
+static int janus_rtp_header_extension_parse_rid(char *buf, int len, int id,
+                                             char *sdes_item, int sdes_len) {
+        char *ext = NULL;
+        if(janus_rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
+            return -1;
+        /* a=extmap:4 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id */
+        /* a=extmap:5 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id */
+        if(ext == NULL)
+            return -2;
+        int val_len = (*ext & 0x0F) + 1;
+        if(val_len > (sdes_len-1)) {
+            // JANUS_LOG(LOG_WARN, "SDES buffer is too small (%d < %d), RTP stream ID will be cut\n", val_len, sdes_len);
+            val_len = sdes_len-1;
+        }
+        if (val_len > len-(ext-buf)-1 ) {
+            return -3;
+        }
+        memcpy(sdes_item, ext+1, val_len);
+        *(sdes_item+val_len) = '\0';
+        return 0;
+    }
+
+
+static int janus_rtp_header_extension_parse_mid(char *buf, int len, int id,
+                                                char *sdes_item, int sdes_len) {
+    char *ext = NULL;
+    if(janus_rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
+        return -1;
+    /* a=extmap:3 urn:ietf:params:rtp-hdrext:sdes:mid */
+    if(ext == NULL)
+        return -2;
+    int val_len = (*ext & 0x0F) + 1;
+    if(val_len > (sdes_len-1)) {
+        // JANUS_LOG(LOG_WARN, "SDES buffer is too small (%d < %d), MID will be cut\n", val_len, sdes_len);
+        val_len = sdes_len-1;
+    }
+    if (val_len > len-(ext-buf)-1 ) {
+        return -3;
+    }
+    memcpy(sdes_item, ext+1, val_len);
+    *(sdes_item+val_len) = '\0';
+    return 0;
+}
+
+}
+
+SrsRidInfo* SrsExtMapInfo::parse_rid(char *buf, int len, SrsSimulcastInfo &simulcast) {
+    char sdes_item[16];
+    int ret;
+    std::string rid, ridrtx;
+    std::string mid;
+    if((ret = janus_rtp_header_extension_parse_rid(buf, len, rid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+        rid = sdes_item;
+    } else {
+        return nullptr;
+    }
+    if((ret = janus_rtp_header_extension_parse_rid(buf, len, ridrtx_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+        ridrtx = sdes_item;
+        srs_info("rid=%s, ridrtx_ext_id=%d, ridrtx=%s", rid.c_str(), ridrtx_ext_id(), ridrtx.c_str());
+    } else {
+        srs_warn("bad=%d rid=%s, ridrtx_ext_id=%d", ret, rid.c_str(), ridrtx_ext_id());
+    }
+    if((ret = janus_rtp_header_extension_parse_mid(buf, len, mid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+        mid = sdes_item;
+        srs_info("mid=%s", mid.c_str());
+    }
+    for (size_t i=0; i<simulcast.rids.size(); ++i) {
+        if (simulcast.rids[i].rid == rid) {
+            simulcast.rids[i].mid = mid;
+            simulcast.rids[i].rtx = ridrtx;
+            return &simulcast.rids[i];
+        }
+    }
+    return nullptr;
 }
 

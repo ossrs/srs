@@ -445,6 +445,7 @@ public:
     // ssrc is the primary ssrc for this track,
     // if sdp has ssrc-group, it is the first ssrc of the ssrc-group
     uint32_t ssrc_;
+    SrsRidInfo rid_;
     // rtx ssrc is the second ssrc of "FEC" src-group,
     // if no rtx ssrc, rtx_ssrc_ = 0.
     uint32_t fec_ssrc_;
@@ -486,6 +487,7 @@ public:
     void set_fec_ssrc(uint32_t ssrc);
     void set_mid(std::string mid);
     int get_rtp_extension_id(std::string uri);
+    int get_rtp_extension_id(ExtMapFieldEnum field);
 public:
     SrsRtcTrackDescription* copy();
 };
@@ -533,6 +535,8 @@ public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
 public:
+    bool active_as(const SrsRidInfo &rid_info);
+
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);
