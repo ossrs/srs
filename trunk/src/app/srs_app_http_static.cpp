@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_service_log.hpp>
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
@@ -202,15 +203,20 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
         return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
-    if ((err = http_hooks_on_play(req)) != srs_success) {
-        return srs_error_wrap(err, "HLS: http_hooks_on_play");
-    }
-
     if (ctx.empty()) {
         // make sure unique
         do {
             ctx = srs_random_str(8);  // the same as cid
         } while (ctx_is_exist(ctx));
+    }
+
+    SrsContextId cid = SrsContextId();
+    cid.set_value(ctx);
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(cid);
+
+    if ((err = http_hooks_on_play(req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
     std::stringstream ss;
@@ -339,6 +345,10 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
         SrsRequest* req = it->second.req;
         srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
         if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
+            SrsContextId cid = SrsContextId();
+            cid.set_value(ctx);
+            SrsContextRestore(_srs_context->get_id());
+            _srs_context->set_id(cid);
             http_hooks_on_stop(req);
             srs_freep(req);
 

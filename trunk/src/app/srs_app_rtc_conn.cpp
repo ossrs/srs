@@ -386,6 +386,9 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
         hooks = conf->args;
     }
 
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(cid);
+
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
         SrsHttpHooks::on_stop(url, req);
@@ -1030,6 +1033,9 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
 
         hooks = conf->args;
     }
+
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(cid);
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
