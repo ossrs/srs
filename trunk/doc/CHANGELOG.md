@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v4.0, 2021-10-03, Actions: Create source tar lik srs-server-5.0.14.tar.gz
 * v5.0, 2021-10-02, ST: Support Cygwin64 and MIPS. 5.0.13
 * v5.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 5.0.12
 * v5.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
@@ -25,6 +26,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-03, Actions: Create source tar lik srs-server-4.0.165.tar.gz
 * v4.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 4.0.163
 * v4.0, 2021-09-23, Merge [#2618](https://github.com/ossrs/srs/pull/2618) to fix FUA bug.
 * v4.0, 2021-09-05, RTC: Merge [#2581](https://github.com/ossrs/srs/pull/2581), Fix listen ipv6 and port. 4.0.161
