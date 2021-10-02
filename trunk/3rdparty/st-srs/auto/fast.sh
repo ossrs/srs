@@ -28,3 +28,13 @@ open coverage/st.html
 
 popd
 echo "UTest done, restore $(pwd)"
+
+cat << END > /dev/stdout
+
+  # CLI For DARWIN
+  cd $PWD && rm -f ./obj/*.gcda &&
+  make darwin-debug-gcov && ./obj/st_utest &&
+  mkdir -p coverage && gcovr -r . -e LINUX -e DARWIN -e examples --html --html-details -o coverage/st.html &&
+  open coverage/st.html
+
+END

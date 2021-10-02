@@ -1,5 +1,6 @@
 DARWIN_*_DBG
 LINUX_*_DBG
+CYGWIN64_*_DBG
 obj
 st.pc
 .idea
@@ -10,3 +11,4 @@ googletest-*
 *.gcno
 coverage
 codecov
+*.dSYM

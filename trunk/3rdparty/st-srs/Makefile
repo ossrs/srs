@@ -58,6 +58,17 @@ ECHO        = /bin/echo
 BUILD       = DBG
 TARGETDIR   = $(OS)_$(shell uname -r)_$(BUILD)
 
+# For Cygwin, it pass a default OS env, we ignore it.
+ifeq ($(OS), Windows_NT)
+OS =
+endif
+
+# For cygwin/windows, the 'uname -r' generate path with parentheses,
+# which cause the make fails, so we use 'uname -s' instead.
+ifeq ($(OS), CYGWIN64)
+TARGETDIR   = $(OS)_$(shell uname -s)_$(BUILD)
+endif
+
 DEFINES     = -D$(OS)
 CFLAGS      =
 SFLAGS      =
@@ -73,10 +84,12 @@ DESC        = st.pc
 # Possible targets:
 
 TARGETS     = darwin-debug darwin-optimized         \
-              linux-debug linux-optimized
+              linux-debug linux-optimized           \
+              cygwin64-debug
 
 UTEST_TARGETS = darwin-debug-utest linux-debug-utest \
-                darwin-debug-gcov linux-debug-gcov
+                darwin-debug-gcov linux-debug-gcov   \
+                cygwin64-debug-utest
 
 #
 # Platform specifics
@@ -91,7 +104,7 @@ CFLAGS      += -arch x86_64
 LDFLAGS     += -arch x86_64
 LDFLAGS     += -dynamiclib -install_name /sw/lib/libst.$(MAJOR).$(DSO_SUFFIX) -compatibility_version $(MAJOR) -current_version $(VERSION)
 OTHER_FLAGS = -Wall
-DEFINES     += -DMD_HAVE_KQUEUE
+DEFINES     += -DMD_HAVE_KQUEUE -DMD_HAVE_SELECT
 endif
 
 ifeq ($(OS), LINUX)
@@ -99,7 +112,16 @@ EXTRA_OBJS  = $(TARGETDIR)/md_linux.o
 SFLAGS      = -fPIC
 LDFLAGS     = -shared -soname=$(SONAME) -lc
 OTHER_FLAGS = -Wall
-DEFINES     += -DMD_HAVE_EPOLL
+DEFINES     += -DMD_HAVE_EPOLL -DMD_HAVE_SELECT
+endif
+
+ifeq ($(OS), CYGWIN64)
+EXTRA_OBJS  = $(TARGETDIR)/md_cygwin64.o
+SFLAGS      = -fPIC
+DSO_SUFFIX  = dll
+LDFLAGS     = -shared -soname=$(SONAME) -lc
+OTHER_FLAGS = -Wall
+DEFINES     += -DMD_HAVE_SELECT
 endif
 
 #
@@ -158,6 +180,10 @@ endif
 # or to disable default epoll(4) support:
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
+#
+# or to enable sendmmsg(2) support:
+#
+# make EXTRA_CFLAGS="-DMD_HAVE_SENDMMSG -D_GNU_SOURCE"
 #
 # or to enable stats for ST:
 #
@@ -245,6 +271,9 @@ $(TARGETDIR)/md_linux.o: md_linux.S
 $(TARGETDIR)/md_darwin.o: md_darwin.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(TARGETDIR)/md_cygwin64.o: md_cygwin64.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
 $(TARGETDIR)/%.o: %.c common.h md.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -277,6 +306,9 @@ linux-debug:
 linux-optimized:
 	$(MAKE) OS="LINUX" BUILD="OPT"
 
+cygwin64-debug:
+	$(MAKE) OS="CYGWIN64" BUILD="DBG"
+
 darwin-debug-utest:
 	@echo "Build utest for state-threads"
 	$(MAKE) OS="DARWIN" BUILD="DBG"
@@ -285,6 +317,10 @@ linux-debug-utest:
 	@echo "Build utest for state-threads"
 	$(MAKE) OS="LINUX" BUILD="DBG"
 	cd utest && $(MAKE)
+cygwin64-debug-utest:
+	@echo "Build utest for state-threads"
+	$(MAKE) OS="CYGWIN64" BUILD="DBG"
+	cd utest && $(MAKE) UTEST_FLAGS="-std=gnu++0x" # @see https://www.codenong.com/18784112/
 
 darwin-debug-gcov:
 	@echo "Build utest with gcov for state-threads"

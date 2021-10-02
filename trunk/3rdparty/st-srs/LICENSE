@@ -1,0 +1,30 @@
+The state-threads is provided under the terms of the MPL-1.1 or the
+GPL-2.0-or-later. For more information about these licenses, please see
+https://spdx.org/licenses/MPL-1.1.html and
+https://spdx.org/licenses/GPL-2.0-or-later.html
+
+Individual files contain the following tag instead of the full license text.
+
+	SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later
+
+All source code in the "tools", "utest" and "porting" directory is
+distributed under the MIT style license.
+
+    SPDX-License-Identifier: MIT
+
+This enables machine processing of license information based on the SPDX
+License Identifiers that are here available: http://spdx.org/licenses/
+
+---------------------------------------------------------------------------
+Note: https://github.com/ossrs/state-threads/blob/srs/README#L68
+
+The State Threads library is a derivative of the Netscape Portable
+Runtime library (NSPR).  All source code in this directory is
+distributed under the terms of the Mozilla Public License (MPL) version
+1.1 or the GNU General Public License (GPL) version 2 or later.  For
+more information about these licenses please see
+http://www.mozilla.org/MPL/ and http://www.gnu.org/copyleft/.
+
+All source code in the "examples" directory is distributed under the BSD
+style license.
+

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later */
 
 /* If user disable the ASM, such as avoiding bugs in ASM, donot compile it. */
 #if !defined(MD_ST_NO_ASM)
@@ -342,6 +343,86 @@
     	movs	r0, r1		/* get the return value in place */
     	moveq	r0, #1		/* can't let setjmp() return zero! */
     	bx	lr
+
+    	.size _st_md_cxt_restore, .-_st_md_cxt_restore
+
+    /****************************************************************/
+
+
+
+
+
+
+
+
+
+
+#elif defined(__mips__)
+
+    /****************************************************************/
+
+    /*
+     * Internal __jmp_buf layout
+     */
+    #define JB_SP  0    /* Stack pointer */
+    #define JB_RA  11   /* Return address */
+    #define JB_GP  1    /* Global pointer */
+    #define JB_S0  3    /* S0-S7, Saved temporaries */
+    #define JB_S1  4    /* S0-S7, Saved temporaries */
+    #define JB_S2  5    /* S0-S7, Saved temporaries */
+    #define JB_S3  6    /* S0-S7, Saved temporaries */
+    #define JB_S4  7    /* S0-S7, Saved temporaries */
+    #define JB_S5  8    /* S0-S7, Saved temporaries */
+    #define JB_S6  9    /* S0-S7, Saved temporaries */
+    #define JB_S7  10   /* S0-S7, Saved temporaries */
+    #define JB_FP  2    /* FP/S8 Frame pointer */
+
+    	.file "md_linux.S"
+    	.text
+
+    	/* _st_md_cxt_save(__jmp_buf env) */ /* The env is $a0, https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions */
+    	.globl _st_md_cxt_save
+    	.type _st_md_cxt_save, %function
+    	.align 2
+    _st_md_cxt_save:
+        sw $sp, 0($a0)  /* Save sp to env[0],  *(long*)($a0+0) =sp */
+        sw $ra, 4($a0)  /* Save ra to env[1],  *(long*)($a0+4)=ra, the return address, https://chortle.ccsu.edu/AssemblyTutorial/Chapter-26/ass26_4.html */
+        sw $gp, 8($a0)  /* Save gp to env[2],  *(long*)($a0+8) =gp */
+        sw $s0, 12($a0) /* Save s0 to env[3],  *(long*)($a0+12)=s0 */
+        sw $s1, 16($a0) /* Save s1 to env[4],  *(long*)($a0+16)=s1 */
+        sw $s2, 20($a0) /* Save s2 to env[5],  *(long*)($a0+20)=s2 */
+        sw $s3, 24($a0) /* Save s3 to env[6],  *(long*)($a0+24)=s3 */
+        sw $s4, 28($a0) /* Save s4 to env[7],  *(long*)($a0+28)=s4 */
+        sw $s5, 32($a0) /* Save s5 to env[8],  *(long*)($a0+32)=s5 */
+        sw $s6, 36($a0) /* Save s6 to env[9],  *(long*)($a0+36)=s6 */
+        sw $s7, 40($a0) /* Save s7 to env[10], *(long*)($a0+40)=s7 */
+        sw $fp, 44($a0) /* Save fp to env[11], *(long*)($a0+44) =fp */
+        li $v0, 0       /* Set return value to 0 */
+        jr $ra          /* Return */
+
+    	.size _st_md_cxt_save, .-_st_md_cxt_save
+
+    /****************************************************************/
+
+    	/* _st_md_cxt_restore(__jmp_buf env, int val) */
+    	.globl _st_md_cxt_restore
+    	.type _st_md_cxt_restore, %function
+    	.align 2
+    _st_md_cxt_restore:
+        lw $sp, 0($a0)  /* Load sp from env[0],  sp=*(long*)($a0+0)  */
+        lw $ra, 4($a0)  /* Load sp from env[1],  ra=*(long*)($a0+4), the saved return address */
+        lw $gp, 8($a0)  /* Load sp from env[2],  gp=*(long*)($a0+8)  */
+        lw $s0, 12($a0) /* Load sp from env[3],  s0=*(long*)($a0+12) */
+        lw $s1, 16($a0) /* Load sp from env[4],  s1=*(long*)($a0+16) */
+        lw $s2, 20($a0) /* Load sp from env[5],  s2=*(long*)($a0+20) */
+        lw $s3, 24($a0) /* Load sp from env[6],  s3=*(long*)($a0+24) */
+        lw $s4, 28($a0) /* Load sp from env[7],  s4=*(long*)($a0+28) */
+        lw $s5, 32($a0) /* Load sp from env[8],  s5=*(long*)($a0+32) */
+        lw $s6, 36($a0) /* Load sp from env[9],  s6=*(long*)($a0+36) */
+        lw $s7, 40($a0) /* Load sp from env[10], s7=*(long*)($a0+40) */
+        lw $fp, 44($a0) /* Load sp from env[2],  fp=*(long*)($a0+44)  */
+        li $v0, 1       /* Set return value to 1 */
+        jr $ra          /* Return to the saved return address */
 
     	.size _st_md_cxt_restore, .-_st_md_cxt_restore
 
