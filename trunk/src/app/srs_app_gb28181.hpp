@@ -161,7 +161,6 @@ public:
     virtual srs_error_t on_tcp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 public:
     virtual srs_error_t on_rtp_packet_jitter(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
-    virtual srs_error_t on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
 };
 
 
@@ -373,7 +372,6 @@ public:
     int rtp_mux_port;
 	bool rtp_mux_tcp_enable;
     bool auto_create_channel;
-    bool jitterbuffer_enable;
 
     //sip config
     int  sip_port;
