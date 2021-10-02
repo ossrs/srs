@@ -16,6 +16,18 @@ jobs:
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0.145
+      #   SRS_TAG=v4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
 
       ################################################################
       # Tests
@@ -30,18 +42,6 @@ jobs:
 
       ################################################################
       # Build
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
-      # Generate variables like:
-      #   SRS_TAG=v4.0.145
-      #   SRS_TAG=v4.0-r8
-      #   SRS_MAJOR=4
-      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
-      - name: Generate varaiables
-        run: |
-          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
-          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
-          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
-          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
       # Build SRS image
       - name: Build SRS docker image
         run: |
@@ -87,3 +87,35 @@ jobs:
         run: |-
           kubectl set image deploy/srs4-deploy srs4=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           kubectl describe deploy/srs4-deploy
+
+      ################################################################
+      # Create source tar for release
+      - name: Create source tar.gz
+        run: |
+          DEST_DIR=srs-$(echo ${SRS_TAG}|sed 's/^v//g') && mkdir -p $DEST_DIR &&
+          cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
+          (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
+          echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
+          tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} &&
+          du -sh ${DEST_DIR}*
+      # Create release.
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: true
+      # Upload release files
+      - name: Upload Release Assets
+        id: upload-release-assets
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}
+          assets_path: ${{ env.SRS_SOURCE_TAR }}
+
