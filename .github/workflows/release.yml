@@ -29,9 +29,11 @@ jobs:
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
       # Create source tar for release
+      # Generate variables like:
+      #   SRS_SOURCE_TAR=srs-server-4.0.145.tar.gz
       - name: Create source tar.gz
         run: |
-          DEST_DIR=srs-$(echo ${SRS_TAG}| sed 's/^v//g') && mkdir -p $DEST_DIR &&
+          DEST_DIR=srs-server-$(echo ${SRS_TAG}| sed 's/^v//g') && mkdir -p $DEST_DIR &&
           cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
           (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
           echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
