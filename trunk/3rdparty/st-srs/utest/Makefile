@@ -28,7 +28,7 @@ GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_DIR)/include/gt
 # compiles fast and for ordinary users its source rarely changes.
 $(ST_DIR)/obj/gtest-all.o : $(GTEST_SRCS_)
 	$(CXX) -c $(GTEST_DIR)/src/gtest-all.cc -o $@ \
-        $(CXXFLAGS) \
+        $(CXXFLAGS) $(UTEST_FLAGS) \
         $(WARNFLAGS) \
         -I$(GTEST_DIR)/include -I$(GTEST_DIR)
 
