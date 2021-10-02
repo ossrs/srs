@@ -4,7 +4,7 @@ name: "Release"
 on:
   push:
     tags:
-      - v4*
+      - v5*
 
 jobs:
   k8s:
