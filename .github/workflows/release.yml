@@ -28,7 +28,8 @@ jobs:
           echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
-      # Create source tar for release
+      # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
+      # srs-server-xxx.tar.gz, because the package is named srs-server.
       # Generate variables like:
       #   SRS_SOURCE_TAR=srs-server-4.0.145.tar.gz
       - name: Create source tar.gz
