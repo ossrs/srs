@@ -680,7 +680,7 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     fi
     # For cross-build.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --target-os=linux"
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --target-os=linux --disable-pthreads"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=$SRS_CROSS_BUILD_ARCH";
         if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cpu=$SRS_CROSS_BUILD_CPU"; fi
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$SRS_CROSS_BUILD_PREFIX"
@@ -715,7 +715,24 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
             if [[ $SRS_CROSS_BUILD == YES ]]; then
               sed -i -e 's/#define getenv(x) NULL/\/\*#define getenv(x) NULL\*\//g' config.h &&
               sed -i -e 's/#define HAVE_GMTIME_R 0/#define HAVE_GMTIME_R 1/g' config.h &&
-              sed -i -e 's/#define HAVE_LOCALTIME_R 0/#define HAVE_LOCALTIME_R 1/g' config.h
+              sed -i -e 's/#define HAVE_LOCALTIME_R 0/#define HAVE_LOCALTIME_R 1/g' config.h &&
+              # For MIPS, which fail with:
+              #     ./libavutil/libm.h:54:32: error: static declaration of 'cbrt' follows non-static declaration
+              #     /root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-8.4.0_musl/include/math.h:163:13: note: previous declaration of 'cbrt' was here
+              if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" ]]; then
+                sed -i -e 's/#define HAVE_CBRT 0/#define HAVE_CBRT 1/g' config.h &&
+                sed -i -e 's/#define HAVE_CBRTF 0/#define HAVE_CBRTF 1/g' config.h &&
+                sed -i -e 's/#define HAVE_COPYSIGN 0/#define HAVE_COPYSIGN 1/g' config.h &&
+                sed -i -e 's/#define HAVE_ERF 0/#define HAVE_ERF 1/g' config.h &&
+                sed -i -e 's/#define HAVE_HYPOT 0/#define HAVE_HYPOT 1/g' config.h &&
+                sed -i -e 's/#define HAVE_RINT 0/#define HAVE_RINT 1/g' config.h &&
+                sed -i -e 's/#define HAVE_LRINT 0/#define HAVE_LRINT 1/g' config.h &&
+                sed -i -e 's/#define HAVE_LRINTF 0/#define HAVE_LRINTF 1/g' config.h &&
+                sed -i -e 's/#define HAVE_ROUND 0/#define HAVE_ROUND 1/g' config.h &&
+                sed -i -e 's/#define HAVE_ROUNDF 0/#define HAVE_ROUNDF 1/g' config.h &&
+                sed -i -e 's/#define HAVE_TRUNC 0/#define HAVE_TRUNC 1/g' config.h &&
+                sed -i -e 's/#define HAVE_TRUNCF 0/#define HAVE_TRUNCF 1/g' config.h
+              fi
             fi &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf ffmpeg && ln -sf ffmpeg-4-fit/_release ffmpeg
