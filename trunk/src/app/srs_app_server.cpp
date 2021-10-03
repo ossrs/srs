@@ -744,12 +744,22 @@ srs_error_t SrsServer::initialize_signal()
 
 srs_error_t SrsServer::acquire_pid_file()
 {
+    srs_error_t err = srs_success;
+
     // when srs in dolphin mode, no need the pid file.
     if (_srs_config->is_dolphin()) {
         return srs_success;
     }
     
     std::string pid_file = _srs_config->get_pid_file();
+
+    // Try to create dir for pid file.
+    string pid_dir = srs_path_dirname(pid_file);
+    if (!srs_path_exists(pid_dir)) {
+        if ((err = srs_create_dir_recursively(pid_dir)) != srs_success) {
+            return srs_error_wrap(err, "create %s", pid_dir.c_str());
+        }
+    }
     
     // -rw-r--r--
     // 644
