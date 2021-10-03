@@ -420,7 +420,6 @@ function apply_auto_options() {
         if [[ $SRS_CROSS_BUILD_ARCH == "" ]]; then
             echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="arm"
             echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="aarch64"
-            echo $SRS_TOOL_CC| grep mipsel >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="mipsel"
         fi
         echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, arch: $SRS_CROSS_BUILD_ARCH, cpu: $SRS_CROSS_BUILD_CPU gcc: $SRS_TOOL_CC"
     fi
