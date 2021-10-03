@@ -77,9 +77,10 @@ SRS_GPROF=NO # Performance test: gprof
 SRS_X86_X64=NO # For x86_64 servers
 SRS_OSX=NO #For osx/macOS PC.
 SRS_CROSS_BUILD=NO #For cross build, for example, on Ubuntu.
-# For cross build, whether armv7 or armv8(aarch64).
-SRS_CROSS_BUILD_ARMV7=NO
-SRS_CROSS_BUILD_AARCH64=NO
+# For cross build, the cpu, for example(FFmpeg), --cpu=24kc
+SRS_CROSS_BUILD_CPU=
+# For cross build, the arch, for example(FFmpeg), --arch=aarch64
+SRS_CROSS_BUILD_ARCH=
 # For cross build, the host, for example(libsrtp), --host=aarch64-linux-gnu
 SRS_CROSS_BUILD_HOST=
 # For cross build, the cross prefix, for example(FFmpeg), --cross-prefix=aarch64-linux-gnu-
@@ -109,7 +110,7 @@ function show_help() {
 
 Presets:
   --x86-64, --x86-x64       For x86/x64 cpu, common pc and servers. Default: $(value2switch $SRS_X86_X64)
-  --cross-build             Enable cross-build for ARM, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
+  --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
   --osx                     Enable build for OSX/Darwin AppleOS. Default: $(value2switch $SRS_OSX)
 
 Features:
@@ -148,6 +149,10 @@ Performance:                @see https://blog.csdn.net/win_lin/article/details/5
 
 Toolchain options:          @see https://github.com/ossrs/srs/wiki/v4_CN_SrsLinuxArm#ubuntu-cross-build-srs
   --static=on|off           Whether add '-static' to link options. Default: $(value2switch $SRS_STATIC)
+  --cpu=<CPU>               Toolchain: Select the minimum required CPU for cross-build.
+  --arch=<ARCH>             Toolchain: Select architecture for cross-build.
+  --host=<BUILD>            Toolchain: Cross-compile to build programs to run on HOST.
+  --cross-prefix=<PREFIX>   Toolchain: Use PREFIX for compilation tools.
   --cc=<CC>                 Toolchain: Use c compiler CC. Default: $SRS_TOOL_CC
   --cxx=<CXX>               Toolchain: Use c++ compiler CXX. Default: $SRS_TOOL_CXX
   --ar=<AR>                 Toolchain: Use archive tool AR. Default: $SRS_TOOL_CXX
@@ -217,6 +222,10 @@ function parse_user_option() {
         --prefix)                       SRS_PREFIX=${value}         ;;
 
         --static)                       SRS_STATIC=$(switch2value $value) ;;
+        --cpu)                          SRS_CROSS_BUILD_CPU=${value} ;;
+        --arch)                         SRS_CROSS_BUILD_ARCH=${value} ;;
+        --host)                         SRS_CROSS_BUILD_HOST=${value} ;;
+        --cross-prefix)                 SRS_CROSS_BUILD_PREFIX=${value} ;;
         --cc)                           SRS_TOOL_CC=${value}        ;;
         --cxx)                          SRS_TOOL_CXX=${value}       ;;
         --ar)                           SRS_TOOL_AR=${value}        ;;
@@ -327,6 +336,7 @@ function parse_user_option() {
 
         # Alias for --arm, cross build.
         --cross-build)                  SRS_CROSS_BUILD=YES         ;;
+        --enable-cross-compile)         SRS_CROSS_BUILD=YES         ;;
 
         # Deprecated, might be removed in future.
         --with-nginx)                   SRS_NGINX=YES               ;;
@@ -391,11 +401,26 @@ function apply_auto_options() {
     fi
 
     if [[ $SRS_CROSS_BUILD == YES ]]; then
-      SRS_CROSS_BUILD_HOST=$(echo $SRS_TOOL_CC|awk -F '-gcc' '{print $1}')
-      SRS_CROSS_BUILD_PREFIX="${SRS_CROSS_BUILD_HOST}-"
-      echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARMV7=YES
-      echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_AARCH64=YES
-      echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, armv7: $SRS_CROSS_BUILD_ARMV7, aarch64: $SRS_CROSS_BUILD_AARCH64"
+        if [[ $SRS_CROSS_BUILD_PREFIX != "" && $SRS_CROSS_BUILD_HOST == "" ]]; then
+            SRS_CROSS_BUILD_HOST=$(echo $SRS_CROSS_BUILD_PREFIX| sed 's/-$//g')
+        fi
+        if [[ $SRS_TOOL_CC != "" && $SRS_CROSS_BUILD_HOST == "" ]]; then
+            SRS_CROSS_BUILD_HOST=$(echo $SRS_TOOL_CC| sed 's/-gcc$//g')
+        fi
+        if [[ $SRS_CROSS_BUILD_PREFIX == "" ]]; then
+            SRS_CROSS_BUILD_PREFIX="${SRS_CROSS_BUILD_HOST}-"
+        fi
+        SRS_TOOL_CC=${SRS_CROSS_BUILD_PREFIX}gcc
+        SRS_TOOL_CXX=${SRS_CROSS_BUILD_PREFIX}g++
+        SRS_TOOL_AR=${SRS_CROSS_BUILD_PREFIX}ar
+        SRS_TOOL_LD=${SRS_CROSS_BUILD_PREFIX}ld
+        SRS_TOOL_RANDLIB=${SRS_CROSS_BUILD_PREFIX}randlib
+        if [[ $SRS_CROSS_BUILD_ARCH == "" ]]; then
+            echo $SRS_TOOL_CC| grep arm >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="arm"
+            echo $SRS_TOOL_CC| grep aarch64 >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="aarch64"
+            echo $SRS_TOOL_CC| grep mipsel >/dev/null 2>&1 && SRS_CROSS_BUILD_ARCH="mipsel"
+        fi
+        echo "For cross build, host: $SRS_CROSS_BUILD_HOST, prefix: $SRS_CROSS_BUILD_PREFIX, arch: $SRS_CROSS_BUILD_ARCH, cpu: $SRS_CROSS_BUILD_CPU gcc: $SRS_TOOL_CC"
     fi
 
     if [[ $SRS_OSX == YES ]]; then
@@ -511,6 +536,10 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug=$(value2switch $SRS_DEBUG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --debug-stats=$(value2switch $SRS_DEBUG_STATS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cross-build=$(value2switch $SRS_CROSS_BUILD)"
+    if [[ $SRS_CROSS_BUILD_ARCH != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --arch=$SRS_CROSS_BUILD_ARCH"; fi
+    if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cpu=$SRS_CROSS_BUILD_CPU"; fi
+    if [[ $SRS_CROSS_BUILD_HOST != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --host=$SRS_CROSS_BUILD_HOST"; fi
+    if [[ $SRS_CROSS_BUILD_PREFIX != "" ]]; then SRS_AUTO_CONFIGURE="$SRS_AUTO_CONFIGURE --cross-prefix=$SRS_CROSS_BUILD_PREFIX"; fi
     if [[ $SRS_EXTRA_FLAGS != '' ]]; then   SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --extra-flags=\\\"$SRS_EXTRA_FLAGS\\\""; fi
     if [[ $SRS_BUILD_TAG != '' ]]; then     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --build-tag=\\\"$SRS_BUILD_TAG\\\""; fi
     if [[ $SRS_TOOL_CC != '' ]]; then       SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cc=$SRS_TOOL_CC"; fi
