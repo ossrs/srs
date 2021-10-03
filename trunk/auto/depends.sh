@@ -598,36 +598,38 @@ fi
 #####################################################################################
 # srtp
 #####################################################################################
-SRTP_OPTIONS=""
-# If use ASM for SRTP, we enable openssl(with ASM).
-if [[ $SRS_SRTP_ASM == YES ]]; then
-    SRTP_OPTIONS="--enable-openssl"
-    SRTP_CONFIGURE="env PKG_CONFIG_PATH=$(cd ${SRS_OBJS}/${SRS_PLATFORM} && pwd)/openssl/lib/pkgconfig ./configure"
-else
-    SRTP_CONFIGURE="./configure"
+if [[ $SRS_RTC == YES ]]; then
+    SRTP_OPTIONS=""
+    # If use ASM for SRTP, we enable openssl(with ASM).
+    if [[ $SRS_SRTP_ASM == YES ]]; then
+        SRTP_OPTIONS="--enable-openssl"
+        SRTP_CONFIGURE="env PKG_CONFIG_PATH=$(cd ${SRS_OBJS}/${SRS_PLATFORM} && pwd)/openssl/lib/pkgconfig ./configure"
+    else
+        SRTP_CONFIGURE="./configure"
+    fi
+    if [[ $SRS_CROSS_BUILD == YES ]]; then
+        SRTP_OPTIONS="$SRTP_OPTIONS --host=$SRS_CROSS_BUILD_HOST"
+    fi
+    # Patched ST from https://github.com/ossrs/state-threads/tree/srs
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
+        echo "The libsrtp-2-fit is ok.";
+    else
+        echo "Building libsrtp-2-fit.";
+        (
+            rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
+            $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+            make ${SRS_JOBS} && make install &&
+            cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libsrtp-2-fit failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2)
+    (cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2-fit/_release srtp2)
+    if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit static lib failed."; exit -1; fi
 fi
-if [[ $SRS_CROSS_BUILD == YES ]]; then
-    SRTP_OPTIONS="$SRTP_OPTIONS --host=$SRS_CROSS_BUILD_HOST"
-fi
-# Patched ST from https://github.com/ossrs/state-threads/tree/srs
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
-    echo "The libsrtp-2-fit is ok.";
-else
-    echo "Building libsrtp-2-fit.";
-    (
-        rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-        rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
-        $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
-        make ${SRS_JOBS} && make install &&
-        cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
-    )
-fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libsrtp-2-fit failed, ret=$ret"; exit $ret; fi
-# Always update the links.
-(cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2)
-(cd ${SRS_OBJS} && rm -rf srtp2 && ln -sf ${SRS_PLATFORM}/libsrtp-2-fit/_release srtp2)
-if [ ! -f ${SRS_OBJS}/srtp2/lib/libsrtp2.a ]; then echo "Build libsrtp-2-fit static lib failed."; exit -1; fi
 
 #####################################################################################
 # libopus, for WebRTC to transcode AAC with Opus.

@@ -89,8 +89,9 @@ _st_stack_t *_st_stack_new(int stack_size)
     ts->stk_size = stack_size;
     ts->stk_bottom = ts->vaddr + REDZONE;
     ts->stk_top = ts->stk_bottom + stack_size;
-    
-#ifdef DEBUG
+
+    /* For example, in OpenWRT, the memory at the begin minus 16B by mprotect is read-only. */
+#if defined(DEBUG) && !defined(MD_NO_PROTECT)
     mprotect(ts->vaddr, REDZONE, PROT_NONE);
     mprotect(ts->stk_top + extra, REDZONE, PROT_NONE);
 #endif
