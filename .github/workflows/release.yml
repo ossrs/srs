@@ -32,12 +32,14 @@ jobs:
       # srs-server-xxx.tar.gz, because the package is named srs-server.
       # Generate variables like:
       #   SRS_SOURCE_TAR=srs-server-4.0.145.tar.gz
+      #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
       - name: Create source tar.gz
         run: |
           DEST_DIR=srs-server-$(echo ${SRS_TAG}| sed 's/^v//g') && mkdir -p $DEST_DIR &&
           cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
           (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
           echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
+          echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV &&
           tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} && du -sh ${DEST_DIR}* && rm -rf ${DEST_DIR}
 
       ################################################################
@@ -109,6 +111,9 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
+          body: |
+            ${{ github.event.head_commit.message }}
+            ${{ env.SRS_SOURCE_MD5 }} ${{ env.SRS_SOURCE_TAR }}
           draft: false
           prerelease: true
       # Upload release files
