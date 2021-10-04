@@ -181,146 +181,12 @@ void SrsGb28181PsRtpProcessor::clear_pre_packet()
 
 srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
-    if (config->jitterbuffer_enable){
-        return on_rtp_packet_jitter(from, fromlen, buf, nb_buf);
-    }else{
-        return on_rtp_packet(from, fromlen, buf, nb_buf);
-    }
+    return on_rtp_packet_jitter(from, fromlen, buf, nb_buf);
 }
+
 srs_error_t SrsGb28181PsRtpProcessor::on_tcp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     on_udp_packet(from, fromlen, buf, nb_buf);
-}
-
-
-srs_error_t SrsGb28181PsRtpProcessor::on_rtp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
-{
-    srs_error_t err = srs_success;
-    bool completed = false;
-    
-    pprint->elapse();
-    
-    char address_string[64];
-    char port_string[16];
-    if (getnameinfo(from, fromlen, 
-                (char*)&address_string, sizeof(address_string),
-                (char*)&port_string, sizeof(port_string),
-                NI_NUMERICHOST|NI_NUMERICSERV)){
-        // return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
-        srs_warn("gb28181 ps rtp: bad address");
-        return srs_success;
-    }
-    
-    int peer_port = atoi(port_string);
-
-    if (true) {
-        SrsBuffer stream(buf, nb_buf);
-        SrsPsRtpPacket pkt;
-        
-        if ((err = pkt.decode(&stream)) != srs_success) {
-            // return srs_error_wrap(err, "ps rtp decode error");
-            srs_warn("gb28181 ps rtp: decode error");
-            srs_freep(err);
-            return srs_success;
-        }
-
-        //TODO: fixme: the same device uses the same SSRC to send with different local ports
-        std::stringstream ss;
-        ss << pkt.ssrc << ":" << pkt.timestamp << ":" << port_string;
-        std::string pkt_key = ss.str();
-      
-        std::stringstream ss2;
-        ss2 << pkt.ssrc << ":" << port_string;
-        std::string pre_pkt_key = ss2.str();
-
-        if (pre_packet.find(pre_pkt_key) == pre_packet.end()){
-            pre_packet[pre_pkt_key] = new SrsPsRtpPacket();
-            pre_packet[pre_pkt_key]->copy(&pkt);
-        }
-        //cache pkt by ssrc and timestamp
-        if (cache_ps_rtp_packet.find(pkt_key) == cache_ps_rtp_packet.end()) {
-           cache_ps_rtp_packet[pkt_key] =  new SrsPsRtpPacket();
-        }
-        
-        //get previous timestamp by ssrc
-        uint32_t pre_timestamp = pre_packet[pre_pkt_key]->timestamp;
-        uint32_t pre_sequence_number = pre_packet[pre_pkt_key]->sequence_number;
-
-        //TODO:  check sequence number out of order
-        //it may be out of order, or multiple streaming ssrc are the same
-        if (((pre_sequence_number + 1) % 65536) != pkt.sequence_number && 
-            pre_sequence_number != pkt.sequence_number){
-            srs_warn("gb28181: ps sequence_number out of order, ssrc=%#x, pre=%u, cur=%u, peer(%s, %s)",
-              pkt.ssrc, pre_sequence_number, pkt.sequence_number, address_string, port_string);
-            //return err;
-        }
-
-        //copy header to cache
-        cache_ps_rtp_packet[pkt_key]->copy(&pkt);
-        //accumulate one frame of data, to payload cache
-        cache_ps_rtp_packet[pkt_key]->payload->append(pkt.payload);
-
-        //detect whether it is a completed frame
-        if (pkt.marker) {// rtp maker is true, is a completed frame
-            completed = true;
-        }else if (pre_timestamp != pkt.timestamp){ 
-            //current timestamp is different from previous timestamp
-            //previous timestamp, is a completed frame
-            std::stringstream ss;
-            ss << pkt.ssrc << ":" << pre_timestamp << ":" << port_string;
-            pkt_key = ss.str();
-            if (cache_ps_rtp_packet.find(pkt_key) != cache_ps_rtp_packet.end()) {
-                completed = true;
-            }
-        }
-
-        if (pprint->can_print()) {
-            srs_trace("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, peer(%s, %d) ps rtp packet %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB",
-                        channel_id.c_str(),  address_string, peer_port, nb_buf, pprint->age(), pkt.version, 
-                        pkt.payload_type, pkt.sequence_number, pkt.timestamp, pkt.ssrc,
-                        pkt.payload->length()
-                        );
-        }
-
-        //current packet becomes previous packet
-        srs_freep(pre_packet[pre_pkt_key]);
-        pre_packet[pre_pkt_key] = new SrsPsRtpPacket();
-        pre_packet[pre_pkt_key]->copy(&pkt);;
-
-        if (!completed){
-            return err;
-        }
-        //process completed frame data
-        //clear processed one ps frame
-        //on completed frame data rtp packet in muxer enqueue
-        map<std::string, SrsPsRtpPacket*>::iterator key = cache_ps_rtp_packet.find(pkt_key);
-        if(key != cache_ps_rtp_packet.end())
-        {
-            SrsGb28181RtmpMuxer* muxer = NULL;
-            muxer = fetch_rtmpmuxer(channel_id,pkt.ssrc);       
-          
-            if (muxer){
-                //TODO: fixme: the same device uses the same SSRC to send with different local ports
-                //record the first peer port
-                muxer->set_channel_peer_port(peer_port);
-                muxer->set_channel_peer_ip(address_string);
-                //not the first peer port's non processing
-                if (muxer->channel_peer_port() != peer_port){
-                    srs_warn("<- " SRS_CONSTS_LOG_GB28181_CASTER " gb28181: client_id %s, ssrc=%#x, first peer_port=%d cur peer_port=%d",
-                        muxer->get_channel_id().c_str(), pkt.ssrc, muxer->channel_peer_port(), peer_port);
-                    srs_freep(key->second);
-                }else {
-                    //put it in queue, wait for consumer to process, and then free
-                    muxer->ps_packet_enqueue(key->second);
-                }
-            }else{
-                //no consumer process it, discarded
-                srs_freep(key->second);
-            }
-            cache_ps_rtp_packet.erase(pkt_key);
-        }
-    }
-    return err;
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc)
@@ -889,7 +755,6 @@ SrsGb28181Config::SrsGb28181Config(SrsConfDirective* c)
     wait_keyframe = _srs_config->get_stream_caster_gb28181_wait_keyframe(c);
     audio_enable = _srs_config->get_stream_caster_gb28181_audio_enable(c);
     auto_create_channel = _srs_config->get_stream_caster_gb28181_auto_create_channel(c);
-    jitterbuffer_enable = _srs_config->get_stream_caster_gb28181_jitterbuffer_enable(c);
 
     //sip config
     sip_enable = _srs_config->get_stream_caster_gb28181_sip_enable(c);
@@ -1160,7 +1025,7 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
 
         SrsGb28181Config config = gb28181_manger->get_gb28181_config();
 
-        if (config.jitterbuffer_enable){
+        if (true) {
             if(jitter_buffer->FoundFrame(cur_timestamp)){
                 jitter_buffer->GetFrame(&ps_buffer, ps_buflen, buffer_size, keyframe, cur_timestamp);
             
@@ -1181,21 +1046,6 @@ srs_error_t SrsGb28181RtmpMuxer::do_cycle()
                         srs_freep(err);
                     };
                 }
-            }
-        }else {
-            //demix ps to h264/aac, to rtmp
-            while(!ps_queue.empty()){
-                SrsPsRtpPacket* pkt =  ps_queue.front();
-                if (pkt){ 
-                    if ((err = ps_demixer->on_ps_stream(pkt->payload->bytes(),
-                        pkt->payload->length(), pkt->timestamp, pkt->ssrc)) != srs_success){
-                        srs_warn("gb28181: demix ps stream error:%s",  srs_error_desc(err).c_str());
-                        srs_freep(err);
-                    };
-                }
-                ps_queue.pop();
-                //must be free pkt
-                srs_freep(pkt);
             }
         }
 
