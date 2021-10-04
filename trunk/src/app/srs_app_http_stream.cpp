@@ -568,7 +568,7 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
     w->write_header(SRS_CONSTS_HTTP_OK);
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
-    SrsConsumer* consumer = NULL;
+    SrsLiveConsumer* consumer = NULL;
     SrsAutoFree(SrsLiveConsumer, consumer);
 
 #ifdef SRS_LAS
