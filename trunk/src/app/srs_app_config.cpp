@@ -2201,8 +2201,6 @@ srs_error_t SrsConfig::global_to_json(SrsJsonObject* obj)
                     sobj->set(sdir->name, sdir->dumps_arg0_to_integer());
                 } else if (sdir->name == "audio_enable") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
-                } else if (sdir->name == "jitterbuffer_enable") {
-                    sobj->set(sdir->name, sdir->dumps_arg0_to_boolean());
                 } else if (sdir->name == "host") {
                     sobj->set(sdir->name, sdir->dumps_arg0_to_str());
                 } else if (sdir->name == "wait_keyframe") {
@@ -3718,7 +3716,7 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "caster" && n != "output"
                 && n != "listen" && n != "tcp_enable" && n != "rtp_port_min" && n != "rtp_port_max"
                 && n != "rtp_idle_timeout" && n != "sip"
-                && n != "audio_enable" && n != "wait_keyframe" && n != "jitterbuffer_enable"
+                && n != "audio_enable" && n != "wait_keyframe"
                 && n != "host" && n != "auto_create_channel") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
@@ -4671,21 +4669,6 @@ bool SrsConfig::get_stream_caster_gb28181_audio_enable(SrsConfDirective* conf)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_stream_caster_gb28181_jitterbuffer_enable(SrsConfDirective* conf)
-{
-    static bool DEFAULT = true;
-
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("jitterbuffer_enable");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PERFER_FALSE(conf->arg0());
-}
 
 bool SrsConfig::get_stream_caster_gb28181_wait_keyframe(SrsConfDirective* conf)
 {
