@@ -550,7 +550,10 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
                 }
            
                 /* skip program_stream_info */
-                buf.skip(es_info_length);
+                if (es_info_length + 4 < es_map_length){ 
+                    //check is es_info_length overflow es_map_length
+                    buf.skip(es_info_length);
+                }
                 es_map_length -= 4 + es_info_length;
             }
     
