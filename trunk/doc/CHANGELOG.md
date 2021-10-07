@@ -27,6 +27,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-07, Fix bugs #2648, #2415. v4.0.167
 * v4.0, 2021-10-03, Support --arch and --cross-prefix for cross compile. 4.0.166
 * v4.0, 2021-10-03, Actions: Create source tar file srs-server-4.0.165.tar.gz
 * v4.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 4.0.163
