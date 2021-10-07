@@ -25,6 +25,10 @@ using namespace std;
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+// to avoid dtls negotiate failed, set max fragment size 1200.
+// @see https://github.com/ossrs/srs/issues/2415
+const int DTLS_FRAGMENT_MAX_SIZE = 1200;
+
 // Defined in HTTP/HTTPS client.
 extern int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
@@ -439,7 +443,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
     // set dtls fragment
     // @see https://stackoverflow.com/questions/62413602/openssl-server-packets-get-fragmented-into-270-bytes-per-packet
     SSL_set_options(dtls, SSL_OP_NO_QUERY_MTU);
-    SSL_set_mtu(dtls, kRtpPacketSize);
+    SSL_set_mtu(dtls, DTLS_FRAGMENT_MAX_SIZE);
 
     // @see https://linux.die.net/man/3/openssl_version_number
     //                MM NN FF PP S
@@ -699,7 +703,7 @@ srs_error_t SrsDtlsClientImpl::initialize(std::string version, std::string role)
 
     // Dtls setup active, as client role.
     SSL_set_connect_state(dtls);
-    SSL_set_max_send_fragment(dtls, kRtpPacketSize);
+    SSL_set_max_send_fragment(dtls, DTLS_FRAGMENT_MAX_SIZE);
 
     return err;
 }

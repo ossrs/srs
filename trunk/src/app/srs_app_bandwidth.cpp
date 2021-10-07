@@ -264,7 +264,7 @@ srs_error_t SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit
         limit->send_limit();
     }
     srs_update_system_time();
-    sample->calc_kbps((int)_rtmp->get_send_bytes(), srsu2msi(srs_get_system_time() - starttime));
+    sample->calc_kbps((int)_rtmp->get_send_bytes(), srs_get_system_time() - starttime);
     
     return err;
 }
@@ -342,7 +342,7 @@ srs_error_t SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLi
         limit->recv_limit();
     }
     srs_update_system_time();
-    sample->calc_kbps((int)_rtmp->get_recv_bytes(), srsu2msi(srs_get_system_time() - starttime));
+    sample->calc_kbps((int)_rtmp->get_recv_bytes(), srs_get_system_time() - starttime);
     
     return err;
 }
