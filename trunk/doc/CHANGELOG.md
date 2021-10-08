@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-08, Merge [#2654](https://github.com/ossrs/srs/pull/2654): Parse width and width from SPS/PPS. v4.0.169
 * v4.0, 2021-10-08, Default to log to console for docker. v4.0.168
 * v4.0, 2021-10-07, Fix bugs #2648, #2415. v4.0.167
 * v4.0, 2021-10-03, Support --arch and --cross-prefix for cross compile. 4.0.166
