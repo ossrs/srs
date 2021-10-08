@@ -6629,9 +6629,15 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* conf)
     return conf->arg0();
 }
 
+extern bool _srs_in_docker;
+
 bool SrsConfig::get_log_tank_file()
 {
     static bool DEFAULT = true;
+
+    if (_srs_in_docker) {
+        DEFAULT = false;
+    }
     
     SrsConfDirective* conf = root->get("srs_log_tank");
     if (!conf || conf->arg0().empty()) {
