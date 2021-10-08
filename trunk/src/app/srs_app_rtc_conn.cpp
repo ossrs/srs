@@ -1749,8 +1749,8 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
 }
 
 void SrsRtcPublishStream::bind_rid(const SrsRidInfo &rid_info) {
-    // todo: on ssrc check mid rid
-    auto video_track = get_video_track(0);
+    // NOTE: get unused video_track, and active as rid info.
+    SrsRtcVideoRecvTrack* video_track = get_video_track(0);
     if (video_track) {
         video_track->active_as(rid_info);
     }
@@ -1994,10 +1994,10 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
     }
 
     // NOTE: Supplement Simulcast information in publish local sdp.
-    auto size = local_sdp.media_descs_.size();
+    size_t size = local_sdp.media_descs_.size();
     assert(size == ruc->remote_sdp_.media_descs_.size());
     for (size_t i = 0; i < size; ++i) {
-        auto& media_desc = ruc->remote_sdp_.media_descs_.at(i);
+        SrsMediaDesc& media_desc = ruc->remote_sdp_.media_descs_.at(i);
         if (media_desc.is_video() && media_desc.simulcast_spec_version()) {
             local_sdp.media_descs_.at(i).session_info_.simulcast_ = media_desc.session_info_.simulcast_;
         }
@@ -2323,17 +2323,18 @@ srs_error_t SrsRtcConnection::parse_rid(char *buf, int size, uint32_t ssrc) {
         return err;
     }
 
-    for (auto& media_desc: remote_sdp.media_descs_) {
+    for (size_t i=0; i<remote_sdp.media_descs_.size(); ++i) {
+        SrsMediaDesc& media_desc = remote_sdp.media_descs_.at(i);
         if (!media_desc.simulcast_spec_version()) {
             continue;
         }
 
-        auto &extmaps_ = media_desc.extmaps_;
-        auto &simulcast = media_desc.session_info_.simulcast_;
+        SrsExtMapInfo &extmaps_ = media_desc.extmaps_;
+        SrsSimulcastInfo &simulcast = media_desc.session_info_.simulcast_;
 
         // auto &publisher_ = publishers_ssrc_map_.begin()->second;
         // publisher_->on_rtp(buf, size);
-        auto rid = extmaps_.parse_rid(buf, size, simulcast);
+        SrsRidInfo* rid = extmaps_.parse_rid(buf, size, simulcast);
         if (rid) {
             assert(rid->ssrc == 0);
             rid->ssrc = ssrc;
@@ -2351,12 +2352,13 @@ srs_error_t SrsRtcConnection::bind_rid(const SrsRidInfo &rid_info) {
     if ((err = _srs_rtc_sources->fetch_or_create(req_, &source)) != srs_success) {
         return srs_error_wrap(err, "fetch_or_create source");
     }
-    auto track_descs = source->get_track_desc("video", "H264");
-    for (auto &track_desc: track_descs) {
+    std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("video", "H264");
+    for (size_t i = 0; i < track_descs.size(); ++i) {
+        SrsRtcTrackDescription* track_desc = track_descs.at(i);
         if (track_desc->ssrc_ == 0) {
             track_desc->ssrc_ = rid_info.ssrc;
             track_desc->rid_ = rid_info;
-            auto &publisher = publishers_ssrc_map_.begin()->second;
+            SrsRtcPublishStream* publisher = publishers_ssrc_map_.begin()->second;
             publisher->bind_rid(rid_info);
             publishers_ssrc_map_[track_desc->ssrc_] = publisher;
             srs_warn("find track_desc to (rid='%s', ssrc=%u)", rid_info.rid.c_str(), rid_info.ssrc);
@@ -3436,7 +3438,7 @@ bool parse_layers_in_url(std::vector<std::string>& layers, std::string name) {
 }
 
 void add_desc_to_vector(std::vector<SrsRtcTrackDescription *>& result, SrsRtcTrackDescription *desc) {
-    if (result.cend() == std::find(result.cbegin(), result.cend(), desc)) {
+    if (result.end() == std::find(result.begin(), result.end(), desc)) {
         result.push_back(desc);
     }
 }
@@ -3452,11 +3454,14 @@ std::vector<SrsRtcTrackDescription *> select_video_track_descs(
     std::vector<SrsRtcTrackDescription *> result;
     for (size_t i=0;i<layers.size(); ++i) {
         int layer = ::atoi(layers[i].c_str());
-        bool is_index = std::to_string(layer) == layers[i] && layer >= 0 && layer < (int)video_track_descs.size();
+        char layer_text[32];
+        sprintf(layer_text, "%d", layer);
+        bool is_index = layer_text == layers[i] && layer >= 0 && layer < (int)video_track_descs.size();
         if (is_index) {
             add_desc_to_vector(result, video_track_descs[layer]);
         } else {
-            for (auto& desc: video_track_descs) {
+            for (size_t ii = 0; ii < video_track_descs.size(); ++ii) {
+                SrsRtcTrackDescription* desc = video_track_descs.at(ii);
                 assert(desc);
                 if (desc->rid_.rid == layers[i]) {
                     result.push_back(desc);

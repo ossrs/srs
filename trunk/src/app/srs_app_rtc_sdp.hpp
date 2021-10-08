@@ -28,10 +28,11 @@ public:
 };
 
 struct SrsRidInfo {
+    SrsRidInfo(): ssrc(0) {}
     std::string rid;
     std::string direction;
 
-    uint32_t ssrc = 0;
+    uint32_t ssrc;
     std::string mid;
     std::string rtx;
 };
@@ -172,9 +173,10 @@ static const char* const kExtMapFieldArray[] = {
 };
 
 class SrsExtMapInfo {
-    int ext_id_list_[kExtMapFieldSize] = {0};
+    int ext_id_list_[kExtMapFieldSize];
     void parse_ext_id(int id, std::string ext);
 public:
+    SrsExtMapInfo();
     int mid_ext_id() const { return ext_id_list_[kSdesMid]; }
     int rid_ext_id() const { return ext_id_list_[kSdesRtpStreamId]; }
     int ridrtx_ext_id() const { return ext_id_list_[kSdesRepairedRtpStreamId]; }

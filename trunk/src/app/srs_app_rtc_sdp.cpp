@@ -7,6 +7,7 @@
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
+#include <string.h> // for memset
 #include <arpa/inet.h> // for ntohs in linux
 
 #include <iostream>
@@ -1216,7 +1217,8 @@ srs_error_t SrsSimulcastInfo::encode(ostringstream &os) {
     // a=rid:1 send
     // a=rid:2 send
     // check direction he rids rid.direction is send
-    for (auto& rid: rids) {
+    for (size_t i=0; i<rids.size(); ++i) {
+        SrsRidInfo& rid = rids.at(i);
         os << "a=rid:" << rid.rid << " recv" << kCRLF;
     }
     os << "a=simulcast:recv " << line << kCRLF;
@@ -1393,7 +1395,7 @@ SrsRidInfo* SrsExtMapInfo::parse_rid(char *buf, int len, SrsSimulcastInfo &simul
     if((ret = rtp_header_extension_parse_rid(buf, len, rid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
         rid = sdes_item;
     } else {
-        return nullptr;
+        return NULL;
     }
     if((ret = rtp_header_extension_parse_rid(buf, len, ridrtx_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
         ridrtx = sdes_item;
@@ -1412,6 +1414,10 @@ SrsRidInfo* SrsExtMapInfo::parse_rid(char *buf, int len, SrsSimulcastInfo &simul
             return &simulcast.rids[i];
         }
     }
-    return nullptr;
+    return NULL;
+}
+
+SrsExtMapInfo::SrsExtMapInfo() {
+    memset(ext_id_list_, 0, sizeof(ext_id_list_));
 }
 
