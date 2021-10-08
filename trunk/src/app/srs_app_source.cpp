@@ -242,7 +242,8 @@ SrsMessageQueue::SrsMessageQueue(bool ignore_shrink)
 {
     _ignore_shrink = ignore_shrink;
     max_queue_size = 0;
-    av_start_time = av_end_time = -1;
+    audio_start_time = audio_end_time = -1;
+    video_start_time = video_end_time = -1;
 }
 
 SrsMessageQueue::~SrsMessageQueue()
@@ -257,7 +258,7 @@ int SrsMessageQueue::size()
 
 srs_utime_t SrsMessageQueue::duration()
 {
-    return (av_end_time - av_start_time);
+    return srs_max(audio_end_time - audio_start_time, video_end_time - video_start_time);
 }
 
 void SrsMessageQueue::set_queue_size(srs_utime_t queue_size)
@@ -268,18 +269,23 @@ void SrsMessageQueue::set_queue_size(srs_utime_t queue_size)
 srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
 {
     srs_error_t err = srs_success;
-    
-    if (msg->is_av()) {
-        if (av_start_time == -1) {
-            av_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
+
+    if (msg->is_video()) {
+        if (video_start_time == -1) {
+            video_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
         }
-        
-        av_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
+        video_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
+    }
+    else if (msg->is_audio()) {
+        if (audio_start_time == -1) {
+            audio_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
+        }
+        audio_end_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
     }
     
     msgs.push_back(msg);
     
-    while (av_end_time - av_start_time > max_queue_size) {
+    while (duration() > max_queue_size) {
         // notice the caller queue already overflow and shrinked.
         if (is_overflow) {
             *is_overflow = true;
@@ -306,10 +312,13 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** p
     SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < count; i++) {
         pmsgs[i] = omsgs[i];
+        if (omsgs[i]->is_audio()) {
+            audio_start_time = srs_utime_t(omsgs[i]->timestamp * SRS_UTIME_MILLISECONDS);
+        } 
+        else if (omsgs[i]->is_video()) {
+            video_start_time = srs_utime_t(omsgs[i]->timestamp * SRS_UTIME_MILLISECONDS);
+        }
     }
-    
-    SrsSharedPtrMessage* last = omsgs[count - 1];
-    av_start_time = srs_utime_t(last->timestamp * SRS_UTIME_MILLISECONDS);
     
     if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
@@ -371,15 +380,16 @@ void SrsMessageQueue::shrink()
     }
     msgs.clear();
     
-    // update av_start_time
-    av_start_time = av_end_time;
+    // update *_start_time
+    audio_start_time = audio_end_time;
+    video_start_time = video_end_time;
     //push_back secquence header and update timestamp
     if (video_sh) {
-        video_sh->timestamp = srsu2ms(av_end_time);
+        video_sh->timestamp = srsu2ms(video_end_time);
         msgs.push_back(video_sh);
     }
     if (audio_sh) {
-        audio_sh->timestamp = srsu2ms(av_end_time);
+        audio_sh->timestamp = srsu2ms(audio_end_time);
         msgs.push_back(audio_sh);
     }
     
@@ -403,7 +413,8 @@ void SrsMessageQueue::clear()
     
     msgs.clear();
     
-    av_start_time = av_end_time = -1;
+    audio_start_time = audio_end_time = -1;
+    video_start_time = video_end_time = -1;
 }
 
 ISrsWakable::ISrsWakable()

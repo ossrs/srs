@@ -122,8 +122,10 @@ class SrsMessageQueue
 {
 private:
     // The start and end time.
-    srs_utime_t av_start_time;
-    srs_utime_t av_end_time;
+    srs_utime_t audio_start_time;
+    srs_utime_t audio_end_time;
+    srs_utime_t video_start_time;
+    srs_utime_t video_end_time;
 private:
 	// Whether do logging when shrinking.
     bool _ignore_shrink;
