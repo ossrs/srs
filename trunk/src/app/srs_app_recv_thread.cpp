@@ -93,8 +93,6 @@ srs_error_t SrsRecvThread::cycle()
     // the multiple messages writev improve performance large,
     // but the timeout recv will cause 33% sys call performance,
     // to use isolate thread to recv, can improve about 33% performance.
-    // @see https://github.com/ossrs/srs/issues/194
-    // @see: https://github.com/ossrs/srs/issues/217
     rtmp->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     
     pumper->on_start();
@@ -279,7 +277,6 @@ SrsPublishRecvThread::SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, SrsRequest* 
     mr_fd = mr_sock_fd;
     
     // the mr settings,
-    // @see https://github.com/ossrs/srs/issues/241
     mr = _srs_config->get_mr_enabled(req->vhost);
     mr_sleep = _srs_config->get_mr_sleep(req->vhost);
     
@@ -405,7 +402,6 @@ void SrsPublishRecvThread::interrupt(srs_error_t err)
     recv_error = srs_error_copy(err);
     
     // when recv thread error, signal the conn thread to process it.
-    // @see https://github.com/ossrs/srs/issues/244
     srs_cond_signal(error);
 }
 
@@ -420,7 +416,6 @@ void SrsPublishRecvThread::on_start()
         set_socket_buffer(mr_sleep);
         
         // disable the merge read
-        // @see https://github.com/ossrs/srs/issues/241
         rtmp->set_merge_read(true, this);
     }
 #endif
@@ -432,13 +427,11 @@ void SrsPublishRecvThread::on_stop()
     // for we donot set to false yet.
     
     // when thread stop, signal the conn thread which wait.
-    // @see https://github.com/ossrs/srs/issues/244
     srs_cond_signal(error);
     
 #ifdef SRS_PERF_MERGED_READ
     if (mr) {
         // disable the merge read
-        // @see https://github.com/ossrs/srs/issues/241
         rtmp->set_merge_read(false, NULL);
     }
 #endif
@@ -459,7 +452,6 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
      * to improve read performance, merge some packets then read,
      * when it on and read small bytes, we sleep to wait more data.,
      * that is, we merge some data to read together.
-     * @see https://github.com/ossrs/srs/issues/241
      */
     if (nread < SRS_MR_SMALL_BYTES) {
         srs_usleep(mr_sleep);
@@ -476,7 +468,6 @@ srs_error_t SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
     }
     
     // the mr settings,
-    // @see https://github.com/ossrs/srs/issues/241
     bool mr_enabled = _srs_config->get_mr_enabled(req->vhost);
     srs_utime_t sleep_v = _srs_config->get_mr_sleep(req->vhost);
     
@@ -489,13 +480,11 @@ srs_error_t SrsPublishRecvThread::on_reload_vhost_publish(string vhost)
     // mr enabled=>disabled
     if (mr && !mr_enabled) {
         // disable the merge read
-        // @see https://github.com/ossrs/srs/issues/241
         rtmp->set_merge_read(false, NULL);
     }
     // mr disabled=>enabled
     if (!mr && mr_enabled) {
         // enable the merge read
-        // @see https://github.com/ossrs/srs/issues/241
         rtmp->set_merge_read(true, this);
     }
 #endif

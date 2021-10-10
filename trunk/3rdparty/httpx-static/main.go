@@ -36,6 +36,7 @@ import (
 	oh "github.com/ossrs/go-oryx-lib/http"
 	"github.com/ossrs/go-oryx-lib/https"
 	ol "github.com/ossrs/go-oryx-lib/logger"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -77,8 +78,77 @@ func shouldProxyURL(srcPath, proxyPath string) bool {
 	return strings.HasPrefix(srcPath, proxyPath)
 }
 
-func NewComplexProxy(ctx context.Context, proxyUrl *url.URL, originalRequest *http.Request) http.Handler {
+// about x-real-ip and x-forwarded-for or
+// about X-Real-IP and X-Forwarded-For or
+// https://segmentfault.com/q/1010000002409659
+// https://distinctplace.com/2014/04/23/story-behind-x-forwarded-for-and-x-real-ip-headers/
+// @remark http proxy will set the X-Forwarded-For.
+func addProxyAddToHeader(remoteAddr, realIP string, fwd []string, header http.Header, omitForward bool) {
+	rip, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return
+	}
+
+	if realIP != "" {
+		header.Set("X-Real-IP", realIP)
+	} else {
+		header.Set("X-Real-IP", rip)
+	}
+
+	if !omitForward {
+		header["X-Forwarded-For"] = fwd[:]
+		header.Add("X-Forwarded-For", rip)
+	}
+}
+
+func filterByPreHook(ctx context.Context, preHook *url.URL, req *http.Request) error {
+	target := *preHook
+	target.RawQuery = strings.Join([]string{target.RawQuery, req.URL.RawQuery}, "&")
+
+	api := target.String()
+	r, err := http.NewRequestWithContext(ctx, req.Method, api, nil)
+	if err != nil {
+		return err
+	}
+
+	// Add real ip and forwarded for to header.
+	// We should append the forward for pass-by.
+	addProxyAddToHeader(req.RemoteAddr, req.Header.Get("X-Real-IP"), req.Header["X-Forwarded-For"], r.Header, false)
+	ol.Tf(ctx, "Pre-hook proxy addr req=%v, r=%v", req.Header, r.Header)
+
+	r2, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+	defer r2.Body.Close()
+
+	if r2.StatusCode != http.StatusOK {
+		return fmt.Errorf("Pre-hook HTTP StatusCode=%v %v", r2.StatusCode, r2.Status)
+	}
+
+	b, err := ioutil.ReadAll(r2.Body)
+	if err != nil {
+		return err
+	}
+	ol.Tf(ctx, "Pre-hook %v url=%v, res=%v, headers=%v", req.Method, api, string(b), r.Header)
+
+	return nil
+}
+
+func NewComplexProxy(ctx context.Context, proxyUrl, preHook *url.URL, originalRequest *http.Request) http.Handler {
+	// Hook before proxy it.
+	if preHook != nil {
+		if err := filterByPreHook(ctx, preHook, originalRequest); err != nil {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ol.Ef(ctx, "Pre-hook err %+v", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			})
+		}
+	}
+
+	// Start proxy it.
 	proxy := &httputil.ReverseProxy{}
+	proxyUrlQuery := proxyUrl.Query()
 
 	// Create a proxy which attach a isolate logger.
 	elogger := log.New(os.Stderr, fmt.Sprintf("%v ", originalRequest.RemoteAddr), log.LstdFlags)
@@ -94,27 +164,47 @@ func NewComplexProxy(ctx context.Context, proxyUrl *url.URL, originalRequest *ht
 			}
 		}
 
-		// about x-real-ip and x-forwarded-for or
-		// about X-Real-IP and X-Forwarded-For or
-		// https://segmentfault.com/q/1010000002409659
-		// https://distinctplace.com/2014/04/23/story-behind-x-forwarded-for-and-x-real-ip-headers/
-		// @remark http proxy will set the X-Forwarded-For.
-		if rip := r.Header.Get("X-Real-IP"); rip == "" {
-			if rip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-				r.Header.Set("X-Real-IP", rip)
-			}
-		}
+		// Add real ip and forwarded for to header.
+		// We should omit the forward header, because the ReverseProxy will doit.
+		addProxyAddToHeader(r.RemoteAddr, r.Header.Get("X-Real-IP"), r.Header["X-Forwarded-For"], r.Header, true)
+		ol.Tf(ctx, "Proxy addr header %v", r.Header)
 
 		r.URL.Scheme = proxyUrl.Scheme
 		r.URL.Host = proxyUrl.Host
+
+		// Trim the prefix path.
+		if trimPrefix := proxyUrlQuery.Get("trimPrefix"); trimPrefix != "" {
+			r.URL.Path = strings.TrimPrefix(r.URL.Path, trimPrefix)
+		}
+		// Aadd the prefix to path.
+		if addPrefix := proxyUrlQuery.Get("addPrefix"); addPrefix != "" {
+			r.URL.Path = addPrefix + r.URL.Path
+		}
+
+		// The original request.Host requested by the client.
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-Host
+		if r.Header.Get("X-Forwarded-Host") == "" {
+			r.Header.Set("X-Forwarded-Host", r.Host)
+		}
+
+		// Set the Host of client request to the upstream server's, to act as client
+		// directly access the upstream server.
+		if proxyUrlQuery.Get("modifyRequestHost") != "false" {
+			r.Host = proxyUrl.Host
+		}
 
 		ra, url, rip := r.RemoteAddr, r.URL.String(), r.Header.Get("X-Real-Ip")
 		ol.Tf(ctx, "proxy http rip=%v, addr=%v %v %v with headers %v", rip, ra, r.Method, url, r.Header)
 	}
 
 	proxy.ModifyResponse = func(w *http.Response) error {
-		// we already added this header, it will cause chrome failed when duplicated.
-		if w.Header.Get("Access-Control-Allow-Origin") == "*" {
+		// We have already set the server, so remove the upstream one.
+		if proxyUrlQuery.Get("keepUpsreamServer") != "true" {
+			w.Header.Del("Server")
+		}
+
+		// We already added this header, it will cause chrome failed when duplicated.
+		if w.Header.Get("Access-Control-Allow-Origin") != "" {
 			w.Header.Del("Access-Control-Allow-Origin")
 		}
 
@@ -164,6 +254,9 @@ func run(ctx context.Context) error {
 	flag.Var(&oproxies, "p", "proxy ruler")
 	flag.Var(&oproxies, "proxy", "one or more proxy the matched path to backend, for example, -proxy http://127.0.0.1:8888/api/webrtc")
 
+	var oprehooks Strings
+	flag.Var(&oprehooks, "pre-hook", "the pre-hook ruler, with request")
+
 	var sdomains, skeys, scerts Strings
 	flag.Var(&sdomains, "sdomain", "the SSL hostname")
 	flag.Var(&skeys, "skey", "the SSL key for domain")
@@ -181,6 +274,12 @@ func run(ctx context.Context) error {
 		fmt.Println(fmt.Sprintf("			The www root path. Supports relative to argv[0]=%v. Default: ./html", path.Dir(os.Args[0])))
 		fmt.Println(fmt.Sprintf("	-p, -proxy string"))
 		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc"))
+		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc?modifyRequestHost=false"))
+		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc?keepUpsreamServer=true"))
+		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc?trimPrefix=/ffmpeg"))
+		fmt.Println(fmt.Sprintf("			Proxy path to backend. For example: http://127.0.0.1:8888/api/webrtc?addPrefix=/release"))
+		fmt.Println(fmt.Sprintf("	-pre-hook string"))
+		fmt.Println(fmt.Sprintf("			Pre-hook to backend, with request. For example: http://127.0.0.1:8888/api/stat"))
 		fmt.Println(fmt.Sprintf("Options for HTTPS(letsencrypt cert):"))
 		fmt.Println(fmt.Sprintf("	-l, -lets=bool"))
 		fmt.Println(fmt.Sprintf("			Whether use letsencrypt CA. Default: false"))
@@ -239,6 +338,27 @@ func run(ctx context.Context) error {
 		ol.Tf(ctx, "Proxy %v to %v", proxyUrl.Path, oproxy)
 	}
 
+	var preHookUrls []*url.URL
+	preHooks := make(map[string]*url.URL)
+	for _, oprehook := range []string(oprehooks) {
+		if oprehook == "" {
+			return oe.Errorf("empty pre-hook in %v", oprehooks)
+		}
+
+		preHookUrl, err := url.Parse(oprehook)
+		if err != nil {
+			return oe.Wrapf(err, "parse pre-hook %v", oprehook)
+		}
+
+		if _, ok := preHooks[preHookUrl.Path]; ok {
+			return oe.Errorf("pre-hook %v duplicated", preHookUrl.Path)
+		}
+
+		preHookUrls = append(preHookUrls, preHookUrl)
+		preHooks[preHookUrl.Path] = preHookUrl
+		ol.Tf(ctx, "pre-hook %v to %v", preHookUrl.Path, oprehook)
+	}
+
 	if !path.IsAbs(cacheFile) && path.IsAbs(os.Args[0]) {
 		cacheFile = path.Join(path.Dir(os.Args[0]), cacheFile)
 	}
@@ -272,13 +392,26 @@ func run(ctx context.Context) error {
 			return
 		}
 
+		// Find pre-hook to serve with proxy.
+		var preHook *url.URL
+		for _, preHookUrl := range preHookUrls {
+			if !shouldProxyURL(r.URL.Path, preHookUrl.Path) {
+				continue
+			}
+
+			if p, ok := preHooks[preHookUrl.Path]; ok {
+				preHook = p
+			}
+		}
+
+		// Find proxy to serve it.
 		for _, proxyUrl := range proxyUrls {
 			if !shouldProxyURL(r.URL.Path, proxyUrl.Path) {
 				continue
 			}
 
 			if proxy, ok := proxies[proxyUrl.Path]; ok {
-				p := NewComplexProxy(ctx, proxy, r)
+				p := NewComplexProxy(ctx, proxy, preHook, r)
 				p.ServeHTTP(w, r)
 				return
 			}

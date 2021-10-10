@@ -97,7 +97,6 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     }
     
     // notify server the edge identity,
-    // @see https://github.com/ossrs/srs/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
@@ -121,7 +120,6 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
     req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
-    // @see https://github.com/ossrs/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     SrsServerInfo si;
     if ((err = client->connect_app(req->app, tc_url, req, debug, &si)) != srs_success) {

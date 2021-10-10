@@ -40,7 +40,6 @@ private:
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
     // Cache the sequence header for retry when slave is failed.
-    // @see https://github.com/ossrs/srs/issues/150
     SrsSharedPtrMessage* sh_audio;
     SrsSharedPtrMessage* sh_video;
 public:

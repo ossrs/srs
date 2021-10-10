@@ -12,9 +12,6 @@ scApp.config(["$routeProvider", function($routeProvider){
         .when("/clients", {templateUrl:"views/clients.html", controller:"CSCClients"})
         .when("/clients/:id", {templateUrl:"views/client.html", controller:"CSCClient"})
         .when("/configs", {templateUrl:"views/configs.html", controller:"CSCConfigs"})
-        .when("/configs/:id", {templateUrl:"views/config.html", controller:"CSCConfig"})
-        .when("/dvr", {templateUrl:"views/dvrs.html", controller:"CSCDvrs"})
-        .when("/dvr/:vid/:sid/:app/:stream", {templateUrl:"views/dvr.html", controller:"CSCDvr"})
         .when("/summaries", {templateUrl:"views/summary.html", controller:"CSCSummary"});
 }]);
 

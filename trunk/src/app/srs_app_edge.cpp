@@ -71,7 +71,6 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
         
-        // @see https://github.com/ossrs/srs/issues/79
         // when origin is error, for instance, server is shutdown,
         // then user remove the vhost then reload, the conf is empty.
         if (!conf) {
@@ -98,7 +97,6 @@ srs_error_t SrsEdgeRtmpUpstream::connect(SrsRequest* r, SrsLbRoundRobin* lb)
         selected_port = port;
         
         // support vhost tranform for edge,
-        // @see https://github.com/ossrs/srs/issues/372
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
@@ -724,7 +722,6 @@ srs_error_t SrsEdgeForwarder::start()
         srs_parse_hostport(server, server, port);
         
         // support vhost tranform for edge,
-        // @see https://github.com/ossrs/srs/issues/372
         std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
         vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
         
@@ -1005,7 +1002,6 @@ srs_error_t SrsPublishEdge::on_client_publish()
         return srs_error_new(ERROR_RTMP_EDGE_PUBLISH_STATE, "invalid state");
     }
     
-    // @see https://github.com/ossrs/srs/issues/180
     // to avoid multiple publish the same stream on the same edge,
     // directly enter the publish stage.
     if (true) {
@@ -1017,7 +1013,6 @@ srs_error_t SrsPublishEdge::on_client_publish()
     // start to forward stream to origin.
     err = forwarder->start();
     
-    // @see https://github.com/ossrs/srs/issues/180
     // when failed, revert to init
     if (err != srs_success) {
         SrsEdgeState pstate = state;
