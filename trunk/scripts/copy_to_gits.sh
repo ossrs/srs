@@ -15,11 +15,17 @@ if [[ ! -f ~/git/srs-bench/go.mod ]]; then
 fi
 
 echo "Copy signaling"
-cp -R 3rdparty/signaling/* ~/git/signaling/ && (cd ~/git/signaling && git st)
+cp -R 3rdparty/signaling/* ~/git/signaling/ &&
+cp -R 3rdparty/signaling/.gitignore ~/git/signaling/ &&
+(cd ~/git/signaling && git st)
 
 echo "Copy httpx-static"
-cp -R 3rdparty/httpx-static/* ~/git/go-oryx/httpx-static/ && (cd ~/git/go-oryx && git st)
+cp -R 3rdparty/httpx-static/* ~/git/go-oryx/httpx-static/ &&
+cp -R 3rdparty/httpx-static/.gitignore ~/git/go-oryx/httpx-static/ &&
+(cd ~/git/go-oryx && git st)
 
 echo "Copy srs-bench"
-cp -R 3rdparty/srs-bench/* ~/git/srs-bench/ && (cd ~/git/srs-bench && git st)
+cp -R 3rdparty/srs-bench/* ~/git/srs-bench/ &&
+cp -R 3rdparty/srs-bench/.gitignore ~/git/srs-bench/ &&
+(cd ~/git/srs-bench && git st)
 
