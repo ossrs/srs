@@ -333,44 +333,8 @@ public:
 private:
     virtual srs_error_t do_persistence(SrsFileWriter* fw);
 public:
-    // Dumps the global sections to json.
-    virtual srs_error_t global_to_json(SrsJsonObject* obj);
-    // Dumps the minimal sections to json.
-    virtual srs_error_t minimal_to_json(SrsJsonObject* obj);
-    // Dumps the vhost section to json.
-    virtual srs_error_t vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
     // Dumps the http_api sections to json for raw api info.
     virtual srs_error_t raw_to_json(SrsJsonObject* obj);
-    // RAW  set the global listen.
-    virtual srs_error_t raw_set_listen(const std::vector<std::string>& eps, bool& applied);
-    // RAW  set the global pid.
-    virtual srs_error_t raw_set_pid(std::string pid, bool& applied);
-    // RAW  set the global chunk size.
-    virtual srs_error_t raw_set_chunk_size(std::string chunk_size, bool& applied);
-    // RAW  set the global ffmpeg log dir.
-    virtual srs_error_t raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
-    // RAW  set the global log tank.
-    virtual srs_error_t raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
-    // RAW  set the global log level.
-    virtual srs_error_t raw_set_srs_log_level(std::string srs_log_level, bool& applied);
-    // RAW  set the global log file path for file tank.
-    virtual srs_error_t raw_set_srs_log_file(std::string srs_log_file, bool& applied);
-    // RAW  set the global max connections of srs.
-    virtual srs_error_t raw_set_max_connections(std::string max_connections, bool& applied);
-    // RAW  set the global whether use utc time.
-    virtual srs_error_t raw_set_utc_time(std::string utc_time, bool& applied);
-    // RAW  set the global pithy print interval in ms.
-    virtual srs_error_t raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
-    // RAW  create the new vhost.
-    virtual srs_error_t raw_create_vhost(std::string vhost, bool& applied);
-    // RAW  update the disabled vhost name.
-    virtual srs_error_t raw_update_vhost(std::string vhost, std::string name, bool& applied);
-    // RAW  delete the disabled vhost.
-    virtual srs_error_t raw_delete_vhost(std::string vhost, bool& applied);
-    // RAW  disable the enabled vhost.
-    virtual srs_error_t raw_disable_vhost(std::string vhost, bool& applied);
-    // RAW  enable the disabled vhost.
-    virtual srs_error_t raw_enable_vhost(std::string vhost, bool& applied);
 private:
     virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
