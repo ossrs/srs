@@ -54,10 +54,10 @@ The features of SRS.
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN][v4_CN_Streamer2], [EN][v4_EN_Streamer2]).
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Experimental] Support transmux RTC to RTMP, [#2093][bug #2093].
-- [x] [Deprecated] Support pushing RTSP, please read [bug #2304][bug #2304].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing, please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication, please read [#1535][bug #1535].
+- [x] [Removed] Support pushing RTSP, please read [#2304](https://github.com/ossrs/srs/issues/2304#issuecomment-826009290).
 - [x] [Removed] Support HTTP RAW API, please read [#2653](https://github.com/ossrs/srs/issues/2653).
 - [x] [Removed] Support RTMP client library: [srs-librtmp][srs-librtmp].
 - [ ] Support Windows/Cygwin 64bits, [#2532](https://github.com/ossrs/srs/issues/2532).

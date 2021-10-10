@@ -100,7 +100,6 @@ extern bool srs_config_ingest_is_stream(std::string type);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);

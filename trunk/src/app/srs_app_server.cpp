@@ -30,7 +30,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
-#include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_caster_flv.hpp>
 #include <srs_kernel_consts.hpp>
@@ -53,8 +52,6 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "HTTP-Server";
         case SrsListenerMpegTsOverUdp:
             return "MPEG-TS over UDP";
-        case SrsListenerRtsp:
-            return "RTSP";
         case SrsListenerFlv:
             return "HTTP-FLV";
         default:
@@ -111,62 +108,6 @@ srs_error_t SrsBufferListener::listen(string i, int p)
 srs_error_t SrsBufferListener::on_tcp_client(srs_netfd_t stfd)
 {
     srs_error_t err = server->accept_client(type, stfd);
-    if (err != srs_success) {
-        srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-    }
-    
-    return srs_success;
-}
-
-SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
-{
-    listener = NULL;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerRtsp);
-    if (type == SrsListenerRtsp) {
-        caster = new SrsRtspCaster(c);
-
-        // TODO: FIXME: Must check error.
-        caster->initialize();
-    }
-}
-
-SrsRtspListener::~SrsRtspListener()
-{
-    srs_freep(caster);
-    srs_freep(listener);
-}
-
-srs_error_t SrsRtspListener::listen(string i, int p)
-{
-    srs_error_t err = srs_success;
-    
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerRtsp);
-    
-    ip = i;
-    port = p;
-    
-    srs_freep(listener);
-    listener = new SrsTcpListener(this, ip, port);
-    
-    if ((err = listener->listen()) != srs_success) {
-        return srs_error_wrap(err, "rtsp listen %s:%d", ip.c_str(), port);
-    }
-    
-    string v = srs_listener_type2string(type);
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", v.c_str(), ip.c_str(), port, listener->fd());
-    
-    return err;
-}
-
-srs_error_t SrsRtspListener::on_tcp_client(srs_netfd_t stfd)
-{
-    srs_error_t err = caster->on_tcp_client(stfd);
     if (err != srs_success) {
         srs_warn("accept client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
@@ -629,7 +570,6 @@ void SrsServer::dispose()
     close_listeners(SrsListenerHttpStream);
     close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
-    close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
     
     // Fast stop to notify FFMPEG to quit, wait for a while then fast kill.
@@ -656,7 +596,6 @@ void SrsServer::gracefully_dispose()
     close_listeners(SrsListenerHttpStream);
     close_listeners(SrsListenerHttpsStream);
     close_listeners(SrsListenerMpegTsOverUdp);
-    close_listeners(SrsListenerRtsp);
     close_listeners(SrsListenerFlv);
     srs_trace("listeners closed");
 
@@ -1349,9 +1288,6 @@ srs_error_t SrsServer::listen_stream_caster()
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (srs_stream_caster_is_udp(caster)) {
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
-        } else if (srs_stream_caster_is_rtsp(caster)) {
-            srs_warn("It's deprecated and will be removed in the future, see https://github.com/ossrs/srs/issues/2304#issuecomment-826009290");
-            listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else {

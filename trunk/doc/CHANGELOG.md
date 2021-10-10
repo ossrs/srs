@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-10, Fix [#2304](https://github.com/ossrs/srs/issues/2304) Remove Push RTSP feature. v4.0.171
 * v4.0, 2021-10-10, Fix [#2653](https://github.com/ossrs/srs/issues/2653) Remove HTTP RAW API. v4.0.170
 * v4.0, 2021-10-08, Merge [#2654](https://github.com/ossrs/srs/pull/2654): Parse width and width from SPS/PPS. v4.0.169
 * v4.0, 2021-10-08, Default to log to console for docker. v4.0.168
