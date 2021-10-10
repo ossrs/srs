@@ -1922,7 +1922,7 @@ func TestRTCServerVersion(t *testing.T) {
 	}
 }
 
-func TestRtcPublishFlvPlay(t *testing.T) {
+func TestRtcPublish_FlvPlay(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 

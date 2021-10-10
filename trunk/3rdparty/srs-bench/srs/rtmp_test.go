@@ -23,6 +23,8 @@ package srs
 import (
 	"context"
 	"fmt"
+	"github.com/ossrs/go-oryx-lib/avc"
+	"github.com/ossrs/go-oryx-lib/flv"
 	"math/rand"
 	"os"
 	"sync"
@@ -63,7 +65,7 @@ func TestRtmpPublishPlay(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var nnPackets int
-			player.onRecvPacket = func(m *rtmp.Message) error {
+			player.onRecvPacket = func(m *rtmp.Message, a *flv.AudioFrame, v *flv.VideoFrame) error {
 				logger.Tf(ctx, "got %v packet, %v %vms %vB",
 					nnPackets, m.MessageType, m.Timestamp, len(m.Payload))
 				if nnPackets += 1; nnPackets > 50 {
@@ -91,6 +93,100 @@ func TestRtmpPublishPlay(t *testing.T) {
 		return nil
 	}()
 	if err := filterTestError(err, r0, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+func TestRtmpPublish_MultipleSequences(t *testing.T) {
+	var r0, r1, r2 error
+	err := func() error {
+		publisher := NewRTMPPublisher()
+		defer publisher.Close()
+
+		player := NewRTMPPlayer()
+		defer player.Close()
+
+		// Connect to RTMP URL.
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		streamSuffix := fmt.Sprintf("rtmp-multi-spspps-%v-%v", os.Getpid(), rand.Int())
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+
+		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		if err := player.Play(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		// Check packets.
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var nnPackets int
+			var previousAvccr *avc.AVCDecoderConfigurationRecord
+			player.onRecvPacket = func(m *rtmp.Message, a *flv.AudioFrame, v *flv.VideoFrame) error {
+				if m.MessageType == rtmp.MessageTypeAudio || v.FrameType != flv.VideoFrameTypeKeyframe ||
+					v.Trait != flv.VideoFrameTraitSequenceHeader {
+					return nil
+				}
+
+				avccr := avc.NewAVCDecoderConfigurationRecord()
+				if err := avccr.UnmarshalBinary(v.Raw); err != nil {
+					return err
+				}
+
+				// Ingore the duplicated sps/pps.
+				if IsAvccrEquals(previousAvccr, avccr) {
+					return nil
+				}
+				previousAvccr = avccr
+
+				logger.Tf(ctx, "got %v sps/pps, %v %vms %vB, sps=%v, pps=%v, %v, %v",
+					nnPackets, m.MessageType, m.Timestamp, len(m.Payload), len(avccr.SequenceParameterSetNALUnits),
+					len(avccr.PictureParameterSetNALUnits), avccr.AVCProfileIndication, avccr.AVCLevelIndication)
+				if nnPackets++; nnPackets >=2 {
+					cancel()
+				}
+				return nil
+			}
+			if r1 = player.Consume(ctx); r1 != nil {
+				cancel()
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var nnPackets int
+			ctxAvatar, cancelAvatar := context.WithCancel(ctx)
+			publisher.onSendPacket = func(m *rtmp.Message) error {
+				if m.MessageType == rtmp.MessageTypeVideo {
+					nnPackets++
+				}
+				if nnPackets > 10 {
+					cancelAvatar()
+				}
+				return nil
+			}
+
+			publisher.closeTransportWhenIngestDone = false
+			if r0 = publisher.Ingest(ctxAvatar, *srsPublishBBB); r0 != nil {
+				cancel()
+			}
+
+			publisher.closeTransportWhenIngestDone = true
+			if r2 = publisher.Ingest(ctx, *srsPublishAvatar); r2 != nil {
+				cancel()
+			}
+		}()
+
+		return nil
+	}()
+	if err := filterTestError(err, r0, r1, r2); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }

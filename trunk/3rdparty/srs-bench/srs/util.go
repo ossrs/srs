@@ -26,6 +26,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ossrs/go-oryx-lib/amf0"
+	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/rtmp"
 	"io"
@@ -1429,14 +1430,21 @@ func (v *RTMPClient) Play(ctx context.Context, rtmpUrl string) error {
 
 type RTMPPublisher struct {
 	client *RTMPClient
+	// Whether auto close transport when ingest done.
+	closeTransportWhenIngestDone bool
 
 	onSendPacket func(m *rtmp.Message) error
 }
 
 func NewRTMPPublisher() *RTMPPublisher {
-	return &RTMPPublisher{
+	v := &RTMPPublisher{
 		client: &RTMPClient{},
 	}
+
+	// By default, set to on.
+	v.closeTransportWhenIngestDone = true
+
+	return v
 }
 
 func (v *RTMPPublisher) Close() error {
@@ -1456,7 +1464,9 @@ func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
-		v.Close()
+		if v.closeTransportWhenIngestDone {
+			v.Close()
+		}
 	}()
 
 	// Consume all packets.
@@ -1522,9 +1532,12 @@ func (v *RTMPPublisher) ingest(flvInput string) error {
 }
 
 type RTMPPlayer struct {
+	// Transport.
 	client *RTMPClient
+	// FLV packager.
+	videoPackager flv.VideoPackager
 
-	onRecvPacket func(m *rtmp.Message) error
+	onRecvPacket func(m *rtmp.Message, a *flv.AudioFrame, v *flv.VideoFrame) error
 }
 
 func NewRTMPPlayer() *RTMPPlayer {
@@ -1538,6 +1551,11 @@ func (v *RTMPPlayer) Close() error {
 }
 
 func (v *RTMPPlayer) Play(ctx context.Context, rtmpUrl string) error {
+	var err error
+	if v.videoPackager, err = flv.NewVideoPackager(); err != nil {
+		return err
+	}
+
 	return v.client.Play(ctx, rtmpUrl)
 }
 
@@ -1572,9 +1590,57 @@ func (v *RTMPPlayer) consume() error {
 		}
 
 		if v.onRecvPacket != nil {
-			if err := v.onRecvPacket(res); err != nil {
+			var audioFrame *flv.AudioFrame
+			var videoFrame *flv.VideoFrame
+			if res.MessageType == rtmp.MessageTypeVideo {
+				if videoFrame, err = v.videoPackager.Decode(res.Payload); err != nil {
+					return err
+				}
+			}
+
+			if err := v.onRecvPacket(res, audioFrame, videoFrame); err != nil {
 				return err
 			}
 		}
 	}
+}
+
+func IsAvccrEquals(a, b *avc.AVCDecoderConfigurationRecord) bool {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.AVCLevelIndication != b.AVCLevelIndication ||
+		a.AVCProfileIndication != b.AVCProfileIndication ||
+		a.LengthSizeMinusOne != b.LengthSizeMinusOne ||
+		len(a.SequenceParameterSetNALUnits) != len(b.SequenceParameterSetNALUnits) ||
+		len(a.PictureParameterSetNALUnits) != len(b.PictureParameterSetNALUnits) {
+		return false
+	}
+
+	for i := 0; i < len(a.SequenceParameterSetNALUnits); i++ {
+		if !IsNALUEquals(a.SequenceParameterSetNALUnits[i], b.SequenceParameterSetNALUnits[i]) {
+			return false
+		}
+	}
+
+	for i := 0; i < len(a.PictureParameterSetNALUnits); i++ {
+		if !IsNALUEquals(a.PictureParameterSetNALUnits[i], b.PictureParameterSetNALUnits[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func IsNALUEquals(a, b *avc.NALU) bool {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.NALUType != b.NALUType || a.NALRefIDC != b.NALRefIDC {
+		return false
+	}
+
+	return bytes.Equal(a.Data, b.Data)
 }

@@ -4,6 +4,7 @@ github.com/google/uuid
 ## explicit
 github.com/ossrs/go-oryx-lib/aac
 github.com/ossrs/go-oryx-lib/amf0
+github.com/ossrs/go-oryx-lib/avc
 github.com/ossrs/go-oryx-lib/errors
 github.com/ossrs/go-oryx-lib/flv
 github.com/ossrs/go-oryx-lib/logger
