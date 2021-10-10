@@ -75,7 +75,6 @@ private:
     // when source id changed, notice all consumers
     bool should_update_source_id;
     // The cond wait for mw.
-    // @see https://github.com/ossrs/srs/issues/251
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;

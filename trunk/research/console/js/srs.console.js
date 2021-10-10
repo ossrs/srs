@@ -296,266 +296,16 @@ scApp.controller("CSCClient", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$
     $sc_utility.log("trace", "Retrieve client info from SRS");
 }]);
 
-scApp.controller("CSCDvrs", ['$scope', '$routeParams', 'MSCApi', '$sc_nav', '$sc_utility', function($scope, $routeParams, MSCApi, $sc_nav, $sc_utility){
-    $sc_nav.in_dvr();
-
-    $sc_utility.log("trace", "Please use DVR in streams.");
-}]);
-
-scApp.controller("CSCDvr", ['$scope', '$routeParams', 'MSCApi', '$sc_nav', '$sc_utility', function($scope, $routeParams, MSCApi, $sc_nav, $sc_utility){
-    $sc_nav.in_dvr();
-
-    $scope.vid = $routeParams.vid;
-    $scope.sid = $routeParams.sid;
-    $scope.app = $routeParams.app.replace('___', '/');
-    $scope.stream = $routeParams.stream.replace('___', '/');
-
-    $sc_utility.refresh.stop();
-
-    $scope.dvr = function(conf) {
-        //console.log(apply); return;
-
-        // submit to server.
-        $sc_utility.log("trace", "Submit to server for dvr apply=" + conf.value);
-        MSCApi.clients_update3("dvr", $scope.vid, $scope.app + '/' + $scope.stream, conf.value? 'enable':'disable', function(data){
-            $sc_utility.log("trace", "Server accepted, dvr apply=" + conf.value);
-            conf.error = false;
-        }, function(){
-            conf.error = true;
-        });
-
-        return true;
-    };
-
-    MSCApi.configs_get2($scope.vid, function(data){
-        data.vhost.stream = $scope.stream;
-        data.vhost.app = $scope.app;
-        data.vhost.vid = $scope.vid;
-        data.vhost.sid = $scope.sid;
-
-        var dvr = data.vhost.dvr;
-        if (!dvr) {
-            dvr = {
-                enabled: false
-            };
-        }
-        if (dvr.dvr_apply) {
-            if (dvr.dvr_apply.length === 1 && dvr.dvr_apply[0] === "all") {
-                dvr.apply = true;
-            } else {
-                dvr.apply = system_array_contains(dvr.dvr_apply, $scope.app + '/' + $scope.stream);
-            }
-        } else {
-            dvr.apply = true;
-        }
-        console.log(data.vhost);
-
-        $scope.global = $sc_utility.object2complex({}, data.vhost, null);
-        console.log($scope.global);
-    });
-
-    $sc_utility.log("trace", "Retrieve vhost config info from SRS");
-}]);
-
 scApp.controller("CSCConfigs", ["$scope", "$location", "MSCApi", "$sc_nav", "$sc_utility", "$sc_server", function($scope, $location, MSCApi, $sc_nav, $sc_utility, $sc_server){
     $sc_nav.in_configs();
 
     $sc_utility.refresh.stop();
 
-    $scope.support_raw_api = false;
-    $scope.warn_raw_api = false;
-
     MSCApi.configs_raw(function(data){
         $scope.http_api = data.http_api;
-        $scope.support_raw_api = $sc_utility.raw_api_enabled(data);
-        if (!$scope.support_raw_api) {
-            $scope.warn_raw_api = true;
-            return;
-        }
-
-        MSCApi.configs_get(function(data){
-            //console.log(data.global);
-            $scope.global = $sc_utility.object2complex({}, data.global, null);
-            //console.log($scope.global);
-        });
-    }, function(data){
-        $scope.warn_raw_api = true;
     });
-
-    // operate vhost in client.
-    $scope.new_vhost = function() {
-        $scope.global.vhosts.push({
-            editable: true
-        });
-    };
-
-    $scope.edit_vhost = function(vhost) {
-        vhost.editable = true;
-    };
-
-    $scope.cancel_vhost = function(vhost) {
-        vhost.editable = false;
-        vhost.name = vhost.vid;
-    };
-
-    $scope.abort_vhost = function(vhost) {
-        system_array_remove($scope.global.vhosts, vhost);
-    };
-
-    // submit vhost to server
-    $scope.add_vhost = function(vhost) {
-        if (system_array_contains($scope.global.vhosts, function(e){ return vhost !== e && vhost.name === e.name; })) {
-            $sc_utility.log("warn", "vhost " + vhost.name + "已经存在");
-            return;
-        }
-
-        MSCApi.clients_update2("vhost", vhost.name, "create", function(data){
-            $sc_utility.copy_object(vhost, data.data);
-            vhost.enabled = true;
-            vhost.editable = false;
-
-            $sc_utility.log("trace", "创建vhost成功");
-        });
-
-        $sc_utility.log("trace", "提交vhost到服务器");
-    };
-
-    $scope.update_vhost = function(vhost) {
-        if (vhost.vid === vhost.name) {
-            $sc_utility.log("warn", "Vhost没有任何改变");
-            return;
-        }
-
-        MSCApi.clients_update3("vhost", vhost.vid, vhost.name, "update", function(data){
-            vhost.vid = vhost.name;
-            vhost.editable = false;
-            $sc_utility.log("trace", "修改vhost成功");
-        });
-        $sc_utility.log("trace", "提交修改vhost请求到服务器");
-    };
-
-    $scope.delete_vhost= function(vhost) {
-        MSCApi.clients_update2("vhost", vhost.vid, "delete", function(data){
-            system_array_remove($scope.global.vhosts, vhost);
-            $sc_utility.log("trace", "删除vhost成功");
-        });
-        $sc_utility.log("trace", "提交删除vhost请求到服务器");
-    };
-
-    $scope.disable_vhost = function(vhost) {
-        MSCApi.clients_update2("vhost", vhost.vid, "disable", function(data){
-            vhost.enabled = false;
-            $sc_utility.log("trace", "禁用vhost成功");
-        });
-        $sc_utility.log("trace", "提交禁用vhost请求到服务器");
-    };
-
-    $scope.enable_vhost = function(vhost) {
-        MSCApi.clients_update2("vhost", vhost.vid, "enable", function(data){
-            vhost.enabled = true;
-            $sc_utility.log("trace", "启用vhost成功");
-        });
-        $sc_utility.log("trace", "提交启用vhost请求到服务器");
-    };
-
-    // submit global config to server.
-    $scope.submit = function(conf) {
-        if (typeof conf.value !== "boolean" && !conf.value) {
-            $sc_utility.log("warn", "global." + conf.key + " should not be empty");
-            return false;
-        }
-
-        var v = conf.value;
-        if (conf.key === "listen") {
-            if (!system_array_foreach(v, function(e){ return e; })) {
-                $sc_utility.log("warn", "listen should not be empty");
-                return false;
-            }
-        } else if (conf.key === "pid") {
-            if (!system_string_startswith(v, ['./', '/var/', '/tmp/'])) {
-                $sc_utility.log("warn", "pid should starts with ./, /var/ or /tmp/");
-                return false;
-            }
-            if (!system_string_endswith(v, '.pid')) {
-                $sc_utility.log("warn", "pid should be *.pid");
-                return false;
-            }
-        } else if (conf.key === "chunk_size") {
-            if (parseInt(v) < 128 || parseInt(v) > 65535) {
-                $sc_utility.log("warn", "chunk_size should in [128, 65535], value=" + v);
-                return false;
-            }
-        } else if (conf.key === "ff_log_dir") {
-            if (v !== '/dev/null' && !system_string_startswith(v, ['/var/', '/tmp/', './'])) {
-                $sc_utility.log("warn", "ff_log_dir should be /dev/null or in ./, /var/ or /tmp/");
-                return false;
-            }
-        } else if (conf.key === "srs_log_tank") {
-            if (v !== "file" && v !== "console") {
-                $sc_utility.log("warn", "srs_log_tank should be file or console");
-                return false;
-            }
-        } else if (conf.key === "srs_log_level") {
-            if (v !== "verbose" && v !== "info" && v !== "trace" && v !== "warn" && v !== "error") {
-                $sc_utility.log("warn", "srs_log_level should be verbose, info, trace, warn, error");
-                return false;
-            }
-        } else if (conf.key === "srs_log_file") {
-            if (!system_string_startswith(v, ['./', '/var/', '/tmp/'])) {
-                $sc_utility.log("warn", "srs_log_file should be in ./, /var/ or /tmp/");
-                return false;
-            }
-            if (!system_string_endswith(v, '.log')) {
-                $sc_utility.log("warn", "srs_log_file should be *.log");
-                return false;
-            }
-        } else if (conf.key === "max_connections") {
-            if (parseInt(v) < 10 || parseInt(v) > 65535) {
-                $sc_utility.log("warn", "max_connections should in [10, 65535], value=" + v);
-                return false;
-            }
-        } else if (conf.key === "utc_time") {
-            if (v === undefined) {
-                $sc_utility.log("warn", "utc_time invalid");
-                return false;
-            }
-        } else if (conf.key === "pithy_print_ms") {
-            if (parseInt(v) < 100 || parseInt(v) > 300000) {
-                $sc_utility.log("warn", "pithy_print_ms invalid");
-                return false;
-            }
-        }
-
-        // submit to server.
-        $sc_utility.log("trace", "Submit to server ok, " + conf.key + "=" + conf.value);
-        MSCApi.clients_update(conf.key, conf.value, function(data){
-            $sc_utility.log("trace", "Server accepted, " + conf.key + "=" + conf.value);
-            conf.error = false;
-
-            // reload the rtmp service port when port changed.
-            if (conf.key === "listen") {
-                $sc_server.init($location, MSCApi);
-            }
-        }, function(){
-            conf.error = true;
-        });
-
-        return true;
-    };
 
     $sc_utility.log("trace", "Retrieve config info from SRS");
-}]);
-
-scApp.controller("CSCConfig", ["$scope", "$routeParams", "MSCApi", "$sc_nav", "$sc_utility", function($scope, $routeParams, MSCApi, $sc_nav, $sc_utility){
-    $sc_nav.in_configs();
-
-    $sc_utility.refresh.stop();
-
-    MSCApi.configs_get2($routeParams.id, function(data){
-        $scope.vhost = data.vhost;
-    });
-
-    $sc_utility.log("trace", "Retrieve vhost config info from SRS");
 }]);
 
 scApp.factory("MSCApi", ["$http", "$sc_server", function($http, $sc_server){
@@ -607,38 +357,6 @@ scApp.factory("MSCApi", ["$http", "$sc_server", function($http, $sc_server){
             var url = $sc_server.jsonp_query("/api/v1/raw", "rpc=query&scope=global");
             $http.jsonp(url).success(success);
         },
-        configs_get2: function(id, success) {
-            var url = $sc_server.jsonp_query("/api/v1/raw", "rpc=query&scope=vhost&vhost=" + id);
-            $http.jsonp(url).success(success);
-        },
-        configs_get3: function(success) {
-            var url = $sc_server.jsonp_query("/api/v1/raw", "rpc=query&scope=minimal");
-            $http.jsonp(url).success(success);
-        },
-        clients_update: function(scope, value, success, error) {
-            var query = "rpc=update&scope=" + scope + "&value=" + value;
-            var url = $sc_server.jsonp_query("/api/v1/raw", query);
-            var obj = $http.jsonp(url).success(success);
-            if (error) {
-                obj.error(error);
-            }
-        },
-        clients_update2: function(scope, value, param, success, error) {
-            var query = "rpc=update&scope=" + scope + "&value=" + value + "&param=" + param;
-            var url = $sc_server.jsonp_query("/api/v1/raw", query);
-            var obj = $http.jsonp(url).success(success);
-            if (error) {
-                obj.error(error);
-            }
-        },
-        clients_update3: function(scope, value, data, param, success, error) {
-            var query = "rpc=update&scope=" + scope + "&value=" + value + "&param=" + param + "&data=" + data;
-            var url = $sc_server.jsonp_query("/api/v1/raw", query);
-            var obj = $http.jsonp(url).success(success);
-            if (error) {
-                obj.error(error);
-            }
-        }
     };
 }]);
 
@@ -883,9 +601,6 @@ scApp.provider("$sc_nav", function(){
             in_configs: function(){
                 this.selected = "/configs";
             },
-            in_dvr: function(){
-                this.selected = "/dvr";
-            },
             go_summary: function($location){
                 $location.path("/summaries");
             },
@@ -970,13 +685,6 @@ scApp.provider("$sc_server", [function(){
                 } else {
                     self.port = $location.port();
                 }
-
-                // optional, init the rtmp port.
-                MSCApi.configs_get3(function(data){
-                    if (data.minimal) {
-                        self.rtmp = data.minimal.listen;
-                    }
-                });
             }
         };
         return self;

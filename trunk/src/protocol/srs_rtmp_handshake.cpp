@@ -571,7 +571,6 @@ namespace srs_internal
         }
         
         // directly generate the public key.
-        // @see: https://github.com/ossrs/srs/issues/148
         int pkey_size = 128;
         if ((err = dh.copy_shared_key(c1->get_key(), 128, key.key, pkey_size)) != srs_success) {
             return srs_error_wrap(err, "copy shared key");

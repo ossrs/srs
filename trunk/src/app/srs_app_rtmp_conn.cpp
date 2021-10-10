@@ -429,7 +429,6 @@ srs_error_t SrsRtmpConn::service_cycle()
         // logical accept and retry stream service.
         if (srs_error_code(err) == ERROR_CONTROL_RTMP_CLOSE) {
             // TODO: FIXME: use ping message to anti-death of socket.
-            // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
             rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT);
             rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT);
@@ -670,7 +669,6 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     }
     
     // Use receiving thread to receive packets from peer.
-    // @see: https://github.com/ossrs/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP, _srs_context->get_id());
     
     if ((err = trd.start()) != srs_success) {
@@ -731,8 +729,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
         pprint->elapse();
 
         // to use isolate thread to recv, can improve about 33% performance.
-        // @see: https://github.com/ossrs/srs/issues/196
-        // @see: https://github.com/ossrs/srs/issues/217
         while (!rtrd->empty()) {
             SrsCommonMessage* msg = rtrd->pump();
             if ((err = process_play_control_msg(consumer, msg)) != srs_success) {
@@ -1114,7 +1110,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer* consumer, Srs
     SrsAutoFree(SrsPacket, pkt);
     
     // for jwplayer/flowplayer, which send close as pause message.
-    // @see https://github.com/ossrs/srs/issues/6
     SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(pkt);
     if (close) {
         return srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "rtmp: close stream");
@@ -1122,7 +1117,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer* consumer, Srs
     
     // call msg,
     // support response null first,
-    // @see https://github.com/ossrs/srs/issues/106
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
     if (call) {

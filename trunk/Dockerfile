@@ -32,4 +32,4 @@ COPY --from=build /usr/local/srs /usr/local/srs
 
 # Default workdir and command.
 WORKDIR /usr/local/srs
-CMD ["./objs/srs", "-c", "conf/srs.conf"]
+CMD ["./objs/srs", "-c", "conf/docker.conf"]

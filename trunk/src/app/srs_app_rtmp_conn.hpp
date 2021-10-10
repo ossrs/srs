@@ -82,7 +82,6 @@ private:
     ISrsWakable* wakable;
     // The elapsed duration in srs_utime_t
     // For live play duration, for instance, rtmpdump to record.
-    // @see https://github.com/ossrs/srs/issues/47
     srs_utime_t duration;
     // The MR(merged-write) sleep time in srs_utime_t.
     srs_utime_t mw_sleep;

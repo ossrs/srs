@@ -34,7 +34,6 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
-class SrsRtspCaster;
 class SrsResourceManager;
 class SrsLatestVersion;
 
@@ -50,8 +49,6 @@ enum SrsListenerType
     SrsListenerHttpStream = 2,
     // UDP stream, MPEG-TS over udp.
     SrsListenerMpegTsOverUdp = 3,
-    // TCP stream, RTSP stream.
-    SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
     // HTTPS api,
@@ -87,22 +84,6 @@ public:
     virtual ~SrsBufferListener();
 public:
     virtual srs_error_t listen(std::string ip, int port);
-// Interface ISrsTcpHandler
-public:
-    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
-};
-
-// A TCP listener, for rtsp server.
-class SrsRtspListener : public SrsListener, public ISrsTcpHandler
-{
-private:
-    SrsTcpListener* listener;
-    SrsRtspCaster* caster;
-public:
-    SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
-    virtual ~SrsRtspListener();
-public:
-    virtual srs_error_t listen(std::string i, int p);
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);

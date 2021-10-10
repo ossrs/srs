@@ -1,5 +1,4 @@
 /*
- # see: https://github.com/ossrs/srs/issues/190
  # see: https://github.com/ossrs/srs/wiki/v1_CN_SrsLinuxArm
  g++ -g -O0 -o jmp_sp jmp_sp.cpp
  arm-linux-gnueabi-g++ -g -o jmp_sp jmp_sp.cpp -static
