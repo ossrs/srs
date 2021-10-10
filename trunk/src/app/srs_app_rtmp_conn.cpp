@@ -863,6 +863,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     SrsAutoFree(SrsPithyPrint, pprint);
     
     // start isolate recv thread.
+    // TODO: FIXME: Pass the callback here.
     if ((err = rtrd->start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: receive thread");
     }

@@ -25,7 +25,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ossrs/go-oryx-lib/amf0"
+	"github.com/ossrs/go-oryx-lib/flv"
+	"github.com/ossrs/go-oryx-lib/rtmp"
 	"io"
+	"math/rand"
 	"net"
 	"net/url"
 	"os"
@@ -62,6 +66,8 @@ var srsStream *string
 var srsLiveStream *string
 var srsPublishAudio *string
 var srsPublishVideo *string
+var srsPublishAvatar *string
+var srsPublishBBB *string
 var srsVnetClientIP *string
 
 func prepareTest() error {
@@ -78,6 +84,8 @@ func prepareTest() error {
 	srsPublishOKPackets = flag.Int("srs-publish-ok-packets", 3, "If send N RTP, recv N RTCP packets, it's ok, or fail")
 	srsPublishAudio = flag.String("srs-publish-audio", "avatar.ogg", "The audio file for publisher.")
 	srsPublishVideo = flag.String("srs-publish-video", "avatar.h264", "The video file for publisher.")
+	srsPublishAvatar = flag.String("srs-publish-avatar", "avatar.flv", "The avatar file for publisher.")
+	srsPublishBBB = flag.String("srs-publish-bbb", "bbb.flv", "The bbb file for publisher.")
 	srsPublishVideoFps = flag.Int("srs-publish-video-fps", 25, "The video fps for publisher.")
 	srsVnetClientIP = flag.String("srs-vnet-client-ip", "192.168.168.168", "The client ip in pion/vnet.")
 	srsDTLSDropPackets = flag.Int("srs-dtls-drop-packets", 5, "If dropped N packets, it's ok, or fail")
@@ -119,6 +127,14 @@ func prepareTest() error {
 	}
 
 	if *srsPublishVideo, err = tryOpenFile(*srsPublishVideo); err != nil {
+		return err
+	}
+
+	if *srsPublishAvatar, err = tryOpenFile(*srsPublishAvatar); err != nil {
+		return err
+	}
+
+	if *srsPublishBBB, err = tryOpenFile(*srsPublishBBB); err != nil {
 		return err
 	}
 
@@ -1239,4 +1255,302 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		return finalErr
 	}
 	return ctx.Err()
+}
+
+type RTMPClient struct {
+	rtmpUrl string
+
+	rtmpTcUrl     string
+	rtmpStream    string
+	rtmpUrlObject *url.URL
+
+	streamID int
+
+	conn  *net.TCPConn
+	proto *rtmp.Protocol
+}
+
+func (v *RTMPClient) Close() error {
+	if v.conn != nil {
+		v.conn.Close()
+	}
+	return nil
+}
+
+func (v *RTMPClient) connect(rtmpUrl string) error {
+	v.rtmpUrl = rtmpUrl
+
+	if index := strings.LastIndex(rtmpUrl, "/"); index <= 0 {
+		return fmt.Errorf("invalid url %v, index=%v", rtmpUrl, index)
+	} else {
+		v.rtmpTcUrl = rtmpUrl[0:index]
+		v.rtmpStream = rtmpUrl[index+1:]
+	}
+
+	// Parse RTMP url.
+	rtmpUrlObject, err := url.Parse(rtmpUrl)
+	if err != nil {
+		return err
+	}
+	v.rtmpUrlObject = rtmpUrlObject
+
+	port := rtmpUrlObject.Port()
+	if port == "" {
+		port = "1935"
+	}
+
+	// Connect to TCP server.
+	rtmpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%v:%v", rtmpUrlObject.Hostname(), port))
+	if err != nil {
+		return err
+	}
+
+	c, err := net.DialTCP("tcp4", nil, rtmpAddr)
+	if err != nil {
+		return err
+	}
+	v.conn = c
+
+	// RTMP Handshake with server.
+	hs := rtmp.NewHandshake(rand.New(rand.NewSource(time.Now().UnixNano())))
+	if err := hs.WriteC0S0(c); err != nil {
+		return err
+	}
+	if err := hs.WriteC1S1(c); err != nil {
+		return err
+	}
+
+	if _, err := hs.ReadC0S0(c); err != nil {
+		return err
+	}
+	s1, err := hs.ReadC1S1(c)
+	if err != nil {
+		return err
+	}
+	if _, err := hs.ReadC2S2(c); err != nil {
+		return err
+	}
+
+	if err := hs.WriteC2S2(c, s1); err != nil {
+		return err
+	}
+
+	// Connect to RTMP tcUrl.
+	p := rtmp.NewProtocol(v.conn)
+
+	pkt := rtmp.NewConnectAppPacket()
+	pkt.CommandObject.Set("tcUrl", amf0.NewString(v.rtmpTcUrl))
+	if err = p.WritePacket(pkt, 0); err != nil {
+		return err
+	}
+
+	res := rtmp.NewConnectAppResPacket(pkt.TransactionID)
+	if _, err := p.ExpectPacket(&res); err != nil {
+		return err
+	}
+	v.proto = p
+
+	return nil
+}
+
+func (v *RTMPClient) Publish(ctx context.Context, rtmpUrl string) error {
+	if err := v.connect(rtmpUrl); err != nil {
+		return err
+	}
+	p := v.proto
+
+	// Create RTMP stream.
+	if true {
+		pkt := rtmp.NewCreateStreamPacket()
+		if err := p.WritePacket(pkt, 0); err != nil {
+			return err
+		}
+
+		res := rtmp.NewCreateStreamResPacket(pkt.TransactionID)
+		if _, err := p.ExpectPacket(&res); err != nil {
+			return err
+		}
+		v.streamID = int(res.StreamID)
+	}
+
+	// Publish RTMP stream.
+	if true {
+		pkt := rtmp.NewPublishPacket()
+		pkt.StreamName = *amf0.NewString(v.rtmpStream)
+		if err := p.WritePacket(pkt, v.streamID); err != nil {
+			return err
+		}
+
+		res := rtmp.NewCallPacket()
+		if _, err := p.ExpectPacket(&res); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (v *RTMPClient) Play(ctx context.Context, rtmpUrl string) error {
+	if err := v.connect(rtmpUrl); err != nil {
+		return err
+	}
+	p := v.proto
+
+	// Create RTMP stream.
+	if true {
+		pkt := rtmp.NewCreateStreamPacket()
+		if err := p.WritePacket(pkt, 0); err != nil {
+			return err
+		}
+
+		res := rtmp.NewCreateStreamResPacket(pkt.TransactionID)
+		if _, err := p.ExpectPacket(&res); err != nil {
+			return err
+		}
+		v.streamID = int(res.StreamID)
+	}
+
+	// Play RTMP stream.
+	if true {
+		pkt := rtmp.NewPlayPacket()
+		pkt.StreamName = *amf0.NewString(v.rtmpStream)
+		if err := p.WritePacket(pkt, v.streamID); err != nil {
+			return err
+		}
+
+		res := rtmp.NewCallPacket()
+		if _, err := p.ExpectPacket(&res); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type RTMPPublisher struct {
+	client *RTMPClient
+
+	onSendPacket func(m *rtmp.Message) error
+}
+
+func NewRTMPPublisher() *RTMPPublisher {
+	return &RTMPPublisher{
+		client: &RTMPClient{},
+	}
+}
+
+func (v *RTMPPublisher) Close() error {
+	return v.client.Close()
+}
+
+func (v *RTMPPublisher) Publish(ctx context.Context, rtmpUrl string) error {
+	return v.client.Publish(ctx, rtmpUrl)
+}
+
+func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
+	err := v.ingest(flvInput)
+	if err == io.EOF {
+		return nil
+	}
+	if ctx.Err() == context.Canceled {
+		return nil
+	}
+	return err
+}
+
+func (v *RTMPPublisher) ingest(flvInput string) error {
+	p := v.client
+
+	fs, err := os.Open(flvInput)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
+
+	demuxer, err := flv.NewDemuxer(fs)
+	if err != nil {
+		return err
+	}
+
+	if _, _, _, err = demuxer.ReadHeader(); err != nil {
+		return err
+	}
+
+	for {
+		tagType, tagSize, timestamp, err := demuxer.ReadTagHeader()
+		if err != nil {
+			return err
+		}
+
+		tag, err := demuxer.ReadTag(tagSize)
+		if err != nil {
+			return err
+		}
+
+		if tagType != flv.TagTypeVideo && tagType != flv.TagTypeAudio {
+			continue
+		}
+
+		m := rtmp.NewStreamMessage(p.streamID)
+		m.MessageType = rtmp.MessageType(tagType)
+		m.Timestamp = uint64(timestamp)
+		m.Payload = tag
+		if err = p.proto.WriteMessage(m); err != nil {
+			return err
+		}
+
+		if v.onSendPacket != nil {
+			if err = v.onSendPacket(m); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+type RTMPPlayer struct {
+	client *RTMPClient
+
+	onRecvPacket func(m *rtmp.Message) error
+}
+
+func NewRTMPPlayer() *RTMPPlayer {
+	return &RTMPPlayer{
+		client: &RTMPClient{},
+	}
+}
+
+func (v *RTMPPlayer) Close() error {
+	return v.client.Close()
+}
+
+func (v *RTMPPlayer) Play(ctx context.Context, rtmpUrl string) error {
+	return v.client.Play(ctx, rtmpUrl)
+}
+
+func (v *RTMPPlayer) Consume(ctx context.Context) error {
+	err := v.consume()
+	if err == io.EOF {
+		return nil
+	}
+	if ctx.Err() == context.Canceled {
+		return nil
+	}
+	return err
+}
+
+func (v *RTMPPlayer) consume() error {
+	for {
+		res, err := v.client.proto.ExpectMessage(rtmp.MessageTypeVideo, rtmp.MessageTypeAudio)
+		if err != nil {
+			return err
+		}
+
+		if v.onRecvPacket != nil {
+			if err := v.onRecvPacket(res); err != nil {
+				return err
+			}
+		}
+	}
 }

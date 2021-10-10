@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ossrs/go-oryx-lib/rtmp"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -2096,4 +2097,74 @@ func TestRtcPublishFlvPlay(t *testing.T) {
 			}
 		}
 	}()
+}
+
+func TestRtmpPublishPlay(t *testing.T) {
+	var r0, r1 error
+	err := func() error {
+		publisher := NewRTMPPublisher()
+		defer publisher.Close()
+
+		player := NewRTMPPlayer()
+		defer player.Close()
+
+		// Connect to RTMP URL.
+		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+
+		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		if err := player.Play(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		// Check packets.
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-ctx.Done()
+			publisher.Close()
+			player.Close()
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var nnPackets int
+			player.onRecvPacket = func(m *rtmp.Message) error {
+				logger.Tf(ctx, "got %v packet, %v %vms %vB",
+					nnPackets, m.MessageType, m.Timestamp, len(m.Payload))
+				if nnPackets += 1; nnPackets > 50 {
+					cancel()
+				}
+				return nil
+			}
+			if r1 = player.Consume(ctx); r1 != nil {
+				cancel()
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			publisher.onSendPacket = func(m *rtmp.Message) error {
+				time.Sleep(1 * time.Millisecond)
+				return nil
+			}
+			if r0 = publisher.Ingest(ctx, *srsPublishAvatar); r0 != nil {
+				cancel()
+			}
+		}()
+
+		return nil
+	}()
+	if err := filterTestError(err, r0, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
 }
