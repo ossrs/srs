@@ -1448,6 +1448,18 @@ func (v *RTMPPublisher) Publish(ctx context.Context, rtmpUrl string) error {
 }
 
 func (v *RTMPPublisher) Ingest(ctx context.Context, flvInput string) error {
+	// If ctx is cancelled, close the RTMP transport.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		v.Close()
+	}()
+
+	// Consume all packets.
 	err := v.ingest(flvInput)
 	if err == io.EOF {
 		return nil
@@ -1530,6 +1542,18 @@ func (v *RTMPPlayer) Play(ctx context.Context, rtmpUrl string) error {
 }
 
 func (v *RTMPPlayer) Consume(ctx context.Context) error {
+	// If ctx is cancelled, close the RTMP transport.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		v.Close()
+	}()
+
+	// Consume all packets.
 	err := v.consume()
 	if err == io.EOF {
 		return nil
