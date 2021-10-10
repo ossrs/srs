@@ -3661,7 +3661,7 @@ bool SrsConfig::get_rtc_bframe_discard(string vhost)
 
 bool SrsConfig::get_rtc_aac_discard(string vhost)
 {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
 
     SrsConfDirective* conf = get_rtc(vhost);
 
