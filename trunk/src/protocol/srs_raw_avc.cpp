@@ -281,7 +281,6 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* p
         // decode the ADTS.
         // @see ISO_IEC_13818-7-AAC-2004.pdf, page 26
         //      6.2 Audio Data Transport Stream, ADTS
-        // @see https://github.com/ossrs/srs/issues/212#issuecomment-64145885
         // byte_alignment()
         
         // adts_fixed_header:
@@ -342,7 +341,7 @@ srs_error_t SrsRawAacStream::adts_demux(SrsBuffer* stream, char** pframe, int* p
         int8_t channel_configuration = (sfiv >> 6) & 0x07;
         /*int8_t original = (sfiv >> 5) & 0x01;*/
         /*int8_t home = (sfiv >> 4) & 0x01;*/
-        //int8_t Emphasis; @remark, Emphasis is removed, @see https://github.com/ossrs/srs/issues/212#issuecomment-64154736
+        //int8_t Emphasis; @remark, Emphasis is removed
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
         // copyright_identification_bit 1 bslbf

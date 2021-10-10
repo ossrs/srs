@@ -153,7 +153,6 @@ private:
     // The current writing segment.
     SrsHlsSegment* current;
     // The ts context, to keep cc continous between ts.
-    // @see https://github.com/ossrs/srs/issues/375
     SrsTsContext* context;
 public:
     SrsHlsMuxer();
@@ -187,7 +186,6 @@ public:
     virtual bool wait_keyframe();
     // Whether segment absolutely overflow, for pure audio to reap segment,
     // that is whether the current segment duration>=2*(the segment in config)
-    // @see https://github.com/ossrs/srs/issues/151#issuecomment-71155184
     virtual bool is_segment_absolutely_overflow();
 public:
     // Whether current hls muxer is pure audio mode.

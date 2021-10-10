@@ -746,7 +746,6 @@ public:
     // all clients connected to edge must be tranverse to origin to verify.
     virtual bool get_vhost_edge_token_traverse(std::string vhost);
     // Get the transformed vhost for edge,
-    // @see https://github.com/ossrs/srs/issues/372
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
@@ -921,7 +920,6 @@ public:
     // Get the hls hls_on_error config.
     // The ignore will ignore error and disable hls.
     // The disconnect will disconnect publish connection.
-    // @see https://github.com/ossrs/srs/issues/264
     virtual std::string get_hls_on_error(std::string vhost);
     // Get the HLS default audio codec.
     virtual std::string get_hls_acodec(std::string vhost);
