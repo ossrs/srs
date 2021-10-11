@@ -29,6 +29,8 @@ import (
 	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/rtmp"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
 	"io"
 	"math/rand"
 	"net"
@@ -1656,4 +1658,43 @@ func IsNALUEquals(a, b *avc.NALU) bool {
 	}
 
 	return bytes.Equal(a.Data, b.Data)
+}
+
+func DemuxRtpSpsPps(payload []byte) ([]byte, []*avc.NALU, error) {
+	// Parse RTP packet.
+	pkt := rtp.Packet{}
+	if err := pkt.Unmarshal(payload); err != nil {
+		return nil, nil, err
+	}
+
+	// Decode H264 packet.
+	h264Packet := codecs.H264Packet{}
+	annexb, err := h264Packet.Unmarshal(pkt.Payload)
+	if err != nil {
+		return annexb, nil, err
+	}
+
+	// Ignore if not STAP-A
+	if !bytes.HasPrefix(annexb, []byte{0x00, 0x00, 0x00, 0x01}) {
+		return annexb, nil, err
+	}
+
+	// Parse to NALUs
+	rawNalus := bytes.Split(annexb, []byte{0x00, 0x00, 0x00, 0x01})
+
+	nalus := []*avc.NALU{}
+	for _, rawNalu := range rawNalus {
+		if len(rawNalu) == 0 {
+			continue
+		}
+
+		nalu := avc.NewNALU()
+		if err := nalu.UnmarshalBinary(rawNalu); err != nil {
+			return annexb, nil, err
+		}
+
+		nalus = append(nalus, nalu)
+	}
+
+	return annexb, nalus, nil
 }
