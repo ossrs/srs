@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/ossrs/go-oryx-lib/avc"
 	"github.com/ossrs/go-oryx-lib/flv"
+	"github.com/pion/interceptor"
 	"math/rand"
 	"os"
 	"sync"
@@ -36,6 +37,9 @@ import (
 )
 
 func TestRtmpPublishPlay(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1 error
 	err := func() error {
 		publisher := NewRTMPPublisher()
@@ -45,7 +49,6 @@ func TestRtmpPublishPlay(t *testing.T) {
 		defer player.Close()
 
 		// Connect to RTMP URL.
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
 		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
 
@@ -92,12 +95,100 @@ func TestRtmpPublishPlay(t *testing.T) {
 
 		return nil
 	}()
-	if err := filterTestError(err, r0, r1); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
+		t.Errorf("err %+v", err)
+	}
+}
+
+func TestRtmpPublish_RtcPlay(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1 error
+	err := func() (err error) {
+		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
+		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, *srsServer, *srsStream, streamSuffix)
+
+		// Publisher connect to a RTMP stream.
+		publisher := NewRTMPPublisher()
+		defer publisher.Close()
+
+		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
+			return err
+		}
+
+		// Setup the RTC player.
+		var thePlayer *testPlayer
+		if thePlayer, err = newTestPlayer(registerMiniCodecs, func(play *testPlayer) error {
+			play.streamSuffix = streamSuffix
+			var nnPlayReadRTP uint64
+			return play.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+				api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
+					i.rtpReader = func(payload []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+						nn, attr, err := i.nextRTPReader.Read(payload, attributes)
+						if err == nil {
+							if nnPlayReadRTP++; nnPlayReadRTP >= uint64(*srsPlayOKPackets) {
+								cancel() // Completed.
+							}
+							logger.Tf(ctx, "Play RECV RTP #%v %vB", nnPlayReadRTP, nn)
+						}
+						return nn, attr, err
+					}
+				}))
+			})
+		}); err != nil {
+			return err
+		}
+		defer thePlayer.Close()
+
+		// Run publisher and players.
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		var playerIceReady context.Context
+		playerIceReady, thePlayer.iceReadyCancel = context.WithCancel(ctx)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if r1 = thePlayer.Run(logger.WithContext(ctx), cancel); r1 != nil {
+				cancel()
+			}
+			logger.Tf(ctx, "player done")
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Wait for player ready.
+			select {
+			case <-ctx.Done():
+				return
+			case <-playerIceReady.Done():
+			}
+
+			publisher.onSendPacket = func(m *rtmp.Message) error {
+				time.Sleep(100 * time.Microsecond)
+				return nil
+			}
+			if r0 = publisher.Ingest(ctx, *srsPublishAvatar); r0 != nil {
+				cancel()
+			}
+			logger.Tf(ctx, "publisher done")
+		}()
+
+		return nil
+	}()
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
 
 func TestRtmpPublish_MultipleSequences(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1, r2 error
 	err := func() error {
 		publisher := NewRTMPPublisher()
@@ -107,7 +198,6 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 		defer player.Close()
 
 		// Connect to RTMP URL.
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		streamSuffix := fmt.Sprintf("rtmp-multi-spspps-%v-%v", os.Getpid(), rand.Int())
 		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
 
@@ -148,7 +238,7 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 				logger.Tf(ctx, "got %v sps/pps, %v %vms %vB, sps=%v, pps=%v, %v, %v",
 					nnPackets, m.MessageType, m.Timestamp, len(m.Payload), len(avccr.SequenceParameterSetNALUnits),
 					len(avccr.PictureParameterSetNALUnits), avccr.AVCProfileIndication, avccr.AVCLevelIndication)
-				if nnPackets++; nnPackets >=2 {
+				if nnPackets++; nnPackets >= 2 {
 					cancel()
 				}
 				return nil
@@ -186,7 +276,7 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 
 		return nil
 	}()
-	if err := filterTestError(err, r0, r1, r2); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1, r2); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }

@@ -749,10 +749,11 @@ func (v *testWebRTCAPI) NewPeerConnection(configuration webrtc.Configuration) (*
 type testPlayerOptionFunc func(p *testPlayer) error
 
 type testPlayer struct {
-	onOffer   func(s *webrtc.SessionDescription) error
-	onAnswer  func(s *webrtc.SessionDescription) error
-	pc        *webrtc.PeerConnection
-	receivers []*webrtc.RTPReceiver
+	onOffer        func(s *webrtc.SessionDescription) error
+	onAnswer       func(s *webrtc.SessionDescription) error
+	iceReadyCancel context.CancelFunc
+	pc             *webrtc.PeerConnection
+	receivers      []*webrtc.RTPReceiver
 	// We should dispose it.
 	api *testWebRTCAPI
 	// Optional suffix for stream url.
@@ -910,8 +911,20 @@ func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
 	})
 
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
-		if state == webrtc.ICEConnectionStateFailed || state == webrtc.ICEConnectionStateClosed {
-			err = errors.Errorf("Close for ICE state %v", state)
+		logger.Tf(ctx, "ICE state %v", state)
+	})
+
+	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		logger.Tf(ctx, "PC state %v", state)
+
+		if state == webrtc.PeerConnectionStateConnected {
+			if v.iceReadyCancel != nil {
+				v.iceReadyCancel()
+			}
+		}
+
+		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
+			err = errors.Errorf("Close for PC state %v", state)
 			cancel()
 		}
 	})
