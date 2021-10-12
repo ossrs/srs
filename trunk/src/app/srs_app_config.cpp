@@ -1984,6 +1984,16 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     if (config_file.empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config, read help: %s -h", argv[0]);
     }
+
+    // For docker, if config is not specified, try srs.conf instead.
+    string try_config = srs_string_replace(config_file, "docker.conf", "srs.conf");
+    if (!srs_path_exists(config_file) && try_config != config_file) {
+        if (!srs_path_exists(try_config)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file %s or %s", config_file.c_str(), try_config.c_str());
+        }
+        srs_warn("user config %s does not exists, use %s instead", config_file.c_str(), try_config.c_str());
+        config_file = try_config;
+    }
     
     err = parse_file(config_file.c_str());
     
