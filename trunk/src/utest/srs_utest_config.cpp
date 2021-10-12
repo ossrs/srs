@@ -3575,8 +3575,8 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_FALSE(conf.get_http_api_crossdomain());
         EXPECT_TRUE(conf.get_raw_api());
         EXPECT_TRUE(conf.get_raw_api_allow_reload());
-        EXPECT_TRUE(conf.get_raw_api_allow_query());
-        EXPECT_TRUE(conf.get_raw_api_allow_update());
+        EXPECT_FALSE(conf.get_raw_api_allow_query()); // Always disabled
+        EXPECT_FALSE(conf.get_raw_api_allow_update()); // Always disabled
     }
 
     if (true) {

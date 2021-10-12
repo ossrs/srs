@@ -254,9 +254,9 @@ private:
     // The metadata cache.
     SrsMetaCache* meta;
 private:
-    bool discard_aac;
+    bool rtmp_to_rtc;
     SrsAudioTranscoder* codec_;
-    bool discard_bframe;
+    bool keep_bframe;
     bool merge_nalus;
     uint16_t audio_sequence;
     uint16_t video_sequence;

@@ -27,6 +27,10 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-11, Fix [#1641](https://github.com/ossrs/srs/issues/1641), HLS/RTC picture corrupt for SPS/PPS lost. v4.0.175
+* v4.0, 2021-10-11, RTC: Refine config, aac to rtmp_to_rtc, bframe to keep_bframe. v4.0.174
+* v4.0, 2021-10-10, For [#1641](https://github.com/ossrs/srs/issues/1641), Support RTMP publish and play regression test. v4.0.173
+* v4.0, 2021-10-10, RTC: Change rtc.aac to discard by default. v4.0.172
 * v4.0, 2021-10-10, Fix [#2304](https://github.com/ossrs/srs/issues/2304) Remove Push RTSP feature. v4.0.171
 * v4.0, 2021-10-10, Fix [#2653](https://github.com/ossrs/srs/issues/2653) Remove HTTP RAW API. v4.0.170
 * v4.0, 2021-10-08, Merge [#2654](https://github.com/ossrs/srs/pull/2654): Parse width and width from SPS/PPS. v4.0.169

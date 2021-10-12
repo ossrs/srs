@@ -521,6 +521,32 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 srs_freep(conf);
                 continue;
             }
+
+            // SRS3.0, change the forward.
+            //  SRS1/2:
+            //      vhost { rtc { aac; } }
+            //  SRS3+:
+            //      vhost { rtc { rtmp_to_rtc; } }
+            if (n == "rtc") {
+                SrsConfDirective* aac = conf->get("aac");
+                if (aac) {
+                    string v = aac->arg0() == "transcode" ? "on" : "off";
+                    conf->get_or_create("rtmp_to_rtc")->set_arg0(v);
+                    conf->remove(aac); srs_freep(aac);
+                    srs_warn("transform: vhost.rtc.aac to vhost.rtc.rtmp_to_rtc %s", v.c_str());
+                }
+
+                SrsConfDirective* bframe = conf->get("bframe");
+                if (bframe) {
+                    string v = bframe->arg0() == "keep" ? "on" : "off";
+                    conf->get_or_create("keep_bframe")->set_arg0(v);
+                    conf->remove(bframe); srs_freep(bframe);
+                    srs_warn("transform: vhost.rtc.bframe to vhost.rtc.keep_bframe %s", v.c_str());
+                }
+
+                ++it;
+                continue;
+            }
             
             ++it;
         }
@@ -2782,7 +2808,7 @@ srs_error_t SrsConfig::check_normal_config()
                     if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy"
                         && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check"
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
-                        && m != "pli_for_rtmp") {
+                        && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -3641,25 +3667,7 @@ bool SrsConfig::get_rtc_enabled(string vhost)
     return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_rtc_bframe_discard(string vhost)
-{
-    static bool DEFAULT = true;
-
-    SrsConfDirective* conf = get_rtc(vhost);
-
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("bframe");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return conf->arg0() != "keep";
-}
-
-bool SrsConfig::get_rtc_aac_discard(string vhost)
+bool SrsConfig::get_rtc_keep_bframe(string vhost)
 {
     static bool DEFAULT = false;
 
@@ -3669,12 +3677,30 @@ bool SrsConfig::get_rtc_aac_discard(string vhost)
         return DEFAULT;
     }
 
-    conf = conf->get("aac");
+    conf = conf->get("keep_bframe");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 
-    return conf->arg0() == "discard";
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_from_rtmp(string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtmp_to_rtc");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
