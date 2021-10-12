@@ -97,6 +97,7 @@ A big THANK YOU goes to:
 
 ## Releases
 
+* 2021-10-12, Release [v4.0.176](https://github.com/ossrs/srs/releases/tag/v4.0.176), 4.0 dev6, v4.0.176, 143675 lines.
 * 2021-09-05, Release [v4.0.161](https://github.com/ossrs/srs/releases/tag/v4.0.161), 4.0 dev5, v4.0.161, 145865 lines.
 * 2021-08-15, Release [v4.0.156](https://github.com/ossrs/srs/releases/tag/v4.0.156), 4.0 dev4, v4.0.156, 145490 lines.
 * 2021-08-14, Release [v4.0.153](https://github.com/ossrs/srs/releases/tag/v4.0.153), 4.0 dev3, v4.0.153, 145506 lines.
