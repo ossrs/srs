@@ -57,6 +57,8 @@ public:
     virtual ~SrsHlsSegment();
 public:
     void config_cipher(unsigned char* key,unsigned char* iv);
+    // replace the placeholder
+    virtual srs_error_t rename();
 };
 
 // The hls async call: on_hls
