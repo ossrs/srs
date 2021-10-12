@@ -2079,6 +2079,15 @@ VOID TEST(KernelUtilityTest, UtilityString)
     str1 = srs_string_replace(str, "o", "XX");
     EXPECT_STREQ("HellXX, WXXrld! HellXX, SRS!", str1.c_str());
 
+    // origin_str == old_str
+    std::string origin_str = "xxd";
+    str1 = srs_string_replace(origin_str, "xxd", "x1d");
+    EXPECT_STREQ("x1d", str1.c_str());
+
+    // new_str include old_str.
+    str1 = srs_string_replace(str, "Hello", "HelloN");
+    EXPECT_STREQ("HelloN, World! HelloN, SRS!", str1.c_str());
+
     str1 = srs_string_trim_start(str, "x");
     EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
 
@@ -3720,6 +3729,22 @@ VOID TEST(KernelCodecTest, VideoFormatSepcial)
             0x00, // lengthSizeMinusOne
             0x01, 0x00, 0x00, // SPS, empty
             0x01, 0x00, 0x00, // PPS, empty
+        };
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
+    }
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+        uint8_t buf[] = {
+            0x17, // 1, Keyframe; 7, AVC.
+            0x00, // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x00, // lengthSizeMinusOne
+            0x02, 0x00, 0x00, 0x00, 0x00, // 2 SPS, 
+            0x02, 0x00, 0x00, 0x00, 0x00  // 2 PPS, 
         };
         HELPER_EXPECT_SUCCESS(f.on_video(0, (char*)buf, sizeof(buf)));
     }
@@ -5503,3 +5528,18 @@ VOID TEST(KernelUtilityTest, CoverStringAssign)
     ASSERT_STREQ("", sps.c_str());
 }
 
+VOID TEST(KernelUtilityTest, CoverCheckIPAddrValid)
+{
+    ASSERT_TRUE(srs_check_ip_addr_valid("172.16.254.1"));
+    ASSERT_TRUE(srs_check_ip_addr_valid("2001:0db8:85a3:0:0:8A2E:0370:7334"));
+    ASSERT_FALSE(srs_check_ip_addr_valid(""));
+
+    //IPv4 any addr
+    ASSERT_TRUE(srs_check_ip_addr_valid("0.0.0.0"));
+    //IPV6 any addr
+    ASSERT_TRUE(srs_check_ip_addr_valid("::"));
+
+    ASSERT_FALSE(srs_check_ip_addr_valid("256.256.256.256"));
+    ASSERT_FALSE(srs_check_ip_addr_valid("2001:0db8:85a3:0:0:8A2E:0370:7334:"));
+    ASSERT_FALSE(srs_check_ip_addr_valid("1e1.4.5.6"));
+}

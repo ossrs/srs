@@ -153,6 +153,30 @@ srs_error_t srs_redirect_output(string from_file, int to_fd)
     return err;
 }
 
+srs_error_t SrsProcess::redirect_io()
+{
+    srs_error_t err = srs_success;
+
+    // for the stdout, ignore when not specified.
+    // redirect stdout to file if possible.
+    if ((err = srs_redirect_output(stdout_file, STDOUT_FILENO)) != srs_success) {
+        return srs_error_wrap(err, "redirect stdout");
+    }
+
+    // for the stderr, ignore when not specified.
+    // redirect stderr to file if possible.
+    if ((err = srs_redirect_output(stderr_file, STDERR_FILENO)) != srs_success) {
+        return srs_error_wrap(err, "redirect stderr");
+    }
+
+    // No stdin for process, @bug https://github.com/ossrs/srs/issues/1592
+    if ((err = srs_redirect_output("/dev/null", STDIN_FILENO)) != srs_success) {
+        return srs_error_wrap(err, "redirect /dev/null");
+    }
+
+    return err;
+}
+
 srs_error_t SrsProcess::start()
 {
     srs_error_t err = srs_success;
@@ -182,24 +206,13 @@ srs_error_t SrsProcess::start()
         // ignore the SIGINT and SIGTERM
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
-
-        // for the stdout, ignore when not specified.
-        // redirect stdout to file if possible.
-        if ((err = srs_redirect_output(stdout_file, STDOUT_FILENO)) != srs_success) {
-            return srs_error_wrap(err, "redirect output");
+        
+        // redirect standard I/O, if it failed, output error to stdout, and exit child process.
+        if ((err = redirect_io()) != srs_success) {
+            fprintf(stdout, "child process error, %s\n", srs_error_desc(err).c_str());
+            exit(-1);
         }
         
-        // for the stderr, ignore when not specified.
-        // redirect stderr to file if possible.
-        if ((err = srs_redirect_output(stderr_file, STDERR_FILENO)) != srs_success) {
-            return srs_error_wrap(err, "redirect output");
-        }
-
-        // No stdin for process, @bug https://github.com/ossrs/srs/issues/1592
-        if ((err = srs_redirect_output("/dev/null", STDIN_FILENO)) != srs_success) {
-            return srs_error_wrap(err, "redirect input");
-        }
-
         // should never close the fd 3+, for it myabe used.
         // for fd should close at exec, use fnctl to set it.
         

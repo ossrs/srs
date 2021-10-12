@@ -11,18 +11,36 @@
 
 #include <srs_app_http_conn.hpp>
 
+struct SrsM3u8CtxInfo
+{
+    srs_utime_t request_time;
+    SrsRequest* req;
+};
+
 // The flv vod stream supports flv?start=offset-bytes.
 // For example, http://server/file.flv?start=10240
 // server will write flv header and sequence header,
 // then seek(10240) and response flv tag data.
-class SrsVodStream : public SrsHttpFileServer
+class SrsVodStream : public SrsHttpFileServer, public ISrsFastTimer
 {
+private:
+    // The period of validity of the ctx
+    std::map<std::string, SrsM3u8CtxInfo> map_ctx_info_;
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
 protected:
     virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+private:
+    virtual bool ctx_is_exist(std::string ctx);
+    virtual void alive(std::string ctx, SrsRequest* req);
+    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
+    virtual void http_hooks_on_stop(SrsRequest* req);
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // The http static server instance,

@@ -81,10 +81,9 @@
     } \
     (void)0
 
-// Checking for st(state-threads), only support the following cpus: i386/amd64/x86_64/arm
-// @reamrk To patch ST for arm, read https://github.com/ossrs/state-threads/issues/1
-#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__)
-    #error "only support i386/amd64/x86_64/arm cpu"
+// Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22
+#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__)
+    #error "Only support i386/amd64/x86_64/arm/aarch64/mips cpu"
 #endif
 
 // Error predefined for all modules.

@@ -449,7 +449,6 @@ srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, 
     srs_error_t err = srs_success;
     
     // when sps or pps not sent, ignore the packet.
-    // @see https://github.com/ossrs/srs/issues/203
     if (!h264_sps_pps_sent) {
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop sps/pps");
     }

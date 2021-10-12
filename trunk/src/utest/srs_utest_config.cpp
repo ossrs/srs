@@ -2162,9 +2162,6 @@ VOID TEST(ConfigUnitTest, OperatorEquals)
     EXPECT_TRUE(srs_stream_caster_is_udp("mpegts_over_udp"));
     EXPECT_FALSE(srs_stream_caster_is_udp("xxx"));
 
-    EXPECT_TRUE(srs_stream_caster_is_rtsp("rtsp"));
-    EXPECT_FALSE(srs_stream_caster_is_rtsp("xxx"));
-
     EXPECT_TRUE(srs_stream_caster_is_flv("flv"));
     EXPECT_FALSE(srs_stream_caster_is_flv("xxx"));
 
@@ -3578,8 +3575,8 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
         EXPECT_FALSE(conf.get_http_api_crossdomain());
         EXPECT_TRUE(conf.get_raw_api());
         EXPECT_TRUE(conf.get_raw_api_allow_reload());
-        EXPECT_TRUE(conf.get_raw_api_allow_query());
-        EXPECT_TRUE(conf.get_raw_api_allow_update());
+        EXPECT_FALSE(conf.get_raw_api_allow_query()); // Always disabled
+        EXPECT_FALSE(conf.get_raw_api_allow_update()); // Always disabled
     }
 
     if (true) {

@@ -64,7 +64,11 @@ const int kVideoSamplerate  = 90000;
 //      kRtpPacketSize = kRtpMaxPayloadSize + paddings
 // For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
 // which reserves 100 bytes for SRTP or paddings.
-const int kRtpMaxPayloadSize = kRtpPacketSize - 200;
+// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code, 
+// the rtp max size is assigned by kVideoMtu = 1200.
+// so we set kRtpMaxPayloadSize = 1200.
+// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
+const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
 
 using namespace std;
 
@@ -703,8 +707,8 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
     source_ = source;
     format = new SrsRtmpFormat();
     codec_ = new SrsAudioTranscoder();
-    discard_aac = false;
-    discard_bframe = false;
+    rtmp_to_rtc = false;
+    keep_bframe = false;
     merge_nalus = false;
     meta = new SrsMetaCache();
     audio_sequence = 0;
@@ -739,22 +743,24 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
     srs_error_t err = srs_success;
 
     req = r;
+    rtmp_to_rtc = _srs_config->get_rtc_from_rtmp(req->vhost);
 
-    if ((err = format->initialize()) != srs_success) {
-        return srs_error_wrap(err, "format initialize");
+    if (rtmp_to_rtc) {
+        if ((err = format->initialize()) != srs_success) {
+            return srs_error_wrap(err, "format initialize");
+        }
+
+        int bitrate = 48000; // The output bitrate in bps.
+        if ((err = codec_->initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate,
+                                      bitrate)) != srs_success) {
+            return srs_error_wrap(err, "init codec");
+        }
     }
 
-    int bitrate = 48000; // The output bitrate in bps.
-    if ((err = codec_->initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
-        return srs_error_wrap(err, "init codec");
-    }
-
-    // TODO: FIXME: Support reload.
-    discard_aac = _srs_config->get_rtc_aac_discard(req->vhost);
-    discard_bframe = _srs_config->get_rtc_bframe_discard(req->vhost);
+    keep_bframe = _srs_config->get_rtc_keep_bframe(req->vhost);
     merge_nalus = _srs_config->get_rtc_server_merge_nalus();
-    srs_trace("RTC bridge from RTMP, discard_aac=%d, discard_bframe=%d, merge_nalus=%d",
-        discard_aac, discard_bframe, merge_nalus);
+    srs_trace("RTC bridge from RTMP, rtmp2rtc=%d, keep_bframe=%d, merge_nalus=%d",
+              rtmp_to_rtc, keep_bframe, merge_nalus);
 
     return err;
 }
@@ -762,6 +768,10 @@ srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
 srs_error_t SrsRtcFromRtmpBridger::on_publish()
 {
     srs_error_t err = srs_success;
+
+    if (!rtmp_to_rtc) {
+        return err;
+    }
 
     // TODO: FIXME: Should sync with bridger?
     if ((err = source_->on_publish()) != srs_success) {
@@ -777,6 +787,10 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
 
 void SrsRtcFromRtmpBridger::on_unpublish()
 {
+    if (!rtmp_to_rtc) {
+        return;
+    }
+
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta->update_previous_vsh();
@@ -790,6 +804,10 @@ void SrsRtcFromRtmpBridger::on_unpublish()
 srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
+
+    if (!rtmp_to_rtc) {
+        return err;
+    }
 
     // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
@@ -809,7 +827,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     }
 
     // When drop aac audio packet, never transcode.
-    if (discard_aac && acodec == SrsAudioCodecIdAAC) {
+    if (acodec != SrsAudioCodecIdAAC) {
         return err;
     }
 
@@ -901,6 +919,10 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
 
+    if (!rtmp_to_rtc) {
+        return err;
+    }
+
     // cache the sequence header if h264
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload, msg->size);
     if (is_sequence_header && (err = meta->update_vsh(msg)) != srs_success) {
@@ -989,7 +1011,7 @@ srs_error_t SrsRtcFromRtmpBridger::filter(SrsSharedPtrMessage* msg, SrsFormat* f
 
         // Because RTC does not support B-frame, so we will drop them.
         // TODO: Drop B-frame in better way, which not cause picture corruption.
-        if (discard_bframe) {
+        if (!keep_bframe) {
             if ((err = sample->parse_bframe()) != srs_success) {
                 return srs_error_wrap(err, "parse bframe");
             }
@@ -1192,7 +1214,7 @@ srs_error_t SrsRtcFromRtmpBridger::package_fu_a(SrsSharedPtrMessage* msg, SrsSam
     uint8_t header = sample->bytes[0];
     uint8_t nal_type = header & kNalTypeMask;
 
-    int num_of_packet = 1 + (sample->size - 1) / fu_payload_size;
+    int num_of_packet = 1 + (nb_left - 1) / fu_payload_size;
     for (int i = 0; i < num_of_packet; ++i) {
         int packet_size = srs_min(nb_left, fu_payload_size);
 
@@ -1715,15 +1737,19 @@ bool SrsRtmpFromRtcBridger::check_frame_complete(const uint16_t start, const uin
     for (uint16_t i = 0; i < cnt; ++i) {
         int index = cache_index((start + i));
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
-        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
-        if (fua_payload) {
-            if (fua_payload->start) {
-                ++fu_s_c;
-            }
 
-            if (fua_payload->end) {
-                ++fu_e_c;
-            }
+        // fix crash when pkt->payload() if pkt is nullptr;
+        if (!pkt) continue;
+
+        SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
+        if (!fua_payload) continue;
+
+        if (fua_payload->start) {
+            ++fu_s_c;
+        }
+
+        if (fua_payload->end) {
+            ++fu_e_c;
         }
     }
 

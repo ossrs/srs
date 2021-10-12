@@ -4,7 +4,7 @@ name: "Release"
 on:
   push:
     tags:
-      - v4*
+      - v5*
 
 jobs:
   k8s:
@@ -16,20 +16,6 @@ jobs:
       # Git checkout
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      ################################################################
-      # Tests
-      - name: Build test image
-        run: docker build --tag srs:test -f trunk/Dockerfile.test trunk
-      # For utest
-      - name: Run SRS utest
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
-      # For regression-test
-      - name: Run SRS regression-test
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-
-      ################################################################
-      # Build
       # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
       # Generate variables like:
       #   SRS_TAG=v4.0.145
@@ -42,11 +28,38 @@ jobs:
           echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+      # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
+      # srs-server-xxx.tar.gz, because the package is named srs-server.
+      # Generate variables like:
+      #   SRS_SOURCE_TAR=srs-server-4.0.145.tar.gz
+      #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
+      - name: Create source tar.gz
+        run: |
+          DEST_DIR=srs-server-$(echo ${SRS_TAG}| sed 's/^v//g') && mkdir -p $DEST_DIR &&
+          cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
+          (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
+          tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} && du -sh ${DEST_DIR}* && rm -rf ${DEST_DIR} &&
+          echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
+          echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV
+
+      ################################################################
+      # Tests
+      - name: Build test image
+        run: docker build --tag srs:test -f trunk/Dockerfile.test .
+      # For utest
+      - name: Run SRS utest
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+      # For regression-test
+      - name: Run SRS regression-test
+        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
+
+      ################################################################
+      # Build
       # Build SRS image
       - name: Build SRS docker image
         run: |
           echo "Release ossrs/srs:$SRS_TAG"
-          docker build --tag ossrs/srs:$SRS_TAG trunk
+          docker build --tag ossrs/srs:$SRS_TAG -f trunk/Dockerfile .
 
       ################################################################
       # Docker
@@ -71,6 +84,8 @@ jobs:
         run: |
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
 
@@ -87,3 +102,29 @@ jobs:
         run: |-
           kubectl set image deploy/srs4-deploy srs4=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           kubectl describe deploy/srs4-deploy
+
+      ################################################################
+      # Create release.
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ${{ github.event.head_commit.message }}
+            ${{ env.SRS_SOURCE_MD5 }} ${{ env.SRS_SOURCE_TAR }}
+          draft: false
+          prerelease: true
+      # Upload release files
+      - name: Upload Release Assets
+        id: upload-release-assets
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}
+          assets_path: ${{ env.SRS_SOURCE_TAR }}
+

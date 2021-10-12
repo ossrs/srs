@@ -54,6 +54,8 @@ srs_error_t SrsHttpHooks::on_connect(string url, SrsRequest* req)
     obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
     obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("param", SrsJsonAny::str(req->param.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl.c_str()));
     
@@ -507,7 +509,6 @@ srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::strin
     }
     
     // ensure the http status is ok.
-    // https://github.com/ossrs/srs/issues/158
     if (code != SRS_CONSTS_HTTP_OK && code != SRS_CONSTS_HTTP_Created) {
         return srs_error_new(ERROR_HTTP_STATUS_INVALID, "http: status %d", code);
     }

@@ -6,7 +6,6 @@
 
 #include <srs_kernel_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #include <netdb.h>
@@ -120,7 +119,6 @@ srs_utime_t srs_update_system_time()
         return -1;
     }
     
-    // @see: https://github.com/ossrs/srs/issues/35
     // we must convert the tv_sec/tv_usec to int64_t.
     int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
     
@@ -140,7 +138,6 @@ srs_utime_t srs_update_system_time()
     diff = srs_max(0, diff);
     if (diff < 0 || diff > 1000 * SYS_TIME_RESOLUTION_US) {
         srs_warn("clock jump, history=%" PRId64 "us, now=%" PRId64 "us, diff=%" PRId64 "us", _srs_system_time_us_cache, now_us, diff);
-        // @see: https://github.com/ossrs/srs/issues/109
         _srs_system_time_startup_time += diff;
     }
     
@@ -258,6 +255,24 @@ void srs_parse_endpoint(string hostport, string& ip, int& port)
     }
 }
 
+bool srs_check_ip_addr_valid(string ip)
+{
+    unsigned char buf[sizeof(struct in6_addr)];
+
+    // check ipv4
+    int ret = inet_pton(AF_INET, ip.data(), buf);
+    if (ret > 0) {
+        return true;
+    }
+        
+    ret = inet_pton(AF_INET6, ip.data(), buf);
+    if (ret > 0) {
+        return true;
+    }
+        
+    return false;
+}
+
 string srs_int2str(int64_t value)
 {
     // len(max int64_t) is 20, plus one "+-."
@@ -308,6 +323,7 @@ string srs_string_replace(string str, string old_str, string new_str)
     size_t pos = 0;
     while ((pos = ret.find(old_str, pos)) != std::string::npos) {
         ret = ret.replace(pos, old_str.length(), new_str);
+        pos += new_str.length();
     }
     
     return ret;
@@ -561,7 +577,6 @@ int srs_do_create_dir_recursively(string dir)
     }
     
     // create curren dir.
-    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
     if (::_mkdir(dir.c_str()) < 0) {
 #else

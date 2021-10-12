@@ -1,4 +1,6 @@
-/* 
+/* SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later */
+
+/*
  * The contents of this file are subject to the Mozilla Public
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
@@ -67,7 +69,7 @@
     #define MD_USE_BUILTIN_SETJMP
 
     #if defined(__amd64__) || defined(__x86_64__)
-        #define JB_SP  12
+        #define JB_SP  12 /* The jmpbuf is int(4B) array, while MD_GET_SP covert to long(8B) pointer, so the JB_SP should be 12 which is 6*sizeof(long)/sizeof(int) */
         #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
     #else
         #error Unknown CPU architecture
@@ -115,15 +117,7 @@
         (void) gettimeofday(&tv, NULL); \
         return (tv.tv_sec * 1000000LL + tv.tv_usec)
 
-    #if defined(__mips__)
-        #define MD_INIT_CONTEXT(_thread, _sp, _main)               \
-            ST_BEGIN_MACRO                                           \
-            MD_SETJMP((_thread)->context);                           \
-            _thread->context[0].__jmpbuf[0].__pc = (__ptr_t) _main;  \
-            _thread->context[0].__jmpbuf[0].__sp = _sp;              \
-            ST_END_MACRO
-
-    #else /* Not mips */
+    #if 1
 
         /*
          * On linux, there are a few styles of jmpbuf format.  These vary based
@@ -188,6 +182,11 @@
                 #error "ARM/Linux pre-glibc2 not supported yet"
             #endif /* defined(__GLIBC__) && __GLIBC__ >= 2 */
 
+        #elif defined(__mips__)
+            /* https://github.com/ossrs/state-threads/issues/21 */
+            #define MD_USE_BUILTIN_SETJMP
+            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jb[0]))
+
         #else
             #error "Unknown CPU architecture"
         #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
@@ -211,6 +210,42 @@
         #define MD_SETJMP(env) setjmp(env)
         #define MD_LONGJMP(env, val) longjmp(env, val)
     #endif
+
+#elif defined (CYGWIN64)
+
+    // For CYGWIN64, build SRS on Windows.
+    #define MD_USE_BSD_ANON_MMAP
+    #define MD_ACCEPT_NB_INHERITED
+    #define MD_HAVE_SOCKLEN_T
+
+    #define MD_USE_BUILTIN_SETJMP
+
+    #if defined(__amd64__) || defined(__x86_64__)
+        #define JB_SP  6 // The context is long(32) array, @see https://github.com/ossrs/state-threads/issues/20#issuecomment-887569093
+        #define MD_GET_SP(_t) *((long *)&((_t)->context[JB_SP]))
+    #else
+        #error Unknown CPU architecture
+    #endif
+
+    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
+        ST_BEGIN_MACRO                             \
+        if (MD_SETJMP((_thread)->context))         \
+            _main();                                 \
+        MD_GET_SP(_thread) = (long) (_sp);         \
+        ST_END_MACRO
+
+    #if defined(MD_USE_BUILTIN_SETJMP)
+        #define MD_SETJMP(env) _st_md_cxt_save(env)
+        #define MD_LONGJMP(env, val) _st_md_cxt_restore(env, val)
+
+        extern int _st_md_cxt_save(jmp_buf env);
+        extern void _st_md_cxt_restore(jmp_buf env, int val);
+    #endif
+
+    #define MD_GET_UTIME()            \
+        struct timeval tv;              \
+        (void) gettimeofday(&tv, NULL); \
+        return (tv.tv_sec * 1000000LL + tv.tv_usec)
 
 #else
     #error Unknown OS

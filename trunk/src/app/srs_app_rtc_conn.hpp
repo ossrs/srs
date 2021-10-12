@@ -23,6 +23,7 @@
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_service_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_async_call.hpp>
 
 #include <string>
 #include <map>
@@ -195,6 +196,20 @@ public:
     virtual srs_error_t cycle();
 };
 
+// the rtc on_stop async call.
+class SrsRtcAsyncCallOnStop : public ISrsAsyncCallTask
+{
+private:
+    SrsContextId cid;
+    SrsRequest* req;
+public:
+    SrsRtcAsyncCallOnStop(SrsContextId c, SrsRequest* r);
+    virtual ~SrsRtcAsyncCallOnStop();
+public:
+    virtual srs_error_t call();
+    virtual std::string to_string();
+};
+
 // A RTC play stream, client pull and play stream from SRS.
 class SrsRtcPlayStream : public ISrsCoroutineHandler, public ISrsReloadHandler
     , public ISrsRtcPLIWorkerHandler, public ISrsRtcSourceChangeCallback
@@ -264,8 +279,6 @@ private:
 // Interface ISrsRtcPLIWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
-private:
-    virtual void http_hooks_on_stop();
 };
 
 // A fast timer for publish stream, for RTCP feedback.
@@ -294,6 +307,20 @@ private:
     srs_error_t on_timer(srs_utime_t interval);
 };
 
+// the rtc on_unpublish async call.
+class SrsRtcAsyncCallOnUnpublish : public ISrsAsyncCallTask
+{
+private:
+    SrsContextId cid;
+    SrsRequest* req;
+public:
+    SrsRtcAsyncCallOnUnpublish(SrsContextId c, SrsRequest* r);
+    virtual ~SrsRtcAsyncCallOnUnpublish();
+public:
+    virtual srs_error_t call();
+    virtual std::string to_string();
+};
+
 // A RTC publish stream, client push and publish stream to SRS.
 class SrsRtcPublishStream : public ISrsRtspPacketDecodeHandler
     , public ISrsRtcPublishStream, public ISrsRtcPLIWorkerHandler
@@ -319,7 +346,7 @@ private:
     bool request_keyframe_;
     SrsErrorPithyPrint* pli_epp;
 private:
-    SrsRequest* req;
+    SrsRequest* req_;
     SrsRtcSource* source;
     // Simulators.
     int nn_simulate_nack_drop;
@@ -377,8 +404,6 @@ private:
     SrsRtcVideoRecvTrack* get_video_track(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);
     void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time);
-private:
-    virtual void http_hooks_on_unpublish();
 };
 
 // Callback for RTC connection.
@@ -451,8 +476,7 @@ private:
 private:
     // For each RTC session, we use a specified cid for debugging logs.
     SrsContextId cid_;
-    // TODO: FIXME: Rename to req_.
-    SrsRequest* req;
+    SrsRequest* req_;
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:

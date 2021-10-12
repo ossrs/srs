@@ -75,7 +75,6 @@ private:
     // when source id changed, notice all consumers
     bool should_update_source_id;
     // The cond wait for mw.
-    // @see https://github.com/ossrs/srs/issues/251
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
@@ -255,9 +254,9 @@ private:
     // The metadata cache.
     SrsMetaCache* meta;
 private:
-    bool discard_aac;
+    bool rtmp_to_rtc;
     SrsAudioTranscoder* codec_;
-    bool discard_bframe;
+    bool keep_bframe;
     bool merge_nalus;
     uint16_t audio_sequence;
     uint16_t video_sequence;

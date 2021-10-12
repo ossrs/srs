@@ -33,13 +33,26 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
+#include <srs_service_utility.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_app_hybrid.hpp>
+
+#define SRS_CONTEXT_IN_HLS "hls_ctx"
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 {
+    _srs_hybrid->timer5s()->subscribe(this);
 }
 
 SrsVodStream::~SrsVodStream()
 {
+    _srs_hybrid->timer5s()->unsubscribe(this);
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
+        srs_freep(it->second.req);
+    }
+    map_ctx_info_.clear();
 }
 
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
@@ -170,6 +183,173 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), (int)left);
     }
     
+    return err;
+}
+
+srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMessage * r, std::string fullpath)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMessage* hr = dynamic_cast<SrsHttpMessage*>(r);
+    srs_assert(hr);
+
+    SrsRequest* req = hr->to_request(hr->host())->as_http();
+    SrsAutoFree(SrsRequest, req);
+
+    string ctx = hr->query_get(SRS_CONTEXT_IN_HLS);
+    if (!ctx.empty() && ctx_is_exist(ctx)) {
+        alive(ctx, NULL);
+        return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
+    }
+
+    if ((err = http_hooks_on_play(req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: http_hooks_on_play");
+    }
+
+    if (ctx.empty()) {
+        // make sure unique
+        do {
+            ctx = srs_random_str(8);  // the same as cid
+        } while (ctx_is_exist(ctx));
+    }
+
+    std::stringstream ss;
+    ss << "#EXTM3U" << SRS_CONSTS_LF;
+    ss << "#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1" << SRS_CONSTS_LF;
+    ss << hr->path() << "?" << SRS_CONTEXT_IN_HLS << "=" << ctx;
+    if (!hr->query().empty() && hr->query_get(SRS_CONTEXT_IN_HLS).empty())
+    {
+        ss << "&" << hr->query();
+    }
+
+    std::string res = ss.str();
+    int length = res.length();
+
+    w->header()->set_content_length(length);
+    w->header()->set_content_type("application/vnd.apple.mpegurl");
+    w->write_header(SRS_CONSTS_HTTP_OK);
+
+    if ((err = w->write((char*)res.c_str(), length)) != srs_success) {
+        return srs_error_wrap(err, "write  bytes=%d", length);
+    }
+
+    if ((err = w->final_request()) != srs_success) {
+        return srs_error_wrap(err, "final request");
+    }
+
+    alive(ctx, req->copy());
+
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(ctx, req, NULL, SrsRtmpConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "stat on client");
+    }
+
+    return err;
+}
+
+bool SrsVodStream::ctx_is_exist(std::string ctx)
+{
+    return (map_ctx_info_.find(ctx) != map_ctx_info_.end());
+}
+
+void SrsVodStream::alive(std::string ctx, SrsRequest* req)
+{
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    if ((it = map_ctx_info_.find(ctx)) != map_ctx_info_.end()) {
+        it->second.request_time = srs_get_system_time();
+    } else {
+        SrsM3u8CtxInfo info;
+        info.req = req;
+        info.request_time = srs_get_system_time();
+        map_ctx_info_.insert(make_pair(ctx, info));
+    }
+}
+
+srs_error_t SrsVodStream::http_hooks_on_play(SrsRequest* req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+            return srs_error_wrap(err, "http on_play %s", url.c_str());
+        }
+    }
+
+    return err;
+}
+
+void SrsVodStream::http_hooks_on_stop(SrsRequest* req)
+{
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_stop(req->vhost);
+
+        if (!conf) {
+            srs_info("ignore the empty http callback: on_stop");
+            return;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        SrsHttpHooks::on_stop(url, req);
+    }
+
+    return;
+}
+
+srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
+{
+    srs_error_t err = srs_success;
+
+    std::map<std::string, SrsM3u8CtxInfo>::iterator it;
+    for (it = map_ctx_info_.begin(); it != map_ctx_info_.end(); ++it) {
+        string ctx = it->first;
+        SrsRequest* req = it->second.req;
+        srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
+        if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
+            http_hooks_on_stop(req);
+            srs_freep(req);
+
+            SrsStatistic* stat = SrsStatistic::instance();
+            stat->on_disconnect(ctx);
+            map_ctx_info_.erase(it);
+
+            break;
+        }
+    }
+
     return err;
 }
 

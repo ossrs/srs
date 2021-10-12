@@ -49,6 +49,7 @@ using namespace std;
 
 // pre-declare
 srs_error_t run_directly_or_daemon();
+srs_error_t srs_detect_docker();
 srs_error_t run_hybrid_server();
 void show_macro_features();
 
@@ -95,6 +96,11 @@ srs_error_t do_main(int argc, char** argv)
 #ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."
 #endif
+
+    // Ignore any error while detecting docker.
+    if ((err = srs_detect_docker()) != srs_success) {
+        srs_error_reset(err);
+    }
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
@@ -119,8 +125,7 @@ srs_error_t do_main(int argc, char** argv)
     
     // config already applied to log.
     srs_trace2(TAG_MAIN, "%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
-    srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
-    srs_trace("contributors: %s", SRS_CONSTRIBUTORS);
+    srs_trace("authors: %sand %s", RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d",
         _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL);
     srs_trace("configure detail: " SRS_CONFIGURE);
@@ -378,11 +383,6 @@ srs_error_t srs_detect_docker()
 srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
-
-    // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
-        srs_error_reset(err);
-    }
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594

@@ -100,7 +100,6 @@ extern bool srs_config_ingest_is_stream(std::string type);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
@@ -333,48 +332,8 @@ public:
 private:
     virtual srs_error_t do_persistence(SrsFileWriter* fw);
 public:
-    // Dumps the global sections to json.
-    virtual srs_error_t global_to_json(SrsJsonObject* obj);
-    // Dumps the minimal sections to json.
-    virtual srs_error_t minimal_to_json(SrsJsonObject* obj);
-    // Dumps the vhost section to json.
-    virtual srs_error_t vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
     // Dumps the http_api sections to json for raw api info.
     virtual srs_error_t raw_to_json(SrsJsonObject* obj);
-    // RAW  set the global listen.
-    virtual srs_error_t raw_set_listen(const std::vector<std::string>& eps, bool& applied);
-    // RAW  set the global pid.
-    virtual srs_error_t raw_set_pid(std::string pid, bool& applied);
-    // RAW  set the global chunk size.
-    virtual srs_error_t raw_set_chunk_size(std::string chunk_size, bool& applied);
-    // RAW  set the global ffmpeg log dir.
-    virtual srs_error_t raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
-    // RAW  set the global log tank.
-    virtual srs_error_t raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
-    // RAW  set the global log level.
-    virtual srs_error_t raw_set_srs_log_level(std::string srs_log_level, bool& applied);
-    // RAW  set the global log file path for file tank.
-    virtual srs_error_t raw_set_srs_log_file(std::string srs_log_file, bool& applied);
-    // RAW  set the global max connections of srs.
-    virtual srs_error_t raw_set_max_connections(std::string max_connections, bool& applied);
-    // RAW  set the global whether use utc time.
-    virtual srs_error_t raw_set_utc_time(std::string utc_time, bool& applied);
-    // RAW  set the global pithy print interval in ms.
-    virtual srs_error_t raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
-    // RAW  create the new vhost.
-    virtual srs_error_t raw_create_vhost(std::string vhost, bool& applied);
-    // RAW  update the disabled vhost name.
-    virtual srs_error_t raw_update_vhost(std::string vhost, std::string name, bool& applied);
-    // RAW  delete the disabled vhost.
-    virtual srs_error_t raw_delete_vhost(std::string vhost, bool& applied);
-    // RAW  disable the enabled vhost.
-    virtual srs_error_t raw_disable_vhost(std::string vhost, bool& applied);
-    // RAW  enable the disabled vhost.
-    virtual srs_error_t raw_enable_vhost(std::string vhost, bool& applied);
-    // RAW  enable the dvr of stream of vhost.
-    virtual srs_error_t raw_enable_dvr(std::string vhost, std::string stream, bool& applied);
-    // RAW  disable the dvr of stream of vhost.
-    virtual srs_error_t raw_disable_dvr(std::string vhost, std::string stream, bool& applied);
 private:
     virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
@@ -386,7 +345,6 @@ private:
     virtual srs_error_t do_reload_pithy_print_ms();
     virtual srs_error_t do_reload_vhost_added(std::string vhost);
     virtual srs_error_t do_reload_vhost_removed(std::string vhost);
-    virtual srs_error_t do_reload_vhost_dvr_apply(std::string vhost);
 public:
     // Get the config file path.
     virtual std::string config();
@@ -523,8 +481,8 @@ private:
 public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
-    bool get_rtc_bframe_discard(std::string vhost);
-    bool get_rtc_aac_discard(std::string vhost);
+    bool get_rtc_keep_bframe(std::string vhost);
+    bool get_rtc_from_rtmp(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
     std::string get_rtc_dtls_role(std::string vhost);
@@ -755,7 +713,6 @@ public:
     // all clients connected to edge must be tranverse to origin to verify.
     virtual bool get_vhost_edge_token_traverse(std::string vhost);
     // Get the transformed vhost for edge,
-    // @see https://github.com/ossrs/srs/issues/372
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
@@ -930,7 +887,6 @@ public:
     // Get the hls hls_on_error config.
     // The ignore will ignore error and disable hls.
     // The disconnect will disconnect publish connection.
-    // @see https://github.com/ossrs/srs/issues/264
     virtual std::string get_hls_on_error(std::string vhost);
     // Get the HLS default audio codec.
     virtual std::string get_hls_acodec(std::string vhost);

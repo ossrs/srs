@@ -163,11 +163,6 @@ srs_error_t ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
     return srs_success;
 }
 
-srs_error_t ISrsReloadHandler::on_reload_vhost_dvr_apply(string /*vhost*/)
-{
-    return srs_success;
-}
-
 srs_error_t ISrsReloadHandler::on_reload_vhost_publish(string /*vhost*/)
 {
     return srs_success;

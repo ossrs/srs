@@ -8,7 +8,11 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
-* v4.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
+* v5.0, 2021-10-03, OpenWRT: Disable mprotect of ST. 5.0.16
+* v5.0, 2021-10-03, Actions: Create source tar lik srs-server-5.0.14.tar.gz
+* v5.0, 2021-10-02, ST: Support Cygwin64 and MIPS. 5.0.13
+* v5.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 5.0.12
+* v5.0, 2021-08-07, Fix [#2508](https://github.com/ossrs/srs/pull/2508), Support features query by API. 5.0.10
 * v5.0, 2021-07-07, Refine AUTHORS.txt to AUTHORS.md, etc. 5.0.8
 * v5.0, 2021-07-01, Move AUTHORS.txt to trunk for docker. 5.0.7
 * v5.0, 2021-06-28, Squash: Support query lastest available version. 5.0.6
@@ -23,6 +27,24 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-11, Fix [#1641](https://github.com/ossrs/srs/issues/1641), HLS/RTC picture corrupt for SPS/PPS lost. v4.0.175
+* v4.0, 2021-10-11, RTC: Refine config, aac to rtmp_to_rtc, bframe to keep_bframe. v4.0.174
+* v4.0, 2021-10-10, For [#1641](https://github.com/ossrs/srs/issues/1641), Support RTMP publish and play regression test. v4.0.173
+* v4.0, 2021-10-10, RTC: Change rtc.aac to discard by default. v4.0.172
+* v4.0, 2021-10-10, Fix [#2304](https://github.com/ossrs/srs/issues/2304) Remove Push RTSP feature. v4.0.171
+* v4.0, 2021-10-10, Fix [#2653](https://github.com/ossrs/srs/issues/2653) Remove HTTP RAW API. v4.0.170
+* v4.0, 2021-10-08, Merge [#2654](https://github.com/ossrs/srs/pull/2654): Parse width and width from SPS/PPS. v4.0.169
+* v4.0, 2021-10-08, Default to log to console for docker. v4.0.168
+* v4.0, 2021-10-07, Fix bugs #2648, #2415. v4.0.167
+* v4.0, 2021-10-03, Support --arch and --cross-prefix for cross compile. 4.0.166
+* v4.0, 2021-10-03, Actions: Create source tar file srs-server-4.0.165.tar.gz
+* v4.0, 2021-09-23, Merge [#2578](https://github.com/ossrs/srs/pull/2578) Support http callback on_play/stop. 4.0.163
+* v4.0, 2021-09-23, Merge [#2618](https://github.com/ossrs/srs/pull/2618) to fix FUA bug.
+* v4.0, 2021-09-05, RTC: Merge [#2581](https://github.com/ossrs/srs/pull/2581), Fix listen ipv6 and port. 4.0.161
+* v4.0, 2021-09-04, For [#2282](https://github.com/ossrs/srs/pull/2282), [#2181](https://github.com/ossrs/srs/issues/2181), Move DVR async worker from SrsDvrPlan to global.
+* v4.0, 2021-09-04, For [#2282](https://github.com/ossrs/srs/pull/2282), [#2181](https://github.com/ossrs/srs/issues/2181), Remove reload for dvr_apply. 4.0.160
+* v4.0, 2021-08-28, RTC: Merge [#1859](https://github.com/ossrs/srs/pull/1859), Enhancement: Add param and stream to on_connect. 4.0.159
+* v4.0, 2021-08-27, RTC: Merge [#2544](https://github.com/ossrs/srs/pull/2544), Support for multiple SPS/PPS, then pick the first one. 4.0.158
 * v4.0, 2021-08-17, RTC: Merge [#2470](https://github.com/ossrs/srs/pull/2470), RTC: Fix rtc to rtmp sync timestamp using sender report. 4.0.157
 * v4.0, 2021-08-14, Support Github Actions to publish SRS. 4.0.155
 * v4.0, 2021-08-14, RTC: Merge [#2533](https://github.com/ossrs/srs/pull/2533), fix SDP comparison bug. 4.0.154

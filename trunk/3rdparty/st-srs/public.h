@@ -1,4 +1,6 @@
-/* 
+/* SPDX-License-Identifier: MPL-1.1 OR GPL-2.0-or-later */
+
+/*
  * The contents of this file are subject to the Mozilla Public
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
@@ -65,6 +67,7 @@
 #endif
 
 #define ST_EVENTSYS_DEFAULT 0
+#define ST_EVENTSYS_SELECT  1
 #define ST_EVENTSYS_ALT     3
 
 #ifdef __cplusplus
