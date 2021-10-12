@@ -580,6 +580,7 @@ SrsDvrPlan::SrsDvrPlan()
 SrsDvrPlan::~SrsDvrPlan()
 {
     srs_freep(segment);
+    srs_freep(req);
 }
 
 srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
@@ -587,7 +588,7 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
     srs_error_t err = srs_success;
     
     hub = h;
-    req = r;
+    req = r->copy();
     segment = s;
     
     if ((err = segment->initialize(this, r)) != srs_success) {
