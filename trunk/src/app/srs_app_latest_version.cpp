@@ -68,7 +68,7 @@ void srs_build_features(stringstream& ss)
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
-    bool flv2 = false;
+    bool flv2 = false, oc = false;
 
     SrsConfDirective* root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
@@ -92,6 +92,9 @@ void srs_build_features(stringstream& ss)
             }
             if (!edge && _srs_config->get_vhost_is_edge(conf)) {
                 edge = true;
+            }
+            if (!oc && _srs_config->get_vhost_origin_cluster(conf)) {
+                oc = true;
             }
             if (!hls && _srs_config->get_hls_enabled(conf)) {
                 hls = true;
@@ -141,6 +144,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(forward, ss);
     SRS_CHECK_FEATURE(ingest, ss);
     SRS_CHECK_FEATURE(edge, ss);
+    SRS_CHECK_FEATURE(oc, ss);
     SRS_CHECK_FEATURE(hls, ss);
     SRS_CHECK_FEATURE(dvr, ss);
     SRS_CHECK_FEATURE(flv, ss);
