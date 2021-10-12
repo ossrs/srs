@@ -45,23 +45,6 @@ import (
 	"github.com/pion/rtp"
 )
 
-func TestMain(m *testing.M) {
-	if err := prepareTest(); err != nil {
-		logger.Ef(nil, "Prepare test fail, err %+v", err)
-		os.Exit(-1)
-	}
-
-	// Disable the logger during all tests.
-	if *srsLog == false {
-		olw := logger.Switch(ioutil.Discard)
-		defer func() {
-			logger.Switch(olw)
-		}()
-	}
-
-	os.Exit(m.Run())
-}
-
 // Test for https://github.com/ossrs/srs/pull/2483
 func TestPR2483_RtcStatApi_PublisherOnly(t *testing.T) {
 	if err := filterTestError(func() error {
@@ -876,6 +859,9 @@ func TestRtcDTLS_ClientPassive_Duplicated_Alert(t *testing.T) {
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-active-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
@@ -889,7 +875,6 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -938,7 +923,7 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -954,6 +939,9 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T
 // openssl will create a new ClientHello with increased sequence. It's ok, but waste a lots of duplicated ClientHello
 // packets, so we fail the test, requires the epoch+sequence never dup, even for ARQ.
 func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
@@ -967,7 +955,6 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1016,7 +1003,7 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1031,6 +1018,9 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ClientHello(t *testing.
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-active-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
@@ -1044,7 +1034,6 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1102,7 +1091,7 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0, r1); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1119,6 +1108,9 @@ func TestRtcDTLS_ClientActive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T
 // openssl will create a new ClientHello with increased sequence. It's ok, but waste a lots of duplicated ClientHello
 // packets, so we fail the test, requires the epoch+sequence never dup, even for ARQ.
 func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-client-hello-%v-%v", os.Getpid(), rand.Int())
@@ -1132,7 +1124,6 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1190,7 +1181,7 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0, r1); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1204,6 +1195,9 @@ func TestRtcDTLS_ClientPassive_ARQ_ClientHello_ByDropped_ServerHello(t *testing.
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-active-arq-certificate-%v-%v", os.Getpid(), rand.Int())
@@ -1217,7 +1211,6 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1266,7 +1259,7 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1281,6 +1274,9 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_Certificate(t *testing.T
 // @remark If retransmit the Certificate, with the same epoch+sequence, peer will drop the message. It's ok right now, but
 // wast some packets, so we check the epoch+sequence which should never dup, even for ARQ.
 func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-certificate-%v-%v", os.Getpid(), rand.Int())
@@ -1294,7 +1290,6 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1343,7 +1338,7 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1358,6 +1353,9 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_Certificate(t *testing.
 //
 // @remark The pion is active, so it can be consider a benchmark for DTLS server.
 func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-active-arq-certificate-%v-%v", os.Getpid(), rand.Int())
@@ -1371,7 +1369,6 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *test
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1428,7 +1425,7 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *test
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0, r1); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1444,6 +1441,9 @@ func TestRtcDTLS_ClientActive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *test
 // @remark If retransmit the Certificate, with the same epoch+sequence, peer will drop the message, and never generate the
 // ChangeCipherSpec, which will cause DTLS fail.
 func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0, r1 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-arq-certificate-%v-%v", os.Getpid(), rand.Int())
@@ -1457,7 +1457,6 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *tes
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1514,7 +1513,7 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_ByDropped_ChangeCipherSpec(t *tes
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0, r1); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0, r1); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1812,6 +1811,9 @@ func TestRtcDTLS_ClientPassive_ARQ_VeryBadNetwork(t *testing.T) {
 // If we retransmit 2 ClientHello packets, consumed 150ms, server might wait at 200ms.
 // Then we retransmit the Certificate, server reset the timer and retransmit it in 50ms, not 200ms.
 func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
 	var r0 error
 	err := func() error {
 		streamSuffix := fmt.Sprintf("dtls-passive-no-arq-%v-%v", os.Getpid(), rand.Int())
@@ -1825,7 +1827,6 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 		}
 		defer p.Close()
 
-		ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 		if err := p.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
 			var nnRTCP, nnRTP int64
 			api.registry.Add(newRTPInterceptor(func(i *rtpInterceptor) {
@@ -1890,7 +1891,7 @@ func TestRtcDTLS_ClientPassive_ARQ_Certificate_After_ClientHello(t *testing.T) {
 
 		return p.Run(ctx, cancel)
 	}()
-	if err := filterTestError(err, r0); err != nil {
+	if err := filterTestError(ctx.Err(), err, r0); err != nil {
 		t.Errorf("err %+v", err)
 	}
 }
@@ -1939,7 +1940,7 @@ func TestRTCServerVersion(t *testing.T) {
 	}
 }
 
-func TestRtcPublishFlvPlay(t *testing.T) {
+func TestRtcPublish_FlvPlay(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
 
