@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-12, Merge [#2550](https://github.com/ossrs/srs/pull/2550): API use publish params. v4.0.177
 * v4.0, 2021-10-12, Merge [#2549](https://github.com/ossrs/srs/pull/2549): Fix duration issue for HLS on_hls. v4.0.176
 * v4.0, 2021-10-11, Fix [#1641](https://github.com/ossrs/srs/issues/1641), HLS/RTC picture corrupt for SPS/PPS lost. v4.0.175
 * v4.0, 2021-10-11, RTC: Refine config, aac to rtmp_to_rtc, bframe to keep_bframe. v4.0.174
