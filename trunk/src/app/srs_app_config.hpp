@@ -713,6 +713,7 @@ public:
     // Whether enable the origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
     virtual bool get_vhost_origin_cluster(std::string vhost);
+    virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);

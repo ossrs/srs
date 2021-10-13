@@ -4860,9 +4860,15 @@ string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
 
 bool SrsConfig::get_vhost_origin_cluster(string vhost)
 {
+    SrsConfDirective* conf = get_vhost(vhost);
+    return get_vhost_origin_cluster(conf);
+}
+
+bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective* vhost)
+{
     static bool DEFAULT = false;
     
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = vhost;
     if (!conf) {
         return DEFAULT;
     }
