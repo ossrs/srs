@@ -397,7 +397,6 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
         && stream_id != 248//ITU-T Rec. H.222.1 type E stream 1111 1000
         ) 
     {
-        assert(0x80 == p[pos]);
         //skip 2bits//'10' 2 bslbf
         int PES_scrambling_control = (p[pos]&30)>>4; //PES_scrambling_control 2 bslbf
         (void)PES_scrambling_control;
