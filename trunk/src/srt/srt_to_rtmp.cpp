@@ -879,11 +879,11 @@ void rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media
     auto avs_ptr = std::make_shared<SrsBuffer>((char*)data_ptr->get_data(), data_ptr->data_len());
 
     if (media_type == STREAM_TYPE_VIDEO_H264) {
-        err = on_ts_video(avs_ptr, dts, pts);
+        err = on_ts_h264(avs_ptr, dts, pts);
     } else if (media_type == STREAM_TYPE_VIDEO_HEVC) {
         on_ts_hevc(avs_ptr, dts, pts);
     } else if (media_type == STREAM_TYPE_AUDIO_AAC) {
-        err = on_ts_audio(avs_ptr, dts, pts);
+        err = on_ts_aac(avs_ptr, dts, pts);
     } else {
         srs_error("mpegts demux unkown stream type:0x%02x, only support h264+aac", media_type);
         return;
