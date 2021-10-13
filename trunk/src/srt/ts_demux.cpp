@@ -126,6 +126,7 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
             }
         }
         npos += sizeof(field_p->_adaptation_field_length) + field_p->_adaptation_field_length;
+        pos = npos;//must consider the 'stuffing_byte' in adaptation field
     }
 
     if(ts_header_info._adaptation_field_control == 1 
@@ -396,7 +397,6 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
         && stream_id != 248//ITU-T Rec. H.222.1 type E stream 1111 1000
         ) 
     {
-        assert(0x80 == p[pos]);
         //skip 2bits//'10' 2 bslbf
         int PES_scrambling_control = (p[pos]&30)>>4; //PES_scrambling_control 2 bslbf
         (void)PES_scrambling_control;
