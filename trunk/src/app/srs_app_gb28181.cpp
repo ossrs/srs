@@ -12,7 +12,6 @@
 
 using namespace std;
 
-#include <srs_app_rtsp.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
@@ -186,7 +185,7 @@ srs_error_t SrsGb28181PsRtpProcessor::on_udp_packet(const sockaddr* from, const 
 
 srs_error_t SrsGb28181PsRtpProcessor::on_tcp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
-    on_udp_packet(from, fromlen, buf, nb_buf);
+    return on_udp_packet(from, fromlen, buf, nb_buf);
 }
 
 SrsGb28181RtmpMuxer* SrsGb28181PsRtpProcessor::fetch_rtmpmuxer(std::string channel_id, uint32_t ssrc)
