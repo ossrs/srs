@@ -126,6 +126,7 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
             }
         }
         npos += sizeof(field_p->_adaptation_field_length) + field_p->_adaptation_field_length;
+        pos = npos;//must consider the 'stuffing_byte' in adaptation field
     }
 
     if(ts_header_info._adaptation_field_control == 1 
