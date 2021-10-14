@@ -565,7 +565,7 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     }
 
 #ifdef SRS_H265
-    if ((vcodec()->id == SrsVideoCodecIdAVC) || (vcodec()->id == SrsVideoCodecIdForbidden)) {
+    if ((vcodec() == NULL) || ((vcodec() != NULL) ||(vcodec()->id == SrsVideoCodecIdAVC) || (vcodec()->id == SrsVideoCodecIdForbidden))) {
 #endif
         // for video, parse the nalu type, set the IDR flag.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
