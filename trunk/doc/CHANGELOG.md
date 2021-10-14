@@ -27,6 +27,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-13, Merge [#2671](https://github.com/ossrs/srs/pull/2671): SRT: Pes error when mpegts demux in srt. v4.0.178
 * v4.0, 2021-10-12, Merge [#2550](https://github.com/ossrs/srs/pull/2550): API use publish params. v4.0.177
 * v4.0, 2021-10-12, Merge [#2549](https://github.com/ossrs/srs/pull/2549): Fix duration issue for HLS on_hls. v4.0.176
 * v4.0, 2021-10-11, Fix [#1641](https://github.com/ossrs/srs/issues/1641), HLS/RTC picture corrupt for SPS/PPS lost. v4.0.175
