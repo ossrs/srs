@@ -4831,10 +4831,10 @@ VOID TEST(KernelTSTest, CoverContextEncode)
         
         srs_error_t err = ctx.encode(&f, &m, SrsVideoCodecIdDisabled, SrsAudioCodecIdDisabled);
         HELPER_EXPECT_FAILED(err);
-        
+#ifndef SRS_H265
         err = ctx.encode(&f, &m, SrsVideoCodecIdHEVC, SrsAudioCodecIdOpus);
         HELPER_EXPECT_FAILED(err);
-
+#endif
         err = ctx.encode(&f, &m, SrsVideoCodecIdAV1, SrsAudioCodecIdOpus);
         HELPER_EXPECT_FAILED(err);
 

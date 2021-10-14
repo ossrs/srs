@@ -565,24 +565,28 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
     }
 
 #ifdef SRS_H265
-    if (vcodec()->id == SrsVideoCodecIdAVC) {
-        // for video, parse the nalu type, set the IDR flag.
-        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
-        
-        if (nal_unit_type == SrsAvcNaluTypeIDR) {
-            has_idr = true;
-        } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
-            has_sps_pps = true;
-        } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
-            has_aud = true;
-        }
-        
-        if (first_nalu_type == SrsAvcNaluTypeReserved) {
-            first_nalu_type = nal_unit_type;
-        }
+    SrsVideoCodecConfig* c = vcodec();
+    bool parse_nalus = !c || c->id == SrsVideoCodecIdAVC || c->id == SrsVideoCodecIdForbidden;
+    if (!parse_nalus) {
+        return err;
     }
 #endif
-    
+
+    // for video, parse the nalu type, set the IDR flag.
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+
+    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+        has_idr = true;
+    } else if (nal_unit_type == SrsAvcNaluTypeSPS || nal_unit_type == SrsAvcNaluTypePPS) {
+        has_sps_pps = true;
+    } else if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+        has_aud = true;
+    }
+
+    if (first_nalu_type == SrsAvcNaluTypeReserved) {
+        first_nalu_type = nal_unit_type;
+    }
+
     return err;
 }
 
