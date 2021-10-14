@@ -402,7 +402,7 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
         ) 
     {
         if (0x80 != (p[pos] & 0xc0)) {
-            log_errorf("the first 2 bits:0x%02x error, it must be 0x80.", (p[pos] & 0xc0));
+            srt_log_error("the first 2 bits:0x%02x error, it must be 0x80.", (p[pos] & 0xc0));
             return 255;
         }
         //skip 2bits//'10' 2 bslbf
