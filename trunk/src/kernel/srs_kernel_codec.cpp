@@ -564,7 +564,6 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
         return srs_error_wrap(err, "add frame");
     }
 
-#ifdef SRS_H265
     if (vcodec()->id == SrsVideoCodecIdAVC) {
         // for video, parse the nalu type, set the IDR flag.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
@@ -581,7 +580,6 @@ srs_error_t SrsVideoFrame::add_sample(char* bytes, int size)
             first_nalu_type = nal_unit_type;
         }
     }
-#endif
     
     return err;
 }
