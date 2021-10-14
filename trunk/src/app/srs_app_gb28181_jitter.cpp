@@ -1565,9 +1565,6 @@ SrsRtpFrameBuffer* SrsRtpJitterBuffer::ExtractAndSetDecode(uint32_t timestamp)
         }
     }
 
-    // Fix build warnings: variable ‘continuous’ set but not used
-    (void)continuous;
-
     // The state must be changed to decoding before cleaning up zero sized
     // frames to avoid empty frames being cleaned up and then given to the
     // decoder. Propagates the missing_frame bit.

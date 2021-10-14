@@ -342,9 +342,8 @@ public:
 private:
     
     srs_error_t replace_startcode_with_nalulen(char *video_data, int &size,  uint32_t pts, uint32_t dts);
-    srs_error_t write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts);
-    virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool b = true);
+    virtual srs_error_t write_h264_sps_pps(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(SrsAvcNaluType nal_unit_type, char* frame, int frame_size, uint32_t dts, uint32_t pts);
     virtual srs_error_t write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char* data, int size);
     virtual srs_error_t rtmp_write_packet_by_source(char type, uint32_t timestamp, char* data, int size);

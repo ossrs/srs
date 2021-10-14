@@ -449,6 +449,7 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
     uint64_t audio_pts = 0;
     uint64_t video_pts = 0;
     int pse_index = 0;
+    int error_ps_data_count = 0;
 
 #ifdef W_PS_FILE           
         if (!ps_fw.is_open()) {
@@ -706,14 +707,27 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
                 //ts=1000 seq=4 mark=true payload= audio
                 incomplete_len = ps_size - complete_len; 
                 complete_len = complete_len + incomplete_len;
+            }else {
+                //try next ps header flag
+                complete_len = complete_len + 4;
+                incomplete_len = ps_size - complete_len;
+                next_ps_pack = next_ps_pack + 4;
+                error_ps_data_count =+ 4;
             }
 
             first_keyframe_flag = false;
-            srs_trace("gb28181: client_id %s, unkonw ps data (%#x/%u) %02x %02x %02x %02x\n", 
-                channel_id.c_str(), ssrc, timestamp,  
-                next_ps_pack[0]&0xFF, next_ps_pack[1]&0xFF, next_ps_pack[2]&0xFF, next_ps_pack[3]&0xFF);
-            break;
+            // srs_trace("gb28181: client_id %s, unkonw ps data (%#x/%u) %02x %02x %02x %02x\n", 
+            //     channel_id.c_str(), ssrc, timestamp,  
+            //     next_ps_pack[0]&0xFF, next_ps_pack[1]&0xFF, next_ps_pack[2]&0xFF, next_ps_pack[3]&0xFF);
+            //break;
+
         }
+    }
+
+    if (error_ps_data_count > 0){
+        srs_warn("gb28181: client_id %s, unkonw ps data (%#x/%u) len:%d\n", 
+                channel_id.c_str(), ssrc, timestamp,  
+                error_ps_data_count);
     }
 
     if (complete_len != ps_size){
@@ -725,6 +739,9 @@ srs_error_t SrsPsStreamDemixer::on_ps_stream(char* ps_data, int ps_size, uint32_
             return srs_error_wrap(err, "process ps video packet");
         }
     }
+
+    video_stream.erase(video_stream.length());
+    audio_stream.erase(audio_stream.length());
   
     return err;
 }
@@ -946,7 +963,7 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
     }
 
     jitter_buffer->SetDecodeErrorMode(kSelectiveErrors);
-    jitter_buffer->SetNackMode(kNack, -1, -1);
+    jitter_buffer->SetNackMode(kNoNack, -1, -1);
     jitter_buffer->SetNackSettings(250, 450, 0);
 
     if (!jitter_buffer_audio) {
@@ -954,7 +971,7 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
     }
 
     jitter_buffer_audio->SetDecodeErrorMode(kSelectiveErrors);
-    jitter_buffer_audio->SetNackMode(kNack, -1, -1);
+    jitter_buffer_audio->SetNackMode(kNoNack, -1, -1);
     jitter_buffer_audio->SetNackSettings(250, 450, 0);
 
     if (!source_publish) return err;
@@ -1230,69 +1247,6 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_video(SrsSimpleStream *stream, int64_t f
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_size, uint32_t pts, uint32_t dts)
-{
-    srs_error_t err = srs_success;
-
-    if (!frame){
-        return srs_error_new(ERROR_GB28181_H264_FRAME_FULL, "h264 frame null");
-    }
-
-    if (frame_size <= 0){
-        return srs_error_new(ERROR_GB28181_H264_FRAMESIZE, "h264 frame size");
-    }
-
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
-    // ignore the nalu type sei(6) aud(9) 
-    if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter ||
-        nal_unit_type == SrsAvcNaluTypeSEI) {
-        return err;
-    }
-
-    // for sps
-    if (avc->is_sps(frame, frame_size)) {
-        std::string sps;
-        if ((err = avc->sps_demux(frame, frame_size, sps)) != srs_success) {
-            return srs_error_wrap(err, "demux sps");
-        }
-        
-        if (h264_sps == sps) {
-            return err;
-        }
-        h264_sps = sps;
-
-        if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write sps/pps");
-        }
-        return err;
-    }
-
-    // for pps
-    if (avc->is_pps(frame, frame_size)) {
-        std::string pps;
-        if ((err = avc->pps_demux(frame, frame_size, pps)) != srs_success) {
-            return srs_error_wrap(err, "demux pps");
-        }
-        
-        if (h264_pps == pps) {
-            return err;
-        }
-        h264_pps = pps;
-        
-        if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write sps/pps");
-        }
-        return err;
-    }
-
-    srs_info("gb28181: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-    if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-        return srs_error_wrap(err, "write frame");
-    }
-
-    return err;
-}
-
  srs_error_t SrsGb28181RtmpMuxer::replace_startcode_with_nalulen(char *video_data, int &size, uint32_t pts, uint32_t dts)
  {
     srs_error_t err = srs_success;
@@ -1300,13 +1254,21 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
     int index = 0;
     std::list<int> list_index;
 
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(video_data[0] & 0x1f);
+
+    if ((video_data[0] & 0x0FF) == 0x00 && (video_data[1] & 0xFF)  == 0x00 && 
+        (video_data[2] & 0x0FF) == 0x00 && (video_data[3] & 0xFF)  == 0x01){
+        nal_unit_type = (SrsAvcNaluType)(video_data[4] & 0x1f);
+    }
+
     for(; index < size; index++){
-        if (index > (size-4))
+        if (index > (size - 4))
             break;
+
         if (video_data[index] == 0x00 && video_data[index+1] == 0x00 &&
-             video_data[index+2] == 0x00 && video_data[index+3] == 0x01){
-                 list_index.push_back(index);
-             }
+            video_data[index+2] == 0x00 && video_data[index+3] == 0x01){
+                list_index.push_back(index);
+        }
     }
 
     if (list_index.size() == 1){
@@ -1316,13 +1278,22 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
         //0001xxxxxxxxxx
         //xxxx0001xxxxxxx
         uint32_t naluLen = size - cur_pos - 4;
-        
-        char *frame = video_data + cur_pos + 4;
+        char *p = (char*)&naluLen;
+
+        video_data[cur_pos] = p[3];
+        video_data[cur_pos+1] = p[2];
+        video_data[cur_pos+2] = p[1];
+        video_data[cur_pos+3] = p[0];
+
+        char *frame = video_data + (cur_pos == 0 ? 4 : 0);
         int frame_size = naluLen;
 
-        err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+        if ((err = write_h264_sps_pps(frame, frame_size, dts, pts)) != srs_success){
+            srs_warn("gb28181: write sps/pps error, %s", srs_error_desc(err).c_str());
+            srs_error_reset(err);
+        };
 
-    }else if (list_index.size() > 1){
+    }else if (list_index.size() > 1){//mutle slice
         int pre_pos = list_index.front();
         list_index.pop_front();
         int first_pos = pre_pos;
@@ -1335,32 +1306,65 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame2(char *frame, int frame_si
             //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
             //xxxxxxxxxxxx0001xxxxxxxx0001xxxxxxxxx
             uint32_t naluLen = cur_pos - pre_pos - 4;
-            
+            char *p = (char*)&naluLen;
+
+            video_data[pre_pos] = p[3];
+            video_data[pre_pos+1] = p[2];
+            video_data[pre_pos+2] = p[1];
+            video_data[pre_pos+3] = p[0];
+          
             char *frame = video_data + pre_pos + 4;
             int frame_size = naluLen;
 
             pre_pos = cur_pos;
-            err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+
+            if ((err = write_h264_sps_pps(frame, frame_size, dts, pts)) != srs_success){
+                srs_warn("gb28181: write sps/pps error, %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            };
         }
         
         //========================pre==========
         //0001xxxxxxxx0001xxxxxxxx0001xxxxxxxxx
         if (first_pos != pre_pos){
-
             uint32_t naluLen = size - pre_pos - 4;
-            
+            char *p = (char*)&naluLen;
+
+            video_data[pre_pos] = p[3];
+            video_data[pre_pos+1] = p[2];
+            video_data[pre_pos+2] = p[1];
+            video_data[pre_pos+3] = p[0];
+          
             char *frame = video_data + pre_pos + 4;
             int frame_size = naluLen;
 
-            err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+            if ((err = write_h264_sps_pps(frame, frame_size, dts, pts)) != srs_success){
+                srs_warn("gb28181: write sps/pps error, %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+            };
+            
         }
     }else{
         //xxxxxxxxxxxxxxxxxxx
         char *frame = video_data;
         int frame_size = size;
-        err = write_h264_ipb_frame2(frame, frame_size, dts, pts);
+
+        if ((err = write_h264_sps_pps(frame, frame_size, dts, pts)) != srs_success){
+                srs_warn("gb28181: write sps/pps error, %s", srs_error_desc(err).c_str());
+                srs_error_reset(err);
+        };
     }
 
+    switch (nal_unit_type)
+    {
+    case SrsAvcNaluTypeAccessUnitDelimiter:
+    case SrsAvcNaluTypeSEI:
+        return err;
+    default:
+        break;
+    }
+
+    err = write_h264_ipb_frame(nal_unit_type, video_data, size, dts, pts);
     return err;
 }
 
@@ -1480,11 +1484,57 @@ srs_error_t SrsGb28181RtmpMuxer::on_rtp_audio(SrsSimpleStream* stream, int64_t f
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
+srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(char *frame, int frame_size, uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
-    if (h264_sps == "" ||  h264_pps == ""){
+    if (!frame){
+        return err;
+    }
+
+    if (frame_size <= 0){
+        return err;
+    }
+
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+
+    if (nal_unit_type != SrsAvcNaluTypeSPS && nal_unit_type != SrsAvcNaluTypePPS){
+        return err;
+    }
+
+    bool send_video_seqheader = false;
+    
+    // for sps
+    if (avc->is_sps(frame, frame_size)) {
+        std::string sps;
+        if ((err = avc->sps_demux(frame, frame_size, sps)) != srs_success) {
+            return srs_error_wrap(err, "demux sps");
+        }
+        
+        if (h264_sps == sps) {
+            return err;
+        }
+     
+        h264_sps = sps;
+        send_video_seqheader = true;
+    }
+
+    // for pps
+    if (avc->is_pps(frame, frame_size)) {
+        std::string pps;
+        if ((err = avc->pps_demux(frame, frame_size, pps)) != srs_success) {
+            return srs_error_wrap(err, "demux pps");
+        }
+        
+        if (h264_pps == pps) {
+            return err;
+        }
+        
+        h264_pps = pps;
+        send_video_seqheader = true;
+    }
+
+    if (h264_sps == "" ||  h264_pps == "" || !send_video_seqheader){
         return err;
     }
 
@@ -1512,30 +1562,26 @@ srs_error_t SrsGb28181RtmpMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return err;
 }
 
-srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(char* frame, int frame_size, uint32_t dts, uint32_t pts, bool writelen)
+srs_error_t SrsGb28181RtmpMuxer::write_h264_ipb_frame(SrsAvcNaluType nal_unit_type, char* frame, int frame_size, uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
     
     // 5bits, 7.3.1 NAL unit syntax,
     // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+    // SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
     
     // for IDR frame, the frame is keyframe.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+    if (nal_unit_type == SrsAvcNaluTypeSPS || 
+        nal_unit_type == SrsAvcNaluTypePPS ||
+        nal_unit_type == SrsAvcNaluTypeIDR) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
     
     std::string ibp;
 
-    if (writelen){
-        if ((err = avc->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
-            return srs_error_wrap(err, "mux ibp frame");
-        }
-    }else{
-        ibp = string(frame, frame_size);
-    }
+    ibp = string(frame, frame_size);
     
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char* flv = NULL;
@@ -2176,7 +2222,10 @@ srs_error_t SrsGb28181Manger::delete_stream_channel(std::string id, std::string 
 
     //notify the device to stop streaming 
     //if an internal sip service controlled channel
-    notify_sip_bye(id, chid);
+    if ((err = notify_sip_bye(id, chid)) != srs_success){
+        srs_warn("gb28181: delete_stream_channel error %s", srs_error_desc(err).c_str());
+        srs_error_reset(err);
+    }
 
     string channel_id = id + "@" + chid;
 
