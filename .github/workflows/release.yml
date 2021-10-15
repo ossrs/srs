@@ -114,7 +114,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           body: |
             ${{ github.event.head_commit.message }}
-            ${{ env.SRS_SOURCE_MD5 }} ${{ env.SRS_SOURCE_TAR }}
+            ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
           draft: false
           prerelease: true
       # Upload release files
