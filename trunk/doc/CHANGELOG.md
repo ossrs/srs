@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-16, Merge [#2665](https://github.com/ossrs/srs/pull/2665): API: Fix the same 'client_id' error when asynchronous call. v4.0.179
 * v4.0, 2021-10-13, Merge [#2671](https://github.com/ossrs/srs/pull/2671): SRT: Pes error when mpegts demux in srt. v4.0.178
 * v4.0, 2021-10-12, Merge [#2550](https://github.com/ossrs/srs/pull/2550): API use publish params. v4.0.177
 * v4.0, 2021-10-12, Merge [#2549](https://github.com/ossrs/srs/pull/2549): Fix duration issue for HLS on_hls. v4.0.176
