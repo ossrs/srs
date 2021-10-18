@@ -8,14 +8,34 @@
 #define SRS_APP_RTC_API_HPP
 
 #include <srs_core.hpp>
-
+#include <srs_app_security.hpp>
+#include <srs_app_refer.hpp>
 #include <srs_http_stack.hpp>
 
 class SrsRtcServer;
 class SrsRequest;
 class SrsSdp;
 
-class SrsGoApiRtcPlay : public ISrsHttpHandler
+class SrsRtcAccessControl
+{
+private:
+    SrsSecurity* security;
+    SrsRefer* refer;
+public:
+    SrsRtcAccessControl();
+    virtual ~SrsRtcAccessControl();
+protected:
+    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
+    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
+protected:
+    virtual srs_error_t security_check(SrsRtmpConnType type, std::string ip, SrsRequest* req);
+protected:
+    virtual srs_error_t refer_check_play(SrsRequest* req);
+    virtual srs_error_t refer_check_publish(SrsRequest* req);
+
+};
+
+class SrsGoApiRtcPlay : public ISrsHttpHandler, public SrsRtcAccessControl
 {
 private:
     SrsRtcServer* server_;
@@ -27,11 +47,9 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
-private:
-    virtual srs_error_t http_hooks_on_play(SrsRequest* req);
 };
 
-class SrsGoApiRtcPublish : public ISrsHttpHandler
+class SrsGoApiRtcPublish : public ISrsHttpHandler, public SrsRtcAccessControl
 {
 private:
     SrsRtcServer* server_;
@@ -43,8 +61,6 @@ public:
 private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
-private:
-    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler

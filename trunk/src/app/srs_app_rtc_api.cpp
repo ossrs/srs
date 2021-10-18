@@ -129,6 +129,14 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
+    if ((err = security_check(SrsRtcConnPlay, clientip, ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: security check");
+    }
+
+    if ((err = refer_check_play(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: refer check");
+    }
+
     if ((err = http_hooks_on_play(ruc.req_)) != srs_success) {
         return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
@@ -247,39 +255,6 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
-srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
-{
-    srs_error_t err = srs_success;
-
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
-
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
-
-        if (!conf) {
-            return err;
-        }
-
-        hooks = conf->args;
-    }
-
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
-            return srs_error_wrap(err, "on_play %s", url.c_str());
-        }
-    }
-
-    return err;
-}
-
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
     server_ = server;
@@ -387,6 +362,14 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
     if (parsed_vhost) {
         ruc.req_->vhost = parsed_vhost->arg0();
+    }
+
+    if ((err = security_check(SrsRtcConnPublish, clientip, ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: security check");
+    }
+
+    if ((err = refer_check_publish(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: refer check");
     }
 
 	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
@@ -499,39 +482,6 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
-srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
-{
-    srs_error_t err = srs_success;
-
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        return err;
-    }
-
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
-    // @see https://github.com/ossrs/srs/issues/475
-    vector<string> hooks;
-
-    if (true) {
-        SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
-
-        if (!conf) {
-            return err;
-        }
-
-        hooks = conf->args;
-    }
-
-    for (int i = 0; i < (int)hooks.size(); i++) {
-        std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
-            return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
-        }
-    }
-
-    return err;
-}
-
 SrsGoApiRtcNACK::SrsGoApiRtcNACK(SrsRtcServer* server)
 {
     server_ = server;
@@ -588,3 +538,111 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     return srs_success;
 }
 
+SrsRtcAccessControl::SrsRtcAccessControl()
+{
+    security = new SrsSecurity;
+    refer = new SrsRefer();
+}
+
+SrsRtcAccessControl::~SrsRtcAccessControl()
+{
+    srs_freep(security);
+    srs_freep(refer);
+}
+
+srs_error_t SrsRtcAccessControl::http_hooks_on_play(SrsRequest * req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_play(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_play(url, req)) != srs_success) {
+            return srs_error_wrap(err, "on_play %s", url.c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcAccessControl::http_hooks_on_publish(SrsRequest * req)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        return err;
+    }
+
+    // the http hooks will cause context switch,
+    // so we must copy all hooks for the on_connect may freed.
+    // @see https://github.com/ossrs/srs/issues/475
+    vector<string> hooks;
+
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
+
+        if (!conf) {
+            return err;
+        }
+
+        hooks = conf->args;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
+            return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcAccessControl::security_check(SrsRtmpConnType type, std::string ip, SrsRequest* req)
+{
+    return security->check(type, ip, req);
+}
+
+srs_error_t SrsRtcAccessControl::refer_check_play(SrsRequest* req)
+{
+    srs_error_t err = srs_success;
+
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcAccessControl::refer_check_publish(SrsRequest * req)
+{
+    srs_error_t err = srs_success;
+
+    if (_srs_config->get_refer_enabled(req->vhost)) {
+        if ((err = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != srs_success) {
+            return srs_error_wrap(err, "rtmp: referer check");
+        }
+    }
+
+    return err;
+}
