@@ -540,7 +540,7 @@ srs_error_t SrsGoApiRtcNACK::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
 SrsRtcAccessControl::SrsRtcAccessControl()
 {
-    security = new SrsSecurity;
+    security = new SrsSecurity();
     refer = new SrsRefer();
 }
 
