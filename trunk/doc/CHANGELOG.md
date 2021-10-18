@@ -8,6 +8,8 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-10-17, Support daemon(fork twice) for Darwin/OSX [ST#23](https://github.com/ossrs/state-threads/issues/23). v5.0.18
+* v5.0, 2021-10-16, DVR: support mp3 audio codec. (#2593) v5.0.17
 * v5.0, 2021-10-03, OpenWRT: Disable mprotect of ST. 5.0.16
 * v5.0, 2021-10-03, Actions: Create source tar lik srs-server-5.0.14.tar.gz
 * v5.0, 2021-10-02, ST: Support Cygwin64 and MIPS. 5.0.13

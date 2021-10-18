@@ -98,6 +98,7 @@ static struct _st_kqdata {
     int dellist_size;
     int dellist_cnt;
     int kq;
+    pid_t pid;
 } *_st_kq_data;
 
 #ifndef ST_KQ_MIN_EVTLIST_SIZE
@@ -463,6 +464,7 @@ ST_HIDDEN int _st_kq_init(void)
         goto cleanup_kq;
     }
     fcntl(_st_kq_data->kq, F_SETFD, FD_CLOEXEC);
+    _st_kq_data->pid = getpid();
 
     /*
      * Allocate file descriptor data array.
@@ -698,6 +700,7 @@ ST_HIDDEN void _st_kq_dispatch(void)
         tsp = &timeout;
     }
 
+ retry_kevent:
     /* Check for I/O operations */
     nfd = kevent(_st_kq_data->kq,
                  _st_kq_data->addlist, _st_kq_data->addlist_cnt,
@@ -790,6 +793,23 @@ ST_HIDDEN void _st_kq_dispatch(void)
         for (i = 0; i < nfd; i++) {
             osfd = _st_kq_data->evtlist[i].ident;
             _ST_KQ_REVENTS(osfd) = 0;
+        }
+    } else if (nfd < 0) {
+        if (errno == EBADF && _st_kq_data->pid != getpid()) {
+            /* We probably forked, reinitialize kqueue */
+            if ((_st_kq_data->kq = kqueue()) < 0) {
+                /* There is nothing we can do here, will retry later */
+                return;
+            }
+            fcntl(_st_kq_data->kq, F_SETFD, FD_CLOEXEC);
+            _st_kq_data->pid = getpid();
+            /* Re-register all descriptors on ioq with new kqueue */
+            memset(_st_kq_data->fd_data, 0, _st_kq_data->fd_data_size * sizeof(_kq_fd_data_t));
+            for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
+                pq = _ST_POLLQUEUE_PTR(q);
+                _st_kq_pollset_add(pq->pds, pq->npds);
+            }
+            goto retry_kevent;
         }
     }
 }

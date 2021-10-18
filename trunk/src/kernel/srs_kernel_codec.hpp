@@ -167,6 +167,11 @@ enum SrsAudioAacFrameTrait
     SrsAudioOpusFrameTraitRaw = 2,
     SrsAudioOpusFrameTraitSamplingRate = 4,
     SrsAudioOpusFrameTraitAudioLevel = 8,
+
+    // 16/32 reserved for g711a/g711u 
+
+    // For MP3
+    SrsAudioMp3FrameTrait = 64,
 };
 
 /**
