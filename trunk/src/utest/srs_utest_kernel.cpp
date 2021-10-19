@@ -4570,6 +4570,14 @@ VOID TEST(KernelUtilityTest, CoverTimeUtilityAll)
         srs_parse_hostport("domain.com", host, port);
         EXPECT_STREQ("domain.com", host.c_str());
     }
+
+    if (true) {
+        string host;
+        int port = 1935;
+        srs_parse_hostport("domain.com:0", host, port);
+        EXPECT_EQ(1935, port);
+        EXPECT_STREQ("domain.com", host.c_str());
+    }
     
     if (true) {
         string ep = srs_any_address_for_listener();
