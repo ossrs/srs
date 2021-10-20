@@ -1538,16 +1538,30 @@ SrsJsonArray* SrsJsonAny::to_array()
     return p;
 }
 
-string escape(string v)
+// @see https://github.com/ossrs/srs/pull/1758/files#diff-9568479ef5cb0aa1ade2381e11e9c066c01bf9c4bbed70ffa27094d08bb27380R370
+// @see https://github.com/json-parser/json-builder/blob/2d8c6671926d104c5dcd43ccd2b1431a3f0299e0/json-builder.c#L495
+string json_serialize_string(const string& v)
 {
     stringstream ss;
 
-    for (int i = 0; i < (int)v.length(); i++) {
-        if (v.at(i) == '"') {
-            ss << '\\';
+    ss << "\"";
+
+    const char* start = v.data();
+    const char* end = start + v.length();
+    for (const char* p = start; p < end; ++p) {
+        switch (*p) {
+            case '"': ss << '\\' << '"'; break;
+            case '\\': ss << '\\' << '\\'; break;
+            case '\b': ss << '\\' << 'b'; break;
+            case '\f': ss << '\\' << 'f'; break;
+            case '\n': ss << '\\' << 'n'; break;
+            case '\r': ss << '\\' << 'r'; break;
+            case '\t': ss << '\\' << 't'; break;
+            default: ss << *p;
         }
-        ss << v.at(i);
     }
+
+    ss << "\"";
 
     return ss.str();
 }
@@ -1556,7 +1570,9 @@ string SrsJsonAny::dumps()
 {
     switch (marker) {
         case SRS_JSON_String: {
-            return "\"" + escape(to_str()) + "\"";
+            SrsJsonString* p = dynamic_cast<SrsJsonString*>(this);
+            srs_assert(p != NULL);
+            return json_serialize_string(p->value);
         }
         case SRS_JSON_Boolean: {
             return to_boolean()? "true" : "false";
