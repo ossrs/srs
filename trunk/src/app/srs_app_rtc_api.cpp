@@ -198,7 +198,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     string local_sdp_str = os.str();
     // Filter the \r\n to \\r\\n for JSON.
-    local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
+    string local_sdp_escaped = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
@@ -209,9 +209,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, dtls=%u, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
-        ruc.dtls_, ruc.srtp_, remote_sdp_str.length(), local_sdp_str.length());
+        ruc.dtls_, ruc.srtp_, remote_sdp_str.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
-    srs_trace("RTC local answer: %s", local_sdp_str.c_str());
+    srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
 
     return err;
 }
@@ -450,7 +450,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     string local_sdp_str = os.str();
     // Filter the \r\n to \\r\\n for JSON.
-    local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
+    string local_sdp_escaped = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
@@ -461,9 +461,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
-        remote_sdp_str.length(), local_sdp_str.length());
+        remote_sdp_str.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
-    srs_trace("RTC local answer: %s", local_sdp_str.c_str());
+    srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
 
     return err;
 }
