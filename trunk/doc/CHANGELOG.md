@@ -30,6 +30,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-10-22, Merge [#2687](https://github.com/ossrs/srs/pull/2687): API: Always stat client event if auth fail. v4.0.183
 * v4.0, 2021-10-20, Merge [#1758](https://github.com/ossrs/srs/pull/1758): JSON: Support escape special chars. v4.0.182
 * v4.0, 2021-10-19, Merge [#1754](https://github.com/ossrs/srs/pull/1754): RTMP: If port is explicity set to 0, use default 1935. v4.0.181
 * v4.0, 2021-10-18, Merge [#2670](https://github.com/ossrs/srs/pull/2670): SRT: Solve mpegts demux assert bug. v4.0.180
