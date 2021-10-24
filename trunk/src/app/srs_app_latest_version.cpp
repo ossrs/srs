@@ -38,6 +38,16 @@ void srs_build_features(stringstream& ss)
         ss << "&os=linux";
     }
 
+#if defined(__amd64__) && defined(__x86_64__) && defined(__i386__)
+    ss << "&x86=1";
+#elif defined(__arm__) && defined(__aarch64__)
+    ss << "&arm=1";
+#elif defined(__mips__)
+    ss << "&mips=1";
+#elif defined(__loongarch__)
+    ss << "&loong=1";
+#endif
+
     SRS_CHECK_FEATURE2(_srs_in_docker, "docker", ss);
     SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
     SRS_CHECK_FEATURE2(SRS_CROSSBUILD_BOOL, "cross", ss);
