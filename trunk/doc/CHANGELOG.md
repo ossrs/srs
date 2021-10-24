@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2021-10-24, For [#2689](https://github.com/ossrs/srs/issues/2689): Support loongarch, loongson CPU. v5.0.19
 * v5.0, 2021-10-17, Support daemon(fork twice) for Darwin/OSX [ST#23](https://github.com/ossrs/state-threads/issues/23). v5.0.18
 * v5.0, 2021-10-16, DVR: support mp3 audio codec. (#2593) v5.0.17
 * v5.0, 2021-10-03, OpenWRT: Disable mprotect of ST. 5.0.16

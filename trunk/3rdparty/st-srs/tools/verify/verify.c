@@ -48,6 +48,37 @@ void verify_jmpbuf()
     unsigned char* p = (unsigned char*)ctx[0].__jb;
     print_buf(p, nn_jb);
 }
+#elif __loongarch__
+void verify_jmpbuf()
+{
+    // https://github.com/ossrs/state-threads/issues/24#porting
+    register void* ra asm("r1"); // r1, ra, Return address
+    register void* sp asm("r3"); // r3, sp, Stack pointer
+    register void* fp asm("r22"); // r22, fp, Frame pointer
+    // r23-r31, s0-s8, Subroutine register variable
+    register void* s0 asm("r23");
+    register void* s1 asm("r24");
+    register void* s2 asm("r25");
+    register void* s3 asm("r26");
+    register void* s4 asm("r27");
+    register void* s5 asm("r28");
+    register void* s6 asm("r29");
+    register void* s7 asm("r30");
+    register void* s8 asm("r31");
+
+    jmp_buf ctx = {0};
+    int r0 = _st_md_cxt_save(ctx);
+    if (!r0) {
+        _st_md_cxt_restore(ctx, 1); // Restore/Jump to previous line, set r0 to 1.
+    }
+
+    printf("sp=%p, ra=%p, fp=%p, s0=%p, s1=%p, s2=%p, s3=%p, s4=%p, s5=%p, s6=%p, s7=%p, s7=%p\n",
+        sp, ra, fp, s0, s1, s2, s3, s4, s5, s6, s7, s8);
+
+    int nn_jb = sizeof(ctx[0].__jmpbuf);
+    unsigned char* p = (unsigned char*)ctx[0].__jmpbuf;
+    print_buf(p, nn_jb);
+}
 #endif
 #endif
 

@@ -187,6 +187,11 @@
             #define MD_USE_BUILTIN_SETJMP
             #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jb[0]))
 
+        #elif defined(__loongarch__)
+            /* https://github.com/ossrs/state-threads/issues/24 */
+            #define MD_USE_BUILTIN_SETJMP
+            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
+
         #else
             #error "Unknown CPU architecture"
         #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
