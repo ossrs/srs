@@ -428,6 +428,88 @@
 
     /****************************************************************/
 
+
+
+
+
+
+
+
+
+
+#elif defined(__loongarch__)
+
+    /****************************************************************/
+
+    /*
+     * Internal __jmp_buf layout
+     */
+    #define JB_SP  0    /* R3, SP, Stack pointer */
+    #define JB_RA  1    /* R1, RA, Return address */
+    #define JB_FP  2    /* FP/R22 Frame pointer */
+    #define JB_S0  3    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S1  4    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S2  5    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S3  6    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S4  7    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S5  8    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S6  9    /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S7  10   /* R23-R31, S0-S8, Subroutine register variable */
+    #define JB_S8  11   /* R23-R31, S0-S8, Subroutine register variable */
+
+    	.file "md_linux.S"
+    	.text
+
+    	/* _st_md_cxt_save(__jmp_buf env) */ /* The env is $r4, https://github.com/ossrs/state-threads/issues/24#porting */
+    	.globl _st_md_cxt_save
+    	.type _st_md_cxt_save, %function
+    	.align 2
+    _st_md_cxt_save:
+        st.d	$r3, $r4, 0           /* Save sp to env[0],  *(long*)($r4+0) = sp */
+        st.d	$r1, $r4, 8           /* Save ra to env[1],  *(long*)($r4+8) = r1 */
+        st.d	$r22, $r4, 16         /* Save fp to env[2],  *(long*)($r4+16) = r22 */
+        st.d	$r23, $r4, 24         /* Save r23 to env[3],  *(long*)($r4+24) = r23 */
+        st.d	$r24, $r4, 32         /* Save r24 to env[4],  *(long*)($r4+32) = r24 */
+        st.d	$r25, $r4, 40         /* Save r25 to env[5],  *(long*)($r4+40) = r25 */
+        st.d	$r26, $r4, 48         /* Save r26 to env[6],  *(long*)($r4+48) = r26 */
+        st.d	$r27, $r4, 56         /* Save r27 to env[7],  *(long*)($r4+56) = r27 */
+        st.d	$r28, $r4, 64         /* Save r28 to env[8],  *(long*)($r4+64) = r28 */
+        st.d	$r29, $r4, 72         /* Save r29 to env[9],  *(long*)($r4+72) = r29 */
+        st.d	$r30, $r4, 80         /* Save r30 to env[10],  *(long*)($r4+80) = r30 */
+        st.d	$r31, $r4, 88         /* Save r31 to env[11],  *(long*)($r4+88) = r31 */
+        addi.w	$r12, $r0, 0          /* Set return value to 0 */
+        move    $r4, $r12             /* Set return value to 0 */
+        jirl	$r0, $r1, 0           /* Return */
+
+    	.size _st_md_cxt_save, .-_st_md_cxt_save
+
+    /****************************************************************/
+
+    	/* _st_md_cxt_restore(__jmp_buf env, int val) */
+    	.globl _st_md_cxt_restore
+    	.type _st_md_cxt_restore, %function
+    	.align 2
+    _st_md_cxt_restore:
+        ld.d	$r3, $r4, 0          /* Load sp from env[0],  sp=*(long*)($r4+0) */
+        ld.d	$r1, $r4, 8          /* Load ra from env[1],  r1=*(long*)($r4+8) */
+        ld.d	$r22, $r4, 16        /* Load fp from env[2],  r22=*(long*)($r4+16) */
+        ld.d	$r23, $r4, 24        /* Load r23 from env[3],  r23=*(long*)($r4+24) */
+        ld.d	$r24, $r4, 32        /* Load r24 from env[4],  r24=*(long*)($r4+32) */
+        ld.d	$r25, $r4, 40        /* Load r25 from env[5],  r25=*(long*)($r4+40) */
+        ld.d	$r26, $r4, 48        /* Load r26 from env[6],  r26=*(long*)($r4+48) */
+        ld.d	$r27, $r4, 56        /* Load r27 from env[7],  r27=*(long*)($r4+56) */
+        ld.d	$r28, $r4, 64        /* Load r28 from env[8],  r28=*(long*)($r4+64) */
+        ld.d	$r29, $r4, 72        /* Load r29 from env[9],  r29=*(long*)($r4+72) */
+        ld.d	$r30, $r4, 80        /* Load r30 from env[10],  r30=*(long*)($r4+80) */
+        ld.d	$r31, $r4, 88        /* Load r31 from env[11],  r31=*(long*)($r4+88) */
+        addi.w	$r12, $r0, 1         /* Set return value to 1 */
+        move    $r4, $r12            /* Set return value to 1 */
+        jirl	$r0, $r1, 0          /* Return to the saved return address */
+
+    	.size _st_md_cxt_restore, .-_st_md_cxt_restore
+
+    /****************************************************************/
+
 #endif
 
 #endif

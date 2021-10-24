@@ -6,6 +6,7 @@
 
 int foo_return_zero();
 int foo_return_one();
+int foo_return_one_arg1(int r0);
 extern void print_buf(unsigned char* p, int nn_jb);
 extern void print_jmpbuf();
 
@@ -22,10 +23,13 @@ int main(int argc, char** argv)
     printf("\nCPU specs:\n");
 #ifdef __mips__
     // https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00565-2B-MIPS32-QRC-01.01.pdf
-    printf("__mips__: %d, __mips:%d, _MIPSEL:%d\n", __mips__, __mips, _MIPSEL);
+    printf("__mips__: %d, __mips: %d, _MIPSEL: %d\n", __mips__, __mips, _MIPSEL);
 #endif
 #ifdef __x86_64__
     printf("__x86_64__: %d\n", __x86_64__);
+#endif
+#ifdef __loongarch__
+    printf("__loongarch__: %d, __loongarch64 :%d\n", __loongarch__, __loongarch64);
 #endif
 
     printf("\nCompiler specs:\n");
@@ -36,13 +40,14 @@ int main(int argc, char** argv)
     printf("sizeof(long long int)=%d\n", (int)sizeof(long long int));
     printf("sizeof(void*)=%d\n", (int)sizeof(void*));
 #ifdef __ptr_t
-    printf("sizeof(__ptr_t)=%d\n", sizeof(__ptr_t));
+    printf("sizeof(__ptr_t)=%d\n", (int)sizeof(__ptr_t));
 #endif
 
     printf("\nReturn value:\n");
     int r0 = foo_return_zero();
     int r1 = foo_return_one();
-    printf("foo_return_zero=%d, foo_return_one=%d\n", r0, r1);
+    int r2 = foo_return_one_arg1(r1);
+    printf("foo_return_zero=%d, foo_return_one=%d, foo_return_one_arg1=%d\n", r0, r1, r2);
 
     printf("\nCalling conventions:\n");
     print_jmpbuf();
@@ -58,6 +63,11 @@ int foo_return_zero()
 int foo_return_one()
 {
     return 1;
+}
+
+int foo_return_one_arg1(int r0)
+{
+    return r0 + 2;
 }
 
 #ifdef __linux__
@@ -100,6 +110,47 @@ void print_jmpbuf()
     printf("sizeof(jmp_buf)=%d (unsigned long long [%d])\n", nn_jb, nn_jb/8);
 
     unsigned char* p = (unsigned char*)ctx[0].__jb;
+    print_buf(p, nn_jb);
+}
+#elif __loongarch__
+void print_jmpbuf()
+{
+    // https://github.com/ossrs/state-threads/issues/24#porting
+    register void* ra asm("r1"); // r1, ra, Return address
+    register void* sp asm("r3"); // r3, sp, Stack pointer
+    register void* fp asm("r22"); // r22, fp, Frame pointer
+    // r23-r31, s0-s8, Subroutine register variable
+    register void* s0 asm("r23");
+    register void* s1 asm("r24");
+    register void* s2 asm("r25");
+    register void* s3 asm("r26");
+    register void* s4 asm("r27");
+    register void* s5 asm("r28");
+    register void* s6 asm("r29");
+    register void* s7 asm("r30");
+    register void* s8 asm("r31");
+
+    /*
+    struct __jmp_buf_tag {
+        __jmp_buf __jmpbuf;
+        int __mask_was_saved;
+        __sigset_t __saved_mask;
+    };
+    typedef struct __jmp_buf_tag jmp_buf[1];
+    */
+    jmp_buf ctx = {0};
+    int r0 = setjmp(ctx);
+    if (!r0) {
+        longjmp(ctx, 1);
+    }
+
+    printf("ra=%p, sp=%p, fp=%p, s0=%p, s1=%p, s2=%p, s3=%p, s4=%p, s5=%p, s6=%p, s7=%p, s7=%p\n",
+        ra, sp, fp, s0, s1, s2, s3, s4, s5, s6, s7, s8);
+
+    int nn_jb = sizeof(ctx[0].__jmpbuf);
+    printf("sizeof(jmp_buf)=%d (unsigned long long [%d])\n", nn_jb, nn_jb/8);
+
+    unsigned char* p = (unsigned char*)ctx[0].__jmpbuf;
     print_buf(p, nn_jb);
 }
 #endif
