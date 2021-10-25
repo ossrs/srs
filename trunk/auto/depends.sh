@@ -615,6 +615,9 @@ if [[ $SRS_RTC == YES ]]; then
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         SRTP_OPTIONS="$SRTP_OPTIONS --host=$SRS_CROSS_BUILD_HOST"
     fi
+    if [[ $OS_IS_LOONGARCH = YES ]]; then
+        SRTP_OPTIONS="$SRTP_OPTIONS --build=loongarch64-unknown-linux-gnu"
+    fi
     # Patched ST from https://github.com/ossrs/state-threads/tree/srs
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/_release/lib/libsrtp2.a ]]; then
         echo "The libsrtp-2-fit is ok.";
@@ -623,7 +626,6 @@ if [[ $SRS_RTC == YES ]]; then
         (
             rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
-            . ../../../3rdparty/patches/loongarch/apply.sh &&
             $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
@@ -646,6 +648,9 @@ if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
     if [[ $SRS_SHARED_FFMPEG == NO ]]; then
         OPUS_OPTIONS="--disable-shared --disable-doc"
     fi
+    if [[ $OS_IS_LOONGARCH = YES ]]; then
+        OPUS_OPTIONS="$OPUS_OPTIONS --build=loongarch64-unknown-linux-gnu"
+    fi
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/_release/lib/libopus.a ]]; then
         echo "The opus-1.3.1 is ok.";
     else
@@ -653,7 +658,6 @@ if [[ $SRS_RTC == YES && $SRS_CROSS_BUILD == NO ]]; then
         (
             rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
             tar xf ../../3rdparty/opus-1.3.1.tar.gz && cd opus-1.3.1 &&
-            . ../../../3rdparty/patches/loongarch/apply.sh &&
             ./configure --prefix=`pwd`/_release --enable-static $OPUS_OPTIONS &&
             make ${SRS_JOBS} && make install &&
             cd .. && rm -rf opus && ln -sf opus-1.3.1/_release opus
