@@ -319,6 +319,13 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective* root)
                 ++it;
             }
         }
+
+        // For GB28181, remove the directive jitterbuffer_enable.
+        if (dir->name == "stream_caster") {
+            if (dir->get_or_create("caster")->arg0() == "gb28181") {
+                dir->remove(dir->get("jitterbuffer_enable"));
+            }
+        }
         
         if (!dir->is_vhost()) {
             continue;
