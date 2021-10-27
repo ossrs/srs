@@ -255,8 +255,11 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
     srs_error_t err = srs_success;
 
     msgs.push_back(msg);
-    
-    if (msg->is_av()) {
+
+    // If jitter is off, the timestamp of first sequence header is zero, which wll cause SRS to shrink and drop the
+    // keyframes even if there is not overflow packets in queue, so we must ignore the zero timestamps, please
+    // @see https://github.com/ossrs/srs/pull/2186#issuecomment-953383063
+    if (msg->is_av() && msg->timestamp != 0) {
         if (av_start_time == -1) {
             av_start_time = srs_utime_t(msg->timestamp * SRS_UTIME_MILLISECONDS);
         }
@@ -267,7 +270,7 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
     if (max_queue_size <= 0) {
         return err;
     }
-    
+
     while (av_end_time - av_start_time > max_queue_size) {
         // notice the caller queue already overflow and shrinked.
         if (is_overflow) {
@@ -338,8 +341,7 @@ void SrsMessageQueue::shrink()
     SrsSharedPtrMessage* audio_sh = NULL;
     int msgs_size = (int)msgs.size();
     
-    // remove all msg
-    // igone the sequence header
+    // Remove all msgs, mark the sequence headers.
     for (int i = 0; i < (int)msgs.size(); i++) {
         SrsSharedPtrMessage* msg = msgs.at(i);
         
@@ -358,9 +360,10 @@ void SrsMessageQueue::shrink()
     }
     msgs.clear();
     
-    // update av_start_time
+    // Update av_start_time, the start time of queue.
     av_start_time = av_end_time;
-    //push_back secquence header and update timestamp
+
+    // Push back sequence headers and update their timestamps.
     if (video_sh) {
         video_sh->timestamp = srsu2ms(av_end_time);
         msgs.push_back(video_sh);
