@@ -25,9 +25,9 @@ set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/openssl/lib/libssl.a
         ${SRS_DIR}/objs/openssl/lib/libcrypto.a
         ${SRS_DIR}/objs/srtp2/lib/libsrtp2.a
-        ${SRS_DIR}/objs/opus/lib/libopus.a
-        ${SRS_DIR}/objs/ffmpeg/lib/libavutil.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavcodec.a
+        ${SRS_DIR}/objs/ffmpeg/lib/libavutil.a
+        ${SRS_DIR}/objs/opus/lib/libopus.a
         ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a)
 foreach(DEPS_LIB ${DEPS_LIBS})
     IF (NOT EXISTS ${DEPS_LIB})
@@ -62,7 +62,7 @@ ADD_DEFINITIONS("-g -O0")
 ADD_EXECUTABLE(srs ${SOURCE_FILES})
 TARGET_LINK_LIBRARIES(srs dl)
 TARGET_LINK_LIBRARIES(srs ${DEPS_LIBS})
-TARGET_LINK_LIBRARIES(srs -ldl)
+TARGET_LINK_LIBRARIES(srs -ldl -pthread)
 
 MESSAGE(STATUS "@see https://github.com/ossrs/srs/wiki/v4_CN_IDE")
 
