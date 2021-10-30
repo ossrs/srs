@@ -608,6 +608,7 @@ else
     (
         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
+        patch -p0 crypto/math/datatypes.c ../../../3rdparty/patches/srtp/gcc10-01.patch &&
         $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
         cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
