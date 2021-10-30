@@ -336,6 +336,9 @@ srs_error_t SrsMp4Box::discovery(SrsBuffer* buf, SrsMp4Box** ppbox)
         case SrsMp4BoxTypeSTSZ: box = new SrsMp4SampleSizeBox(); break;
         case SrsMp4BoxTypeAVC1: box = new SrsMp4VisualSampleEntry(); break;
         case SrsMp4BoxTypeAVCC: box = new SrsMp4AvccBox(); break;
+#ifdef SRS_H265
+        case SrsMp4BoxTypeHVCC: box = new SrsMp4HvccBox(); break;
+#endif        
         case SrsMp4BoxTypeMP4A: box = new SrsMp4AudioSampleEntry(); break;
         case SrsMp4BoxTypeESDS: box = new SrsMp4EsdsBox(); break;
         case SrsMp4BoxTypeUDTA: box = new SrsMp4UserDataBox(); break;
@@ -3034,6 +3037,24 @@ void SrsMp4VisualSampleEntry::set_avcC(SrsMp4AvccBox* v)
     boxes.push_back(v);
 }
 
+#ifdef SRS_H265
+SrsMp4HvccBox* SrsMp4VisualSampleEntry::hvcC()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeHVCC);
+    return dynamic_cast<SrsMp4HvccBox*>(box);
+}
+
+void SrsMp4VisualSampleEntry::set_hvcC(SrsMp4HvccBox* v)
+{
+    type = SrsMp4BoxTypeHVC1;
+
+    remove(SrsMp4BoxTypeAVCC);
+    remove(SrsMp4BoxTypeHVCC);
+    boxes.push_back(v);
+}
+
+#endif
+
 int SrsMp4VisualSampleEntry::nb_header()
 {
     return SrsMp4SampleEntry::nb_header()+2+2+12+2+2+4+4+4+2+32+2+2;
@@ -3152,6 +3173,64 @@ stringstream& SrsMp4AvccBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc
     srs_mp4_print_bytes(ss, (const char*)&avc_config[0], (int)avc_config.size(), dc.indent());
     return ss;
 }
+
+#ifdef SRS_H265
+SrsMp4HvccBox::SrsMp4HvccBox()
+{
+    type = SrsMp4BoxTypeHVCC;
+}
+
+SrsMp4HvccBox::~SrsMp4HvccBox()
+{
+}
+
+int SrsMp4HvccBox::nb_header()
+{
+    return SrsMp4Box::nb_header() + (int)hevc_config.size();
+}
+
+srs_error_t SrsMp4HvccBox::encode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = SrsMp4Box::encode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "encode header");
+    }
+
+    if (!hevc_config.empty()) {
+        buf->write_bytes(&hevc_config[0], (int)hevc_config.size());
+    }
+
+    return err;
+}
+
+srs_error_t SrsMp4HvccBox::decode_header(SrsBuffer* buf)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = SrsMp4Box::decode_header(buf)) != srs_success) {
+        return srs_error_wrap(err, "decode header");
+    }
+
+    int nb_config = left_space(buf);
+    if (nb_config) {
+        hevc_config.resize(nb_config);
+        buf->read_bytes(&hevc_config[0], nb_config);
+    }
+
+    return err;
+}
+
+stringstream& SrsMp4HvccBox::dumps_detail(stringstream& ss, SrsMp4DumpContext dc)
+{
+    SrsMp4Box::dumps_detail(ss, dc);
+
+    ss << ", HEVC Config: " << (int)hevc_config.size() << "B" << endl;
+    srs_mp4_padding(ss, dc.indent());
+    srs_mp4_print_bytes(ss, (const char*)&hevc_config[0], (int)hevc_config.size(), dc.indent());
+    return ss;
+}
+#endif
 
 SrsMp4AudioSampleEntry::SrsMp4AudioSampleEntry() : samplerate(0)
 {
@@ -5767,7 +5846,12 @@ srs_error_t SrsMp4Encoder::flush()
         mvhd->duration_in_tbn = srs_max(vduration, aduration);
         mvhd->next_track_ID = 1; // Starts from 1, increase when use it.
         
-        if (nb_videos || !pavcc.empty()) {
+#ifdef SRS_H265
+        if (nb_videos || (!is_h265 && !pavcc.empty())
+            || (is_h265 && !phvcc.empty())) {
+#else
+        if (nb_videos || !pavcc.empty() ) {
+#endif
             SrsMp4TrackBox* trak = new SrsMp4TrackBox();
             moov->add_trak(trak);
 
@@ -5837,10 +5921,20 @@ srs_error_t SrsMp4Encoder::flush()
             avc1->height = height;
             avc1->data_reference_index = 1;
             
+#ifdef SRS_H265
+            if (is_h265){
+                SrsMp4HvccBox* hvcC = new SrsMp4HvccBox();
+                avc1->set_hvcC( hvcC );
+                hvcC->hevc_config = phvcc;
+            }else{
+#endif
+
             SrsMp4AvccBox* avcC = new SrsMp4AvccBox();
             avc1->set_avcC(avcC);
-            
             avcC->avc_config = pavcc;
+#ifdef SRS_H265
+            }
+#endif
         }
         
         if (nb_audios || !pasc.empty()) {
@@ -5997,7 +6091,22 @@ srs_error_t SrsMp4Encoder::flush()
 srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample)
 {
     srs_error_t err = srs_success;
-    
+
+#ifdef SRS_H265
+    if ( format->vcodec && format->vcodec->id == SrsVideoCodecIdHEVC ){
+        is_h265 = true;
+
+        if (vsh && !phvcc.empty()) {
+            if (nb_sample == (uint32_t)phvcc.size() && srs_bytes_equals(sample, &phvcc[0], (int)phvcc.size())) {
+                return err;
+            }
+
+            return srs_error_new(ERROR_MP4_AVCC_CHANGE, "doesn't support hvcc change");
+        }
+    }
+    else{
+
+#endif   
     if (vsh && !pavcc.empty()) {
         if (nb_sample == (uint32_t)pavcc.size() && srs_bytes_equals(sample, &pavcc[0], (int)pavcc.size())) {
             return err;
@@ -6006,6 +6115,10 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
         return srs_error_new(ERROR_MP4_AVCC_CHANGE, "doesn't support avcc change");
     }
     
+#ifdef SRS_H265
+    }
+#endif
+
     if (!vsh && !pasc.empty()) {
         if (nb_sample == (uint32_t)pasc.size() && srs_bytes_equals(sample, &pasc[0], (int)pasc.size())) {
             return err;
@@ -6014,6 +6127,21 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
         return srs_error_new(ERROR_MP4_ASC_CHANGE, "doesn't support asc change");
     }
     
+#ifdef SRS_H265
+    if ( format->vcodec && format->vcodec->id == SrsVideoCodecIdHEVC ){
+        is_h265 = true;
+
+        if (vsh) {
+            phvcc = std::vector<char>(sample, sample + nb_sample);
+            if (format && format->vcodec) {
+                width = format->vcodec->width;
+                height = format->vcodec->height;
+            }
+        }
+    }
+    else{
+#endif
+
     if (vsh) {
         pavcc = std::vector<char>(sample, sample + nb_sample);
         if (format && format->vcodec) {
@@ -6021,6 +6149,10 @@ srs_error_t SrsMp4Encoder::copy_sequence_header(SrsFormat* format, bool vsh, uin
             height = format->vcodec->height;
         }
     }
+    
+#ifdef SRS_H265
+    }
+#endif
     
     if (!vsh) {
         pasc = std::vector<char>(sample, sample + nb_sample);

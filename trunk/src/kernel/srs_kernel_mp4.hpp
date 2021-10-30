@@ -33,6 +33,9 @@ class SrsMp4AvccBox;
 class SrsMp4DecoderSpecificInfo;
 class SrsMp4VisualSampleEntry;
 class SrsMp4AvccBox;
+#ifdef SRS_H265
+class SrsMp4HvccBox;
+#endif
 class SrsMp4AudioSampleEntry;
 class SrsMp4EsdsBox;
 class SrsMp4ChunkOffsetBox;
@@ -96,6 +99,10 @@ enum SrsMp4BoxType
     SrsMp4BoxTypeSTZ2 = 0x73747a32, // 'stz2'
     SrsMp4BoxTypeAVC1 = 0x61766331, // 'avc1'
     SrsMp4BoxTypeAVCC = 0x61766343, // 'avcC'
+#ifdef SRS_H265
+    SrsMp4BoxTypeHVC1 = 0x68657631, // 'hev1'
+    SrsMp4BoxTypeHVCC = 0x68766343, // 'hvcC'
+#endif    
     SrsMp4BoxTypeMP4A = 0x6d703461, // 'mp4a'
     SrsMp4BoxTypeESDS = 0x65736473, // 'esds'
     SrsMp4BoxTypeUDTA = 0x75647461, // 'udta'
@@ -1263,6 +1270,12 @@ public:
     // For avc1, get the avcc box.
     virtual SrsMp4AvccBox* avcC();
     virtual void set_avcC(SrsMp4AvccBox* v);
+
+#ifdef SRS_H265
+    virtual SrsMp4HvccBox* hvcC();
+    virtual void set_hvcC(SrsMp4HvccBox* v);
+#endif
+
 protected:
     virtual int nb_header();
     virtual srs_error_t encode_header(SrsBuffer* buf);
@@ -1287,6 +1300,26 @@ protected:
 public:
     virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
 };
+
+
+#ifdef SRS_H265
+class SrsMp4HvccBox : public SrsMp4Box
+{
+
+public:
+    std::vector<char> hevc_config;
+public:
+    SrsMp4HvccBox();
+    virtual ~SrsMp4HvccBox();
+protected:
+    virtual int nb_header();
+    virtual srs_error_t encode_header(SrsBuffer* buf);
+    virtual srs_error_t decode_header(SrsBuffer* buf);
+public:
+    virtual std::stringstream& dumps_detail(std::stringstream& ss, SrsMp4DumpContext dc);
+};
+
+#endif
 
 // 8.5.2 Sample Description Box (mp4a)
 // ISO_IEC_14496-12-base-format-2012.pdf, page 45
@@ -2047,6 +2080,11 @@ public:
 private:
     // For H.264/AVC, the avcc contains the sps/pps.
     std::vector<char> pavcc;
+#ifdef SRS_H265
+    // For H.265/HEVC, the hvcc contains the vps/sps/pps.
+    std::vector<char> phvcc;
+    bool is_h265      = false;
+#endif    
     // The number of video samples.
     uint32_t nb_videos;
     // The duration of video stream.
