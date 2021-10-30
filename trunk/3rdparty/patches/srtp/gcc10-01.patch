@@ -1,0 +1,4 @@
+82c82
+< char bit_string[MAX_PRINT_STRING_LEN];
+---
+> static char bit_string[MAX_PRINT_STRING_LEN];
