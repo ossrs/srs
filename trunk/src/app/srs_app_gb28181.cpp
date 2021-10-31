@@ -34,7 +34,6 @@ using namespace std;
 #include <srs_protocol_format.hpp>
 #include <srs_app_gb28181_stack.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_app_sip.hpp>
 #include <srs_kernel_codec.hpp>
 
 //#define W_PS_FILE
