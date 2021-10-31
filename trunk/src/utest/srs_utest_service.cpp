@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_service_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <st.h>
 
 MockSrsConnection::MockSrsConnection()
 {
@@ -1450,5 +1451,37 @@ VOID TEST(TCPServerTest, ContextUtility)
         SrsBasicRtmpClient rc("rtmp://127.0.0.1/live/livestream", to, to);
         rc.close();
     }
+}
+
+class MockStopSelfThread : public ISrsCoroutineHandler
+{
+public:
+    int r0;
+    int r1;
+    SrsFastCoroutine trd;
+    MockStopSelfThread() : trd("mock", this), r0(0), r1(0) {
+    }
+    virtual ~MockStopSelfThread() {
+    }
+    srs_error_t start() {
+        return trd.start();
+    }
+    void stop() {
+        trd.stop();
+    }
+    virtual srs_error_t cycle() {
+        r0 = st_thread_join((st_thread_t)trd.trd, NULL);
+        r1 = errno;
+        return srs_success;
+    }
+};
+
+VOID TEST(StopSelfThreadTest, ShouldFailWhenStopSelf)
+{
+    MockStopSelfThread trd;
+    trd.start();
+    srs_usleep(0);
+    EXPECT_EQ(-1, trd.r0);
+    EXPECT_EQ(EDEADLK, trd.r1);
 }
 

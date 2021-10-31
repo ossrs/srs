@@ -202,7 +202,16 @@ void SrsFastCoroutine::stop()
     if (trd) {
         void* res = NULL;
         int r0 = st_thread_join((st_thread_t)trd, &res);
-        srs_assert(!r0);
+        if (r0) {
+            // By st_thread_join
+            if (errno == EINVAL) srs_assert(!r0);
+            if (errno == EDEADLK) srs_assert(!r0);
+            // By st_cond_timedwait
+            if (errno == EINTR) srs_assert(!r0);
+            if (errno == ETIME) srs_assert(!r0);
+            // Others
+            srs_assert(!r0);
+        }
 
         srs_error_t err_res = (srs_error_t)res;
         if (err_res != srs_success) {
