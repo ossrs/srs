@@ -1,0 +1,15 @@
+/var/log/srs/*.log {
+        daily
+        missingok
+        rotate 30
+        compress
+        delaycompress
+        notifempty
+        create 640 root nobody
+        sharedscripts
+        postrotate
+                if [ -f /var/lib/srs/srs.pid ]; then
+                        kill -USR1 `cat /var/lib/srs/srs.pid`
+                fi
+        endscript
+}
