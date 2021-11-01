@@ -52,6 +52,7 @@ jobs:
           docker build --tag srs:pkg --build-arg version=$SRS_VERSION -f trunk/Dockerfile.pkg . &&
           SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-$SRS_VERSION.zip &&
           docker run --rm -v $(pwd):/output srs:pkg cp objs/$SRS_PACKAGE_ZIP /output/ &&
+          du -sh $SRS_PACKAGE_ZIP &&
           echo "SRS_PACKAGE_ZIP=$SRS_PACKAGE_ZIP" >> $GITHUB_ENV &&
           echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
 
