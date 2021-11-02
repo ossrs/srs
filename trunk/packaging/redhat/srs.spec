@@ -45,8 +45,6 @@ rm -rf $RPM_BUILD_ROOT
 %{__mkdir_p} $RPM_BUILD_ROOT%{_localstatedir}/log/%{name}
 
 %{__install} -m 755 trunk/objs/srs $RPM_BUILD_ROOT%{_bindir}
-%{__install} -m 755 trunk/objs/srs_hls_ingester $RPM_BUILD_ROOT%{_bindir}
-%{__install} -m 755 trunk/objs/srs_mp4_parser $RPM_BUILD_ROOT%{_bindir}
 
 #http_server file
 rsync -aqL --delete trunk/objs/nginx/ $RPM_BUILD_ROOT%{_datadir}/%{name}/
