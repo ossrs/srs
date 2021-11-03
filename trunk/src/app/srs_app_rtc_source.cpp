@@ -866,7 +866,9 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     }
 
     // When drop aac audio packet, never transcode.
-    if (acodec != SrsAudioCodecIdAAC) {
+    if (acodec != SrsAudioCodecIdAAC && 
+        acodec != SrsAudioCodecIdReservedG711AlawLogarithmicPCM && 
+        acodec != SrsAudioCodecIdReservedG711MuLawLogarithmicPCM) {
         return err;
     }
 
