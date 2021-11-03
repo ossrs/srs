@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-11-04, Merge [#2707](https://github.com/ossrs/srs/pull/2707): Refuse edge request when state is stopping. v4.0.192
 * v4.0, 2021-11-02, Auto create package by github actions. v4.0.191
 * v4.0, 2021-10-30, Merge [#2552](https://github.com/ossrs/srs/pull/2552): Script: Refine CentOS7 service script to restart SRS. v4.0.190
 * v4.0, 2021-10-30, Merge [#2397](https://github.com/ossrs/srs/pull/2397): SRTP: Patch libsrtp2 to fix GCC10 build fail. v4.0.189
