@@ -916,6 +916,8 @@ srs_error_t SrsPlayEdge::on_client_play()
     if (state == SrsEdgeStateInit) {
         state = SrsEdgeStatePlay;
         err = ingester->start();
+    } else if (state == SrsEdgeStateIngestStopping) {
+        return srs_error_new(ERROR_RTMP_EDGE_PLAY_STATE, "state is stopping");
     }
     
     return err;
