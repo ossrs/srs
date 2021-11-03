@@ -24,7 +24,7 @@ lockfile=/var/lock/subsys/$prog
 
 start() {
     echo -n $"Starting $prog: "
-    daemon $exec -c $configfile
+    daemon --user nobody $exec -c $configfile
     retval=$?
     echo
     [ $retval -eq 0 ] && touch $lockfile
@@ -33,7 +33,7 @@ start() {
 
 stop() {
     echo -n $"Stopping $prog: "
-    killproc $prog -TERM
+    killproc $exec -TERM
     retval=$?
     echo
     [ $retval -eq 0 ] && rm -f $lockfile
@@ -42,7 +42,7 @@ stop() {
 
 reload() {
     echo -n $"reloading $prog: "
-    killproc $prog -HUP
+    killproc $exec -HUP
     retval=$?
     echo
     [ $retval -eq 0 ] && rm -f $lockfile
@@ -51,7 +51,7 @@ reload() {
 
 rotate() {
     echo -n $"logrotate $prog: "
-    killproc $prog -USR1
+    killproc $exec -USR1
     retval=$?
     echo
     [ $retval -eq 0 ] && rm -f $lockfile
