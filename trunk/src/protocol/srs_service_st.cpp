@@ -74,8 +74,17 @@ void srs_close_stfd(srs_netfd_t& stfd)
 {
     if (stfd) {
         // we must ensure the close is ok.
-        int err = st_netfd_close((st_netfd_t)stfd);
-        srs_assert(err != -1);
+        int r0 = st_netfd_close((st_netfd_t)stfd);
+        if (r0) {
+            // By _st_epoll_fd_close or _st_kq_fd_close
+            if (errno == EBUSY) srs_assert(!r0);
+            // By close
+            if (errno == EBADF) srs_assert(!r0);
+            if (errno == EINTR) srs_assert(!r0);
+            if (errno == EIO) srs_assert(!r0);
+            // Others
+            srs_assert(!r0);
+        }
         stfd = NULL;
     }
 }
