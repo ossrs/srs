@@ -10,7 +10,7 @@
 /*
 #include <srs_utest_reload.hpp>
 */
-#include <srs_core.hpp>
+#include <srs_utest.hpp>
 
 #include <srs_utest_config.hpp>
 #include <srs_app_reload.hpp>

@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# srs - a simple, high efficiency and realtime video server
+#
+# chkconfig:   <default runlevel(s)> <start> <stop>
+
+### BEGIN INIT INFO
+# Provides: srs
+# Default-Start:  2 3 4 5
+# Default-Stop: 0 1 6
+# Description: a simple, high efficiency and realtime video server
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+exec="/usr/bin/srs"
+prog=${exec##*/}
+configfile=/etc/srs/srs.conf
+
+[ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+
+lockfile=/var/lock/subsys/$prog
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon --user nobody $exec -c $configfile
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && touch $lockfile
+    return $retval
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $exec -TERM
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && rm -f $lockfile
+    return $retval
+}
+
+reload() {
+    echo -n $"reloading $prog: "
+    killproc $exec -HUP
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && rm -f $lockfile
+    return $retval
+}
+
+rotate() {
+    echo -n $"logrotate $prog: "
+    killproc $exec -USR1
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && rm -f $lockfile
+    return $retval
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+    start|stop|restart|reload|rotate)
+        $1
+        ;;
+    status)
+        status $prog
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|restart|reload|rotate}"
+        exit 2
+esac

@@ -18,14 +18,17 @@ jobs:
         uses: actions/checkout@v2
       # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0.145
       #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
       #   SRS_MAJOR=4
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
           SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
           echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
           SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
           echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
       # Create source tar for release. Note that it's for OpenWRT package srs-server, so the filename MUST be
@@ -35,12 +38,24 @@ jobs:
       #   SRS_SOURCE_MD5=83e38700a80a26e30b2df054e69956e5
       - name: Create source tar.gz
         run: |
-          DEST_DIR=srs-server-$(echo ${SRS_TAG}| sed 's/^v//g') && mkdir -p $DEST_DIR &&
+          DEST_DIR=srs-server-$SRS_VERSION && mkdir -p $DEST_DIR &&
           cp README.md $DEST_DIR && cp LICENSE $DEST_DIR && cp -R trunk $DEST_DIR/trunk &&
           (cd $DEST_DIR/trunk/3rdparty && rm -rf *.zip openssl-*.gz srs-bench) &&
           tar zcf ${DEST_DIR}.tar.gz ${DEST_DIR} && du -sh ${DEST_DIR}* && rm -rf ${DEST_DIR} &&
           echo "SRS_SOURCE_TAR=${DEST_DIR}.tar.gz" >> $GITHUB_ENV &&
           echo "SRS_SOURCE_MD5=$(md5sum ${DEST_DIR}.tar.gz| awk '{print $1}')" >> $GITHUB_ENV
+      # Create package tar for release
+      # Generate variables like:
+      #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-4.0.145.zip
+      #   SRS_PACKAGE_MD5=3880a26e30b283edf05700a4e69956e5
+      - name: Create package zip
+        run: |
+          docker build --tag srs:pkg --build-arg version=$SRS_VERSION -f trunk/Dockerfile.pkg . &&
+          SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-$SRS_VERSION.zip &&
+          docker run --rm -v $(pwd):/output srs:pkg cp objs/$SRS_PACKAGE_ZIP /output/ &&
+          du -sh $SRS_PACKAGE_ZIP &&
+          echo "SRS_PACKAGE_ZIP=$SRS_PACKAGE_ZIP" >> $GITHUB_ENV &&
+          echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
 
       ################################################################
       # Tests
@@ -116,15 +131,25 @@ jobs:
           body: |
             ${{ github.event.head_commit.message }}
             ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
+            ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
           draft: false
           prerelease: true
-      # Upload release files
-      - name: Upload Release Assets
-        id: upload-release-assets
+      # Upload release source files
+      - name: Upload Release Assets Source
+        id: upload-release-assets-source
         uses: dwenegar/upload-release-assets@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           release_id: ${{ steps.create_release.outputs.id }}
           assets_path: ${{ env.SRS_SOURCE_TAR }}
+      # Upload release package files
+      - name: Upload Release Assets Package
+        id: upload-release-assets-package
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}
+          assets_path: ${{ env.SRS_PACKAGE_ZIP }}
 
