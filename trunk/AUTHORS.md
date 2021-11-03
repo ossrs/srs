@@ -112,3 +112,7 @@ CONTRIBUTORS ordered by first contribution.
 * `long<liyalong12345@126.com>`
 * `matthew1838<77285055+matthew1838@users.noreply.github.com>`
 * `rise<rise.worlds@outlook.com>`
+* `pyw<PYW1@users.noreply.github.com>`
+* `MatheusMacabu<macabu@users.noreply.github.com>`
+* `Alex.CR<xiaoq_bj@126.com>`
+
