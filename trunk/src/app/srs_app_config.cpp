@@ -2026,12 +2026,6 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         if (get_log_tank_file() && log_filename.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no log file");
         }
-        if (get_log_tank_file()) {
-            srs_trace("you can check log by: tail -n 30 -f %s", log_filename.c_str());
-            srs_trace("please check SRS by: ./etc/init.d/srs status");
-        } else {
-            srs_trace("write log to console");
-        }
     }
     
     return err;
@@ -2609,12 +2603,6 @@ srs_error_t SrsConfig::check_normal_config()
         std::string log_filename = this->get_log_file();
         if (get_log_tank_file() && log_filename.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "log file is empty");
-        }
-        if (get_log_tank_file()) {
-            srs_trace("you can check log by: tail -n 30 -f %s", log_filename.c_str());
-            srs_trace("please check SRS by: ./etc/init.d/srs status");
-        } else {
-            srs_trace("write log to console");
         }
     }
     
