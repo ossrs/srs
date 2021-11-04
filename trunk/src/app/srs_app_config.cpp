@@ -50,7 +50,7 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_CONF_PERFER_TRUE(conf_arg) conf_arg != "off"
 
 // default config file.
-#define SRS_CONF_DEFAULT_COFNIG_FILE "conf/srs.conf"
+#define SRS_CONF_DEFAULT_COFNIG_FILE "/etc/srs/srs.conf"
 
 // '\n'
 #define SRS_LF (char)SRS_CONSTS_LF
@@ -1985,8 +1985,8 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config, read help: %s -h", argv[0]);
     }
 
-    // For docker, if config is not specified, try srs.conf instead.
-    string try_config = srs_string_replace(config_file, "docker.conf", "srs.conf");
+    // For docker, if config is not specified, try /etc/srs/srs.conf instead.
+    string try_config = srs_string_replace(config_file, "/etc/srs/srs.conf");
     if (!srs_path_exists(config_file) && try_config != config_file) {
         if (!srs_path_exists(try_config)) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file %s or %s", config_file.c_str(), try_config.c_str());
