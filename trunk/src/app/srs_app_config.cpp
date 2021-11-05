@@ -3567,8 +3567,8 @@ int SrsConfig::get_rtc_server_reuseport()
 
 #if !defined(SO_REUSEPORT)
     if (v > 1) {
-        srs_warn("REUSEPORT not supported, reset %d to %d", reuseport, DEFAULT);
-        v = 1
+        srs_warn("REUSEPORT not supported, reset to 1");
+        v = 1;
     }
 #endif
 
