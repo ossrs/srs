@@ -601,7 +601,7 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
 srs_error_t SrsDvrPlan::on_publish(SrsRequest* r)
 {
     // @see https://github.com/ossrs/srs/issues/1613#issuecomment-960623359
-    if (req) srs_freep(req);
+    srs_freep(req);
     req = r->copy();
 
     return srs_success;
@@ -917,13 +917,14 @@ SrsDvr::~SrsDvr()
     _srs_config->unsubscribe(this);
     
     srs_freep(plan);
+    srs_freep(req);
 }
 
 srs_error_t SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
-    req = r;
+    req = r->copy();
     hub = h;
     
     SrsConfDirective* conf = _srs_config->get_dvr_apply(r->vhost);
@@ -949,7 +950,7 @@ srs_error_t SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
     return err;
 }
 
-srs_error_t SrsDvr::on_publish()
+srs_error_t SrsDvr::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
@@ -958,9 +959,12 @@ srs_error_t SrsDvr::on_publish()
         return err;
     }
     
-    if ((err = plan->on_publish(req)) != srs_success) {
+    if ((err = plan->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "publish");
     }
+
+    srs_freep(req);
+    req = r->copy();
     
     return err;
 }

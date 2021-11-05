@@ -237,7 +237,7 @@ public:
     // publish stream event,
     // when encoder start to publish RTMP stream.
     // @param fetch_sequence_header whether fetch sequence from source.
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(SrsRequest* r);
     // the unpublish event.,
     // when encoder stop(unpublish) to publish RTMP stream.
     virtual void on_unpublish();
