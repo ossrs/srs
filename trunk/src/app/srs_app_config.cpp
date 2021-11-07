@@ -1956,8 +1956,8 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
-    // config
-    show_help = true;
+    // Show help if has any argv
+    show_help = argc > 1;
     for (int i = 1; i < argc; i++) {
         if ((err = parse_argv(i, argv)) != srs_success) {
             return srs_error_wrap(err, "parse argv");
@@ -1980,21 +1980,45 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     
     // first hello message.
     srs_trace(_srs_version);
-    
-    if (config_file.empty()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config, read help: %s -h", argv[0]);
+
+    // Try config files as bellow:
+    //      config_file Specified by user, like conf/srs.conf
+    //      try_docker_config Guess by SRS, like conf/docker.conf
+    //      try_fhs_config For FHS, try /etc/srs/srs.conf first, @see https://github.com/ossrs/srs/pull/2711
+    if (!srs_path_exists(config_file)) {
+        vector<string> try_config_files;
+        if (!config_file.empty()) {
+            try_config_files.push_back(config_file);
+            if (srs_string_ends_with(config_file, "docker.conf")) {
+                try_config_files.push_back(srs_string_replace(config_file, "docker.conf", "srs.conf"));
+            }
+        }
+        try_config_files.push_back(SRS_CONF_DEFAULT_COFNIG_FILE);
+        if (srs_string_ends_with(SRS_CONF_DEFAULT_COFNIG_FILE, "docker.conf")) {
+            try_config_files.push_back(srs_string_replace(SRS_CONF_DEFAULT_COFNIG_FILE, "docker.conf", "srs.conf"));
+        }
+        try_config_files.push_back("/etc/srs/srs.conf");
+
+        string exists_config_file;
+        for (int i = 0; i < (int) try_config_files.size(); i++) {
+            string try_config_file = try_config_files.at(i);
+            if (srs_path_exists(try_config_file)) {
+                exists_config_file = try_config_file;
+                break;
+            }
+        }
+
+        if (exists_config_file.empty()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", srs_join_vector_string(try_config_files, ", ").c_str());
+        }
+
+        if (config_file != exists_config_file) {
+            srs_warn("user config %s does not exists, use %s instead", config_file.c_str(), exists_config_file.c_str());
+            config_file = exists_config_file;
+        }
     }
 
-    // For docker, if config is not specified, try srs.conf instead.
-    string try_config = srs_string_replace(config_file, "docker.conf", "srs.conf");
-    if (!srs_path_exists(config_file) && try_config != config_file) {
-        if (!srs_path_exists(try_config)) {
-            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file %s or %s", config_file.c_str(), try_config.c_str());
-        }
-        srs_warn("user config %s does not exists, use %s instead", config_file.c_str(), try_config.c_str());
-        config_file = try_config;
-    }
-    
+    // Parse the matched config file.
     err = parse_file(config_file.c_str());
     
     if (test_conf) {
