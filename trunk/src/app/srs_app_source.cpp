@@ -1138,7 +1138,8 @@ srs_error_t SrsOriginHub::on_publish()
         return srs_error_wrap(err, "dash publish");
     }
     
-    if ((err = dvr->on_publish()) != srs_success) {
+    // @see https://github.com/ossrs/srs/issues/1613#issuecomment-961657927
+    if ((err = dvr->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "dvr publish");
     }
     
@@ -1401,7 +1402,7 @@ srs_error_t SrsOriginHub::on_reload_vhost_dvr(string vhost)
     }
     
     // start to publish by new plan.
-    if ((err = dvr->on_publish()) != srs_success) {
+    if ((err = dvr->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "dvr publish failed");
     }
     
