@@ -431,7 +431,7 @@ SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s, int64_t lasspts, bool only_au
     create_time = srs_get_system_time();
 }
 #else
-SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s* s)
+SrsLiveConsumer::SrsLiveConsumer(SrsLiveSource* s)
 {
     source = s;
     paused = false;
