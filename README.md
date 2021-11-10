@@ -5,8 +5,8 @@
 [![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
 [![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=4.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A4.0release)
 [![](https://codecov.io/gh/ossrs/srs/branch/4.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/4.0release)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge2.png)](../../wikis/Contact#wechat)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs2.png)](http://bbs.ossrs.net)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
 
 SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
