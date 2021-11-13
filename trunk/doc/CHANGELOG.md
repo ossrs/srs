@@ -30,6 +30,8 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-11-13, Merge [#2729](https://github.com/ossrs/srs/pull/2729): RTC: check audio track exist when negotiate (#2729). v4.0.196
+* v4.0, 2021-11-09, Merge [#2721](https://github.com/ossrs/srs/pull/2721): Rtc2Rtmp: Use RTP timestamp to identify video frames. v4.0.195
 * v4.0, 2021-11-07, Merge [#2711](https://github.com/ossrs/srs/pull/2711): Config: Guess config files by [FHS](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard). v4.0.194
 * v4.0, 2021-11-07, Merge [#2714](https://github.com/ossrs/srs/pull/2714): DVR: copy req from publish. v4.0.193
 * v4.0, 2021-11-04, Merge [#2707](https://github.com/ossrs/srs/pull/2707): Refuse edge request when state is stopping. v4.0.192
