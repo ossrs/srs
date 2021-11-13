@@ -659,6 +659,9 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
     }
 
     if (type == "audio") {
+        if (! stream_desc_->audio_track_desc_) {
+            return track_descs;
+        }
         if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
