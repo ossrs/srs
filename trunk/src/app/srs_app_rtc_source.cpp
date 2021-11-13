@@ -659,6 +659,9 @@ std::vector<SrsRtcTrackDescription*> SrsRtcSource::get_track_desc(std::string ty
     }
 
     if (type == "audio") {
+        if (! stream_desc_->audio_track_desc_) {
+            return track_descs;
+        }
         if (stream_desc_->audio_track_desc_->media_->name_ == media_name) {
             track_descs.push_back(stream_desc_->audio_track_desc_);
         }
@@ -1437,6 +1440,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video(SrsRtpPacket* src)
     cache_video_pkts_[index].pkt = pkt;
     cache_video_pkts_[index].sn = pkt->header.get_sequence();
     cache_video_pkts_[index].ts = pkt->get_avsync_time();
+    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
 
     // check whether to recovery lost packet and can construct a video frame
     if (lost_sn_ == pkt->header.get_sequence()) {
@@ -1525,6 +1529,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_key_frame(SrsRtpPacket* pkt)
     cache_video_pkts_[index].pkt = pkt;
     cache_video_pkts_[index].sn = pkt->header.get_sequence();
     cache_video_pkts_[index].ts = pkt->get_avsync_time();
+    cache_video_pkts_[index].rtp_ts = pkt->header.get_timestamp();
 
     int32_t sn = lost_sn_;
     uint16_t tail_sn = 0;
@@ -1622,6 +1627,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         cache_video_pkts_[index].in_use = false;
         cache_video_pkts_[index].pkt = NULL;
         cache_video_pkts_[index].ts = 0;
+        cache_video_pkts_[index].rtp_ts = 0;
         cache_video_pkts_[index].sn = 0;
 
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
@@ -1692,7 +1698,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
 
 int32_t SrsRtmpFromRtcBridger::find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn)
 {
-    uint32_t last_ts = cache_video_pkts_[cache_index(header_sn_)].ts;
+    uint32_t last_rtp_ts = cache_video_pkts_[cache_index(header_sn_)].rtp_ts;
     for (int i = 0; i < s_cache_size; ++i) {
         uint16_t lost_sn = current_sn + i;
         int index = cache_index(lost_sn);
@@ -1701,7 +1707,7 @@ int32_t SrsRtmpFromRtcBridger::find_next_lost_sn(uint16_t current_sn, uint16_t& 
             return lost_sn;
         }
         //check time first, avoid two small frame mixed case decode fail
-        if (last_ts != cache_video_pkts_[index].ts) {
+        if (last_rtp_ts != cache_video_pkts_[index].rtp_ts) {
             end_sn = lost_sn - 1;
             return -1;
         }
@@ -1724,6 +1730,7 @@ void SrsRtmpFromRtcBridger::clear_cached_video()
             srs_freep(cache_video_pkts_[i].pkt);
             cache_video_pkts_[i].sn = 0;
             cache_video_pkts_[i].ts = 0;
+            cache_video_pkts_[i].rtp_ts = 0;
             cache_video_pkts_[i].in_use = false;
         }
     }

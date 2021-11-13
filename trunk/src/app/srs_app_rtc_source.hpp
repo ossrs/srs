@@ -300,6 +300,7 @@ private:
         bool in_use;
         uint16_t sn;
         uint32_t ts;
+        uint32_t rtp_ts;
         SrsRtpPacket* pkt;
     };
     const static uint16_t s_cache_size = 512;
@@ -325,7 +326,7 @@ private:
     int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
     void clear_cached_video();
     inline uint16_t cache_index(uint16_t current_sn) {
-        return current_sn%s_cache_size;
+        return current_sn % s_cache_size;
     }
     bool check_frame_complete(const uint16_t start, const uint16_t end);
 };
