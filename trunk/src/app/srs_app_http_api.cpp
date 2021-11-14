@@ -1047,12 +1047,16 @@ srs_error_t SrsGoApiGb28181::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
         return srs_api_response(w, r, obj->dumps());
 
     } else if(action == "delete_channel"){
-        string chid = r->query_get("chid");
-        if (id.empty() || chid.empty()){
-            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id or chid");
+        if (id.empty()){
+            return srs_error_new(ERROR_GB28181_VALUE_EMPTY, "no id");
         }
 
-        if ((err = _srs_gb28181->delete_stream_channel(id, chid)) != srs_success) {
+        string chid = r->query_get("chid");
+        if (!chid.empty()){
+            id = id + "@" + chid;
+        }
+
+        if ((err = _srs_gb28181->delete_stream_channel(id)) != srs_success) {
             return srs_error_wrap(err, "delete stream channel");
         }
 

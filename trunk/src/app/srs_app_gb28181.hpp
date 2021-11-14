@@ -494,7 +494,7 @@ public:
 public:
     //stream channel api
     srs_error_t create_stream_channel(SrsGb28181StreamChannel *channel);
-    srs_error_t delete_stream_channel(std::string id, std::string chid);
+    srs_error_t delete_stream_channel(std::string id);
     srs_error_t query_stream_channel(std::string id, SrsJsonArray* arr);
     //sip api
     srs_error_t notify_sip_invite(std::string id, std::string ip, int port, uint32_t ssrc, std::string chid);

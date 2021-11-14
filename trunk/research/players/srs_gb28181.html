@@ -923,17 +923,9 @@
             });
 
             $("#btn_delete_channel").click(function(){
-                var str = $("#gb28181ChannelId").text();
-                var str_array = str.split("@")
-                var chid = "";
-                var id = "";
-                if (str_array.length != 2){
-                    return;
-                }
-                id = str_array[0];
-                chid = str_array[1];
+                var id = $("#gb28181ChannelId").text();
                 url = $("#txt_api_url").val();
-                var apiurl = url + "/api/v1/gb28181?action=delete_channel&id=" + id + "&chid="+chid;
+                var apiurl = url + "/api/v1/gb28181?action=delete_channel&id=" + id;
                 var ret = http_get(apiurl);
                 $('#gb28181ChannelMessage').html(syntaxHighlight(ret)); 
                 if (ret != undefined && ret.code == 0){
