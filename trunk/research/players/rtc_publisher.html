@@ -110,12 +110,12 @@ $(function(){
     srs_init_rtc("#txt_url", query);
 
     $("#btn_publish").click(startPublish);
+    // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
     if (query.autostart === 'true') {
-        startPublish();
+        window.addEventListener("load", function(){ startPublish(); });
     }
 });
 </script>
 </body>
 </html>
 
-</html>
