@@ -99,6 +99,8 @@ jobs:
         run: |
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_VERSION
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_VERSION
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
