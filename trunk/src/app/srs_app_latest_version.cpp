@@ -30,6 +30,8 @@ extern bool _srs_in_docker;
 #define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
 #define SRS_CHECK_FEATURE3(cond, key, value, ss) if (cond) ss << "&" << key << "=" << value
 
+// @see https://github.com/ossrs/srs/issues/2424
+// @see https://github.com/ossrs/srs/issues/2508
 void srs_build_features(stringstream& ss)
 {
     if (SRS_OSX_BOOL) {
@@ -38,9 +40,9 @@ void srs_build_features(stringstream& ss)
         ss << "&os=linux";
     }
 
-#if defined(__amd64__) && defined(__x86_64__) && defined(__i386__)
+#if defined(__amd64__) || defined(__x86_64__) || defined(__i386__)
     ss << "&x86=1";
-#elif defined(__arm__) && defined(__aarch64__)
+#elif defined(__arm__) || defined(__aarch64__)
     ss << "&arm=1";
 #elif defined(__mips__)
     ss << "&mips=1";
@@ -161,6 +163,8 @@ SrsLatestVersion::~SrsLatestVersion()
 
 srs_error_t SrsLatestVersion::start()
 {
+    // @see https://github.com/ossrs/srs/issues/2424
+    // @see https://github.com/ossrs/srs/issues/2508
     if (!_srs_config->whether_query_latest_version()) {
         return srs_success;
     }
