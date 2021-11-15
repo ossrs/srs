@@ -163,6 +163,10 @@ private:
     bool disposed;
     // Cycle done, no need to interrupt it.
     bool cycle_done;
+private:
+    // Sub state in disposed, we need to wait for thread to quit.
+    bool stopping_;
+    SrsContextId stopping_cid_;
 public:
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h);
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);

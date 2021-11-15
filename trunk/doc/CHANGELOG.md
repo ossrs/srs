@@ -30,6 +30,8 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-11-15, For [#1708](https://github.com/ossrs/srs/pull/1708): ST: Print log when multiple thread stop one coroutine. (#1708). v4.0.198
+* v4.0, 2021-11-14, Merge [#2732](https://github.com/ossrs/srs/pull/2732): WebRTC: Fail to publish RTC automatically for HTML5. (#2732). v4.0.197
 * v4.0, 2021-11-13, Merge [#2729](https://github.com/ossrs/srs/pull/2729): RTC: check audio track exist when negotiate (#2729). v4.0.196
 * v4.0, 2021-11-09, Merge [#2721](https://github.com/ossrs/srs/pull/2721): Rtc2Rtmp: Use RTP timestamp to identify video frames. v4.0.195
 * v4.0, 2021-11-07, Merge [#2711](https://github.com/ossrs/srs/pull/2711): Config: Guess config files by [FHS](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard). v4.0.194
