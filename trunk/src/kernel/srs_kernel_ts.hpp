@@ -35,6 +35,9 @@ class SrsTsContext;
 // The aggregate pure audio for hls, in ts tbn(ms * 90).
 #define SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE 720 * 90
 
+// The ts muxer cache count for verifying the codec.
+#define SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT 50
+
 // The pid of ts packet,
 // Table 2-3 - PID table, hls-mpeg-ts-iso13818-1.pdf, page 37
 // NOTE - The transport packets with PID values 0x0000, 0x0001, and 0x0010-0x1FFE are allowed to carry a PCR.
@@ -220,6 +223,8 @@ public:
     // for user to get the channel and packet.
     SrsTsChannel* channel;
     SrsTsPacket* packet;
+    SrsVideoCodecId vcodec;
+    SrsAudioCodecId acodec;
 public:
     // The audio cache buffer start pts, to flush audio if full.
     // @remark the pts is not the adjust one, it's the orignal pts.
@@ -1248,6 +1253,10 @@ private:
     SrsTsContext* context;
     ISrsStreamWriter* writer;
     std::string path;
+    std::vector<SrsTsMessage*> ts_msg_cache_for_verify_codec;
+    bool ts_cache_msg_verifying_done;
+private:
+    virtual void flush_all_msg();
 public:
     SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsTsContextWriter();
@@ -1259,6 +1268,8 @@ public:
 public:
     // get the video codec of ts muxer.
     virtual SrsVideoCodecId video_codec();
+    virtual SrsAudioCodecId audio_codec();
+    void       set_ts_codec_force(SrsAudioCodecId ac, SrsVideoCodecId vc);
 };
 
 // Used for HLS Encryption

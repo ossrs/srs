@@ -78,6 +78,8 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
     
     start_pts = 0;
     write_pcr = false;
+    acodec = SrsAudioCodecIdForbidden;
+    vcodec = SrsVideoCodecIdForbidden;
 }
 
 SrsTsMessage::~SrsTsMessage()
@@ -2599,17 +2601,41 @@ SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, Srs
     writer = w;
     context = c;
     
-    acodec = ac;
-    vcodec = vc;
+    acodec = SrsAudioCodecIdForbidden;
+    vcodec = SrsVideoCodecIdForbidden;
+
+    ts_msg_cache_for_verify_codec.clear();
+    ts_cache_msg_verifying_done = false;
 }
 
 SrsTsContextWriter::~SrsTsContextWriter()
 {
+    flush_all_msg();
 }
 
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
     srs_error_t err = srs_success;
+    if(acodec != audio->acodec) {
+        acodec = audio->acodec;
+    }
+
+    if(!ts_cache_msg_verifying_done) {
+        // video codec is not verified
+        if(vcodec == SrsVideoCodecIdForbidden) {
+            if(ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+                ts_msg_cache_for_verify_codec.push_back(audio->detach());
+                return err;
+            } else {
+                flush_all_msg();
+                ts_cache_msg_verifying_done = true;
+            }
+        } else {
+            //video codec is verified
+            flush_all_msg();
+            ts_cache_msg_verifying_done = true;            
+        }
+    }
     
     srs_info("hls: write audio pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         audio->pts, audio->dts, audio->PES_packet_length);
@@ -2625,7 +2651,27 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
     srs_error_t err = srs_success;
-    
+    if(vcodec != video->vcodec) {
+        vcodec = video->vcodec;
+    }
+
+    if(!ts_cache_msg_verifying_done) {
+        // audio codec is not verified
+        if(acodec == SrsAudioCodecIdForbidden) {
+            if(ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+                ts_msg_cache_for_verify_codec.push_back(video->detach());
+                return err;
+            } else {
+                flush_all_msg();
+                ts_cache_msg_verifying_done = true;
+            }
+        } else {
+            //video codec is verified
+            flush_all_msg();
+            ts_cache_msg_verifying_done = true;            
+        }
+    }
+
     srs_info("hls: write video pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         video->pts, video->dts, video->PES_packet_length);
     
@@ -2637,9 +2683,39 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     return err;
 }
 
+void SrsTsContextWriter::flush_all_msg()
+{
+    int idx=0;
+    int size = ts_msg_cache_for_verify_codec.size();
+    SrsTsMessage*  msg = NULL;
+    for(idx=0; idx<size; idx++) {
+        msg = ts_msg_cache_for_verify_codec.at(idx);
+        if(msg) {            
+            context->encode(writer, msg, vcodec, acodec);
+            srs_freep(msg);
+        }
+    }
+
+    srs_trace("flush all msg in cache, msg size:%d, the acodec:%d, the vcodec:%d", size, acodec, vcodec);
+    ts_msg_cache_for_verify_codec.clear();
+    return;
+}
+
 SrsVideoCodecId SrsTsContextWriter::video_codec()
 {
     return vcodec;
+}
+
+SrsAudioCodecId SrsTsContextWriter::audio_codec()
+{
+    return acodec;
+}
+
+void SrsTsContextWriter::set_ts_codec_force(SrsAudioCodecId ac, SrsVideoCodecId vc)
+{
+    acodec = ac;
+    vcodec = vc;
+    ts_cache_msg_verifying_done = true;
 }
 
 SrsEncFileWriter::SrsEncFileWriter()
@@ -2761,6 +2837,7 @@ srs_error_t SrsTsMessageCache::cache_audio(SrsAudioFrame* frame, int64_t dts)
     SrsAudioCodecConfig* acodec = frame->acodec();
     srs_assert(acodec->id == SrsAudioCodecIdAAC || acodec->id == SrsAudioCodecIdMP3);
     
+    audio->acodec = acodec->id;
     // write video to cache.
     if (acodec->id == SrsAudioCodecIdAAC) {
         if ((err = do_cache_aac(frame)) != srs_success) {
@@ -2983,6 +3060,7 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsVideoFrame* frame)
     
     SrsVideoCodecConfig* codec = frame->vcodec();
     srs_assert(codec);
+    video->vcodec = codec->id;
     
     bool is_sps_pps_appended = false;
     
