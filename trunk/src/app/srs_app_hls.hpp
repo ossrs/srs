@@ -119,6 +119,8 @@ private:
     srs_utime_t hls_fragment;
     srs_utime_t hls_window;
     SrsAsyncCallWorker* async;
+    SrsVideoCodecId  last_segment_vcoded_id;
+    SrsAudioCodecId  last_segment_acoded_id;
 private:
     // Whether use floor algorithm for timestamp.
     bool hls_ts_floor;

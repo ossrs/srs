@@ -1269,7 +1269,7 @@ public:
     // get the video codec of ts muxer.
     virtual SrsVideoCodecId video_codec();
     virtual SrsAudioCodecId audio_codec();
-    void       set_ts_codec_force(SrsAudioCodecId ac, SrsVideoCodecId vc);
+    void set_ts_codec_force(SrsAudioCodecId ac, SrsVideoCodecId vc);
 };
 
 // Used for HLS Encryption

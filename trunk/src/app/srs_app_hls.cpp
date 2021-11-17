@@ -203,6 +203,8 @@ SrsHlsMuxer::SrsHlsMuxer()
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
     
+    last_segment_vcoded_id = SrsVideoCodecIdForbidden;
+    last_segment_acoded_id = SrsAudioCodecIdForbidden;
     memset(key, 0, 16);
     memset(iv, 0, 16);
 }
@@ -358,7 +360,8 @@ srs_error_t SrsHlsMuxer::segment_open()
     srs_assert(!current);
     
     // load the default acodec from config.
-    SrsAudioCodecId default_acodec = SrsAudioCodecIdAAC;
+    /*
+    SrsAudioCodecId default_acodec = SrsAudioCodecIdForbidden;
     if (true) {
         std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
         if (default_acodec_str == "mp3") {
@@ -373,7 +376,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     }
     
     // load the default vcodec from config.
-    SrsVideoCodecId default_vcodec = SrsVideoCodecIdAVC;
+    SrsVideoCodecId default_vcodec = SrsVideoCodecIdForbidden;
     if (true) {
         std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
         if (default_vcodec_str == "h264") {
@@ -384,9 +387,15 @@ srs_error_t SrsHlsMuxer::segment_open()
             srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
         }
     }
+    */
+    
     
     // new segment.
-    current = new SrsHlsSegment(context, default_acodec, default_vcodec, writer);
+    current = new SrsHlsSegment(context, last_segment_acoded_id, last_segment_vcoded_id, writer);
+    if (last_segment_acoded_id != SrsAudioCodecIdForbidden || last_segment_vcoded_id != SrsVideoCodecIdForbidden) {
+        current->tscw->set_ts_codec_force(last_segment_acoded_id, last_segment_vcoded_id);
+    }
+
     current->sequence_no = _sequence_no++;
 
     if ((err = write_hls_key()) != srs_success) {
@@ -605,6 +614,10 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     
     // when close current segment, the current segment must not be NULL.
     srs_assert(current);
+
+    //update the audio and video codec id
+    last_segment_acoded_id = current->tscw->audio_codec();
+    last_segment_vcoded_id = current->tscw->video_codec();
 
     // We should always close the underlayer writer.
     if (current && current->writer) {

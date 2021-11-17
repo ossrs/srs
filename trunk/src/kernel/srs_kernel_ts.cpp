@@ -2620,10 +2620,10 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
         acodec = audio->acodec;
     }
 
-    if(!ts_cache_msg_verifying_done) {
+    if (!ts_cache_msg_verifying_done) {
         // video codec is not verified
-        if(vcodec == SrsVideoCodecIdForbidden) {
-            if(ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+        if (vcodec == SrsVideoCodecIdForbidden) {
+            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
                 ts_msg_cache_for_verify_codec.push_back(audio->detach());
                 return err;
             } else {
@@ -2651,14 +2651,14 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 {
     srs_error_t err = srs_success;
-    if(vcodec != video->vcodec) {
+    if (vcodec != video->vcodec) {
         vcodec = video->vcodec;
     }
 
-    if(!ts_cache_msg_verifying_done) {
+    if (!ts_cache_msg_verifying_done) {
         // audio codec is not verified
-        if(acodec == SrsAudioCodecIdForbidden) {
-            if(ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+        if (acodec == SrsAudioCodecIdForbidden) {
+            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
                 ts_msg_cache_for_verify_codec.push_back(video->detach());
                 return err;
             } else {
@@ -2688,16 +2688,19 @@ void SrsTsContextWriter::flush_all_msg()
     int idx=0;
     int size = ts_msg_cache_for_verify_codec.size();
     SrsTsMessage*  msg = NULL;
-    for(idx=0; idx<size; idx++) {
-        msg = ts_msg_cache_for_verify_codec.at(idx);
-        if(msg) {            
-            context->encode(writer, msg, vcodec, acodec);
-            srs_freep(msg);
+    if ( size > 0) {
+        for (idx=0; idx<size; idx++) {
+            msg = ts_msg_cache_for_verify_codec.at(idx);
+            if(msg) {            
+                context->encode(writer, msg, vcodec, acodec);
+                srs_freep(msg);
+            }
         }
-    }
 
-    srs_trace("flush all msg in cache, msg size:%d, the acodec:%d, the vcodec:%d", size, acodec, vcodec);
-    ts_msg_cache_for_verify_codec.clear();
+        srs_trace("flush all msg in cache, msg size:%d, the acodec:%d, the vcodec:%d", size, acodec, vcodec);
+        ts_msg_cache_for_verify_codec.clear();
+    }
+    
     return;
 }
 
