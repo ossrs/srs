@@ -2616,7 +2616,7 @@ SrsTsContextWriter::~SrsTsContextWriter()
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
 {
     srs_error_t err = srs_success;
-    if(acodec != audio->acodec) {
+    if (acodec != audio->acodec) {
         acodec = audio->acodec;
     }
 
@@ -2700,7 +2700,7 @@ void SrsTsContextWriter::flush_all_msg()
         srs_trace("flush all msg in cache, msg size:%d, the acodec:%d, the vcodec:%d", size, acodec, vcodec);
         ts_msg_cache_for_verify_codec.clear();
     }
-    
+
     return;
 }
 
