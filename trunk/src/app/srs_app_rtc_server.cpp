@@ -698,7 +698,7 @@ srs_error_t RtcServerAdapter::initialize()
     return err;
 }
 
-srs_error_t RtcServerAdapter::run()
+srs_error_t RtcServerAdapter::run(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 

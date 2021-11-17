@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-12-26, Fix [#2247](https://github.com/ossrs/srs/pull/2247): Cleanup server for GMC, by WaitGroup to destroy. (#2247). v4.0.212
 * v4.0, 2021-12-25, For [#2809](https://github.com/ossrs/srs/issues/2809), HTTP: Fix 2GB+ mp4/flv file downloading error. (#2809)(#2780)(#2781). v4.0.211
 * v4.0, 2021-12-23, For [#2800](https://github.com/ossrs/srs/issues/2800), Fix bug for large mp4(5G+) offset. (#2800). v4.0.210
 * v4.0, 2021-12-23, For [#2807](https://github.com/ossrs/srs/issues/2807), Fix bug for HLS log printing. (#2807). v4.0.209

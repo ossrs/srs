@@ -17,6 +17,7 @@
 #include <srs_app_hybrid.hpp>
 
 class srt_handle;
+class SrsWaitGroup;
 
 class srt_server {
 public:
@@ -59,7 +60,7 @@ public:
     virtual ~SrtServerAdapter();
 public:
     virtual srs_error_t initialize();
-    virtual srs_error_t run();
+    virtual srs_error_t run(SrsWaitGroup* wg);
     virtual void stop();
 };
 

@@ -44,7 +44,7 @@ gtest-1.6.0.zip
     
 gperftools-2.1.zip
 * gperf tools for performance benchmark.
-* https://code.google.com/p/gperftools/downloads/list
+* https://github.com/gperftools/gperftools/releases
 
 st-srs
 st-1.9.zip

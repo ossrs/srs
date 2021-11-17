@@ -136,7 +136,7 @@ srs_error_t SrsServerAdapter::initialize()
     return err;
 }
 
-srs_error_t SrsServerAdapter::run()
+srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 
@@ -173,7 +173,7 @@ srs_error_t SrsServerAdapter::run()
         return srs_error_wrap(err, "ingest");
     }
 
-    if ((err = srs->start()) != srs_success) {
+    if ((err = srs->start(wg)) != srs_success) {
         return srs_error_wrap(err, "start");
     }
 
@@ -182,6 +182,7 @@ srs_error_t SrsServerAdapter::run()
 
 void SrsServerAdapter::stop()
 {
+    srs->stop();
 }
 
 SrsServer* SrsServerAdapter::instance()
@@ -264,17 +265,20 @@ srs_error_t SrsHybridServer::run()
 {
     srs_error_t err = srs_success;
 
+    // Wait for all servers which need to do cleanup.
+    SrsWaitGroup wg;
+
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
 
-        if ((err = server->run()) != srs_success) {
+        if ((err = server->run(&wg)) != srs_success) {
             return srs_error_wrap(err, "run server");
         }
     }
 
     // Wait for all server to quit.
-    srs_usleep(SRS_UTIME_NO_TIMEOUT);
+    wg.wait();
 
     return err;
 }
