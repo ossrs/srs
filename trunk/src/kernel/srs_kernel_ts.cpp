@@ -2623,7 +2623,7 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
     if (!ts_cache_msg_verifying_done) {
         // video codec is not verified
         if (vcodec == SrsVideoCodecIdForbidden) {
-            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUNT) {
                 ts_msg_cache_for_verify_codec.push_back(audio->detach());
                 return err;
             } else {
@@ -2658,7 +2658,7 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     if (!ts_cache_msg_verifying_done) {
         // audio codec is not verified
         if (acodec == SrsAudioCodecIdForbidden) {
-            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT) {
+            if (ts_msg_cache_for_verify_codec.size() < SRS_CONSTS_TS_MUXER_MSG_CACHE_COUNT) {
                 ts_msg_cache_for_verify_codec.push_back(video->detach());
                 return err;
             } else {

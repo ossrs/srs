@@ -36,7 +36,7 @@ class SrsTsContext;
 #define SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE 720 * 90
 
 // The ts muxer cache count for verifying the codec.
-#define SRS_CONSTS_TS_MUXER_MSG_CACHE_COUT 50
+#define SRS_CONSTS_TS_MUXER_MSG_CACHE_COUNT 50
 
 // The pid of ts packet,
 // Table 2-3 - PID table, hls-mpeg-ts-iso13818-1.pdf, page 37
