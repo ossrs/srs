@@ -8,6 +8,10 @@
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
 [![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/mulan-incubating.svg)](http://mulanos.cn)
+[![](https://badgen.net/twitter/follow/winlinvip)](https://twitter.com/winlinvip)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-facebook.svg)](https://www.facebook.com/winlinvip)
+[![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-alternativeto.svg)](https://alternativeto.net/software/srs/about/)
 
 SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
