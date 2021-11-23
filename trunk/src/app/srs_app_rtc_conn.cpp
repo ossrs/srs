@@ -1123,6 +1123,56 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     stat->on_disconnect(cid_.c_str());
 }
 
+#ifdef SRS_FFMPEG_FIT
+inline SrsRtmpFromRtcBridger* create_bridger(SrsLiveSource *rtmp) {
+    return new SrsRtmpFromRtcBridger(rtmp);
+}
+
+extern SrsRtmpFromRtcBridger* create_bridger(std::vector<SrsRtcVideoRecvTrack*>& video_tracks);
+
+srs_error_t do_bridger_for_simulcast(SrsRtmpFromRtcBridger *&bridger, SrsRequest* r, std::vector<SrsRtcVideoRecvTrack*>& video_tracks) {
+    srs_error_t err = srs_success;
+    bridger = create_bridger(video_tracks);
+    if ((err = bridger->initialize(r)) != srs_success) {
+        srs_freep(bridger);
+        return srs_error_wrap(err, "create bridger");
+    }
+    return err;
+}
+
+srs_error_t do_bridger_for_single(SrsRtmpFromRtcBridger *&bridger, SrsRequest *r) {
+    srs_error_t err = srs_success;
+    SrsLiveSource *rtmp = NULL;
+    if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
+        return srs_error_wrap(err, "create source");
+    }
+
+    // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
+    if (!rtmp->can_publish(false)) {
+        return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
+    }
+
+    // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
+    // especially for stream merging.
+    rtmp->set_cache(false);
+
+    bridger = create_bridger(rtmp);
+    if ((err = bridger->initialize(r)) != srs_success) {
+        srs_freep(bridger);
+        return srs_error_wrap(err, "create bridger");
+    }
+    return err;
+}
+
+srs_error_t do_bridger(SrsRtmpFromRtcBridger *&bridger, SrsRequest* r, std::vector<SrsRtcVideoRecvTrack*>& video_tracks) {
+    if (video_tracks.size() > 1) {
+        return do_bridger_for_simulcast(bridger, r, video_tracks);
+    } else {
+        return do_bridger_for_single(bridger, r);
+    }
+}
+#endif
+
 srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescription* stream_desc)
 {
     srs_error_t err = srs_success;
@@ -1194,26 +1244,10 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost);
     if (rtc_to_rtmp) {
-        SrsLiveSource *rtmp = NULL;
-        if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
-            return srs_error_wrap(err, "create source");
+        SrsRtmpFromRtcBridger *bridger = nullptr;
+        if ((err = do_bridger(bridger, r, video_tracks_)) != srs_success) {
+            return srs_error_wrap(err, "do_bridger");
         }
-
-        // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
-        if (!rtmp->can_publish(false)) {
-            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
-        }
-
-        // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
-        // especially for stream merging.
-        rtmp->set_cache(false);
-
-        SrsRtmpFromRtcBridger *bridger = new SrsRtmpFromRtcBridger(rtmp);
-        if ((err = bridger->initialize(r)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
-        }
-
         source->set_bridger(bridger);
     }
 #endif

@@ -1773,6 +1773,191 @@ bool SrsRtmpFromRtcBridger::check_frame_complete(const uint16_t start, const uin
 
     return fu_s_c == fu_e_c;
 }
+
+extern srs_error_t do_bridger_for_single(SrsRtmpFromRtcBridger *&bridger, SrsRequest *r);
+
+std::string update_stream(size_t i, const SrsRtcTrackDescription* track_desc, const SrsRequest* rr) {
+    auto ext = track_desc->rid_.rid;
+    if (ext.empty()) {
+        ext = std::to_string(i);
+    }
+    return rr->stream + "_" + ext;
+}
+
+struct BridgerContext {
+    SrsRtcTrackDescription* track_desc;
+    SrsRequest* r;
+    SrsRtmpFromRtcBridger* bridger;
+
+    srs_error_t create_bridger(size_t i, SrsRequest* rr) {
+        assert(!bridger);
+        assert(!r);
+        assert(rr);
+        r = rr->copy();
+        r->stream = update_stream(i, track_desc, rr);
+        auto err = do_bridger_for_single(bridger, r);
+        if (err != srs_success) {
+            return srs_error_wrap(err, "do_bridger_for_single");
+        }
+        err = bridger->on_publish();
+        if (err != srs_success) {
+            return srs_error_wrap(err, "bridger on publish");
+        }
+        return err;
+    }
+
+    void clear() {
+        if (bridger) {
+            bridger->on_unpublish();
+            srs_freep(bridger);
+        }
+        srs_freep(r);
+    }
+};
+
+class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
+    SrsRequest* r{nullptr};
+    std::vector<BridgerContext> contexts_;
+    std::map<uint32_t, SrsRtmpFromRtcBridger*> bridgers_;
+    std::vector<SrsLiveSource*> sources_;
+
+    srs_error_t dispatch_audio(SrsCommonMessage* out_rtmp) {
+        srs_error_t err = srs_success;
+        for (auto& source: sources_) {
+            if ((err = source->on_audio(out_rtmp)) != srs_success) {
+                err = srs_error_wrap(err, "source[%p] on audio", source);
+                break;
+            }
+        }
+        return err;
+    }
+
+    srs_error_t dispatch_video(SrsRtpPacket* pkt) {
+        srs_error_t err = srs_success;
+        auto ssrc = pkt->header.get_ssrc();
+        if (bridgers_.end() != bridgers_.find(ssrc)) {
+            return bridgers_[ssrc]->packet_video(pkt);
+        }
+
+        for (size_t i =0; i<contexts_.size(); i++) {
+            auto& ctx = contexts_[i];
+            if (!ctx.track_desc->has_ssrc(ssrc)) {
+                continue;
+            }
+            if (!ctx.bridger && (err = ctx.create_bridger(i, r)) != srs_success) {
+                return srs_error_wrap(err, "BridgerContext::create_bridger");
+            }
+            assert(ctx.bridger);
+            bridgers_[ssrc] = ctx.bridger;
+            auto b = (SimulcastBridgerAdapter*)ctx.bridger;
+            sources_.push_back(b->source_);
+            return ctx.bridger->packet_video(pkt);
+        }
+        return err;
+    }
+
+public:
+    SimulcastBridgerAdapter(std::vector<SrsRtcVideoRecvTrack*>& video_tracks): SrsRtmpFromRtcBridger(nullptr) {
+        for (auto& track: video_tracks) {
+            contexts_.emplace_back(BridgerContext{track->track_desc_, nullptr, nullptr});
+        }
+    }
+
+    srs_error_t transcode_audio(SrsRtpPacket *pkt) {
+        srs_error_t err = srs_success;
+
+        // to common message.
+        uint32_t ts = pkt->get_avsync_time();
+        if (is_first_audio) {
+            int header_len = 0;
+            uint8_t* header = NULL;
+            codec_->aac_codec_header(&header, &header_len);
+
+            SrsCommonMessage out_rtmp;
+            packet_aac(&out_rtmp, (char *)header, header_len, ts, is_first_audio);
+
+            if ((err = dispatch_audio(&out_rtmp)) != srs_success) {
+                return srs_error_wrap(err, "source on audio");
+            }
+
+            is_first_audio = false;
+        }
+
+        std::vector<SrsAudioFrame *> out_pkts;
+        SrsRtpRawPayload *payload = dynamic_cast<SrsRtpRawPayload *>(pkt->payload());
+
+        SrsAudioFrame frame;
+        frame.add_sample(payload->payload, payload->nn_payload);
+        frame.dts = ts;
+        frame.cts = 0;
+
+        err = codec_->transcode(&frame, out_pkts);
+        if (err != srs_success) {
+            return err;
+        }
+
+        for (std::vector<SrsAudioFrame *>::iterator it = out_pkts.begin(); it != out_pkts.end(); ++it) {
+            SrsCommonMessage out_rtmp;
+            out_rtmp.header.timestamp = (*it)->dts;
+            packet_aac(&out_rtmp, (*it)->samples[0].bytes, (*it)->samples[0].size, ts, is_first_audio);
+
+            if ((err = dispatch_audio(&out_rtmp)) != srs_success) {
+                err = srs_error_wrap(err, "source on audio");
+                break;
+            }
+        }
+        codec_->free_frames(out_pkts);
+
+        return err;
+    }
+
+    srs_error_t on_rtp(SrsRtpPacket *pkt) override {
+        srs_error_t err = srs_success;
+
+        if (!pkt->payload()) {
+            return err;
+        }
+
+        // Have no received any sender report, can't calculate avsync_time,
+        // discard it to avoid timestamp problem in live source
+        if (pkt->get_avsync_time() <= 0) {
+            return err;
+        }
+
+        if (pkt->is_audio()) {
+            err = transcode_audio(pkt);
+        } else {
+            err = dispatch_video(pkt);
+        }
+
+        return err;
+    }
+
+    void on_unpublish() override {
+        for (auto& ctx: contexts_) {
+            ctx.clear();
+        }
+        srs_freep(r);
+        bridgers_.clear();
+        sources_.clear();
+    }
+
+    srs_error_t on_publish() override {
+        // note delay on publish.
+        return srs_success;
+    }
+
+    srs_error_t initialize(SrsRequest* rr) override {
+        // note: delay initialization.
+        r = rr->copy();
+        return SrsRtmpFromRtcBridger::initialize(rr);
+    }
+};
+
+SrsRtmpFromRtcBridger* create_bridger(std::vector<SrsRtcVideoRecvTrack*>& video_tracks) {
+    return new SimulcastBridgerAdapter(video_tracks);
+}
+
 #endif
 
 SrsCodecPayload::SrsCodecPayload()
