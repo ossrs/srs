@@ -441,7 +441,9 @@ srs_error_t SrsHlsMuxer::segment_open()
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
     std::string ts_url = current->fullpath();
-    if (srs_string_starts_with(ts_url, m3u8_dir)) {
+    // fixed by stone: if ts_url is not under m3u8_dir,but m3u8_dir is the prefix of ts_url
+    // it will cause ts cannot be found while playing.
+    if (srs_string_starts_with(ts_url, m3u8_dir + "/")) {
         ts_url = ts_url.substr(m3u8_dir.length());
     }
     while (srs_string_starts_with(ts_url, "/")) {
