@@ -358,38 +358,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     
     // when segment open, the current segment must be NULL.
     srs_assert(!current);
-    
-    // load the default acodec from config.
-    /*
-    SrsAudioCodecId default_acodec = SrsAudioCodecIdForbidden;
-    if (true) {
-        std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
-        if (default_acodec_str == "mp3") {
-            default_acodec = SrsAudioCodecIdMP3;
-        } else if (default_acodec_str == "aac") {
-            default_acodec = SrsAudioCodecIdAAC;
-        } else if (default_acodec_str == "an") {
-            default_acodec = SrsAudioCodecIdDisabled;
-        } else {
-            srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
-        }
-    }
-    
-    // load the default vcodec from config.
-    SrsVideoCodecId default_vcodec = SrsVideoCodecIdForbidden;
-    if (true) {
-        std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
-        if (default_vcodec_str == "h264") {
-            default_vcodec = SrsVideoCodecIdAVC;
-        } else if (default_vcodec_str == "vn") {
-            default_vcodec = SrsVideoCodecIdDisabled;
-        } else {
-            srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
-        }
-    }
-    */
-    
-    
+        
     // new segment.
     current = new SrsHlsSegment(context, last_segment_acoded_id, last_segment_vcoded_id, writer);
     if (last_segment_acoded_id != SrsAudioCodecIdForbidden || last_segment_vcoded_id != SrsVideoCodecIdForbidden) {

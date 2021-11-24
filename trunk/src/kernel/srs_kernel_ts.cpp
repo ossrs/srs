@@ -2685,6 +2685,7 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
 
 void SrsTsContextWriter::flush_all_msg()
 {
+    srs_error_t err = srs_success;
     int idx=0;
     int size = ts_msg_cache_for_verify_codec.size();
     SrsTsMessage*  msg = NULL;
@@ -2692,7 +2693,11 @@ void SrsTsContextWriter::flush_all_msg()
         for (idx=0; idx<size; idx++) {
             msg = ts_msg_cache_for_verify_codec.at(idx);
             if(msg) {            
-                context->encode(writer, msg, vcodec, acodec);
+                err = context->encode(writer, msg, vcodec, acodec);
+                if (err != srs_success) {
+                    srs_error("ts encode err %s", srs_error_desc(err).c_str());
+                    srs_error_reset(err);
+                }
                 srs_freep(msg);
             }
         }
