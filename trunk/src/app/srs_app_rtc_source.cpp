@@ -1567,6 +1567,10 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         uint16_t sn = start + i;
         uint16_t index = cache_index(sn);
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+
+        // fix crash when pkt->payload() if pkt is nullptr;
+        if (!pkt) continue;
+
         // calculate nalu len
         SrsRtpFUAPayload2* fua_payload = dynamic_cast<SrsRtpFUAPayload2*>(pkt->payload());
         if (fua_payload && fua_payload->size > 0) {
@@ -1624,6 +1628,10 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
     for (uint16_t i = 0; i < cnt; ++i) {
         uint16_t index = cache_index((start + i));
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
+
+        // fix crash when pkt->payload() if pkt is nullptr;
+        if (!pkt) continue;
+
         cache_video_pkts_[index].in_use = false;
         cache_video_pkts_[index].pkt = NULL;
         cache_video_pkts_[index].ts = 0;
