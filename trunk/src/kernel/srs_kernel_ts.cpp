@@ -2692,10 +2692,10 @@ void SrsTsContextWriter::flush_all_msg()
     if ( size > 0) {
         for (idx=0; idx<size; idx++) {
             msg = ts_msg_cache_for_verify_codec.at(idx);
-            if(msg) {            
+            if (msg) {            
                 err = context->encode(writer, msg, vcodec, acodec);
-                if (err != srs_success) {
-                    srs_error("ts encode err %s", srs_error_desc(err).c_str());
+                if ( err != srs_success ) {
+                    srs_error("ts encode err, info:%s", srs_error_desc(err).c_str());
                     srs_error_reset(err);
                 }
                 srs_freep(msg);
