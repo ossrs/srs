@@ -2757,10 +2757,8 @@ srs_error_t SrsConfig::check_normal_config()
                     }
                 }
             } else if (n == "hls") {
-                std::vector<SrsConfDirective*>::iterator it;
-                for (it = conf->directives.begin(); it != conf->directives.end();) {
-                    SrsConfDirective* sub_conf = *it;
-                    string m = sub_conf->name;
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
@@ -2768,19 +2766,16 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
-
+                    
+                    // TODO: FIXME: remove it in future.
                     if (m == "hls_storage" || m == "hls_mount") {
                         srs_warn("HLS RAM is removed in SRS3+, read https://github.com/ossrs/srs/issues/513.");
                     }
 
-                    if (m == "hls_acodec" || m == "hls_vcodec") {
-                        srs_warn("HLS codec is removed in SRS4+, read https://github.com/ossrs/srs/issues/2750.");
-                        it = conf->directives.erase(it);
-                        srs_freep(sub_conf);
-                        continue;
+                    // TODO: FIXME: remove it in future.
+                    if (m == "hls_storage" || m == "hls_mount") {
+                        srs_warn("HLS codec is removed in SRS4+, read https://github.com/ossrs/srs/issues/2570.");
                     }
-
-                    it++;
                 }
             } else if (n == "http_hooks") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
