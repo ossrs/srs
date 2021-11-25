@@ -2610,7 +2610,11 @@ SrsTsContextWriter::SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, Srs
 
 SrsTsContextWriter::~SrsTsContextWriter()
 {
-    flush_all_msg();
+    srs_error_t err = srs_success;
+    err = flush_all_msg();
+    if ( err != srs_success) {
+        srs_warn("err in flush msg in cache!");
+    }
 }
 
 srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
@@ -2627,16 +2631,20 @@ srs_error_t SrsTsContextWriter::write_audio(SrsTsMessage* audio)
                 ts_msg_cache_for_verify_codec.push_back(audio->detach());
                 return err;
             } else {
-                flush_all_msg();
+                err = flush_all_msg();
                 ts_cache_msg_verifying_done = true;
             }
         } else {
             //video codec is verified
-            flush_all_msg();
+            err = flush_all_msg();
             ts_cache_msg_verifying_done = true;            
         }
     }
-    
+
+    if(err != srs_success) {
+        return err;
+    }
+
     srs_info("hls: write audio pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
         audio->pts, audio->dts, audio->PES_packet_length);
     
@@ -2662,14 +2670,18 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
                 ts_msg_cache_for_verify_codec.push_back(video->detach());
                 return err;
             } else {
-                flush_all_msg();
+                err = flush_all_msg();
                 ts_cache_msg_verifying_done = true;
             }
         } else {
             //video codec is verified
-            flush_all_msg();
+            err = flush_all_msg();
             ts_cache_msg_verifying_done = true;            
         }
+    }
+
+    if(err != srs_success) {
+        return err;
     }
 
     srs_info("hls: write video pts=%" PRId64 ", dts=%" PRId64 ", size=%d",
@@ -2683,7 +2695,7 @@ srs_error_t SrsTsContextWriter::write_video(SrsTsMessage* video)
     return err;
 }
 
-void SrsTsContextWriter::flush_all_msg()
+srs_error_t SrsTsContextWriter::flush_all_msg()
 {
     srs_error_t err = srs_success;
     int idx=0;
@@ -2692,12 +2704,17 @@ void SrsTsContextWriter::flush_all_msg()
     if ( size > 0) {
         for (idx=0; idx<size; idx++) {
             msg = ts_msg_cache_for_verify_codec.at(idx);
-            if (msg) {            
+            if ( msg ) {
                 err = context->encode(writer, msg, vcodec, acodec);
-                if ( err != srs_success ) {
-                    srs_error("ts encode err, info:%s", srs_error_desc(err).c_str());
-                    srs_error_reset(err);
+                if ( err != srs_success) {
+                    break;
                 }
+            }
+        }
+        
+        for (idx=0; idx<size; idx++) {
+            msg = ts_msg_cache_for_verify_codec.at(idx);
+            if ( msg ) {
                 srs_freep(msg);
             }
         }
@@ -2706,7 +2723,7 @@ void SrsTsContextWriter::flush_all_msg()
         ts_msg_cache_for_verify_codec.clear();
     }
 
-    return;
+    return err;
 }
 
 SrsVideoCodecId SrsTsContextWriter::video_codec()

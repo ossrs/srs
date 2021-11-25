@@ -2773,7 +2773,7 @@ srs_error_t SrsConfig::check_normal_config()
                     }
 
                     // TODO: FIXME: remove it in future.
-                    if (m == "hls_storage" || m == "hls_mount") {
+                    if (m == "hls_acodec" || m == "hls_vcodec") {
                         srs_warn("HLS codec is removed in SRS4+, read https://github.com/ossrs/srs/issues/2570.");
                     }
                 }

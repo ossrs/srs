@@ -1256,7 +1256,7 @@ private:
     std::vector<SrsTsMessage*> ts_msg_cache_for_verify_codec;
     bool ts_cache_msg_verifying_done;
 private:
-    virtual void flush_all_msg();
+    virtual srs_error_t flush_all_msg();
 public:
     SrsTsContextWriter(ISrsStreamWriter* w, SrsTsContext* c, SrsAudioCodecId ac, SrsVideoCodecId vc);
     virtual ~SrsTsContextWriter();
