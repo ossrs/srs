@@ -513,7 +513,7 @@ public:
 
 class SrsRtcRecvTrack
 {
-protected:
+public:
     SrsRtcTrackDescription* track_desc_;
 protected:
     SrsRtcConnection* session_;
