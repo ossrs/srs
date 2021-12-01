@@ -450,7 +450,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
+.PHONY: default all _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
@@ -465,8 +465,9 @@ CXXFLAGS = ${CXXFLAGS}
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
-default:
-	\$(MAKE) _default
+default: server
+
+all: _default
 
 END
 
