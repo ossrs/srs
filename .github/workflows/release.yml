@@ -21,6 +21,7 @@ jobs:
       #   SRS_TAG=v4.0-r8
       #   SRS_TAG=v4.0.145
       #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
       #   SRS_MAJOR=4
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables

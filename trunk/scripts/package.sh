@@ -17,6 +17,8 @@ MIPS=NO
 #
 EMBEDED=NO
 JOBS=1
+#
+SRS_TAG=
 
 ##################################################################################
 ##################################################################################
@@ -27,12 +29,13 @@ do
     case "$option" in
         -*=*) 
             value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'`
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/~]*||'`
+            option=`echo "$option" | awk -F '=' '{print $1}'`
         ;;
            *) value="" ;;
     esac
     
     case "$option" in
+        -h)                             help=yes                  ;;
         --help)                         help=yes                  ;;
         
         --x86-x64)                      X86_X64=YES               ;;
@@ -41,6 +44,7 @@ do
         --arm)                          ARM=YES                   ;;
         --pi)                           PI=YES                    ;;
         --jobs)                         JOBS=$value               ;;
+        --tag)                          SRS_TAG=$value               ;;
 
         *)
             echo "$0: error: invalid option \"$option\", @see $0 --help"
@@ -51,14 +55,15 @@ done
 if [ $help = yes ]; then
     cat << END
 
-  --help                   print this message
+  --help                   Print this message
 
-  --x86-x64                for x86-x64 platform, configure/make/package.
-  --arm                    for arm cross-build platform, configure/make/package.
-  --mips                   for mips cross-build platform, configure/make/package.
-  --pi                     for pi platform, configure/make/package.
-  --x86-64                 alias for --x86-x64.
+  --x86-x64                For x86-x64 platform, configure/make/package.
+  --x86-64                 Alias for --x86-x64.
+  --arm                    For arm cross-build platform, configure/make/package.
+  --mips                   For mips cross-build platform, configure/make/package.
+  --pi                     For pi platform, configure/make/package.
   --jobs                   Set the configure and make jobs.
+  --tag                    Set the version in zip file.
 END
     exit 0
 fi
@@ -116,7 +121,7 @@ ok_msg "real os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
 # @see https://github.com/ossrs/srs/wiki/v1_CN_Build
-ok_msg "start build srs, ARM: $ARM, MIPS: $MIPS, PI: $PI, X86_64: $X86_X64, JOBS: $JOBS"
+ok_msg "start build srs, ARM: $ARM, MIPS: $MIPS, PI: $PI, X86_64: $X86_X64, JOBS: $JOBS, TAG: $SRS_TAG"
 if [ $ARM = YES ]; then
     (
         cd $work_dir && 
@@ -174,15 +179,18 @@ fi
 ok_msg "machine: $os_machine"
 
 # generate zip dir and zip filename
-if [ $EMBEDED = YES ]; then
-    srs_version_major=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MAJOR'| awk '{print $3}'|xargs echo` &&
-    srs_version_minor=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MINOR'| awk '{print $3}'|xargs echo` &&
-    srs_version_revision=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_REVISION'| awk '{print $3}'|xargs echo` &&
-    srs_version=$srs_version_major.$srs_version_minor.$srs_version_revision
-else
-    srs_version=`${build_objs}/srs -v 2>/dev/stdout 1>/dev/null`
+srs_version=$SRS_TAG
+if [[ $srs_version == '' ]]; then
+    if [ $EMBEDED = YES ]; then
+        srs_version_major=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MAJOR'| awk '{print $3}'|xargs echo` &&
+        srs_version_minor=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MINOR'| awk '{print $3}'|xargs echo` &&
+        srs_version_revision=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_REVISION'| awk '{print $3}'|xargs echo` &&
+        srs_version=$srs_version_major.$srs_version_minor.$srs_version_revision
+    else
+        srs_version=`${build_objs}/srs -v 2>/dev/stdout 1>/dev/null`
+    fi
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "get srs version failed"; exit $ret; fi
 fi
-ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "get srs version failed"; exit $ret; fi
 ok_msg "get srs version $srs_version"
 
 zip_dir="SRS-${os_name}${os_major_version}-${os_machine}-${srs_version}"
