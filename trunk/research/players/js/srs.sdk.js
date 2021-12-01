@@ -47,6 +47,9 @@ function SrsRtcPublisherAsync() {
         self.pc.addTransceiver("audio", {direction: "sendonly"});
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
+        if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+            throw new Error(`Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
+        }
         var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
 
         // @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream#Migrating_to_addTrack

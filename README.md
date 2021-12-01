@@ -5,12 +5,22 @@
 [![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
 [![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=4.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A4.0release)
 [![](https://codecov.io/gh/ossrs/srs/branch/4.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/4.0release)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge2.png)](../../wikis/Contact#wechat)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/bbs2.png)](http://bbs.ossrs.net)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/mulan-incubating.svg)](http://mulanos.cn)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-alternativeto.svg)](https://alternativeto.net/software/srs/about/)
+[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-facebook.svg)](https://www.facebook.com/winlinvip)
+[![](https://badgen.net/twitter/follow/winlinvip)](https://twitter.com/winlinvip)
+[![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
+[![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
 
 SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
+
+[![SRS Overview](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)
+
+> Note: Please see https://www.processon.com/view/link/619f29791efad425fd699fd2
 
 SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
 
@@ -18,7 +28,7 @@ SRS is licenced under [MIT][LICENSE], but some depended libraries are distribute
 <a name="usage-docker"></a>
 ## Usage
 
-Build SRS from source, please read **Wiki: Gettting Started( [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started) / [CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) )**:
+Build SRS from source or **docker([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker))**, please read **Wiki: Gettting Started([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started))**:
 
 ```
 git clone -b 4.0release https://gitee.com/ossrs/srs.git &&
@@ -97,6 +107,10 @@ A big THANK YOU goes to:
 
 ## Releases
 
+* 2021-12-01, Release [v4.0-b0][https://github.com/ossrs/srs/releases/tag/v4.0-b0], v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
+* 2021-11-15, Release [v4.0.198](https://github.com/ossrs/srs/releases/tag/v4.0.198), 4.0 dev8, v4.0.198, 144010 lines.
+* 2021-11-02, Release [v4.0.191](https://github.com/ossrs/srs/releases/tag/v4.0.191), 4.0 dev7, v4.0.191, 143890 lines.
+* 2021-10-12, Release [v4.0.177](https://github.com/ossrs/srs/releases/tag/v4.0.177), 4.0 dev6, v4.0.177, 143686 lines.
 * 2021-09-05, Release [v4.0.161](https://github.com/ossrs/srs/releases/tag/v4.0.161), 4.0 dev5, v4.0.161, 145865 lines.
 * 2021-08-15, Release [v4.0.156](https://github.com/ossrs/srs/releases/tag/v4.0.156), 4.0 dev4, v4.0.156, 145490 lines.
 * 2021-08-14, Release [v4.0.153](https://github.com/ossrs/srs/releases/tag/v4.0.153), 4.0 dev3, v4.0.153, 145506 lines.

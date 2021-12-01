@@ -928,7 +928,6 @@ srs_error_t SrsHttpStreamServer::http_mount(SrsLiveSource* s, SrsRequest* r)
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
-        // @see https://github.com/ossrs/srs/issues/404
         if ((err = mux.handle(mount, entry->stream)) != srs_success) {
             return srs_error_wrap(err, "http: mount flv stream for vhost=%s failed", sid.c_str());
         }

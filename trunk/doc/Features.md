@@ -52,13 +52,13 @@ The features of SRS.
 - [x] [Experimental] Support MPEG-DASH, the future live streaming protocol, read [#299][bug #299].
 - [x] [Experimental] Support pushing MPEG-TS over UDP, please read [bug #250][bug #250].
 - [x] [Experimental] Support pushing FLV over HTTP POST, please read wiki([CN][v4_CN_Streamer2], [EN][v4_EN_Streamer2]).
-- [x] [Experimental] Support HTTP RAW API, please read [#459][bug #459], [#470][bug #470], [#319][bug #319].
 - [x] [Experimental] Support SRT server, read [#1147][bug #1147].
 - [x] [Experimental] Support transmux RTC to RTMP, [#2093][bug #2093].
-- [x] [Deprecated] Support pushing RTSP, please read [bug #2304][bug #2304].
 - [x] [Deprecated] Support Adobe HDS(f4m), please read wiki([CN][v4_CN_DeliveryHDS], [EN][v4_EN_DeliveryHDS]) and [#1535][bug #1535].
 - [x] [Deprecated] Support bandwidth testing, please read [#1535][bug #1535].
 - [x] [Deprecated] Support Adobe FMS/AMS token traverse([CN][v4_CN_DRM2], [EN][v4_EN_DRM2]) authentication, please read [#1535][bug #1535].
+- [x] [Removed] Support pushing RTSP, please read [#2304](https://github.com/ossrs/srs/issues/2304#issuecomment-826009290).
+- [x] [Removed] Support HTTP RAW API, please read [#2653](https://github.com/ossrs/srs/issues/2653).
 - [x] [Removed] Support RTMP client library: [srs-librtmp][srs-librtmp].
 - [ ] Support Windows/Cygwin 64bits, [#2532](https://github.com/ossrs/srs/issues/2532).
 - [ ] Support push stream by GB28181, [#1500][bug #1500].

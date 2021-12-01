@@ -47,6 +47,8 @@ extern bool _srs_in_docker;
 #define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
 #define SRS_CHECK_FEATURE3(cond, key, value, ss) if (cond) ss << "&" << key << "=" << value
 
+// @see https://github.com/ossrs/srs/issues/2424
+// @see https://github.com/ossrs/srs/issues/2508
 void srs_build_features(stringstream& ss)
 {
     if (SRS_OSX_BOOL) {
@@ -54,6 +56,14 @@ void srs_build_features(stringstream& ss)
     } else {
         ss << "&os=linux";
     }
+
+#if defined(__amd64__) || defined(__x86_64__) || defined(__i386__)
+    ss << "&x86=1";
+#elif defined(__arm__) || defined(__aarch64__)
+    ss << "&arm=1";
+#elif defined(__mips__)
+    ss << "&mips=1";
+#endif
 
     SRS_CHECK_FEATURE2(_srs_in_docker, "docker", ss);
     SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
@@ -68,6 +78,7 @@ void srs_build_features(stringstream& ss)
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
+    bool flv2 = false, oc = false;
 
     SrsConfDirective* root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
@@ -78,6 +89,8 @@ void srs_build_features(stringstream& ss)
             string engine = _srs_config->get_stream_caster_engine(conf);
             if (engine == "rtsp") {
                 rtsp = true;
+            } else if (engine == "flv") {
+                flv2 = true;
             }
         }
 
@@ -89,6 +102,9 @@ void srs_build_features(stringstream& ss)
             }
             if (!edge && _srs_config->get_vhost_is_edge(conf)) {
                 edge = true;
+            }
+            if (!oc && _srs_config->get_vhost_origin_cluster(conf)) {
+                oc = true;
             }
             if (!hls && _srs_config->get_hls_enabled(conf)) {
                 hls = true;
@@ -134,9 +150,11 @@ void srs_build_features(stringstream& ss)
 
     SRS_CHECK_FEATURE2(nn_vhosts, "vhosts", ss);
     SRS_CHECK_FEATURE(rtsp, ss);
+    SRS_CHECK_FEATURE(flv2, ss);
     SRS_CHECK_FEATURE(forward, ss);
     SRS_CHECK_FEATURE(ingest, ss);
     SRS_CHECK_FEATURE(edge, ss);
+    SRS_CHECK_FEATURE(oc, ss);
     SRS_CHECK_FEATURE(hls, ss);
     SRS_CHECK_FEATURE(dvr, ss);
     SRS_CHECK_FEATURE(flv, ss);
@@ -160,6 +178,8 @@ SrsLatestVersion::~SrsLatestVersion()
 
 srs_error_t SrsLatestVersion::start()
 {
+    // @see https://github.com/ossrs/srs/issues/2424
+    // @see https://github.com/ossrs/srs/issues/2508
     if (!_srs_config->whether_query_latest_version()) {
         return srs_success;
     }

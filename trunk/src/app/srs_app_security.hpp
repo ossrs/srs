@@ -16,7 +16,6 @@
 class SrsConfDirective;
 
 // The security apply on vhost.
-// @see https://github.com/ossrs/srs/issues/211
 class SrsSecurity
 {
 public:

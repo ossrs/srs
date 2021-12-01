@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_service_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <st.h>
 
 MockSrsConnection::MockSrsConnection()
 {
@@ -68,27 +69,18 @@ class MockTcpHandler : public ISrsTcpHandler
 private:
 	srs_netfd_t fd;
 public:
-	MockTcpHandler();
-	virtual ~MockTcpHandler();
+	MockTcpHandler() {
+        fd = NULL;
+	}
+	virtual ~MockTcpHandler() {
+        srs_close_stfd(fd);
+	}
 public:
-    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
+    virtual srs_error_t on_tcp_client(srs_netfd_t stfd) {
+        fd = stfd;
+        return srs_success;
+	}
 };
-
-MockTcpHandler::MockTcpHandler()
-{
-	fd = NULL;
-}
-
-MockTcpHandler::~MockTcpHandler()
-{
-	srs_close_stfd(fd);
-}
-
-srs_error_t MockTcpHandler::on_tcp_client(srs_netfd_t stfd)
-{
-	fd = stfd;
-	return srs_success;
-}
 
 VOID TEST(TCPServerTest, PingPong)
 {
@@ -1450,5 +1442,113 @@ VOID TEST(TCPServerTest, ContextUtility)
         SrsBasicRtmpClient rc("rtmp://127.0.0.1/live/livestream", to, to);
         rc.close();
     }
+}
+
+class MockStopSelfThread : public ISrsCoroutineHandler
+{
+public:
+    int r0;
+    int r1;
+    SrsFastCoroutine trd;
+    MockStopSelfThread() : r0(0), r1(0), trd("mock", this) {
+    }
+    virtual ~MockStopSelfThread() {
+    }
+    srs_error_t start() {
+        return trd.start();
+    }
+    void stop() {
+        trd.stop();
+    }
+    virtual srs_error_t cycle() {
+        r0 = st_thread_join((st_thread_t)trd.trd, NULL);
+        r1 = errno;
+        return srs_success;
+    }
+};
+
+VOID TEST(ThreadCriticalTest, ShouldFailWhenStopSelf)
+{
+    srs_error_t err;
+    MockStopSelfThread trd;
+    HELPER_EXPECT_SUCCESS(trd.start());
+
+    // Switch to thread cycle, should fail.
+    srs_usleep(0);
+    EXPECT_EQ(-1, trd.r0);
+    EXPECT_EQ(EDEADLK, trd.r1);
+}
+
+class MockAsyncReaderThread : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine trd;
+    srs_netfd_t fd;
+    MockAsyncReaderThread(srs_netfd_t v) : trd("mock", this), fd(v) {
+    }
+    virtual ~MockAsyncReaderThread() {
+    }
+    srs_error_t start() {
+        return trd.start();
+    }
+    void stop() {
+        trd.stop();
+    }
+    virtual srs_error_t cycle() {
+        srs_error_t err = srs_success;
+        while (true) {
+            if ((err = trd.pull()) != srs_success) {
+                return err;
+            }
+            char buf[16] = {0};
+            if (st_read((st_netfd_t)fd, buf, sizeof(buf), SRS_UTIME_NO_TIMEOUT) <= 0) {
+                break;
+            }
+        }
+        return err;
+    }
+};
+
+VOID TEST(ThreadCriticalTest, FailIfCloseActiveFD)
+{
+    srs_error_t err;
+
+    MockTcpHandler h;
+    SrsTcpListener l(&h, _srs_tmp_host, _srs_tmp_port);
+    HELPER_EXPECT_SUCCESS(l.listen());
+
+    SrsTcpClient c0(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
+    HELPER_EXPECT_SUCCESS(c0.connect());
+
+    srs_usleep(30 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(h.fd != NULL);
+
+    MockAsyncReaderThread trd0(h.fd);
+    HELPER_EXPECT_SUCCESS(trd0.start());
+
+    MockAsyncReaderThread trd1(h.fd);
+    HELPER_EXPECT_SUCCESS(trd1.start());
+
+    // Wait for all threads to run.
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    // Should fail when close, because there is 2 threads reading fd.
+    int r0 = st_netfd_close((st_netfd_t)h.fd);
+    EXPECT_EQ(-1, r0);
+    EXPECT_EQ(EBUSY, errno);
+
+    // Stop thread1, still fail because thread0 is reading fd.
+    trd1.stop();
+    r0 = st_netfd_close((st_netfd_t)h.fd);
+    EXPECT_EQ(-1, r0);
+    EXPECT_EQ(EBUSY, errno);
+
+    // Stop thread0, should success, no threads is reading fd.
+    trd0.stop();
+    r0 = st_netfd_close((st_netfd_t)h.fd);
+    EXPECT_EQ(0, r0);
+
+    // Set fd to NULL to avoid close fail for EBADF.
+    h.fd = NULL;
 }
 

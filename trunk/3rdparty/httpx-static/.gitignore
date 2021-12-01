@@ -5,3 +5,4 @@ letsencrypt.cache
 *.key
 objs
 .format.txt
+.DS_Store

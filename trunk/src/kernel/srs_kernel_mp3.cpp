@@ -6,7 +6,6 @@
 
 #include <srs_kernel_mp3.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif

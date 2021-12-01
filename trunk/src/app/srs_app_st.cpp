@@ -125,6 +125,7 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h)
     trd = NULL;
     trd_err = srs_success;
     started = interrupted = disposed = cycle_done = false;
+    stopping_ = false;
 
     //  0 use default, default is 64K.
     stack_size = 0;
@@ -138,6 +139,7 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler* h, SrsContext
     trd = NULL;
     trd_err = srs_success;
     started = interrupted = disposed = cycle_done = false;
+    stopping_ = false;
 
     //  0 use default, default is 64K.
     stack_size = 0;
@@ -192,9 +194,14 @@ srs_error_t SrsFastCoroutine::start()
 void SrsFastCoroutine::stop()
 {
     if (disposed) {
+        if (stopping_) {
+            srs_error("thread is stopping by %s", stopping_cid_.c_str());
+            srs_assert(!stopping_);
+        }
         return;
     }
     disposed = true;
+    stopping_ = true;
     
     interrupt();
 
@@ -202,7 +209,16 @@ void SrsFastCoroutine::stop()
     if (trd) {
         void* res = NULL;
         int r0 = st_thread_join((st_thread_t)trd, &res);
-        srs_assert(!r0);
+        if (r0) {
+            // By st_thread_join
+            if (errno == EINVAL) srs_assert(!r0);
+            if (errno == EDEADLK) srs_assert(!r0);
+            // By st_cond_timedwait
+            if (errno == EINTR) srs_assert(!r0);
+            if (errno == ETIME) srs_assert(!r0);
+            // Others
+            srs_assert(!r0);
+        }
 
         srs_error_t err_res = (srs_error_t)res;
         if (err_res != srs_success) {
@@ -216,6 +232,9 @@ void SrsFastCoroutine::stop()
     if (trd_err == srs_success && !cycle_done) {
         trd_err = srs_error_new(ERROR_THREAD_TERMINATED, "terminated");
     }
+
+    // Now, we'are stopped.
+    stopping_ = false;
     
     return;
 }

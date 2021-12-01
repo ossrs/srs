@@ -445,16 +445,7 @@ mkdir -p ${SRS_OBJS}/nginx
 # the demo dir.
 # create forward dir
 mkdir -p ${SRS_OBJS}/nginx/html/live &&
-mkdir -p ${SRS_OBJS}/nginx/html/forward/live
-
-# generate default html pages for android.
-html_file=${SRS_OBJS}/nginx/html/live/demo.html && hls_stream=demo.m3u8 && write_nginx_html5
 html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
 
 # copy players to nginx html dir.
 rm -rf ${SRS_OBJS}/nginx/html/players &&
@@ -528,8 +519,8 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
     # https://stackoverflow.com/questions/15539062/cross-compiling-of-openssl-for-linux-arm-v5te-linux-gnueabi-toolchain
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         OPENSSL_CONFIG="./Configure linux-generic32"
-        if [[ $SRS_CROSS_BUILD_ARMV7 == YES ]]; then OPENSSL_CONFIG="./Configure linux-armv4"; fi
-        if [[ $SRS_CROSS_BUILD_AARCH64 == YES ]]; then OPENSSL_CONFIG="./Configure linux-aarch64"; fi
+        if [[ $SRS_CROSS_BUILD_ARCH == "arm" ]]; then OPENSSL_CONFIG="./Configure linux-armv4"; fi
+        if [[ $SRS_CROSS_BUILD_ARCH == "aarch64" ]]; then OPENSSL_CONFIG="./Configure linux-aarch64"; fi
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/openssl/lib/libssl.a ]]; then
         # Try to use exists libraries.
         if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO ]]; then
@@ -617,6 +608,7 @@ else
     (
         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
+        patch -p0 crypto/math/datatypes.c ../../../3rdparty/patches/srtp/gcc10-01.patch &&
         $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
         cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
@@ -681,8 +673,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     # For cross-build.
     if [[ $SRS_CROSS_BUILD == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-cross-compile --target-os=linux"
-        if [[ $SRS_CROSS_BUILD_ARMV7 ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=arm"; fi
-        if [[ $SRS_CROSS_BUILD_AARCH64 ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=aarch64"; fi
+        FFMPEG_OPTIONS="$FFMPEG_OPTIONS --arch=$SRS_CROSS_BUILD_ARCH";
+        if [[ $SRS_CROSS_BUILD_CPU != "" ]]; then FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cpu=$SRS_CROSS_BUILD_CPU"; fi
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cross-prefix=$SRS_CROSS_BUILD_PREFIX"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --cc=${SRS_TOOL_CC} --cxx=${SRS_TOOL_CXX} --ar=${SRS_TOOL_AR} --ld=${_ST_LD}"
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-decoder=opus --enable-encoder=opus"

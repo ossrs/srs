@@ -41,7 +41,6 @@ srs_error_t srs_st_init()
 {
 #ifdef __linux__
     // check epoll, some old linux donot support epoll.
-    // @see https://github.com/ossrs/srs/issues/162
     if (!srs_st_epoll_is_supported()) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "linux epoll disabled");
     }
@@ -75,8 +74,17 @@ void srs_close_stfd(srs_netfd_t& stfd)
 {
     if (stfd) {
         // we must ensure the close is ok.
-        int err = st_netfd_close((st_netfd_t)stfd);
-        srs_assert(err != -1);
+        int r0 = st_netfd_close((st_netfd_t)stfd);
+        if (r0) {
+            // By _st_epoll_fd_close or _st_kq_fd_close
+            if (errno == EBUSY) srs_assert(!r0);
+            // By close
+            if (errno == EBADF) srs_assert(!r0);
+            if (errno == EINTR) srs_assert(!r0);
+            if (errno == EIO) srs_assert(!r0);
+            // Others
+            srs_assert(!r0);
+        }
         stfd = NULL;
     }
 }
@@ -495,7 +503,6 @@ srs_error_t SrsStSocket::read(void* buf, size_t size, ssize_t* nread)
     // (a value of 0 means the network connection is closed or end of file is reached).
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read <= 0) {
-        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
@@ -531,7 +538,6 @@ srs_error_t SrsStSocket::read_fully(void* buf, size_t size, ssize_t* nread)
     // (a value less than nbyte means the network connection is closed or end of file is reached)
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_read != (ssize_t)size) {
-        // @see https://github.com/ossrs/srs/issues/200
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm));
         }
@@ -566,7 +572,6 @@ srs_error_t SrsStSocket::write(void* buf, size_t size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", srsu2msi(stm));
         }
@@ -597,7 +602,6 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
     // On success a non-negative integer equal to nbyte is returned.
     // Otherwise, a value of -1 is returned and errno is set to indicate the error.
     if (nb_write <= 0) {
-        // @see https://github.com/ossrs/srs/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", srsu2msi(stm));
         }

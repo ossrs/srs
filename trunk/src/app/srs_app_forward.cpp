@@ -175,6 +175,12 @@ srs_error_t SrsForwarder::cycle()
             srs_freep(err);
         }
 
+        // Never wait if thread error, fast quit.
+        // @see https://github.com/ossrs/srs/pull/2284
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "forwarder");
+        }
+
         srs_usleep(SRS_FORWARDER_CIMS);
     }
     

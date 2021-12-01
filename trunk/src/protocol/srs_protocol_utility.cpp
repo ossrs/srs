@@ -6,7 +6,6 @@
 
 #include <srs_protocol_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -345,7 +344,6 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
     srs_error_t err = srs_success;
     
     // the limits of writev iovs.
-    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
     // for linux, generally it's 1024.
     static int limits = (int)sysconf(_SC_IOV_MAX);

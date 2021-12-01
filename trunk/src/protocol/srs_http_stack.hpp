@@ -285,6 +285,7 @@ private:
     virtual srs_error_t serve_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
     virtual srs_error_t serve_flv_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
     virtual srs_error_t serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
+    virtual srs_error_t serve_m3u8_file(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     // When access flv file with x.flv?start=xxx
     virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
@@ -293,6 +294,16 @@ protected:
     // @param end the end offset in bytes. -1 to end of file.
     // @remark response data in [start, end].
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
+    // For HLS protocol.
+    // When the request url, like as "http://127.0.0.1:8080/live/livestream.m3u8", 
+    // returns the response like as "http://127.0.0.1:8080/live/livestream.m3u8?hls_ctx=12345678" .
+    // SRS use "hls_ctx" to keep track of subsequent requests that is short-connection.
+    // Remark 1: 
+    //           Fill the parameter "hls_ctx" by yourself in the first request is allowed, SRS will use it.
+    //           And MUST make sure it is unique.
+    // Remark 2:
+    //           If use two same "hls_ctx" in different requests, SRS cannot detect so that they will be treated as one.
+    virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath);
 protected:
     // Copy the fs to response writer in size bytes.
     virtual srs_error_t copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, ISrsHttpMessage* r, int size);

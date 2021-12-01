@@ -167,7 +167,7 @@ public:
     virtual ~SrsDvrPlan();
 public:
     virtual srs_error_t initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(SrsRequest* r);
     virtual void on_unpublish();
     virtual srs_error_t on_meta_data(SrsSharedPtrMessage* shared_metadata);
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
@@ -187,7 +187,7 @@ public:
     SrsDvrSessionPlan();
     virtual ~SrsDvrSessionPlan();
 public:
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(SrsRequest* r);
     virtual void on_unpublish();
 };
 
@@ -203,7 +203,7 @@ public:
     virtual ~SrsDvrSegmentPlan();
 public:
     virtual srs_error_t initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r);
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(SrsRequest* r);
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* shared_audio, SrsFormat* format);
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
@@ -237,7 +237,7 @@ public:
     // publish stream event,
     // when encoder start to publish RTMP stream.
     // @param fetch_sequence_header whether fetch sequence from source.
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(SrsRequest* r);
     // the unpublish event.,
     // when encoder stop(unpublish) to publish RTMP stream.
     virtual void on_unpublish();

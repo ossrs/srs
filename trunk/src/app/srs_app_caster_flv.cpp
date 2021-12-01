@@ -96,8 +96,9 @@ void SrsAppCasterFlv::remove(ISrsResource* c)
 srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     SrsHttpMessage* msg = dynamic_cast<SrsHttpMessage*>(r);
-    SrsDynamicHttpConn* conn = dynamic_cast<SrsDynamicHttpConn*>(msg->connection());
-    srs_assert(conn);
+    SrsHttpConn* hconn = dynamic_cast<SrsHttpConn*>(msg->connection());
+    SrsDynamicHttpConn* dconn = dynamic_cast<SrsDynamicHttpConn*>(hconn->handler());
+    srs_assert(dconn);
     
     std::string app = srs_path_dirname(r->path());
     app = srs_string_trim_start(app, "/");
@@ -116,7 +117,7 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessa
         o = o.substr(0, o.length() - 4);
     }
     
-    srs_error_t err = conn->proxy(w, r, o);
+    srs_error_t err = dconn->proxy(w, r, o);
     if (err != srs_success) {
         return srs_error_wrap(err, "proxy");
     }

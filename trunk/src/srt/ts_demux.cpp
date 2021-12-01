@@ -5,7 +5,7 @@
 //
 
 #include "ts_demux.hpp"
-#include <assert.h>
+#include "srt_log.hpp"
 #include <string.h>
 
 ts_demux::ts_demux():_data_total(0)
@@ -40,11 +40,6 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
     ts_header_info._continuity_counter = (data_p[pos]&0x0F);
     pos++;
     npos = pos;
-
-    //printf("ts header(0x%02x) payload_unit_start_indicator:%d, pid:%d, adaptation_field_control:%d, pos:%d\r\n", 
-    //    ts_header_info._sync_byte,
-    //    ts_header_info._payload_unit_start_indicator, ts_header_info._PID,
-    //    ts_header_info._adaptation_field_control, pos);
 
     adaptation_field* field_p = &(ts_header_info._adaptation_field_info);
     // adaptation field
@@ -126,6 +121,7 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
             }
         }
         npos += sizeof(field_p->_adaptation_field_length) + field_p->_adaptation_field_length;
+        pos = npos;//must consider the 'stuffing_byte' in adaptation field
     }
 
     if(ts_header_info._adaptation_field_control == 1 
@@ -152,8 +148,16 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
             _pat._section_number = data_p[pos];
             pos++;
             _pat._last_section_number = data_p[pos];
-            assert(_pat._table_id == 0x00);
-            assert((188 - npos) > (_pat._section_length+3)); // PAT = section_length + 3
+
+            if (_pat._table_id != 0x00) {
+                srt_log_error("pat table id(0x%02x) error, it must be 0x00", _pat._table_id);
+                return -1;
+            }
+            // PAT = section_length + 3
+            if((188 - npos) <= (_pat._section_length + 3)) {
+                srt_log_error("pat _section_length(%d) error, the left len:%d", _pat._section_length, (188 - npos));
+                return -1;
+            }
             pos++;
             _pat._pid_vec.clear();
             for (;pos+4 <= _pat._section_length-5-4+9 + npos;) { // 4:CRC, 5:follow section_length item  rpos + 4(following unit length) section_length + 9(above field and unit_start_first_byte )
@@ -166,13 +170,11 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                 if (pid_info._program_number == 0) {
 //                  // network_PID 13 uimsbf
                     pid_info._network_id = (data_p[pos]<<8|data_p[pos+1])&0x1FFF;
-                    //printf("#### network id:%d.\r\n", pid_info._network_id);
                     pos += 2;
                 }
                 else {
 //                  //     program_map_PID 13 uimsbf
                     pid_info._pid = (data_p[pos]<<8|data_p[pos+1])&0x1FFF;
-                    //printf("#### pmt id:%d.\r\n", pid_info._pid);
                     pos += 2;
                 }
                 _pat._pid_vec.push_back(pid_info);
@@ -216,7 +218,12 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
             //reserved 4 bslbf
             _pmt._program_info_length = ((data_p[pos]<<8)|data_p[pos+1])&0x0FFF;//program_info_length 12 uimsbf
             pos += 2;
-            assert(_pmt._table_id==0x02); //  0x02, // TS_program_map_section
+
+             //0x02, // TS_program_map_section
+            if (_pmt._table_id != 0x02) {
+                srt_log_error("pmt tableid(0x%02x) error, it must be 0x02", _pmt._table_id)
+                return -1;
+            }
             memcpy(_pmt._dscr, data_p+pos, _pmt._program_info_length);
 //               for (i = 0; i < N; i++) {
 //                   descriptor()
@@ -249,7 +256,6 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                     pos += descriptor_length;
                 }
                 // save program_number(stream num) elementary_PID(PES PID) stream_type(stream codec)
-                //printf("pmt pid:%d, streamtype:%d, pos:%d\r\n", pid_info._elementary_PID, pid_info._stream_type, pos);
                 _pmt._stream_pid_vec.push_back(pid_info);
                 _pmt._pid2steamtype.insert(std::make_pair((unsigned short)pid_info._elementary_PID, pid_info._stream_type));
             }
@@ -273,8 +279,8 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                         on_callback(callback, _last_pid, key_path, _last_dts, _last_pts);
 
                         int ret = pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
-                        assert(ret <= 188);
                         if (ret > 188) {
+                            srt_log_error("pes length(%d) error", ret);
                             return -1;
                         }
 
@@ -290,9 +296,6 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                     }
                 }
             }
-            //if(!isFound){
-            //    printf("unknown PID = %X \n", ts_header_info._PID);
-            //}
         }
     }
 
@@ -379,13 +382,15 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
     pos += 3;
     int stream_id = p[pos]; //stream_id 8 uimsbf
     pos++;
-    //printf("pes parse %02x %02x.\r\n", p[pos], p[pos+1]);
+    
     int PES_packet_length = ((unsigned int)p[pos]<<8)|p[pos+1]; //PES_packet_length 16 uimsbf
     (void)PES_packet_length;
     pos += 2;
-    //printf("pes parse packet_start_code_prefix:%d, npos:%lu, PES_packet_length:%d, stream_id:%d.\r\n", 
-    //    packet_start_code_prefix, npos, PES_packet_length, stream_id);
-    assert(0x00000001 == packet_start_code_prefix);
+
+    if (0x00000001 != packet_start_code_prefix) {
+        srt_log_error("pes packet start code prefix(%06x) error, it must be 0x00 00 01", packet_start_code_prefix);
+        return 255;
+    }
     if (stream_id != 188//program_stream_map 1011 1100
         && stream_id != 190//padding_stream 1011 1110
         && stream_id != 191//private_stream_2 1011 1111
@@ -396,7 +401,10 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
         && stream_id != 248//ITU-T Rec. H.222.1 type E stream 1111 1000
         ) 
     {
-        assert(0x80 == p[pos]);
+        if (0x80 != (p[pos] & 0xc0)) {
+            srt_log_error("the first 2 bits:0x%02x error, it must be 0x80.", (p[pos] & 0xc0));
+            return 255;
+        }
         //skip 2bits//'10' 2 bslbf
         int PES_scrambling_control = (p[pos]&30)>>4; //PES_scrambling_control 2 bslbf
         (void)PES_scrambling_control;
@@ -563,9 +571,6 @@ int ts_demux::pes_parse(unsigned char* p, size_t npos,
 //        }
         *ret_pp = p+pos;
         ret_size = 188-(npos+pos);
-        //printf("pes parse body size:%lu, data:0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x, dts:%lu(%lu), pts:%lu(%lu)\r\n",
-        //    ret_size, p[pos], p[pos+1], p[pos+2], p[pos+3], p[pos+4], p[pos+5], 
-        //    dts, dts/90, pts, pts/90);
     }
     else if ( stream_id == 188//program_stream_map 1011 1100 BC
              || stream_id == 191//private_stream_2 1011 1111 BF

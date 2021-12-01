@@ -272,7 +272,7 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_sourc
         "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_edge"
         "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_http_static"
         "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
-        "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
+        "srs_app_mpegts_udp" "srs_app_listener" "srs_app_async_call"
         "srs_app_caster_flv" "srs_app_latest_version" "srs_app_uuid" "srs_app_process" "srs_app_ng_exec"
         "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
         "srs_app_coworkers" "srs_app_hybrid" "srs_app_threads")
@@ -450,7 +450,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
+.PHONY: default all _default install help clean destroy server srs_ingest_hls utest _prepare_dir $__mphonys
 .PHONY: clean_srs clean_modules clean_openssl clean_nginx clean_cherrypy clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
@@ -465,8 +465,9 @@ CXXFLAGS = ${CXXFLAGS}
 SRS_PREFIX=${SRS_PREFIX}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
-default:
-	\$(MAKE) _default
+default: server
+
+all: _default
 
 END
 

@@ -1,0 +1,23 @@
+[Unit]
+Description=srs - a simple, high efficiency and realtime video server
+Documentation=https://github.com/ossrs/srs/wiki
+After=network-online.target remote-fs.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nobody
+WorkingDirectory=/var/lib/srs
+EnvironmentFile=-/etc/sysconfig/srs
+PIDFile=/var/lib/srs/srs.pid
+ExecStartPre=/usr/bin/srs -c /etc/srs/srs.conf -t
+ExecStart=/usr/bin/srs -c /etc/srs/srs.conf
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=on-failure
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
