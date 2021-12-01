@@ -327,8 +327,8 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
 
     if (dec_packet_->data == NULL || dec_packet_->size == 0){
         return srs_error_new(ERROR_RTC_INVALID_PARAMS, 
-                             "dec_pakcet is invalide(%p,%d)", 
-                             dec_packet_->data, dec_packet_->size);	
+                             "dec_pakcet is invalide(dec_packet_->data: %p, dec_packet_->size: %d)", 
+                             dec_packet_->data, (int) dec_packet_->size);	
     }
 
 
