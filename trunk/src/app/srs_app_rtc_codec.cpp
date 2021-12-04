@@ -324,6 +324,14 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
 
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
 
+
+    if (dec_packet_->data == NULL || dec_packet_->size == 0){
+        return srs_error_new(ERROR_RTC_INVALID_PARAMS, 
+                             "dec_pakcet is invalide(dec_packet_->data: %p, dec_packet_->size: %d)", 
+                             dec_packet_->data, (int) dec_packet_->size);	
+    }
+
+
     int error = avcodec_send_packet(dec_, dec_packet_);
     if (error < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "submit to dec(%d,%s)", error,
