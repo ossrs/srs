@@ -1142,3 +1142,78 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
         }
     }
 }
+
+VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
+{
+    SrsRtcConnection s(NULL, SrsContextId()); 
+    SrsRtcPublishStream publish(&s, SrsContextId());
+
+    SrsRtcTrackDescription video_ds; 
+    video_ds.type_ = "video"; 
+    video_ds.id_ = "VMo22nfLDn122nfnDNL2"; 
+    video_ds.ssrc_ = 200;
+
+    SrsRtcVideoRecvTrack* video = new SrsRtcVideoRecvTrack(&s, &video_ds);
+    publish.video_tracks_.push_back(video);
+
+    publish.set_all_tracks_status(true);
+
+    SrsRtcSource* rtc_source = new SrsRtcSource();
+    SrsAutoFree(SrsRtcSource, rtc_source);
+    
+    srand(time(NULL));
+
+    if (true)
+    {
+        SrsRtpPacket* video_rtp_pkt = new SrsRtpPacket();
+        SrsAutoFree(SrsRtpPacket, video_rtp_pkt);
+
+        uint32_t video_absolute_ts = srs_get_system_time();
+        uint32_t video_rtp_ts = random();
+
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+        // No received any sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        SrsNtp ntp = SrsNtp::from_time_ms(video_absolute_ts);
+
+        SrsRtcpSR* video_sr = new SrsRtcpSR();
+        SrsAutoFree(SrsRtcpSR, video_sr);
+        video_sr->set_ssrc(200);
+
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        // Video timebase 90000, fps=25
+        video_rtp_ts += 3600;
+        video_absolute_ts += 40;
+        video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+        video->on_rtp(rtc_source, video_rtp_pkt);
+
+        // Received one sender report, can not calculate absolute time, expect equal to -1.
+        EXPECT_EQ(video_rtp_pkt->get_avsync_time(), -1);
+
+        ntp = SrsNtp::from_time_ms(video_absolute_ts);
+        video_sr->set_ntp(ntp.ntp_);
+        video_sr->set_rtp_ts(video_rtp_ts);
+        publish.on_rtcp_sr(video_sr);
+
+        for (int i = 0; i <= 1000; ++i) {
+            // Video timebase 90000, fps=25
+            video_rtp_ts += 3600;
+            video_absolute_ts += 40;
+            video_rtp_pkt->header.set_timestamp(video_rtp_ts);
+            video->on_rtp(rtc_source, video_rtp_pkt);
+            EXPECT_NEAR(video_rtp_pkt->get_avsync_time(), video_absolute_ts, 1);
+            // Duplicate 3 sender report packets.
+            if (i % 3 == 0) {
+                ntp = SrsNtp::from_time_ms(video_absolute_ts);
+                video_sr->set_ntp(ntp.ntp_);
+                video_sr->set_rtp_ts(video_rtp_ts);
+            }
+            publish.on_rtcp_sr(video_sr);
+        }
+    }
+}

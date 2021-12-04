@@ -743,7 +743,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // wait for message to incoming.
-        // @see https://github.com/ossrs/srs/issues/251
         // @see https://github.com/ossrs/srs/issues/257
         consumer->wait(mw_msgs, mw_sleep);
 #endif

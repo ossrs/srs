@@ -307,7 +307,7 @@ private:
     RtcPacketCache cache_video_pkts_[s_cache_size];
     uint16_t header_sn_;
     uint16_t lost_sn_;
-    int64_t key_frame_ts_;
+    int64_t rtp_key_frame_ts_;
 public:
     SrsRtmpFromRtcBridger(SrsLiveSource *src);
     virtual ~SrsRtmpFromRtcBridger();
@@ -527,6 +527,7 @@ protected:
     SrsNtp last_sender_report_ntp1_;
     int64_t last_sender_report_rtp_time1_;
 
+    double rate_;
     uint64_t last_sender_report_sys_time_;
 public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
