@@ -12,5 +12,5 @@ ENV SRS_AUTO_PACKAGER ossrs
 # Build and install SRS.
 ADD srs-server-${version}.tar.gz /srs
 WORKDIR /srs/srs-server-${version}/trunk
-RUN ./scripts/package.sh --x86-x64 --jobs=2
+RUN ./scripts/package.sh --x86-x64 --jobs=2 --tag=${version}
 
