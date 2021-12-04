@@ -30,6 +30,8 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-12-04, Merge [#2768](https://github.com/ossrs/srs/pull/2768):  RTC: Fix bugs for RTC2RTMP. (#2768). v4.0.203
+* v4.0, 2021-12-04, Merge [#2757](https://github.com/ossrs/srs/pull/2757):  RTC: Ignore empty audio packet when transcoding (#2757). v4.0.202
 * v4.0, 2021-12-01, Fix [#2762](https://github.com/ossrs/srs/pull/2762):  RTC: Refine publish security error message (#2762). v4.0.200
 * v4.0, 2021-11-25, Merge [#2751](https://github.com/ossrs/srs/pull/2751):  RTC: Fix crash when pkt->payload() if pkt is nullptr (#2751). v4.0.199
 * v4.0, 2021-11-15, For [#1708](https://github.com/ossrs/srs/pull/1708): ST: Print log when multiple thread stop one coroutine. (#1708). v4.0.198
