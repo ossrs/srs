@@ -54,7 +54,6 @@
  * @remark this largely improve performance, from 3.5k+ to 7.5k+.
  *       the latency+ when cache+.
  * @remark the socket send buffer default to 185KB, it large enough.
- * @see https://github.com/ossrs/srs/issues/194
  * @see SrsConfig::get_mw_sleep_ms()
  * @remark the mw sleep and msgs to send, maybe:
  *       mw_sleep        msgs        iovs
@@ -89,24 +88,20 @@
 
 /**
  * whether set the socket send buffer size.
- * @see https://github.com/ossrs/srs/issues/251
  */
 #define SRS_PERF_MW_SO_SNDBUF
 
 /**
  * whether set the socket recv buffer size.
- * @see https://github.com/ossrs/srs/issues/251
  */
 #undef SRS_PERF_MW_SO_RCVBUF
 /**
  * whether enable the fast vector for qeueue.
- * @see https://github.com/ossrs/srs/issues/251
  */
 #define SRS_PERF_QUEUE_FAST_VECTOR
 /**
  * whether use cond wait to send messages.
  * @remark this improve performance for large connectios.
- * @see https://github.com/ossrs/srs/issues/251
  */
 // TODO: FIXME: Should always enable it.
 #define SRS_PERF_QUEUE_COND_WAIT

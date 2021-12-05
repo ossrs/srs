@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # In .circleci/config.yml, generate *.gcno with
-#       ./configure --gcov --without-research --without-librtmp && make
+#       ./configure --gcov --without-research --without-librtmp && make utest
 # and generate *.gcda by
 #       ./objs/srs_utest
 

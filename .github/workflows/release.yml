@@ -63,7 +63,7 @@ jobs:
         run: docker build --tag srs:test -f trunk/Dockerfile.test .
       # For utest
       - name: Run SRS utest
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+        run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
         run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'

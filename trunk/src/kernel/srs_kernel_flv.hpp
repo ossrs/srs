@@ -250,7 +250,6 @@ class SrsSharedPtrMessage
 // 4.1. Message Header
 public:
     // The header can shared, only set the timestamp and stream id.
-    // @see https://github.com/ossrs/srs/issues/251
     //SrsSharedMessageHeader header;
     // Four-byte field that contains a timestamp of the message.
     // The 4 bytes are packed in the big-endian order.
@@ -278,7 +277,6 @@ private:
     {
     public:
         // The shared message header.
-        // @see https://github.com/ossrs/srs/issues/251
         SrsSharedMessageHeader header;
         // The actual shared payload.
         char* payload;

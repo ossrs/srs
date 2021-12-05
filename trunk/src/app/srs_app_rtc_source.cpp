@@ -1278,7 +1278,7 @@ SrsRtmpFromRtcBridger::SrsRtmpFromRtcBridger(SrsLiveSource *src)
     is_first_audio = true;
     is_first_video = true;
     format = NULL;
-    key_frame_ts_ = -1;
+    rtp_key_frame_ts_ = -1;
     header_sn_ = 0;
     memset(cache_video_pkts_, 0, sizeof(cache_video_pkts_));
 }
@@ -1504,24 +1504,24 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_key_frame(SrsRtpPacket* pkt)
         }
     }
 
-    if (-1 == key_frame_ts_) {
-        key_frame_ts_ = pkt->get_avsync_time();
+    if (-1 == rtp_key_frame_ts_) {
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         // Received key frame and clean cache of old p frame pkts
         clear_cached_video();
-        srs_trace("set ts=%lld, header=%hu, lost=%hu", key_frame_ts_, header_sn_, lost_sn_);
-    } else if (key_frame_ts_ != pkt->get_avsync_time()) {
+        srs_trace("set ts=%u, header=%hu, lost=%hu", (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
+    } else if (rtp_key_frame_ts_ != pkt->header.get_timestamp()) {
         //new key frame, clean cache
-        int64_t old_ts = key_frame_ts_;
+        int64_t old_ts = rtp_key_frame_ts_;
         uint16_t old_header_sn = header_sn_;
         uint16_t old_lost_sn = lost_sn_;
-        key_frame_ts_ = pkt->get_avsync_time();
+        rtp_key_frame_ts_ = pkt->header.get_timestamp();
         header_sn_ = pkt->header.get_sequence();
         lost_sn_ = header_sn_ + 1;
         clear_cached_video();
-        srs_trace("drop old ts=%lld, header=%hu, lost=%hu, set new ts=%lld, header=%hu, lost=%hu",
-            old_ts, old_header_sn, old_lost_sn, key_frame_ts_, header_sn_, lost_sn_);
+        srs_warn("drop old ts=%u, header=%hu, lost=%hu, set new ts=%u, header=%hu, lost=%hu",
+            (uint32_t)old_ts, old_header_sn, old_lost_sn, (uint32_t)rtp_key_frame_ts_, header_sn_, lost_sn_);
     }
 
     uint16_t index = cache_index(pkt->header.get_sequence());
@@ -1561,9 +1561,10 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
     srs_error_t err = srs_success;
 
     int nb_payload = 0;
-    uint16_t cnt = end - start + 1;
+    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
+    srs_assert(cnt >= 1);
 
-    for (uint16_t i = 0; i < cnt; ++i) {
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
         uint16_t index = cache_index(sn);
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
@@ -1615,7 +1616,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
     SrsBuffer payload(rtmp.payload, rtmp.size);
     if (pkt->is_keyframe()) {
         payload.write_1bytes(0x17); // type(4 bits): key frame; code(4bits): avc
-        key_frame_ts_ = -1;
+        rtp_key_frame_ts_ = -1;
     } else {
         payload.write_1bytes(0x27); // type(4 bits): inter frame; code(4bits): avc
     }
@@ -1625,7 +1626,7 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
     payload.write_1bytes(0x0);
 
     int nalu_len = 0;
-    for (uint16_t i = 0; i < cnt; ++i) {
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t index = cache_index((start + i));
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
 
@@ -1664,10 +1665,10 @@ srs_error_t SrsRtmpFromRtcBridger::packet_video_rtmp(const uint16_t start, const
         if (stap_payload) {
             for (int j = 0; j < (int)stap_payload->nalus.size(); ++j) {
                 SrsSample* sample = stap_payload->nalus.at(j);
-		if (sample->size > 0) {  
-		    payload.write_4bytes(sample->size);
+                if (sample->size > 0) {  
+                    payload.write_4bytes(sample->size);
                     payload.write_bytes(sample->bytes, sample->size);
-		}
+                }
             }
             srs_freep(pkt);
             continue;
@@ -1726,7 +1727,7 @@ int32_t SrsRtmpFromRtcBridger::find_next_lost_sn(uint16_t current_sn, uint16_t& 
         }
     }
 
-    srs_error("the cache is mess. the packet count of video frame is more than %u", s_cache_size);
+    srs_error("cache overflow. the packet count of video frame is more than %u", s_cache_size);
     return -2;
 }
 
@@ -1746,10 +1747,12 @@ void SrsRtmpFromRtcBridger::clear_cached_video()
 
 bool SrsRtmpFromRtcBridger::check_frame_complete(const uint16_t start, const uint16_t end)
 {
-    uint16_t cnt = (end - start + 1);
+    int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
+    srs_assert(cnt >= 1);
+
     uint16_t fu_s_c = 0;
     uint16_t fu_e_c = 0;
-    for (uint16_t i = 0; i < cnt; ++i) {
+    for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         int index = cache_index((start + i));
         SrsRtpPacket* pkt = cache_video_pkts_[index].pkt;
 
@@ -2264,6 +2267,8 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescripti
 
     last_sender_report_rtp_time_ = 0;
     last_sender_report_rtp_time1_ = 0;
+    rate_ = 0.0;
+
     last_sender_report_sys_time_ = 0;
 }
 
@@ -2299,40 +2304,41 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp& ntp, uint32_t rtp_ti
 
     // TODO: FIXME: Use system wall clock.
     last_sender_report_sys_time_ = srs_update_system_time();
+
+    if (last_sender_report_rtp_time1_ > 0) {
+        // WebRTC using sender report to sync audio/video timestamp, because audio video have different timebase,
+        // typical audio opus is 48000Hz, video is 90000Hz.
+        // We using two sender report point to calculate avsync timestamp(clock time) with any given rtp timestamp.
+        // For example, there are two history sender report of audio as below.
+        //   sender_report1: rtp_time1 = 10000, ntp_time1 = 40000
+        //   sender_report : rtp_time  = 10960, ntp_time  = 40020
+        //   (rtp_time - rtp_time1) / (ntp_time - ntp_time1) = 960 / 20 = 48,
+        // Now we can calcualte ntp time(ntp_x) of any given rtp timestamp(rtp_x),
+        //   (rtp_x - rtp_time) / (ntp_x - ntp_time) = 48   =>   ntp_x = (rtp_x - rtp_time) / 48 + ntp_time;
+        double sys_time_elapsed = static_cast<double>(last_sender_report_ntp_.system_ms_) - static_cast<double>(last_sender_report_ntp1_.system_ms_);
+
+        // Check sys_time_elapsed is equal to zero.
+        if (fpclassify(sys_time_elapsed) == FP_ZERO) {
+            return;
+        }
+        
+        double rtp_time_elpased = static_cast<double>(last_sender_report_rtp_time_) - static_cast<double>(last_sender_report_rtp_time1_);
+        double rate = round(rtp_time_elpased / sys_time_elapsed);
+
+        // TODO: FIXME: use the sample rate from sdp.
+        if (rate > 0) {
+            rate_ = rate;
+        }
+    }
 }
 
 int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
 {
-    // Have no recv at least 2 sender reports, can't calculate sync time.
-    // TODO: FIXME: use the sample rate from sdp.
-    if (last_sender_report_rtp_time1_ <= 0) {
+    if (rate_ < 0.001) {
         return -1;
     }
 
-    // WebRTC using sender report to sync audio/video timestamp, because audio video have different timebase,
-    // typical audio opus is 48000Hz, video is 90000Hz.
-    // We using two sender report point to calculate avsync timestamp(clock time) with any given rtp timestamp.
-    // For example, there are two history sender report of audio as below.
-    //   sender_report1: rtp_time1 = 10000, ntp_time1 = 40000
-    //   sender_report : rtp_time  = 10960, ntp_time  = 40020
-    //   (rtp_time - rtp_time1) / (ntp_time - ntp_time1) = 960 / 20 = 48,
-    // Now we can calcualte ntp time(ntp_x) of any given rtp timestamp(rtp_x),
-    //   (rtp_x - rtp_time) / (ntp_x - ntp_time) = 48   =>   ntp_x = (rtp_x - rtp_time) / 48 + ntp_time;
-    double sys_time_elapsed = static_cast<double>(last_sender_report_ntp_.system_ms_) - static_cast<double>(last_sender_report_ntp1_.system_ms_);
-
-    // Check sys_time_elapsed is equal to zero.
-    if (fpclassify(sys_time_elapsed) == FP_ZERO) {
-        return -1;
-    }
-    
-    double rtp_time_elpased = static_cast<double>(last_sender_report_rtp_time_) - static_cast<double>(last_sender_report_rtp_time1_);
-    int rate = round(rtp_time_elpased / sys_time_elapsed);
-
-    if (rate <= 0) {
-        return -1;
-    }
-
-    double delta = round((rtp_time - last_sender_report_rtp_time_) / rate);
+    double delta = round((rtp_time - last_sender_report_rtp_time_) / rate_);
 
     int64_t avsync_time = delta + last_sender_report_ntp_.system_ms_;
 
