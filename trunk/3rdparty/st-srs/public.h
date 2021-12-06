@@ -73,6 +73,13 @@
 extern "C" {
 #endif
 
+typedef struct _st_stat {
+    int runq_size;
+    int ioq_size;
+    int zombieq_size;
+    int sleepq_size;
+} st_stat_t;
+
 typedef unsigned long long  st_utime_t;
 typedef struct _st_thread * st_thread_t;
 typedef struct _st_cond *   st_cond_t;
@@ -95,6 +102,7 @@ extern st_switch_cb_t st_set_switch_out_cb(st_switch_cb_t cb);
 #endif
 
 extern st_thread_t st_thread_self(void);
+extern st_stat_t *st_stat(void);
 extern void st_thread_exit(void *retval);
 extern int st_thread_join(st_thread_t thread, void **retvalp);
 extern void st_thread_interrupt(st_thread_t thread);

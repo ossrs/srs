@@ -724,6 +724,20 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     return thread;
 }
 
+st_stat_t *st_stat(void)
+{
+    st_stat_t *stat;
+    stat = (st_stat_t *) calloc(1, sizeof(st_stat_t));
+    if (stat) {
+        stat->ioq_size = _ST_IOQ_SIZE;
+        stat->runq_size = _ST_RUNQ_SIZE;
+        stat->sleepq_size = _ST_SLEEPQ_SIZE;
+        stat->zombieq_size = _ST_ZOMBIEQ_SIZE;
+    }
+    
+    return stat;
+}
+
 
 _st_thread_t *st_thread_self(void)
 {

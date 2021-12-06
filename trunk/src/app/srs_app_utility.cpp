@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <netdb.h>
+#include <st.h>
 
 #include <stdlib.h>
 #include <sys/time.h>
@@ -1257,6 +1258,8 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     SrsNetworkRtmpServer* nrs = srs_get_network_rtmp_server();
     SrsDiskStat* d = srs_get_disk_stat();
     
+    srs_st_stat_t st_stat = srs_st_stat();
+
     float self_mem_percent = 0;
     if (m->MemTotal > 0) {
         self_mem_percent = (float)(r->r.ru_maxrss / (double)m->MemTotal);
@@ -1354,6 +1357,13 @@ void srs_api_dump_summaries(SrsJsonObject* obj)
     sys->set("conn_sys_tw", SrsJsonAny::integer(nrs->nb_conn_sys_tw));
     sys->set("conn_sys_udp", SrsJsonAny::integer(nrs->nb_conn_sys_udp));
     sys->set("conn_srs", SrsJsonAny::integer(nrs->nb_conn_srs));
+
+    SrsJsonObject* st = SrsJsonAny::object();
+    data->set("st", st);
+    st->set("runq", SrsJsonAny::integer(st_stat->runq_size));
+    st->set("ioq", SrsJsonAny::integer(st_stat->ioq_size));
+    st->set("zombieq", SrsJsonAny::integer(st_stat->zombieq_size));
+    st->set("sleepq", SrsJsonAny::integer(st_stat->sleepq_size));
 }
 
 string srs_string_dumps_hex(const std::string& str)

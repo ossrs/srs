@@ -238,6 +238,10 @@ typedef struct _st_vp {
     _st_clist_t run_q;          /* run queue for this vp */
     _st_clist_t io_q;           /* io queue for this vp */
     _st_clist_t zombie_q;       /* zombie queue for this vp */
+
+    int runq_size;          /* number of threads on run queue */
+    int ioq_size;           /* number of threads on io queue */
+    int zombieq_size;       /* number of threads on zombie queue */
 #ifdef DEBUG
     _st_clist_t thread_q;       /* all threads of this vp */
 #endif
@@ -279,6 +283,9 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_RUNQ                        (_st_this_vp.run_q)
 #define _ST_IOQ                         (_st_this_vp.io_q)
 #define _ST_ZOMBIEQ                     (_st_this_vp.zombie_q)
+#define _ST_RUNQ_SIZE                   (_st_this_vp.runq_size)
+#define _ST_IOQ_SIZE                    (_st_this_vp.ioq_size)
+#define _ST_ZOMBIEQ_SIZE                (_st_this_vp.zombieq_size)
 #ifdef DEBUG
     #define _ST_THREADQ                     (_st_this_vp.thread_q)
 #endif
@@ -295,18 +302,33 @@ extern _st_eventsys_t *_st_eventsys;
  * vp queues operations
  */
 
-#define _ST_ADD_IOQ(_pq)    ST_APPEND_LINK(&_pq.links, &_ST_IOQ)
-#define _ST_DEL_IOQ(_pq)    ST_REMOVE_LINK(&_pq.links)
+#define _ST_ADD_IOQ(_pq)  \    
+    ST_APPEND_LINK(&_pq.links, &_ST_IOQ);  \
+    _ST_IOQ_SIZE++
+#define _ST_DEL_IOQ(_pq)  \
+    ST_REMOVE_LINK(&_pq.links);  \
+    _ST_IOQ_SIZE--;
 
-#define _ST_ADD_RUNQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_INSERT_RUNQ(_thr)  ST_INSERT_LINK(&(_thr)->links, &_ST_RUNQ)
-#define _ST_DEL_RUNQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
+#define _ST_ADD_RUNQ(_thr)  \
+    ST_APPEND_LINK(&(_thr)->links, &_ST_RUNQ); \
+    _ST_RUNQ_SIZE++
+#define _ST_INSERT_RUNQ(_thr)  \
+    ST_INSERT_LINK(&(_thr)->links, &_ST_RUNQ); \
+    _ST_RUNQ_SIZE++
+#define _ST_DEL_RUNQ(_thr)  \
+    ST_REMOVE_LINK(&(_thr)->links); \
+    _ST_RUNQ_SIZE--
 
 #define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
 #define _ST_DEL_SLEEPQ(_thr)        _st_del_sleep_q(_thr)
 
-#define _ST_ADD_ZOMBIEQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_ZOMBIEQ)
-#define _ST_DEL_ZOMBIEQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
+#define _ST_ADD_ZOMBIEQ(_thr)  \
+    ST_APPEND_LINK(&(_thr)->links, &_ST_ZOMBIEQ)  \
+    _ST_ZOMBIEQ_SIZE++
+#define _ST_DEL_ZOMBIEQ(_thr)  \
+    ST_REMOVE_LINK(&(_thr)->links);  \
+    _ST_ZOMBIEQ_SIZE--
+
 
 #ifdef DEBUG
     #define _ST_ADD_THREADQ(_thr)  ST_APPEND_LINK(&(_thr)->tlink, &_ST_THREADQ)
