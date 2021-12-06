@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-12-06, Merge [#2766](https://github.com/ossrs/srs/pull/2766):  RTC: Fix nack encode seqnum. (#2766). v4.0.204
 * v4.0, 2021-12-04, Merge [#2768](https://github.com/ossrs/srs/pull/2768):  RTC: Fix bugs for RTC2RTMP. (#2768). v4.0.203
 * v4.0, 2021-12-04, Merge [#2757](https://github.com/ossrs/srs/pull/2757):  RTC: Ignore empty audio packet when transcoding (#2757). v4.0.202
 * v4.0, 2021-12-01, Fix [#2762](https://github.com/ossrs/srs/pull/2762):  RTC: Refine publish security error message (#2762). v4.0.200
