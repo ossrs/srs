@@ -744,6 +744,32 @@ VOID TEST(KernelRTCTest, NACKFetchRTPPacket)
     }
 }
 
+VOID TEST(KernelRTCTest, NACKEncode)
+{
+    uint32_t ssrc = 123;
+    char buf_before[kRtcpPacketSize];
+    SrsBuffer stream_before(buf_before, sizeof(buf_before));
+    
+    SrsRtcpNack rtcp_nack_encode(ssrc);
+    for(uint16_t i = 16; i < 50; ++i) {
+        rtcp_nack_encode.add_lost_sn(i);
+    }
+    srs_error_t err_before = rtcp_nack_encode.encode(&stream_before);
+    EXPECT_TRUE(err_before == 0);
+    char buf_after[kRtcpPacketSize];
+    memcpy(buf_after, buf_before, kRtcpPacketSize);
+    SrsBuffer stream_after(buf_after, sizeof(buf_after));
+    SrsRtcpNack rtcp_nack_decode(ssrc);
+    srs_error_t err_after = rtcp_nack_decode.decode(&stream_after);
+    EXPECT_TRUE(err_after == 0);
+    vector<uint16_t> before = rtcp_nack_encode.get_lost_sns();
+    vector<uint16_t> after = rtcp_nack_decode.get_lost_sns();
+    EXPECT_TRUE(before.size() == after.size());
+    for(int i = 0; i < before.size() && i < after.size(); ++i) {
+        EXPECT_TRUE(before.at(i) == after.at(i));
+    }
+}
+
 extern bool srs_is_stun(const uint8_t* data, size_t size);
 extern bool srs_is_dtls(const uint8_t* data, size_t len);
 extern bool srs_is_rtp_or_rtcp(const uint8_t* data, size_t len);

@@ -1348,7 +1348,10 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
             } else if( (sn - pid) > 16) {
                 // add new chunk
                 chunks.push_back(chunk);
-                chunk.in_use = false;
+		chunk.pid = sn;
+                chunk.blp = 0;
+                chunk.in_use = true;
+                pid = sn;
             } else {
                 chunk.blp |= 1 << (sn-pid-1);
             }
