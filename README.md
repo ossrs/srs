@@ -82,6 +82,8 @@ Other important wiki:
 
 ## AUTHORS
 
+![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)
+
 There are two types of people that have contributed to the SRS project:
 
 * Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
@@ -104,8 +106,6 @@ A big THANK YOU goes to:
 * All friends of SRS for [big supports][bigthanks].
 * Genes amd Mabbott for creating [st][st]([state-threads][st2]).
 * [Michael Talyanksy](https://github.com/michaeltalyansky) for introducing ST to us.
-
-![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)
 
 ## Releases
 
