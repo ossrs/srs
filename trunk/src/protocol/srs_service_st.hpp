@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <st.h>
 
 #include <srs_protocol_io.hpp>
 
@@ -18,7 +19,7 @@ typedef void* srs_netfd_t;
 typedef void* srs_thread_t;
 typedef void* srs_cond_t;
 typedef void* srs_mutex_t;
-
+typedef st_stat_t* srs_st_stat_t;
 // Initialize st, requires epoll.
 extern srs_error_t srs_st_init();
 
@@ -42,6 +43,7 @@ extern srs_error_t srs_fd_keepalive(int fd);
 extern srs_thread_t srs_thread_self();
 extern void srs_thread_exit(void* retval);
 extern void srs_thread_yield();
+extern srs_st_stat_t srs_st_stat();
 
 // For client, to open socket and connect to server.
 // @param tm The timeout in srs_utime_t.

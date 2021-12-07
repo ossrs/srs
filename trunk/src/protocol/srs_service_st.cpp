@@ -152,6 +152,11 @@ void srs_thread_yield()
     st_thread_yield();
 }
 
+srs_st_stat_t srs_st_stat()
+{
+    return (srs_st_stat_t)st_stat();
+}
+
 srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t* pstfd)
 {
     st_utime_t timeout = ST_UTIME_NO_TIMEOUT;

@@ -265,6 +265,7 @@ ST_HIDDEN void _st_select_find_bad_fd(void)
 
         if (notify) {
             ST_REMOVE_LINK(&pq->links);
+            _ST_IOQ_SIZE--;
             pq->on_ioq = 0;
             /*
              * Decrement the count of descriptors for each descriptor/event
@@ -370,6 +371,7 @@ ST_HIDDEN void _st_select_dispatch(void)
             }
             if (notify) {
                 ST_REMOVE_LINK(&pq->links);
+                _ST_IOQ_SIZE--;
                 pq->on_ioq = 0;
                 /*
                  * Decrement the count of descriptors for each descriptor/event
@@ -555,6 +557,7 @@ ST_HIDDEN void _st_poll_dispatch(void)
             if (pds < epds) {
                 memcpy(pq->pds, pollfds, sizeof(struct pollfd) * pq->npds);
                 ST_REMOVE_LINK(&pq->links);
+                _ST_IOQ_SIZE--;
                 pq->on_ioq = 0;
 
                 if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
@@ -913,6 +916,7 @@ ST_HIDDEN void _st_kq_dispatch(void)
             }
             if (notify) {
                 ST_REMOVE_LINK(&pq->links);
+                _ST_IOQ_SIZE--;
                 pq->on_ioq = 0;
                 for (pds = pq->pds; pds < epds; pds++) {
                     osfd = pds->fd;
@@ -1309,6 +1313,7 @@ ST_HIDDEN void _st_epoll_dispatch(void)
             }
             if (notify) {
                 ST_REMOVE_LINK(&pq->links);
+                _ST_IOQ_SIZE--;
                 pq->on_ioq = 0;
                 /*
                  * Here we will only delete/modify descriptors that
