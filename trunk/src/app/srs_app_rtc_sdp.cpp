@@ -1255,42 +1255,44 @@ void SrsExtMapInfo::parse_ext_id(int id, std::string ext) {
         }
     }
 }
-namespace {
-    typedef struct rtp_header
-    {
-#ifdef ARCH_IS_BIG_ENDIAN
-        uint16_t version:2;
-        uint16_t padding:1;
-        uint16_t extension:1;
-        uint16_t csrccount:4;
-        uint16_t markerbit:1;
-        uint16_t type:7;
-#else
-        uint16_t csrccount:4;
-        uint16_t extension:1;
-        uint16_t padding:1;
-        uint16_t version:2;
-        uint16_t type:7;
-        uint16_t markerbit:1;
-#endif
-        uint16_t seq_number;
-        uint32_t timestamp;
-        uint32_t ssrc;
-        uint32_t csrc[16];
-    } rtp_header;
-    typedef rtp_header janus_rtp_header;
 
-    typedef struct janus_rtp_header_extension {
-        uint16_t type;
-        uint16_t length;
-    } janus_rtp_header_extension;
+// @see janus_rtp_header in https://github.com/meetecho/janus-gateway/blob/master/rtp.h
+struct rtp_header
+{
+#ifdef ARCH_IS_BIG_ENDIAN
+    uint16_t version:2;
+    uint16_t padding:1;
+    uint16_t extension:1;
+    uint16_t csrccount:4;
+    uint16_t markerbit:1;
+    uint16_t type:7;
+#else
+    uint16_t csrccount:4;
+    uint16_t extension:1;
+    uint16_t padding:1;
+    uint16_t version:2;
+    uint16_t type:7;
+    uint16_t markerbit:1;
+#endif
+    uint16_t seq_number;
+    uint32_t timestamp;
+    uint32_t ssrc;
+    uint32_t csrc[16];
+};
+
+// @see janus_rtp_header_extension in https://github.com/meetecho/janus-gateway/blob/master/rtp.h
+struct rtp_header_extension {
+    uint16_t type;
+    uint16_t length;
+};
 
 /* Static helper to quickly find the extension data */
-static int janus_rtp_header_extension_find(char *buf, int len, int id,
-                                           uint8_t *byte, uint32_t *word, char **ref) {
+// @see janus_rtp_header_extension_find in https://github.com/meetecho/janus-gateway/blob/master/rtp.c
+static int rtp_header_extension_find(
+        char *buf, int len, int id, uint8_t *byte, uint32_t *word, char **ref) {
     if(!buf || len < 12)
         return -1;
-    janus_rtp_header *rtp = (janus_rtp_header *)buf;
+    rtp_header *rtp = (rtp_header *)buf;
     if (rtp->version != 2) {
         return -1;
     }
@@ -1298,7 +1300,7 @@ static int janus_rtp_header_extension_find(char *buf, int len, int id,
     if(rtp->csrccount)	/* Skip CSRC if needed */
         hlen += rtp->csrccount*4;
     if(rtp->extension) {
-        janus_rtp_header_extension *ext = (janus_rtp_header_extension *)(buf+hlen);
+        rtp_header_extension *ext = (rtp_header_extension *)(buf+hlen);
         int extlen = ntohs(ext->length)*4;
         hlen += 4;
         if(len > (hlen + extlen)) {
@@ -1338,33 +1340,34 @@ static int janus_rtp_header_extension_find(char *buf, int len, int id,
 }
 
 
-static int janus_rtp_header_extension_parse_rid(char *buf, int len, int id,
-                                             char *sdes_item, int sdes_len) {
-        char *ext = NULL;
-        if(janus_rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
-            return -1;
-        /* a=extmap:4 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id */
-        /* a=extmap:5 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id */
-        if(ext == NULL)
-            return -2;
-        int val_len = (*ext & 0x0F) + 1;
-        if(val_len > (sdes_len-1)) {
-            // JANUS_LOG(LOG_WARN, "SDES buffer is too small (%d < %d), RTP stream ID will be cut\n", val_len, sdes_len);
-            val_len = sdes_len-1;
-        }
-        if (val_len > len-(ext-buf)-1 ) {
-            return -3;
-        }
-        memcpy(sdes_item, ext+1, val_len);
-        *(sdes_item+val_len) = '\0';
-        return 0;
-    }
-
-
-static int janus_rtp_header_extension_parse_mid(char *buf, int len, int id,
-                                                char *sdes_item, int sdes_len) {
+// @see janus_rtp_header_extension_parse_rid in https://github.com/meetecho/janus-gateway/blob/master/rtp.c
+static int rtp_header_extension_parse_rid(
+        char *buf, int len, int id, char *sdes_item, int sdes_len) {
     char *ext = NULL;
-    if(janus_rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
+    if(rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
+        return -1;
+    /* a=extmap:4 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id */
+    /* a=extmap:5 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id */
+    if(ext == NULL)
+        return -2;
+    int val_len = (*ext & 0x0F) + 1;
+    if(val_len > (sdes_len-1)) {
+        // JANUS_LOG(LOG_WARN, "SDES buffer is too small (%d < %d), RTP stream ID will be cut\n", val_len, sdes_len);
+        val_len = sdes_len-1;
+    }
+    if (val_len > len-(ext-buf)-1 ) {
+        return -3;
+    }
+    memcpy(sdes_item, ext+1, val_len);
+    *(sdes_item+val_len) = '\0';
+    return 0;
+}
+
+// @see janus_rtp_header_extension_parse_mid in https://github.com/meetecho/janus-gateway/blob/master/rtp.c
+static int rtp_header_extension_parse_mid(
+        char *buf, int len, int id, char *sdes_item, int sdes_len) {
+    char *ext = NULL;
+    if(rtp_header_extension_find(buf, len, id, NULL, NULL, &ext) < 0)
         return -1;
     /* a=extmap:3 urn:ietf:params:rtp-hdrext:sdes:mid */
     if(ext == NULL)
@@ -1382,25 +1385,23 @@ static int janus_rtp_header_extension_parse_mid(char *buf, int len, int id,
     return 0;
 }
 
-}
-
 SrsRidInfo* SrsExtMapInfo::parse_rid(char *buf, int len, SrsSimulcastInfo &simulcast) {
     char sdes_item[16];
     int ret;
     std::string rid, ridrtx;
     std::string mid;
-    if((ret = janus_rtp_header_extension_parse_rid(buf, len, rid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+    if((ret = rtp_header_extension_parse_rid(buf, len, rid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
         rid = sdes_item;
     } else {
         return nullptr;
     }
-    if((ret = janus_rtp_header_extension_parse_rid(buf, len, ridrtx_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+    if((ret = rtp_header_extension_parse_rid(buf, len, ridrtx_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
         ridrtx = sdes_item;
         srs_info("rid=%s, ridrtx_ext_id=%d, ridrtx=%s", rid.c_str(), ridrtx_ext_id(), ridrtx.c_str());
     } else {
         srs_warn("bad=%d rid=%s, ridrtx_ext_id=%d", ret, rid.c_str(), ridrtx_ext_id());
     }
-    if((ret = janus_rtp_header_extension_parse_mid(buf, len, mid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
+    if((ret = rtp_header_extension_parse_mid(buf, len, mid_ext_id(), sdes_item, sizeof(sdes_item))) == 0) {
         mid = sdes_item;
         srs_info("mid=%s", mid.c_str());
     }
