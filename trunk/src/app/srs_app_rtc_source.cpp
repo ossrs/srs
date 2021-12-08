@@ -1821,13 +1821,31 @@ class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
     std::map<uint32_t, SrsRtmpFromRtcBridger*> bridgers_;
     std::vector<SrsLiveSource*> sources_;
 
-    srs_error_t dispatch_audio(SrsCommonMessage* out_rtmp) {
+    srs_error_t dispatch_audio(SrsCommonMessage* rtmp) {
         srs_error_t err = srs_success;
+        if (!rtmp->payload) {
+            srs_error("rtmp audio packet is nullptr, skip it");
+            return err;
+        }
+
+        SrsCommonMessage copy;
         for (auto& source: sources_) {
-            if ((err = source->on_audio(out_rtmp)) != srs_success) {
+            assert(rtmp->payload);
+
+            // backup
+            // @see SrsSharedPtrMessage::create(SrsCommonMessage* msg)
+            copy.create_payload(rtmp->size);
+            copy.size = rtmp->size;
+            memcpy(copy.payload, rtmp->payload, rtmp->size);
+
+            if ((err = source->on_audio(rtmp)) != srs_success) {
                 err = srs_error_wrap(err, "source[%p] on audio", source);
                 break;
             }
+
+            // restore
+            std::swap(rtmp->payload, copy.payload);
+            std::swap(rtmp->size, copy.size);
         }
         return err;
     }
