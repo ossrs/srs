@@ -254,6 +254,7 @@ srs_error_t SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow
 {
     srs_error_t err = srs_success;
 
+    assert(msg->payload);
     msgs.push_back(msg);
 
     // If jitter is off, the timestamp of first sequence header is zero, which wll cause SRS to shrink and drop the
@@ -1669,6 +1670,7 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader* header, SrsOnMetaDataPac
 
 srs_error_t SrsMetaCache::update_ash(SrsSharedPtrMessage* msg)
 {
+    assert(msg->payload);
     srs_freep(audio);
     audio = msg->copy();
     update_previous_ash();
