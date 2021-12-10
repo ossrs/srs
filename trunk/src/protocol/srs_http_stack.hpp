@@ -293,7 +293,7 @@ protected:
     // @param start the start offset in bytes.
     // @param end the end offset in bytes. -1 to end of file.
     // @remark response data in [start, end].
-    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, long end);
     // For HLS protocol.
     // When the request url, like as "http://127.0.0.1:8080/live/livestream.m3u8", 
     // returns the response like as "http://127.0.0.1:8080/live/livestream.m3u8?hls_ctx=12345678" .

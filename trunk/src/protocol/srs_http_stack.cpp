@@ -513,7 +513,7 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, ISrsHtt
     }
     
     // parse end in query string.
-    int end = -1;
+    long end = -1;
     if (pos < range.length() - 1) {
         end = ::atoi(range.substr(pos + 1).c_str());
     }
@@ -538,7 +538,7 @@ srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsH
     return serve_file(w, r, fullpath);
 }
 
-srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
+srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, long end)
 {
     // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
     // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
