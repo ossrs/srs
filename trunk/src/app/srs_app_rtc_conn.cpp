@@ -2904,6 +2904,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
             if (payloads.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            }
+            if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
             }
 
@@ -3214,6 +3219,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
+            if (payloads.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            }
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
             }
