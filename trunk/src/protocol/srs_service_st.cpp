@@ -248,7 +248,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_flags    = AI_NUMERICHOST;
 
     addrinfo* r = NULL;
-    SrsAutoFree(addrinfo, r);
+    SrsAutoFreeF(addrinfo, r);
     if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);

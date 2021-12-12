@@ -917,7 +917,7 @@ srs_error_t SrsServer::start(SrsWaitGroup* wg)
 void SrsServer::stop()
 {
 #ifdef SRS_GPERF_MC
-    destroy();
+    dispose();
 
     // remark, for gmc, never invoke the exit().
     srs_warn("sleep a long time for system st-threads to cleanup.");
