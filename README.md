@@ -23,7 +23,7 @@ SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), 
 
 [![SRS Overview](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)
 
-> Note: Please see https://www.processon.com/view/link/619f29791efad425fd699fd2
+> Note: If image load fail, please see it at [here](https://www.processon.com/view/link/619f29791efad425fd699fd2).
 
 <a name="product"></a>
 <a name="usage-docker"></a>
