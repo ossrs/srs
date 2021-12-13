@@ -14,6 +14,7 @@
 [![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
 [![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
+[![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server/contribute)
 
 SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
@@ -83,7 +84,9 @@ Other important wiki:
 
 ## AUTHORS
 
-![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)
+[![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
+
+> Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
 
 There are two types of people that have contributed to the SRS project:
 
@@ -110,7 +113,7 @@ A big THANK YOU goes to:
 
 ## Releases
 
-* 2021-12-01, Release [v4.0-b0][https://github.com/ossrs/srs/releases/tag/v4.0-b0], v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
+* 2021-12-01, Release [v4.0-b0](https://github.com/ossrs/srs/releases/tag/v4.0-b0), v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
 * 2021-11-15, Release [v4.0.198](https://github.com/ossrs/srs/releases/tag/v4.0.198), 4.0 dev8, v4.0.198, 144010 lines.
 * 2021-11-02, Release [v4.0.191](https://github.com/ossrs/srs/releases/tag/v4.0.191), 4.0 dev7, v4.0.191, 143890 lines.
 * 2021-10-12, Release [v4.0.177](https://github.com/ossrs/srs/releases/tag/v4.0.177), 4.0 dev6, v4.0.177, 143686 lines.
