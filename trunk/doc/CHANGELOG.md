@@ -30,10 +30,12 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
-* v4.0, 2021-12-04, Merge [#2768](https://github.com/ossrs/srs/pull/2768):  RTC: Fix bugs for RTC2RTMP. (#2768). v4.0.203
-* v4.0, 2021-12-04, Merge [#2757](https://github.com/ossrs/srs/pull/2757):  RTC: Ignore empty audio packet when transcoding (#2757). v4.0.202
-* v4.0, 2021-12-01, Fix [#2762](https://github.com/ossrs/srs/pull/2762):  RTC: Refine publish security error message (#2762). v4.0.200
-* v4.0, 2021-11-25, Merge [#2751](https://github.com/ossrs/srs/pull/2751):  RTC: Fix crash when pkt->payload() if pkt is nullptr (#2751). v4.0.199
+* v4.0, 2021-12-07, Merge [#2771](https://github.com/ossrs/srs/pull/2771): RTC: Fix memory leak when replace rtp packet in cache. (#2771). v4.0.205
+* v4.0, 2021-12-06, Merge [#2766](https://github.com/ossrs/srs/pull/2766): RTC: Fix nack encode seqnum. (#2766). v4.0.204
+* v4.0, 2021-12-04, Merge [#2768](https://github.com/ossrs/srs/pull/2768): RTC: Fix bugs for RTC2RTMP. (#2768). v4.0.203
+* v4.0, 2021-12-04, Merge [#2757](https://github.com/ossrs/srs/pull/2757): RTC: Ignore empty audio packet when transcoding (#2757). v4.0.202
+* v4.0, 2021-12-01, Fix [#2762](https://github.com/ossrs/srs/pull/2762): RTC: Refine publish security error message (#2762). v4.0.200
+* v4.0, 2021-11-25, Merge [#2751](https://github.com/ossrs/srs/pull/2751): RTC: Fix crash when pkt->payload() if pkt is nullptr (#2751). v4.0.199
 * v4.0, 2021-11-15, For [#1708](https://github.com/ossrs/srs/pull/1708): ST: Print log when multiple thread stop one coroutine. (#1708). v4.0.198
 * v4.0, 2021-11-14, Merge [#2732](https://github.com/ossrs/srs/pull/2732): WebRTC: Fail to publish RTC automatically for HTML5. (#2732). v4.0.197
 * v4.0, 2021-11-13, Merge [#2729](https://github.com/ossrs/srs/pull/2729): RTC: check audio track exist when negotiate (#2729). v4.0.196

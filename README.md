@@ -13,8 +13,9 @@
 [![](https://badgen.net/twitter/follow/winlinvip)](https://twitter.com/winlinvip)
 [![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
 [![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
+[![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
 
-SRS/5.0 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
+SRS/5.0，[Bee](https://github.com/ossrs/srs/wiki/Product#release50) 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
 SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
@@ -81,6 +82,8 @@ Other important wiki:
 * Usage: How to file a bug or contact us? ([CN](https://github.com/ossrs/srs/wiki/v4_CN_Contact), [EN](https://github.com/ossrs/srs/wiki/v4_EN_Contact))
 
 ## AUTHORS
+
+![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)
 
 The [TOC(Technical Oversight Committee)](trunk/AUTHORS.md#toc) and [contributors](trunk/AUTHORS.md#contributors):
 
@@ -371,4 +374,3 @@ Winlin
 [r0.3]: https://github.com/ossrs/srs/releases/tag/v0.3.0
 [r0.2]: https://github.com/ossrs/srs/releases/tag/v0.2.0
 [r0.1]: https://github.com/ossrs/srs/releases/tag/v0.1.0
-
