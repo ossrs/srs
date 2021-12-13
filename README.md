@@ -15,7 +15,7 @@
 [![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
 
-SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
+SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
@@ -404,6 +404,3 @@ Winlin
 [LICENSE]: https://github.com/ossrs/srs/blob/4.0release/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
 
-[release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
-[release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
-[release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40
