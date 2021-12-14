@@ -84,6 +84,8 @@ Other important wiki:
 
 ## AUTHORS
 
+Thank you to all our contributors! 🙏
+
 [![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
 
 > Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
