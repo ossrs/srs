@@ -84,11 +84,13 @@ Other important wiki:
 
 ## AUTHORS
 
+Thank you to all our contributors! 🙏
+
 [![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
 
 > Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
 
-There are two types of people that have contributed to the SRS project:
+There are two types of people that have contributed code to the SRS project:
 
 * Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
 * [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
