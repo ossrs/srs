@@ -488,7 +488,6 @@ public:
     void set_fec_ssrc(uint32_t ssrc);
     void set_mid(std::string mid);
     int get_rtp_extension_id(std::string uri);
-    int get_rtp_extension_id(ExtMapFieldEnum field);
 public:
     SrsRtcTrackDescription* copy();
 };

@@ -2187,15 +2187,6 @@ int SrsRtcTrackDescription::get_rtp_extension_id(std::string uri)
     return 0;
 }
 
-int SrsRtcTrackDescription::get_rtp_extension_id(ExtMapFieldEnum field) {
-    for (std::map<int, std::string>::iterator it = extmaps_.begin(); it != extmaps_.end(); ++it) {
-        if(kExtMapFieldArray[field] == it->second) {
-            return it->first;
-        }
-    }
-    return 0;
-}
-
 SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
 {
     SrsRtcTrackDescription* cp = new SrsRtcTrackDescription();

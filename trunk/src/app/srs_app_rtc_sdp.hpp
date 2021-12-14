@@ -9,13 +9,13 @@
 
 #include <srs_core.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 #include <stdint.h>
 
 #include <string>
 #include <vector>
 #include <map>
-const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
 // TDOO: FIXME: Rename it, and add utest.
 extern std::vector<std::string> split_str(const std::string& str, const std::string& delim);
@@ -141,56 +141,6 @@ struct SrsCandidate
     std::string type_;
 };
 
-
-#define DEFINDE_EXT_MAP_FIELD(EXT_MAP_FIELD) \
-EXT_MAP_FIELD(kSsrcAudioLevel,              "urn:ietf:params:rtp-hdrext:ssrc-audio-level")  \
-EXT_MAP_FIELD(kAbsSendTime,                 "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time") \
-EXT_MAP_FIELD(kTransportCC,                 "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01") \
-EXT_MAP_FIELD(kSdesMid,                     "urn:ietf:params:rtp-hdrext:sdes:mid") \
-EXT_MAP_FIELD(kSdesRtpStreamId,             "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id") \
-EXT_MAP_FIELD(kSdesRepairedRtpStreamId,     "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id") \
-EXT_MAP_FIELD(kVideoTiming,                 "http://www.webrtc.org/experiments/rtp-hdrext/video-timing") \
-EXT_MAP_FIELD(kColorSpace,                  "http://www.webrtc.org/experiments/rtp-hdrext/color-space") \
-EXT_MAP_FIELD(kCsrcAudioLevel,              "urn:ietf:params:rtp-hdrext:csrc-audio-level") \
-EXT_MAP_FIELD(kFramemarking,                "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07") \
-EXT_MAP_FIELD(kVideoContentType,            "http://www.webrtc.org/experiments/rtp-hdrext/video-content-type") \
-EXT_MAP_FIELD(kPlayoutDelay,                "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay") \
-EXT_MAP_FIELD(kVideoOrientation,            "urn:3gpp:video-orientation") \
-EXT_MAP_FIELD(kToffset,                     "urn:ietf:params:rtp-hdrext:toffset") \
-EXT_MAP_FIELD(kEncrypt,                     "urn:ietf:params:rtp-hdrext:encrypt")
-
-enum ExtMapFieldEnum {
-#define DEFIDE_EXT_MAP_ENUM(a, b) a,
-    DEFINDE_EXT_MAP_FIELD(DEFIDE_EXT_MAP_ENUM)
-#undef DEFIDE_EXT_MAP_ENUM
-    kExtMapFieldSize
-};
-
-static const char* const kExtMapFieldArray[] = {
-#define DEFIDE_EXT_MAP_ARRAY(x, y) y,
-        DEFINDE_EXT_MAP_FIELD(DEFIDE_EXT_MAP_ARRAY)
-#undef DEFIDE_EXT_MAP_ARRAY
-};
-
-class SrsExtMapInfo {
-    int ext_id_list_[kExtMapFieldSize];
-    void parse_ext_id(int id, std::string ext);
-public:
-    SrsExtMapInfo();
-    int mid_ext_id() const { return ext_id_list_[kSdesMid]; }
-    int rid_ext_id() const { return ext_id_list_[kSdesRtpStreamId]; }
-    int ridrtx_ext_id() const { return ext_id_list_[kSdesRepairedRtpStreamId]; }
-    int audiolevel_ext_id() const { return ext_id_list_[kSsrcAudioLevel]; }
-    int videoorientation_ext_id() const { return ext_id_list_[kVideoOrientation]; }
-    int transport_wide_cc_ext_id() const { return ext_id_list_[kTransportCC]; }
-    bool transport_wide_cc() const { return transport_wide_cc_ext_id() > 0; }
-
-    std::map<int, std::string> data;
-    void parse_extmap(int id, std::string ext);
-
-    SrsRidInfo * parse_rid(char *buf, int len, SrsSimulcastInfo &simulcast);
-};
-
 class SrsMediaDesc
 {
 public:
@@ -201,7 +151,6 @@ public:
     srs_error_t encode(std::ostringstream& os);
     SrsMediaPayloadType* find_media_with_payload_type(int payload_type);
     std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string& encoding_name) const;
-    const std::map<int, std::string>& get_extmaps() const { return extmaps_.data; }
     srs_error_t update_msid(std::string id);
 
     bool is_audio() const { return type_ == "audio"; }
@@ -242,7 +191,7 @@ public:
     std::vector<SrsCandidate> candidates_;
     std::vector<SrsSSRCGroup> ssrc_groups_;
     std::vector<SrsSSRCInfo>  ssrc_infos_;
-    SrsExtMapInfo extmaps_;
+    std::map<int, std::string> extmaps_;
 
     bool simulcast_spec_version() const {
         return ssrc_infos_.empty() && !session_info_.simulcast_.line.empty();

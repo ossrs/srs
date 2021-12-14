@@ -48,6 +48,7 @@ class SrsRtpExtensionTypes;
 uint32_t srs_rtp_fast_parse_ssrc(char* buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char* buf, int size);
 srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16_t& twcc_sn);
+srs_error_t srs_rtp_fast_parse_rid(char* buf, int size, uint8_t rid_id, std::string& rid);
 
 // The "distance" between two uint16 number, for example:
 //      distance(prev_value=3, value=5) === (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) === -2
@@ -76,12 +77,25 @@ int32_t srs_seq_distance(uint16_t value, uint16_t pre_value);
 enum SrsRtpExtensionType
 {
     kRtpExtensionNone,
-    kRtpExtensionTransportSequenceNumber,
-    kRtpExtensionAudioLevel,
+
+    kRtpExtTwcc,
+    kRtpExtSsrcAudioLevel,
+    kRtpExtSdesMid,
+    kRtpExtSdesRtpStreamId,
+    kRtpExtSdesRepairedRtpStreamId,
+    kRtpExtAbsSendTime,
+    kRtpExtVideoTiming,
+    kRtpExtColorSpace,
+    kRtpExtCsrcAudioLevel,
+    kRtpExtFramemarking,
+    kRtpExtVideoContentType,
+    kRtpExtPlayoutDelay,
+    kRtpExtVideoOrientation,
+    kRtpExtToffset,
+    kRtpExtEncrypt,
+
     kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
-
-const std::string kAudioLevelUri = "urn:ietf:params:rtp-hdrext:ssrc-audio-level";
 
 struct SrsExtensionInfo
 {
@@ -90,8 +104,22 @@ struct SrsExtensionInfo
 };
 
 const SrsExtensionInfo kExtensions[] = {
-    {kRtpExtensionTransportSequenceNumber, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")},
-    {kRtpExtensionAudioLevel, kAudioLevelUri},
+    {kRtpExtensionNone, std::string("")},
+    {kRtpExtTwcc, std::string("http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01")},
+    {kRtpExtSsrcAudioLevel, std::string("urn:ietf:params:rtp-hdrext:ssrc-audio-level")},
+    {kRtpExtSdesMid, std::string("urn:ietf:params:rtp-hdrext:sdes:mid")},
+    {kRtpExtSdesRtpStreamId, std::string("urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id")},
+    {kRtpExtSdesRepairedRtpStreamId, std::string("urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id")},
+    {kRtpExtAbsSendTime, std::string("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")},
+    {kRtpExtVideoTiming, std::string("http://www.webrtc.org/experiments/rtp-hdrext/video-timing")},
+    {kRtpExtColorSpace, std::string("http://www.webrtc.org/experiments/rtp-hdrext/color-space")},
+    {kRtpExtCsrcAudioLevel, std::string("urn:ietf:params:rtp-hdrext:csrc-audio-level")},
+    {kRtpExtFramemarking, std::string("http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07")},
+    {kRtpExtVideoContentType, std::string("http://www.webrtc.org/experiments/rtp-hdrext/video-content-type")},
+    {kRtpExtPlayoutDelay, std::string("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay")},
+    {kRtpExtVideoOrientation, std::string("urn:3gpp:video-orientation")},
+    {kRtpExtToffset, std::string("urn:ietf:params:rtp-hdrext:toffset")},
+    {kRtpExtEncrypt, std::string("urn:ietf:params:rtp-hdrext:encrypt")}
 };
 
 class SrsRtpExtensionTypes
