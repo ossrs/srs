@@ -9,13 +9,13 @@
 
 #include <srs_core.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 
 #include <stdint.h>
 
 #include <string>
 #include <vector>
 #include <map>
-const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
 // TDOO: FIXME: Rename it, and add utest.
 extern std::vector<std::string> split_str(const std::string& str, const std::string& delim);
@@ -25,6 +25,24 @@ class SrsSessionConfig
 public:
     std::string dtls_role;
     std::string dtls_version;
+};
+
+struct SrsRidInfo {
+    SrsRidInfo(): ssrc(0) {}
+    std::string rid;
+    std::string direction;
+
+    uint32_t ssrc;
+    std::string mid;
+    std::string rtx;
+};
+
+struct SrsSimulcastInfo {
+    std::string direction;
+    std::string line;
+    std::vector<SrsRidInfo> rids;
+
+    srs_error_t encode(std::ostringstream& os);
 };
 
 class SrsSessionInfo
@@ -46,6 +64,8 @@ public:
     std::string fingerprint_algo_;
     std::string fingerprint_;
     std::string setup_;
+
+    SrsSimulcastInfo simulcast_;
 };
 
 class SrsSSRCInfo
@@ -131,7 +151,6 @@ public:
     srs_error_t encode(std::ostringstream& os);
     SrsMediaPayloadType* find_media_with_payload_type(int payload_type);
     std::vector<SrsMediaPayloadType> find_media_with_encoding_name(const std::string& encoding_name) const;
-    const std::map<int, std::string>& get_extmaps() const { return extmaps_; }
     srs_error_t update_msid(std::string id);
 
     bool is_audio() const { return type_ == "audio"; }
@@ -173,6 +192,10 @@ public:
     std::vector<SrsSSRCGroup> ssrc_groups_;
     std::vector<SrsSSRCInfo>  ssrc_infos_;
     std::map<int, std::string> extmaps_;
+
+    bool simulcast_spec_version() const {
+        return ssrc_infos_.empty() && !session_info_.simulcast_.line.empty();
+    }
 
 public:
     // Whether SSRS is original stream.

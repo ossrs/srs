@@ -363,6 +363,7 @@ public:
         std::string profile_level_id;
         std::string packetization_mode;
         std::string level_asymmerty_allow;
+        std::string x_google_bitrate;
     };
     H264SpecificParameter h264_param_;
 
@@ -445,6 +446,7 @@ public:
     // ssrc is the primary ssrc for this track,
     // if sdp has ssrc-group, it is the first ssrc of the ssrc-group
     uint32_t ssrc_;
+    SrsRidInfo rid_;
     // rtx ssrc is the second ssrc of "FEC" src-group,
     // if no rtx ssrc, rtx_ssrc_ = 0.
     uint32_t fec_ssrc_;
@@ -502,6 +504,8 @@ public:
     SrsRtcSourceDescription();
     virtual ~SrsRtcSourceDescription();
 
+    void set_audio_track_desc(const SrsMediaDesc &remote_media_desc, SrsRtcTrackDescription *track_desc);
+    void set_video_track_descs(const SrsMediaDesc &remote_media_desc, SrsRtcTrackDescription *track_desc);
 public:
     SrsRtcSourceDescription* copy();
     SrsRtcTrackDescription* find_track_description_by_ssrc(uint32_t ssrc);
@@ -533,6 +537,8 @@ public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);
     virtual ~SrsRtcRecvTrack();
 public:
+    bool active_as(const SrsRidInfo &rid_info);
+
     // SrsRtcSendTrack::set_nack_no_copy
     void set_nack_no_copy(bool v) { nack_no_copy_ = v; }
     bool has_ssrc(uint32_t ssrc);

@@ -1139,19 +1139,26 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
     }
 
     int twcc_id = -1;
+    int rid = -1;
     uint32_t media_ssrc = 0;
     // because audio_track_desc have not twcc id, for example, h5demo
     // fetch twcc_id from video track description, 
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* desc = stream_desc->video_track_descs_.at(i);
-        twcc_id = desc->get_rtp_extension_id(kTWCCExt);
+        twcc_id = desc->get_rtp_extension_id(kExtensions[kRtpExtTwcc].uri);
+        rid = desc->get_rtp_extension_id(kExtensions[kRtpExtSdesRtpStreamId].uri);
         media_ssrc = desc->ssrc_;
         break;
     }
+
     if (twcc_id > 0) {
         twcc_id_ = twcc_id;
-        extension_types_.register_by_uri(twcc_id_, kTWCCExt);
+        extension_types_.register_by_uri(twcc_id_, kExtensions[kRtpExtTwcc].uri);
         rtcp_twcc_.set_media_ssrc(media_ssrc);
+    }
+
+    if (rid > 0) {
+        extension_types_.register_by_uri(rid, kExtensions[kRtpExtSdesRtpStreamId].uri);
     }
 
     nack_enabled_ = _srs_config->get_rtc_nack_enabled(req_->vhost);
@@ -1748,6 +1755,14 @@ void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp& n
     }
 }
 
+void SrsRtcPublishStream::bind_rid(const SrsRidInfo &rid_info) {
+    // NOTE: get unused video_track, and active as rid info.
+    SrsRtcVideoRecvTrack* video_track = get_video_track(0);
+    if (video_track) {
+        video_track->active_as(rid_info);
+    }
+}
+
 ISrsRtcConnectionHijacker::ISrsRtcConnectionHijacker()
 {
 }
@@ -1815,7 +1830,6 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     session_timeout = 0;
     disposing_ = false;
 
-    twcc_id_ = 0;
     nn_simulate_player_nack_drop = 0;
     pp_address_change = new SrsErrorPithyPrint();
     pli_epp = new SrsErrorPithyPrint();
@@ -1985,6 +1999,16 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig* ruc, SrsSdp& local
         return srs_error_wrap(err, "generate local sdp");
     }
 
+    // NOTE: Supplement Simulcast information in publish local sdp.
+    size_t size = local_sdp.media_descs_.size();
+    assert(size == ruc->remote_sdp_.media_descs_.size());
+    for (size_t i = 0; i < size; ++i) {
+        SrsMediaDesc& media_desc = ruc->remote_sdp_.media_descs_.at(i);
+        if (media_desc.is_video() && media_desc.simulcast_spec_version()) {
+            local_sdp.media_descs_.at(i).session_info_.simulcast_ = media_desc.session_info_.simulcast_;
+        }
+    }
+
     SrsRtcSource* source = NULL;
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
         return srs_error_wrap(err, "create source");
@@ -2026,7 +2050,7 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig* ruc, SrsSdp& local_sd
         return srs_error_wrap(err, "play negotiate");
     }
 
-    if (!play_sub_relations.size()) {
+    if (play_sub_relations.empty()) {
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no play relations");
     }
 
@@ -2286,13 +2310,92 @@ srs_error_t SrsRtcConnection::find_publisher(char* buf, int size, SrsRtcPublishS
     }
 
     map<uint32_t, SrsRtcPublishStream*>::iterator it = publishers_ssrc_map_.find(ssrc);
-    if(it == publishers_ssrc_map_.end()) {
-        return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no publisher for ssrc:%u", ssrc);
+    // Found publisher, return directly.
+    if (it != publishers_ssrc_map_.end()) {
+        *ppublisher = it->second;
+        return err;
     }
 
-    *ppublisher = it->second;
+    // No found publisher, check if simulcast enabled.
+    if ((err = parse_rid(buf, size, ssrc, ppublisher)) != srs_success) {
+        return srs_error_wrap(err, "no simulcast publisher for ssrc:%u; parse_rid", ssrc);
+    } else {
+        return err;
+    }
 
-    return err;
+    return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no publisher for ssrc:%u", ssrc);
+}
+
+srs_error_t SrsRtcConnection::parse_rid(char *buf, int size, uint32_t ssrc, SrsRtcPublishStream** ppublisher) 
+{
+    srs_error_t err = srs_success;
+
+    for (size_t i = 0; i < remote_sdp.media_descs_.size(); ++i) {
+        SrsMediaDesc& media_desc = remote_sdp.media_descs_.at(i);
+        if (!media_desc.simulcast_spec_version()) {
+            continue;
+        }
+
+        int rid = 0;
+        for(map<int, string>::iterator it = media_desc.extmaps_.begin(); it != media_desc.extmaps_.end(); ++it) {
+            if (it->second == kExtensions[kRtpExtSdesRtpStreamId].uri) {
+                rid = it->first;
+                break;
+            }
+        }
+
+        if (rid <= 0) {
+            continue;
+        }
+
+        SrsSimulcastInfo &simulcast = media_desc.session_info_.simulcast_;
+
+        std::string rtp_stream_id;
+        if ((err = srs_rtp_fast_parse_rid(buf, size, rid, rtp_stream_id)) != srs_success) {
+            return srs_error_wrap(err, "parse rid");
+        }
+
+        for (std::vector<SrsRidInfo>::iterator iter = simulcast.rids.begin(); iter != simulcast.rids.end(); ++iter) {
+            if (rtp_stream_id == iter->rid) {
+                srs_assert(iter->ssrc == 0);
+                iter->ssrc = ssrc;
+                if ((err = bind_rid(*iter, ppublisher)) != srs_success) {
+                    return srs_error_wrap(err, "bind rid");
+                }
+
+                // Found publisher and bind success, return.
+                return err;
+            }
+        }
+    }
+
+    return srs_error_new(ERROR_RTC_NO_PUBLISHER, "no rid found in extmap", ssrc);
+}
+
+srs_error_t SrsRtcConnection::bind_rid(const SrsRidInfo &rid_info, SrsRtcPublishStream** ppublisher) {
+    srs_error_t err = srs_success;
+    SrsRtcSource *source = NULL;
+    if ((err = _srs_rtc_sources->fetch_or_create(req_, &source)) != srs_success) {
+        return srs_error_wrap(err, "fetch_or_create source");
+    }
+
+    std::vector<SrsRtcTrackDescription*> track_descs = source->get_track_desc("video", "H264");
+    for (size_t i = 0; i < track_descs.size(); ++i) {
+        SrsRtcTrackDescription* track_desc = track_descs.at(i);
+        if (track_desc->ssrc_ == 0) {
+            track_desc->ssrc_ = rid_info.ssrc;
+            track_desc->rid_ = rid_info;
+            // TODO: maybe select wrong publisher?
+            SrsRtcPublishStream* publisher = publishers_ssrc_map_.begin()->second;
+            publisher->bind_rid(rid_info);
+            publishers_ssrc_map_[track_desc->ssrc_] = publisher;
+            *ppublisher = publisher;
+            srs_warn("find track_desc to (rid='%s', ssrc=%u)", rid_info.rid.c_str(), rid_info.ssrc);
+            return err;
+        }
+    }
+
+    return srs_error_new(ERROR_RTC_NO_TRACK, "no idle track_desc to (rid='%s', ssrc=%u)", rid_info.rid.c_str(), rid_info.ssrc);
 }
 
 srs_error_t SrsRtcConnection::on_connection_established()
@@ -2828,17 +2931,22 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
         if (true) {
-            map<int, string> extmaps = remote_media_desc.get_extmaps();
+            map<int, string> extmaps = remote_media_desc.extmaps_;
             for(map<int, string>::iterator it = extmaps.begin(); it != extmaps.end(); ++it) {
-                if (it->second == kTWCCExt) {
+                if (it->second == kExtensions[kRtpExtTwcc].uri) {
                     remote_twcc_id = it->first;
-                    break;
+                    // break;
+                } else if (remote_media_desc.simulcast_spec_version()) {
+                    // note: add all ext map in simulcast_spec_version
+                    if (it->second == kExtensions[kRtpExtSdesRtpStreamId].uri || it->second == kExtensions[kRtpExtSdesRepairedRtpStreamId].uri) {
+                        track_desc->add_rtp_extension_desc(it->first, it->second);
+                    }
                 }
             }
         }
 
         if (twcc_enabled && remote_twcc_id) {
-            track_desc->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
+            track_desc->add_rtp_extension_desc(remote_twcc_id, kExtensions[kRtpExtTwcc].uri);
         }
 
         if (remote_media_desc.is_audio()) {
@@ -3000,49 +3108,9 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
 
         if (remote_media_desc.is_audio()) {
-            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
-
-                // ssrc have same track id, will be description in the same track description.
-                if (!stream_desc->audio_track_desc_) {
-                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                    track_desc_copy->msid_ = ssrc_info.msid_;
-                    stream_desc->audio_track_desc_ = track_desc_copy;
-                }
-                srs_info("%d/%d#publish audio ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
-                         (int) remote_media_desc.ssrc_infos_.size(),
-                         ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
-            }
+            stream_desc->set_audio_track_desc(remote_media_desc, track_desc);
         } else if (remote_media_desc.is_video()) {
-            std::string track_id;
-            for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
-                const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
-
-                // ssrc have same track id, will be description in the same track description.
-                if(track_id != ssrc_info.msid_tracker_) {
-                    SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
-                    track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                    track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                    track_desc_copy->msid_ = ssrc_info.msid_;
-                    if (remote_media_desc.is_original_ssrc(&ssrc_info)) {
-                        // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
-                        // todo: support standard simulcast, like "a=simulcast:send a;b;c"
-                        stream_desc->video_track_descs_.push_back(track_desc_copy);
-                        srs_info("%d/%d#publish video track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,(int)remote_media_desc.ssrc_infos_.size(),
-                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
-                    } else {
-                        srs_info("%d/%d#ignore track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j, (int)remote_media_desc.ssrc_infos_.size(),
-                                 track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
-                    }
-                    track_id = ssrc_info.msid_tracker_;
-                } else {
-                    srs_info("%d/%d#ignore track_id_/msid_tracker_=%s, ssrc_=%u, msid_=%s", j, (int)remote_media_desc.ssrc_infos_.size(),
-                             track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str());
-                    track_id = "";
-                }
-            }
+            stream_desc->set_video_track_descs(remote_media_desc, track_desc);
         } else {
             // TODO: FIXME: Handle for others.
         }
@@ -3107,7 +3175,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         local_media_desc.mid_ = audio_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // answer not need set stream_id and track_id;
         // local_media_desc.msid_ = stream_id;
         // local_media_desc.msid_tracker_ = audio_track->id_;
         local_media_desc.extmaps_ = audio_track->extmaps_;
@@ -3140,7 +3208,7 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         local_media_desc.mid_ = video_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // answer not need set stream_id and track_id;
         //local_media_desc.msid_ = stream_id;
         //local_media_desc.msid_tracker_ = video_track->id_;
         local_media_desc.extmaps_ = video_track->extmaps_;
@@ -3195,9 +3263,9 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
         if (true) {
-            map<int, string> extmaps = remote_media_desc.get_extmaps();
+            map<int, string> extmaps = remote_media_desc.extmaps_;
             for(map<int, string>::iterator it = extmaps.begin(); it != extmaps.end(); ++it) {
-                if (it->second == kTWCCExt) {
+                if (it->second == kExtensions[kRtpExtTwcc].uri) {
                     remote_twcc_id = it->first;
                     break;
                 }
@@ -3270,6 +3338,9 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             track->mid_ = remote_media_desc.mid_;
             uint32_t publish_ssrc = track->ssrc_;
+            if (publish_ssrc == 0) {
+                continue;
+            }
 
             vector<string> rtcp_fb;
             remote_payload.rtcp_fb_.swap(rtcp_fb);
@@ -3283,7 +3354,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
                     if (rtcp_fb.at(j) == "transport-cc") {
                         track->media_->rtcp_fbs_.push_back(rtcp_fb.at(j));
                     }
-                    track->add_rtp_extension_desc(remote_twcc_id, kTWCCExt);
+                    track->add_rtp_extension_desc(remote_twcc_id, kExtensions[kRtpExtTwcc].uri);
                 }
             }
 
@@ -3299,7 +3370,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             }
 
             track->set_direction("sendonly");
+            // fixme: order of track
             sub_relations.insert(make_pair(publish_ssrc, track));
+            if (track->rid_.ssrc > 0) {
+                srs_info("publish_ssrc=%u, play ssrc=%u, rid ssrc=%u, rid=%s", publish_ssrc, track->ssrc_, track->rid_.ssrc, track->rid_.rid.c_str());
+            }
         }
     }
 
@@ -3357,7 +3432,7 @@ void video_track_generate_play_offer(SrsRtcTrackDescription* track, string mid, 
 }
 
 // note: get [0,1,2] from "webrtc://127.0.0.1/live/livestream?layer=0,1,2&foo=bar"
-bool parse_layers_in_url(std::vector<int>& layers, std::string name) {
+bool parse_layers_in_url(std::vector<std::string>& layers, std::string name) {
     // livestream?layer=1
     // livestream?layer=1,2,3
     // livestream?layer=1,2,3&foo=bar
@@ -3384,23 +3459,42 @@ bool parse_layers_in_url(std::vector<int>& layers, std::string name) {
     istringstream f(layers_);
     string s;
     while (getline(f, s, ';')) {
-        layers.push_back(::atoi(s.c_str()));
+        layers.push_back(s);
     }
     return !layers.empty();
+}
+
+void add_desc_to_vector(std::vector<SrsRtcTrackDescription *>& result, SrsRtcTrackDescription *desc) {
+    if (result.end() == std::find(result.begin(), result.end(), desc)) {
+        result.push_back(desc);
+    }
 }
 
 std::vector<SrsRtcTrackDescription *> select_video_track_descs(
         std::vector<SrsRtcTrackDescription *> video_track_descs,
         std::string url) {
     srs_trace("stream url: %s", url.c_str());
-    std::vector<int> layers;
-    if (!parse_layers_in_url(layers, url)) {
+    std::vector<std::string> layers;
+    if (video_track_descs.empty() || !parse_layers_in_url(layers, url)) {
         return video_track_descs;
     }
     std::vector<SrsRtcTrackDescription *> result;
     for (size_t i=0;i<layers.size(); ++i) {
-        if (layers[i] < video_track_descs.size()) {
-            result.push_back(video_track_descs[layers[i]]);
+        int layer = ::atoi(layers[i].c_str());
+        char layer_text[32];
+        sprintf(layer_text, "%d", layer);
+        bool is_index = layer_text == layers[i] && layer >= 0 && layer < (int)video_track_descs.size();
+        if (is_index) {
+            add_desc_to_vector(result, video_track_descs[layer]);
+        } else {
+            for (size_t ii = 0; ii < video_track_descs.size(); ++ii) {
+                SrsRtcTrackDescription* desc = video_track_descs.at(ii);
+                assert(desc);
+                if (desc->rid_.rid == layers[i]) {
+                    result.push_back(desc);
+                    add_desc_to_vector(result, desc);
+                }
+            }
         }
     }
     return result.empty() ? video_track_descs : result;
@@ -3583,7 +3677,7 @@ srs_error_t SrsRtcConnection::create_player(SrsRequest* req, std::map<uint32_t, 
         while (it != sub_relations.end()) {
             if (it->second->type_ == "video") {
                 SrsRtcTrackDescription* track = it->second;
-                twcc_id = track->get_rtp_extension_id(kTWCCExt);
+                twcc_id = track->get_rtp_extension_id(kExtensions[kRtpExtTwcc].uri);
             }
             ++it;
         }
@@ -3648,6 +3742,9 @@ srs_error_t SrsRtcConnection::create_publisher(SrsRequest* req, SrsRtcSourceDesc
     for(int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription* track_desc = stream_desc->video_track_descs_.at(i);
         if(publishers_ssrc_map_.end() != publishers_ssrc_map_.find(track_desc->ssrc_)) {
+            if (track_desc->ssrc_ == 0) {
+                continue;
+            }
             return srs_error_new(ERROR_RTC_DUPLICATED_SSRC, " duplicate ssrc %d, track id: %s",
                 track_desc->ssrc_, track_desc->id_.c_str());
         }

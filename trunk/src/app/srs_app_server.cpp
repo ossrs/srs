@@ -49,7 +49,7 @@ std::string srs_listener_type2string(SrsListenerType type)
         case SrsListenerHttpStream:
             return "HTTP-Server";
         case SrsListenerHttpsStream:
-            return "HTTP-Server";
+            return "HTTPS-Server";
         case SrsListenerMpegTsOverUdp:
             return "MPEG-TS over UDP";
         case SrsListenerFlv:

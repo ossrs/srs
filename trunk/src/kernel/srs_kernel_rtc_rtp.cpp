@@ -124,6 +124,68 @@ srs_error_t srs_rtp_fast_parse_twcc(char* buf, int size, uint8_t twcc_id, uint16
     return err;
 }
 
+srs_error_t srs_rtp_fast_parse_rid(char* buf, int size, uint8_t rid_id, std::string& rid)
+{
+    srs_error_t err = srs_success;
+
+    int need_size = 12 /*rtp head fix len*/ + 4 /* extension header len*/ + 3 /* twcc extension len*/;
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    uint8_t first = buf[0];
+    bool extension = (first & 0x10);
+    uint8_t cc = (first & 0x0F);
+
+    if(!extension) {
+        return srs_error_new(ERROR_RTC_RTP, "no extension in rtp");
+    }
+
+    need_size += cc * 4; // csrc size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+    buf += 12 + 4*cc;
+
+    uint16_t value = *((uint16_t*)buf);
+    value = ntohs(value);
+    if(0xBEDE != value) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "no support this type(0x%02x) extension", value);
+    }
+    buf += 2;
+    
+    uint16_t extension_length = ntohs(*((uint16_t*)buf));
+    buf += 2;
+    extension_length *= 4;
+    need_size += extension_length; // entension size
+    if(size < (need_size)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
+    }
+
+    while(extension_length > 0) {
+        uint8_t v = buf[0];
+        buf++;
+        extension_length--;
+        if(0 == v) {
+            continue;
+        }
+
+        uint8_t id = (v & 0xF0) >>4;
+        uint8_t len = (v & 0x0F) + 1;
+
+        if(id == rid_id) {
+            rid.append(buf, len);
+            return err;
+        } else {
+            buf += len;
+            extension_length -= len;
+        }
+    }
+
+
+    return err;
+}
+
 // If value is newer than pre_value，return true; otherwise false
 bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
 {
@@ -396,7 +458,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
         uint8_t len = (v & 0x0F) + 1;
 
         SrsRtpExtensionType xtype = types_? types_->get_type(id) : kRtpExtensionNone;
-        if (xtype == kRtpExtensionTransportSequenceNumber) {
+        if (xtype == kRtpExtTwcc) {
             if (decode_twcc_extension_) {
                 if ((err = twcc_.decode(buf)) != srs_success) {
                     return srs_error_wrap(err, "decode twcc extension");
@@ -408,7 +470,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer* buf)
                 }
                 buf->skip(len + 1);
             }
-        } else if (xtype == kRtpExtensionAudioLevel) {
+        } else if (xtype == kRtpExtSsrcAudioLevel) {
             if((err = audio_level_.decode(buf)) != srs_success) {
                 return srs_error_wrap(err, "decode audio level extension");
             }

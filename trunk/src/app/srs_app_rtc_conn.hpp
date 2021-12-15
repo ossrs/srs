@@ -404,6 +404,9 @@ private:
     SrsRtcVideoRecvTrack* get_video_track(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);
     void update_send_report_time(uint32_t ssrc, const SrsNtp& ntp, uint32_t rtp_time);
+
+public:
+    void bind_rid(const SrsRidInfo& rid_info);
 };
 
 // Callback for RTC connection.
@@ -480,8 +483,6 @@ private:
     SrsSdp remote_sdp;
     SrsSdp local_sdp;
 private:
-    // twcc handler
-    int twcc_id_;
     // Simulators.
     int nn_simulate_player_nack_drop;
     // Pithy print for address change, use port as error code.
@@ -575,6 +576,9 @@ private:
     srs_error_t generate_play_local_sdp(SrsRequest* req, SrsSdp& local_sdp, SrsRtcSourceDescription* stream_desc, bool unified_plan);
     srs_error_t create_player(SrsRequest* request, std::map<uint32_t, SrsRtcTrackDescription*> sub_relations);
     srs_error_t create_publisher(SrsRequest* request, SrsRtcSourceDescription* stream_desc);
+
+    srs_error_t parse_rid(char *buf, int size, uint32_t ssrc, SrsRtcPublishStream** ppublisher);
+    srs_error_t bind_rid(const SrsRidInfo &rid_info, SrsRtcPublishStream** ppublisher);
 };
 
 class ISrsRtcHijacker

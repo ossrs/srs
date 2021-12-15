@@ -2202,6 +2202,7 @@ SrsRtcTrackDescription* SrsRtcTrackDescription::copy()
     cp->red_ = red_ ? red_->copy():NULL;
     cp->rtx_ = rtx_ ? rtx_->copy():NULL;
     cp->ulpfec_ = ulpfec_ ? ulpfec_->copy():NULL;
+    cp->rid_ = rid_;
 
     return cp;
 }
@@ -2249,6 +2250,73 @@ SrsRtcTrackDescription* SrsRtcSourceDescription::find_track_description_by_ssrc(
     }
 
     return NULL;
+}
+
+// NOTE: helper of SrsRtcConnection::negotiate_publish_capability
+void SrsRtcSourceDescription::set_audio_track_desc(const SrsMediaDesc &remote_media_desc,
+                                                   SrsRtcTrackDescription *track_desc) {
+    for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+        const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+
+        // ssrc have same track id, will be description in the same track description.
+        if (!audio_track_desc_) {
+            SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+            track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+            track_desc_copy->id_ = ssrc_info.msid_tracker_;
+            track_desc_copy->msid_ = ssrc_info.msid_;
+            audio_track_desc_ = track_desc_copy;
+        }
+        srs_info("%d/%d#publish audio ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
+                 (int) remote_media_desc.ssrc_infos_.size(),
+                 ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+    }
+}
+
+// NOTE: helper of SrsRtcConnection::negotiate_publish_capability
+void SrsRtcSourceDescription::set_video_track_descs(const SrsMediaDesc &remote_media_desc,
+                                                    SrsRtcTrackDescription *track_desc) {
+    if (remote_media_desc.simulcast_spec_version()) {
+        // todo check simulcast kSimulcastApiVersionSpecCompliant
+        for (size_t i=0; i<remote_media_desc.session_info_.simulcast_.rids.size(); ++i) {
+            SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+            // NOTE: here ssrc is 0
+            // track_desc_copy->ssrc_ = 0;
+            track_desc_copy->id_ = remote_media_desc.msid_tracker_;
+            track_desc_copy->msid_ = remote_media_desc.msid_;
+            video_track_descs_.push_back(track_desc_copy);
+        }
+    } else {
+        string track_id;
+        for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
+            const SrsSSRCInfo& ssrc_info = remote_media_desc.ssrc_infos_.at(j);
+
+            // ssrc have same track id, will be description in the same track description.
+            if(track_id != ssrc_info.msid_tracker_) {
+                SrsRtcTrackDescription* track_desc_copy = track_desc->copy();
+                track_desc_copy->ssrc_ = ssrc_info.ssrc_;
+                track_desc_copy->id_ = ssrc_info.msid_tracker_;
+                track_desc_copy->msid_ = ssrc_info.msid_;
+                if (remote_media_desc.is_original_ssrc(&ssrc_info)) {
+                    // note: set ssrc related to single or simulcast(chrome munging style simulcast sdp)
+                    // todo: support standard simulcast, like "a=simulcast:send a;b;c"
+                    video_track_descs_.push_back(track_desc_copy);
+                    srs_info("%d/%d#publish video track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,(int)remote_media_desc.ssrc_infos_.size(),
+                             track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(), ssrc_info.msid_tracker_.c_str());
+                } else {
+                    srs_info("%d/%d#ignore track_id_=%s, ssrc_=%u, msid_=%s, msid_tracker_='%s'", j,
+                             (int) remote_media_desc.ssrc_infos_.size(),
+                             track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str(),
+                             ssrc_info.msid_tracker_.c_str());
+                }
+                track_id = ssrc_info.msid_tracker_;
+            } else {
+                srs_info("%d/%d#ignore track_id_/msid_tracker_=%s, ssrc_=%u, msid_=%s", j,
+                         (int) remote_media_desc.ssrc_infos_.size(),
+                         track_id.c_str(), ssrc_info.ssrc_, ssrc_info.msid_.c_str());
+                track_id = "";
+            }
+        }
+    }
 }
 
 SrsRtcRecvTrack::SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc, bool is_audio)
@@ -2430,6 +2498,24 @@ srs_error_t SrsRtcRecvTrack::do_check_send_nacks(uint32_t& timeout_nacks)
     session_->check_send_nacks(nack_receiver_, track_desc_->ssrc_, sent_nacks, timeout_nacks);
 
     return err;
+}
+
+bool SrsRtcRecvTrack::active_as(const SrsRidInfo &rid_info) {
+    if (track_desc_->ssrc_ > 0) {
+        return false;
+    }
+    track_desc_->ssrc_ = rid_info.ssrc;
+    track_desc_->rid_ = rid_info;
+
+    // TODO: Improve the generation of FEC SSRC and RTX SSRC
+    track_desc_->set_fec_ssrc(rid_info.ssrc + 1);
+    track_desc_->set_rtx_ssrc(rid_info.ssrc + 2);
+
+    // if (track_desc_->is_active_) {
+    //     return false;
+    // }
+    // track_desc_->is_active_ = true;
+    return true;
 }
 
 SrsRtcAudioRecvTrack::SrsRtcAudioRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* track_desc)

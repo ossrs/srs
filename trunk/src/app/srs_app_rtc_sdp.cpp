@@ -7,6 +7,8 @@
 #include <srs_app_rtc_sdp.hpp>
 
 #include <stdlib.h>
+#include <string.h> // for memset
+#include <arpa/inet.h> // for ntohs in linux
 
 #include <iostream>
 #include <sstream>
@@ -110,8 +112,29 @@ srs_error_t SrsSessionInfo::parse_attribute(const std::string& attribute, const 
     } else if (attribute == "setup") {
         // @see: https://tools.ietf.org/html/rfc4145#section-4
         setup_ = value;
+    } else if (attribute == "simulcast") {
+        // kSimulcastApiVersionSpecCompliant
+        // todo
+        // a=simulcast:send 0;1;2
+        // ignore attribute=simulcast, value=send 0;1;2
+        // ignore attribute=rid, value=0 send
+        // ignore attribute=rid, value=1 send
+        // ignore attribute=rid, value=2 send
+        std::istringstream is(value);
+        FETCH(is, simulcast_.direction);
+        FETCH(is, simulcast_.line);
+        srs_warn("kSimulcastApiVersionSpecCompliant parse: %s %s", simulcast_.direction.c_str(), simulcast_.line.c_str());
+    } else if (attribute == "rid") {
+        // a=rid:0 send
+        // a=rid:1 send
+        // a=rid:2 send
+        SrsRidInfo rid;
+        std::istringstream is(value);
+        FETCH(is, rid.rid);
+        FETCH(is, rid.direction);
+        simulcast_.rids.push_back(rid);
     } else {
-        srs_trace("ignore attribute=%s, value=%s", attribute.c_str(), value.c_str());
+        srs_trace("ignore attribute='%s', value='%s'", attribute.c_str(), value.c_str());
     }
 
     return err;
@@ -420,11 +443,19 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream& os)
         }
     }
 
-    for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
-        SrsSSRCInfo& ssrc_info = *iter;
+    if (simulcast_spec_version()) {
+        srs_warn("kSimulcastApiVersionSpecCompliant %s %s", session_info_.simulcast_.direction.c_str(), session_info_.simulcast_.line.c_str());
+        // todo check simulcast kSimulcastApiVersionSpecCompliant
+        if ((err = session_info_.simulcast_.encode(os)) != srs_success) {
+            return srs_error_wrap(err, "encode simulcast failed");
+        }
+    } else {
+        for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
+            SrsSSRCInfo &ssrc_info = *iter;
 
-        if ((err = ssrc_info.encode(os)) != srs_success) {
-            return srs_error_wrap(err, "encode ssrc failed");
+            if ((err = ssrc_info.encode(os)) != srs_success) {
+                return srs_error_wrap(err, "encode ssrc failed");
+            }
         }
     }
 
@@ -1177,3 +1208,19 @@ srs_error_t SrsSdp::update_msid(string id)
     return err;
 }
 
+srs_error_t SrsSimulcastInfo::encode(ostringstream &os) {
+    srs_error_t err = srs_success;
+
+    // a=simulcast:send 0;1;2
+    // a=rid:0 send
+    // a=rid:1 send
+    // a=rid:2 send
+    // check direction he rids rid.direction is send
+    for (size_t i=0; i<rids.size(); ++i) {
+        SrsRidInfo& rid = rids.at(i);
+        os << "a=rid:" << rid.rid << " recv" << kCRLF;
+    }
+    os << "a=simulcast:recv " << line << kCRLF;
+
+    return err;
+}
