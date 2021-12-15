@@ -46,6 +46,7 @@ function SrsRtcPublisherAsync() {
         var conf = self.__internal.prepareUrl(url);
         const parameter = QueryParameterByName('numberOfSimulcastLayers', conf.streamUrl);
         const numberOfSimulcastLayers = parseInt(parameter)
+        var forceSetBitrate = false
         if (numberOfSimulcastLayers > 1) {
             self.constraints.video = {  
                 wіdth: 1280, height: 720
@@ -56,6 +57,7 @@ function SrsRtcPublisherAsync() {
             self.constraints.video = {
                 wіdth: 1280, height: 720
             }
+            forceSetBitrate = true;
             console.log('kSimulcastApiVersionSpecCompliant')
         }
 
@@ -110,9 +112,24 @@ function SrsRtcPublisherAsync() {
                 reject(reason);
             });
         });
-        await self.pc.setRemoteDescription(
-            new RTCSessionDescription({type: 'answer', sdp: session.sdp})
-        );
+
+
+        if (forceSetBitrate) {
+            var arr = session.sdp.split('\r\n');
+            arr.forEach((str, i) => {
+                // TODO: FIXME: adapter to different browers.
+                if (/^a=fmtp:\d*/.test(str)) {
+                    arr[i] = str + ';x-google-min-bitrate=5000;x-google-max-bitrate=8000;x-google-start-bitrate=6000';
+                }
+            });
+            await self.pc.setRemoteDescription(
+                new RTCSessionDescription({type: 'answer', sdp: arr.join('\r\n')})
+            );
+        } else {
+            await self.pc.setRemoteDescription(
+                new RTCSessionDescription({type: 'answer', sdp: session.sdp})
+            );
+        }
         session.simulator = conf.schema + '//' + conf.urlObject.server + ':' + conf.port + '/rtc/v1/nack/';
 
         return session;

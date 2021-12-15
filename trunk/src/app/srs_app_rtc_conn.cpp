@@ -3224,9 +3224,6 @@ srs_error_t SrsRtcConnection::generate_publish_local_sdp(SrsRequest* req, SrsSdp
         }
 
         SrsVideoPayload* payload = (SrsVideoPayload*)video_track->media_;
-        if (srs_string_contains(req->param,"?numberOfSimulcastLayers=spec3")) {
-            payload->h264_param_.x_google_bitrate = "x-google-min-bitrate=5000;x-google-max-bitrate=8000;x-google-start-bitrate=6000";
-        }
         local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
 
         if (video_track->red_) {
