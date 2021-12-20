@@ -14,8 +14,10 @@
 [![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
 [![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
+[![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server/contribute)
+[![](https://badgen.net/badge/stackoverflow/srs/green?icon=wiki)](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 
-SRS/4.0，[Leo][release4]，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
+SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
@@ -83,9 +85,13 @@ Other important wiki:
 
 ## AUTHORS
 
-![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)
+Thank you to all our contributors! 🙏
 
-There are two types of people that have contributed to the SRS project:
+[![](https://opencollective.com/srs-server/contributors.svg?width=800&button=false)](https://opencollective.com/srs-server/contribute)
+
+> Note: You may provide financial support for this project by donating [via Open Collective](https://opencollective.com/srs-server/contribute). Thank you for your support!
+
+There are two types of people that have contributed code to the SRS project:
 
 * Maintainers: Contribute and maintain important features. SRS always remembers and thanks you by writing your names in stream metadata.
 * [Contributors][authors]: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS much better.
@@ -110,7 +116,8 @@ A big THANK YOU goes to:
 
 ## Releases
 
-* 2021-12-01, Release [v4.0-b0][https://github.com/ossrs/srs/releases/tag/v4.0-b0], v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
+* 2021-12-19, Release [v4.0-b1](https://github.com/ossrs/srs/releases/tag/v4.0-b1), v4.0-b1, 4.0 beta1, v4.0.206, 144126 lines.
+* 2021-12-01, Release [v4.0-b0](https://github.com/ossrs/srs/releases/tag/v4.0-b0), v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.
 * 2021-11-15, Release [v4.0.198](https://github.com/ossrs/srs/releases/tag/v4.0.198), 4.0 dev8, v4.0.198, 144010 lines.
 * 2021-11-02, Release [v4.0.191](https://github.com/ossrs/srs/releases/tag/v4.0.191), 4.0 dev7, v4.0.191, 143890 lines.
 * 2021-10-12, Release [v4.0.177](https://github.com/ossrs/srs/releases/tag/v4.0.177), 4.0 dev6, v4.0.177, 143686 lines.
@@ -404,6 +411,3 @@ Winlin
 [LICENSE]: https://github.com/ossrs/srs/blob/4.0release/LICENSE
 [LicenseMixing]: https://github.com/ossrs/srs/wiki/LicenseMixing
 
-[release2]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release20
-[release3]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release30
-[release4]: https://github.com/ossrs/srs/wiki/v4_CN_Product#release40
