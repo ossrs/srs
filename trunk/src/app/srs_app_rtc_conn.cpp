@@ -3230,6 +3230,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("video", "AV1");
+            if (track_descs.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                track_descs = source->get_track_desc("video", "AV1X");
+            }
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
