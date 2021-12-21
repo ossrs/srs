@@ -1776,8 +1776,9 @@ bool SrsRtmpFromRtcBridger::check_frame_complete(const uint16_t start, const uin
 
 extern srs_error_t do_bridger_for_single(SrsRtmpFromRtcBridger *&bridger, SrsRequest *r);
 
+// NOTE: One simulcast(low,mid,high) stream to Multiple rtmp streams (rtmp://xxx_{low,mid,high})
 std::string update_stream(size_t i, const SrsRtcTrackDescription* track_desc, const SrsRequest* rr) {
-    auto ext = track_desc->rid_.rid;
+    std::string ext = track_desc->rid_.rid;
     if (ext.empty()) {
         ext = std::to_string(i);
     }
@@ -1790,12 +1791,12 @@ struct BridgerContext {
     SrsRtmpFromRtcBridger* bridger;
 
     srs_error_t create_bridger(size_t i, SrsRequest* rr) {
-        assert(!bridger);
-        assert(!r);
-        assert(rr);
+        srs_assert(!bridger);
+        srs_assert(!r);
+        srs_assert(rr);
         r = rr->copy();
         r->stream = update_stream(i, track_desc, rr);
-        auto err = do_bridger_for_single(bridger, r);
+        srs_error_t err = do_bridger_for_single(bridger, r);
         if (err != srs_success) {
             return srs_error_wrap(err, "do_bridger_for_single");
         }
@@ -1816,7 +1817,7 @@ struct BridgerContext {
 };
 
 class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
-    SrsRequest* r{nullptr};
+    SrsRequest* r;
     std::vector<BridgerContext> contexts_;
     std::map<uint32_t, SrsRtmpFromRtcBridger*> bridgers_;
     std::vector<SrsLiveSource*> sources_;
@@ -1829,8 +1830,9 @@ class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
         }
 
         SrsCommonMessage copy;
-        for (auto& source: sources_) {
-            assert(rtmp->payload);
+        for (size_t i=0; i<sources_.size(); ++i) {
+            srs_assert(rtmp->payload);
+            SrsLiveSource* source = sources_.at(i);
 
             // backup
             // @see SrsSharedPtrMessage::create(SrsCommonMessage* msg)
@@ -1852,22 +1854,22 @@ class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
 
     srs_error_t dispatch_video(SrsRtpPacket* pkt) {
         srs_error_t err = srs_success;
-        auto ssrc = pkt->header.get_ssrc();
+        uint32_t ssrc = pkt->header.get_ssrc();
         if (bridgers_.end() != bridgers_.find(ssrc)) {
             return bridgers_[ssrc]->packet_video(pkt);
         }
 
         for (size_t i =0; i<contexts_.size(); i++) {
-            auto& ctx = contexts_[i];
+            BridgerContext& ctx = contexts_.at(i);
             if (!ctx.track_desc->has_ssrc(ssrc)) {
                 continue;
             }
             if (!ctx.bridger && (err = ctx.create_bridger(i, r)) != srs_success) {
                 return srs_error_wrap(err, "BridgerContext::create_bridger");
             }
-            assert(ctx.bridger);
+            srs_assert(ctx.bridger);
             bridgers_[ssrc] = ctx.bridger;
-            auto b = (SimulcastBridgerAdapter*)ctx.bridger;
+            SimulcastBridgerAdapter* b = (SimulcastBridgerAdapter*)ctx.bridger;
             sources_.push_back(b->source_);
             return ctx.bridger->packet_video(pkt);
         }
@@ -1875,9 +1877,10 @@ class SimulcastBridgerAdapter: public SrsRtmpFromRtcBridger {
     }
 
 public:
-    SimulcastBridgerAdapter(std::vector<SrsRtcVideoRecvTrack*>& video_tracks): SrsRtmpFromRtcBridger(nullptr) {
-        for (auto& track: video_tracks) {
-            contexts_.emplace_back(BridgerContext{track->track_desc_, nullptr, nullptr});
+    SimulcastBridgerAdapter(std::vector<SrsRtcVideoRecvTrack*>& video_tracks): SrsRtmpFromRtcBridger(NULL), r(NULL) {
+        for (size_t i=0; i<video_tracks.size(); ++i) {
+            SrsRtcVideoRecvTrack* track = video_tracks.at(i);
+            contexts_.emplace_back(BridgerContext{track->track_desc_, NULL, NULL});
         }
     }
 
@@ -1952,7 +1955,8 @@ public:
     }
 
     void on_unpublish() override {
-        for (auto& ctx: contexts_) {
+        for (size_t i=0;i<contexts_.size(); ++i) {
+            BridgerContext& ctx = contexts_.at(i);
             ctx.clear();
         }
         srs_freep(r);
