@@ -1,3 +1,10 @@
+# TuringVideo Release Histroy
+v4.0-b1-tv0.0.1
+* release time: 2021-12-22@CN
+* base commit: 3188c772b128120452c3019a5c016cf0c259e6cf
+* turing fix: TC-428
+
+
 # SRS(Simple Realtime Server)
 
 ![](http://ossrs.net/gif/v1/sls.gif?site=github.com&path=/srs/4.0release)
