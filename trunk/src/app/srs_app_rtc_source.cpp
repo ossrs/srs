@@ -2516,8 +2516,6 @@ srs_error_t SrsRtcVideoRecvTrack::on_rtp(SrsRtcSource* source, SrsRtpPacket* pkt
 {
     srs_error_t err = srs_success;
 
-    pkt->frame_type = SrsFrameTypeVideo;
-
     pkt->set_avsync_time(cal_avsync_time(pkt->header.get_timestamp()));
 
     if ((err = source->on_rtp(pkt)) != srs_success) {
