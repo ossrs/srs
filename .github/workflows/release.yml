@@ -145,7 +145,7 @@ jobs:
             * [中文Wiki首页](https://github.com/ossrs/srs/wiki/v4_CN_Home) or [Wiki home](https://github.com/ossrs/srs/wiki/v4_EN_Home)
             * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/4.0release/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/4.0release/trunk/doc/CHANGELOG.md#changelog)
           draft: false
-          prerelease: true
+          prerelease: false
       # Upload release source files
       - name: Upload Release Assets Source
         id: upload-release-assets-source
