@@ -36,6 +36,7 @@ class SrsMp4AvccBox;
 class SrsMp4AudioSampleEntry;
 class SrsMp4EsdsBox;
 class SrsMp4ChunkOffsetBox;
+class SrsMp4ChunkLargeOffsetBox;
 class SrsMp4SampleSizeBox;
 class SrsMp4Sample2ChunkBox;
 class SrsMp4DecodingTime2SampleBox;
@@ -1188,6 +1189,9 @@ public:
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
     virtual void set_stco(SrsMp4ChunkOffsetBox* v);
+    // Get the chunk large offset box.
+    virtual SrsMp4ChunkLargeOffsetBox* co64();
+    virtual void set_co64(SrsMp4ChunkLargeOffsetBox* v);
     // Get the sample size box.
     virtual SrsMp4SampleSizeBox* stsz();
     virtual void set_stsz(SrsMp4SampleSizeBox* v);
@@ -1902,7 +1906,7 @@ public:
 private:
     virtual srs_error_t write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
-        SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco);
+        SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4FullBox* co);
     virtual srs_error_t do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
 private:
     // Load the samples of track from stco, stsz and stsc.
