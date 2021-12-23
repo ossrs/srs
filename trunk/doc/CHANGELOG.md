@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-12-23, For [#2800](https://github.com/ossrs/srs/issues/2800), Fix bug for large mp4(5G+) offset. (#2800). v4.0.210
 * v4.0, 2021-12-23, For [#2807](https://github.com/ossrs/srs/issues/2807), Fix bug for HLS log printing. (#2807). v4.0.209
 * v4.0, 2021-12-23, For [#2711](https://github.com/ossrs/srs/pull/2711), Refine the default config file. (#2711). v4.0.208
 * v4.0, 2021-12-20, Merge [#2784](https://github.com/ossrs/srs/pull/2784): RTC: Support payload name AV1X/AV1. (#2784)(#2760). v4.0.207
