@@ -755,7 +755,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     // check the bytes send and content length.
     written += size;
     if (content_length != -1 && written > content_length) {
-        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow writen=%d, max=%d", (int)written, (int)content_length);
+        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow writen=%" PRId64 ", max=%" PRId64, written, content_length);
     }
     
     // ignore NULL content.
