@@ -1010,7 +1010,7 @@ srs_error_t SrsRtcpTWCC::process_pkt_chunk(SrsRtcpTWCC::SrsRtcpTWCCChunk& chunk,
     size_t needed_chunk_size = chunk.size == 0 ? kTwccFbChunkBytes : 0;
 
     size_t might_occupied = pkt_len + needed_chunk_size + delta_size;
-    if (might_occupied > kRtcpPacketSize) {
+    if (might_occupied > (size_t)kRtcpPacketSize) {
         return srs_error_new(ERROR_RTC_RTCP, "might_occupied %zu", might_occupied);
     }
 
