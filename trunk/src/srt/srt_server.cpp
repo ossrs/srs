@@ -323,7 +323,7 @@ srs_error_t SrtServerAdapter::initialize()
     return err;
 }
 
-srs_error_t SrtServerAdapter::run()
+srs_error_t SrtServerAdapter::run(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 

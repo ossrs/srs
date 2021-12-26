@@ -195,17 +195,20 @@ srs_error_t SrsHybridServer::run()
 {
     srs_error_t err = srs_success;
 
+    // Wait for all servers which need to do cleanup.
+    SrsWaitGroup wg;
+
     vector<ISrsHybridServer*>::iterator it;
     for (it = servers.begin(); it != servers.end(); ++it) {
         ISrsHybridServer* server = *it;
 
-        if ((err = server->run()) != srs_success) {
+        if ((err = server->run(&wg)) != srs_success) {
             return srs_error_wrap(err, "run server");
         }
     }
 
     // Wait for all server to quit.
-    srs_usleep(SRS_UTIME_NO_TIMEOUT);
+    wg.wait();
 
     return err;
 }

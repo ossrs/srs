@@ -583,7 +583,7 @@ function check_option_conflicts() {
     fi
     if [[ $SRS_GPERF_MC = YES && $SRS_GPERF_MP = YES ]]; then
         echo "gperf-mc not compatible with gperf-mp, see: ./configure --help";
-        echo "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html";
+        echo "@see: https://gperftools.github.io/gperftools/heap_checker.html";
         echo "Note that since the heap-checker uses the heap-profiling framework internally, it is not possible to run both the heap-checker and heap profiler at the same time";
         __check_ok=NO
     fi

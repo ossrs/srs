@@ -41,10 +41,10 @@ opus-1.3.1.tar.gz
 gtest-1.6.0.zip
 * google test framework.
 * https://code.google.com/p/googletest/downloads/list
-    
-gperftools-2.1.zip
+
+gperftools-2-fit
 * gperf tools for performance benchmark.
-* https://code.google.com/p/gperftools/downloads/list
+* https://github.com/gperftools/gperftools/releases/tag/gperftools-2.9.1
 
 st-srs
 st-1.9.zip
