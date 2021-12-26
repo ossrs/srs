@@ -19,11 +19,6 @@
 #include <iomanip>
 using namespace std;
 
-// For CentOS 6 or C++98, @see https://github.com/ossrs/srs/issues/2815
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
-
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
 
