@@ -612,14 +612,6 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "The api installed, to link and start srs, please"
-	@echo "For CentOS6:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
-	@echo "     /etc/init.d/srs start"
-	@echo "For CentOS7:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
-	@echo "     sudo cp -f \$(SRS_PREFIX)/usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service && sudo systemctl daemon-reload && sudo systemctl enable srs &&"
-	@echo "     sudo systemctl start srs"
 	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
 
 END
