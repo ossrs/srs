@@ -56,7 +56,7 @@ SrsVodStream::~SrsVodStream()
     map_ctx_info_.clear();
 }
 
-srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
+srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
     
@@ -69,7 +69,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     if (offset > fs->filesize()) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%d",
+        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%" PRId64,
             fullpath.c_str(), fs->filesize(), offset);
     }
     
@@ -112,7 +112,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     int64_t left = fs->filesize() - offset;
     
     // write http header for ts.
-    w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
+    w->header()->set_content_length(sizeof(flv_header) + sh_size + left);
     w->header()->set_content_type("video/x-flv");
     w->write_header(SRS_CONSTS_HTTP_OK);
     
@@ -130,14 +130,14 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     // send data
-    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), (int)left);
+    if ((err = copy(w, fs, r, left)) != srs_success) {
+        return srs_error_wrap(err, "read flv=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
     return err;
 }
 
-srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
+srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t start, int64_t end)
 {
     srs_error_t err = srs_success;
     
@@ -154,7 +154,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     // parse -1 to whole file.
     if (end == -1) {
-        end = (int)(fs->filesize() - 1);
+        end = fs->filesize() - 1;
     }
     
     if (end > fs->filesize() || start > end || end < 0) {
@@ -180,8 +180,8 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     fs->seek2(start);
     
     // send data
-    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), (int)left);
+    if ((err = copy(w, fs, r, left)) != srs_success) {
+        return srs_error_wrap(err, "read mp4=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
     return err;

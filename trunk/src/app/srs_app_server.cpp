@@ -242,6 +242,8 @@ SrsSignalManager::SrsSignalManager(SrsServer* s)
 
 SrsSignalManager::~SrsSignalManager()
 {
+    srs_freep(trd);
+
     srs_close_stfd(signal_read_stfd);
     
     if (sig_pipe[0] > 0) {
@@ -250,8 +252,6 @@ SrsSignalManager::~SrsSignalManager()
     if (sig_pipe[1] > 0) {
         ::close(sig_pipe[1]);
     }
-    
-    srs_freep(trd);
 }
 
 srs_error_t SrsSignalManager::initialize()
@@ -528,6 +528,7 @@ SrsServer::SrsServer()
     ingester = new SrsIngester();
     trd_ = new SrsSTCoroutine("srs", this, _srs_context->get_id());
     timer_ = NULL;
+    wg_ = NULL;
 }
 
 SrsServer::~SrsServer()
@@ -900,7 +901,7 @@ srs_error_t SrsServer::ingest()
     return err;
 }
 
-srs_error_t SrsServer::start()
+srs_error_t SrsServer::start(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 
@@ -916,31 +917,25 @@ srs_error_t SrsServer::start()
         return srs_error_wrap(err, "tick");
     }
 
+    // OK, we start SRS server.
+    wg_ = wg;
+    wg->add(1);
+
     return err;
 }
 
-srs_error_t SrsServer::cycle()
+void SrsServer::stop()
 {
-    srs_error_t err = srs_success;
-
-    // Start the inotify auto reload by watching config file.
-    SrsInotifyWorker inotify(this);
-    if ((err = inotify.start()) != srs_success) {
-        return srs_error_wrap(err, "start inotify");
-    }
-
-    // Do server main cycle.
-     err = do_cycle();
-    
 #ifdef SRS_GPERF_MC
-    destroy();
-    
+    dispose();
+
     // remark, for gmc, never invoke the exit().
     srs_warn("sleep a long time for system st-threads to cleanup.");
     srs_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
 
-    return err;
+    // For GCM, cleanup done.
+    return;
 #endif
 
     // quit normally.
@@ -959,12 +954,27 @@ srs_error_t SrsServer::cycle()
     }
 
     srs_trace("srs terminated");
-    
+
     // for valgrind to detect.
     srs_freep(_srs_config);
     srs_freep(_srs_log);
+}
 
-    exit(0);
+srs_error_t SrsServer::cycle()
+{
+    srs_error_t err = srs_success;
+
+    // Start the inotify auto reload by watching config file.
+    SrsInotifyWorker inotify(this);
+    if ((err = inotify.start()) != srs_success) {
+        return srs_error_wrap(err, "start inotify");
+    }
+
+    // Do server main cycle.
+     err = do_cycle();
+
+    // OK, SRS server is done.
+    wg_->done();
 
     return err;
 }
