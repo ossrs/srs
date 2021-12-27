@@ -384,6 +384,10 @@ fi
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
+# For Ubuntu, the epoll detection might be fail.
+if [[ $OS_IS_UBUNTU == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_EPOLL"
+fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
