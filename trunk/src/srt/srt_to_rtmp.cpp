@@ -14,8 +14,6 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_stream.hpp>
-#include <list>
-#include <sstream>
 
 std::shared_ptr<srt2rtmp> srt2rtmp::s_srt2rtmp_ptr;
 
