@@ -1778,11 +1778,15 @@ extern srs_error_t do_bridger_for_single(SrsRtmpFromRtcBridger *&bridger, SrsReq
 
 // NOTE: One simulcast(low,mid,high) stream to Multiple rtmp streams (rtmp://xxx_{low,mid,high})
 std::string update_stream(size_t i, const SrsRtcTrackDescription* track_desc, const SrsRequest* rr) {
-    std::string ext = track_desc->rid_.rid;
+    std::stringstream name;
+    name << rr->stream << '_';
+    const std::string& ext = track_desc->rid_.rid;
     if (ext.empty()) {
-        ext = std::to_string(i);
+        name << i;
+    } else {
+        name << ext;
     }
-    return rr->stream + "_" + ext;
+    return name.str();
 }
 
 struct BridgerContext {
@@ -1880,7 +1884,7 @@ public:
     SimulcastBridgerAdapter(std::vector<SrsRtcVideoRecvTrack*>& video_tracks): SrsRtmpFromRtcBridger(NULL), r(NULL) {
         for (size_t i=0; i<video_tracks.size(); ++i) {
             SrsRtcVideoRecvTrack* track = video_tracks.at(i);
-            contexts_.emplace_back(BridgerContext{track->track_desc_, NULL, NULL});
+            contexts_.push_back(BridgerContext{track->track_desc_, NULL, NULL});
         }
     }
 
