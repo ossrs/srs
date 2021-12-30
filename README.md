@@ -5,11 +5,11 @@
 [![](https://github.com/ossrs/srs/actions/workflows/release.yml/badge.svg)](https://github.com/ossrs/srs/actions/workflows/release.yml?query=workflow%3ARelease)
 [![](https://github.com/ossrs/srs/actions/workflows/test.yml/badge.svg?branch=4.0release)](https://github.com/ossrs/srs/actions?query=workflow%3ATest+branch%3A4.0release)
 [![](https://codecov.io/gh/ossrs/srs/branch/4.0release/graph/badge.svg)](https://codecov.io/gh/ossrs/srs/branch/4.0release)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/mulan-incubating.svg)](http://mulanos.cn)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-alternativeto.svg)](https://alternativeto.net/software/srs/about/)
-[![](https://gitee.com/winlinvip/srs-wiki/raw/master/images/srs-facebook.svg)](https://www.facebook.com/winlinvip)
+[![](https://ossrs.net/wiki/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
+[![](https://ossrs.net/wiki/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
+[![](https://ossrs.net/wiki/images/mulan-incubating.svg)](http://mulanos.cn)
+[![](https://ossrs.net/wiki/images/srs-alternativeto.svg)](https://alternativeto.net/software/srs/about/)
+[![](https://ossrs.net/wiki/images/srs-facebook.svg)](https://www.facebook.com/winlinvip)
 [![](https://badgen.net/twitter/follow/winlinvip)](https://twitter.com/winlinvip)
 [![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
 [![](https://img.shields.io/twitch/status/winlinvip?style=social)](https://www.twitch.tv/winlinvip)
@@ -21,7 +21,7 @@ SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
-[![SRS Overview](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)](https://gitee.com/winlinvip/srs-wiki/raw/master/images/SRS-Overview-4.0.png)
+[![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
 
 > Note: Please see https://www.processon.com/view/link/619f29791efad425fd699fd2
 
