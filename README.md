@@ -21,7 +21,7 @@ SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
+[![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png?v=100)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
 
 > Note: Please see https://www.processon.com/view/link/619f29791efad425fd699fd2
 
