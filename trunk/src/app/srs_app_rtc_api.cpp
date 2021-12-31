@@ -185,6 +185,14 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
     }
 
+    // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
+    if (!_srs_config->get_rtc_to_rtmp(ruc.req_->vhost)) {
+        SrsLiveSource* rtmp = _srs_sources->fetch(ruc.req_);
+        if (!rtmp->inactive()) {
+            return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc.req_->vhost.c_str());
+        }
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
