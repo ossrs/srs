@@ -414,8 +414,8 @@ srs_error_t SrsEdgeIngester::initialize(SrsLiveSource* s, SrsPlayEdge* e, SrsReq
 srs_error_t SrsEdgeIngester::start()
 {
     srs_error_t err = srs_success;
-    
-    if ((err = source->on_publish()) != srs_success) {
+    std::string stream_id;
+    if ((err = source->on_publish(stream_id)) != srs_success) {
         return srs_error_wrap(err, "notify source");
     }
     

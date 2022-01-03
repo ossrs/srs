@@ -2475,7 +2475,7 @@ srs_error_t SrsLiveSource::on_aggregate(SrsCommonMessage* msg)
     return err;
 }
 
-srs_error_t SrsLiveSource::on_publish()
+srs_error_t SrsLiveSource::on_publish(std::string& stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -2517,7 +2517,7 @@ srs_error_t SrsLiveSource::on_publish()
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(req, _source_id.c_str());
+    stat->on_stream_publish(req, _source_id.c_str(), stream_id);
     
     return err;
 }

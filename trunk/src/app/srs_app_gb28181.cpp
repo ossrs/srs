@@ -998,8 +998,8 @@ srs_error_t SrsGb28181RtmpMuxer::initialize(SrsServer *s, SrsRequest* r)
         source->set_bridger(bridger);
     }
 #endif
-
-    if ((err = source->on_publish()) != srs_success) {
+    std::string stream_id;
+    if ((err = source->on_publish(stream_id)) != srs_success) {
         return srs_error_wrap(err, "on publish");
     }
 

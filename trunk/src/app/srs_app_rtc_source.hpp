@@ -221,7 +221,7 @@ public:
     // For RTC, the stream is created when SDP is done, and then do DTLS
     virtual void set_stream_created();
     // When start publish stream.
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(std::string& stream_id);
     // When stop publish stream.
     virtual void on_unpublish();
 public:

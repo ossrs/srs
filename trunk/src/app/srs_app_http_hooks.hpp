@@ -39,7 +39,7 @@ public:
     // The on_publish hook, when client(encoder) start to publish stream
     // @param url the api server url, to valid the client.
     //         ignore if empty.
-    static srs_error_t on_publish(std::string url, SrsRequest* req);
+    static srs_error_t on_publish(std::string url, SrsRequest* req, std::string stream_id);
     // The on_unpublish hook, when client(encoder) stop publish stream.
     // @param url the api server url, to process the event.
     //         ignore if empty.

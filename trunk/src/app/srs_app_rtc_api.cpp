@@ -387,10 +387,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
-    }
-
     // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
@@ -463,6 +459,10 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
 
+    if ((err = http_hooks_on_publish(ruc.req_, session->get_id().c_str())) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
+    }
+
     return err;
 }
 
@@ -495,7 +495,7 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
     return err;
 }
 
-srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
+srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req, std::string stream_id)
 {
     srs_error_t err = srs_success;
 
@@ -520,7 +520,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
+        if ((err = SrsHttpHooks::on_publish(url, req,stream_id)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }

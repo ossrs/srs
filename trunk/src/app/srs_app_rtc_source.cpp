@@ -516,7 +516,7 @@ void SrsRtcSource::set_stream_created()
     is_created_ = true;
 }
 
-srs_error_t SrsRtcSource::on_publish()
+srs_error_t SrsRtcSource::on_publish(std::string& stream_id)
 {
     srs_error_t err = srs_success;
 
@@ -547,7 +547,7 @@ srs_error_t SrsRtcSource::on_publish()
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_stream_publish(req, _source_id.c_str());
+    stat->on_stream_publish(req, _source_id.c_str(), stream_id);
 
     return err;
 }
@@ -775,9 +775,9 @@ srs_error_t SrsRtcFromRtmpBridger::on_publish()
     if (!rtmp_to_rtc) {
         return err;
     }
-
+    std::string stream_id;
     // TODO: FIXME: Should sync with bridger?
-    if ((err = source_->on_publish()) != srs_success) {
+    if ((err = source_->on_publish(stream_id)) != srs_success) {
         return srs_error_wrap(err, "source publish");
     }
 
@@ -1319,9 +1319,9 @@ srs_error_t SrsRtmpFromRtcBridger::on_publish()
 
     is_first_audio = true;
     is_first_video = true;
-
+    std::string stream_id;
     // TODO: FIXME: Should sync with bridger?
-    if ((err = source_->on_publish()) != srs_success) {
+    if ((err = source_->on_publish(stream_id)) != srs_success) {
         return srs_error_wrap(err, "source publish");
     }
 

@@ -117,7 +117,7 @@ void SrsHttpHooks::on_close(string url, SrsRequest* req, int64_t send_bytes, int
     return;
 }
 
-srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
+srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req, std::string stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -137,7 +137,8 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
-    
+    obj->set("stream_id", SrsJsonAny::str(stream_id.c_str()));
+
     std::string data = obj->dumps();
     std::string res;
     int status_code;

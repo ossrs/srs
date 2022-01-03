@@ -44,7 +44,7 @@ private:
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, SrsJsonObject* res);
     srs_error_t check_remote_sdp(const SrsSdp& remote_sdp);
 private:
-    virtual srs_error_t http_hooks_on_publish(SrsRequest* req);
+    virtual srs_error_t http_hooks_on_publish(SrsRequest* req, std::string stream_id);
 };
 
 class SrsGoApiRtcNACK : public ISrsHttpHandler

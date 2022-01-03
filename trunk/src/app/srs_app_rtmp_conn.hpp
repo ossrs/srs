@@ -146,8 +146,8 @@ private:
     virtual srs_error_t playing(SrsLiveSource* source);
     virtual srs_error_t do_playing(SrsLiveSource* source, SrsLiveConsumer* consumer, SrsQueueRecvThread* trd);
     virtual srs_error_t publishing(SrsLiveSource* source);
-    virtual srs_error_t do_publishing(SrsLiveSource* source, SrsPublishRecvThread* trd);
-    virtual srs_error_t acquire_publish(SrsLiveSource* source);
+    virtual srs_error_t do_publishing(SrsLiveSource* source, SrsPublishRecvThread* trd, std::string& stream_id);
+    virtual srs_error_t acquire_publish(SrsLiveSource* source, std::string& stream_id);
     virtual void release_publish(SrsLiveSource* source);
     virtual srs_error_t handle_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
     virtual srs_error_t process_publish_message(SrsLiveSource* source, SrsCommonMessage* msg);
@@ -163,7 +163,7 @@ private:
 private:
     virtual srs_error_t http_hooks_on_connect();
     virtual void http_hooks_on_close();
-    virtual srs_error_t http_hooks_on_publish();
+    virtual srs_error_t http_hooks_on_publish(std::string stream_id);
     virtual void http_hooks_on_unpublish();
     virtual srs_error_t http_hooks_on_play();
     virtual void http_hooks_on_stop();

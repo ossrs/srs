@@ -154,7 +154,7 @@ public:
     // When publish stream.
     // @param req the request object of publish connection.
     // @param publisher_id The id of publish connection.
-    virtual void on_stream_publish(SrsRequest* req, std::string publisher_id);
+    virtual void on_stream_publish(SrsRequest* req, std::string publisher_id, std::string& stream_id);
     // When close stream.
     virtual void on_stream_close(SrsRequest* req);
 public:
@@ -163,7 +163,7 @@ public:
     // @param req, the client request object.
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
-    virtual srs_error_t on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type);
+    virtual srs_error_t on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type, std::string& stream_id);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
@@ -191,7 +191,7 @@ public:
     virtual srs_error_t dumps_clients(SrsJsonArray* arr, int start, int count);
 private:
     virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
-    virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
+    virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req, std::string& stream_id);
 };
 
 #endif

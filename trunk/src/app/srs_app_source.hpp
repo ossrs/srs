@@ -576,7 +576,7 @@ public:
     // Publish stream event notify.
     // @param _req the request from client, the source will deep copy it,
     //         for when reload the request of client maybe invalid.
-    virtual srs_error_t on_publish();
+    virtual srs_error_t on_publish(std::string& stream_id);
     virtual void on_unpublish();
 public:
     // Create consumer

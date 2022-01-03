@@ -694,7 +694,8 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
 
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+    std::string stream_id;
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type, stream_id)) != srs_success) {
         return srs_error_wrap(err, "rtmp: stat client");
     }
     
@@ -825,17 +826,18 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
-    
-    if ((err = http_hooks_on_publish()) != srs_success) {
-        return srs_error_wrap(err, "rtmp: callback on publish");
-    }
-    
+    std::string stream_id = "vid-" + srs_random_str(7);
+
     // TODO: FIXME: Should refine the state of publishing.
-    if ((err = acquire_publish(source)) == srs_success) {
+    if ((err = acquire_publish(source, stream_id)) == srs_success) {
+
+        if ((err = http_hooks_on_publish(stream_id)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: callback on publish");
+        }
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source, _srs_context->get_id());
-        err = do_publishing(source, &rtrd);
+        err = do_publishing(source, &rtrd, stream_id);
         rtrd.stop();
     }
     
@@ -853,7 +855,7 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
     return err;
 }
 
-srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThread* rtrd)
+srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThread* rtrd, std::string& stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -863,7 +865,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
 
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type, stream_id)) != srs_success) {
         return srs_error_wrap(err, "rtmp: stat client");
     }
 
@@ -940,7 +942,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     return err;
 }
 
-srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
+srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source, std::string& stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -995,7 +997,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     if (info->edge) {
         return source->on_edge_start_publish();
     } else {
-        return source->on_publish();
+        return source->on_publish(stream_id);
     }
 }
 
@@ -1318,7 +1320,7 @@ void SrsRtmpConn::http_hooks_on_close()
     }
 }
 
-srs_error_t SrsRtmpConn::http_hooks_on_publish()
+srs_error_t SrsRtmpConn::http_hooks_on_publish(std::string stream_id)
 {
     srs_error_t err = srs_success;
     
@@ -1327,7 +1329,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
     if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         return err;
     }
-    
+
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
     // @see https://github.com/ossrs/srs/issues/475
@@ -1345,7 +1347,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
     
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = SrsHttpHooks::on_publish(url, req)) != srs_success) {
+        if ((err = SrsHttpHooks::on_publish(url, req, stream_id)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }

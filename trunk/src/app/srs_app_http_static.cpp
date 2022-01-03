@@ -251,7 +251,8 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
 
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(ctx, req, NULL, SrsRtmpConnPlay)) != srs_success) {
+    std::string stream_id;
+    if ((err = stat->on_client(ctx, req, NULL, SrsRtmpConnPlay,stream_id)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 

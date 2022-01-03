@@ -590,7 +590,8 @@ srs_error_t SrsRtcPlayStream::start()
 	
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+    std::string stream_id;
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay, stream_id)) != srs_success) {
 	return srs_error_wrap(err, "rtc: stat client");
     }
 
@@ -1221,8 +1222,8 @@ srs_error_t SrsRtcPublishStream::start()
     if (is_started) {
         return err;
     }
-
-    if ((err = source->on_publish()) != srs_success) {
+    std::string stream_id;
+    if ((err = source->on_publish(stream_id)) != srs_success) {
         return srs_error_wrap(err, "on publish");
     }
 
@@ -1238,7 +1239,7 @@ srs_error_t SrsRtcPublishStream::start()
 	
     // update the statistic when client discoveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPublish)) != srs_success) {
+    if ((err = stat->on_client(cid_.c_str(), req_, session_, SrsRtcConnPublish, stream_id)) != srs_success) {
         return srs_error_wrap(err, "rtc: stat client");
     }
 

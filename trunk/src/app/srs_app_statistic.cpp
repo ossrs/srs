@@ -307,9 +307,9 @@ SrsStatisticClient* SrsStatistic::find_client(string client_id)
 srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level, int width, int height)
 {
     srs_error_t err = srs_success;
-    
+    std::string stream_id;
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
     
     stream->has_video = true;
     stream->vcodec = vcodec;
@@ -325,9 +325,9 @@ srs_error_t SrsStatistic::on_video_info(SrsRequest* req, SrsVideoCodecId vcodec,
 srs_error_t SrsStatistic::on_audio_info(SrsRequest* req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type, SrsAacObjectType aac_object)
 {
     srs_error_t err = srs_success;
-    
+    std::string stream_id;
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
     
     stream->has_audio = true;
     stream->acodec = acodec;
@@ -341,27 +341,29 @@ srs_error_t SrsStatistic::on_audio_info(SrsRequest* req, SrsAudioCodecId acodec,
 srs_error_t SrsStatistic::on_video_frames(SrsRequest* req, int nb_frames)
 {
     srs_error_t err = srs_success;
-    
+    std::string stream_id;
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
     
     stream->nb_frames += nb_frames;
     
     return err;
 }
 
-void SrsStatistic::on_stream_publish(SrsRequest* req, std::string publisher_id)
+void SrsStatistic::on_stream_publish(SrsRequest* req, std::string publisher_id, std::string& stream_id)
 {
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
+    srs_error("srs_app_statistic.cpp SrsStatistic::on_stream_publish stream_id %s",stream_id.c_str());
     
     stream->publish(publisher_id);
 }
 
 void SrsStatistic::on_stream_close(SrsRequest* req)
 {
+    std::string stream_id;
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
     stream->close();
     
     // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
@@ -381,13 +383,13 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     }
 }
 
-srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
+srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type, std::string& stream_id)
 {
     srs_error_t err = srs_success;
 
     SrsStatisticVhost* vhost = create_vhost(req);
-    SrsStatisticStream* stream = create_stream(vhost, req);
-    
+    SrsStatisticStream* stream = create_stream(vhost, req, stream_id);
+    srs_error("on_client开始创建流  stream_id :  %s", stream_id.c_str());
     // create client if not exists
     SrsStatisticClient* client = NULL;
     if (clients.find(id) == clients.end()) {
@@ -559,7 +561,7 @@ SrsStatisticVhost* SrsStatistic::create_vhost(SrsRequest* req)
     return vhost;
 }
 
-SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsRequest* req)
+SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsRequest* req, std::string& stream_id)
 {
     std::string url = req->get_stream_url();
     
@@ -568,6 +570,8 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
     // create stream if not exists.
     if (rstreams.find(url) == rstreams.end()) {
         stream = new SrsStatisticStream();
+        stream_id = stream->id;
+        srs_error("未找到流开始创建  stream_id :  %s", stream_id.c_str());
         stream->vhost = vhost;
         stream->stream = req->stream;
         stream->app = req->app;
@@ -576,9 +580,9 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
         streams[stream->id] = stream;
         return stream;
     }
-    
     stream = rstreams[url];
-    
+    stream_id = stream->id;
+    srs_error("找到流 无需手动创建  url :  %s", url.c_str());
     return stream;
 }
 
