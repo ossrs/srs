@@ -2471,7 +2471,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version"
-            && n != "circuit_breaker" && n != "is_full"
+            && n != "circuit_breaker" && n != "is_full" && n != "in_docker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -2997,6 +2997,18 @@ bool SrsConfig::get_daemon()
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_in_docker()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("in_docker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::is_full_config()

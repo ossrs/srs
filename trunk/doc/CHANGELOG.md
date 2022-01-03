@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
 * v4.0, 2021-12-31, For [#2728](https://github.com/ossrs/srs/issues/2728): Refine error log for rtmp2rtc. (#2728). v4.0.215
 * v4.0, 2021-12-29, Merge [#2770](https://github.com/ossrs/srs/pull/2770), [#2820](https://github.com/ossrs/srs/pull/2820): Bugs fixed. (#2770)(#2820). v4.0.214
 * v4.0, 2021-12-27, Fix [#2811](https://github.com/ossrs/srs/issues/2811): Fix ulimit issue by detecting epoll on Ubuntu. (#2811). v4.0.213

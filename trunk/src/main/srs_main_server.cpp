@@ -385,6 +385,14 @@ srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
 
+    // Try to load the config if docker detect failed.
+    if (!_srs_in_docker) {
+        _srs_in_docker = _srs_config->get_in_docker();
+        if (_srs_in_docker) {
+            srs_trace("enable in_docker by config");
+        }
+    }
+
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
     bool run_as_daemon = _srs_config->get_daemon();
