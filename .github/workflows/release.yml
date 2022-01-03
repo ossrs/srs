@@ -88,6 +88,8 @@ jobs:
           docker push ossrs/srs:$SRS_TAG
           docker tag ossrs/srs:$SRS_TAG ossrs/srs:$SRS_MAJOR
           docker push ossrs/srs:$SRS_MAJOR
+          docker tag ossrs/srs:$SRS_TAG ossrs/srs:latest
+          docker push ossrs/srs:latest
       # Aliyun ACR
       - name: Login Aliyun docker hub
         uses: aliyun/acr-login@v1
@@ -105,6 +107,8 @@ jobs:
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
           docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
           docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
+          docker push registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
 
       ################################################################
       # K8S
