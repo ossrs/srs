@@ -80,6 +80,9 @@ srs_error_t SrsDvrSegmenter::open()
     }
     fragment->set_path(path);
     
+    // reset duration.
+    fragment->append(0);
+    
     // create dir first.
     if ((err = fragment->create_dir()) != srs_success) {
         return srs_error_wrap(err, "create dir");
