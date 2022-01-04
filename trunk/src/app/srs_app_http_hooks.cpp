@@ -125,6 +125,10 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     
     SrsStatistic* stat = SrsStatistic::instance();
 
+    std::string stream_url = req->get_stream_url();
+    SrsStatisticStream* stream = NULL;
+    stream = stat->find_stream_by_url(stream_url);
+
     SrsJsonObject* obj = SrsJsonAny::object();
     SrsAutoFree(SrsJsonObject, obj);
     
@@ -137,6 +141,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, SrsRequest* req)
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
     obj->set("param", SrsJsonAny::str(req->param.c_str()));
+    obj->set("stream_id", SrsJsonAny::str(stream->id.c_str()));
     
     std::string data = obj->dumps();
     std::string res;

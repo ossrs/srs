@@ -295,6 +295,14 @@ SrsStatisticStream* SrsStatistic::find_stream(string sid)
     return NULL;
 }
 
+SrsStatisticStream* SrsStatistic::find_stream_by_url(std::string url){
+    std::map<std::string, SrsStatisticStream*>::iterator it;
+    if ((it = rstreams.find(url)) != rstreams.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
 SrsStatisticClient* SrsStatistic::find_client(string client_id)
 {
     std::map<std::string, SrsStatisticClient*>::iterator it;

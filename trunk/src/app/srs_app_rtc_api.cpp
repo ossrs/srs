@@ -397,10 +397,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
         ruc.req_->vhost = parsed_vhost->arg0();
     }
 
-	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
-    }
-
     // For client to specifies the candidate(EIP) of server.
     string eip = r->query_get("eip");
     if (eip.empty()) {
@@ -449,6 +445,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
+    }
+
+    //Confirm that the stream id has been generated
+	if ((err = http_hooks_on_publish(ruc.req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: http_hooks_on_publish");
     }
 
     ostringstream os;
