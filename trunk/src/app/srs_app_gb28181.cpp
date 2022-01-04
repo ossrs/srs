@@ -1122,6 +1122,7 @@ void SrsGb28181RtmpMuxer::stop()
 {
     if (trd){
         trd->interrupt();
+	return;
     }
     //stop rtmp publish
     close();
