@@ -825,20 +825,25 @@ srs_error_t SrsRtmpConn::publishing(SrsLiveSource* source)
             return srs_error_wrap(err, "rtmp: referer check");
         }
     }
-    
-    if ((err = http_hooks_on_publish()) != srs_success) {
-        return srs_error_wrap(err, "rtmp: callback on publish");
-    }
+    bool hooks_not_publish = true;
     
     // TODO: FIXME: Should refine the state of publishing.
     if ((err = acquire_publish(source)) == srs_success) {
+        //The stream_id will not be generated until the source is published
+        if ((err = http_hooks_on_publish()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: callback on publish");
+        }
+        hooks_not_publish = false;
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
         SrsPublishRecvThread rtrd(rtmp, req, srs_netfd_fileno(stfd), 0, this, source, _srs_context->get_id());
         err = do_publishing(source, &rtrd);
         rtrd.stop();
     }
-    
+
+    if(hooks_not_publish && (err = http_hooks_on_publish()) != srs_success){
+        return srs_error_wrap(err, "rtmp: callback on publish");
+    }
     // whatever the acquire publish, always release publish.
     // when the acquire error in the midlle-way, the publish state changed,
     // but failed, so we must cleanup it.

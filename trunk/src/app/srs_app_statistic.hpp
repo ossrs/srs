@@ -140,6 +140,7 @@ public:
     virtual SrsStatisticVhost* find_vhost_by_id(std::string vid);
     virtual SrsStatisticVhost* find_vhost_by_name(std::string name);
     virtual SrsStatisticStream* find_stream(std::string sid);
+    virtual SrsStatisticStream* find_stream_by_url(std::string url);
     virtual SrsStatisticClient* find_client(std::string client_id);
 public:
     // When got video info for stream.
