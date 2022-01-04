@@ -475,6 +475,15 @@ ln -sf `pwd`/research/api-server/static-dir/index.html ${SRS_OBJS}/nginx/html/in
 echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
 
 #####################################################################################
+# Generate default self-sign certificate for HTTPS server, test only.
+#####################################################################################
+if [[ ! -f conf/server.key || ! -f conf/server.crt ]]; then
+    openssl genrsa -out conf/server.key 2048
+    openssl req -new -x509 -key conf/server.key -out conf/server.crt -days 3650 -subj "/C=CN/ST=Beijing/L=Beijing/O=Me/OU=Me/CN=ossrs.net"
+    echo "Generate test-only self-sign certificate files"
+fi
+
+#####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
 if [[ $SRS_CHERRYPY == YES ]]; then
