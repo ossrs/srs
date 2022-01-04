@@ -2542,7 +2542,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "black_hole"
-                && n != "ip_family") {
+                && n != "ip_family" && n != "api_as_candidates") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -3542,6 +3542,23 @@ std::string SrsConfig::get_rtc_server_candidates()
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_api_as_candidates()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("api_as_candidates");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 std::string SrsConfig::get_rtc_server_ip_family()

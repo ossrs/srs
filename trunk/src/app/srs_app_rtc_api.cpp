@@ -117,6 +117,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
 
@@ -383,6 +384,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
 

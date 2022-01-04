@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-01-04, Discover api server and ip as candidates. v4.0.218
 * v4.0, 2021-01-04, Install test-on self-sign certificate. v4.0.217
 * v4.0, 2021-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
 * v4.0, 2021-12-31, For [#2728](https://github.com/ossrs/srs/issues/2728): Refine error log for rtmp2rtc. (#2728). v4.0.215
