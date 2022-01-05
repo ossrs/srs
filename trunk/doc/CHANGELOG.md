@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2021-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
 * v4.0, 2021-01-04, Discover api server and ip as candidates. v4.0.218
 * v4.0, 2021-01-04, Install test-on self-sign certificate. v4.0.217
 * v4.0, 2021-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
