@@ -178,8 +178,7 @@ srs_error_t api_server_as_candidates(string api, set<string>& candidate_ips)
         return err;
     }
 
-    // Try to add the original hostname and ip as candidates.
-    candidate_ips.insert(hostname);
+    // Try to add the API server ip as candidates.
     candidate_ips.insert(ip);
 
     return err;
