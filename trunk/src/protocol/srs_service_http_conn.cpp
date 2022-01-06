@@ -122,7 +122,18 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     
     while (true) {
         if (buffer->size() > 0) {
-            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+
+            int    buffer_size = 0;
+            if(buffer->size() > 4){ // must > \r\n\r\n
+                char * tmp = buffer->bytes();
+                for(int j = 0; j < buffer->size() - 3; j++){
+                    if (tmp[j] == SRS_CONSTS_CR && tmp[j+1] == SRS_CONSTS_LF && tmp[j+2] == SRS_CONSTS_CR && tmp[j+3] == SRS_CONSTS_LF){
+                        buffer_size = j+4;
+                        break;
+                    }		
+                }
+            }
+            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer_size == 0 ? buffer->size() : buffer_size);
 
             // The error is set in http_errno.
             enum http_errno code;
