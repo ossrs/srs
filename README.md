@@ -32,12 +32,6 @@ SRS is licenced under [MIT][LICENSE], but some depended libraries are distribute
 <a name="usage-docker"></a>
 ## Usage
 
-> Highly recommend that directly run SRS by 
-> **docker([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker))**, 
-> or **K8s([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#k8s) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#k8s))**, 
-> however it's also easy to build SRS from source code, for detail please see 
-> **Getting Started([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started))**.
-
 Build SRS from source:
 
 ```
@@ -52,8 +46,6 @@ by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/do
 ffmpeg -re -i ./doc/source.flv -c copy -f flv -y rtmp://localhost/live/livestream
 ```
 
-> Note: It's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) if WebRTC is enabled.
-
 Play the following streams by [players](https://ossrs.net):
 
 * RTMP (by [VLC](https://www.videolan.org/)): rtmp://localhost/live/livestream
@@ -63,6 +55,20 @@ Play the following streams by [players](https://ossrs.net):
 Note that if convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github.com/ossrs/srs/issues/2728#issuecomment-964686152):
 
 * H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
+
+> Note: Besides of FFmpeg or OBS, it's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) 
+> if [WebRTC](https://github.com/ossrs/srs/issues/307) is enabled.
+
+> Highly recommend that directly run SRS by
+> **docker([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker))**,
+> or **K8s([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#k8s) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#k8s))**,
+> however it's also easy to build SRS from source code, for detail please see
+> **Getting Started([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started))**.
+
+> Note: If need HTTPS, by which WebRTC and modern browsers require, please read 
+> **HTTPS API([CN](https://github.com/ossrs/srs/wiki/v4_CN_HTTPApi#https-api) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_HTTPApi#https-api))** 
+> and **HTTPS Live Streaming([CN](https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHttpStream#https-flv-live-stream) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHttpStream#https-flv-live-stream))**,
+> however HTTPS proxy also works perfect with SRS such as Nginx.
 
 <a name="srs-40-wiki"></a>
 <a name="wiki"></a>
