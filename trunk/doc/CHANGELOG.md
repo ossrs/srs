@@ -8,10 +8,11 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
-* v4.0, 2021-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
-* v4.0, 2021-01-04, Discover api server and ip as candidates. v4.0.218
-* v4.0, 2021-01-04, Install test-on self-sign certificate. v4.0.217
-* v4.0, 2021-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
+* v4.0, 2022-01-20, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips.(#2863). v4.0.220
+* v4.0, 2022-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
+* v4.0, 2022-01-04, Discover api server and ip as candidates. v4.0.218
+* v4.0, 2022-01-04, Install test-on self-sign certificate. v4.0.217
+* v4.0, 2022-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
 * v4.0, 2021-12-31, For [#2728](https://github.com/ossrs/srs/issues/2728): Refine error log for rtmp2rtc. (#2728). v4.0.215
 * v4.0, 2021-12-29, Merge [#2770](https://github.com/ossrs/srs/pull/2770), [#2820](https://github.com/ossrs/srs/pull/2820): Bugs fixed. (#2770)(#2820). v4.0.214
 * v4.0, 2021-12-27, Fix [#2811](https://github.com/ossrs/srs/issues/2811): Fix ulimit issue by detecting epoll on Ubuntu. (#2811). v4.0.213
