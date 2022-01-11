@@ -32,34 +32,8 @@
 #define VERSION_STABLE 4
 #define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE) ".0release"
 
-// For 32bit os, 2G big file limit for unistd io,
-// ie. read/write/lseek to use 64bits size for huge file.
-#ifndef _FILE_OFFSET_BITS
-    #define _FILE_OFFSET_BITS 64
-#endif
-
-// For int64_t print using PRId64 format.
-#ifndef __STDC_FORMAT_MACROS
-    #define __STDC_FORMAT_MACROS
-#endif
-
-// For RTC/FFMPEG build.
-#if defined(SRS_RTC) && !defined(__STDC_CONSTANT_MACROS)
-    #define __STDC_CONSTANT_MACROS
-#endif
-
-// For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#ifndef _WIN32
-#include <inttypes.h>
-#endif
-
-#include <assert.h>
-#ifndef srs_assert
-#define srs_assert(expression) assert(expression)
-#endif
-
-#include <stddef.h>
-#include <sys/types.h>
+// For platform specified headers and defines.
+#include <srs_core_platform.hpp>
 
 // The time unit for timeout, interval or duration.
 #include <srs_core_time.hpp>

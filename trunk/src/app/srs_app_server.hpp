@@ -343,7 +343,7 @@ public:
     virtual ~SrsServerAdapter();
 public:
     virtual srs_error_t initialize();
-    virtual srs_error_t run();
+    virtual srs_error_t run(SrsWaitGroup* wg);
     virtual void stop();
 public:
     virtual SrsServer* instance();

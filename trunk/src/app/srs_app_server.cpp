@@ -1626,7 +1626,7 @@ srs_error_t SrsServerAdapter::initialize()
     return err;
 }
 
-srs_error_t SrsServerAdapter::run()
+srs_error_t SrsServerAdapter::run(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 
@@ -1663,7 +1663,7 @@ srs_error_t SrsServerAdapter::run()
         return srs_error_wrap(err, "ingest");
     }
 
-    if ((err = srs->start()) != srs_success) {
+    if ((err = srs->start(wg)) != srs_success) {
         return srs_error_wrap(err, "start");
     }
 
