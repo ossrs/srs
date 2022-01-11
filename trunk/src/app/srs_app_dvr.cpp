@@ -745,6 +745,7 @@ SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
     cduration = 0;
     wait_keyframe = false;
+    reopening_segment_ = false;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
@@ -845,6 +846,12 @@ srs_error_t SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFo
 srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
+
+    // When reopening the segment, never update the duration, because there is actually no media data.
+    // @see https://github.com/ossrs/srs/issues/2717
+    if (reopening_segment_) {
+        return err;
+    }
     
     srs_assert(segment);
     
@@ -879,8 +886,11 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "segment open");
     }
     
-    // update sequence header
-    if ((err = hub->on_dvr_request_sh()) != srs_success) {
+    // When update sequence header, set the reopening state to prevent infinitely recursive call.
+    reopening_segment_ = true;
+    err = hub->on_dvr_request_sh();
+    reopening_segment_ = false;
+    if (err != srs_success) {
         return srs_error_wrap(err, "request sh");
     }
     

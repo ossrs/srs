@@ -198,6 +198,8 @@ private:
     // in config, in srs_utime_t
     srs_utime_t cduration;
     bool wait_keyframe;
+    // Whether reopening the DVR file.
+    bool reopening_segment_;
 public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();

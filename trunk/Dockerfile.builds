@@ -20,6 +20,11 @@ COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 --cxx11=off --cxx14=off --ffmpeg-fit=off && make -j2
 
 ########################################################
+FROM ossrs/srs:dev6 AS centos6-baseline
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+
+########################################################
 FROM ossrs/srs:dev8 AS centos8-baseline
 COPY . /srs
 RUN cd /srs/trunk && ./configure --jobs=2 && make -j2

@@ -392,6 +392,10 @@ fi
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
+# For Ubuntu, the epoll detection might be fail.
+if [[ $OS_IS_UBUNTU == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_EPOLL"
+fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
@@ -473,6 +477,15 @@ ln -sf `pwd`/research/api-server/static-dir/index.html ${SRS_OBJS}/nginx/html/in
 
 # nginx.html to detect whether nginx is alive
 echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
+
+#####################################################################################
+# Generate default self-sign certificate for HTTPS server, test only.
+#####################################################################################
+if [[ ! -f conf/server.key || ! -f conf/server.crt ]]; then
+    openssl genrsa -out conf/server.key 2048
+    openssl req -new -x509 -key conf/server.key -out conf/server.crt -days 3650 -subj "/C=CN/ST=Beijing/L=Beijing/O=Me/OU=Me/CN=ossrs.net"
+    echo "Generate test-only self-sign certificate files"
+fi
 
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4

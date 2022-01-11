@@ -160,8 +160,8 @@ bash auto/coverage.sh
 * Programming notes: http://ossrs.github.io/state-threads/docs/notes.html
 
 * [How to porting ST to other OS/CPU?](https://github.com/ossrs/state-threads/issues/22)
-* About setjmp and longjmp, read [setjmp](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-setjmp.jpg).
-* About the stack structure, read [stack](https://gitee.com/winlinvip/srs-wiki/raw/master/images/st-stack.jpg)
+* About setjmp and longjmp, read [setjmp](https://ossrs.net/wiki/images/st-setjmp.jpg).
+* About the stack structure, read [stack](https://ossrs.net/wiki/images/st-stack.jpg)
 * About asm code comments, read [#91d530e](https://github.com/ossrs/state-threads/commit/91d530e#diff-ed9428b14ff6afda0e9ab04cc91d4445R25).
 * About the scheduler, read [#13-scheduler](https://github.com/ossrs/state-threads/issues/13#issuecomment-616025527).
 * About the IO event system, read [#13-IO](https://github.com/ossrs/state-threads/issues/13#issuecomment-616096568).

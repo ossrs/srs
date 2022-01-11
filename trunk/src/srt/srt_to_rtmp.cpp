@@ -260,7 +260,7 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
         _streamname = ret_vec[1]; 
     }
     std::stringstream url_ss;
-    
+
     std::vector<std::string> ip_ports = _srs_config->get_listens();
     int port = 0;
     std::string ip;
@@ -271,24 +271,19 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
             break;
         }
     }
-    port = (port == 0) ? 1935 : port;
-    if (_vhost == DEF_VHOST) {
-        url_ss << "rtmp://127.0.0.1:" << port
-                << "/" << _appname
-                << "/" <<  _streamname;
-    } else {
-        if (_appname.find("?") == std::string::npos) {
-            url_ss << "rtmp://127.0.0.1:" << port
-                    << "/" << _appname << "?vhost=" << _vhost
-                    << "/" <<  _streamname;
-        } else {
-            url_ss << "rtmp://127.0.0.1:" << port
-                    << "/" << _appname << "&vhost=" << _vhost
-                    << "/" <<  _streamname;
-        }
-    }
 
-    _url = url_ss.str();
+    port = (port == 0) ? SRS_CONSTS_RTMP_DEFAULT_PORT : port;
+
+    std::stringstream ss;
+    ss << "rtmp://" << SRS_CONSTS_LOCALHOST;
+    ss << ":" << port;
+    ss << "/" << _appname;
+    if (_vhost != DEF_VHOST) {
+        ss << "?vhost=" << _vhost;
+    }
+    ss << "/" << _streamname;
+
+    _url = ss.str();
 
     _h264_sps_changed = false;
     _h264_pps_changed = false;
