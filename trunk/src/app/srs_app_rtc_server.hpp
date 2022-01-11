@@ -78,6 +78,7 @@ public:
     SrsSdp remote_sdp_;
     std::string eip_;
     std::string codec_;
+    std::string api_;
 
     // Generated data.
     SrsRequest* req_;

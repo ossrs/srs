@@ -382,6 +382,8 @@ public:
     // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
     virtual bool get_daemon();
+    // Whether srs in docker.
+    virtual bool get_in_docker();
 private:
     // Whether user use full.conf
     virtual bool is_full_config();
@@ -467,6 +469,7 @@ public:
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();
+    virtual bool get_api_as_candidates();
     virtual std::string get_rtc_server_ip_family();
     virtual bool get_rtc_server_ecdsa();
     virtual bool get_rtc_server_encrypt();

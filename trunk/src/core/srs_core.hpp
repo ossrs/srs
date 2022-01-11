@@ -68,7 +68,7 @@ typedef SrsCplxError* srs_error_t;
 
 #include <string>
 // The context ID, it default to a string object, we can also use other objects.
-// @remark User can directly user string as SrsContextId, we user struct to ensure the context is an object.
+// @remark User can directly use string as SrsContextId, we use struct to ensure the context is an object.
 #if 1
 class _SrsContextId
 {
