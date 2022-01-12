@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <glob.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -842,9 +843,9 @@ bool SrsConfDirective::is_stream_caster()
     return name == "stream_caster";
 }
 
-srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer)
+srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer, SrsConfig* conf)
 {
-    return parse_conf(buffer, parse_file);
+    return parse_conf(buffer, parse_file, conf);
 }
 
 srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
@@ -971,7 +972,7 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 // LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
-srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
+srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
     
@@ -1013,19 +1014,50 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
         }
         
         // build directive tree.
-        SrsConfDirective* directive = new SrsConfDirective();
-        
-        directive->conf_line = line_start;
-        directive->name = args[0];
-        args.erase(args.begin());
-        directive->args.swap(args);
-        
-        directives.push_back(directive);
-        
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_START) {
-            srs_freep(err);
-            if ((err = directive->parse_conf(buffer, parse_block)) != srs_success) {
-                return srs_error_wrap(err, "parse dir");
+        if (args[0] == "include") {
+            if (args.size() < 2) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
+            }
+
+            std::string file = args[1];
+            if (!srs_string_contains(file, "*", "?", "[")) {
+                srs_trace("config parse include %s", file.c_str());
+                srs_freep(err);
+                if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
+                    return srs_error_wrap(err, "parse file");
+                }
+            } else {
+                unsigned long i = 0;
+                glob_t glob_buf;
+
+                if (glob((char *) file.c_str(), 0, NULL, &glob_buf) != 0) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: parse include %s failed", buffer->line, file.c_str());
+                }
+
+                while(i < glob_buf.gl_pathc) {
+                    srs_trace("include %s", *(glob_buf.gl_pathv+i));
+                    srs_freep(err);
+                    if ((err = conf->parse_include_file(*(glob_buf.gl_pathv+i))) != srs_success) {
+                        return srs_error_wrap(err, "parse file");
+                    }
+                    i ++;
+                }
+            }
+        } else {
+            SrsConfDirective* directive = new SrsConfDirective();
+
+            directive->conf_line = line_start;
+            directive->name = args[0];
+            args.erase(args.begin());
+            directive->args.swap(args);
+
+            directives.push_back(directive);
+
+            if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_START) {
+                srs_freep(err);
+                if ((err = directive->parse_conf(buffer, parse_block, conf)) != srs_success) {
+                    return srs_error_wrap(err, "parse dir");
+                }
             }
         }
         srs_freep(err);
@@ -2419,6 +2451,29 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     
     return err;
 }
+
+srs_error_t SrsConfig::parse_include_file(const char *filename)
+{
+    srs_error_t err = srs_success;
+
+    std::string include_file = filename;
+
+    if (include_file.empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+    }
+
+    SrsConfigBuffer buffer;
+
+    if ((err = buffer.fullfill(include_file.c_str())) != srs_success) {
+        return srs_error_wrap(err, "buffer fullfil");
+    }
+
+    if ((err = parse_include_buffer(&buffer)) != srs_success) {
+        return srs_error_wrap(err, "parse include buffer");
+    }
+
+    return err;
+}
 // LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::check_config()
@@ -2955,7 +3010,7 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     root = new SrsConfDirective();
 
     // Parse root tree from buffer.
-    if ((err = root->parse(buffer)) != srs_success) {
+    if ((err = root->parse(buffer, this)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
     
@@ -2976,6 +3031,18 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
         set_config_directive(root, "srs_log_tank", "console");
     }
     
+    return err;
+}
+
+srs_error_t SrsConfig::parse_include_buffer(SrsConfigBuffer *buffer)
+{
+    srs_error_t err = srs_success;
+
+    // Parse root tree from buffer.
+    if ((err = root->parse(buffer, this)) != srs_success) {
+        return srs_error_wrap(err, "root parse");
+    }
+
     return err;
 }
 

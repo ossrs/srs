@@ -210,7 +210,7 @@ public:
 // Parse utilities
 public:
     // Parse config directive from file buffer.
-    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer);
+    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer, SrsConfig* conf = NULL);
     // Marshal the directive to writer.
     // @param level, the root is level0, all its directives are level1, and so on.
     virtual srs_error_t persistence(SrsFileWriter* writer, int level);
@@ -234,7 +234,7 @@ private:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
     // 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
-    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
+    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type, SrsConfig* conf);
     // Read a token from buffer.
     // A token, is the directive args and a flag indicates whether has child-directives.
     // @param args, the output directive args, the first is the directive name, left is the args.
@@ -356,6 +356,8 @@ private:
 public:
     // Parse the config file, which is specified by cli.
     virtual srs_error_t parse_file(const char* filename);
+    // Parse the include config file.
+    virtual srs_error_t parse_include_file(const char* filename);
     // Check the parsed config.
     virtual srs_error_t check_config();
 protected:
@@ -366,6 +368,10 @@ protected:
     // @param buffer, the config buffer, user must delete it.
     // @remark, use protected for the utest to override with mock.
     virtual srs_error_t parse_buffer(srs_internal::SrsConfigBuffer* buffer);
+    // Parse include config from the buffer.
+    // @param buffer, the config buffer, user must delete it.
+    // @remark, use protected for the utest to override with mock.
+    virtual srs_error_t parse_include_buffer(srs_internal::SrsConfigBuffer* buffer);
     // global env
 public:
     // Get the current work directory.
