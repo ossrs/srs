@@ -1526,6 +1526,8 @@ void SrsMetaCache::dispose()
     clear();
     srs_freep(previous_video);
     srs_freep(previous_audio);
+    srs_freep(vformat);
+    srs_freep(aformat);
 }
 
 void SrsMetaCache::clear()

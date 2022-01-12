@@ -155,7 +155,6 @@ string srs_dns_resolve(string host, int& family)
     hints.ai_family = family;
     
     addrinfo* r = NULL;
-    SrsAutoFree(addrinfo, r);
     if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
         return "";
     }
@@ -163,11 +162,13 @@ string srs_dns_resolve(string host, int& family)
     char shost[64];
     memset(shost, 0, sizeof(shost));
     if (getnameinfo(r->ai_addr, r->ai_addrlen, shost, sizeof(shost), NULL, 0, NI_NUMERICHOST)) {
+        freeaddrinfo(r);
         return "";
     }
 
-   family = r->ai_family;
-   return string(shost);
+    freeaddrinfo(r);
+    family = r->ai_family;
+    return string(shost);
 }
 
 void srs_parse_hostport(string hostport, string& host, int& port)
