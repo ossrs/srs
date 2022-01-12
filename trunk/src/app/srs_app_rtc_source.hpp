@@ -114,7 +114,6 @@ public:
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
 private:
     // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
     virtual SrsRtcSource* fetch(SrsRequest* r);
 };
 
