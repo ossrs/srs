@@ -267,6 +267,7 @@ function SrsRtcPlayerAsync() {
     //      webrtc://r.ossrs.net/live/livestream
     // or specifies the API port:
     //      webrtc://r.ossrs.net:11985/live/livestream
+    //      webrtc://r.ossrs.net/live/livestream?api_port=11985
     // or autostart the play:
     //      webrtc://r.ossrs.net/live/livestream?autostart=true
     // or change the app from live to myapp:
@@ -438,8 +439,9 @@ function SrsRtcPlayerAsync() {
                     } else if (window.location.href.indexOf('https://') === 0) {
                         ret.port = 443;
                     } else {
+                        // Allow use api_port to specify the WebRTC API port.
                         // For WebRTC, SRS use 1985 as default API port.
-                        ret.port = 1985;
+                        ret.port = ret.user_query.api_port || 1985;
                     }
                 }
             }
