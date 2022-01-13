@@ -185,6 +185,12 @@ function SrsRtcPublisherAsync() {
 
             var port = a.port;
             if (!port) {
+                // Finger out by webrtc url, if contains http or https port, to overwrite default 1985.
+                if (schema === 'webrtc' && url.indexOf(`webrtc://${a.host}:`) === 0) {
+                    port = (url.indexOf(`webrtc://${a.host}:80`) === 0) ? 80 : 443;
+                }
+
+                // Guess by schema.
                 if (schema === 'http') {
                     port = 80;
                 } else if (schema === 'https') {
@@ -210,9 +216,8 @@ function SrsRtcPublisherAsync() {
                     } else if (window.location.href.indexOf('https://') === 0) {
                         ret.port = 443;
                     } else {
-                        // Allow use api_port to specify the WebRTC API port.
                         // For WebRTC, SRS use 1985 as default API port.
-                        ret.port = ret.user_query.api_port || 1985;
+                        ret.port = 1985;
                     }
                 }
             }
@@ -268,7 +273,7 @@ function SrsRtcPlayerAsync() {
     //      webrtc://r.ossrs.net/live/livestream
     // or specifies the API port:
     //      webrtc://r.ossrs.net:11985/live/livestream
-    //      webrtc://r.ossrs.net/live/livestream?api_port=11985
+    //      webrtc://r.ossrs.net:80/live/livestream
     // or autostart the play:
     //      webrtc://r.ossrs.net/live/livestream?autostart=true
     // or change the app from live to myapp:
@@ -415,6 +420,12 @@ function SrsRtcPlayerAsync() {
 
             var port = a.port;
             if (!port) {
+                // Finger out by webrtc url, if contains http or https port, to overwrite default 1985.
+                if (schema === 'webrtc' && url.indexOf(`webrtc://${a.host}:`) === 0) {
+                    port = (url.indexOf(`webrtc://${a.host}:80`) === 0) ? 80 : 443;
+                }
+
+                // Guess by schema.
                 if (schema === 'http') {
                     port = 80;
                 } else if (schema === 'https') {
@@ -440,9 +451,8 @@ function SrsRtcPlayerAsync() {
                     } else if (window.location.href.indexOf('https://') === 0) {
                         ret.port = 443;
                     } else {
-                        // Allow use api_port to specify the WebRTC API port.
                         // For WebRTC, SRS use 1985 as default API port.
-                        ret.port = ret.user_query.api_port || 1985;
+                        ret.port = 1985;
                     }
                 }
             }

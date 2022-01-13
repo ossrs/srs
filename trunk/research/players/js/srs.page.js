@@ -37,10 +37,6 @@ function user_extra_params(query, params, rtc) {
             continue;
         }
 
-        if (!rtc && key === 'api_port') {
-            continue;
-        }
-
         if (query[key]) {
             queries.push(key + '=' + query[key]);
         }
@@ -94,7 +90,7 @@ function build_default_flv_url() {
 function build_default_rtc_url(query) {
     // The format for query string to overwrite configs of server.
     console.log('?eip=x.x.x.x to overwrite candidate. 覆盖服务器candidate(外网IP)配置');
-    console.log('?api_port=x to overwrite WebRTC API(1985).');
+    console.log('?api=x to overwrite WebRTC API(1985).');
     console.log('?schema=http|https to overwrite WebRTC API protocol.');
 
     var server = (!query.server)? window.location.hostname:query.server;
