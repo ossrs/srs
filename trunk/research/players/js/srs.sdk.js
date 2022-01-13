@@ -210,8 +210,9 @@ function SrsRtcPublisherAsync() {
                     } else if (window.location.href.indexOf('https://') === 0) {
                         ret.port = 443;
                     } else {
+                        // Allow use api_port to specify the WebRTC API port.
                         // For WebRTC, SRS use 1985 as default API port.
-                        ret.port = 1985;
+                        ret.port = ret.user_query.api_port || 1985;
                     }
                 }
             }
