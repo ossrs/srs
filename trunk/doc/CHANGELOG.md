@@ -8,7 +8,9 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
-* v4.0, 2022-01-14, Support api_port to specify the WebRTC API port. v4.0.224
+* v4.0, 2022-01-13, For [#2880](https://github.com/ossrs/srs/pull/2880): Add SrsAutoFreeH to release ptr with hooks. (#2880). v4.0.226
+* v4.0, 2022-01-13, Support api_port to specify the WebRTC API port. v4.0.226
+* v4.0, 2022-01-13, Support api_port to specify the WebRTC API port. v4.0.224
 * v4.0, 2022-01-13, Merge [#2873](https://github.com/ossrs/srs/pull/2873): LiveSource: Refine fetch for external exposed interface. (#2873). v4.0.223
 * v4.0, 2022-01-13, Add conf/lighthouse.conf for LightHouse. v4.0.222
 * v4.0, 2022-01-12, Refine the running homepage. v4.0.221
