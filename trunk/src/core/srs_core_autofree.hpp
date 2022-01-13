@@ -30,13 +30,16 @@
 //      where the char* pstr = new char[size].
 // To delete object.
 #define SrsAutoFree(className, instance) \
-    impl_SrsAutoFree<className> _auto_free_##instance(&instance, false, false)
+    impl_SrsAutoFree<className> _auto_free_##instance(&instance, false, false, NULL)
 // To delete array.
 #define SrsAutoFreeA(className, instance) \
-    impl_SrsAutoFree<className> _auto_free_array_##instance(&instance, true, false)
+    impl_SrsAutoFree<className> _auto_free_array_##instance(&instance, true, false, NULL)
 // Use free instead of delete.
 #define SrsAutoFreeF(className, instance) \
-    impl_SrsAutoFree<className> _auto_free_##instance(&instance, false, true)
+    impl_SrsAutoFree<className> _auto_free_##instance(&instance, false, true, NULL)
+// Use hook instead of delete.
+#define SrsAutoFreeH(className, instance, hook) \
+    impl_SrsAutoFree<className> _auto_free_##instance(&instance, false, false, hook)
 // The template implementation.
 template<class T>
 class impl_SrsAutoFree
@@ -45,11 +48,16 @@ private:
     T** ptr;
     bool is_array;
     bool _use_free;
+    void (*_hook)(T*);
 public:
-    impl_SrsAutoFree(T** p, bool array, bool use_free) {
+    // If use_free, use free(void*) to release the p.
+    // If specified hook, use hook(p) to release it.
+    // Use delete to release p, or delete[] if p is an array.
+    impl_SrsAutoFree(T** p, bool array, bool use_free, void (*hook)(T*)) {
         ptr = p;
         is_array = array;
         _use_free = use_free;
+        _hook = hook;
     }
     
     virtual ~impl_SrsAutoFree() {
@@ -59,6 +67,8 @@ public:
 
         if (_use_free) {
             free(*ptr);
+        } else if (_hook) {
+            _hook(*ptr);
         } else {
             if (is_array) {
                 delete[] *ptr;

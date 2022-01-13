@@ -460,6 +460,7 @@ CXXFLAGS = ${CXXFLAGS}
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
+SRS_DEFAULT_CONFIG=${SRS_DEFAULT_CONFIG}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
 default: server
@@ -592,11 +593,12 @@ install:
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
 	@cp -f etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
+	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
 	@echo "Now copy systemctl service files"
 	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v4_CN_LinuxService"
 
 END
 

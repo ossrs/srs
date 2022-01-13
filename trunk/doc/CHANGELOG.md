@@ -30,7 +30,14 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
-* v4.0, 2022-01-20, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips.(#2863). v4.0.220
+* v4.0, 2022-01-13, Merge [#2872](https://github.com/ossrs/srs/pull/2872): RTC: fix play rtc judge for config rtc2rtmp on. (#2872). v4.0.229
+* v4.0, 2022-01-13, Support configure with --config as default config file. v4.0.227
+* v4.0, 2022-01-13, For [#2880](https://github.com/ossrs/srs/pull/2880): Add SrsAutoFreeH to release ptr with hooks. (#2880). v4.0.226
+* v4.0, 2022-01-13, Support api_port to specify the WebRTC API port. v4.0.224
+* v4.0, 2022-01-13, Merge [#2873](https://github.com/ossrs/srs/pull/2873): LiveSource: Refine fetch for external exposed interface. (#2873). v4.0.223
+* v4.0, 2022-01-13, Add conf/vm.conf for cloud virtual machine. v4.0.222
+* v4.0, 2022-01-12, Refine the running homepage. v4.0.221
+* v4.0, 2022-01-12, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips. (#2863). v4.0.220
 * v4.0, 2022-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
 * v4.0, 2022-01-04, Discover api server and ip as candidates. v4.0.218
 * v4.0, 2022-01-04, Install test-on self-sign certificate. v4.0.217

@@ -50,8 +50,10 @@ jobs:
       #   SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-4.0.145.zip
       #   SRS_PACKAGE_MD5=3880a26e30b283edf05700a4e69956e5
       - name: Create package zip
+        env:
+          PACKAGER: ${{ secrets.SRS_PACKAGER_BINARY }}
         run: |
-          docker build --tag srs:pkg --build-arg version=$SRS_VERSION -f trunk/Dockerfile.pkg . &&
+          docker build --tag srs:pkg --build-arg version=$SRS_VERSION --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile.pkg . &&
           SRS_PACKAGE_ZIP=SRS-CentOS7-x86_64-$SRS_VERSION.zip &&
           docker run --rm -v $(pwd):/output srs:pkg cp objs/$SRS_PACKAGE_ZIP /output/ &&
           du -sh $SRS_PACKAGE_ZIP &&
@@ -73,9 +75,11 @@ jobs:
       # Build
       # Build SRS image
       - name: Build SRS docker image
+        env:
+          PACKAGER: ${{ secrets.SRS_PACKAGER_DOCKER }}
         run: |
           echo "Release ossrs/srs:$SRS_TAG"
-          docker build --tag ossrs/srs:$SRS_TAG -f trunk/Dockerfile .
+          docker build --tag ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
 
       ################################################################
       # Docker
