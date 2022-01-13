@@ -3,6 +3,8 @@ FROM ossrs/srs:dev AS build
 # Install depends tools.
 RUN yum install -y gcc make gcc-c++ patch unzip perl git
 
+ARG SRS_AUTO_PACKAGER
+
 # Build and install SRS.
 COPY . /srs
 WORKDIR /srs/trunk

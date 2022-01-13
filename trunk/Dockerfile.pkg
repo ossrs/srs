@@ -2,6 +2,7 @@ FROM ossrs/srs:dev
 
 # version=4.0.145
 ARG version
+ARG SRS_AUTO_PACKAGER
 
 # Install depends tools.
 RUN yum install -y zip
