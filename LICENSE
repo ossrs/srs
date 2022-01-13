@@ -23,7 +23,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 Note:
 Individual files contain the following tag instead of the full license text.
 
-	SPDX-License-Identifier: MIT
+	SPDX-License-Identifier: MIT or MulanPSL-2.0
 
 This enables machine processing of license information based on the SPDX
 License Identifiers that are here available: http://spdx.org/licenses/
+
+For MIT, please read https://spdx.org/licenses/MIT.html
+
+For MulanPSL-2.0, please read https://spdx.org/licenses/MulanPSL-2.0.html
+and note that MulanPSL-2.0 is compatible with Apache-2.0, please see
+https://www.apache.org/legal/resolved.html#category-a

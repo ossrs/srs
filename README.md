@@ -19,7 +19,9 @@ SRS/5.0，[Bee](https://github.com/ossrs/srs/wiki/Product#release50) 是一个�
 
 SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
-SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), but some depended libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
+SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
+and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
+but some third-party libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
 
