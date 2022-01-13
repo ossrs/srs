@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-01-13, Merge [#2872](https://github.com/ossrs/srs/pull/2872): RTC: fix play rtc judge for config rtc2rtmp on. (#2872). v4.0.229
 * v4.0, 2022-01-13, Support configure with --config as default config file. v4.0.227
 * v4.0, 2022-01-13, For [#2880](https://github.com/ossrs/srs/pull/2880): Add SrsAutoFreeH to release ptr with hooks. (#2880). v4.0.226
 * v4.0, 2022-01-13, Support api_port to specify the WebRTC API port. v4.0.224
