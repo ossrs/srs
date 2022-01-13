@@ -112,7 +112,7 @@ public:
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
     virtual SrsRtcSource* fetch(SrsRequest* r);
 };
