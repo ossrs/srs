@@ -8,9 +8,10 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-01-13, Merge [#2873](https://github.com/ossrs/srs/pull/2873): LiveSource: Refine fetch for external exposed interface. (#2873). v4.0.223
 * v4.0, 2022-01-13, Add conf/lighthouse.conf for LightHouse. v4.0.222
 * v4.0, 2022-01-12, Refine the running homepage. v4.0.221
-* v4.0, 2022-01-12, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips.(#2863). v4.0.220
+* v4.0, 2022-01-12, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips. (#2863). v4.0.220
 * v4.0, 2022-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
 * v4.0, 2022-01-04, Discover api server and ip as candidates. v4.0.218
 * v4.0, 2022-01-04, Install test-on self-sign certificate. v4.0.217
