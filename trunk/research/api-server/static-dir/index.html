@@ -61,9 +61,9 @@
 
         // The player url.
         if (true) {
-            const prefix = 'players/';
+            const prefix = `players/?schema=${window.location.protocol.replace(':', '')}`;
             // If not 8080, user should proxy to the default port.
-            const query = parseInt(window.location.port) === 8080 ? '' : `?port=${window.location.port}`;
+            const query = parseInt(window.location.port) === 8080 ? '' : `&port=${window.location.port}`;
             document.getElementById("enPlayer").setAttribute('href', `${prefix}${query}`);
             document.getElementById("cnPlayer").setAttribute('href', `${prefix}${query}`);
         }
