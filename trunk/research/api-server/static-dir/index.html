@@ -26,8 +26,8 @@
     <div>
         <h3><a href="https://github.com/ossrs/srs">SRS</a> works!</h3>
         <p>
-            Click <a id="en" href="#">here</a> to enter SRS console.<br/>
-            点击进入<a id="cn" href="#">SRS控制台</a>
+            Click <a id="enConsole" href="#">here</a> to enter SRS console.<br/>
+            点击进入<a id="cnConsole" href="#">SRS控制台</a>
         </p>
         <p>
             Publish stream by <a href="https://ffmpeg.org/download.html">FFmpeg</a> or <a href="https://obsproject.com/download">OBS</a>:<br/>
@@ -35,23 +35,37 @@
             <pre id="url" class="code span6"></pre>
         </p>
         <p>
-            Click <a href="players/?autostart=true">here</a> to start SRS player.<br/>
-            点击进入<a href="players/?autostart=true">SRS播放器</a>
+            Click <a id="enPlayer" href="#">here</a> to start SRS player.<br/>
+            点击进入<a id="cnPlayer" href="#">SRS播放器</a>
         </p>
         <p><a href="https://github.com/ossrs/srs">SRS Team &copy; 2022</a></p>
     </div>
     <script type="text/javascript">
         // Build RTMP url.
-        const rtmp_url = `rtmp://${window.location.hostname}/live/livestream`;
-        document.getElementById('url').innerText = rtmp_url;
+        if (true) {
+            const rtmpUrl = `rtmp://${window.location.hostname}/live/livestream`;
+            document.getElementById('url').innerText = rtmpUrl;
+        }
 
-        // The prefix for default website.
-        const prefix = `${window.location.protocol}//${window.location.host}`;
-        // If not 8080, user should proxy to the default port.
-        const query = window.location.port === 8080 ? `?port=1985` : '';
-        const enUrl = `${prefix}/console/en_index.html#/summaries${query}`;
-        const cnUrl = `${prefix}/console/ng_index.html#/summaries${query}`;
-        document.getElementById("en").setAttribute('href', enUrl);
-        document.getElementById("cn").setAttribute('href', cnUrl);
+        // Build console url.
+        if (true) {
+            // The prefix for default website.
+            const prefix = `${window.location.protocol}//${window.location.host}`;
+            // If not 8080, user should proxy to the default port.
+            const query = parseInt(window.location.port) === 8080 ? `?port=1985` : '';
+            const enUrl = `${prefix}/console/en_index.html#/summaries${query}`;
+            const cnUrl = `${prefix}/console/ng_index.html#/summaries${query}`;
+            document.getElementById("enConsole").setAttribute('href', enUrl);
+            document.getElementById("cnConsole").setAttribute('href', cnUrl);
+        }
+
+        // The player url.
+        if (true) {
+            const prefix = 'players/';
+            // If not 8080, user should proxy to the default port.
+            const query = parseInt(window.location.port) === 8080 ? '' : `?port=${window.location.port}`;
+            document.getElementById("enPlayer").setAttribute('href', `${prefix}${query}`);
+            document.getElementById("cnPlayer").setAttribute('href', `${prefix}${query}`);
+        }
     </script>
 </body>
