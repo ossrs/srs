@@ -186,8 +186,15 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
     }
 
+    // Whether RTC stream is active.
+    bool is_rtc_stream_active = false;
+    if (true) {
+        SrsRtcSource* source = _srs_rtc_sources->fetch(ruc.req_);
+        is_rtc_stream_active = (source && !source->can_publish());
+    }
+
     // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
-    if (!_srs_config->get_rtc_from_rtmp(ruc.req_->vhost)) {
+    if (!is_rtc_stream_active && !_srs_config->get_rtc_from_rtmp(ruc.req_->vhost)) {
         SrsLiveSource* rtmp = _srs_sources->fetch(ruc.req_);
         if (rtmp && !rtmp->inactive()) {
             return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc.req_->vhost.c_str());

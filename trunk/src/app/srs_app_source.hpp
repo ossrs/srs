@@ -450,7 +450,6 @@ public:
     virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
 public:
     // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
     virtual SrsLiveSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.
