@@ -190,6 +190,6 @@ jobs:
       - name: Release SRS 5.0 to Aliyun ACK
         if: ${{ startsWith(github.ref, 'refs/tags/v5') }}
         run: |-
-          kubectl set image deploy/srs5-deploy srs5=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
+          kubectl set image deploy/srs5-deploy srs=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
           kubectl describe deploy/srs5-deploy
 
