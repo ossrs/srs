@@ -1014,35 +1014,49 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
         }
         
         // build directive tree.
-        if (args[0] == "include") {
+        if (args.at(0) == "include") {
             if (args.size() < 2) {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
             }
+#if 0
+            for (int i = 1; i < (int)args.size(); i++) {
+                std::string file = args.at(i);
 
-            std::string file = args[1];
-            if (!srs_string_contains(file, "*", "?", "[")) {
+                if (!srs_string_contains(file, "*", "?", "[")) {
+                    srs_trace("config parse include %s", file.c_str());
+                    srs_freep(err);
+                    if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
+                        return srs_error_wrap(err, "parse file");
+                    }
+                } else {
+                    unsigned long i = 0;
+                    glob_t glob_buf;
+
+                    if (glob((char *) file.c_str(), 0, NULL, &glob_buf) != 0) {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: parse include %s failed", buffer->line, file.c_str());
+                    }
+
+                    while(i < glob_buf.gl_pathc) {
+                        srs_trace("include %s", *(glob_buf.gl_pathv+i));
+                        srs_freep(err);
+                        if ((err = conf->parse_include_file(*(glob_buf.gl_pathv+i))) != srs_success) {
+                            return srs_error_wrap(err, "parse file");
+                        }
+                        i ++;
+                    }
+                }
+            }
+#else
+            for (int i = 1; i < (int)args.size(); i++) {
+                std::string file = args.at(i);
+
                 srs_trace("config parse include %s", file.c_str());
                 srs_freep(err);
                 if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
                     return srs_error_wrap(err, "parse file");
                 }
-            } else {
-                unsigned long i = 0;
-                glob_t glob_buf;
-
-                if (glob((char *) file.c_str(), 0, NULL, &glob_buf) != 0) {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: parse include %s failed", buffer->line, file.c_str());
-                }
-
-                while(i < glob_buf.gl_pathc) {
-                    srs_trace("include %s", *(glob_buf.gl_pathv+i));
-                    srs_freep(err);
-                    if ((err = conf->parse_include_file(*(glob_buf.gl_pathv+i))) != srs_success) {
-                        return srs_error_wrap(err, "parse file");
-                    }
-                    i ++;
-                }
             }
+#endif
         } else {
             SrsConfDirective* directive = new SrsConfDirective();
 
