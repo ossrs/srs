@@ -122,18 +122,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
     
     while (true) {
         if (buffer->size() > 0) {
-
-            int    buffer_size = 0;
-            if(buffer->size() > 4){ // must > \r\n\r\n
-                char * tmp = buffer->bytes();
-                for(int j = 0; j < buffer->size() - 3; j++){
-                    if (tmp[j] == SRS_CONSTS_CR && tmp[j+1] == SRS_CONSTS_LF && tmp[j+2] == SRS_CONSTS_CR && tmp[j+3] == SRS_CONSTS_LF){
-                        buffer_size = j+4;
-                        break;
-                    }		
-                }
-            }
-            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer_size == 0 ? buffer->size() : buffer_size);
+            ssize_t consumed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
 
             // The error is set in http_errno.
             enum http_errno code;
@@ -147,7 +136,7 @@ srs_error_t SrsHttpParser::parse_message_imp(ISrsReader* reader)
             // @remark We shouldn't use on_body, because it only works for normal case, and losts the chunk header and length.
             // @see https://github.com/ossrs/srs/issues/1508
 	        if (p_header_tail && buffer->bytes() < p_body_start) {
-	            for (const char* p = p_header_tail; p <= p_body_start - 4; p++) {
+	            for (const char* p = p_header_tail - 2; p <= p_body_start - 4; p++) {
 	                if (p[0] == SRS_CONSTS_CR && p[1] == SRS_CONSTS_LF && p[2] == SRS_CONSTS_CR && p[3] == SRS_CONSTS_LF) {
 	                    consumed = p + 4 - buffer->bytes();
 	                    break;
