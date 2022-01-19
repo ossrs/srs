@@ -268,10 +268,10 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
             break;
         }
     }
-    port = (port == 0) ? 1935 : port;
+    port = (port == 0) ? SRS_CONSTS_RTMP_DEFAULT_PORT : port;
 
     std::stringstream ss;
-    ss << "rtmp://127.0.0.1";
+    ss << "rtmp://" << SRS_CONSTS_LOCALHOST;
     ss << ":" << port;
     ss << "/" << _appname;
     if (_vhost != DEF_VHOST) {

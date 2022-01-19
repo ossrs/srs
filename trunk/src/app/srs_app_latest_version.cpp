@@ -222,7 +222,7 @@ srs_error_t SrsLatestVersion::cycle()
         string url;
         srs_utime_t starttime = srs_update_system_time();
         if ((err = query_latest_version(url)) != srs_success) {
-            srs_warn("query err %s", srs_error_desc(err).c_str());
+            srs_trace("query release err %s", srs_error_summary(err).c_str());
             srs_freep(err); // Ignore any error.
         }
 
