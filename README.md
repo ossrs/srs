@@ -125,7 +125,12 @@ A big `THANK YOU` also goes to:
 
 * All [contributors](trunk/AUTHORS.md#contributors) of SRS.
 * All friends of SRS for [big supports](https://github.com/ossrs/srs/wiki/Product).
-* [Genes](http://sourceforge.net/users/genes), [Mabbott](http://sourceforge.net/users/mabbott) and [Michael Talyanksy](https://github.com/michaeltalyansky) for [st](https://github.com/ossrs/state-threads/tree/srs).
+* [Genes](http://sourceforge.net/users/genes), [Mabbott](http://sourceforge.net/users/mabbott) and [Michael Talyanksy](https://github.com/michaeltalyansky) for creating and introducing [st](https://github.com/ossrs/state-threads/tree/srs).
+
+## Contributing
+
+We are grateful to the community for contributing bugfix and improvements, please follow the
+[guide](https://github.com/ossrs/srs/contribute).
 
 ## Releases
 
