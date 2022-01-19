@@ -3258,6 +3258,7 @@ reexecute:
         p += to_read - 1;
 
         if (parser->content_length == 0) {
+          parser->content_length = p - body_mark + 1;
           UPDATE_STATE(s_message_done);
 
           /* Mimic CALLBACK_DATA_NOADVANCE() but with one extra byte.
