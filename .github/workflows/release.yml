@@ -54,11 +54,14 @@ jobs:
         env:
           PACKAGER: ${{ secrets.SRS_PACKAGER_DOCKER }}
           PACKAGER_DROPLET: ${{ secrets.SRS_PACKAGER_DROPLET }}
+          PACKAGER_LIGHTHOUSE: ${{ secrets.SRS_PACKAGER_LIGHTHOUSE }}
         run: |
           echo "Release ossrs/srs:$SRS_TAG"
           docker build --tag ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
           echo "Release ossrs/droplet:$SRS_TAG"
           docker build --tag ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
+          echo "Release ossrs/lighthouse:$SRS_TAG"
+          docker build --tag ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
 
       # Docker hub
       - name: Login docker hub
@@ -75,6 +78,10 @@ jobs:
           docker tag ossrs/droplet:$SRS_TAG ossrs/droplet:$SRS_MAJOR
           docker tag ossrs/droplet:$SRS_TAG ossrs/droplet:latest
           docker push --all-tags ossrs/droplet
+          #
+          docker tag ossrs/lighthouse:$SRS_TAG ossrs/lighthouse:$SRS_MAJOR
+          docker tag ossrs/lighthouse:$SRS_TAG ossrs/lighthouse:latest
+          docker push --all-tags ossrs/lighthouse
 
       # Aliyun ACR hub
       - name: Login Aliyun docker hub
@@ -98,6 +105,13 @@ jobs:
           docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:$SRS_MAJOR
           docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
           docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/droplet
+          #
+          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_TAG
+          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_VERSION
+          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v$SRS_MAJOR
+          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_MAJOR
+          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
+          docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse
 
       ##################################################################################################################
       ##################################################################################################################

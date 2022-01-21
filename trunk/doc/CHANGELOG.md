@@ -8,7 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
-* v4.0, 2022-01-17, Release v4.0-b4, 4.0 beta4, v4.0.230, 144393 lines.
+* v4.0, 2022-01-21, Support docker image for [lighthouse](https://hub.docker.com/r/ossrs/lighthouse). v4.0.231
 * v4.0, 2022-01-17, Enable rtmp2rtc and rtc2rtmp for docker.conf
 * v4.0, 2022-01-17, Support docker image for [droplet](https://hub.docker.com/r/ossrs/droplet). v4.0.230
 * v4.0, 2022-01-16, Update README for **Cloud Virtual Machine([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#cloud-virtual-machine) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#cloud-virtual-machine))**
