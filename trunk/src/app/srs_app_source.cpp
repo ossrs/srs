@@ -1519,6 +1519,8 @@ SrsMetaCache::SrsMetaCache()
 SrsMetaCache::~SrsMetaCache()
 {
     dispose();
+    srs_freep(vformat);
+    srs_freep(aformat);
 }
 
 void SrsMetaCache::dispose()
