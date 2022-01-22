@@ -326,7 +326,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
         ::close(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }
-
+    
     return err;
 }
 

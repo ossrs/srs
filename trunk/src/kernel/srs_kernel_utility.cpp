@@ -163,7 +163,6 @@ string srs_dns_resolve(string host, int& family)
     char shost[64];
     memset(shost, 0, sizeof(shost));
     if (getnameinfo(r->ai_addr, r->ai_addrlen, shost, sizeof(shost), NULL, 0, NI_NUMERICHOST)) {
-        free(r);
         return "";
     }
 
