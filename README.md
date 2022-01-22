@@ -58,6 +58,7 @@ Note that if convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github
 
 > Highly recommend that directly run SRS by
 > **docker([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker))**,
+> **Cloud Virtual Machine([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#cloud-virtual-machine) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#cloud-virtual-machine))**,
 > or **K8s([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#k8s) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#k8s))**,
 > however it's also easy to build SRS from source code, for detail please see
 > **Getting Started([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#getting-started) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started))**.
@@ -130,6 +131,8 @@ A big THANK YOU goes to:
 
 ## Releases
 
+* 2022-01-17, Release [v4.0-b4](https://github.com/ossrs/srs/releases/tag/v4.0-b4), v4.0-b4, 4.0 beta4, v4.0.230, 144393 lines.
+* 2022-01-13, Release [v4.0-b3](https://github.com/ossrs/srs/releases/tag/v4.0-b3), v4.0-b3, 4.0 beta3, v4.0.229, 144393 lines.
 * 2022-01-03, Release [v4.0-b2](https://github.com/ossrs/srs/releases/tag/v4.0-b2), v4.0-b2, 4.0 beta2, v4.0.215, 144278 lines.
 * 2021-12-19, Release [v4.0-b1](https://github.com/ossrs/srs/releases/tag/v4.0-b1), v4.0-b1, 4.0 beta1, v4.0.206, 144126 lines.
 * 2021-12-01, Release [v4.0-b0](https://github.com/ossrs/srs/releases/tag/v4.0-b0), v4.0-b0, 4.0 beta0, v4.0.201, 144022 lines.

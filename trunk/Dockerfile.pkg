@@ -2,12 +2,10 @@ FROM ossrs/srs:dev
 
 # version=4.0.145
 ARG version
+ARG SRS_AUTO_PACKAGER
 
 # Install depends tools.
 RUN yum install -y zip
-
-# Setup the packager env.
-ENV SRS_AUTO_PACKAGER ossrs
 
 # Build and install SRS.
 ADD srs-server-${version}.tar.gz /srs

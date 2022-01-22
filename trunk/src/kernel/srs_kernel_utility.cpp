@@ -155,8 +155,7 @@ string srs_dns_resolve(string host, int& family)
     hints.ai_family = family;
 
     addrinfo* r = NULL;
-    // bugfix: r is alloc by getaddrinfo, cannot call delete to free it, must use freeaddrinfo(r)
-    //SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
         return "";
     }
@@ -168,7 +167,6 @@ string srs_dns_resolve(string host, int& family)
         return "";
     }
 
-    freeaddrinfo(r);
     family = r->ai_family;
     return string(shost);
 }

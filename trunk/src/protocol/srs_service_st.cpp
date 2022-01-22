@@ -171,15 +171,13 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     hints.ai_socktype = SOCK_STREAM;
 
     addrinfo* r  = NULL;
-    // bugfix: r is alloc by getaddrinfo, cannot call delete to free it, must use freeaddrinfo(r)
-    //SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
 
     int sock = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
     if(sock == -1){
-        freeaddrinfo(r);
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
 
@@ -187,17 +185,14 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
         ::close(sock);
-        freeaddrinfo(r);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
 
     if (st_connect((st_netfd_t)stfd, r->ai_addr, r->ai_addrlen, timeout) == -1){
         srs_close_stfd(stfd);
-        freeaddrinfo(r);
         return srs_error_new(ERROR_ST_CONNECT, "connect to %s:%d", server.c_str(), port);
     }
 
-    freeaddrinfo(r);
     *pstfd = stfd;
     return srs_success;
 }
@@ -253,8 +248,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_flags    = AI_NUMERICHOST;
 
     addrinfo* r = NULL;
-    // bugfix: r is alloc by getaddrinfo, cannot call delete to free it, must use freeaddrinfo(r)
-    //SrsAutoFreeF(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
@@ -262,18 +256,15 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
-        freeaddrinfo(r);
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_tcp_listen(fd, r, pfd)) != srs_success) {
         ::close(fd);
-        freeaddrinfo(r);
         return srs_error_wrap(err, "fd=%d", fd);
     }
 
-    freeaddrinfo(r);
     return err;
 }
 
@@ -319,8 +310,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_flags    = AI_NUMERICHOST;
 
     addrinfo* r  = NULL;
-    // bugfix: r is alloc by getaddrinfo, cannot call delete to free it, must use freeaddrinfo(r)
-    //SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
@@ -328,18 +318,15 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
 
     int fd = 0;
     if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
-        freeaddrinfo(r);
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
             r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_udp_listen(fd, r, pfd)) != srs_success) {
         ::close(fd);
-        freeaddrinfo(r);
         return srs_error_wrap(err, "fd=%d", fd);
     }
 
-    freeaddrinfo(r);
     return err;
 }
 
