@@ -155,7 +155,7 @@ string srs_dns_resolve(string host, int& family)
     hints.ai_family = family;
     
     addrinfo* r = NULL;
-    SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(host.c_str(), NULL, &hints, &r)) {
         return "";
     }

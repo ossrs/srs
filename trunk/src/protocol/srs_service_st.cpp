@@ -171,7 +171,7 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     hints.ai_socktype = SOCK_STREAM;
     
     addrinfo* r  = NULL;
-    SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(server.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "get address info");
     }
@@ -248,7 +248,7 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_flags    = AI_NUMERICHOST;
 
     addrinfo* r = NULL;
-    SrsAutoFreeF(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
@@ -309,7 +309,7 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t* pfd)
     hints.ai_flags    = AI_NUMERICHOST;
 
     addrinfo* r  = NULL;
-    SrsAutoFree(addrinfo, r);
+    SrsAutoFreeH(addrinfo, r, freeaddrinfo);
     if(getaddrinfo(ip.c_str(), sport, (const addrinfo*)&hints, &r)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "getaddrinfo hints=(%d,%d,%d)",
             hints.ai_family, hints.ai_socktype, hints.ai_flags);
