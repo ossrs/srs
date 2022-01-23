@@ -56,7 +56,8 @@ Note that if convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github
 * H5(WebRTC): [webrtc://localhost/live/livestream](http://localhost:8080/players/rtc_player.html?autostart=true)
 
 > Note: Besides of FFmpeg or OBS, it's also able to [publish by H5](http://localhost:8080/players/rtc_publisher.html?autostart=true) 
-> if [WebRTC](https://github.com/ossrs/srs/issues/307) is enabled.
+> if **WebRTC([CN](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#rtc-to-rtmp), [EN](https://github.com/ossrs/srs/wiki/v4_EN_WebRTC#rtc-to-rtmp))** is enabled,
+> please remember to set the **CANDIDATE([CN](https://github.com/ossrs/srs/wiki/v4_CN_WebRTC#config-candidate) or [EN](https://github.com/ossrs/srs/wiki/v4_EN_WebRTC#config-candidate))** for WebRTC.
 
 > Highly recommend that directly run SRS by
 > **docker([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker))**,
@@ -124,7 +125,12 @@ A big `THANK YOU` also goes to:
 
 * All [contributors](trunk/AUTHORS.md#contributors) of SRS.
 * All friends of SRS for [big supports](https://github.com/ossrs/srs/wiki/Product).
-* [Genes](http://sourceforge.net/users/genes), [Mabbott](http://sourceforge.net/users/mabbott) and [Michael Talyanksy](https://github.com/michaeltalyansky) for [st](https://github.com/ossrs/state-threads/tree/srs).
+* [Genes](http://sourceforge.net/users/genes), [Mabbott](http://sourceforge.net/users/mabbott) and [Michael Talyanksy](https://github.com/michaeltalyansky) for creating and introducing [st](https://github.com/ossrs/state-threads/tree/srs).
+
+## Contributing
+
+We are grateful to the community for contributing bugfix and improvements, please follow the
+[guide](https://github.com/ossrs/srs/contribute).
 
 ## Releases
 
