@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-01-23, Merge [#2887](https://github.com/ossrs/srs/pull/2887): Fix memory leak in SrsMetaCache. (#2887). v4.0.232
 * v4.0, 2022-01-21, Support docker image for [lighthouse](https://hub.docker.com/r/ossrs/lighthouse). v4.0.231
 * v4.0, 2022-01-17, Enable rtmp2rtc and rtc2rtmp for docker.conf
 * v4.0, 2022-01-17, Support docker image for [droplet](https://hub.docker.com/r/ossrs/droplet). v4.0.230
