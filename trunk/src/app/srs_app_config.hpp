@@ -368,10 +368,6 @@ protected:
     // @param buffer, the config buffer, user must delete it.
     // @remark, use protected for the utest to override with mock.
     virtual srs_error_t parse_buffer(srs_internal::SrsConfigBuffer* buffer);
-    // Parse include config from the buffer.
-    // @param buffer, the config buffer, user must delete it.
-    // @remark, use protected for the utest to override with mock.
-    virtual srs_error_t parse_include_buffer(srs_internal::SrsConfigBuffer* buffer);
     // global env
 public:
     // Get the current work directory.

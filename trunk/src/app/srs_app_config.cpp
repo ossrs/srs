@@ -1023,8 +1023,24 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
 
                 srs_trace("config parse include %s", file.c_str());
                 srs_freep(err);
-                if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
-                    return srs_error_wrap(err, "parse file");
+                if (type != parse_block) {
+                    if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
+                        return srs_error_wrap(err, "parse file");
+                    }
+                } else {
+                    if (file.empty()) {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+                    }
+
+                    SrsConfigBuffer buffer;
+
+                    if ((err = buffer.fullfill(file.c_str())) != srs_success) {
+                        return srs_error_wrap(err, "buffer fullfil");
+                    }
+
+                    if ((err = parse_conf(&buffer, parse_file, conf)) != srs_success) {
+                        return srs_error_wrap(err, "parse include buffer");
+                    }
                 }
             }
         } else {
@@ -2452,7 +2468,8 @@ srs_error_t SrsConfig::parse_include_file(const char *filename)
         return srs_error_wrap(err, "buffer fullfil");
     }
 
-    if ((err = parse_include_buffer(&buffer)) != srs_success) {
+    // Parse root tree from buffer.
+    if ((err = root->parse(&buffer, this)) != srs_success) {
         return srs_error_wrap(err, "parse include buffer");
     }
 
@@ -3015,18 +3032,6 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
         set_config_directive(root, "srs_log_tank", "console");
     }
     
-    return err;
-}
-
-srs_error_t SrsConfig::parse_include_buffer(SrsConfigBuffer *buffer)
-{
-    srs_error_t err = srs_success;
-
-    // Parse root tree from buffer.
-    if ((err = root->parse(buffer, this)) != srs_success) {
-        return srs_error_wrap(err, "root parse");
-    }
-
     return err;
 }
 
