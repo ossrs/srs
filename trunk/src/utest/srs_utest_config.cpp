@@ -3622,3 +3622,98 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
     }
 }
 
+VOID TEST(ConfigMainTest, CheckIncludeConfig)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "include ./conf/include_test/include_1.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_2.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_4.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+
+        EXPECT_TRUE(conf.get_http_api_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
+    }
+}
