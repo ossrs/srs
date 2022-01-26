@@ -82,6 +82,22 @@ namespace srs_internal
         pos = last = start = NULL;
         end = start;
     }
+
+    SrsConfigBuffer::SrsConfigBuffer(string buf)
+    {
+        // read all.
+        int filesize = (int)buf.length();
+
+        if (filesize <= 0) {
+            return;
+        }
+
+        // create buffer
+        pos = last = start = new char[filesize];
+        end = start + filesize;
+
+        memcpy(start, buf.data(), filesize);
+    }
     
     SrsConfigBuffer::~SrsConfigBuffer()
     {
@@ -1032,14 +1048,25 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
                     }
 
-                    SrsConfigBuffer buffer;
+                    std::string filename = file.c_str();
+                    SrsConfDirective* mock_directive = conf->get_mock_directive(filename);
 
-                    if ((err = buffer.fullfill(file.c_str())) != srs_success) {
-                        return srs_error_wrap(err, "buffer fullfil");
-                    }
+                    if(!mock_directive) {
+                        SrsConfigBuffer buffer;
 
-                    if ((err = parse_conf(&buffer, parse_file, conf)) != srs_success) {
-                        return srs_error_wrap(err, "parse include buffer");
+                        if ((err = buffer.fullfill(file.c_str())) != srs_success) {
+                            return srs_error_wrap(err, "buffer fullfil");
+                        }
+
+                        if ((err = parse_conf(&buffer, parse_file, conf)) != srs_success) {
+                            return srs_error_wrap(err, "parse include buffer");
+                        }
+                    } else {
+                        SrsConfigBuffer buffer(mock_directive->arg0());
+
+                        if ((err = parse_conf(&buffer, parse_file, conf)) != srs_success) {
+                            return srs_error_wrap(err, "parse include buffer");
+                        }
                     }
                 }
             }
@@ -1229,6 +1256,37 @@ SrsConfig::~SrsConfig()
 bool SrsConfig::is_dolphin()
 {
     return dolphin;
+}
+
+SrsConfDirective* SrsConfig::get_mock_directive(const string file_name)
+{
+    SrsConfDirective* mock_directive = NULL;
+
+    std::vector<SrsConfDirective*>::iterator it;
+    for (it = mock_directives.begin(); it != mock_directives.end(); ++it) {
+        SrsConfDirective* directive = *it;
+        if (directive->name == file_name) {
+            mock_directive = directive;
+        }
+    }
+
+    return mock_directive;
+}
+
+srs_error_t SrsConfig::mock_include(const string file_name, const string content)
+{
+    srs_error_t err = srs_success;
+
+    SrsConfDirective* mock_directive = get_mock_directive(file_name);
+
+    if (!mock_directive) {
+        mock_directive = new SrsConfDirective();
+        mock_directive->name = file_name;
+        mock_directive->args.push_back(content);
+        mock_directives.push_back(mock_directive);
+    }
+
+    return err;
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler* handler)
@@ -2456,21 +2514,32 @@ srs_error_t SrsConfig::parse_include_file(const char *filename)
 {
     srs_error_t err = srs_success;
 
-    std::string include_file = filename;
+    std::string file = filename;
 
-    if (include_file.empty()) {
+    if (file.empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
     }
 
-    SrsConfigBuffer buffer;
+    SrsConfDirective* mock_directive = get_mock_directive(file);
 
-    if ((err = buffer.fullfill(include_file.c_str())) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfil");
-    }
+    if(!mock_directive) {
+        SrsConfigBuffer buffer;
 
-    // Parse root tree from buffer.
-    if ((err = root->parse(&buffer, this)) != srs_success) {
-        return srs_error_wrap(err, "parse include buffer");
+        if ((err = buffer.fullfill(file.c_str())) != srs_success) {
+            return srs_error_wrap(err, "buffer fullfil");
+        }
+
+        // Parse root tree from buffer.
+        if ((err = root->parse(&buffer, this)) != srs_success) {
+            return srs_error_wrap(err, "parse include buffer");
+        }
+    } else {
+        SrsConfigBuffer buffer(mock_directive->arg0());
+
+        // Parse root tree from buffer.
+        if ((err = root->parse(&buffer, this)) != srs_success) {
+            return srs_error_wrap(err, "parse include buffer");
+        }
     }
 
     return err;

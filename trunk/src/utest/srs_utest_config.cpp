@@ -3628,6 +3628,10 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
 
     if (true) {
         MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include.conf", "listen 1935;include ./conf/include_test/include_1.conf;");
+        conf.mock_include("./conf/include_test/include_1.conf", "max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}}");
+
         HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include.conf;"));
 
         vector<string> listens = conf.get_listens();
@@ -3650,6 +3654,9 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
 
     if (true) {
         MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_1.conf", "max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}}");
+
         HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "include ./conf/include_test/include_1.conf;"));
 
         vector<string> listens = conf.get_listens();
@@ -3672,6 +3679,10 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
 
     if (true) {
         MockSrsConfig conf;
+ 
+        conf.mock_include("./conf/include_test/include_2.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {include ./conf/include_test/include_3.conf;}");
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+
         HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_2.conf;"));
 
         vector<string> listens = conf.get_listens();
@@ -3694,6 +3705,12 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
 
     if (true) {
         MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+        conf.mock_include("./conf/include_test/include_4.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;include ./conf/include_test/include_5.conf;vhost ossrs.net {include ./conf/include_test/include_3.conf;}include ./conf/include_test/include_6.conf;");
+        conf.mock_include("./conf/include_test/include_5.conf", "http_server {enabled on;listen xxx;dir xxx2;}");
+        conf.mock_include("./conf/include_test/include_6.conf", "http_api {enabled on;listen xxx;}");
+
         HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_4.conf;"));
 
         vector<string> listens = conf.get_listens();

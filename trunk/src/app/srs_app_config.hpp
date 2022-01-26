@@ -79,6 +79,7 @@ namespace srs_internal
         int line;
     public:
         SrsConfigBuffer();
+        SrsConfigBuffer(std::string buf);
         virtual ~SrsConfigBuffer();
     public:
         // Fullfill the buffer with content of file specified by filename.
@@ -291,6 +292,13 @@ public:
 public:
     // Whether srs is in dolphin mode.
     virtual bool is_dolphin();
+private:
+    // The directive include file.
+    std::vector<SrsConfDirective*> mock_directives;
+public:
+    // For utest function
+    virtual SrsConfDirective* get_mock_directive(const std::string file_name);
+    virtual srs_error_t mock_include(const std::string file_name, const std::string content);
 // Reload
 public:
     // For reload handler to register itself,
