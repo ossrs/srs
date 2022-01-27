@@ -32,8 +32,15 @@ class MockSrsConfig : public SrsConfig
 public:
     MockSrsConfig();
     virtual ~MockSrsConfig();
+private:
+    std::vector<SrsConfDirective*> mock_directives;
 public:
+    SrsConfDirective* get_mock_directive(const std::string file_name);
+public:
+    virtual MockSrsConfigBuffer* get_buffer_from_include_file(const char* filename);
     virtual srs_error_t parse(std::string buf);
+    virtual srs_error_t parse_include_file(const char* filename);
+    virtual srs_error_t mock_include(const std::string file_name, const std::string content);
 };
 
 #endif

@@ -50,6 +50,37 @@ MockSrsConfig::~MockSrsConfig()
 {
 }
 
+SrsConfDirective* MockSrsConfig::get_mock_directive(const string file_name)
+{
+    SrsConfDirective* mock_directive = NULL;
+
+    std::vector<SrsConfDirective*>::iterator it;
+    for (it = mock_directives.begin(); it != mock_directives.end(); ++it) {
+        SrsConfDirective* directive = *it;
+        if (directive->name == file_name) {
+            mock_directive = directive;
+        }
+    }
+
+    return mock_directive;
+}
+
+MockSrsConfigBuffer* MockSrsConfig::get_buffer_from_include_file(const char* filename)
+{
+    MockSrsConfigBuffer* buffer = NULL;
+
+    std::string file = filename;
+    SrsConfDirective* mock_directive = get_mock_directive(file);
+
+    if(!mock_directive) {
+        return NULL;
+    } else {
+        buffer = new MockSrsConfigBuffer(mock_directive->arg0());
+    }
+
+    return buffer;
+}
+
 srs_error_t MockSrsConfig::parse(string buf)
 {
     srs_error_t err = srs_success;
@@ -68,6 +99,48 @@ srs_error_t MockSrsConfig::parse(string buf)
         return srs_error_wrap(err, "check normal config");
     }
     
+    return err;
+}
+
+srs_error_t MockSrsConfig::parse_include_file(const char *filename)
+{
+    srs_error_t err = srs_success;
+
+    std::string file = filename;
+
+    if (file.empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+    }
+
+    SrsConfDirective* mock_directive = get_mock_directive(file);
+
+    if(!mock_directive) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+    } else {
+        MockSrsConfigBuffer buffer(mock_directive->arg0());
+
+        // Parse root tree from buffer.
+        if ((err = root->parse(&buffer, this)) != srs_success) {
+            return srs_error_wrap(err, "parse include buffer");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t MockSrsConfig::mock_include(const string file_name, const string content)
+{
+    srs_error_t err = srs_success;
+
+    SrsConfDirective* mock_directive = get_mock_directive(file_name);
+
+    if (!mock_directive) {
+        mock_directive = new SrsConfDirective();
+        mock_directive->name = file_name;
+        mock_directive->args.push_back(content);
+        mock_directives.push_back(mock_directive);
+    }
+
     return err;
 }
 
