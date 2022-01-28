@@ -805,6 +805,173 @@ class RESTSnapshots(object):
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
+'''
+handle the forward requests: dynamic forward url.
+'''
+class RESTForward(object):
+    exposed = True
+
+    def __init__(self):
+        self.__forwards = []
+
+        self.__forwards.append({
+            "vhost":"ossrs.net",
+            "app":"live",
+            "stream":"livestream",
+            "url":"push.ossrs.com",
+        })
+
+        self.__forwards.append({
+            "app":"live",
+            "stream":"livestream",
+            "url":"push.ossrs.com",
+        })
+
+        self.__forwards.append({
+            "app":"live",
+            "stream":"livestream",
+            "url":"rtmp://push.ossrs.com/test/teststream?auth_token=123456",
+        })
+
+    def GET(self):
+        enable_crossdomain()
+
+        forwards = {}
+        return json.dumps(forwards)
+
+    '''
+    for SRS hook: on_forward
+    on_forward:
+        when srs reap a dvr file, call the hook,
+        the request in the POST data string is a object encode by json:
+              {
+                  "action": "on_forward",
+                  "server_id": "server_test",
+                  "client_id": 1985,
+                  "ip": "192.168.1.10",
+                  "vhost": "video.test.com",
+                  "app": "live",
+                  "tcUrl": "rtmp://video.test.com/live?key=d2fa801d08e3f90ed1e1670e6e52651a",
+                  "stream": "livestream",
+                  "param":"?token=xxx&salt=yyy"
+              }
+    if valid, the hook must return HTTP code 200(Stauts OK) and response
+    an int value specifies the error code(0 corresponding to success):
+          0
+    '''
+    def POST(self):
+        enable_crossdomain()
+
+        # return the error code in str
+        code = Error.success
+
+        req = cherrypy.request.body.read()
+        trace("post to forwards, req=%s"%(req))
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            code = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
+            return json.dumps({"code": int(code), "data": None})
+
+        action = json_req["action"]
+        if action == "on_forward":
+            return self.__on_forward(json_req)
+        else:
+            trace("invalid request action: %s"%(json_req["action"]))
+            code = Error.request_invalid_action
+
+        return json.dumps({"code": int(code), "data": None})
+
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain()
+
+    def __on_forward(self, req):
+        code = Error.success
+
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, tcUrl=%s, stream=%s, param=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["tcUrl"], req["stream"], req["param"]
+        ))
+
+        # dynamic create forward config
+        forwards = []
+        destinations = []
+
+        # handle param: ?forward=xxxxx&auth_token=xxxxx
+        # 1.delete ?
+        req_param = req["param"].replace('?', '', 1)
+
+        # 2.delete 'forward=xxxxx'
+        new_req_param = ""
+        params = req_param.split("&")
+        for param in params:
+            result = param.split("=")
+            if result[0].find("forward") != -1:
+                destinations.append({
+                    "url": result[1],
+                })
+            elif len(new_req_param) > 0:
+                new_req_param = new_req_param + "&" + param
+            else:
+                new_req_param = param
+
+        # secne: dynamic config
+        for forward in self.__forwards:
+            # vhost exist
+            if hasattr(forward, "vhost"):
+                if len(forward["vhost"]) > 0 and req["vhost"] != forward["vhost"]:
+                    continue
+            # app exist
+            if hasattr(forward, "app"):
+                if len(forward["app"]) > 0 and req["app"] != forward["app"]:
+                    continue
+            # app exist
+            if hasattr(forward, "stream"):
+                if len(forward["stream"]) > 0 and req["stream"] != forward["stream"]:
+                    continue
+            # no url
+            if forward["url"] is None:
+                continue
+
+            # url maybe spell full rtmp address
+            url = forward["url"]
+            if url.find("rtmp://") == -1:
+                # format: xxx:xxx
+                # maybe you should use destination config
+                url = "rtmp://%s/%s"%(url, req['app'])
+                if len(req['vhost']) > 0 and req['vhost'] != "__defaultVhost__" and url.find(req['vhost']) == -1:
+                    url = url + "?vhost=" + req['vhost']
+                url = url + "/" + req['stream']
+                if len(new_req_param) > 0:
+                    url = url + "?" + new_req_param
+
+            # append
+            forwards.append({
+                "url": url,
+            })
+
+        # secne: parse client params, like:
+        # format1: rtmp://srs-server/live/stream?forward=aliyuncdn.com:1936&token=xxxxxx
+        # format2: rtmp://srs-server/live/stream?forward=rtmp://cdn.com/myapp/mystream?XXXXXX
+        for destination in destinations:
+            url = destination["url"]
+            if url.find("rtmp://") == -1:
+                # format: xxx:xxx
+                # maybe you should use destination config
+                url = "rtmp://%s/%s"%(url, req['app'])
+                if len(req['vhost']) > 0 and req['vhost'] != "__defaultVhost__" and url.find(req['vhost']) == -1:
+                    url = url + "?vhost=" + req['vhost']
+                url = url + "/" + req['stream']
+                if len(new_req_param) > 0:
+                    url = url + "?" + new_req_param
+
+            # append
+            forwards.append({
+                "url": url,
+            })
+
+        return json.dumps({"code": int(code), "data": {"forwards": forwards}})
+
 # HTTP RESTful path.
 class Root(object):
     exposed = True
@@ -846,6 +1013,7 @@ class V1(object):
         self.chats = RESTChats()
         self.servers = RESTServers()
         self.snapshots = RESTSnapshots()
+        self.forward = RESTForward()
     def GET(self):
         enable_crossdomain();
         return json.dumps({"code":Error.success, "urls":{

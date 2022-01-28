@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_app_dash.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_http_hooks.hpp>
 
 #define CONST_MAX_JITTER_MS         250
 #define CONST_MAX_JITTER_MS_NEG         -250
@@ -1473,7 +1474,54 @@ srs_error_t SrsOriginHub::create_forwarders()
         return err;
     }
     
-    SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
+    srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
+
+    SrsConfDirective* conf = _srs_config->get_forward_backend(req->vhost);
+    if (conf) {
+        int count = conf->args.size();
+        for (int i = 0; i < count; i++) {
+            std::string backend_url = conf->args.at(i);
+
+            // create forward by backend
+            std::vector<std::string> urls;
+            if ((err = SrsHttpHooks::on_forward_backend(backend_url, req, urls)) != srs_success) {
+                // ignore
+                srs_trace("get backend failed, %s", srs_error_desc(err).c_str());
+                continue;
+            }
+
+            std::vector<std::string>::iterator it;
+            for (it = urls.begin(); it != urls.end(); ++it) {
+                std::string url = *it;
+
+                // create forwarder by url
+                SrsRequest* freq = new SrsRequest();
+                SrsAutoFree(SrsRequest, freq);
+                srs_parse_rtmp_url(url, freq->tcUrl, freq->stream);
+                srs_discovery_tc_url(freq->tcUrl, freq->schema, freq->host, freq->vhost, freq->app, freq->stream, freq->port, freq->param);
+
+                SrsForwarder* forwarder = new SrsForwarder(this);
+                forwarders.push_back(forwarder);
+
+                std::stringstream forward_server;
+                forward_server << freq->host << ":" << freq->port;
+
+                // initialize the forwarder with request.
+                if ((err = forwarder->initialize(freq, forward_server.str())) != srs_success) {
+                    return srs_error_wrap(err, "init forwarder");
+                }
+
+                forwarder->set_queue_size(queue_size);
+
+                if ((err = forwarder->on_publish()) != srs_success) {
+                    return srs_error_wrap(err, "start backend forwarder failed, vhost=%s, app=%s, stream=%s, forward-to=%s",
+                        req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), forward_server.str().c_str());
+                }
+            }
+        }
+    }
+
+    conf = _srs_config->get_forwards(req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
         
@@ -1485,7 +1533,6 @@ srs_error_t SrsOriginHub::create_forwarders()
             return srs_error_wrap(err, "init forwarder");
         }
 
-        srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
         forwarder->set_queue_size(queue_size);
         
         if ((err = forwarder->on_publish()) != srs_success) {
