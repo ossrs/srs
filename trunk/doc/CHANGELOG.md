@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-01-30, For docker, always use the console for logging. v4.0.235
 * v4.0, 2022-01-29, Merge [#2896](https://github.com/ossrs/srs/pull/2896): SRT: Reduce the SRT bug by limit the max times for retry. (#2896). v4.0.234
 * v4.0, 2022-01-23, Merge [#2886](https://github.com/ossrs/srs/pull/2886): Fix bug when free addrinfo. (#2886). v4.0.233
 * v4.0, 2022-01-22, Merge [#2887](https://github.com/ossrs/srs/pull/2887): Fix memory leak in SrsMetaCache. (#2887). v4.0.232
