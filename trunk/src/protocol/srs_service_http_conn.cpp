@@ -263,12 +263,12 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     
     if (length > 0) {
         obj->field_value.append(at, (int)length);
-    }
 
-    // When header parsed, we must save the position of start for body,
-    // because we have to consume the header in buffer.
-    // @see https://github.com/ossrs/srs/issues/1508
-    obj->p_header_tail = at;
+        // When header parsed, we must save the position of start for body,
+        // because we have to consume the header in buffer.
+        // @see https://github.com/ossrs/srs/issues/1508
+        obj->p_header_tail = at;
+    }
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
