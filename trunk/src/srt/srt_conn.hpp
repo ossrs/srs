@@ -44,6 +44,7 @@ public:
 
     void update_timestamp(long long now_ts);
     long long get_last_ts();
+    int get_write_fail_count();
 
 private:
     SRTSOCKET _conn_fd;
@@ -52,6 +53,7 @@ private:
     std::string _vhost;
     int _mode;
     long long _update_timestamp;
+    int write_fail_cnt_;
 };
 
 typedef std::shared_ptr<srt_conn> SRT_CONN_PTR;
