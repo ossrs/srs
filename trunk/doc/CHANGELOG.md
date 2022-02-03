@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-02-03, Merge [#2888](https://github.com/ossrs/srs/pull/2888): Fix bug when the value of http header is empty. (#2888). v4.0.237
 * v4.0, 2022-01-30, Refine docker console, preview by players at the same server. v4.0.236
 * v4.0, 2022-01-30, For docker, always use the console for logging. v4.0.235
 * v4.0, 2022-01-29, Merge [#2896](https://github.com/ossrs/srs/pull/2896): SRT: Reduce the SRT bug by limit the max times for retry. (#2896). v4.0.234
