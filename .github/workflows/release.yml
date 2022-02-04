@@ -85,9 +85,9 @@ jobs:
 
       # Aliyun ACR hub
       - name: Login Aliyun docker hub
-        uses: aliyun/acr-login@v1
+        uses: docker/login-action@v1
         with:
-          login-server: https://registry.cn-hangzhou.aliyuncs.com
+          registry: registry.cn-hangzhou.aliyuncs.com
           username: "${{ secrets.ACR_USERNAME }}"
           password: "${{ secrets.ACR_PASSWORD }}"
       - name: Push to Aliyun docker hub
@@ -112,6 +112,36 @@ jobs:
           docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_MAJOR
           docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
           docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse
+
+      # Tencent TCR hub
+      - name: Login Tencent docker hub
+        uses: docker/login-action@v1
+        with:
+          registry: ccr.ccs.tencentyun.com
+          username: "${{ secrets.TCR_USERNAME }}"
+          password: "${{ secrets.TCR_PASSWORD }}"
+      - name: Push to Aliyun docker hub
+        run: |
+          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_TAG
+          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_VERSION
+          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:v$SRS_MAJOR
+          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_MAJOR
+          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:latest
+          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/srs
+          #
+          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_TAG
+          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_VERSION
+          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:v$SRS_MAJOR
+          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_MAJOR
+          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:latest
+          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/droplet
+          #
+          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_TAG
+          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_VERSION
+          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:v$SRS_MAJOR
+          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_MAJOR
+          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:latest
+          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/lighthouse
 
       ##################################################################################################################
       ##################################################################################################################
