@@ -134,6 +134,7 @@ We are grateful to the community for contributing bugfix and improvements, pleas
 
 ## Releases
 
+* 2022-02-04, Release [v4.0-b6](https://github.com/ossrs/srs/releases/tag/v4.0-b6), v4.0-b6, 4.0 beta6, v4.0.238, 144437 lines.
 * 2022-01-30, Release [v4.0-b5](https://github.com/ossrs/srs/releases/tag/v4.0-b5), v4.0-b5, 4.0 beta5, v4.0.236, 144416 lines.
 * 2022-01-17, Release [v4.0-b4](https://github.com/ossrs/srs/releases/tag/v4.0-b4), v4.0-b4, 4.0 beta4, v4.0.230, 144393 lines.
 * 2022-01-13, Release [v4.0-b3](https://github.com/ossrs/srs/releases/tag/v4.0-b3), v4.0-b3, 4.0 beta3, v4.0.229, 144393 lines.
