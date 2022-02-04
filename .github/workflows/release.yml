@@ -116,6 +116,7 @@ jobs:
           docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse
 
       # Tencent TCR hub
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login Tencent docker hub
         uses: docker/login-action@v1
         with:
