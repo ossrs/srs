@@ -120,7 +120,7 @@ jobs:
           registry: ccr.ccs.tencentyun.com
           username: "${{ secrets.TCR_USERNAME }}"
           password: "${{ secrets.TCR_PASSWORD }}"
-      - name: Push to Aliyun docker hub
+      - name: Push to Tencent docker hub
         run: |
           docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_TAG
           docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_VERSION
