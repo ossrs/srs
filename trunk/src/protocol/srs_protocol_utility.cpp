@@ -28,6 +28,7 @@
 #include <unistd.h>
 #endif
 
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <sstream>
 using namespace std;
@@ -392,23 +393,16 @@ bool srs_is_ipv4(string domain)
 }
 
 uint32_t srs_ipv4_to_num(string ip) {
-    int a, b, c, d;
     uint32_t addr = 0;
 
     if (!srs_is_ipv4(ip)) {
         return 0;
     }
-
-    if (sscanf(ip.c_str(), "%d.%d.%d.%d", &a, &b, &c, &d) != 4) {
+    if (1 != inet_pton(AF_INET, ip.c_str(), &addr)) {
         return 0;
     }
-
-    addr = a << 24;
-    addr |= b << 16;
-    addr |= c << 8;
-    addr |= d;
-
-    return addr;
+ 
+    return ntohl(addr);
 }
 
 bool srs_ipv4_within_mask(string ip, string network, string mask) {
@@ -416,13 +410,7 @@ bool srs_ipv4_within_mask(string ip, string network, string mask) {
     uint32_t mask_addr = srs_ipv4_to_num(mask);
     uint32_t network_addr = srs_ipv4_to_num(network);
 
-    uint32_t net_lower = (network_addr & mask_addr);
-    uint32_t net_upper = (net_lower | (~mask_addr));
-
-    if (ip_addr >= net_lower && ip_addr <= net_upper) {
-        return true;
-    }
-    return false;
+    return (ip_addr & mask_addr) == (network_addr & mask_addr);
 }
 
 static struct CIDR_VALUE {
