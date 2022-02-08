@@ -1021,29 +1021,27 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
             for (int i = 1; i < (int)args.size(); i++) {
                 std::string file = args.at(i);
 
-                srs_trace("config parse include %s", file.c_str());
                 srs_freep(err);
+                if (file.empty()) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+                }
+
+                srs_trace("config parse include %s", file.c_str());
                 if (type != parse_block) {
                     if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
                         return srs_error_wrap(err, "parse file");
                     }
                 } else {
-                    if (file.empty()) {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-                    }
-
                     SrsConfigBuffer* config_buffer = conf->get_buffer_from_include_file(file.c_str());
+                    SrsAutoFree(SrsConfigBuffer, config_buffer);
 
                     if(config_buffer == NULL) {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include buffer, file=%s", file.c_str());
                     } else {
                         if ((err = parse_conf(config_buffer, parse_file, conf)) != srs_success) {
-                            srs_freep(config_buffer);
-
                             return srs_error_wrap(err, "parse include buffer");
                         }
                     }
-                    srs_freep(config_buffer);
                 }
             }
         } else {
@@ -2460,10 +2458,6 @@ srs_error_t SrsConfig::parse_include_file(const char *filename)
     srs_error_t err = srs_success;
 
     std::string file = filename;
-
-    if (file.empty()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-    }
 
     SrsConfigBuffer buffer;
 
