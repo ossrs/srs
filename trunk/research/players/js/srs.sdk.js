@@ -7,6 +7,14 @@
 
 'use strict';
 
+function SrsError(name, message) {
+    this.name = name;
+    this.message = message;
+    this.stack = (new Error()).stack;
+}
+SrsError.prototype = Object.create(Error.prototype);
+SrsError.prototype.constructor = SrsError;
+
 // Depends on adapter-7.4.0.min.js from https://github.com/webrtc/adapter
 // Async-awat-prmise based SRS RTC Publisher.
 function SrsRtcPublisherAsync() {
@@ -48,7 +56,7 @@ function SrsRtcPublisherAsync() {
         self.pc.addTransceiver("video", {direction: "sendonly"});
 
         if (!navigator.mediaDevices && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
-            throw new Error(`Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
+            throw new SrsError('HttpsRequiredError', `Please use HTTPS or localhost to publish, read https://github.com/ossrs/srs/issues/2762#issuecomment-983147576`);
         }
         var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
 
