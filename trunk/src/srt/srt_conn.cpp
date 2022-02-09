@@ -89,7 +89,7 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
     real_streamid = streamid.substr(4);
 
     string_split(real_streamid, ",", info_vec);
-    if (info_vec.size() < 1) {
+    if (info_vec.size() < 2) {
         return false;
     }
 
@@ -117,11 +117,11 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
             } else {
                 mode = PUSH_SRT_MODE;
             }
-        }else if (key == "secret") {
+        } else if (key == "secret") {
             secret = value;
-        }else if (key == "token"){
+        } else if (key == "token"){
             token = value;
-        }else {
+        } else {
             continue;
         }
     }
