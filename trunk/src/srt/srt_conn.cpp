@@ -89,9 +89,13 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
     real_streamid = streamid.substr(4);
 
     string_split(real_streamid, ",", info_vec);
-    if (info_vec.size() < 2) {
+    if (info_vec.size() < 1) {
         return false;
     }
+
+    
+    std::string secret;
+    std::string token;
 
     for (size_t index = 0; index < info_vec.size(); index++) {
         std::string key;
@@ -113,9 +117,31 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
             } else {
                 mode = PUSH_SRT_MODE;
             }
-        } else {//not suport
+        }else if (key == "secret") {
+            secret = value;
+        }else if (key == "token"){
+            token = value;
+        }else {
             continue;
         }
+    }
+
+    //SRT url supports multiple QueryStrings, which are passed to RTMP to realize authentication and other capabilities
+    //@see https://github.com/ossrs/srs/issues/2893
+    std::string params = "?";
+    if (!secret.empty()) {
+        params += "secret=" + secret;
+        if (!token.empty())
+            params += "&token=" + token;
+    }else {
+        if (!token.empty())
+            params += "token=" + token;
+    }
+
+    pos = url_subpath.rfind("/");
+    if ((params.length() > 1) &&
+        pos != std::string::npos) {
+        url_subpath.insert(pos, params);
     }
 
     return true;
