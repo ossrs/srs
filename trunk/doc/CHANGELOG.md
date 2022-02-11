@@ -32,6 +32,8 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-02-09, Mirror docker images in TCR Singapore. v4.0.240
+* v4.0, 2022-02-08, Refine the error for WebRTC H5 publisher. v4.0.239
 * v4.0, 2022-02-04, Push docker to docker, acr and tcr. v4.0.238
 * v4.0, 2022-02-03, Merge [#2888](https://github.com/ossrs/srs/pull/2888): Fix bug when the value of http header is empty. (#2888). v4.0.237
 * v4.0, 2022-01-30, Refine docker console, preview by players at the same server. v4.0.236
