@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-02-11, Support new fields for feature query. v4.0.241
 * v4.0, 2022-02-09, Mirror docker images in TCR Singapore. v4.0.240
 * v4.0, 2022-02-08, Refine the error for WebRTC H5 publisher. v4.0.239
 * v4.0, 2022-02-04, Push docker to docker, acr and tcr. v4.0.238
