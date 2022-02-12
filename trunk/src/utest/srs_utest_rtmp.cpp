@@ -3216,6 +3216,7 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
 
     if (true) {
         EXPECT_EQ((uint32_t)2130706433, srs_ipv4_to_num("127.0.0.1"));
+        EXPECT_NE((uint32_t)16777343, srs_ipv4_to_num("127.0.0.1")); // 
     }
 
     if (true) {

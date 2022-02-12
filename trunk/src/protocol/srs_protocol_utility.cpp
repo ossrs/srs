@@ -394,14 +394,10 @@ bool srs_is_ipv4(string domain)
 
 uint32_t srs_ipv4_to_num(string ip) {
     uint32_t addr = 0;
+    if (inet_pton(AF_INET, ip.c_str(), &addr) <= 0) {
+        return 0;
+    }
 
-    if (!srs_is_ipv4(ip)) {
-        return 0;
-    }
-    if (1 != inet_pton(AF_INET, ip.c_str(), &addr)) {
-        return 0;
-    }
- 
     return ntohl(addr);
 }
 
