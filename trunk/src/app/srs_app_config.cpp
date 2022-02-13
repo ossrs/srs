@@ -1017,6 +1017,9 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
         if (files.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
         }
+        if (!conf) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: no config", buffer->line);
+        }
 
         for (int i = 0; i < (int)files.size(); i++) {
             std::string file = files.at(i);

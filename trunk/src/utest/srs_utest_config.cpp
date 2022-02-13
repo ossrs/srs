@@ -50,21 +50,6 @@ MockSrsConfig::~MockSrsConfig()
 {
 }
 
-SrsConfDirective* MockSrsConfig::get_mock_directive(const string file_name)
-{
-    SrsConfDirective* mock_directive = NULL;
-
-    std::vector<SrsConfDirective*>::iterator it;
-    for (it = mock_directives.begin(); it != mock_directives.end(); ++it) {
-        SrsConfDirective* directive = *it;
-        if (directive->name == file_name) {
-            mock_directive = directive;
-        }
-    }
-
-    return mock_directive;
-}
-
 srs_error_t MockSrsConfig::parse(string buf)
 {
     srs_error_t err = srs_success;
@@ -90,14 +75,17 @@ srs_error_t MockSrsConfig::mock_include(const string file_name, const string con
 {
     srs_error_t err = srs_success;
 
-    SrsConfDirective* mock_directive = get_mock_directive(file_name);
+    included_files[file_name] = content;
 
-    if (!mock_directive) {
-        mock_directive = new SrsConfDirective();
-        mock_directive->name = file_name;
-        mock_directive->args.push_back(content);
-        mock_directives.push_back(mock_directive);
-    }
+    return err;
+}
+
+srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer)
+{
+    srs_error_t err = srs_success;
+
+    string content = included_files[src];
+    *pbuffer = new MockSrsConfigBuffer(content);
 
     return err;
 }
@@ -352,15 +340,10 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
 
             MockSrsConfigBuffer buf(usecase);
             SrsConfDirective conf;
-            HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+            HELPER_ASSERT_FAILED(conf.parse(&buf));
             EXPECT_EQ(0, (int) conf.name.length());
             EXPECT_EQ(0, (int) conf.args.size());
-            EXPECT_EQ(1, (int) conf.directives.size());
-
-            SrsConfDirective &dir = *conf.directives.at(0);
-            EXPECT_STREQ("include", dir.name.c_str());
-            EXPECT_EQ(0, (int) dir.args.size());
-            EXPECT_EQ(0, (int) dir.directives.size());
+            EXPECT_EQ(0, (int) conf.directives.size());
         }
     }
 
@@ -373,20 +356,24 @@ VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
         usecases.push_back("include\rtest;");
         usecases.push_back("include\ntest;");
         usecases.push_back("include  \r \n \r\n \n\rtest;");
+
+        MockSrsConfig config;
+        config.mock_include("test", "listen 1935;");
+
         for (int i = 0; i < (int)usecases.size(); i++) {
             string usecase = usecases.at(i);
 
             MockSrsConfigBuffer buf(usecase);
             SrsConfDirective conf;
-            HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+            HELPER_ASSERT_SUCCESS(conf.parse(&buf, &config));
             EXPECT_EQ(0, (int) conf.name.length());
             EXPECT_EQ(0, (int) conf.args.size());
             EXPECT_EQ(1, (int) conf.directives.size());
 
             SrsConfDirective &dir = *conf.directives.at(0);
-            EXPECT_STREQ("include", dir.name.c_str());
+            EXPECT_STREQ("listen", dir.name.c_str());
             EXPECT_EQ(1, (int) dir.args.size());
-            EXPECT_STREQ("test", dir.arg0().c_str());
+            EXPECT_STREQ("1935", dir.arg0().c_str());
             EXPECT_EQ(0, (int) dir.directives.size());
         }
     }
