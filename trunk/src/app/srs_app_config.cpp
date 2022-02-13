@@ -978,33 +978,21 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
     while (true) {
         std::vector<string> args;
         int line_start = 0;
-        err = read_token(buffer, args, line_start);
-        
-        /**
-         * ret maybe:
-         * ERROR_SYSTEM_CONFIG_INVALID           error.
-         * ERROR_SYSTEM_CONFIG_DIRECTIVE         directive terminated by ';' found
-         * ERROR_SYSTEM_CONFIG_BLOCK_START       token terminated by '{' found
-         * ERROR_SYSTEM_CONFIG_BLOCK_END         the '}' found
-         * ERROR_SYSTEM_CONFIG_EOF               the config file is done
-         */
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_INVALID) {
-            return err;
+        SrsDirectiveState state = SrsDirectiveStateInit;
+        if ((err = read_token(buffer, args, line_start, state)) != srs_success) {
+            return srs_error_wrap(err, "read token, line=%d, state=%d", line_start, state);
         }
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_END) {
+
+        if (state == SrsDirectiveStateBlockEnd) {
             if (type != parse_block) {
                 return srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
             }
-            
-            srs_freep(err);
             return srs_success;
         }
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_EOF) {
+        if (state == SrsDirectiveStateEOF) {
             if (type == parse_block) {
                 return srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
             }
-            
-            srs_freep(err);
             return srs_success;
         }
         
@@ -1020,8 +1008,6 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
 
             for (int i = 1; i < (int)args.size(); i++) {
                 std::string file = args.at(i);
-
-                srs_freep(err);
                 if (file.empty()) {
                     return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
                 }
@@ -1054,21 +1040,19 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
 
             directives.push_back(directive);
 
-            if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_START) {
-                srs_freep(err);
+            if (state == SrsDirectiveStateBlockStart) {
                 if ((err = directive->parse_conf(buffer, parse_block, conf)) != srs_success) {
                     return srs_error_wrap(err, "parse dir");
                 }
             }
         }
-        srs_freep(err);
     }
     
     return err;
 }
 
 // see: ngx_conf_read_token
-srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
+srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start, SrsDirectiveState& state)
 {
     srs_error_t err = srs_success;
     
@@ -1090,8 +1074,9 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     buffer->line);
             }
             srs_trace("config parse complete");
-            
-            return srs_error_new(ERROR_SYSTEM_CONFIG_EOF, "EOF");
+
+            state = SrsDirectiveStateEOF;
+            return err;
         }
         
         char ch = *buffer->pos++;
@@ -1112,10 +1097,12 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 continue;
             }
             if (ch == ';') {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                state = SrsDirectiveStateEntire;
+                return err;
             }
             if (ch == '{') {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                state = SrsDirectiveStateBlockStart;
+                return err;
             }
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '%c'", buffer->line, ch);
         }
@@ -1131,17 +1118,20 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     if (args.size() == 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected ';'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                    state = SrsDirectiveStateEntire;
+                    return err;
                 case '{':
                     if (args.size() == 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '{'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                    state = SrsDirectiveStateBlockStart;
+                    return err;
                 case '}':
                     if (args.size() != 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '}'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_END, "block");
+                    state = SrsDirectiveStateBlockEnd;
+                    return err;
                 case '#':
                     sharp_comment = 1;
                     continue;
@@ -1196,10 +1186,12 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 srs_freepa(aword);
                 
                 if (ch == ';') {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                    state = SrsDirectiveStateEntire;
+                    return err;
                 }
                 if (ch == '{') {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                    state = SrsDirectiveStateBlockStart;
+                    return err;
                 }
             }
         }

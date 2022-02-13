@@ -230,6 +230,18 @@ private:
         // For each direcitve, parsing text block.
         parse_block
     };
+    enum SrsDirectiveState {
+        // Init state
+        SrsDirectiveStateInit,
+        // The directive terminated by ';' found
+        SrsDirectiveStateEntire,
+        // The token terminated by '{' found
+        SrsDirectiveStateBlockStart,
+        // The '}' found
+        SrsDirectiveStateBlockEnd,
+        // The config file is done
+        SrsDirectiveStateEOF,
+    };
     // Parse the conf from buffer. the work flow:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
@@ -240,7 +252,7 @@ private:
     // @param args, the output directive args, the first is the directive name, left is the args.
     // @param line_start, the actual start line of directive.
     // @return, an error code indicates error or has child-directives.
-    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
+    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
 // The config service provider.
