@@ -65,22 +65,6 @@ SrsConfDirective* MockSrsConfig::get_mock_directive(const string file_name)
     return mock_directive;
 }
 
-MockSrsConfigBuffer* MockSrsConfig::get_buffer_from_include_file(const char* filename)
-{
-    MockSrsConfigBuffer* buffer = NULL;
-
-    std::string file = filename;
-    SrsConfDirective* mock_directive = get_mock_directive(file);
-
-    if(!mock_directive) {
-        return NULL;
-    } else {
-        buffer = new MockSrsConfigBuffer(mock_directive->arg0());
-    }
-
-    return buffer;
-}
-
 srs_error_t MockSrsConfig::parse(string buf)
 {
     srs_error_t err = srs_success;

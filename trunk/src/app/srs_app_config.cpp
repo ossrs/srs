@@ -1021,23 +1021,15 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
         for (int i = 0; i < (int)files.size(); i++) {
             std::string file = files.at(i);
             srs_assert(!file.empty());
-
             srs_trace("config parse include %s", file.c_str());
-            if (ctx != SrsDirectiveContextBlock) {
-                if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
-                    return srs_error_wrap(err, "parse file");
-                }
-            } else {
-                SrsConfigBuffer* config_buffer = conf->get_buffer_from_include_file(file.c_str());
-                SrsAutoFree(SrsConfigBuffer, config_buffer);
 
-                if(config_buffer == NULL) {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include buffer, file=%s", file.c_str());
-                } else {
-                    if ((err = parse_conf(config_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
-                        return srs_error_wrap(err, "parse include buffer");
-                    }
-                }
+            SrsConfigBuffer include_file_buffer;
+            if ((err = include_file_buffer.fullfill(file.c_str())) != srs_success) {
+                return srs_error_wrap(err, "buffer fullfill %s", file.c_str());
+            }
+
+            if ((err = parse_conf(&include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
+                return srs_error_wrap(err, "parse include buffer");
             }
         }
     }
@@ -2457,21 +2449,6 @@ srs_error_t SrsConfig::parse_include_file(const char *filename)
     }
 
     return err;
-}
-
-SrsConfigBuffer* SrsConfig::get_buffer_from_include_file(const char* filename)
-{
-    srs_error_t err = srs_success;
-
-    SrsConfigBuffer* buffer = new SrsConfigBuffer();
-
-    if ((err = buffer->fullfill(filename)) != srs_success) {
-        srs_freep(buffer);
-
-        return NULL;
-    }
-
-    return buffer;
 }
 // LCOV_EXCL_STOP
 
