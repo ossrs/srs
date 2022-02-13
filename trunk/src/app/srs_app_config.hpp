@@ -223,12 +223,12 @@ public:
     virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
 private:
-    // The directive parsing type.
-    enum SrsDirectiveType {
+    // The directive parsing context.
+    enum SrsDirectiveContext {
         // The root directives, parsing file.
-        parse_file,
-        // For each direcitve, parsing text block.
-        parse_block
+        SrsDirectiveContextFile,
+        // For each directive, parsing text block.
+        SrsDirectiveContextBlock,
     };
     enum SrsDirectiveState {
         // Init state
@@ -246,7 +246,7 @@ private:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
     // 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
-    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type, SrsConfig* conf);
+    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf);
     // Read a token from buffer.
     // A token, is the directive args and a flag indicates whether has child-directives.
     // @param args, the output directive args, the first is the directive name, left is the args.

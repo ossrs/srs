@@ -844,7 +844,7 @@ bool SrsConfDirective::is_stream_caster()
 
 srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer, SrsConfig* conf)
 {
-    return parse_conf(buffer, parse_file, conf);
+    return parse_conf(buffer, SrsDirectiveContextFile, conf);
 }
 
 srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
@@ -971,7 +971,7 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 // LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
-srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type, SrsConfig* conf)
+srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
     
@@ -984,10 +984,10 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
         }
 
         if (state == SrsDirectiveStateBlockEnd) {
-            return type == parse_block ? srs_success : srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
+            return ctx == SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
         }
         if (state == SrsDirectiveStateEOF) {
-            return type != parse_block ? srs_success : srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
+            return ctx != SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
         }
         if (args.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: empty directive", conf_line);
@@ -1005,7 +1005,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
             directives.push_back(directive);
 
             if (state == SrsDirectiveStateBlockStart) {
-                if ((err = directive->parse_conf(buffer, parse_block, conf)) != srs_success) {
+                if ((err = directive->parse_conf(buffer, SrsDirectiveContextBlock, conf)) != srs_success) {
                     return srs_error_wrap(err, "parse dir");
                 }
             }
@@ -1024,7 +1024,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
             }
 
             srs_trace("config parse include %s", file.c_str());
-            if (type != parse_block) {
+            if (ctx != SrsDirectiveContextBlock) {
                 if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
                     return srs_error_wrap(err, "parse file");
                 }
@@ -1035,7 +1035,7 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
                 if(config_buffer == NULL) {
                     return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include buffer, file=%s", file.c_str());
                 } else {
-                    if ((err = parse_conf(config_buffer, parse_file, conf)) != srs_success) {
+                    if ((err = parse_conf(config_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
                         return srs_error_wrap(err, "parse include buffer");
                     }
                 }
