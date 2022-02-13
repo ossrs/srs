@@ -984,53 +984,17 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
         }
 
         if (state == SrsDirectiveStateBlockEnd) {
-            if (type != parse_block) {
-                return srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
-            }
-            return srs_success;
+            return type == parse_block ? srs_success : srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
         }
         if (state == SrsDirectiveStateEOF) {
-            if (type == parse_block) {
-                return srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
-            }
-            return srs_success;
+            return type != parse_block ? srs_success : srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
         }
-        
         if (args.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: empty directive", conf_line);
         }
         
-        // build directive tree.
-        if (args.at(0) == "include") {
-            if (args.size() < 2) {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
-            }
-
-            for (int i = 1; i < (int)args.size(); i++) {
-                std::string file = args.at(i);
-                if (file.empty()) {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-                }
-
-                srs_trace("config parse include %s", file.c_str());
-                if (type != parse_block) {
-                    if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
-                        return srs_error_wrap(err, "parse file");
-                    }
-                } else {
-                    SrsConfigBuffer* config_buffer = conf->get_buffer_from_include_file(file.c_str());
-                    SrsAutoFree(SrsConfigBuffer, config_buffer);
-
-                    if(config_buffer == NULL) {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include buffer, file=%s", file.c_str());
-                    } else {
-                        if ((err = parse_conf(config_buffer, parse_file, conf)) != srs_success) {
-                            return srs_error_wrap(err, "parse include buffer");
-                        }
-                    }
-                }
-            }
-        } else {
+        // Build normal directive which is not "include".
+        if (args.at(0) != "include") {
             SrsConfDirective* directive = new SrsConfDirective();
 
             directive->conf_line = line_start;
@@ -1043,6 +1007,37 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveTy
             if (state == SrsDirectiveStateBlockStart) {
                 if ((err = directive->parse_conf(buffer, parse_block, conf)) != srs_success) {
                     return srs_error_wrap(err, "parse dir");
+                }
+            }
+            continue;
+        }
+
+        // Parse including.
+        if (args.size() < 2) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
+        }
+
+        for (int i = 1; i < (int)args.size(); i++) {
+            std::string file = args.at(i);
+            if (file.empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
+            }
+
+            srs_trace("config parse include %s", file.c_str());
+            if (type != parse_block) {
+                if ((err = conf->parse_include_file(file.c_str())) != srs_success) {
+                    return srs_error_wrap(err, "parse file");
+                }
+            } else {
+                SrsConfigBuffer* config_buffer = conf->get_buffer_from_include_file(file.c_str());
+                SrsAutoFree(SrsConfigBuffer, config_buffer);
+
+                if(config_buffer == NULL) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include buffer, file=%s", file.c_str());
+                } else {
+                    if ((err = parse_conf(config_buffer, parse_file, conf)) != srs_success) {
+                        return srs_error_wrap(err, "parse include buffer");
+                    }
                 }
             }
         }
