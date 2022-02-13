@@ -369,7 +369,7 @@ private:
 public:
     // Parse the config file, which is specified by cli.
     virtual srs_error_t parse_file(const char* filename);
-protected:
+private:
     // Build a buffer from a src, which is string content or filename.
     virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer);
 public:
