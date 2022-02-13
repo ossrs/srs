@@ -10,6 +10,7 @@
 #include "srt_log.hpp"
 #include <vector>
 
+#include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
 
 bool is_streamid_valid(const std::string& streamid) {
@@ -24,20 +25,18 @@ bool is_streamid_valid(const std::string& streamid) {
 
     int mode;
     std::string subpath;
+    std::string vhost;
 
-    bool ret = get_streamid_info(streamid, mode, subpath);
+    bool ret = get_streamid_info(streamid, mode, vhost, subpath);
     if (!ret) {
-        return false;
-    }
-    
-    if ((mode != PUSH_SRT_MODE) && (mode != PULL_SRT_MODE)) {
         return false;
     }
 
     std::vector<std::string> info_vec;
     string_split(subpath, "/", info_vec);
 
-    if (info_vec.size() < 2) {//it must be appname/stream at least.
+    if (info_vec.size() != 2) {
+        srt_log_warn("path format must be appname/stream?key=value...");
         return false;
     }
 
@@ -70,11 +69,9 @@ bool get_key_value(const std::string& info, std::string& key, std::string& value
 }
 
 //eg. streamid=#!::h:live/livestream,m:publish
-bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpath) {
-    std::vector<std::string> info_vec;
-    std::string real_streamid;
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhost, std::string& url_subpath) {
 
-    mode = PUSH_SRT_MODE;
+    mode = PULL_SRT_MODE;
 
     size_t pos = streamid.find("#!::");
     if (pos != 0) {
@@ -86,62 +83,49 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
         url_subpath = streamid;
         return true;
     }
-    real_streamid = streamid.substr(4);
-
-    string_split(real_streamid, ",", info_vec);
-    if (info_vec.size() < 2) {
-        return false;
-    }
-
-    
-    std::string secret;
-    std::string token;
-
-    for (size_t index = 0; index < info_vec.size(); index++) {
-        std::string key;
-        std::string value;
-
-        bool ret = get_key_value(info_vec[index], key, value);
-        if (!ret) {
-            continue;
-        }
-        
-        if (key == "h") {
-            url_subpath = value;//eg. h=live/stream
-        } else if (key == "m") {
-            std::string mode_str = string_lower(value);//m=publish or m=request
-            if (mode_str == "publish") {
-                mode = PUSH_SRT_MODE;
-            } else if (mode_str == "request") {
-                mode = PULL_SRT_MODE;
-            } else {
-                mode = PUSH_SRT_MODE;
-            }
-        } else if (key == "secret") {
-            secret = value;
-        } else if (key == "token"){
-            token = value;
-        } else {
-            continue;
-        }
-    }
 
     //SRT url supports multiple QueryStrings, which are passed to RTMP to realize authentication and other capabilities
     //@see https://github.com/ossrs/srs/issues/2893
-    std::string params = "?";
-    if (!secret.empty()) {
-        params += "secret=" + secret;
-        if (!token.empty())
-            params += "&token=" + token;
-    }else {
-        if (!token.empty())
-            params += "token=" + token;
+    std::string params;
+    std::string real_streamid;
+    real_streamid = streamid.substr(4);
+
+    std::map<std::string, std::string> query;
+    srs_parse_query_string(real_streamid, query);
+    for (std::map<std::string, std::string>::iterator it = query.begin(); it != query.end(); ++it) {
+        if (it->first == "h") {
+            params.append("vhost=");
+            params.append(it->second);
+            params.append("&");
+            vhost = it->second;
+        } else if (it->first == "r") {
+            url_subpath = it->second;
+        } else if (it->first == "m") {
+            std::string mode_str = it->second; // support m=publish or m=request
+            std::transform(it->second.begin(), it->second.end(), mode_str.begin(), ::tolower);
+            if (mode_str == "publish") {
+                mode = PUSH_SRT_MODE;
+            }  else if (mode_str == "request") {
+                mode = PULL_SRT_MODE;
+            }  else {
+                srt_log_warn("unknown mode_str:%s", mode_str.c_str());
+                return false;
+            }
+        } else {
+            params.append(it->first);
+            params.append("=");
+            params.append(it->second);
+            params.append("&");
+        }
     }
 
-    pos = url_subpath.rfind("/");
-    if ((params.length() > 1) &&
-        pos != std::string::npos) {
-        url_subpath.insert(pos, params);
+    if (url_subpath.empty())
+        return false;
+
+    if (!params.empty()) {
+        url_subpath.append("?");
+        url_subpath.append(params);
+        url_subpath.pop_back(); // remove last '&'
     }
 
     return true;
@@ -150,18 +134,14 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
 srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn_fd),
     _streamid(streamid),
     write_fail_cnt_(0) {
-    get_streamid_info(streamid, _mode, _url_subpath);
+    get_streamid_info(streamid, _mode, _vhost, _url_subpath);
     
     _update_timestamp = now_ms();
-    
-    std::vector<std::string> path_vec;
-    
-    string_split(_url_subpath, "/", path_vec);
-    if (path_vec.size() >= 3) {
-        _vhost = path_vec[0];
-    } else {
+
+    if (_vhost.empty()) {
         _vhost = "__default_host__";
     }
+
     srt_log_trace("srt connect construct streamid:%s, mode:%d, subpath:%s, vhost:%s", 
         streamid.c_str(), _mode, _url_subpath.c_str(), _vhost.c_str());
 }
