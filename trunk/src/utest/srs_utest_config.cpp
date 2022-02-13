@@ -376,6 +376,64 @@ VOID TEST(ConfigDirectiveTest, ParseNameArg2_Dir0Arg0_Dir0Arg0)
     EXPECT_EQ(0, (int)ddir0.directives.size());
 }
 
+VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
+{
+    srs_error_t err;
+
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include;");
+        usecases.push_back("include ;");
+        usecases.push_back("include ;");
+        usecases.push_back("include  ;");;
+        usecases.push_back("include\r;");
+        usecases.push_back("include\n;");
+        usecases.push_back("include  \r \n \r\n \n\r;");
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(1, (int) conf.directives.size());
+
+            SrsConfDirective &dir = *conf.directives.at(0);
+            EXPECT_STREQ("include", dir.name.c_str());
+            EXPECT_EQ(0, (int) dir.args.size());
+            EXPECT_EQ(0, (int) dir.directives.size());
+        }
+    }
+
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include test;");
+        usecases.push_back("include test;");
+        usecases.push_back("include test;");
+        usecases.push_back("include  test;");;
+        usecases.push_back("include\rtest;");
+        usecases.push_back("include\ntest;");
+        usecases.push_back("include  \r \n \r\n \n\rtest;");
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_SUCCESS(conf.parse(&buf));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(1, (int) conf.directives.size());
+
+            SrsConfDirective &dir = *conf.directives.at(0);
+            EXPECT_STREQ("include", dir.name.c_str());
+            EXPECT_EQ(1, (int) dir.args.size());
+            EXPECT_STREQ("test", dir.arg0().c_str());
+            EXPECT_EQ(0, (int) dir.directives.size());
+        }
+    }
+}
+
 VOID TEST(ConfigDirectiveTest, Parse2SingleDirs)
 {
     srs_error_t err;
