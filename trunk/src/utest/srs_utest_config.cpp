@@ -86,32 +86,6 @@ srs_error_t MockSrsConfig::parse(string buf)
     return err;
 }
 
-srs_error_t MockSrsConfig::parse_include_file(const char *filename)
-{
-    srs_error_t err = srs_success;
-
-    std::string file = filename;
-
-    if (file.empty()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-    }
-
-    SrsConfDirective* mock_directive = get_mock_directive(file);
-
-    if(!mock_directive) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-    } else {
-        MockSrsConfigBuffer buffer(mock_directive->arg0());
-
-        // Parse root tree from buffer.
-        if ((err = root->parse(&buffer, this)) != srs_success) {
-            return srs_error_wrap(err, "parse include buffer");
-        }
-    }
-
-    return err;
-}
-
 srs_error_t MockSrsConfig::mock_include(const string file_name, const string content)
 {
     srs_error_t err = srs_success;

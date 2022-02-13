@@ -1023,12 +1023,13 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             srs_assert(!file.empty());
             srs_trace("config parse include %s", file.c_str());
 
-            SrsConfigBuffer include_file_buffer;
-            if ((err = include_file_buffer.fullfill(file.c_str())) != srs_success) {
+            SrsConfigBuffer* include_file_buffer = NULL;
+            SrsAutoFree(SrsConfigBuffer, include_file_buffer);
+            if ((err = conf->build_buffer(file, &include_file_buffer)) != srs_success) {
                 return srs_error_wrap(err, "buffer fullfill %s", file.c_str());
             }
 
-            if ((err = parse_conf(&include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
+            if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
                 return srs_error_wrap(err, "parse include buffer");
             }
         }
@@ -2417,37 +2418,32 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     if (config_file.empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty config");
     }
-    
-    SrsConfigBuffer buffer;
-    
-    if ((err = buffer.fullfill(config_file.c_str())) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfil");
+
+    SrsConfigBuffer* buffer = NULL;
+    SrsAutoFree(SrsConfigBuffer, buffer);
+    if ((err = build_buffer(config_file, &buffer)) != srs_success) {
+        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
     }
     
-    if ((err = parse_buffer(&buffer)) != srs_success) {
+    if ((err = parse_buffer(buffer)) != srs_success) {
         return srs_error_wrap(err, "parse buffer");
     }
     
     return err;
 }
 
-srs_error_t SrsConfig::parse_include_file(const char *filename)
+srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer** pbuffer)
 {
     srs_error_t err = srs_success;
 
-    std::string file = filename;
+    SrsConfigBuffer* buffer = new SrsConfigBuffer();
 
-    SrsConfigBuffer buffer;
-
-    if ((err = buffer.fullfill(file.c_str())) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfil");
+    if ((err = buffer->fullfill(src.c_str())) != srs_success) {
+        srs_freep(buffer);
+        return srs_error_wrap(err, "read from src %s", src.c_str());
     }
 
-    // Parse root tree from buffer.
-    if ((err = root->parse(&buffer, this)) != srs_success) {
-        return srs_error_wrap(err, "parse include buffer");
-    }
-
+    *pbuffer = buffer;
     return err;
 }
 // LCOV_EXCL_STOP

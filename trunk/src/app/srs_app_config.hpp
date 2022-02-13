@@ -262,6 +262,7 @@ private:
 // You could keep it before st-thread switch, or simply never keep it.
 class SrsConfig
 {
+    friend class SrsConfDirective;
 // user command
 private:
     // Whether srs is run in dolphin mode.
@@ -368,8 +369,10 @@ private:
 public:
     // Parse the config file, which is specified by cli.
     virtual srs_error_t parse_file(const char* filename);
-    // Parse the include config file.
-    virtual srs_error_t parse_include_file(const char* filename);
+private:
+    // Build a buffer from a src, which is string content or filename.
+    virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer);
+public:
     // Check the parsed config.
     virtual srs_error_t check_config();
 protected:
