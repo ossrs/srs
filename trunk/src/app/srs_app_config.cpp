@@ -1012,16 +1012,15 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
             continue;
         }
 
-        // Parse including.
-        if (args.size() < 2) {
+        // Parse including, allow multiple files.
+        vector<string> files(args.begin() + 1, args.end());
+        if (files.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
         }
 
-        for (int i = 1; i < (int)args.size(); i++) {
-            std::string file = args.at(i);
-            if (file.empty()) {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty include config");
-            }
+        for (int i = 0; i < (int)files.size(); i++) {
+            std::string file = files.at(i);
+            srs_assert(!file.empty());
 
             srs_trace("config parse include %s", file.c_str());
             if (ctx != SrsDirectiveContextBlock) {
