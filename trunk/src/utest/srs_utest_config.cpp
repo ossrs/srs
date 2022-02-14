@@ -85,6 +85,10 @@ srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfig
     srs_error_t err = srs_success;
 
     string content = included_files[src];
+    if(content.empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "file %s: no found", src.c_str());
+    }
+
     *pbuffer = new MockSrsConfigBuffer(content);
 
     return err;
@@ -3877,5 +3881,11 @@ VOID TEST(ConfigMainTest, CheckIncludeConfig)
         EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_timeshift("ossrs.net"));
         EXPECT_STREQ("xxx", conf.get_dash_path("ossrs.net").c_str());
         EXPECT_STREQ("xxx2", conf.get_dash_mpd_file("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        HELPER_ASSERT_FAILED(conf.parse("include ./conf/include_test/include.conf;"));
     }
 }
