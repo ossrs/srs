@@ -482,30 +482,6 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     return err;
 }
 
-// Request:
-//      POST /api/v1/forward
-//      {
-//          "action": "on_forward",
-//          "server_id": "vid-k21d7y2",
-//          "client_id": "9o7g1330",
-//          "ip": "127.0.0.1",
-//          "vhost": "__defaultVhost__",
-//          "app": "live",
-//          "tcUrl": "rtmp://127.0.0.1:1935/live",
-//          "stream": "livestream",
-//          "param": "?forward=rtmp://ossrs.net/live/livestream"
-//      }
-// Response:
-//      {
-//          "code": 0,
-//          "data": {
-//              "forwards":[{
-//                  "url": "rtmp://ossrs.net:1935/live/livestream?auth_token=xxx"
-//               },{
-//                  "url": "rtmp://aliyuncdn.com:1935/live/livestream?auth_token=xxx"
-//               }]
-//          }
-//      }
 srs_error_t SrsHttpHooks::on_forward_backend(string url, SrsRequest* req, std::vector<std::string>& rtmp_urls)
 {
     srs_error_t err = srs_success;
@@ -557,16 +533,16 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, SrsRequest* req, std::v
     }
 
     SrsJsonObject* p = prop->to_object();
-    if ((prop = p->ensure_property_array("forwards")) == NULL) {
-        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse forwards %s", res.c_str());
+    if ((prop = p->ensure_property_array("urls")) == NULL) {
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse urls %s", res.c_str());
     }
 
-    SrsJsonArray* forwards = prop->to_array();
-    for (int i = 0; i < forwards->count(); i++) {
-        prop = forwards->at(i);
-        SrsJsonObject* forward = prop->to_object();
-        if ((prop = forward->ensure_property_string("url")) != NULL) {
-            rtmp_urls.push_back(prop->to_str());
+    SrsJsonArray* urls = prop->to_array();
+    for (int i = 0; i < urls->count(); i++) {
+        prop = urls->at(i);
+        string rtmp_url = prop->to_str();
+        if (!rtmp_url.empty()) {
+            rtmp_urls.push_back(rtmp_url);
         }
     }
 

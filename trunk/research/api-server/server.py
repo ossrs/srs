@@ -814,6 +814,7 @@ class RESTForward(object):
     def __init__(self):
         self.__forwards = []
 
+        # match vhost+app+stream to forward url
         self.__forwards.append({
             "vhost":"ossrs.net",
             "app":"live",
@@ -821,13 +822,17 @@ class RESTForward(object):
             "url":"push.ossrs.com",
         })
 
+        # match app+stream to forward url
         self.__forwards.append({
+            "vhost":"",
             "app":"live",
             "stream":"livestream",
             "url":"push.ossrs.com",
         })
 
+        # match app+stream to forward url
         self.__forwards.append({
+            "vhost":"",
             "app":"live",
             "stream":"livestream",
             "url":"rtmp://push.ossrs.com/test/teststream?auth_token=123456",
@@ -907,9 +912,7 @@ class RESTForward(object):
         for param in params:
             result = param.split("=")
             if result[0].find("forward") != -1:
-                destinations.append({
-                    "url": result[1],
-                })
+                destinations.append(result[1],)
             elif len(new_req_param) > 0:
                 new_req_param = new_req_param + "&" + param
             else:
@@ -917,20 +920,18 @@ class RESTForward(object):
 
         # secne: dynamic config
         for forward in self.__forwards:
-            # vhost exist
-            if hasattr(forward, "vhost"):
-                if len(forward["vhost"]) > 0 and req["vhost"] != forward["vhost"]:
-                    continue
-            # app exist
-            if hasattr(forward, "app"):
-                if len(forward["app"]) > 0 and req["app"] != forward["app"]:
-                    continue
-            # app exist
-            if hasattr(forward, "stream"):
-                if len(forward["stream"]) > 0 and req["stream"] != forward["stream"]:
-                    continue
-            # no url
+            # empty forward url
             if forward["url"] is None:
+                continue
+
+            # vhost exist
+            if len(forward['vhost']) > 0 and req['vhost'] != forward['vhost']:
+                continue
+            # app exist
+            if len(forward["app"]) > 0 and req["app"] != forward["app"]:
+                continue
+            # stream exist
+            if len(forward["stream"]) > 0 and req["stream"] != forward["stream"]:
                 continue
 
             # url maybe spell full rtmp address
@@ -946,15 +947,16 @@ class RESTForward(object):
                     url = url + "?" + new_req_param
 
             # append
-            forwards.append({
-                "url": url,
-            })
+            forwards.append(url)
+
+            #trace log
+            trace("add dynamic forward url: %s"%(url))
 
         # secne: parse client params, like:
-        # format1: rtmp://srs-server/live/stream?forward=aliyuncdn.com:1936&token=xxxxxx
+        # format1: rtmp://srs-server/live/stream?forward=ossrs.com:1936&token=xxxxxx
         # format2: rtmp://srs-server/live/stream?forward=rtmp://cdn.com/myapp/mystream?XXXXXX
-        for destination in destinations:
-            url = destination["url"]
+        for dest in destinations:
+            url = dest
             if url.find("rtmp://") == -1:
                 # format: xxx:xxx
                 # maybe you should use destination config
@@ -966,11 +968,12 @@ class RESTForward(object):
                     url = url + "?" + new_req_param
 
             # append
-            forwards.append({
-                "url": url,
-            })
+            forwards.append(url)
 
-        return json.dumps({"code": int(code), "data": {"forwards": forwards}})
+            #trace log
+            trace("add client params forward url: %s, %s"%(url, req_param))
+
+        return json.dumps({"code": int(code), "data": {"urls": forwards}})
 
 # HTTP RESTful path.
 class Root(object):

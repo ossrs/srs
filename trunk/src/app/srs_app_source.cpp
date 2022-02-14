@@ -1476,28 +1476,31 @@ srs_error_t SrsOriginHub::create_forwarders()
     
     srs_utime_t queue_size = _srs_config->get_queue_length(req->vhost);
 
-    SrsConfDirective* conf = _srs_config->get_forward_backend(req->vhost);
-    if (conf) {
-        int count = conf->args.size();
-        for (int i = 0; i < count; i++) {
-            std::string backend_url = conf->args.at(i);
+    // For backend config
+    if (true) {
+        SrsConfDirective* conf = _srs_config->get_forward_backend(req->vhost);
+        if (conf) {
+            // only get first backend url
+            std::string backend_url = conf->arg0();
 
-            // create forward by backend
+            // get urls on forward backend
             std::vector<std::string> urls;
             if ((err = SrsHttpHooks::on_forward_backend(backend_url, req, urls)) != srs_success) {
                 return srs_error_wrap(err, "get forward backend failed");
             }
 
+            // create forwarders by urls
             std::vector<std::string>::iterator it;
             for (it = urls.begin(); it != urls.end(); ++it) {
                 std::string url = *it;
 
-                // create forwarder by url
+                // create temp SrsRequest by url
                 SrsRequest* freq = new SrsRequest();
                 SrsAutoFree(SrsRequest, freq);
                 srs_parse_rtmp_url(url, freq->tcUrl, freq->stream);
                 srs_discovery_tc_url(freq->tcUrl, freq->schema, freq->host, freq->vhost, freq->app, freq->stream, freq->port, freq->param);
 
+                // create forwarder
                 SrsForwarder* forwarder = new SrsForwarder(this);
                 forwarders.push_back(forwarder);
 
@@ -1516,10 +1519,14 @@ srs_error_t SrsOriginHub::create_forwarders()
                         req->vhost.c_str(), req->app.c_str(), req->stream.c_str(), forward_server.str().c_str());
                 }
             }
+
+            // if backend is configured and normal, return directly
+            return err;
         }
     }
 
-    conf = _srs_config->get_forwards(req->vhost);
+    // For destanition config
+    SrsConfDirective* conf = _srs_config->get_forwards(req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
         
