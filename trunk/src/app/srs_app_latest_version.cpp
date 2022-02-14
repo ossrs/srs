@@ -79,8 +79,6 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
     string source = srs_getenv("SRS_SOURCE");
     SRS_CHECK_FEATURE3(!string(source).empty(), "source", source, ss);
-    string mgmt = srs_getenv("SRS_MGMT");
-    SRS_CHECK_FEATURE3(!string(mgmt).empty(), "mgmt", mgmt, ss);
 
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
