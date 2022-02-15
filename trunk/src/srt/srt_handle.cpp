@@ -209,11 +209,12 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     {
         std::unique_lock<std::mutex> locker(srt2rtmp::_srt_error_mutex);
         if (srt2rtmp::_srt_error_map.count(subpath) == 1) {
-            if (srt2rtmp::_srt_error_map[subpath] != 0) {
+            int err_code = srt2rtmp::_srt_error_map[subpath];
+            if (err_code != ERROR_SUCCESS) {
                 close_push_conn(conn_fd);
-                srt_log_error("handle_push_data srt to rtmp error, fd:%d", conn_fd);                
+                srt_log_error("handle_push_data srt to rtmp error:%d, fd:%d", err_code,conn_fd);
                 //todo: reset to next use, maybe update by srt2rtmp::cycle again
-                srt2rtmp::_srt_error_map[subpath] = 0; 
+                srt2rtmp::_srt_error_map[subpath] = ERROR_SUCCESS;
                 return;
             }
         }

@@ -155,6 +155,7 @@ void srt2rtmp::handle_close_rtmpsession(const std::string& key_path) {
 srs_error_t srt2rtmp::cycle() {
     srs_error_t err = srs_success;
     _lastcheck_ts = 0;
+    int err_code = -1;
 
     while(true) {
         SRT_DATA_MSG_PTR msg_ptr = get_data_message();
@@ -165,9 +166,10 @@ srs_error_t srt2rtmp::cycle() {
             switch (msg_ptr->msg_type()) {
                 case SRT_MSG_DATA_TYPE:
                 {
-                    if (handle_ts_data(msg_ptr) != srs_success) {
+                    err_code = handle_ts_data(msg_ptr);
+                    if (err_code  != ERROR_SUCCESS) {
                         std::unique_lock<std::mutex> locker(_srt_error_mutex);
-                        _srt_error_map[msg_ptr->get_path()] = -1;
+                        _srt_error_map[msg_ptr->get_path()] = err_code;
                     }
                     break;
                 }
@@ -692,8 +694,9 @@ int rtmp_client::on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_
 
     if (err != srs_success) {
         srs_error("send media data error:%s", srs_error_desc(err).c_str());
+        int err_code = srs_error_code(err);
         srs_freep(err);
-        return -1;
+        return err_code;
     }
     return 0;
 }
