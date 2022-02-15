@@ -814,30 +814,6 @@ class RESTForward(object):
     def __init__(self):
         self.__forwards = []
 
-        # match vhost+app+stream to forward url
-        self.__forwards.append({
-            "vhost":"ossrs.net",
-            "app":"live",
-            "stream":"livestream",
-            "url":"push.ossrs.com",
-        })
-
-        # match app+stream to forward url
-        self.__forwards.append({
-            "vhost":"",
-            "app":"live",
-            "stream":"livestream",
-            "url":"push.ossrs.com",
-        })
-
-        # match app+stream to forward url
-        self.__forwards.append({
-            "vhost":"",
-            "app":"live",
-            "stream":"livestream",
-            "url":"rtmp://push.ossrs.com/test/teststream?auth_token=123456",
-        })
-
     def GET(self):
         enable_crossdomain()
 
@@ -898,80 +874,14 @@ class RESTForward(object):
             req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["tcUrl"], req["stream"], req["param"]
         ))
 
-        # dynamic create forward config
-        forwards = []
-        destinations = []
-
-        # handle param: ?forward=xxxxx&auth_token=xxxxx
-        # 1.delete ?
-        req_param = req["param"].replace('?', '', 1)
-
-        # 2.delete 'forward=xxxxx'
-        new_req_param = ""
-        params = req_param.split("&")
-        for param in params:
-            result = param.split("=")
-            if result[0].find("forward") != -1:
-                destinations.append(result[1],)
-            elif len(new_req_param) > 0:
-                new_req_param = new_req_param + "&" + param
-            else:
-                new_req_param = param
-
-        # secne: dynamic config
-        for forward in self.__forwards:
-            # empty forward url
-            if forward["url"] is None:
-                continue
-
-            # vhost exist
-            if len(forward['vhost']) > 0 and req['vhost'] != forward['vhost']:
-                continue
-            # app exist
-            if len(forward["app"]) > 0 and req["app"] != forward["app"]:
-                continue
-            # stream exist
-            if len(forward["stream"]) > 0 and req["stream"] != forward["stream"]:
-                continue
-
-            # url maybe spell full rtmp address
-            url = forward["url"]
-            if url.find("rtmp://") == -1:
-                # format: xxx:xxx
-                # maybe you should use destination config
-                url = "rtmp://%s/%s"%(url, req['app'])
-                if len(req['vhost']) > 0 and req['vhost'] != "__defaultVhost__" and url.find(req['vhost']) == -1:
-                    url = url + "?vhost=" + req['vhost']
-                url = url + "/" + req['stream']
-                if len(new_req_param) > 0:
-                    url = url + "?" + new_req_param
-
-            # append
-            forwards.append(url)
-
-            #trace log
-            trace("add dynamic forward url: %s"%(url))
-
-        # secne: parse client params, like:
-        # format1: rtmp://srs-server/live/stream?forward=ossrs.com:1936&token=xxxxxx
-        # format2: rtmp://srs-server/live/stream?forward=rtmp://cdn.com/myapp/mystream?XXXXXX
-        for dest in destinations:
-            url = dest
-            if url.find("rtmp://") == -1:
-                # format: xxx:xxx
-                # maybe you should use destination config
-                url = "rtmp://%s/%s"%(url, req['app'])
-                if len(req['vhost']) > 0 and req['vhost'] != "__defaultVhost__" and url.find(req['vhost']) == -1:
-                    url = url + "?vhost=" + req['vhost']
-                url = url + "/" + req['stream']
-                if len(new_req_param) > 0:
-                    url = url + "?" + new_req_param
-
-            # append
-            forwards.append(url)
-
-            #trace log
-            trace("add client params forward url: %s, %s"%(url, req_param))
+        '''
+        backend service config description:
+            support multiple rtmp urls(custom addresses or third-party cdn service),
+            url's host is slave service.
+        For example:
+            ["rtmp://127.0.0.1:19350/test/teststream", "rtmp://127.0.0.1:19350/test/teststream?token=xxxx"]
+        '''
+        forwards = ["rtmp://127.0.0.1:19350/test/teststream"]
 
         return json.dumps({"code": int(code), "data": {"urls": forwards}})
 
