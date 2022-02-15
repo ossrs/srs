@@ -63,16 +63,10 @@ extern SrsStageManager* _srs_stages;
 #ifdef SRS_RTC
 extern SrsRtcBlackhole* _srs_blackhole;
 extern SrsResourceManager* _srs_rtc_manager;
-
-extern SrsResourceManager* _srs_rtc_manager;
 extern SrsDtlsCertificate* _srs_rtc_dtls_certificate;
 #endif
 
 #include <srs_protocol_kbps.hpp>
-
-extern SrsPps* _srs_pps_snack2;
-extern SrsPps* _srs_pps_snack3;
-extern SrsPps* _srs_pps_snack4;
 
 SrsPps* _srs_pps_aloss2 = NULL;
 
@@ -165,8 +159,6 @@ extern SrsPps* _srs_pps_conn;
 extern SrsPps* _srs_pps_rstuns;
 extern SrsPps* _srs_pps_rrtps;
 extern SrsPps* _srs_pps_rrtcps;
-
-extern SrsPps* _srs_pps_aloss2;
 
 extern SrsPps* _srs_pps_cids_get;
 extern SrsPps* _srs_pps_cids_set;
