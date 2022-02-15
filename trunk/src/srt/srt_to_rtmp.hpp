@@ -69,7 +69,7 @@ private:
 class rtmp_client : public ts_media_data_callback_I, public std::enable_shared_from_this<rtmp_client> {
 public:
     rtmp_client(std::string key_path);
-    ~rtmp_client();
+    virtual ~rtmp_client();
 
     void receive_ts_data(SRT_DATA_MSG_PTR data_ptr);
     int64_t get_last_live_ts();
