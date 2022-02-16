@@ -1475,9 +1475,14 @@ srs_error_t SrsOriginHub::create_forwarders()
     }
 
     // For backend config
-    // If you configure backend service, return backend status(default: false)
-    bool backend_status = false;
-    if (((err = create_backend_forwarders(backend_status)) != srs_success) || backend_status) {
+    // If backend is enabled and applied, ignore destination.
+    bool applied_backend_server = false;
+    if ((err = create_backend_forwarders(applied_backend_server)) != srs_success) {
+        return srs_error_wrap(err, "create backend applied=%d", applied_backend_server);
+    }
+
+    // Already applied backend server, ignore destination.
+    if (applied_backend_server) {
         return err;
     }
 
@@ -1506,12 +1511,12 @@ srs_error_t SrsOriginHub::create_forwarders()
     return err;
 }
 
-srs_error_t SrsOriginHub::create_backend_forwarders(bool& status)
+srs_error_t SrsOriginHub::create_backend_forwarders(bool& applied)
 {
     srs_error_t err = srs_success;
 
     // default not configure backend service
-    status = false;
+    applied = false;
 
     SrsConfDirective* conf = _srs_config->get_forward_backend(req_->vhost);
     if (!conf || conf->arg0().empty()) {
@@ -1519,7 +1524,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& status)
     }
 
     // configure backend service
-    status = true;
+    applied = true;
 
     // only get first backend url
     std::string backend_url = conf->arg0();
@@ -1527,7 +1532,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& status)
     // get urls on forward backend
     std::vector<std::string> urls;
     if ((err = SrsHttpHooks::on_forward_backend(backend_url, req_, urls)) != srs_success) {
-        return srs_error_wrap(err, "get forward backend failed");
+        return srs_error_wrap(err, "get forward backend failed, backend=%s", backend_url.c_str());
     }
 
     // create forwarders by urls
@@ -1550,7 +1555,7 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool& status)
 
         // initialize the forwarder with request.
         if ((err = forwarder->initialize(req, forward_server.str())) != srs_success) {
-            return srs_error_wrap(err, "init forwarder");
+            return srs_error_wrap(err, "init backend forwarder failed, forward-to=%s", forward_server.str().c_str());
         }
 
         srs_utime_t queue_size = _srs_config->get_queue_length(req_->vhost);

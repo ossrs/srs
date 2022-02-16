@@ -375,7 +375,7 @@ public:
     virtual srs_error_t on_reload_vhost_exec(std::string vhost);
 private:
     virtual srs_error_t create_forwarders();
-    virtual srs_error_t create_backend_forwarders(bool& status);
+    virtual srs_error_t create_backend_forwarders(bool& applied);
     virtual void destroy_forwarders();
 };
 
