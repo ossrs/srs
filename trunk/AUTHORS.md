@@ -12,6 +12,15 @@ The TOC(Technical Oversight Committee):
 - `ChenGuanghua<jinxue.cgh@alibaba-inc.com>`
 - `ChenHaibo<nmgchenhaibo@foxmail.com>`
 
+## Developers
+
+Active developers:
+
+- `Johzzy<hellojinqiang@gmail.com>`
+- `Zhouxiaojun2008<279686030@qq.com>`
+- `Pengfei.ma<pengfei.ma.chn@outlook.com>`
+- `ZhangJunqin<zhangjunqin@jd.com>`
+
 ## CONTRIBUTORS
 
 CONTRIBUTORS ordered by first contribution.
@@ -105,7 +114,7 @@ CONTRIBUTORS ordered by first contribution.
 * `PieerePi<40780488+PieerePi@users.noreply.github.com>`
 * `ghostsf<ghost_sf@163.com>`
 * `xbpeng121<53243357+xbpeng121@users.noreply.github.com>`
-* `johzzy<hellojinqiang@gmail.com>`
+* `Johzzy<hellojinqiang@gmail.com>`
 * `stone<bluestn@163.com>`
 * `cfw11<34058899+cfw11@users.noreply.github.com>`
 * `Hung-YiChen<gaod.chen@gmail.com>`
@@ -115,5 +124,10 @@ CONTRIBUTORS ordered by first contribution.
 * `pyw<PYW1@users.noreply.github.com>`
 * `MatheusMacabu<macabu@users.noreply.github.com>`
 * `Alex.CR<xiaoq_bj@126.com>`
-* `mapengfei53<52305649+mapengfei53@users.noreply.github.com>`
+* `Zhouxiaojun2008<279686030@qq.com>`
+* `Zhouxiaojun2008 <31402829+zhouxiaojun2008@users.noreply.github.com>`
+* `Pengfei.ma<pengfei.ma.chn@outlook.com>`
+* `Pengfei.ma<52305649+mapengfei53@users.noreply.github.com>`
+* `ZhangJunqin<zhangjunqin@jd.com>`
+* `ZhangJunqin<chundonglinlin@126.com>`
 
