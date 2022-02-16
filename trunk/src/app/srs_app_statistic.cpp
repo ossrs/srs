@@ -363,22 +363,6 @@ void SrsStatistic::on_stream_close(SrsRequest* req)
     SrsStatisticVhost* vhost = create_vhost(req);
     SrsStatisticStream* stream = create_stream(vhost, req);
     stream->close();
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it=streams.find(stream->id)) != streams.end()) {
-            streams.erase(it);
-        }
-    }
-    
-    // TODO: FIXME: Should fix https://github.com/ossrs/srs/issues/803
-    if (true) {
-        std::map<std::string, SrsStatisticStream*>::iterator it;
-        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
-            rstreams.erase(it);
-        }
-    }
 }
 
 srs_error_t SrsStatistic::on_client(std::string id, SrsRequest* req, ISrsExpire* conn, SrsRtmpConnType type)
@@ -429,6 +413,19 @@ void SrsStatistic::on_disconnect(std::string id)
     
     stream->nb_clients--;
     vhost->nb_clients--;
+
+    if (stream->nb_clients == 0) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it=streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+
+        srs_freep(stream);
+    }
 }
 
 void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta* delta)
