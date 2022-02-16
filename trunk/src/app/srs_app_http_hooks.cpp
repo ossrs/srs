@@ -482,6 +482,76 @@ srs_error_t SrsHttpHooks::discover_co_workers(string url, string& host, int& por
     return err;
 }
 
+srs_error_t SrsHttpHooks::on_forward_backend(string url, SrsRequest* req, std::vector<std::string>& rtmp_urls)
+{
+    srs_error_t err = srs_success;
+
+    SrsContextId cid = _srs_context->get_id();
+
+    SrsStatistic* stat = SrsStatistic::instance();
+
+    SrsJsonObject* obj = SrsJsonAny::object();
+    SrsAutoFree(SrsJsonObject, obj);
+
+    obj->set("action", SrsJsonAny::str("on_forward"));
+    obj->set("server_id", SrsJsonAny::str(stat->server_id().c_str()));
+    obj->set("client_id", SrsJsonAny::str(cid.c_str()));
+    obj->set("ip", SrsJsonAny::str(req->ip.c_str()));
+    obj->set("vhost", SrsJsonAny::str(req->vhost.c_str()));
+    obj->set("app", SrsJsonAny::str(req->app.c_str()));
+    obj->set("tcUrl", SrsJsonAny::str(req->tcUrl.c_str()));
+    obj->set("stream", SrsJsonAny::str(req->stream.c_str()));
+    obj->set("param", SrsJsonAny::str(req->param.c_str()));
+
+    std::string data = obj->dumps();
+    std::string res;
+    int status_code;
+
+    SrsHttpClient http;
+    if ((err = do_post(&http, url, data, status_code, res)) != srs_success) {
+        return srs_error_wrap(err, "http: on_forward_backend failed, client_id=%s, url=%s, request=%s, response=%s, code=%d",
+            cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
+    }
+
+    // parse string res to json.
+    SrsJsonAny* info = SrsJsonAny::loads(res);
+    if (!info) {
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "load json from %s", res.c_str());
+    }
+    SrsAutoFree(SrsJsonAny, info);
+
+    // response error code in string.
+    if (!info->is_object()) {
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "response %s", res.c_str());
+    }
+
+    SrsJsonAny* prop = NULL;
+    // response standard object, format in json: {}
+    SrsJsonObject* res_info = info->to_object();
+    if ((prop = res_info->ensure_property_object("data")) == NULL) {
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse data %s", res.c_str());
+    }
+
+    SrsJsonObject* p = prop->to_object();
+    if ((prop = p->ensure_property_array("urls")) == NULL) {
+        return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse urls %s", res.c_str());
+    }
+
+    SrsJsonArray* urls = prop->to_array();
+    for (int i = 0; i < urls->count(); i++) {
+        prop = urls->at(i);
+        string rtmp_url = prop->to_str();
+        if (!rtmp_url.empty()) {
+            rtmp_urls.push_back(rtmp_url);
+        }
+    }
+
+    srs_trace("http: on_forward_backend ok, client_id=%s, url=%s, request=%s, response=%s",
+        cid.c_str(), url.c_str(), data.c_str(), res.c_str());
+
+    return err;
+}
+
 srs_error_t SrsHttpHooks::do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, string& res)
 {
     srs_error_t err = srs_success;

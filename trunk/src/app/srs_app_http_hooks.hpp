@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 class SrsHttpUri;
 class SrsStSocket;
@@ -79,6 +80,10 @@ public:
     static srs_error_t on_hls_notify(SrsContextId cid, std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
     // Discover co-workers for origin cluster.
     static srs_error_t discover_co_workers(std::string url, std::string& host, int& port);
+    // The on_forward_backend hook, when publish stream start to forward
+    // @param url the api server url, to valid the client.
+    //         ignore if empty.
+    static srs_error_t on_forward_backend(std::string url, SrsRequest* req, std::vector<std::string>& rtmp_urls);
 private:
     static srs_error_t do_post(SrsHttpClient* hc, std::string url, std::string req, int& code, std::string& res);
 };

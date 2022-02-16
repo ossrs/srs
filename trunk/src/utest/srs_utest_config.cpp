@@ -2994,6 +2994,13 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         EXPECT_EQ(5000000, conf.get_publish_normal_timeout("ossrs.net"));
         EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{forward {backend xxx;}}"));
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") != NULL);
     }
 
     if (true) {

@@ -2825,7 +2825,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "forward") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "destination") {
+                    if (m != "enabled" && m != "destination" && m != "backend") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.forward.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4633,6 +4633,21 @@ SrsConfDirective* SrsConfig::get_forwards(string vhost)
     }
     
     return conf->get("destination");
+}
+
+SrsConfDirective* SrsConfig::get_forward_backend(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+    
+    conf = conf->get("forward");
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("backend");
 }
 
 SrsConfDirective* SrsConfig::get_vhost_http_hooks(string vhost)
