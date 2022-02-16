@@ -205,6 +205,19 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     srt_conn_ptr->update_timestamp(srt_now_ms);
 
     srt2rtmp::get_instance()->insert_data_message(data, ret, subpath);
+    {
+        std::unique_lock<std::mutex> locker(srt2rtmp::_srt_error_mutex);
+        if (srt2rtmp::_srt_error_map.count(subpath) == 1) {
+            int err_code = srt2rtmp::_srt_error_map[subpath];
+            if (err_code != ERROR_SUCCESS) {
+                close_push_conn(conn_fd);
+                srt_log_error("handle_push_data srt to rtmp error:%d, fd:%d", err_code,conn_fd);
+                //todo: reset to next use, maybe update by srt2rtmp::cycle again
+                srt2rtmp::_srt_error_map[subpath] = ERROR_SUCCESS;
+                return;
+            }
+        }
+    }
     
     //send data to subscriber(players)
     //streamid, play map<SRTSOCKET, SRT_CONN_PTR>

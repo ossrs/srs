@@ -609,6 +609,12 @@ fi
 #####################################################################################
 if [[ $SRS_RTC == YES ]]; then
     SRTP_OPTIONS=""
+    # To eliminate warnings, see https://stackoverflow.com/a/34208904/17679565
+    #       was built for newer macOS version (11.6) than being linked (11.0)
+    if [[ $SRS_OSX == YES ]]; then
+        export MACOSX_DEPLOYMENT_TARGET=11.0
+        echo "Set MACOSX_DEPLOYMENT_TARGET to avoid warnings"
+    fi
     # If use ASM for SRTP, we enable openssl(with ASM).
     if [[ $SRS_SRTP_ASM == YES ]]; then
         SRTP_OPTIONS="--enable-openssl"

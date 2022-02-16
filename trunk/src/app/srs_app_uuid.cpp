@@ -148,6 +148,7 @@
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+#if 0
 #ifndef HAVE_PROGRAM_INVOCATION_SHORT_NAME
 # ifdef HAVE___PROGNAME
 extern char *__progname;
@@ -181,9 +182,10 @@ prog_inv_sh_nm_from_file(char *f, char stripext)
 }
 # endif
 #endif
-
+#endif
 
 #ifndef HAVE_ERR_H
+#if 0
 static inline void
 errmsg(char doexit, int excode, char adderr, const char *fmt, ...)
 {
@@ -202,6 +204,7 @@ errmsg(char doexit, int excode, char adderr, const char *fmt, ...)
     if (doexit)
         exit(excode);
 }
+#endif
 
 #ifndef HAVE_ERR
 # define err(E, FMT...) errmsg(1, E, 1, FMT)
@@ -221,10 +224,12 @@ errmsg(char doexit, int excode, char adderr, const char *fmt, ...)
 #endif /* !HAVE_ERR_H */
 
 
+#if 0
 static inline __attribute__((const)) int is_power_of_2(unsigned long num)
 {
     return (num != 0 && ((num & (num - 1)) == 0));
 }
+#endif
 
 #ifndef HAVE_LOFF_T
 typedef int64_t loff_t;
@@ -263,6 +268,7 @@ static inline int dirfd(DIR *d)
 #define IUTF8 0040000
 #endif
 
+#if 0
 /*
  * MAXHOSTNAMELEN replacement
  */
@@ -282,6 +288,7 @@ static inline size_t get_hostname_max(void)
 #endif
     return 64;
 }
+#endif
 
 #ifndef HAVE_USLEEP
 /*
@@ -825,7 +832,7 @@ static int get_clock(uint32_t *clock_high, uint32_t *clock_low,
         rewind(state_f);
         len = fprintf(state_f,
                       "clock: %04x tv: %016lu %08lu adj: %08d\n",
-                      clock_seq, last.tv_sec, last.tv_usec, adjustment);
+                      clock_seq, last.tv_sec, (unsigned long)last.tv_usec, adjustment);
         fflush(state_f);
         if (ftruncate(state_fd, len) < 0) {
             fprintf(state_f, "                   \n");

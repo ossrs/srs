@@ -34,6 +34,9 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-02-15, Fix warnings for uuid. v4.0.245
+* v4.0, 2022-02-15, Merge [#2917](https://github.com/ossrs/srs/pull/2917): SRT: Close connection if RTMP failed. (#2917). v4.0.244
+* v4.0, 2022-02-15, Refine build script for SRT to avoid warnings. v4.0.243
 * v4.0, 2022-02-11, Support new fields for feature query. v4.0.241
 * v4.0, 2022-02-09, Mirror docker images in TCR Singapore. v4.0.240
 * v4.0, 2022-02-08, Refine the error for WebRTC H5 publisher. v4.0.239
