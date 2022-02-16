@@ -276,7 +276,9 @@ int ts_demux::decode_unit(unsigned char* data_p, std::string key_path, TS_DATA_C
                         uint64_t pts = 0;
                         
                         //callback last media data in data buffer
-                        on_callback(callback, _last_pid, key_path, _last_dts, _last_pts);
+                        int err_code = on_callback(callback, _last_pid, key_path, _last_dts, _last_pts);
+                        if (err_code != 0)
+                            return err_code;
 
                         int ret = pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
                         if (ret > 188) {
@@ -320,7 +322,7 @@ int ts_demux::decode(SRT_DATA_MSG_PTR data_ptr, TS_DATA_CALLBACK_PTR callback)
             continue;
         }
         ret = decode_unit(data, path, callback);
-        if (ret < 0)
+        if (ret != 0) // srs_error_code is positive
         {
             break;
         }
@@ -335,15 +337,15 @@ void ts_demux::insert_into_databuf(unsigned char* data_p, size_t data_size, std:
     return;
 }
 
-void ts_demux::on_callback(TS_DATA_CALLBACK_PTR callback, unsigned short pid, std::string key_path,
+int ts_demux::on_callback(TS_DATA_CALLBACK_PTR callback, unsigned short pid, std::string key_path,
                             uint64_t dts, uint64_t pts) {
     if ((_data_total <=0 ) || (_data_buffer_vec.empty())) {
-        return;
+        return 0;
     }
 
     auto iter = _pmt._pid2steamtype.find(pid);
     if (iter == _pmt._pid2steamtype.end()) {
-        return;
+        return 0;
     }
     unsigned char stream_type = iter->second;
     auto total_data_ptr = std::make_shared<SRT_DATA_MSG>(_data_total, key_path);
@@ -358,8 +360,7 @@ void ts_demux::on_callback(TS_DATA_CALLBACK_PTR callback, unsigned short pid, st
     _data_buffer_vec.clear();
     _data_total = 0;
 
-    callback->on_data_callback(total_data_ptr, stream_type, dts, pts);
-    return;
+    return callback->on_data_callback(total_data_ptr, stream_type, dts, pts);
 }
 
 bool ts_demux::is_pmt(unsigned short pid) {
