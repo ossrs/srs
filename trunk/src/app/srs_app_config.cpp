@@ -842,9 +842,9 @@ bool SrsConfDirective::is_stream_caster()
     return name == "stream_caster";
 }
 
-srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer)
+srs_error_t SrsConfDirective::parse(SrsConfigBuffer* buffer, SrsConfig* conf)
 {
-    return parse_conf(buffer, parse_file);
+    return parse_conf(buffer, SrsDirectiveContextFile, conf);
 }
 
 srs_error_t SrsConfDirective::persistence(SrsFileWriter* writer, int level)
@@ -971,71 +971,78 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 // LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
-srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
+srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
     srs_error_t err = srs_success;
     
     while (true) {
         std::vector<string> args;
         int line_start = 0;
-        err = read_token(buffer, args, line_start);
-        
-        /**
-         * ret maybe:
-         * ERROR_SYSTEM_CONFIG_INVALID           error.
-         * ERROR_SYSTEM_CONFIG_DIRECTIVE         directive terminated by ';' found
-         * ERROR_SYSTEM_CONFIG_BLOCK_START       token terminated by '{' found
-         * ERROR_SYSTEM_CONFIG_BLOCK_END         the '}' found
-         * ERROR_SYSTEM_CONFIG_EOF               the config file is done
-         */
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_INVALID) {
-            return err;
+        SrsDirectiveState state = SrsDirectiveStateInit;
+        if ((err = read_token(buffer, args, line_start, state)) != srs_success) {
+            return srs_error_wrap(err, "read token, line=%d, state=%d", line_start, state);
         }
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_END) {
-            if (type != parse_block) {
-                return srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
-            }
-            
-            srs_freep(err);
-            return srs_success;
+
+        if (state == SrsDirectiveStateBlockEnd) {
+            return ctx == SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
         }
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_EOF) {
-            if (type == parse_block) {
-                return srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
-            }
-            
-            srs_freep(err);
-            return srs_success;
+        if (state == SrsDirectiveStateEOF) {
+            return ctx != SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
         }
-        
         if (args.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: empty directive", conf_line);
         }
         
-        // build directive tree.
-        SrsConfDirective* directive = new SrsConfDirective();
-        
-        directive->conf_line = line_start;
-        directive->name = args[0];
-        args.erase(args.begin());
-        directive->args.swap(args);
-        
-        directives.push_back(directive);
-        
-        if (srs_error_code(err) == ERROR_SYSTEM_CONFIG_BLOCK_START) {
-            srs_freep(err);
-            if ((err = directive->parse_conf(buffer, parse_block)) != srs_success) {
-                return srs_error_wrap(err, "parse dir");
+        // Build normal directive which is not "include".
+        if (args.at(0) != "include") {
+            SrsConfDirective* directive = new SrsConfDirective();
+
+            directive->conf_line = line_start;
+            directive->name = args[0];
+            args.erase(args.begin());
+            directive->args.swap(args);
+
+            directives.push_back(directive);
+
+            if (state == SrsDirectiveStateBlockStart) {
+                if ((err = directive->parse_conf(buffer, SrsDirectiveContextBlock, conf)) != srs_success) {
+                    return srs_error_wrap(err, "parse dir");
+                }
+            }
+            continue;
+        }
+
+        // Parse including, allow multiple files.
+        vector<string> files(args.begin() + 1, args.end());
+        if (files.empty()) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line);
+        }
+        if (!conf) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: no config", buffer->line);
+        }
+
+        for (int i = 0; i < (int)files.size(); i++) {
+            std::string file = files.at(i);
+            srs_assert(!file.empty());
+            srs_trace("config parse include %s", file.c_str());
+
+            SrsConfigBuffer* include_file_buffer = NULL;
+            SrsAutoFree(SrsConfigBuffer, include_file_buffer);
+            if ((err = conf->build_buffer(file, &include_file_buffer)) != srs_success) {
+                return srs_error_wrap(err, "buffer fullfill %s", file.c_str());
+            }
+
+            if ((err = parse_conf(include_file_buffer, SrsDirectiveContextFile, conf)) != srs_success) {
+                return srs_error_wrap(err, "parse include buffer");
             }
         }
-        srs_freep(err);
     }
     
     return err;
 }
 
 // see: ngx_conf_read_token
-srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
+srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start, SrsDirectiveState& state)
 {
     srs_error_t err = srs_success;
     
@@ -1057,8 +1064,9 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     buffer->line);
             }
             srs_trace("config parse complete");
-            
-            return srs_error_new(ERROR_SYSTEM_CONFIG_EOF, "EOF");
+
+            state = SrsDirectiveStateEOF;
+            return err;
         }
         
         char ch = *buffer->pos++;
@@ -1079,10 +1087,12 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 continue;
             }
             if (ch == ';') {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                state = SrsDirectiveStateEntire;
+                return err;
             }
             if (ch == '{') {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                state = SrsDirectiveStateBlockStart;
+                return err;
             }
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '%c'", buffer->line, ch);
         }
@@ -1098,17 +1108,20 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                     if (args.size() == 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected ';'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                    state = SrsDirectiveStateEntire;
+                    return err;
                 case '{':
                     if (args.size() == 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '{'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                    state = SrsDirectiveStateBlockStart;
+                    return err;
                 case '}':
                     if (args.size() != 0) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '}'", buffer->line);
                     }
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_END, "block");
+                    state = SrsDirectiveStateBlockEnd;
+                    return err;
                 case '#':
                     sharp_comment = 1;
                     continue;
@@ -1163,10 +1176,12 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>
                 srs_freepa(aword);
                 
                 if (ch == ';') {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_DIRECTIVE, "dir");
+                    state = SrsDirectiveStateEntire;
+                    return err;
                 }
                 if (ch == '{') {
-                    return srs_error_new(ERROR_SYSTEM_CONFIG_BLOCK_START, "block");
+                    state = SrsDirectiveStateBlockStart;
+                    return err;
                 }
             }
         }
@@ -2406,17 +2421,32 @@ srs_error_t SrsConfig::parse_file(const char* filename)
     if (config_file.empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty config");
     }
-    
-    SrsConfigBuffer buffer;
-    
-    if ((err = buffer.fullfill(config_file.c_str())) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfil");
+
+    SrsConfigBuffer* buffer = NULL;
+    SrsAutoFree(SrsConfigBuffer, buffer);
+    if ((err = build_buffer(config_file, &buffer)) != srs_success) {
+        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
     }
     
-    if ((err = parse_buffer(&buffer)) != srs_success) {
+    if ((err = parse_buffer(buffer)) != srs_success) {
         return srs_error_wrap(err, "parse buffer");
     }
     
+    return err;
+}
+
+srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer** pbuffer)
+{
+    srs_error_t err = srs_success;
+
+    SrsConfigBuffer* buffer = new SrsConfigBuffer();
+
+    if ((err = buffer->fullfill(src.c_str())) != srs_success) {
+        srs_freep(buffer);
+        return srs_error_wrap(err, "read from src %s", src.c_str());
+    }
+
+    *pbuffer = buffer;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -2795,7 +2825,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "forward") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name;
-                    if (m != "enabled" && m != "destination") {
+                    if (m != "enabled" && m != "destination" && m != "backend") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.forward.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -2955,7 +2985,7 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     root = new SrsConfDirective();
 
     // Parse root tree from buffer.
-    if ((err = root->parse(buffer)) != srs_success) {
+    if ((err = root->parse(buffer, this)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
     
@@ -4603,6 +4633,21 @@ SrsConfDirective* SrsConfig::get_forwards(string vhost)
     }
     
     return conf->get("destination");
+}
+
+SrsConfDirective* SrsConfig::get_forward_backend(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+    
+    conf = conf->get("forward");
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("backend");
 }
 
 SrsConfDirective* SrsConfig::get_vhost_http_hooks(string vhost)

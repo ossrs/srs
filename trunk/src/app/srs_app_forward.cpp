@@ -52,6 +52,8 @@ SrsForwarder::~SrsForwarder()
     
     srs_freep(sh_video);
     srs_freep(sh_audio);
+    
+    srs_freep(req);
 }
 
 srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
@@ -60,7 +62,7 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     
     // it's ok to use the request object,
     // SrsLiveSource already copy it and never delete it.
-    req = r;
+    req = r->copy();
     
     // the ep(endpoint) to forward to
     ep_forward = ep;

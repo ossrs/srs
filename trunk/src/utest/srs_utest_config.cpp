@@ -71,6 +71,29 @@ srs_error_t MockSrsConfig::parse(string buf)
     return err;
 }
 
+srs_error_t MockSrsConfig::mock_include(const string file_name, const string content)
+{
+    srs_error_t err = srs_success;
+
+    included_files[file_name] = content;
+
+    return err;
+}
+
+srs_error_t MockSrsConfig::build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer)
+{
+    srs_error_t err = srs_success;
+
+    string content = included_files[src];
+    if(content.empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "file %s: no found", src.c_str());
+    }
+
+    *pbuffer = new MockSrsConfigBuffer(content);
+
+    return err;
+}
+
 VOID TEST(ConfigTest, CheckMacros)
 {
 #ifndef SRS_CONSTS_LOCALHOST
@@ -301,6 +324,63 @@ VOID TEST(ConfigDirectiveTest, ParseNameArg2_Dir0Arg0_Dir0Arg0)
     EXPECT_EQ(1, (int)ddir0.args.size());
     EXPECT_STREQ("ddir_arg0", ddir0.arg0().c_str());
     EXPECT_EQ(0, (int)ddir0.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseArgsSpace)
+{
+    srs_error_t err;
+
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include;");
+        usecases.push_back("include ;");
+        usecases.push_back("include ;");
+        usecases.push_back("include  ;");;
+        usecases.push_back("include\r;");
+        usecases.push_back("include\n;");
+        usecases.push_back("include  \r \n \r\n \n\r;");
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_FAILED(conf.parse(&buf));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(0, (int) conf.directives.size());
+        }
+    }
+
+    if (true) {
+        vector <string> usecases;
+        usecases.push_back("include test;");
+        usecases.push_back("include test;");
+        usecases.push_back("include test;");
+        usecases.push_back("include  test;");;
+        usecases.push_back("include\rtest;");
+        usecases.push_back("include\ntest;");
+        usecases.push_back("include  \r \n \r\n \n\rtest;");
+
+        MockSrsConfig config;
+        config.mock_include("test", "listen 1935;");
+
+        for (int i = 0; i < (int)usecases.size(); i++) {
+            string usecase = usecases.at(i);
+
+            MockSrsConfigBuffer buf(usecase);
+            SrsConfDirective conf;
+            HELPER_ASSERT_SUCCESS(conf.parse(&buf, &config));
+            EXPECT_EQ(0, (int) conf.name.length());
+            EXPECT_EQ(0, (int) conf.args.size());
+            EXPECT_EQ(1, (int) conf.directives.size());
+
+            SrsConfDirective &dir = *conf.directives.at(0);
+            EXPECT_STREQ("listen", dir.name.c_str());
+            EXPECT_EQ(1, (int) dir.args.size());
+            EXPECT_STREQ("1935", dir.arg0().c_str());
+            EXPECT_EQ(0, (int) dir.directives.size());
+        }
+    }
 }
 
 VOID TEST(ConfigDirectiveTest, Parse2SingleDirs)
@@ -2914,6 +2994,13 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         EXPECT_EQ(5000000, conf.get_publish_normal_timeout("ossrs.net"));
         EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost ossrs.net{forward {backend xxx;}}"));
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") != NULL);
     }
 
     if (true) {
@@ -3622,3 +3709,190 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
     }
 }
 
+VOID TEST(ConfigMainTest, CheckIncludeConfig)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include.conf", "listen 1935;include ./conf/include_test/include_1.conf;");
+        conf.mock_include("./conf/include_test/include_1.conf", "max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_1.conf", "max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "include ./conf/include_test/include_1.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+ 
+        conf.mock_include("./conf/include_test/include_2.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;http_server {enabled on;listen xxx;dir xxx2;}vhost ossrs.net {include ./conf/include_test/include_3.conf;}");
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_2.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+        conf.mock_include("./conf/include_test/include_4.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;include ./conf/include_test/include_5.conf;vhost ossrs.net {include ./conf/include_test/include_3.conf;}include ./conf/include_test/include_6.conf;");
+        conf.mock_include("./conf/include_test/include_5.conf", "http_server {enabled on;listen xxx;dir xxx2;}");
+        conf.mock_include("./conf/include_test/include_6.conf", "http_api {enabled on;listen xxx;}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_4.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+
+        EXPECT_TRUE(conf.get_http_api_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+        conf.mock_include("./conf/include_test/include_4.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;include ./conf/include_test/include_5.conf ./conf/include_test/include_6.conf;vhost ossrs.net {include ./conf/include_test/include_3.conf;}");
+        conf.mock_include("./conf/include_test/include_5.conf", "http_server {enabled on;listen xxx;dir xxx2;}");
+        conf.mock_include("./conf/include_test/include_6.conf", "http_api {enabled on;listen xxx;}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_4.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_http_api_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        conf.mock_include("./conf/include_test/include_3.conf", "hls {enabled on;hls_path xxx;hls_m3u8_file xxx1;hls_ts_file xxx2;hls_fragment 10;hls_window 60;}");
+        conf.mock_include("./conf/include_test/include_4.conf", "listen 1935;max_connections 1000;daemon off;srs_log_tank console;include ./conf/include_test/include_5.conf ./conf/include_test/include_6.conf;vhost ossrs.net {include ./conf/include_test/include_3.conf ./conf/include_test/include_7.conf;}");
+        conf.mock_include("./conf/include_test/include_5.conf", "http_server {enabled on;listen xxx;dir xxx2;}");
+        conf.mock_include("./conf/include_test/include_6.conf", "http_api {enabled on;listen xxx;}");
+        conf.mock_include("./conf/include_test/include_7.conf", "dash{enabled on;dash_fragment 10;dash_update_period 10;dash_timeshift 10;dash_path xxx;dash_mpd_file xxx2;}");
+
+        HELPER_ASSERT_SUCCESS(conf.parse("include ./conf/include_test/include_4.conf;"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+
+        EXPECT_FALSE(conf.get_log_tank_file());
+
+        EXPECT_TRUE(conf.get_http_stream_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_stream_listen().c_str());
+        EXPECT_STREQ("xxx2", conf.get_http_stream_dir().c_str());
+
+        EXPECT_TRUE(conf.get_http_api_enabled());
+        EXPECT_STREQ("xxx", conf.get_http_api_listen().c_str());
+
+        EXPECT_TRUE(conf.get_hls_enabled("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_hls_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx1", conf.get_hls_m3u8_file("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_hls_ts_file("ossrs.net").c_str());
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_hls_fragment("ossrs.net"));
+        EXPECT_EQ(60*SRS_UTIME_SECONDS, conf.get_hls_window("ossrs.net"));
+
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_fragment("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_update_period("ossrs.net"));
+        EXPECT_EQ(10*SRS_UTIME_SECONDS, conf.get_dash_timeshift("ossrs.net"));
+        EXPECT_STREQ("xxx", conf.get_dash_path("ossrs.net").c_str());
+        EXPECT_STREQ("xxx2", conf.get_dash_mpd_file("ossrs.net").c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        HELPER_ASSERT_FAILED(conf.parse("include ./conf/include_test/include.conf;"));
+    }
+}
