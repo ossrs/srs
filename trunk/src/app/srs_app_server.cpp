@@ -1378,6 +1378,8 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
             srs_close_stfd(stfd); srs_error_reset(err);
             return srs_success;
         }
+        //close fd on conn error, otherwise will lead to fd leak -gs
+        srs_close_stfd(stfd);
         return srs_error_wrap(err, "fd to resource");
     }
     srs_assert(conn);
