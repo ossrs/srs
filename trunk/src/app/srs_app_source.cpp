@@ -855,6 +855,13 @@ srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
     req_ = r;
     source = s;
     
+    int port; string ip;
+    std::vector<std::string> listens = _srs_config->get_listens();
+    if(listens.size() > 0){
+	srs_parse_endpoint(listens[0], ip, port);
+	req->port = port;
+    }	
+	
     if ((err = format->initialize()) != srs_success) {
         return srs_error_wrap(err, "format initialize");
     }
