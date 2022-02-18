@@ -2033,29 +2033,27 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     }
 
     // Parse the matched config file.
-    err = parse_file(config_file.c_str());
-    
-    if (test_conf) {
-        // the parse_file never check the config,
-        // we check it when user requires check config file.
-        if (err == srs_success && (err = srs_config_transform_vhost(root)) == srs_success) {
-            if (err == srs_success && (err = check_config()) == srs_success) {
-                srs_trace("config file is ok");
-                exit(0);
-            }
-        }
-        
-        srs_error("invalid config, %s", srs_error_desc(err).c_str());
-        int ret = srs_error_code(err);
-        srs_freep(err);
-        exit(ret);
+    if ((err = parse_file(config_file.c_str())) != srs_success) {
+        return srs_error_wrap(err, "invalid config");
     }
-    
+
     // transform config to compatible with previous style of config.
     if ((err = srs_config_transform_vhost(root)) != srs_success) {
         return srs_error_wrap(err, "transform");
     }
-    
+
+    if (test_conf) {
+        // the parse_file never check the config,
+        // we check it when user requires check config file.
+        if ((err = check_config()) == srs_success) {
+            srs_trace("config file is ok");
+            exit(0);
+        }
+
+        srs_error("config file, %s", srs_error_desc(err).c_str());
+        exit(srs_error_code(err));
+    }
+
     ////////////////////////////////////////////////////////////////////////
     // check log name and level
     ////////////////////////////////////////////////////////////////////////
