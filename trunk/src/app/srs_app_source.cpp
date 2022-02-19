@@ -859,7 +859,7 @@ srs_error_t SrsOriginHub::initialize(SrsLiveSource* s, SrsRequest* r)
     std::vector<std::string> listens = _srs_config->get_listens();
     if(listens.size() > 0){
 	srs_parse_endpoint(listens[0], ip, port);
-	req->port = port;
+	req_->port = port;
     }	
 	
     if ((err = format->initialize()) != srs_success) {
