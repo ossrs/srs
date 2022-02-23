@@ -437,6 +437,28 @@ ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; e
 if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 
 #####################################################################################
+# libyaml, yaml-0.2.5
+#####################################################################################
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5/_release/lib/libyaml.a ]]; then
+    echo "The libyaml is ok.";
+else
+    echo "Building libyaml, yaml-0.2.5.";
+    (
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+        tar xf ../../3rdparty/yaml-0.2.5.tar.gz && cd yaml-0.2.5 &&
+        ./configure --prefix=`pwd`/_release &&
+        make ${SRS_JOBS} && make install &&
+        cd .. && rm -rf yaml && ln -sf yaml-0.2.5/_release yaml
+    )
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libyaml failed, ret=$ret"; exit $ret; fi
+    # Always update the links.
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf yaml && ln -sf yaml-0.2.5/_release yaml)
+    (cd ${SRS_OBJS} && rm -rf yaml && ln -sf ${SRS_PLATFORM}/yaml-0.2.5/_release yaml)
+    if [ ! -f ${SRS_OBJS}/yaml/lib/libyaml.a ]; then echo "Build yaml-0.2.5 failed."; exit -1; fi
+fi
+
+#####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
 function write_nginx_html5()

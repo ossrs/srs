@@ -28,7 +28,8 @@ set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavcodec.a
         ${SRS_DIR}/objs/ffmpeg/lib/libavutil.a
         ${SRS_DIR}/objs/opus/lib/libopus.a
-        ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a)
+        ${SRS_DIR}/objs/ffmpeg/lib/libswresample.a
+        ${SRS_DIR}/objs/yaml/lib/libyaml.a)
 foreach(DEPS_LIB ${DEPS_LIBS})
     IF (NOT EXISTS ${DEPS_LIB})
         MESSAGE(FATAL_ERROR "${DEPS_LIB} not found")
@@ -45,6 +46,7 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/objs/srtp2/include
         ${SRS_DIR}/objs/opus/include
         ${SRS_DIR}/objs/ffmpeg/include
+        ${SRS_DIR}/objs/yaml/include
         ${SRS_DIR}/src/core
         ${SRS_DIR}/src/kernel
         ${SRS_DIR}/src/protocol
