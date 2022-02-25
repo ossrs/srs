@@ -444,9 +444,15 @@ if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5/_release/lib/libyaml.a ]]; then
 else
     echo "Building libyaml, yaml-0.2.5.";
     (
+        if [[ $SRS_CROSS_BUILD == YES ]]; then
+            YAML_CONFIGURE="./configure --host=$SRS_CROSS_BUILD_HOST"
+        else
+            YAML_CONFIGURE="./configure"
+        fi
+
         rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
         tar xf ../../3rdparty/yaml-0.2.5.tar.gz && cd yaml-0.2.5 &&
-        ./configure --prefix=`pwd`/_release &&
+        $YAML_CONFIGURE --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
         cd .. && rm -rf yaml && ln -sf yaml-0.2.5/_release yaml
     )
