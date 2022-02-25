@@ -14,6 +14,7 @@
 #include <map>
 #include <sstream>
 #include <algorithm>
+#include <yaml.h>
 
 #include <srs_app_reload.hpp>
 #include <srs_app_async_call.hpp>
@@ -221,6 +222,14 @@ public:
     virtual SrsJsonAny* dumps_arg0_to_integer();
     virtual SrsJsonAny* dumps_arg0_to_number();
     virtual SrsJsonAny* dumps_arg0_to_boolean();
+private:
+    // Parse yaml property mapping node.
+    virtual srs_error_t parse_yaml_property_mapping(yaml_document_t *document, yaml_node_t *node);
+    // Parse yaml property sequence node.
+    virtual srs_error_t parse_yaml_property_sequence(yaml_document_t *document, yaml_node_t *node);
+public:
+    // Parse yaml top mapping node.
+    virtual srs_error_t parse_yaml_top_mapping(yaml_document_t *document, yaml_node_t *node);
 // private parse.
 private:
     // The directive parsing context.
@@ -383,6 +392,12 @@ protected:
     // @param buffer, the config buffer, user must delete it.
     // @remark, use protected for the utest to override with mock.
     virtual srs_error_t parse_buffer(srs_internal::SrsConfigBuffer* buffer);
+    // Parse config for the yaml file.
+    // @remark, use protected for the utest to override with mock.
+    virtual srs_error_t parse_yaml(std::string src);
+private:
+    // Parse config in document mode.
+    virtual srs_error_t parse_yaml_document(yaml_document_t *document);
     // global env
 public:
     // Get the current work directory.

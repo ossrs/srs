@@ -970,6 +970,88 @@ SrsJsonAny* SrsConfDirective::dumps_arg0_to_boolean()
 }
 // LCOV_EXCL_STOP
 
+srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *document, yaml_node_t *node)
+{
+    srs_error_t err = srs_success;
+
+    yaml_node_pair_t *pair = NULL;
+
+    for (pair = node->data.mapping.pairs.start; pair < node->data.mapping.pairs.top; pair++) {
+        yaml_node_t *key = yaml_document_get_node(document, pair->key);
+        yaml_node_t *value = yaml_document_get_node(document, pair->value);
+
+        if (key->type != YAML_SCALAR_NODE) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "The key node is not YAML_SCALAR_NODE");
+        }
+
+        SrsConfDirective* directive = new SrsConfDirective();
+        directives.push_back(directive);
+
+        if (value->type == YAML_SCALAR_NODE) {
+            directive->name = (char*)(key->data.scalar.value);
+            directive->args.push_back((char*)(value->data.scalar.value));
+        } else if (value->type == YAML_MAPPING_NODE) {
+            vector<string> values = srs_string_split((char*)(key->data.scalar.value), " ");
+            if (values.size() == 2) {
+                directive->name = values.at(0);
+                directive->args.push_back(values.at(1));
+            } else {
+                directive->name = (char*)(key->data.scalar.value);
+            }
+            if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
+                return srs_error_wrap(err, "%s", key->data.scalar.value);
+            }
+        } else if (value->type == YAML_SEQUENCE_NODE) {
+            directive->name = (char*)(key->data.scalar.value);
+            if ((err = directive->parse_yaml_property_sequence(document, value)) != srs_success) {
+                return srs_error_wrap(err, "%s", key->data.scalar.value);
+            }
+        } else {
+            return srs_error_wrap(err, "empty node");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *document, yaml_node_t *node)
+{
+    srs_error_t err = srs_success;
+
+    yaml_node_item_t *item = NULL;
+
+    for (item = node->data.sequence.items.start; item < node->data.sequence.items.top; item++) {
+        yaml_node_t *value = yaml_document_get_node(document, *item);
+
+        if (value->type == YAML_SCALAR_NODE) {
+            args.push_back((char*)(value->data.scalar.value));
+        } else if (value->type == YAML_MAPPING_NODE) {
+            SrsConfDirective* directive = new SrsConfDirective();
+            directives.push_back(directive);
+
+            if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
+                return srs_error_wrap(err, "parse sequence");
+            }
+        } else if (value->type == YAML_SEQUENCE_NODE) {
+            SrsConfDirective* directive = new SrsConfDirective();
+            directives.push_back(directive);
+
+            if ((err = directive->parse_yaml_property_sequence(document, value)) != srs_success) {
+                return srs_error_wrap(err, "parse sequence");
+            }
+        } else {
+            return srs_error_wrap(err, "empty node");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsConfDirective::parse_yaml_top_mapping(yaml_document_t *document, yaml_node_t *node)
+{
+    return parse_yaml_property_mapping(document, node);
+}
+
 // see: ngx_conf_parse
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf)
 {
@@ -2422,14 +2504,37 @@ srs_error_t SrsConfig::parse_file(const char* filename)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty config");
     }
 
-    SrsConfigBuffer* buffer = NULL;
-    SrsAutoFree(SrsConfigBuffer, buffer);
-    if ((err = build_buffer(config_file, &buffer)) != srs_success) {
-        return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
+    if (srs_string_ends_with(config_file, ".yaml")) {
+        if ((err = parse_yaml(config_file)) != srs_success) {
+            return srs_error_wrap(err, "parse yaml");
+        }
+    } else {
+        SrsConfigBuffer* buffer = NULL;
+        SrsAutoFree(SrsConfigBuffer, buffer);
+        if ((err = build_buffer(config_file, &buffer)) != srs_success) {
+            return srs_error_wrap(err, "buffer fullfill %s", config_file.c_str());
+        }
+
+        if ((err = parse_buffer(buffer)) != srs_success) {
+            return srs_error_wrap(err, "parse buffer");
+        }
     }
-    
-    if ((err = parse_buffer(buffer)) != srs_success) {
-        return srs_error_wrap(err, "parse buffer");
+
+    // mock by dolphin mode.
+    // for the dolphin will start srs with specified params.
+    if (dolphin) {
+        // for RTMP.
+        set_config_directive(root, "listen", dolphin_rtmp_port);
+
+        // for HTTP
+        set_config_directive(root, "http_server", "");
+        SrsConfDirective* http_server = root->get("http_server");
+        set_config_directive(http_server, "enabled", "on");
+        set_config_directive(http_server, "listen", dolphin_http_port);
+
+        // others.
+        set_config_directive(root, "daemon", "off");
+        set_config_directive(root, "srs_log_tank", "console");
     }
     
     return err;
@@ -2989,24 +3094,63 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
         return srs_error_wrap(err, "root parse");
     }
     
-    // mock by dolphin mode.
-    // for the dolphin will start srs with specified params.
-    if (dolphin) {
-        // for RTMP.
-        set_config_directive(root, "listen", dolphin_rtmp_port);
-        
-        // for HTTP
-        set_config_directive(root, "http_server", "");
-        SrsConfDirective* http_server = root->get("http_server");
-        set_config_directive(http_server, "enabled", "on");
-        set_config_directive(http_server, "listen", dolphin_http_port);
-        
-        // others.
-        set_config_directive(root, "daemon", "off");
-        set_config_directive(root, "srs_log_tank", "console");
-    }
-    
     return err;
+}
+
+srs_error_t SrsConfig::parse_yaml(string src)
+{
+    srs_error_t err = srs_success;
+
+    int done = 0;
+    yaml_parser_t parser;
+    yaml_document_t document;
+
+    /* Set a file input. */
+    FILE *input = NULL;
+    input = fopen(src.c_str(), "rb");
+    if (!input) {
+        return srs_error_new(ERROR_SYSTEM_FILE_OPENE, "open file %s failed", src.c_str());
+    }
+
+    /* Create the Parser object. */
+    yaml_parser_initialize(&parser);
+    yaml_parser_set_input_file(&parser, input);
+
+    while (!done) {
+        if (!yaml_parser_load(&parser, &document)) {
+            err = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid yaml file %s", src.c_str());
+            break;
+        }
+
+        done = (!yaml_document_get_root_node(&document));
+        if (!done) {
+            err = parse_yaml_document(&document);
+        }
+
+        yaml_document_delete(&document);
+    }
+
+    /* Cleanup */
+    yaml_parser_delete(&parser);
+    fclose(input);
+
+    return err;
+}
+
+srs_error_t SrsConfig::parse_yaml_document(yaml_document_t *document)
+{
+    yaml_node_t *node;
+
+    node = yaml_document_get_root_node(document);
+    if (NULL == node || YAML_MAPPING_NODE != node->type) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid");
+    }
+
+    // We use a new root to parse buffer, to allow parse multiple times.
+    srs_freep(root);
+    root = new SrsConfDirective();
+
+    return root->parse_yaml_top_mapping(document, node);
 }
 
 string SrsConfig::cwd()
