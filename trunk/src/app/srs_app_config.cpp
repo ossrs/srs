@@ -1001,7 +1001,30 @@ srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *docum
                 return srs_error_wrap(err, "%s", key->data.scalar.value);
             }
         } else {
-            return srs_error_wrap(err, "empty node");
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "empty node");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsConfDirective::parse_yaml_property_sequence_mapping(yaml_document_t *document, yaml_node_t *node)
+{
+    srs_error_t err = srs_success;
+
+    yaml_node_pair_t *pair;
+
+    for (pair = node->data.mapping.pairs.start; pair < node->data.mapping.pairs.top; pair++) {
+        yaml_node_t *m_key = yaml_document_get_node(document, pair->key);
+        yaml_node_t *m_value = yaml_document_get_node(document, pair->value);
+
+        if (m_key->type != YAML_SCALAR_NODE || m_value->type != YAML_MAPPING_NODE) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "The key node is not YAML_SCALAR_NODE");
+        }
+
+        args.push_back(string((char*)(m_key->data.scalar.value)));
+        if ((err = parse_yaml_property_mapping(document, m_value)) != srs_success) {
+            return srs_error_wrap(err, "%s", m_key->data.scalar.value);
         }
     }
 
@@ -1013,36 +1036,29 @@ srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *docu
     srs_error_t err = srs_success;
 
     yaml_node_item_t *item;
+    int index = 0;
 
-    for (item = node->data.sequence.items.start; item < node->data.sequence.items.top; item++) {
+    for (item = node->data.sequence.items.start; item < node->data.sequence.items.top; item++, index++) {
         yaml_node_t *value = yaml_document_get_node(document, *item);
 
         if (value->type == YAML_SCALAR_NODE) {
             args.push_back(string((char*)(value->data.scalar.value)));
         } else if (value->type == YAML_MAPPING_NODE) {
-            SrsConfDirective* directive = new SrsConfDirective();
-            dir->directives.push_back(directive);
+            if (index == 0) {
+                if ((err = parse_yaml_property_sequence_mapping(document, value)) != srs_success) {
+                    return srs_error_wrap(err, "%s", (char*)(key->data.scalar.value));
+                }
+            } else {
+                SrsConfDirective* directive = new SrsConfDirective();
+                dir->directives.push_back(directive);
 
-            directive->name = string((char*)(key->data.scalar.value));
-            if (true) {
-                yaml_node_pair_t *pair;
-
-                for (pair = value->data.mapping.pairs.start; pair < value->data.mapping.pairs.top; pair++) {
-                    yaml_node_t *m_key = yaml_document_get_node(document, pair->key);
-                    yaml_node_t *m_value = yaml_document_get_node(document, pair->value);
-
-                    if (m_key->type != YAML_SCALAR_NODE || m_value->type != YAML_MAPPING_NODE) {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "The key node is not YAML_SCALAR_NODE");
-                    }
-
-                    directive->args.push_back(string((char*)(m_key->data.scalar.value)));
-                    if ((err = directive->parse_yaml_property_mapping(document, m_value)) != srs_success) {
-                        return srs_error_wrap(err, "%s", m_key->data.scalar.value);
-                    }
+                directive->name = string((char*)(key->data.scalar.value));
+                if ((err = directive->parse_yaml_property_sequence_mapping(document, value)) != srs_success) {
+                    return srs_error_wrap(err, "%s", (char*)(key->data.scalar.value));
                 }
             }
         } else {
-            return srs_error_wrap(err, "empty node");
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s", (char*)(key->data.scalar.value));
         }
     }
 
