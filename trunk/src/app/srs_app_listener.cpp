@@ -130,6 +130,7 @@ int SrsUdpListener::listen()
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    bzero(&(addr.sin_zero),8);
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
         srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
@@ -239,6 +240,7 @@ int SrsTcpListener::listen()
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    bzero(&(addr.sin_zero),8);
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
         srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
