@@ -974,7 +974,7 @@ srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *docum
 {
     srs_error_t err = srs_success;
 
-    yaml_node_pair_t *pair = NULL;
+    yaml_node_pair_t *pair;
 
     for (pair = node->data.mapping.pairs.start; pair < node->data.mapping.pairs.top; pair++) {
         yaml_node_t *key = yaml_document_get_node(document, pair->key);
@@ -991,19 +991,13 @@ srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *docum
             directive->name = (char*)(key->data.scalar.value);
             directive->args.push_back((char*)(value->data.scalar.value));
         } else if (value->type == YAML_MAPPING_NODE) {
-            vector<string> values = srs_string_split((char*)(key->data.scalar.value), " ");
-            if (values.size() == 2) {
-                directive->name = values.at(0);
-                directive->args.push_back(values.at(1));
-            } else {
-                directive->name = (char*)(key->data.scalar.value);
-            }
+            directive->name = (char*)(key->data.scalar.value);
             if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
                 return srs_error_wrap(err, "%s", key->data.scalar.value);
             }
         } else if (value->type == YAML_SEQUENCE_NODE) {
             directive->name = (char*)(key->data.scalar.value);
-            if ((err = directive->parse_yaml_property_sequence(document, value)) != srs_success) {
+            if ((err = directive->parse_yaml_property_sequence(document, value, key, this)) != srs_success) {
                 return srs_error_wrap(err, "%s", key->data.scalar.value);
             }
         } else {
@@ -1014,11 +1008,11 @@ srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *docum
     return err;
 }
 
-srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *document, yaml_node_t *node)
+srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *document, yaml_node_t *node, yaml_node_t *key, SrsConfDirective* dir)
 {
     srs_error_t err = srs_success;
 
-    yaml_node_item_t *item = NULL;
+    yaml_node_item_t *item;
 
     for (item = node->data.sequence.items.start; item < node->data.sequence.items.top; item++) {
         yaml_node_t *value = yaml_document_get_node(document, *item);
@@ -1027,17 +1021,25 @@ srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *docu
             args.push_back((char*)(value->data.scalar.value));
         } else if (value->type == YAML_MAPPING_NODE) {
             SrsConfDirective* directive = new SrsConfDirective();
-            directives.push_back(directive);
+            dir->directives.push_back(directive);
 
-            if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
-                return srs_error_wrap(err, "parse sequence");
-            }
-        } else if (value->type == YAML_SEQUENCE_NODE) {
-            SrsConfDirective* directive = new SrsConfDirective();
-            directives.push_back(directive);
+            directive->name = (char*)(key->data.scalar.value);
+            if (true) {
+                yaml_node_pair_t *pair;
 
-            if ((err = directive->parse_yaml_property_sequence(document, value)) != srs_success) {
-                return srs_error_wrap(err, "parse sequence");
+                for (pair = value->data.mapping.pairs.start; pair < value->data.mapping.pairs.top; pair++) {
+                    yaml_node_t *key = yaml_document_get_node(document, pair->key);
+                    yaml_node_t *value = yaml_document_get_node(document, pair->value);
+
+                    if (key->type != YAML_SCALAR_NODE || value->type != YAML_MAPPING_NODE) {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "The key node is not YAML_SCALAR_NODE");
+                    }
+
+                    directive->args.push_back((char*)(key->data.scalar.value));
+                    if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
+                        return srs_error_wrap(err, "%s", key->data.scalar.value);
+                    }
+                }
             }
         } else {
             return srs_error_wrap(err, "empty node");
