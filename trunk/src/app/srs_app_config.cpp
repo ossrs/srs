@@ -988,15 +988,15 @@ srs_error_t SrsConfDirective::parse_yaml_property_mapping(yaml_document_t *docum
         directives.push_back(directive);
 
         if (value->type == YAML_SCALAR_NODE) {
-            directive->name = (char*)(key->data.scalar.value);
-            directive->args.push_back((char*)(value->data.scalar.value));
+            directive->name = string((char*)(key->data.scalar.value));
+            directive->args.push_back(string((char*)(value->data.scalar.value)));
         } else if (value->type == YAML_MAPPING_NODE) {
-            directive->name = (char*)(key->data.scalar.value);
+            directive->name = string((char*)(key->data.scalar.value));
             if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
                 return srs_error_wrap(err, "%s", key->data.scalar.value);
             }
         } else if (value->type == YAML_SEQUENCE_NODE) {
-            directive->name = (char*)(key->data.scalar.value);
+            directive->name = string((char*)(key->data.scalar.value));
             if ((err = directive->parse_yaml_property_sequence(document, value, key, this)) != srs_success) {
                 return srs_error_wrap(err, "%s", key->data.scalar.value);
             }
@@ -1018,26 +1018,26 @@ srs_error_t SrsConfDirective::parse_yaml_property_sequence(yaml_document_t *docu
         yaml_node_t *value = yaml_document_get_node(document, *item);
 
         if (value->type == YAML_SCALAR_NODE) {
-            args.push_back((char*)(value->data.scalar.value));
+            args.push_back(string((char*)(value->data.scalar.value)));
         } else if (value->type == YAML_MAPPING_NODE) {
             SrsConfDirective* directive = new SrsConfDirective();
             dir->directives.push_back(directive);
 
-            directive->name = (char*)(key->data.scalar.value);
+            directive->name = string((char*)(key->data.scalar.value));
             if (true) {
                 yaml_node_pair_t *pair;
 
                 for (pair = value->data.mapping.pairs.start; pair < value->data.mapping.pairs.top; pair++) {
-                    yaml_node_t *key = yaml_document_get_node(document, pair->key);
-                    yaml_node_t *value = yaml_document_get_node(document, pair->value);
+                    yaml_node_t *m_key = yaml_document_get_node(document, pair->key);
+                    yaml_node_t *m_value = yaml_document_get_node(document, pair->value);
 
-                    if (key->type != YAML_SCALAR_NODE || value->type != YAML_MAPPING_NODE) {
+                    if (m_key->type != YAML_SCALAR_NODE || m_value->type != YAML_MAPPING_NODE) {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "The key node is not YAML_SCALAR_NODE");
                     }
 
-                    directive->args.push_back((char*)(key->data.scalar.value));
-                    if ((err = directive->parse_yaml_property_mapping(document, value)) != srs_success) {
-                        return srs_error_wrap(err, "%s", key->data.scalar.value);
+                    directive->args.push_back(string((char*)(m_key->data.scalar.value)));
+                    if ((err = directive->parse_yaml_property_mapping(document, m_value)) != srs_success) {
+                        return srs_error_wrap(err, "%s", m_key->data.scalar.value);
                     }
                 }
             }
@@ -3126,7 +3126,18 @@ srs_error_t SrsConfig::parse_yaml(string src)
 
         done = (!yaml_document_get_root_node(&document));
         if (!done) {
-            err = parse_yaml_document(&document);
+            yaml_node_t *node;
+
+            node = yaml_document_get_root_node(&document);
+            if (!node || YAML_MAPPING_NODE != node->type) {
+                err = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid");
+            } else {
+                // We use a new root to parse buffer, to allow parse multiple times.
+                srs_freep(root);
+                root = new SrsConfDirective();
+
+                err = root->parse_yaml_top_mapping(&document, node);
+            }
         }
 
         yaml_document_delete(&document);
@@ -3137,22 +3148,6 @@ srs_error_t SrsConfig::parse_yaml(string src)
     fclose(input);
 
     return err;
-}
-
-srs_error_t SrsConfig::parse_yaml_document(yaml_document_t *document)
-{
-    yaml_node_t *node;
-
-    node = yaml_document_get_root_node(document);
-    if (NULL == node || YAML_MAPPING_NODE != node->type) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid");
-    }
-
-    // We use a new root to parse buffer, to allow parse multiple times.
-    srs_freep(root);
-    root = new SrsConfDirective();
-
-    return root->parse_yaml_top_mapping(document, node);
 }
 
 string SrsConfig::cwd()

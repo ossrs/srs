@@ -395,9 +395,6 @@ protected:
     // Parse config for the yaml file.
     // @remark, use protected for the utest to override with mock.
     virtual srs_error_t parse_yaml(std::string src);
-private:
-    // Parse config in document mode.
-    virtual srs_error_t parse_yaml_document(yaml_document_t *document);
     // global env
 public:
     // Get the current work directory.
