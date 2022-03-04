@@ -335,7 +335,7 @@
         $("#btn_publish").click(on_user_publish);
 
         // for publish, we use randome stream name.
-        $("#txt_url").val($("#txt_url").val() + "." + Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7));
+        $("#txt_url").val($("#txt_url").val() + "." + Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).slice(0, 7));
 
         // start the publisher.
         srs_publisher = new SrsPublisher("local_publisher", 430, 185);
