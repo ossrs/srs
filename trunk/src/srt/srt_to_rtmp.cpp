@@ -279,10 +279,11 @@ rtmp_client::rtmp_client(std::string key_path):_key_path(key_path)
     ss << "rtmp://" << SRS_CONSTS_LOCALHOST;
     ss << ":" << port;
     ss << "/" << _appname;
-    if (_vhost != DEF_VHOST) {
-        ss << "?vhost=" << _vhost;
-    }
     ss << "/" << _streamname;
+    ss << (_streamname.find("?") != std::string::npos ? "&" : "?") << "upstream=srt";
+    if (_vhost != DEF_VHOST) {
+        ss << "&vhost=" << _vhost;
+    }
 
     _url = ss.str();
 

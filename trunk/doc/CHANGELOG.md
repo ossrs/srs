@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-03-07, SRT: Append vhost to stream, not app. v4.0.246
 * v4.0, 2022-02-15, Fix warnings for uuid. v4.0.245
 * v4.0, 2022-02-15, Merge [#2917](https://github.com/ossrs/srs/pull/2917): SRT: Close connection if RTMP failed. (#2917). v4.0.244
 * v4.0, 2022-02-15, Refine build script for SRT to avoid warnings. v4.0.243
