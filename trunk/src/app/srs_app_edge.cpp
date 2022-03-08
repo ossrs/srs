@@ -684,12 +684,8 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg, stri
         SrsAutoFree(SrsPacket, pkt);
         
         // RTMP 302 redirect
-        if (dynamic_cast<SrsCallPacket*>(pkt)) {
-            SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
-            if (!call->arguments->is_object()) {
-                return err;
-            }
-            
+        SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
+        if (call && call->arguments && call->arguments->is_object()) {
             SrsAmf0Any* prop = NULL;
             SrsAmf0Object* evt = call->arguments->to_object();
             
