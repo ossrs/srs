@@ -7,35 +7,35 @@ listen:
   - 1936
 max_connections: 1000
 srs_log_tank: console
-daemon: 'off'
+daemon: off
 
 http_api:
-  enabled: 'on'
+  enabled: on
   listen: 1985
 
 http_server:
-  enabled: 'on'
+  enabled: on
   listen: 8080
   dir: ./objs/nginx/html
 
 vhost:
   - srs.yaml.test.com:
-      enabled: 'on'
+      enabled: on
 
       hls:
-        enabled: 'on'
+        enabled: on
 
       http_remux:
-        enabled: 'on'
+        enabled: on
         mount: '[vhost]/[app]/[stream].flv'
         
       transcode: &ref_0
-        enabled: 'on'
+        enabled: on
         ffmpeg: ./objs/ffmpeg/bin/ffmpeg
         
         engine:
           - ffsuper:
-              enabled: 'on'
+              enabled: on
               iformat: flv
               vfilter:
                 i: ./doc/ffmpeg-logo.png
@@ -64,7 +64,7 @@ vhost:
               output: 'rtmp://127.0.0.1:[port]/[app]?vhost=[vhost]/[stream]_[engine]'
               
           - ffhd:
-              enabled: 'on'
+              enabled: on
               vcodec: libx264
               vbitrate: 1200
               vfps: 25
@@ -82,13 +82,13 @@ vhost:
               output: 'rtmp://127.0.0.1:[port]/[app]?vhost=[vhost]/[stream]_[engine]'
               
   - srs.yaml.test01.com:
-      enabled: 'on'
+      enabled: on
       
       hls:
-        enabled: 'on'
+        enabled: on
         
       http_remux:
-        enabled: 'on'
+        enabled: on
         mount: '[vhost]/[app]/[stream].flv'
         
       transcode: *ref_0

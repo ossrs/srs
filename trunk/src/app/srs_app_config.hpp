@@ -225,7 +225,7 @@ public:
 private:
     // Parse yaml property mapping node.
     virtual srs_error_t parse_yaml_property_mapping(yaml_document_t *document, yaml_node_t *node);
-    // Parse yaml property mapping node.
+    // Parse yaml property sequence mapping node.
     virtual srs_error_t parse_yaml_property_sequence_mapping(yaml_document_t *document, yaml_node_t *node);
     // Parse yaml property sequence node.
     virtual srs_error_t parse_yaml_property_sequence(yaml_document_t *document, yaml_node_t *node, yaml_node_t *key, SrsConfDirective* dir);
