@@ -374,6 +374,9 @@
 #define ERROR_USER_START                    9000
 //#define ERROR_USER_DISCONNECT               9001
 #define ERROR_SOURCE_NOT_FOUND              9002
+#define ERROR_QUEUE_INIT                    9010
+#define ERROR_QUEUE_PUSH                    9011
+#define ERROR_QUEUE_POP                     9012
 #define ERROR_USER_END                      9999
 
 // Whether the error code is an system control error.

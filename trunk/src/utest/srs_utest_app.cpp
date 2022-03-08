@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_app_st.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_dispatch.hpp>
 
 class MockIDResource : public ISrsResource
 {
@@ -744,5 +745,43 @@ VOID TEST(AppSecurity, CheckSecurity)
     //       2. default to deny all when security enabled.
     //       3. allow if matches allow strategy.
     //       4. deny if matches deny strategy.
+}
+
+class MockLogInfo
+{
+public:
+    std::string msg;
+public:
+    MockLogInfo() {}
+    virtual ~MockLogInfo() {}
+};
+
+VOID TEST(AppDispatch, CoverAll)
+{
+	srs_error_t err;
+
+    if (true) {
+        SrsDispatch dispatch;
+        err = dispatch.init();
+        EXPECT_TRUE(srs_success == err);
+
+        if (true) {
+            SrsStWork work;
+            MockLogInfo *log_info = new MockLogInfo();
+            log_info->msg = "hello";
+            work.info = (void *)log_info;
+            err = dispatch.dispatch_log(work);
+            EXPECT_TRUE(srs_success == err);
+        }
+
+        if (true) {
+            SrsStWork work;
+            err = dispatch.fetch_log(work);
+            EXPECT_TRUE(srs_success == err);
+            MockLogInfo* log_info = (MockLogInfo*)work.info;
+            EXPECT_TRUE(log_info->msg == "hello");
+            srs_freep(log_info);
+        }
+    }
 }
 
