@@ -984,10 +984,10 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveCo
         }
 
         if (state == SrsDirectiveStateBlockEnd) {
-            return ctx == SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected \"}\"", buffer->line);
+            return ctx == SrsDirectiveContextBlock ? srs_success : srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected \"}\"", buffer->line);
         }
         if (state == SrsDirectiveStateEOF) {
-            return ctx != SrsDirectiveContextBlock ? srs_success : srs_error_wrap(err, "line %d: unexpected end of file, expecting \"}\"", conf_line);
+            return ctx != SrsDirectiveContextBlock ? srs_success : srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected end of file, expecting \"}\"", conf_line);
         }
         if (args.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: empty directive", conf_line);
@@ -2040,12 +2040,14 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         // we check it when user requires check config file.
         if (err == srs_success && (err = srs_config_transform_vhost(root)) == srs_success) {
             if ((err = check_config()) == srs_success) {
-                srs_trace("config file is ok");
+                srs_trace("the configuration file %s syntax is ok", config_file.c_str());
+                srs_trace("configuration file %s test is successful", config_file.c_str());
                 exit(0);
             }
         }
 
-        srs_error("config file, %s", srs_error_desc(err).c_str());
+        srs_trace("invalid configuration: %s in %s", srs_error_summary(err).c_str(), config_file.c_str());
+        srs_trace("configuration file %s test is failed", config_file.c_str());
         exit(srs_error_code(err));
     }
 
