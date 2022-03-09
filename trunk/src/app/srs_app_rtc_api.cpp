@@ -394,9 +394,11 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
+    ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
 
-    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost, 
-                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+    // Identify WebRTC publisher by param upstream=rtc
+    ruc.req_->param = srs_string_trim_start(ruc.req_->param + "&upstream=rtc", "&");
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
@@ -527,11 +529,9 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
-
         if (!conf) {
             return err;
         }
-
         hooks = conf->args;
     }
 
