@@ -1,0 +1,17 @@
+# LibYAML Dockerfiles
+
+This directory is a collection of dockerfiles that can be used when developing 
+and testing LibYAML.
+
+The current list is supports:
+
+- Ubuntu 16.04
+- Ubuntu 14.04
+
+## Example Usage
+
+```bash
+$ docker pull ubuntu
+$ docker build -t libyaml-ubuntu:16.04 -f dockerfiles/ubuntu-16.04 .
+$ docker run -it libyaml-ubuntu:16.04 make test
+```

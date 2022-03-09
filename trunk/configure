@@ -540,7 +540,7 @@ clean_st:
 	@echo "Please rebuild ST by: ./configure"
     
 clean_yaml:
-	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf yaml-0.2.5)
+	(cd ${SRS_OBJS_DIR}/${SRS_PLATFORM} && rm -rf libyaml)
 	@echo "Please rebuild libyaml by: ./configure"
 
 st:
@@ -556,7 +556,7 @@ ffmpeg:
 
 yaml:
 	(cd ${SRS_OBJS_DIR} && rm -f srs srs_utest)
-	(cd ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5 && ./configure --prefix=`pwd`/_release && \$(MAKE) && \$(MAKE) install)
+	(cd ${SRS_OBJS}/${SRS_PLATFORM}/libyaml && \$(MAKE) && \$(MAKE) install)
 	@echo "Please rebuild srs by: rm -f objs/srs && make"
 
 END

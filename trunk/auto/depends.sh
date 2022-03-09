@@ -437,12 +437,12 @@ ret=$?; if [[ $ret -ne 0 ]]; then echo "Build state-threads failed, ret=$ret"; e
 if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "Build state-threads static lib failed."; exit -1; fi
 
 #####################################################################################
-# libyaml, yaml-0.2.5
+# libyaml
 #####################################################################################
-if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5/_release/lib/libyaml.a ]]; then
+if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/yaml/lib/libyaml.a ]]; then
     echo "The libyaml is ok.";
 else
-    echo "Building libyaml, yaml-0.2.5.";
+    echo "Building libyaml.";
     (
         if [[ $SRS_CROSS_BUILD == YES ]]; then
             YAML_CONFIGURE="./configure --host=$SRS_CROSS_BUILD_HOST"
@@ -450,18 +450,18 @@ else
             YAML_CONFIGURE="./configure"
         fi
 
-        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/yaml-0.2.5 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-        tar xf ../../3rdparty/yaml-0.2.5.tar.gz && cd yaml-0.2.5 &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libyaml && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+        cp -rp ../../3rdparty/libyaml . && cd libyaml && ./bootstrap &&
         $YAML_CONFIGURE --prefix=`pwd`/_release &&
         make ${SRS_JOBS} && make install &&
-        cd .. && rm -rf yaml && ln -sf yaml-0.2.5/_release yaml
+        cd .. && rm -rf yaml && ln -sf libyaml/_release yaml
     )
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "Build libyaml failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf yaml && ln -sf yaml-0.2.5/_release yaml)
-    (cd ${SRS_OBJS} && rm -rf yaml && ln -sf ${SRS_PLATFORM}/yaml-0.2.5/_release yaml)
-    if [ ! -f ${SRS_OBJS}/yaml/lib/libyaml.a ]; then echo "Build yaml-0.2.5 failed."; exit -1; fi
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf yaml && ln -sf libyaml/_release yaml)
+    (cd ${SRS_OBJS} && rm -rf yaml && ln -sf ${SRS_PLATFORM}/libyaml/_release yaml)
+    if [ ! -f ${SRS_OBJS}/yaml/lib/libyaml.a ]; then echo "Build libyaml failed."; exit -1; fi
 fi
 
 #####################################################################################

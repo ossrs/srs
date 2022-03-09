@@ -1,0 +1,372 @@
+0.2.5 2020-06-01
+
+https://github.com/yaml/libyaml/pull/105
+Allow question marks in plain scalars in flow collections
+
+https://github.com/yaml/libyaml/pull/186
+Emitter: Don't output trailing space for empty scalar nodes
+
+https://github.com/yaml/libyaml/pull/185
+Emitter: Output space after an alias mapping key
+
+https://github.com/yaml/libyaml/pull/187
+Add -h and --flow (on|off|keep) to run-*-test-suite
+
+https://github.com/yaml/libyaml/pull/182
+Remove unnecessary include and malloc
+
+https://github.com/yaml/libyaml/pull/177
+Add specific files back to .gitignore
+
+https://github.com/yaml/libyaml/pull/181
+Output error position in run-parser-test-suite.c
+
+https://github.com/yaml/libyaml/pull/191
+A couple patches to improve test suite support
+
+0.2.4 2020-04-19
+
+  - https://github.com/yaml/libyaml/pull/143
+    Add packaging/docker-dist to Makefile.am
+
+  - https://github.com/yaml/libyaml/pull/174
+    Fix logic for document end before directive
+
+
+0.2.3 2020-04-11
+
+  - https://github.com/yaml/libyaml/pull/130
+    Fixed typo.
+
+  - https://github.com/yaml/libyaml/pull/144
+    Fix typo in comment
+
+  - https://github.com/yaml/libyaml/pull/140
+    Use pointer to const for strings that aren't/shouldn't be modified
+
+  - https://github.com/yaml/libyaml/pull/128
+    Squash a couple of warnings in example-deconstructor-alt
+
+  - https://github.com/yaml/libyaml/pull/151
+    Fix spelling for error message
+
+  - https://github.com/yaml/libyaml/pull/161
+    Make appveyor config be a hidden file
+
+  - https://github.com/yaml/libyaml/pull/159
+    Add CHANGES file
+
+  - https://github.com/yaml/libyaml/pull/160
+    Always output document end before directive (YAML 1.2 compatibility)
+
+  - https://github.com/yaml/libyaml/pull/162
+    Output document end marker after open ended scalars
+
+  - https://github.com/yaml/libyaml/pull/157
+    change cmake target name from libOFF.a to libyaml.a
+
+  - https://github.com/yaml/libyaml/pull/155
+    include/yaml.h: fix comments
+
+  - https://github.com/yaml/libyaml/pull/169
+    Fixed missing token in example
+
+  - https://github.com/yaml/libyaml/pull/127
+    Avoid recursion in the document loader.
+
+  - https://github.com/yaml/libyaml/pull/172
+    Support %YAML 1.2 directives
+
+  - https://github.com/yaml/libyaml/pull/66
+    Change dllexport controlling macro to use _WIN32
+
+0.2.2 2019-03-12
+
+  - https://github.com/yaml/libyaml/pull/95
+    build: do not install config.h
+
+  - https://github.com/yaml/libyaml/pull/97
+    appveyor.yml: fix Release build
+
+  - https://github.com/yaml/libyaml/pull/103
+    Remove unused code in yaml_document_delete
+
+  - https://github.com/yaml/libyaml/pull/104
+    Allow colons in plain scalars inside flow collections
+
+  - https://github.com/yaml/libyaml/pull/109
+    Fix comparison in tests/run-emitter.c
+
+  - https://github.com/yaml/libyaml/pull/117
+    Fix typo error
+
+  - https://github.com/yaml/libyaml/pull/119
+    The closing single quote needs to be indented...
+
+  - https://github.com/yaml/libyaml/pull/121
+    fix token name typos in comments
+
+  - https://github.com/yaml/libyaml/pull/122
+    Revert removing of open_ended after top level plain scalar
+
+  - https://github.com/yaml/libyaml/pull/125
+    Cherry-picks from PR 27
+
+  - https://github.com/yaml/libyaml/pull/135
+    Windows/C89 compatibility
+
+  - https://github.com/yaml/libyaml/pull/136
+    allow override of Windows static lib name
+
+0.2.1 2018-06-24
+
+  - https://github.com/yaml/libyaml/pull/10
+    Support static and dynamic libraries
+
+  - https://github.com/yaml/libyaml/pull/12
+    Use .gitignore instead of .hgignore
+
+  - https://github.com/yaml/libyaml/pull/13
+    Add support for `make test` and travis
+
+  - https://github.com/yaml/libyaml/pull/14
+    Dockerfile for testing
+
+  - https://github.com/yaml/libyaml/pull/15
+    Apply old fix for `\/` that is not in master.
+
+  - https://github.com/yaml/libyaml/pull/17
+    Update license to include all years until now.
+
+  - https://github.com/yaml/libyaml/pull/18
+    Port bug fix from Perl binding
+
+  - https://github.com/yaml/libyaml/pull/22
+    Fix misspell: preceed
+
+  - https://github.com/yaml/libyaml/pull/23
+    Removed trailing-whitespaces
+
+  - https://github.com/yaml/libyaml/pull/24
+    Fix typo
+
+  - https://github.com/yaml/libyaml/pull/25
+    added an examples directory with a few yaml examples
+
+  - https://github.com/yaml/libyaml/pull/26
+    Added missing Cflags path in pkg-config file
+
+  - https://github.com/yaml/libyaml/pull/31
+    add unit tests to cmake configuration
+
+  - https://github.com/yaml/libyaml/pull/32
+    Include an example of a custom tag from Python
+
+  - https://github.com/yaml/libyaml/pull/33
+    Include an example of a %YAML tag
+
+  - https://github.com/yaml/libyaml/pull/34
+    Added an example of using a global tag
+
+  - https://github.com/yaml/libyaml/pull/36
+    Fix -Wformat compilation errors in tests
+
+  - https://github.com/yaml/libyaml/pull/37
+    Update bug report URL in LibYAML
+
+  - https://github.com/yaml/libyaml/pull/38
+    Use AM_CPPFLAGS since autotools deprecated INCLUDE
+
+  - https://github.com/yaml/libyaml/pull/39
+    Update bug report URL in README
+
+  - https://github.com/yaml/libyaml/pull/41
+    Add travis and Makefile support for libyaml-test
+
+  - https://github.com/yaml/libyaml/pull/43
+    Add Dockerfile for Fedora 25
+
+  - https://github.com/yaml/libyaml/pull/44
+    WIP: Enable all warnings (-Wall) in libyaml and tests
+
+  - https://github.com/yaml/libyaml/pull/45
+    Fix typo
+
+  - https://github.com/yaml/libyaml/pull/47
+    Move travis script guts to separate file
+
+  - https://github.com/yaml/libyaml/pull/48
+    `yaml/libyaml-test` should become part of `yaml/libyaml`
+
+  - https://github.com/yaml/libyaml/pull/50
+    Add a GNUMakefile for immediate make targets
+
+  - https://github.com/yaml/libyaml/pull/53
+    Switch from test blacklist to whitelist
+
+  - https://github.com/yaml/libyaml/pull/55
+    Update defs for MingGW support on Windows
+
+  - https://github.com/yaml/libyaml/pull/58
+    Improve CMakeLists
+
+  - https://github.com/yaml/libyaml/pull/64
+    README: Update libyaml link
+
+  - https://github.com/yaml/libyaml/pull/69
+    Skip 5 tests in libyaml-emitter.list
+
+  - https://github.com/yaml/libyaml/pull/74
+    Forbid escaped singlequote in doublequotes
+
+  - https://github.com/yaml/libyaml/pull/76
+    Rewrite make test-suite
+
+  - https://github.com/yaml/libyaml/pull/77
+    Undefined PTRDIFF_MAX on HP-UX
+
+  - https://github.com/yaml/libyaml/pull/78
+    Fixed most compiler warnings -Wall -Wextra
+
+  - https://github.com/yaml/libyaml/pull/82
+    Move yaml-test-suite integration onto a separate branch.
+
+  - https://github.com/yaml/libyaml/pull/86
+    Fix problems in CI failures (travis and semaphore)
+
+  - https://github.com/yaml/libyaml/pull/87
+    appveyor.yml: add mingw-w64 builds
+
+  - https://github.com/yaml/libyaml/pull/88
+    add -no-undefined to src/Makefile.am
+
+  - https://github.com/yaml/libyaml/pull/89
+    Added alpine linux testing to dockerfiles
+
+  - https://github.com/yaml/libyaml/pull/93
+    remove need for PTRDIFF_MAX
+
+  - https://github.com/yaml/libyaml/pull/94
+    .gitignore: major cleanup
+
+  - https://github.com/yaml/libyaml/pull/120
+    Fix doc.
+
+0.1.7 2016-08-27
+
+  - Fixed segfault in yaml_string_write_handler.
+
+  - Fixed invalid simple key assertion.
+
+  - Fixed error handling in some examples (thank to Mathias Svensson).
+
+  - Removed obsolete VS project files.
+
+0.1.6 2014-03-26
+
+  - https://github.com/yaml/libyaml/commit/d1003a9
+    Fixed heap overflow in yaml_parser_scan_uri_escapes (Thanks
+    Ivan Fratric of the Google Security Team).
+
+  - https://github.com/yaml/libyaml/commit/662f4be
+    Added tag 0.1.5 for changeset a5142b24428b
+
+0.1.5 2014-02-03
+
+  - https://github.com/yaml/libyaml/commit/303b455
+    Manually define PTRDIFF_MAX for VS C compiler.
+
+  - https://github.com/yaml/libyaml/commit/1ef1171
+    Forgot to set the error state.
+
+  - https://github.com/yaml/libyaml/commit/c9479c7
+    Limit input size to SIZE_MAX/2.
+
+  - https://github.com/yaml/libyaml/commit/c201bf6
+    Guard against overflows in indent and flow_level.
+
+  - https://github.com/yaml/libyaml/commit/bb8ab82
+    Added .hgignore.
+
+  - https://github.com/yaml/libyaml/commit/2d94fc5
+    Prevent node index overflow (Reported by Florian Weimer).
+
+  - https://github.com/yaml/libyaml/commit/df33f25
+    Bumped the version number.
+
+  - https://github.com/yaml/libyaml/commit/f56726b
+    Fixed invalid size_t->int cast (Thank to Florian Weimer).
+
+  - https://github.com/yaml/libyaml/commit/01e8dad
+    Added a basic CMake project.
+
+  - https://github.com/yaml/libyaml/commit/f54fc40
+    Added tag 0.1.4 for changeset 3e6507fa0c26
+
+0.1.4 2012-12-24
+
+  - Fixed a bug that prevented an empty mapping being used as a simple key
+    (thank to spitzak(at)rhythm(dot)com).
+
+  - Fixed pointer overflow when calculating the position of a potential
+    simple key (thank to ppelletier(at)oblong(dot)com).
+
+  - Fixed yaml.dll not exporting any symbols
+    (thank to pxn11432(at)nifty(dot)com).
+
+  - Added pkg-config support (thank to rainwoodman(at)gmail(dot)com).
+
+0.1.3 2009-08-29
+
+  - This release fixes non-standard structure initialization and
+    a streaming-related issue.
+
+0.1.2 2008-12-27
+
+  - Minor bugfix release
+
+0.1.1 2006-08-01
+
+  - https://github.com/yaml/libyaml/commit/5e52c31
+    Fixed a problem when the DOCUMENT-END event is not emitted until
+    the beginning of the next document is available. Fixed #51.
+    Thanks edward(at)sweetbytes.net for the bug report.
+
+  - https://github.com/yaml/libyaml/commit/dd71484
+    Add project files for Visual Studio 2003.
+
+  - https://github.com/yaml/libyaml/commit/ce8a93e
+    Fix the example_deconstructor project.
+
+  - https://github.com/yaml/libyaml/commit/c9b74de
+    Eliminate some warnings and add more doxygen definitions.
+
+  - https://github.com/yaml/libyaml/commit/0122490
+    Undefine the NDEBUG directive for the test programs.
+
+  - https://github.com/yaml/libyaml/commit/071329a
+    Fix a bug in the emitter introduced while fixing warnings for VC6.
+
+  - https://github.com/yaml/libyaml/commit/6f6bbb8
+    Add VC6 projects for the test executables.
+
+  - https://github.com/yaml/libyaml/commit/0174ed6
+    Add win32 fixes and project files for VC6.
+
+  - https://github.com/yaml/libyaml/commit/e27a3c8
+    Add functions for constructing, parsing and emitting YAML documents.
+
+  - https://github.com/yaml/libyaml/commit/a907bf8
+    Add `const` qualifier for `yaml_parser_set_input_string` parameter `input`.
+
+  - https://github.com/yaml/libyaml/commit/c83b67a
+    Force a new line at the end of the input stream even if there
+    are no a new line character. This fixes a nasty bug when libyaml hangs on
+    documents like `[[[[`. Thanks ciaranm for reporting the bug.
+
+  - https://github.com/yaml/libyaml/commit/609cce0
+    Older versions of gcc do not know about -Wno-pointer-sign.
+
+0.0.1 2006-08-01
+
+  - Initial release

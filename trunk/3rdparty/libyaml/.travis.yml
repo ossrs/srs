@@ -1,0 +1,28 @@
+language: c
+
+matrix:
+  include:
+  - os: linux
+    compiler: gcc
+    sudo: required
+  - os: linux
+    compiler: clang
+    sudo: required
+  - os: osx
+    compiler: gcc
+  - os: osx
+    compiler: clang
+
+before_install:
+
+# Travis branch-specific clone problem workaround:
+- git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
+- git fetch
+- env | sort
+
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    pip install --user scikit-ci-addons==0.15.0;
+    ci_addons travis/install_cmake 3.2.0;
+  fi
+
+script: tests/run-all-tests.sh

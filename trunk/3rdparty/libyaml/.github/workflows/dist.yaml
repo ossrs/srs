@@ -1,0 +1,28 @@
+name: dist
+
+on:
+  push:
+    branches: [ release/* ]
+
+jobs:
+  dist:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: env | sort
+
+    - name: Get image
+      run: |
+        time docker pull yamlio/libyaml-dev
+        docker images | grep libyaml
+
+    - run: |
+        make -C pkg/docker libyaml-dist-ci
+        ls -l pkg/docker/output
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: release
+        path: pkg/docker/output/yaml-0*
+

@@ -1,0 +1,16 @@
+# Config file for the yaml library.
+#
+# It defines the following variables:
+#   yaml_LIBRARIES    - libraries to link against
+
+@PACKAGE_INIT@
+
+set_and_check(yaml_TARGETS "@PACKAGE_CONFIG_DIR_CONFIG@/yamlTargets.cmake")
+
+if(NOT yaml_TARGETS_IMPORTED)
+  set(yaml_TARGETS_IMPORTED 1)
+  include(${yaml_TARGETS})
+endif()
+
+set(yaml_LIBRARIES yaml)
+

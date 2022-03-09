@@ -1,0 +1,29 @@
+version: 0.2.5.{build}
+
+image:
+- Visual Studio 2015
+- Visual Studio 2013
+
+build_script:
+
+#
+# CMake based in-source build and tests using Visual Studio
+#
+
+# Use 32-bit default generator ("Visual Studio 12 2013" or "Visual Studio 14 2015")
+- cmake .
+- cmake --build . --config Release --clean-first
+- ctest -C Release
+
+#
+# Autoconf based in-source build and tests under Cygwin using gcc
+#
+
+# 32-bit cygwin build
+- C:\cygwin\bin\sh -c "export PATH=/usr/bin:/usr/local/bin:$PATH && ./bootstrap && ./configure && make && make test && make distclean"
+# 64-bit cygwin build
+- C:\cygwin64\bin\sh -c "export PATH=/usr/bin:/usr/local/bin:$PATH && ./bootstrap && ./configure && make && make test && make distclean"
+# 32-bit mingw-w64 build
+- C:\cygwin\bin\sh -c "export PATH=/usr/bin:/usr/local/bin:$PATH && ./bootstrap && ./configure --host=i686-w64-mingw32 --target=i686-w64-mingw32 && make && make test && make distclean"
+# 64-bit mingw-w64 build
+- C:\cygwin64\bin\sh -c "export PATH=/usr/bin:/usr/local/bin:$PATH && ./bootstrap && ./configure --host=x86_64-w64-mingw32 --target=x86_64-w64-mingw32 && make && make test && make distclean"
