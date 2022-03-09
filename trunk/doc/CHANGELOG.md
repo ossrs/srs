@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-03-09, Merge SRS 4.0 for bugfix. v5.0.25
 * v5.0, 2022-02-16, Merge [#2799](https://github.com/ossrs/srs/pull/2799): Forward: Support dynamic forwarding by backend api. (#2799). v5.0.24
 * v5.0, 2022-02-14, Merge [#2878](https://github.com/ossrs/srs/pull/2878): Support include directive for config file. (#2878). v5.0.23
 * v5.0, 2022-01-18, Eliminate unused *.as files for Adobe Flash. v5.0.22
