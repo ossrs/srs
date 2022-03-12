@@ -812,7 +812,7 @@ if [[ $SRS_SRT == YES ]]; then
                 exit -1;
             fi
             # Always disable c++11 for libsrt, because only the srt-app requres it.
-            LIBSRT_OPTIONS="--disable-app  --enable-static --enable-c++11=0"
+            LIBSRT_OPTIONS="--disable-apps  --enable-static --enable-c++11=0"
             if [[ $SRS_SHARED_SRT == YES ]]; then
                 LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
             else
