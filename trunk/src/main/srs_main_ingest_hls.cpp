@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_core.hpp>
@@ -29,6 +29,7 @@ using namespace std;
 #include <srs_service_http_conn.hpp>
 #include <srs_service_rtmp_conn.hpp>
 #include <srs_service_utility.hpp>
+#include <srs_app_config.hpp>
 
 // pre-declare
 srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -36,6 +37,12 @@ srs_error_t proxy_hls2rtmp(std::string hls, std::string rtmp);
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsContext* _srs_context = new SrsThreadContext();
+
+// @global config object for app module.
+SrsConfig* _srs_config = new SrsConfig();
+
+// @global Other variables.
+bool _srs_in_docker = false;
 
 /**
  * main entrance.

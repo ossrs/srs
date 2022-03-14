@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRT_CONN_H
@@ -44,6 +44,7 @@ public:
 
     void update_timestamp(long long now_ts);
     long long get_last_ts();
+    int get_write_fail_count();
 
 private:
     SRTSOCKET _conn_fd;
@@ -52,6 +53,7 @@ private:
     std::string _vhost;
     int _mode;
     long long _update_timestamp;
+    int write_fail_cnt_;
 };
 
 typedef std::shared_ptr<srt_conn> SRT_CONN_PTR;

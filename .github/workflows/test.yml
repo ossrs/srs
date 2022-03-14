@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Build for CentOS7
+      # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
       - name: Build on CentOS7, with SRT
@@ -23,7 +23,10 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
-      # Build for CentOS8
+      # Build for CentOS 6
+      - name: Build on CentOS6, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
+      # Build for CentOS 8
       - name: Build on CentOS8, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
       - name: Build on CentOS8, with SRT
@@ -93,7 +96,7 @@ jobs:
         run: docker build --tag srs:test -f trunk/Dockerfile.test .
       # For utest
       - name: Run SRS utest
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs_utest'
+        run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
         run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
@@ -124,7 +127,7 @@ jobs:
           SRS_PR=$(echo ${{ github.ref }}| awk -F 'refs/pull/' '{print $2}'| awk -F '/' '{print $1}')
           echo "For ref=${{ github.ref }}, sha=${{ github.sha }}, SRS_BRANCH=$SRS_BRANCH, SRS_PR=$SRS_PR, SRS_SHA=$SRS_SHA, SRS_PROJECT=$SRS_PROJECT"
           docker run --rm --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
-            srs:cov bash -c 'make && ./objs/srs_utest && bash auto/codecov.sh'
+            srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
 
   done:
     name: actions-test-done

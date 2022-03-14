@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include "srt_conn.hpp"
-#include "time_help.h"
+#include "time_help.hpp"
 #include "stringex.hpp"
 #include "srt_log.hpp"
 #include <vector>
@@ -122,7 +122,8 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_
 }
 
 srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn_fd),
-    _streamid(streamid) {
+    _streamid(streamid),
+    write_fail_cnt_(0) {
     get_streamid_info(streamid, _mode, _url_subpath);
     
     _update_timestamp = now_ms();
@@ -195,7 +196,13 @@ int srt_conn::write(unsigned char* data, int len) {
     ret = srt_send(_conn_fd, (char*)data, len);
     if (ret <= 0) {
         srt_log_error("srt write error:%d, socket fd:%d", ret, _conn_fd);
+        write_fail_cnt_++;
         return ret;
     }
+    write_fail_cnt_ = 0;
     return ret;
+}
+
+int srt_conn::get_write_fail_count() {
+    return write_fail_cnt_;
 }

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_PITHY_PRINT_HPP
@@ -70,6 +70,20 @@ public:
     bool can_print(srs_error_t err, uint32_t* pnn = NULL);
     // We also support int error code.
     bool can_print(int err, uint32_t* pnn = NULL);
+};
+
+// An standalone pithy print, without shared stages.
+class SrsAlonePithyPrint
+{
+private:
+    SrsStageInfo info_;
+    srs_utime_t previous_tick_;
+public:
+    SrsAlonePithyPrint();
+    virtual ~SrsAlonePithyPrint();
+public:
+    virtual void elapse();
+    virtual bool can_print();
 };
 
 // The stage is used for a collection of object to do print,

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_hourglass.hpp>
@@ -43,7 +43,7 @@ SrsHourGlass::SrsHourGlass(string label, ISrsHourGlass* h, srs_utime_t resolutio
     handler = h;
     _resolution = resolution;
     total_elapse = 0;
-    trd = new SrsSTCoroutine("timer", this, _srs_context->get_id());
+    trd = new SrsSTCoroutine("timer-" + label, this, _srs_context->get_id());
 }
 
 SrsHourGlass::~SrsHourGlass()

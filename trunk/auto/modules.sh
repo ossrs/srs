@@ -1,4 +1,5 @@
-# generate the module info to Makefile
+#
+# Generate the module(in src, not modules) info to Makefile
 #
 # params:
 #     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs

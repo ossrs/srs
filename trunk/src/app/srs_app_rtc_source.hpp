@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_RTC_SOURCE_HPP
@@ -75,7 +75,6 @@ private:
     // when source id changed, notice all consumers
     bool should_update_source_id;
     // The cond wait for mw.
-    // @see https://github.com/ossrs/srs/issues/251
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
@@ -113,9 +112,8 @@ public:
     // @param r the client request.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, SrsRtcSource** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
     virtual SrsRtcSource* fetch(SrsRequest* r);
 };
 
@@ -255,9 +253,9 @@ private:
     // The metadata cache.
     SrsMetaCache* meta;
 private:
-    bool discard_aac;
+    bool rtmp_to_rtc;
     SrsAudioTranscoder* codec_;
-    bool discard_bframe;
+    bool keep_bframe;
     bool merge_nalus;
     uint16_t audio_sequence;
     uint16_t video_sequence;
@@ -301,13 +299,14 @@ private:
         bool in_use;
         uint16_t sn;
         uint32_t ts;
+        uint32_t rtp_ts;
         SrsRtpPacket* pkt;
     };
     const static uint16_t s_cache_size = 512;
     RtcPacketCache cache_video_pkts_[s_cache_size];
     uint16_t header_sn_;
     uint16_t lost_sn_;
-    int64_t key_frame_ts_;
+    int64_t rtp_key_frame_ts_;
 public:
     SrsRtmpFromRtcBridger(SrsLiveSource *src);
     virtual ~SrsRtmpFromRtcBridger();
@@ -326,7 +325,7 @@ private:
     int32_t find_next_lost_sn(uint16_t current_sn, uint16_t& end_sn);
     void clear_cached_video();
     inline uint16_t cache_index(uint16_t current_sn) {
-        return current_sn%s_cache_size;
+        return current_sn % s_cache_size;
     }
     bool check_frame_complete(const uint16_t start, const uint16_t end);
 };
@@ -527,6 +526,7 @@ protected:
     SrsNtp last_sender_report_ntp1_;
     int64_t last_sender_report_rtp_time1_;
 
+    double rate_;
     uint64_t last_sender_report_sys_time_;
 public:
     SrsRtcRecvTrack(SrsRtcConnection* session, SrsRtcTrackDescription* stream_descs, bool is_audio);

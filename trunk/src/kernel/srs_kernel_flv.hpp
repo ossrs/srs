@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_FLV_HPP
@@ -250,7 +250,6 @@ class SrsSharedPtrMessage
 // 4.1. Message Header
 public:
     // The header can shared, only set the timestamp and stream id.
-    // @see https://github.com/ossrs/srs/issues/251
     //SrsSharedMessageHeader header;
     // Four-byte field that contains a timestamp of the message.
     // The 4 bytes are packed in the big-endian order.
@@ -278,7 +277,6 @@ private:
     {
     public:
         // The shared message header.
-        // @see https://github.com/ossrs/srs/issues/251
         SrsSharedMessageHeader header;
         // The actual shared payload.
         char* payload;

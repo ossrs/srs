@@ -1,12 +1,11 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_kernel_mp3.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif

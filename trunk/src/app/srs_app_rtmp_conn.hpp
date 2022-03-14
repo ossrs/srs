@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_RTMP_CONN_HPP
@@ -82,7 +82,6 @@ private:
     ISrsWakable* wakable;
     // The elapsed duration in srs_utime_t
     // For live play duration, for instance, rtmpdump to record.
-    // @see https://github.com/ossrs/srs/issues/47
     srs_utime_t duration;
     // The MR(merged-write) sleep time in srs_utime_t.
     srs_utime_t mw_sleep;

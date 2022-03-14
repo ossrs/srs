@@ -1,16 +1,16 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_protocol_utility.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <sstream>
 using namespace std;
@@ -89,6 +89,10 @@ void srs_discovery_tc_url(string tcUrl, string& schema, string& host, string& vh
     }
     
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    if (schema == "https") {
+        port = SRS_DEFAULT_HTTPS_PORT;
+    }
+
     if ((pos = host.find(":")) != std::string::npos) {
         srs_parse_hostport(host, host, port);
         srs_info("discovery host=%s, port=%d", host.c_str(), port);
@@ -345,7 +349,6 @@ srs_error_t srs_write_large_iovs(ISrsProtocolReadWriter* skt, iovec* iovs, int s
     srs_error_t err = srs_success;
     
     // the limits of writev iovs.
-    // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
     // for linux, generally it's 1024.
     static int limits = (int)sysconf(_SC_IOV_MAX);
@@ -395,3 +398,138 @@ bool srs_is_ipv4(string domain)
     return true;
 }
 
+uint32_t srs_ipv4_to_num(string ip) {
+    uint32_t addr = 0;
+    if (inet_pton(AF_INET, ip.c_str(), &addr) <= 0) {
+        return 0;
+    }
+
+    return ntohl(addr);
+}
+
+bool srs_ipv4_within_mask(string ip, string network, string mask) {
+    uint32_t ip_addr = srs_ipv4_to_num(ip);
+    uint32_t mask_addr = srs_ipv4_to_num(mask);
+    uint32_t network_addr = srs_ipv4_to_num(network);
+
+    return (ip_addr & mask_addr) == (network_addr & mask_addr);
+}
+
+static struct CIDR_VALUE {
+    size_t length;
+    std::string mask;
+} CIDR_VALUES[32] = {
+    { 1,  "128.0.0.0" },
+    { 2,  "192.0.0.0" },
+    { 3,  "224.0.0.0" },
+    { 4,  "240.0.0.0" },
+    { 5,  "248.0.0.0" },
+    { 6,  "252.0.0.0" },
+    { 7,  "254.0.0.0" },
+    { 8,  "255.0.0.0" },
+    { 9,  "255.128.0.0" },
+    { 10, "255.192.0.0" },
+    { 11, "255.224.0.0" },
+    { 12, "255.240.0.0" },
+    { 13, "255.248.0.0" },
+    { 14, "255.252.0.0" },
+    { 15, "255.254.0.0" },
+    { 16, "255.255.0.0" },
+    { 17, "255.255.128.0" },
+    { 18, "255.255.192.0" },
+    { 19, "255.255.224.0" },
+    { 20, "255.255.240.0" },
+    { 21, "255.255.248.0" },
+    { 22, "255.255.252.0" },
+    { 23, "255.255.254.0" },
+    { 24, "255.255.255.0" },
+    { 25, "255.255.255.128" },
+    { 26, "255.255.255.192" },
+    { 27, "255.255.255.224" },
+    { 28, "255.255.255.240" },
+    { 29, "255.255.255.248" },
+    { 30, "255.255.255.252" },
+    { 31, "255.255.255.254" },
+    { 32, "255.255.255.255" },
+};
+
+string srs_get_cidr_mask(string network_address) {
+    string delimiter = "/";
+
+    size_t delimiter_position = network_address.find(delimiter);
+    if (delimiter_position == string::npos) {
+        // Even if it does not have "/N", it can be a valid IP, by default "/32".
+        if (srs_is_ipv4(network_address)) {
+            return CIDR_VALUES[32-1].mask;
+        }
+        return "";
+    }
+
+    // Change here to include IPv6 support.
+    string is_ipv4_address = network_address.substr(0, delimiter_position);
+    if (!srs_is_ipv4(is_ipv4_address)) {
+        return "";
+    }
+
+    size_t cidr_length_position = delimiter_position + delimiter.length();
+    if (cidr_length_position >= network_address.length()) {
+        return "";
+    }
+
+    string cidr_length = network_address.substr(cidr_length_position, network_address.length());
+    if (cidr_length.length() <= 0) {
+        return "";
+    }
+
+    size_t cidr_length_num = 31;
+    try {
+        cidr_length_num = atoi(cidr_length.c_str());
+        if (cidr_length_num <= 0) {
+            return "";
+        }
+    } catch (...) {
+        return "";
+    }
+
+    return CIDR_VALUES[cidr_length_num-1].mask;
+}
+
+string srs_get_cidr_ipv4(string network_address) {
+    string delimiter = "/";
+
+    size_t delimiter_position = network_address.find(delimiter);
+    if (delimiter_position == string::npos) {
+        // Even if it does not have "/N", it can be a valid IP, by default "/32".
+        if (srs_is_ipv4(network_address)) {
+            return network_address;
+        }
+        return "";
+    }
+
+    // Change here to include IPv6 support.
+    string ipv4_address = network_address.substr(0, delimiter_position);
+    if (!srs_is_ipv4(ipv4_address)) {
+        return "";
+    }
+
+    size_t cidr_length_position = delimiter_position + delimiter.length();
+    if (cidr_length_position >= network_address.length()) {
+        return "";
+    }
+
+    string cidr_length = network_address.substr(cidr_length_position, network_address.length());
+    if (cidr_length.length() <= 0) {
+        return "";
+    }
+
+    try {
+        size_t cidr_length_num = atoi(cidr_length.c_str());
+        if (cidr_length_num <= 0) {
+            return "";
+        }
+    } catch (...) {
+        return "";
+    }
+
+    return ipv4_address;
+}

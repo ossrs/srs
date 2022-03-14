@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include "srt_handle.hpp"
-#include "time_help.h"
+#include "time_help.hpp"
 #include "srt_log.hpp"
 
 #include <srs_kernel_log.hpp>
@@ -26,6 +26,7 @@ static long long MONITOR_TIMEOUT = 5000;
 const unsigned int DEF_DATA_SIZE = 188*7;
 const long long CHECK_ALIVE_INTERVAL = 5*1000;
 const long long CHECK_ALIVE_TIMEOUT = 5*1000;
+static const int SRT_WRTIE_FAIL_MAX = 10;
 
 long long srt_now_ms = 0;
 
@@ -97,14 +98,13 @@ void srt_handle::close_pull_conn(SRTSOCKET srtsocket, std::string stream_id) {
 
     auto streamid_iter = _streamid_map.find(stream_id);
     if (streamid_iter != _streamid_map.end()) {
-        auto srtsocket_map = streamid_iter->second;
-        if (srtsocket_map.size() == 0) {
+        if (streamid_iter->second.size() == 0) {
             _streamid_map.erase(stream_id);
-        } else if (srtsocket_map.size() == 1) {
-            srtsocket_map.erase(srtsocket);
+        } else if (streamid_iter->second.size() == 1) {
+            streamid_iter->second.erase(srtsocket);
             _streamid_map.erase(stream_id);
         } else {
-            srtsocket_map.erase(srtsocket);
+            streamid_iter->second.erase(srtsocket);
         }
     } else {
         assert(0);
@@ -205,6 +205,19 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     srt_conn_ptr->update_timestamp(srt_now_ms);
 
     srt2rtmp::get_instance()->insert_data_message(data, ret, subpath);
+    {
+        std::unique_lock<std::mutex> locker(srt2rtmp::_srt_error_mutex);
+        if (srt2rtmp::_srt_error_map.count(subpath) == 1) {
+            int err_code = srt2rtmp::_srt_error_map[subpath];
+            if (err_code != ERROR_SUCCESS) {
+                close_push_conn(conn_fd);
+                srt_log_error("handle_push_data srt to rtmp error:%d, fd:%d", err_code,conn_fd);
+                //todo: reset to next use, maybe update by srt2rtmp::cycle again
+                srt2rtmp::_srt_error_map[subpath] = ERROR_SUCCESS;
+                return;
+            }
+        }
+    }
     
     //send data to subscriber(players)
     //streamid, play map<SRTSOCKET, SRT_CONN_PTR>
@@ -216,6 +229,7 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     srt_log_info("receive data size(%d) from pusher(%d) to pullers, count:%d", 
         ret, conn_fd, streamid_iter->second.size());
 
+    std::vector<SRTSOCKET> remove_vec;
     for (auto puller_iter = streamid_iter->second.begin();
         puller_iter != streamid_iter->second.end();
         puller_iter++) {
@@ -228,6 +242,17 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
         srt_log_info("send data size(%d) to puller fd:%d", write_ret, puller_iter->first);
         if (write_ret > 0) {
             puller_iter->second->update_timestamp(srt_now_ms);
+        } else {
+            if (player_conn->get_write_fail_count() > SRT_WRTIE_FAIL_MAX) {
+                remove_vec.push_back(puller_iter->first);
+            }
+        }
+    }
+
+    for (auto item : remove_vec) {
+        streamid_iter->second.erase(item);
+        if (streamid_iter->second.empty()) {
+            _streamid_map.erase(streamid_iter);
         }
     }
 

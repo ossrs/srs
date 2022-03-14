@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_SOURCE_HPP
@@ -77,7 +77,6 @@ public:
 
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
 // To alloc and increase fixed space, fast remove and insert for msgs sender.
-// @see https://github.com/ossrs/srs/issues/251
 class SrsFastVector
 {
 private:
@@ -177,7 +176,6 @@ private:
     bool should_update_source_id;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     // The cond wait for mw.
-    // @see https://github.com/ossrs/srs/issues/251
     srs_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
@@ -312,7 +310,7 @@ class SrsOriginHub : public ISrsReloadHandler
 {
 private:
     SrsLiveSource* source;
-    SrsRequest* req;
+    SrsRequest* req_;
     bool is_active;
 private:
     // The format, codec information.
@@ -377,6 +375,7 @@ public:
     virtual srs_error_t on_reload_vhost_exec(std::string vhost);
 private:
     virtual srs_error_t create_forwarders();
+    virtual srs_error_t create_backend_forwarders(bool& applied);
     virtual void destroy_forwarders();
 };
 
@@ -450,9 +449,8 @@ public:
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
     virtual SrsLiveSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.

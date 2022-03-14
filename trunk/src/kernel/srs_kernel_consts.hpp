@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_CONSTS_HPP
@@ -79,7 +79,6 @@
 #define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
 // For performance issue,
-// the iovs cache, @see https://github.com/ossrs/srs/issues/194
 // iovs cache for multiple messages for each connections.
 // suppose the chunk size is 64k, each message send in a chunk which needs only 2 iovec,
 // so the iovs max should be (SRS_PERF_MW_MSGS * 2)
@@ -87,7 +86,6 @@
 // @remark, SRS will realloc when the iovs not enough.
 #define SRS_CONSTS_IOVS_MAX (SRS_PERF_MW_MSGS * 2)
 // For performance issue,
-// the c0c3 cache, @see https://github.com/ossrs/srs/issues/194
 // c0c3 cache for multiple messages for each connections.
 // each c0 <= 16byes, suppose the chunk size is 64k,
 // each message send in a chunk which needs only a c0 header,
@@ -109,6 +107,7 @@
 ///////////////////////////////////////////////////////////
 #define SRS_CONSTS_NULL_FILE "/dev/null"
 #define SRS_CONSTS_LOCALHOST "127.0.0.1"
+#define SRS_CONSTS_LOCALHOST_NAME "localhost"
 #define SRS_CONSTS_LOOPBACK "0.0.0.0"
 #define SRS_CONSTS_LOOPBACK6 "::"
 

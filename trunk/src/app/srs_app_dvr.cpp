@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_dvr.hpp>
@@ -462,7 +462,7 @@ srs_error_t SrsDvrMp4Segmenter::encode_audio(SrsSharedPtrMessage* audio, SrsForm
     SrsAudioChannels channels = format->acodec->sound_type;
     
     SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
-    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
+    if (ct == SrsAudioAacFrameTraitSequenceHeader || ct == SrsAudioMp3FrameTrait) {
         enc->acodec = sound_format;
         enc->sample_rate = sound_rate;
         enc->sound_bits = sound_size;
@@ -580,6 +580,7 @@ SrsDvrPlan::SrsDvrPlan()
 SrsDvrPlan::~SrsDvrPlan()
 {
     srs_freep(segment);
+    srs_freep(req);
 }
 
 srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsRequest* r)
@@ -587,7 +588,7 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
     srs_error_t err = srs_success;
     
     hub = h;
-    req = r;
+    req = r->copy();
     segment = s;
     
     if ((err = segment->initialize(this, r)) != srs_success) {
@@ -597,8 +598,12 @@ srs_error_t SrsDvrPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, SrsReque
     return err;
 }
 
-srs_error_t SrsDvrPlan::on_publish()
+srs_error_t SrsDvrPlan::on_publish(SrsRequest* r)
 {
+    // @see https://github.com/ossrs/srs/issues/1613#issuecomment-960623359
+    srs_freep(req);
+    req = r->copy();
+
     return srs_success;
 }
 
@@ -686,11 +691,11 @@ SrsDvrSessionPlan::~SrsDvrSessionPlan()
 {
 }
 
-srs_error_t SrsDvrSessionPlan::on_publish()
+srs_error_t SrsDvrSessionPlan::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+    if ((err = SrsDvrPlan::on_publish(r)) != srs_success) {
         return err;
     }
     
@@ -740,6 +745,7 @@ SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
     cduration = 0;
     wait_keyframe = false;
+    reopening_segment_ = false;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
@@ -761,11 +767,11 @@ srs_error_t SrsDvrSegmentPlan::initialize(SrsOriginHub* h, SrsDvrSegmenter* s, S
     return srs_success;
 }
 
-srs_error_t SrsDvrSegmentPlan::on_publish()
+srs_error_t SrsDvrSegmentPlan::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
 
-    if ((err = SrsDvrPlan::on_publish()) != srs_success) {
+    if ((err = SrsDvrPlan::on_publish(r)) != srs_success) {
         return err;
     }
     
@@ -840,6 +846,12 @@ srs_error_t SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video, SrsFo
 srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 {
     srs_error_t err = srs_success;
+
+    // When reopening the segment, never update the duration, because there is actually no media data.
+    // @see https://github.com/ossrs/srs/issues/2717
+    if (reopening_segment_) {
+        return err;
+    }
     
     srs_assert(segment);
     
@@ -874,8 +886,11 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "segment open");
     }
     
-    // update sequence header
-    if ((err = hub->on_dvr_request_sh()) != srs_success) {
+    // When update sequence header, set the reopening state to prevent infinitely recursive call.
+    reopening_segment_ = true;
+    err = hub->on_dvr_request_sh();
+    reopening_segment_ = false;
+    if (err != srs_success) {
         return srs_error_wrap(err, "request sh");
     }
     
@@ -912,13 +927,14 @@ SrsDvr::~SrsDvr()
     _srs_config->unsubscribe(this);
     
     srs_freep(plan);
+    srs_freep(req);
 }
 
 srs_error_t SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
-    req = r;
+    req = r->copy();
     hub = h;
     
     SrsConfDirective* conf = _srs_config->get_dvr_apply(r->vhost);
@@ -944,7 +960,7 @@ srs_error_t SrsDvr::initialize(SrsOriginHub* h, SrsRequest* r)
     return err;
 }
 
-srs_error_t SrsDvr::on_publish()
+srs_error_t SrsDvr::on_publish(SrsRequest* r)
 {
     srs_error_t err = srs_success;
     
@@ -953,9 +969,12 @@ srs_error_t SrsDvr::on_publish()
         return err;
     }
     
-    if ((err = plan->on_publish()) != srs_success) {
+    if ((err = plan->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "publish");
     }
+
+    srs_freep(req);
+    req = r->copy();
     
     return err;
 }

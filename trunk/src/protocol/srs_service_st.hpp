@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_SERVICE_ST_HPP
@@ -65,6 +65,10 @@ extern srs_mutex_t srs_mutex_new();
 extern int srs_mutex_destroy(srs_mutex_t mutex);
 extern int srs_mutex_lock(srs_mutex_t mutex);
 extern int srs_mutex_unlock(srs_mutex_t mutex);
+
+extern int srs_key_create(int* keyp, void (*destructor)(void*));
+extern int srs_thread_setspecific(int key, void* value);
+extern void* srs_thread_getspecific(int key);
 
 extern int srs_netfd_fileno(srs_netfd_t stfd);
 

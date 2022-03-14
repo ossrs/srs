@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_FORWARD_HPP
@@ -40,7 +40,6 @@ private:
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
     // Cache the sequence header for retry when slave is failed.
-    // @see https://github.com/ossrs/srs/issues/150
     SrsSharedPtrMessage* sh_audio;
     SrsSharedPtrMessage* sh_video;
 public:

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_ST_HPP
@@ -163,6 +163,10 @@ private:
     bool disposed;
     // Cycle done, no need to interrupt it.
     bool cycle_done;
+private:
+    // Sub state in disposed, we need to wait for thread to quit.
+    bool stopping_;
+    SrsContextId stopping_cid_;
 public:
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h);
     SrsFastCoroutine(std::string n, ISrsCoroutineHandler* h, SrsContextId cid);
@@ -183,6 +187,24 @@ public:
 private:
     srs_error_t cycle();
     static void* pfn(void* arg);
+};
+
+// Like goroytine sync.WaitGroup.
+class SrsWaitGroup
+{
+private:
+    int nn_;
+    srs_cond_t done_;
+public:
+    SrsWaitGroup();
+    virtual ~SrsWaitGroup();
+public:
+    // When start for n coroutines.
+    void add(int n);
+    // When coroutine is done.
+    void done();
+    // Wait for all corotine to be done.
+    void wait();
 };
 
 #endif

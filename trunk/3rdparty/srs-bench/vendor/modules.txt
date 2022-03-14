@@ -1,11 +1,14 @@
 # github.com/google/uuid v1.1.5
 github.com/google/uuid
-# github.com/ossrs/go-oryx-lib v0.0.8
+# github.com/ossrs/go-oryx-lib v0.0.9
 ## explicit
 github.com/ossrs/go-oryx-lib/aac
+github.com/ossrs/go-oryx-lib/amf0
+github.com/ossrs/go-oryx-lib/avc
 github.com/ossrs/go-oryx-lib/errors
 github.com/ossrs/go-oryx-lib/flv
 github.com/ossrs/go-oryx-lib/logger
+github.com/ossrs/go-oryx-lib/rtmp
 # github.com/pion/datachannel v1.4.21
 github.com/pion/datachannel
 # github.com/pion/dtls/v2 v2.0.8

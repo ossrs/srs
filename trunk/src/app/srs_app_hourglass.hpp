@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_HOURGLASS_HPP
@@ -75,6 +75,7 @@ public:
     virtual srs_error_t start();
     virtual void stop();
 public:
+    // TODO: FIXME: Refine to tick with handler. Remove the tick(interval).
     // Add a pair of tick(event, interval).
     // @param event the event of tick, default is 0.
     // @param interval the interval in srs_utime_t of tick.

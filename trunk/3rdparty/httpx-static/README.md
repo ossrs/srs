@@ -2,6 +2,12 @@
 
 A HTTP/HTTPS Server, support letsencrypt or self-sign HTTPS and proxying HTTP as HTTPS.
 
+Docker for https://github.com/ossrs/go-oryx
+
+Build at https://code.aliyun.com/ossrs/go-oryx
+
+Images at https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/httpx/images
+
 > Remark: Requires GO1.8+
 
 ## Usage

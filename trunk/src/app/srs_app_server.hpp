@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_SERVER_HPP
@@ -20,6 +20,7 @@
 #include <srs_app_conn.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_hourglass.hpp>
+#include <srs_app_hybrid.hpp>
 
 class SrsServer;
 class SrsHttpServeMux;
@@ -33,9 +34,9 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsAppCasterFlv;
-class SrsRtspCaster;
 class SrsResourceManager;
 class SrsLatestVersion;
+class SrsWaitGroup;
 
 // The listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -49,8 +50,6 @@ enum SrsListenerType
     SrsListenerHttpStream = 2,
     // UDP stream, MPEG-TS over udp.
     SrsListenerMpegTsOverUdp = 3,
-    // TCP stream, RTSP stream.
-    SrsListenerRtsp = 4,
     // TCP stream, FLV stream over HTTP.
     SrsListenerFlv = 5,
     // HTTPS api,
@@ -86,22 +85,6 @@ public:
     virtual ~SrsBufferListener();
 public:
     virtual srs_error_t listen(std::string ip, int port);
-// Interface ISrsTcpHandler
-public:
-    virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
-};
-
-// A TCP listener, for rtsp server.
-class SrsRtspListener : public SrsListener, public ISrsTcpHandler
-{
-private:
-    SrsTcpListener* listener;
-    SrsRtspCaster* caster;
-public:
-    SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
-    virtual ~SrsRtspListener();
-public:
-    virtual srs_error_t listen(std::string i, int p);
 // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(srs_netfd_t stfd);
@@ -223,6 +206,7 @@ private:
     SrsResourceManager* conn_manager;
     SrsCoroutine* trd_;
     SrsHourGlass* timer_;
+    SrsWaitGroup* wg_;
 private:
     // The pid file fd, lock the file write when server is running.
     // @remark the init.d script should cleanup the pid file, when stop service,
@@ -271,7 +255,9 @@ public:
     virtual srs_error_t register_signal();
     virtual srs_error_t http_handle();
     virtual srs_error_t ingest();
-    virtual srs_error_t start();
+public:
+    virtual srs_error_t start(SrsWaitGroup* wg);
+    void stop();
 // interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
@@ -345,6 +331,22 @@ public:
 public:
     virtual srs_error_t on_publish(SrsLiveSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsLiveSource* s, SrsRequest* r);
+};
+
+// The SRS server adapter, the master server.
+class SrsServerAdapter : public ISrsHybridServer
+{
+private:
+    SrsServer* srs;
+public:
+    SrsServerAdapter();
+    virtual ~SrsServerAdapter();
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t run(SrsWaitGroup* wg);
+    virtual void stop();
+public:
+    virtual SrsServer* instance();
 };
 
 #endif

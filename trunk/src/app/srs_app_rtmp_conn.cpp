@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtmp_conn.hpp>
@@ -429,7 +429,6 @@ srs_error_t SrsRtmpConn::service_cycle()
         // logical accept and retry stream service.
         if (srs_error_code(err) == ERROR_CONTROL_RTMP_CLOSE) {
             // TODO: FIXME: use ping message to anti-death of socket.
-            // @see: https://github.com/ossrs/srs/issues/39
             // set timeout to a larger value, for user paused.
             rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT);
             rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT);
@@ -514,13 +513,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return srs_error_wrap(err, "rtmp: fetch source");
     }
     srs_assert(source != NULL);
-    
-    // update the statistic when source disconveried.
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
-        return srs_error_wrap(err, "rtmp: stat client");
-    }
-    
+
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=%s/%s",
         req->get_stream_url().c_str(), ip.c_str(), enabled_cache, info->edge, source->source_id().c_str(), source->pre_source_id().c_str());
@@ -670,7 +663,6 @@ srs_error_t SrsRtmpConn::playing(SrsLiveSource* source)
     }
     
     // Use receiving thread to receive packets from peer.
-    // @see: https://github.com/ossrs/srs/issues/217
     SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP, _srs_context->get_id());
     
     if ((err = trd.start()) != srs_success) {
@@ -699,6 +691,12 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
     SrsRequest* req = info->req;
     srs_assert(req);
     srs_assert(consumer);
+
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: stat client");
+    }
     
     // initialize other components
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
@@ -731,8 +729,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
         pprint->elapse();
 
         // to use isolate thread to recv, can improve about 33% performance.
-        // @see: https://github.com/ossrs/srs/issues/196
-        // @see: https://github.com/ossrs/srs/issues/217
         while (!rtrd->empty()) {
             SrsCommonMessage* msg = rtrd->pump();
             if ((err = process_play_control_msg(consumer, msg)) != srs_success) {
@@ -747,7 +743,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsLiveSource* source, SrsLiveConsumer* cons
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // wait for message to incoming.
-        // @see https://github.com/ossrs/srs/issues/251
         // @see https://github.com/ossrs/srs/issues/257
         consumer->wait(mw_msgs, mw_sleep);
 #endif
@@ -865,8 +860,15 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     SrsRequest* req = info->req;
     SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_publish();
     SrsAutoFree(SrsPithyPrint, pprint);
-    
+
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((err = stat->on_client(_srs_context->get_id().c_str(), req, this, info->type)) != srs_success) {
+        return srs_error_wrap(err, "rtmp: stat client");
+    }
+
     // start isolate recv thread.
+    // TODO: FIXME: Pass the callback here.
     if ((err = rtrd->start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: receive thread");
     }
@@ -1114,7 +1116,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer* consumer, Srs
     SrsAutoFree(SrsPacket, pkt);
     
     // for jwplayer/flowplayer, which send close as pause message.
-    // @see https://github.com/ossrs/srs/issues/6
     SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(pkt);
     if (close) {
         return srs_error_new(ERROR_CONTROL_RTMP_CLOSE, "rtmp: close stream");
@@ -1122,7 +1123,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer* consumer, Srs
     
     // call msg,
     // support response null first,
-    // @see https://github.com/ossrs/srs/issues/106
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
     if (call) {

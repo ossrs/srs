@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_forward.hpp>
@@ -52,6 +52,8 @@ SrsForwarder::~SrsForwarder()
     
     srs_freep(sh_video);
     srs_freep(sh_audio);
+    
+    srs_freep(req);
 }
 
 srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
@@ -60,7 +62,7 @@ srs_error_t SrsForwarder::initialize(SrsRequest* r, string ep)
     
     // it's ok to use the request object,
     // SrsLiveSource already copy it and never delete it.
-    req = r;
+    req = r->copy();
     
     // the ep(endpoint) to forward to
     ep_forward = ep;
@@ -173,6 +175,12 @@ srs_error_t SrsForwarder::cycle()
         if ((err = do_cycle()) != srs_success) {
             srs_warn("Forwarder: Ignore error, %s", srs_error_desc(err).c_str());
             srs_freep(err);
+        }
+
+        // Never wait if thread error, fast quit.
+        // @see https://github.com/ossrs/srs/pull/2284
+        if ((err = trd->pull()) != srs_success) {
+            return srs_error_wrap(err, "forwarder");
         }
 
         srs_usleep(SRS_FORWARDER_CIMS);

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 John
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtc_conn.hpp>
@@ -386,6 +386,9 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
         hooks = conf->args;
     }
 
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(cid);
+
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
         SrsHttpHooks::on_stop(url, req);
@@ -508,7 +511,7 @@ srs_error_t SrsRtcPlayStream::initialize(SrsRequest* req, std::map<uint32_t, Srs
 void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription* desc)
 {
     // Refresh the relation for audio.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         if (! audio_tracks_.empty()) {
             uint32_t ssrc = desc->audio_track_desc_->ssrc_;
@@ -1031,6 +1034,9 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
         hooks = conf->args;
     }
 
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(cid);
+
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
         SrsHttpHooks::on_unpublish(url, req);
@@ -1177,18 +1183,18 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
     }
     source->set_publish_stream(this);
 
+    // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
+    SrsLiveSource *rtmp = _srs_sources->fetch(r);
+    if (rtmp && !rtmp->can_publish(false)) {
+        return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
+    }
+
     // Bridge to rtmp
 #if defined(SRS_RTC) && defined(SRS_FFMPEG_FIT)
     bool rtc_to_rtmp = _srs_config->get_rtc_to_rtmp(req_->vhost);
     if (rtc_to_rtmp) {
-        SrsLiveSource *rtmp = NULL;
         if ((err = _srs_sources->fetch_or_create(r, _srs_hybrid->srs()->instance(), &rtmp)) != srs_success) {
             return srs_error_wrap(err, "create source");
-        }
-
-        // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
-        if (!rtmp->can_publish(false)) {
-            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
         }
 
         // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
@@ -2488,17 +2494,11 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     rtcpNack.encode(&stream);
 
     // TODO: FIXME: Check error.
-    int nb_protected_buf = stream.pos();
-    transport_->protect_rtcp(stream.data(), &nb_protected_buf);
-
-    // TODO: FIXME: Check error.
-    sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_queue, const uint64_t& last_send_systime, const SrsNtp& last_send_ntp)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
@@ -2534,18 +2534,11 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer* rtp_
     srs_info("RR ssrc=%u, fraction_lost=%u, cumulative_number_of_packets_lost=%u, extended_highest_sequence=%u, interarrival_jitter=%u",
         ssrc, fraction_lost, cumulative_number_of_packets_lost, extended_highest_sequence, interarrival_jitter);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp rr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     /*
@@ -2588,18 +2581,11 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
     stream.write_4bytes(cur_ntp.ntp_second_);
     stream.write_4bytes(cur_ntp.ntp_fractions_);
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp xr");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId& cid_of_subscriber)
 {
-    srs_error_t err = srs_success;
-
     ++_srs_pps_srtcps->sugar;
 
     char buf[kRtpPacketSize];
@@ -2620,12 +2606,7 @@ srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId
         _srs_blackhole->sendto(stream.data(), stream.pos());
     }
 
-    int nb_protected_buf = stream.pos();
-    if ((err = transport_->protect_rtcp(stream.data(), &nb_protected_buf)) != srs_success) {
-        return srs_error_wrap(err, "protect rtcp psfb pli");
-    }
-
-    return sendonly_skt->sendto(stream.data(), nb_protected_buf, 0);
+    return send_rtcp(stream.data(), stream.pos());
 }
 
 void SrsRtcConnection::simulate_nack_drop(int nn)
@@ -2896,7 +2877,12 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
                 break;
             }
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
+            if (payloads.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            }
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
             }
@@ -3207,13 +3193,23 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
+            if (payloads.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
+            }
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid AV1 payload type");
             }
 
             remote_payload = payloads.at(0);
-            track_descs = source->get_track_desc("video", "AV1X");
+            track_descs = source->get_track_desc("video", "AV1");
+            if (track_descs.empty()) {
+                // Be compatible with the Chrome M96, still check the AV1X encoding name
+                // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+                track_descs = source->get_track_desc("video", "AV1X");
+            }
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");

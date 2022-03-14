@@ -1,25 +1,8 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2013-2015 SRS(ossrs)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+//
+// Copyright (c) 2013-2021 The SRS Authors
+//
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
+//
 
 #include <srs_app_latest_version.hpp>
 
@@ -47,6 +30,8 @@ extern bool _srs_in_docker;
 #define SRS_CHECK_FEATURE2(cond, key, ss) if (cond) ss << "&" << key << "=1"
 #define SRS_CHECK_FEATURE3(cond, key, value, ss) if (cond) ss << "&" << key << "=" << value
 
+// @see https://github.com/ossrs/srs/issues/2424
+// @see https://github.com/ossrs/srs/issues/2508
 void srs_build_features(stringstream& ss)
 {
     if (SRS_OSX_BOOL) {
@@ -54,6 +39,16 @@ void srs_build_features(stringstream& ss)
     } else {
         ss << "&os=linux";
     }
+
+#if defined(__amd64__) || defined(__x86_64__) || defined(__i386__)
+    ss << "&x86=1";
+#elif defined(__arm__) || defined(__aarch64__)
+    ss << "&arm=1";
+#elif defined(__mips__)
+    ss << "&mips=1";
+#elif defined(__loongarch__)
+    ss << "&loong=1";
+#endif
 
     SRS_CHECK_FEATURE2(_srs_in_docker, "docker", ss);
     SRS_CHECK_FEATURE3(!string(SRS_PACKAGER).empty(), "packager", SRS_PACKAGER, ss);
@@ -65,10 +60,15 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE2(_srs_config->get_https_api_enabled(), "https", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
 
+    string region = srs_getenv("SRS_REGION");
+    SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
+    string source = srs_getenv("SRS_SOURCE");
+    SRS_CHECK_FEATURE3(!string(source).empty(), "source", source, ss);
+
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
-    bool flv2 = false;
+    bool flv2 = false, oc = false;
 
     SrsConfDirective* root = _srs_config->get_root();
     // Note that we limit the loop, never detect all configs.
@@ -92,6 +92,9 @@ void srs_build_features(stringstream& ss)
             }
             if (!edge && _srs_config->get_vhost_is_edge(conf)) {
                 edge = true;
+            }
+            if (!oc && _srs_config->get_vhost_origin_cluster(conf)) {
+                oc = true;
             }
             if (!hls && _srs_config->get_hls_enabled(conf)) {
                 hls = true;
@@ -141,6 +144,7 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE(forward, ss);
     SRS_CHECK_FEATURE(ingest, ss);
     SRS_CHECK_FEATURE(edge, ss);
+    SRS_CHECK_FEATURE(oc, ss);
     SRS_CHECK_FEATURE(hls, ss);
     SRS_CHECK_FEATURE(dvr, ss);
     SRS_CHECK_FEATURE(flv, ss);
@@ -164,6 +168,8 @@ SrsLatestVersion::~SrsLatestVersion()
 
 srs_error_t SrsLatestVersion::start()
 {
+    // @see https://github.com/ossrs/srs/issues/2424
+    // @see https://github.com/ossrs/srs/issues/2508
     if (!_srs_config->whether_query_latest_version()) {
         return srs_success;
     }
@@ -206,7 +212,7 @@ srs_error_t SrsLatestVersion::cycle()
         string url;
         srs_utime_t starttime = srs_update_system_time();
         if ((err = query_latest_version(url)) != srs_success) {
-            srs_warn("query err %s", srs_error_desc(err).c_str());
+            srs_trace("query release err %s", srs_error_summary(err).c_str());
             srs_freep(err); // Ignore any error.
         }
 

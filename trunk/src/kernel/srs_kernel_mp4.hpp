@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_MP4_HPP
@@ -36,6 +36,7 @@ class SrsMp4AvccBox;
 class SrsMp4AudioSampleEntry;
 class SrsMp4EsdsBox;
 class SrsMp4ChunkOffsetBox;
+class SrsMp4ChunkLargeOffsetBox;
 class SrsMp4SampleSizeBox;
 class SrsMp4Sample2ChunkBox;
 class SrsMp4DecodingTime2SampleBox;
@@ -1188,6 +1189,9 @@ public:
     // Get the chunk offset box.
     virtual SrsMp4ChunkOffsetBox* stco();
     virtual void set_stco(SrsMp4ChunkOffsetBox* v);
+    // Get the chunk large offset box.
+    virtual SrsMp4ChunkLargeOffsetBox* co64();
+    virtual void set_co64(SrsMp4ChunkLargeOffsetBox* v);
     // Get the sample size box.
     virtual SrsMp4SampleSizeBox* stsz();
     virtual void set_stsz(SrsMp4SampleSizeBox* v);
@@ -1369,6 +1373,10 @@ enum SrsMp4ObjectType
     SrsMp4ObjectTypeForbidden = 0x00,
     // Audio ISO/IEC 14496-3
     SrsMp4ObjectTypeAac = 0x40,
+    // Audio ISO/IEC 13818-3
+    SrsMp4ObjectTypeMp3 = 0x69,
+    // Audio ISO/IEC 11172-3
+    SrsMp4ObjectTypeMp1a = 0x6B,
 };
 
 // Table 6 — streamType Values
@@ -1902,7 +1910,7 @@ public:
 private:
     virtual srs_error_t write_track(SrsFrameType track,
         SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
-        SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco);
+        SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4FullBox* co);
     virtual srs_error_t do_load(std::map<uint64_t, SrsMp4Sample*>& tses, SrsMp4MovieBox* moov);
 private:
     // Load the samples of track from stco, stsz and stsc.
@@ -2072,6 +2080,7 @@ public:
 private:
     virtual srs_error_t copy_sequence_header(SrsFormat* format, bool vsh, uint8_t* sample, uint32_t nb_sample);
     virtual srs_error_t do_write_sample(SrsMp4Sample* ps, uint8_t* sample, uint32_t nb_sample);
+    virtual SrsMp4ObjectType get_audio_object_type();
 };
 
 // A fMP4 encoder, to write the init.mp4 with sequence header.

@@ -15,7 +15,7 @@
     点击进入<a class="srs_demo" href="room.html?autostart=true">SRS多人通话演示</a>
 </p>
 <script>
-    let roomName = Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7);
+    let roomName = Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).slice(0, 7);
     let elems = document.getElementsByClassName('srs_demo');
     for (var i = 0; i < elems.length; i++) {
         let elem = elems.item(i);

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_hls.hpp>
@@ -63,6 +63,17 @@ void SrsHlsSegment::config_cipher(unsigned char* key,unsigned char* iv)
     
     SrsEncFileWriter* fw = (SrsEncFileWriter*)writer;
     fw->config_cipher(key, iv);
+}
+
+srs_error_t SrsHlsSegment::rename()
+{
+    if (true) {
+        std::stringstream ss;
+        ss << srsu2msi(duration());
+        uri = srs_string_replace(uri, "[duration]", ss.str());
+    }
+
+    return SrsFragment::rename();
 }
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsContextId c, SrsRequest* r, string p, string t, string m, string mu, int s, srs_utime_t d)
@@ -607,6 +618,11 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     bool matchMinDuration = current->duration() >= SRS_HLS_SEGMENT_MIN_DURATION;
     bool matchMaxDuration = current->duration() <= max_td * 2 * 1000;
     if (matchMinDuration && matchMaxDuration) {
+        // rename from tmp to real path
+        if ((err = current->rename()) != srs_success) {
+            return srs_error_wrap(err, "rename");
+        }
+        
         // use async to call the http hooks, for it will cause thread switch.
         if ((err = async->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req, current->fullpath(),
             current->uri, m3u8, m3u8_url, current->sequence_no, current->duration()))) != srs_success) {
@@ -620,12 +636,7 @@ srs_error_t SrsHlsMuxer::do_segment_close()
         
         // close the muxer of finished segment.
         srs_freep(current->tscw);
-        
-        // rename from tmp to real path
-        if ((err = current->rename()) != srs_success) {
-            return srs_error_wrap(err, "rename");
-        }
-        
+
         segments->append(current);
         current = NULL;
     } else {
@@ -1344,7 +1355,7 @@ void SrsHls::hls_show_mux_log()
     // the run time is not equals to stream time,
     // @see: https://github.com/ossrs/srs/issues/81#issuecomment-48100994
     // it's ok.
-    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%.2f, dva=%dp",
+    srs_trace("-> " SRS_CONSTS_LOG_HLS " time=%dms, sno=%d, ts=%s, dur=%dms, dva=%dp",
               pprint->age(), controller->sequence_no(), controller->ts_url().c_str(),
               srsu2msi(controller->duration()), controller->deviation());
 }

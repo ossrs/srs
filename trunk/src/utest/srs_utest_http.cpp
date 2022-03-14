@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 #include <srs_utest_http.hpp>
 
@@ -138,6 +138,16 @@ string mock_http_response2(int status, string content)
     stringstream ss;
     ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
         << "Transfer-Encoding: chunked" << "\r\n"
+        << "\r\n"
+        << content;
+    return ss.str();
+}
+
+string mock_http_response3(int status, string content)
+{
+    stringstream ss;
+    ss << "HTTP/1.1 " << status << " " << srs_generate_http_status_text(status) << "\r\n"
+        << "Server:" << "\r\n"
         << "\r\n"
         << content;
     return ss.str();
@@ -521,6 +531,17 @@ VOID TEST(ProtocolHTTPTest, ClientRequest)
     // Normal case, with specified content-length.
     if (true) {
         MockBufferIO io; io.append(mock_http_response(200, "Hello, world!"));
+        SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
+        ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
+        string res; HELPER_ASSERT_SUCCESS(msg->body_read_all(res));
+        EXPECT_EQ(200, msg->status_code());
+        EXPECT_STREQ("Hello, world!", res.c_str());
+        srs_freep(msg);
+    }
+    
+    // Normal case, with empty server.
+    if(true) {
+        MockBufferIO io; io.append(mock_http_response3(200, "Hello, world!"));
         SrsHttpParser hp; HELPER_ASSERT_SUCCESS(hp.initialize(HTTP_RESPONSE));
         ISrsHttpMessage* msg = NULL; HELPER_ASSERT_SUCCESS(hp.parse_message(&io, &msg));
         string res; HELPER_ASSERT_SUCCESS(msg->body_read_all(res));

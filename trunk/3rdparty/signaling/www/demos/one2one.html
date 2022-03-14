@@ -295,8 +295,9 @@
         });
 
         $("#btn_start").click(startDemo);
+        // Never play util windows loaded @see https://github.com/ossrs/srs/issues/2732
         if (conf.autostart) {
-            startDemo();
+            window.addEventListener("load", function(){ startDemo(); });
         }
     });
 </script>

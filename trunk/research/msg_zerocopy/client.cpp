@@ -279,6 +279,8 @@ int main(int argc, char** argv)
                 memcpy(&p->msg_hdr, &msg, sizeof(msghdr));
                 p->msg_len = 0;
             }
+
+            // The sendmmsg is removed by https://github.com/ossrs/srs/commit/34dae0fe0ddf2e95353ca8cbdc799f4abf96aead
             if (zerocopy) {
                 r0 = st_sendmmsg(stfd, hdrs, nn_copies + 1, MSG_ZEROCOPY, ST_UTIME_NO_TIMEOUT);
             } else {

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 #include <srs_utest_app.hpp>
 
@@ -132,7 +132,8 @@ VOID TEST(AppCoroutineTest, Dummy)
     SrsDummyCoroutine dc;
 
     if (true) {
-        EXPECT_TRUE(dc.cid().empty());
+        SrsContextId v = dc.cid();
+        EXPECT_FALSE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -148,7 +149,8 @@ VOID TEST(AppCoroutineTest, Dummy)
     if (true) {
         dc.stop();
 
-        EXPECT_TRUE(dc.cid().empty());
+        SrsContextId v = dc.cid();
+        EXPECT_FALSE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);
@@ -164,7 +166,8 @@ VOID TEST(AppCoroutineTest, Dummy)
     if (true) {
         dc.interrupt();
 
-        EXPECT_TRUE(dc.cid().empty());
+        SrsContextId v = dc.cid();
+        EXPECT_FALSE(v.empty());
 
         srs_error_t err = dc.pull();
         EXPECT_TRUE(err != srs_success);

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_KERNEL_CODEC_HPP
@@ -167,6 +167,11 @@ enum SrsAudioAacFrameTrait
     SrsAudioOpusFrameTraitRaw = 2,
     SrsAudioOpusFrameTraitSamplingRate = 4,
     SrsAudioOpusFrameTraitAudioLevel = 8,
+
+    // 16/32 reserved for g711a/g711u 
+
+    // For MP3
+    SrsAudioMp3FrameTrait = 64,
 };
 
 /**

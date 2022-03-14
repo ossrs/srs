@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtc_api.hpp>
@@ -117,6 +117,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
 
@@ -185,6 +186,21 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
             server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
     }
 
+    // Whether RTC stream is active.
+    bool is_rtc_stream_active = false;
+    if (true) {
+        SrsRtcSource* source = _srs_rtc_sources->fetch(ruc.req_);
+        is_rtc_stream_active = (source && !source->can_publish());
+    }
+
+    // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
+    if (!is_rtc_stream_active && !_srs_config->get_rtc_from_rtmp(ruc.req_->vhost)) {
+        SrsLiveSource* rtmp = _srs_sources->fetch(ruc.req_);
+        if (rtmp && !rtmp->inactive()) {
+            return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc.req_->vhost.c_str());
+        }
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     SrsRtcConnection* session = NULL;
     if ((err = server_->create_session(&ruc, local_sdp, &session)) != srs_success) {
@@ -198,7 +214,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
     string local_sdp_str = os.str();
     // Filter the \r\n to \\r\\n for JSON.
-    local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
+    string local_sdp_escaped = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
@@ -209,9 +225,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, dtls=%u, srtp=%u, offer=%dB, answer=%dB", session->username().c_str(),
-        ruc.dtls_, ruc.srtp_, remote_sdp_str.length(), local_sdp_str.length());
+        ruc.dtls_, ruc.srtp_, remote_sdp_str.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
-    srs_trace("RTC local answer: %s", local_sdp_str.c_str());
+    srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
 
     return err;
 }
@@ -237,10 +253,8 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp& remote_sdp)
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 
-        for (std::vector<SrsMediaPayloadType>::const_iterator iter_media = iter->payload_types_.begin(); iter_media != iter->payload_types_.end(); ++iter_media) {
-            if (iter->sendonly_) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "play API only support sendrecv/recvonly");
-            }
+        if (iter->sendonly_) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "play API only support sendrecv/recvonly");
         }
     }
 
@@ -377,11 +391,14 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
+    ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
 
-    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost, 
-                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+    // Identify WebRTC publisher by param upstream=rtc
+    ruc.req_->param = srs_string_trim_start(ruc.req_->param + "&upstream=rtc", "&");
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
@@ -450,7 +467,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
     string local_sdp_str = os.str();
     // Filter the \r\n to \\r\\n for JSON.
-    local_sdp_str = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
+    string local_sdp_escaped = srs_string_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("server", SrsJsonAny::str(SrsStatistic::instance()->server_id().c_str()));
@@ -461,9 +478,9 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     res->set("sessionid", SrsJsonAny::str(session->username().c_str()));
 
     srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
-        remote_sdp_str.length(), local_sdp_str.length());
+        remote_sdp_str.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_string_replace(remote_sdp_str.c_str(), "\r\n", "\\r\\n").c_str());
-    srs_trace("RTC local answer: %s", local_sdp_str.c_str());
+    srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
 
     return err;
 }
@@ -489,10 +506,8 @@ srs_error_t SrsGoApiRtcPublish::check_remote_sdp(const SrsSdp& remote_sdp)
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "now only suppor rtcp-mux");
         }
 
-        for (std::vector<SrsMediaPayloadType>::const_iterator iter_media = iter->payload_types_.begin(); iter_media != iter->payload_types_.end(); ++iter_media) {
-            if (iter->recvonly_) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "publish API only support sendrecv/sendonly");
-            }
+        if (iter->recvonly_) {
+            return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "publish API only support sendrecv/sendonly");
         }
     }
 
@@ -514,11 +529,9 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
-
         if (!conf) {
             return err;
         }
-
         hooks = conf->args;
     }
 

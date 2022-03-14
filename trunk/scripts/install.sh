@@ -129,7 +129,7 @@ else
 fi
 
 echo ""
-echo "see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
+echo "see: https://github.com/ossrs/srs/wiki/v4_CN_LinuxService"
 echo "install success, you can start SRS on CentOS6:"
 echo -e "${GREEN}      sudo /etc/init.d/srs start${BLACK}"
 echo "or CentOS7:"

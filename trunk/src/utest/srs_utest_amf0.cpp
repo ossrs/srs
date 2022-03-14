@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 #include <srs_utest_amf0.hpp>
 
@@ -2622,6 +2622,72 @@ VOID TEST(ProtocolJSONTest, Dumps)
         p->add(SrsJsonAny::integer(3));
         p->add(SrsJsonAny::integer(2));
         EXPECT_STREQ("[3,2]", p->dumps().c_str());
+        srs_freep(p);
+    }
+}
+
+VOID TEST(ProtocolJSONTest, DumpsSpecialChars)
+{
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("hello");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"hello\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\"llo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\\"llo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\\llo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\\\llo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\nllo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\nllo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\tllo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\tllo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\bllo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\bllo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\fllo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\fllo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("he\rllo");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"he\\rllo\"", p->dumps().c_str());
+        srs_freep(p);
+    }
+
+    if (true) {
+        SrsJsonAny* p = SrsJsonAny::str("hello视频");
+        EXPECT_TRUE(p->is_string());
+        EXPECT_STREQ("\"hello\xE8\xA7\x86\xE9\xA2\x91\"", p->dumps().c_str());
         srs_freep(p);
     }
 }

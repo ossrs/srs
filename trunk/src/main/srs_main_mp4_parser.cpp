@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_core.hpp>
@@ -12,6 +12,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_config.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,12 @@ using namespace std;
 // @global log and context.
 ISrsLog* _srs_log = new SrsConsoleLog(SrsLogLevelTrace, false);
 ISrsContext* _srs_context = new SrsThreadContext();
+
+// @global config object for app module.
+SrsConfig* _srs_config = new SrsConfig();
+
+// @global Other variables.
+bool _srs_in_docker = false;
 
 srs_error_t parse(std::string mp4_file, bool verbose)
 {

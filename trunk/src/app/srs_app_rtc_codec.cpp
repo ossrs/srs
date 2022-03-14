@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Bepartofyou
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_rtc_codec.hpp>
@@ -322,8 +322,12 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsAudioFrame *pkt)
     dec_packet_->data = (uint8_t *)pkt->samples[0].bytes;
     dec_packet_->size = pkt->samples[0].size;
 
-    char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
+    // Ignore empty packet, see https://github.com/ossrs/srs/pull/2757#discussion_r759797651
+    if (!dec_packet_->data || !dec_packet_->size){
+        return err;
+    }
 
+    char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
     int error = avcodec_send_packet(dec_, dec_packet_);
     if (error < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "submit to dec(%d,%s)", error,

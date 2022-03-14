@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 /**
-@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
+@see: https://gperftools.github.io/gperftools/heap_checker.html
 config srs with gperf(to make gperftools):
-    ./configure --with-gperf --jobs=3
+    ./configure --gperf=on --jobs=3
 set the pprof path if not set:
     export PPROF_PATH=`pwd`/../../../objs/pprof
 to check mem leak:
@@ -16,6 +16,8 @@ to check mem leak:
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
+
+#include <gperftools/profiler.h>
 
 void explicit_leak_imp() {
     printf("func leak: do something...\n");
@@ -63,7 +65,7 @@ int main(int argc, char** argv) {
     if (!loop) {
         return 0;
     }
-    
+
     return 0;
 }
 

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_UTEST_RELOAD_HPP
@@ -10,7 +10,7 @@
 /*
 #include <srs_utest_reload.hpp>
 */
-#include <srs_core.hpp>
+#include <srs_utest.hpp>
 
 #include <srs_utest_config.hpp>
 #include <srs_app_reload.hpp>

@@ -56,7 +56,7 @@
             url = window.location.href.replace('http:', 'https:');
         }
 
-        url = url.substr(0, url.lastIndexOf('/')) + '/srs_publisher_flash.html';
+        url = url.substring(0, url.lastIndexOf('/')) + '/srs_publisher_flash.html';
         $('#https_publisher').attr('href', url);
     });
 </script>

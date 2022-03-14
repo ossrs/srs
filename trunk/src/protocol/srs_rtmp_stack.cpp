@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_rtmp_stack.hpp>
@@ -1036,7 +1036,6 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // 0x04             where: message_type=4(protocol control user-control message)
         // 0x00 0x06            where: event Ping(0x06)
         // 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
-        // @see: https://github.com/ossrs/srs/issues/98
         if (fmt == RTMP_FMT_TYPE1) {
             srs_warn("fresh chunk starts with fmt=1");
         } else {
@@ -1175,7 +1174,6 @@ srs_error_t SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         pp[0] = *p++;
         
         // always use 31bits timestamp, for some server may use 32bits extended timestamp.
-        // @see https://github.com/ossrs/srs/issues/111
         timestamp &= 0x7fffffff;
         
         /**
@@ -1524,6 +1522,8 @@ SrsRequest::SrsRequest()
     duration = -1;
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     args = NULL;
+
+    protocol = "rtmp";
 }
 
 SrsRequest::~SrsRequest()
@@ -1551,6 +1551,8 @@ SrsRequest* SrsRequest::copy()
     if (args) {
         cp->args = args->copy()->to_object();
     }
+
+    cp->protocol = protocol;
     
     return cp;
 }
@@ -1578,6 +1580,8 @@ void SrsRequest::update_auth(SrsRequest* req)
     if (req->args) {
         args = req->args->copy()->to_object();
     }
+
+    protocol = req->protocol;
     
     srs_info("update req of soruce for auth ok");
 }

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_service_http_conn.hpp>
@@ -263,12 +263,12 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     
     if (length > 0) {
         obj->field_value.append(at, (int)length);
-    }
 
-    // When header parsed, we must save the position of start for body,
-    // because we have to consume the header in buffer.
-    // @see https://github.com/ossrs/srs/issues/1508
-    obj->p_header_tail = at;
+        // When header parsed, we must save the position of start for body,
+        // because we have to consume the header in buffer.
+        // @see https://github.com/ossrs/srs/issues/1508
+        obj->p_header_tail = at;
+    }
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
@@ -664,6 +664,9 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     if (!oip.empty()) {
         req->ip = oip;
     }
+
+    // The request streaming protocol.
+    req->protocol = (schema_ == "http")? "flv" : "flvs";
     
     return req;
 }
@@ -755,7 +758,7 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
     // check the bytes send and content length.
     written += size;
     if (content_length != -1 && written > content_length) {
-        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow writen=%d, max=%d", (int)written, (int)content_length);
+        return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow writen=%" PRId64 ", max=%" PRId64, written, content_length);
     }
     
     // ignore NULL content.

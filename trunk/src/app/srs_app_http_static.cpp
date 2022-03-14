@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_http_static.hpp>
@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_hybrid.hpp>
+#include <srs_service_log.hpp>
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 
@@ -55,7 +56,7 @@ SrsVodStream::~SrsVodStream()
     map_ctx_info_.clear();
 }
 
-srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
+srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
     
@@ -68,7 +69,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     if (offset > fs->filesize()) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%d",
+        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%" PRId64,
             fullpath.c_str(), fs->filesize(), offset);
     }
     
@@ -111,7 +112,7 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     int64_t left = fs->filesize() - offset;
     
     // write http header for ts.
-    w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
+    w->header()->set_content_length(sizeof(flv_header) + sh_size + left);
     w->header()->set_content_type("video/x-flv");
     w->write_header(SRS_CONSTS_HTTP_OK);
     
@@ -129,14 +130,14 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     }
     
     // send data
-    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read flv=%s size=%d", fullpath.c_str(), (int)left);
+    if ((err = copy(w, fs, r, left)) != srs_success) {
+        return srs_error_wrap(err, "read flv=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
     return err;
 }
 
-srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
+srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int64_t start, int64_t end)
 {
     srs_error_t err = srs_success;
     
@@ -153,7 +154,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     
     // parse -1 to whole file.
     if (end == -1) {
-        end = (int)(fs->filesize() - 1);
+        end = fs->filesize() - 1;
     }
     
     if (end > fs->filesize() || start > end || end < 0) {
@@ -179,8 +180,8 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMe
     fs->seek2(start);
     
     // send data
-    if ((err = copy(w, fs, r, (int)left)) != srs_success) {
-        return srs_error_wrap(err, "read mp4=%s size=%d", fullpath.c_str(), (int)left);
+    if ((err = copy(w, fs, r, left)) != srs_success) {
+        return srs_error_wrap(err, "read mp4=%s size=%" PRId64, fullpath.c_str(), left);
     }
     
     return err;
@@ -194,6 +195,12 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     srs_assert(hr);
 
     SrsRequest* req = hr->to_request(hr->host())->as_http();
+    // discovery vhost, resolve the vhost from config
+    SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
+    if (parsed_vhost) {
+        req->vhost = parsed_vhost->arg0();
+    }
+
     SrsAutoFree(SrsRequest, req);
 
     string ctx = hr->query_get(SRS_CONTEXT_IN_HLS);
@@ -202,15 +209,18 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
         return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
     }
 
-    if ((err = http_hooks_on_play(req)) != srs_success) {
-        return srs_error_wrap(err, "HLS: http_hooks_on_play");
-    }
-
     if (ctx.empty()) {
         // make sure unique
         do {
             ctx = srs_random_str(8);  // the same as cid
         } while (ctx_is_exist(ctx));
+    }
+    
+    SrsContextRestore(_srs_context->get_id());
+    _srs_context->set_id(SrsContextId().set_value(ctx));
+
+    if ((err = http_hooks_on_play(req)) != srs_success) {
+        return srs_error_wrap(err, "HLS: http_hooks_on_play");
     }
 
     std::stringstream ss;
@@ -339,6 +349,9 @@ srs_error_t SrsVodStream::on_timer(srs_utime_t interval)
         SrsRequest* req = it->second.req;
         srs_utime_t hls_window = _srs_config->get_hls_window(req->vhost);
         if (it->second.request_time + (2 * hls_window) < srs_get_system_time()) {
+            SrsContextRestore(_srs_context->get_id());
+            _srs_context->set_id(SrsContextId().set_value(ctx));
+
             http_hooks_on_stop(req);
             srs_freep(req);
 

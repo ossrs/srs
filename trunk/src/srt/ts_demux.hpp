@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef TS_DEMUX_H
@@ -74,7 +74,7 @@ Value    Description
 
 class ts_media_data_callback_I {
 public:
-    virtual void on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts) = 0;
+    virtual int on_data_callback(SRT_DATA_MSG_PTR data_ptr, unsigned int media_type, uint64_t dts, uint64_t pts) = 0;
 };
 
 typedef std::shared_ptr<ts_media_data_callback_I> TS_DATA_CALLBACK_PTR;
@@ -227,7 +227,7 @@ private:
     int pes_parse(unsigned char* p, size_t npos, unsigned char** ret_pp, size_t& ret_size,
             uint64_t& dts, uint64_t& pts);
     void insert_into_databuf(unsigned char* data_p, size_t data_size, std::string key_path, unsigned short pid);
-    void on_callback(TS_DATA_CALLBACK_PTR callback, unsigned short pid,
+    int on_callback(TS_DATA_CALLBACK_PTR callback, unsigned short pid,
                 std::string key_path, uint64_t dts, uint64_t pts);
 
 private:

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #ifndef SRS_APP_CONFIG_HPP
@@ -100,7 +100,6 @@ extern bool srs_config_ingest_is_stream(std::string type);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_rtsp(std::string caster);
 extern bool srs_stream_caster_is_flv(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective* dvr_apply, SrsRequest* req);
@@ -211,7 +210,7 @@ public:
 // Parse utilities
 public:
     // Parse config directive from file buffer.
-    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer);
+    virtual srs_error_t parse(srs_internal::SrsConfigBuffer* buffer, SrsConfig* conf = NULL);
     // Marshal the directive to writer.
     // @param level, the root is level0, all its directives are level1, and so on.
     virtual srs_error_t persistence(SrsFileWriter* writer, int level);
@@ -224,24 +223,36 @@ public:
     virtual SrsJsonAny* dumps_arg0_to_boolean();
 // private parse.
 private:
-    // The directive parsing type.
-    enum SrsDirectiveType {
+    // The directive parsing context.
+    enum SrsDirectiveContext {
         // The root directives, parsing file.
-        parse_file,
-        // For each direcitve, parsing text block.
-        parse_block
+        SrsDirectiveContextFile,
+        // For each directive, parsing text block.
+        SrsDirectiveContextBlock,
+    };
+    enum SrsDirectiveState {
+        // Init state
+        SrsDirectiveStateInit,
+        // The directive terminated by ';' found
+        SrsDirectiveStateEntire,
+        // The token terminated by '{' found
+        SrsDirectiveStateBlockStart,
+        // The '}' found
+        SrsDirectiveStateBlockEnd,
+        // The config file is done
+        SrsDirectiveStateEOF,
     };
     // Parse the conf from buffer. the work flow:
     // 1. read a token(directive args and a ret flag),
     // 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
     // 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
-    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
+    virtual srs_error_t parse_conf(srs_internal::SrsConfigBuffer* buffer, SrsDirectiveContext ctx, SrsConfig* conf);
     // Read a token from buffer.
     // A token, is the directive args and a flag indicates whether has child-directives.
     // @param args, the output directive args, the first is the directive name, left is the args.
     // @param line_start, the actual start line of directive.
     // @return, an error code indicates error or has child-directives.
-    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
+    virtual srs_error_t read_token(srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start, SrsDirectiveState& state);
 };
 
 // The config service provider.
@@ -251,6 +262,7 @@ private:
 // You could keep it before st-thread switch, or simply never keep it.
 class SrsConfig
 {
+    friend class SrsConfDirective;
 // user command
 private:
     // Whether srs is run in dolphin mode.
@@ -333,44 +345,8 @@ public:
 private:
     virtual srs_error_t do_persistence(SrsFileWriter* fw);
 public:
-    // Dumps the global sections to json.
-    virtual srs_error_t global_to_json(SrsJsonObject* obj);
-    // Dumps the minimal sections to json.
-    virtual srs_error_t minimal_to_json(SrsJsonObject* obj);
-    // Dumps the vhost section to json.
-    virtual srs_error_t vhost_to_json(SrsConfDirective* vhost, SrsJsonObject* obj);
     // Dumps the http_api sections to json for raw api info.
     virtual srs_error_t raw_to_json(SrsJsonObject* obj);
-    // RAW  set the global listen.
-    virtual srs_error_t raw_set_listen(const std::vector<std::string>& eps, bool& applied);
-    // RAW  set the global pid.
-    virtual srs_error_t raw_set_pid(std::string pid, bool& applied);
-    // RAW  set the global chunk size.
-    virtual srs_error_t raw_set_chunk_size(std::string chunk_size, bool& applied);
-    // RAW  set the global ffmpeg log dir.
-    virtual srs_error_t raw_set_ff_log_dir(std::string ff_log_dir, bool& applied);
-    // RAW  set the global log tank.
-    virtual srs_error_t raw_set_srs_log_tank(std::string srs_log_tank, bool& applied);
-    // RAW  set the global log level.
-    virtual srs_error_t raw_set_srs_log_level(std::string srs_log_level, bool& applied);
-    // RAW  set the global log file path for file tank.
-    virtual srs_error_t raw_set_srs_log_file(std::string srs_log_file, bool& applied);
-    // RAW  set the global max connections of srs.
-    virtual srs_error_t raw_set_max_connections(std::string max_connections, bool& applied);
-    // RAW  set the global whether use utc time.
-    virtual srs_error_t raw_set_utc_time(std::string utc_time, bool& applied);
-    // RAW  set the global pithy print interval in ms.
-    virtual srs_error_t raw_set_pithy_print_ms(std::string pithy_print_ms, bool& applied);
-    // RAW  create the new vhost.
-    virtual srs_error_t raw_create_vhost(std::string vhost, bool& applied);
-    // RAW  update the disabled vhost name.
-    virtual srs_error_t raw_update_vhost(std::string vhost, std::string name, bool& applied);
-    // RAW  delete the disabled vhost.
-    virtual srs_error_t raw_delete_vhost(std::string vhost, bool& applied);
-    // RAW  disable the enabled vhost.
-    virtual srs_error_t raw_disable_vhost(std::string vhost, bool& applied);
-    // RAW  enable the disabled vhost.
-    virtual srs_error_t raw_enable_vhost(std::string vhost, bool& applied);
 private:
     virtual srs_error_t do_reload_listen();
     virtual srs_error_t do_reload_pid();
@@ -393,6 +369,10 @@ private:
 public:
     // Parse the config file, which is specified by cli.
     virtual srs_error_t parse_file(const char* filename);
+private:
+    // Build a buffer from a src, which is string content or filename.
+    virtual srs_error_t build_buffer(std::string src, srs_internal::SrsConfigBuffer** pbuffer);
+public:
     // Check the parsed config.
     virtual srs_error_t check_config();
 protected:
@@ -419,6 +399,8 @@ public:
     // If  true, SRS will run in daemon mode, fork and fork to reap the
     // grand-child process to init process.
     virtual bool get_daemon();
+    // Whether srs in docker.
+    virtual bool get_in_docker();
 private:
     // Whether user use full.conf
     virtual bool is_full_config();
@@ -504,6 +486,7 @@ public:
     virtual bool get_rtc_server_enabled(SrsConfDirective* conf);
     virtual int get_rtc_server_listen();
     virtual std::string get_rtc_server_candidates();
+    virtual bool get_api_as_candidates();
     virtual std::string get_rtc_server_ip_family();
     virtual bool get_rtc_server_ecdsa();
     virtual bool get_rtc_server_encrypt();
@@ -518,8 +501,8 @@ private:
 public:
     SrsConfDirective* get_rtc(std::string vhost);
     bool get_rtc_enabled(std::string vhost);
-    bool get_rtc_bframe_discard(std::string vhost);
-    bool get_rtc_aac_discard(std::string vhost);
+    bool get_rtc_keep_bframe(std::string vhost);
+    bool get_rtc_from_rtmp(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
     std::string get_rtc_dtls_role(std::string vhost);
@@ -641,6 +624,8 @@ public:
     virtual bool get_forward_enabled(SrsConfDirective* vhost);
     // Get the forward directive of vhost.
     virtual SrsConfDirective* get_forwards(std::string vhost);
+    // Get the forward directive of backend.
+    virtual SrsConfDirective* get_forward_backend(std::string vhost);
 
 public:
     // Whether the srt sevice enabled
@@ -740,17 +725,21 @@ public:
     // Get the origin config of edge,
     // specifies the origin ip address, port.
     virtual SrsConfDirective* get_vhost_edge_origin(std::string vhost);
+    // Get the procotol to connect to origin server.
+    virtual std::string get_vhost_edge_protocol(std::string vhost);
+    // Whether follow client protocol to connect to origin.
+    virtual bool get_vhost_edge_follow_client(std::string vhost);
     // Whether edge token tranverse is enabled,
     // If  true, edge will send connect origin to verfy the token of client.
     // For example, we verify all clients on the origin FMS by server-side as,
     // all clients connected to edge must be tranverse to origin to verify.
     virtual bool get_vhost_edge_token_traverse(std::string vhost);
     // Get the transformed vhost for edge,
-    // @see https://github.com/ossrs/srs/issues/372
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
     virtual bool get_vhost_origin_cluster(std::string vhost);
+    virtual bool get_vhost_origin_cluster(SrsConfDirective* conf);
     // Get the co-workers of origin cluster.
     // @see https://github.com/ossrs/srs/wiki/v3_EN_OriginCluster
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost);
@@ -921,7 +910,6 @@ public:
     // Get the hls hls_on_error config.
     // The ignore will ignore error and disable hls.
     // The disconnect will disconnect publish connection.
-    // @see https://github.com/ossrs/srs/issues/264
     virtual std::string get_hls_on_error(std::string vhost);
     // Get the HLS default audio codec.
     virtual std::string get_hls_acodec(std::string vhost);

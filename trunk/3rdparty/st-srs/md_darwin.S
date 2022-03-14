@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright (c) 2021 Winlin */
 
 /* If user disable the ASM, such as avoiding bugs in ASM, donot compile it. */
 #if !defined(MD_ST_NO_ASM)

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_kernel_mp4.hpp>
@@ -18,6 +18,11 @@
 #include <sstream>
 #include <iomanip>
 using namespace std;
+
+// For CentOS 6 or C++98, @see https://github.com/ossrs/srs/issues/2815
+#ifndef UINT32_MAX
+#define UINT32_MAX (4294967295U)
+#endif
 
 #define SRS_MP4_EOF_SIZE 0
 #define SRS_MP4_USE_LARGE_SIZE 1
@@ -1812,11 +1817,16 @@ SrsAudioCodecId SrsMp4TrackBox::soun_codec()
     if (box->entry_count() == 0) {
         return SrsAudioCodecIdForbidden;
     }
-    
-    SrsMp4SampleEntry* entry = box->entrie_at(0);
-    switch(entry->type) {
-        case SrsMp4BoxTypeMP4A: return SrsAudioCodecIdAAC;
-        default: return SrsAudioCodecIdForbidden;
+
+    SrsMp4EsdsBox* esds_box = mp4a()->esds();
+    switch (esds_box->es->decConfigDescr.objectTypeIndication) {
+    case SrsMp4ObjectTypeAac:
+        return SrsAudioCodecIdAAC;
+    case SrsMp4ObjectTypeMp3:
+    case SrsMp4ObjectTypeMp1a:
+        return SrsAudioCodecIdMP3;
+    default:
+        return SrsAudioCodecIdForbidden;
     }
 }
 
@@ -2858,6 +2868,18 @@ void SrsMp4SampleTableBox::set_stco(SrsMp4ChunkOffsetBox* v)
     boxes.push_back(v);
 }
 
+SrsMp4ChunkLargeOffsetBox* SrsMp4SampleTableBox::co64()
+{
+    SrsMp4Box* box = get(SrsMp4BoxTypeCO64);
+    return dynamic_cast<SrsMp4ChunkLargeOffsetBox*>(box);
+}
+
+void SrsMp4SampleTableBox::set_co64(SrsMp4ChunkLargeOffsetBox* v)
+{
+    remove(SrsMp4BoxTypeCO64);
+    boxes.push_back(v);
+}
+
 SrsMp4SampleSizeBox* SrsMp4SampleTableBox::stsz()
 {
     SrsMp4Box* box = get(SrsMp4BoxTypeSTSZ);
@@ -3429,7 +3451,7 @@ srs_error_t SrsMp4DecoderConfigDescriptor::encode_payload(SrsBuffer* buf)
     buf->write_3bytes(bufferSizeDB);
     buf->write_4bytes(maxBitrate);
     buf->write_4bytes(avgBitrate);
-    
+
     if (decSpecificInfo && (err = decSpecificInfo->encode(buf)) != srs_success) {
         return srs_error_wrap(err, "encode des specific info");
     }
@@ -3440,7 +3462,7 @@ srs_error_t SrsMp4DecoderConfigDescriptor::encode_payload(SrsBuffer* buf)
 srs_error_t SrsMp4DecoderConfigDescriptor::decode_payload(SrsBuffer* buf)
 {
     srs_error_t err = srs_success;
-    
+
     objectTypeIndication = (SrsMp4ObjectType)buf->read_1bytes();
     
     uint8_t v = buf->read_1bytes();
@@ -4840,10 +4862,19 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
         SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
         stbl->set_stsz(stsz);
         
-        SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
-        stbl->set_stco(stco);
+        SrsMp4FullBox* co = NULL;
+        // When sample offset less than UINT32_MAX, we use stco(support 32bit offset) box to save storage space.
+        if (samples.empty() || (*samples.rbegin())->offset < UINT32_MAX) {
+            // stco support 32bit offset.
+            co = new SrsMp4ChunkOffsetBox();
+            stbl->set_stco(static_cast<SrsMp4ChunkOffsetBox*>(co));
+        } else {
+            // When sample offset bigger than UINT32_MAX, we use co64(support 64bit offset) box to avoid overflow.
+            co = new SrsMp4ChunkLargeOffsetBox();
+            stbl->set_co64(static_cast<SrsMp4ChunkLargeOffsetBox*>(co));
+        }
         
-        if ((err = write_track(SrsFrameTypeVideo, stts, stss, ctts, stsc, stsz, stco)) != srs_success) {
+        if ((err = write_track(SrsFrameTypeVideo, stts, stss, ctts, stsc, stsz, co)) != srs_success) {
             return srs_error_wrap(err, "write vide track");
         }
     }
@@ -4864,10 +4895,16 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieBox* moov)
         SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
         stbl->set_stsz(stsz);
         
-        SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
-        stbl->set_stco(stco);
+        SrsMp4FullBox* co = NULL;
+        if (samples.empty() || (*samples.rbegin())->offset < UINT32_MAX) {
+            co = new SrsMp4ChunkOffsetBox();
+            stbl->set_stco(static_cast<SrsMp4ChunkOffsetBox*>(co));
+        } else {
+            co = new SrsMp4ChunkLargeOffsetBox();
+            stbl->set_co64(static_cast<SrsMp4ChunkLargeOffsetBox*>(co));
+        }
         
-        if ((err = write_track(SrsFrameTypeAudio, stts, stss, ctts, stsc, stsz, stco)) != srs_success) {
+        if ((err = write_track(SrsFrameTypeAudio, stts, stss, ctts, stsc, stsz, co)) != srs_success) {
             return srs_error_wrap(err, "write soun track");
         }
     }
@@ -4919,7 +4956,7 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4MovieFragmentBox* moof, uint64_t& d
 
 srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
     SrsMp4DecodingTime2SampleBox* stts, SrsMp4SyncSampleBox* stss, SrsMp4CompositionTime2SampleBox* ctts,
-    SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4ChunkOffsetBox* stco)
+    SrsMp4Sample2ChunkBox* stsc, SrsMp4SampleSizeBox* stsz, SrsMp4FullBox* co)
 {
     srs_error_t err = srs_success;
     
@@ -4930,7 +4967,7 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
     vector<SrsMp4CttsEntry> ctts_entries;
     
     vector<uint32_t> stsz_entries;
-    vector<uint32_t> stco_entries;
+    vector<uint64_t> co_entries;
     vector<uint32_t> stss_entries;
     
     SrsMp4Sample* previous = NULL;
@@ -4942,7 +4979,7 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         }
         
         stsz_entries.push_back(sample->nb_data);
-        stco_entries.push_back((uint32_t)sample->offset);
+        co_entries.push_back((uint64_t)sample->offset);
         
         if (sample->frame_type == SrsVideoAvcFrameTypeKeyFrame) {
             stss_entries.push_back(sample->index + 1);
@@ -5015,11 +5052,22 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         }
     }
     
-    if (stco && !stco_entries.empty()) {
-        stco->entry_count = (uint32_t)stco_entries.size();
-        stco->entries = new uint32_t[stco->entry_count];
-        for (int i = 0; i < (int)stco->entry_count; i++) {
-            stco->entries[i] = stco_entries.at(i);
+    if (!co_entries.empty()) {
+        SrsMp4ChunkOffsetBox* stco = dynamic_cast<SrsMp4ChunkOffsetBox*>(co);
+        SrsMp4ChunkLargeOffsetBox* co64 = dynamic_cast<SrsMp4ChunkLargeOffsetBox*>(co);
+
+        if (stco) {
+            stco->entry_count = (uint32_t)co_entries.size();
+            stco->entries = new uint32_t[stco->entry_count];
+            for (int i = 0; i < (int)stco->entry_count; i++) {
+                stco->entries[i] = co_entries.at(i);
+            }
+        } else if (co64) {
+            co64->entry_count = (uint32_t)co_entries.size();
+            co64->entries = new uint64_t[co64->entry_count];
+            for (int i = 0; i < (int)co64->entry_count; i++) {
+                co64->entries[i] = co_entries.at(i);
+            }
         }
     }
     
@@ -5488,7 +5536,7 @@ srs_error_t SrsMp4Decoder::parse_moov(SrsMp4MovieBox* moov)
     if (vide && !avcc) {
         return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "missing video sequence header");
     }
-    if (soun && !asc) {
+    if (soun && !asc && soun->soun_codec() == SrsAudioCodecIdAAC) {
         return srs_error_new(ERROR_MP4_ILLEGAL_MOOV, "missing audio sequence header");
     }
     
@@ -5910,13 +5958,15 @@ srs_error_t SrsMp4Encoder::flush()
             es->ES_ID = 0x02;
             
             SrsMp4DecoderConfigDescriptor& desc = es->decConfigDescr;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = get_audio_object_type();
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo);
             
-            SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo = asc;
-            asc->asc = pasc;;
+            if (SrsMp4ObjectTypeAac == desc.objectTypeIndication) {
+                SrsMp4DecoderSpecificInfo* asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo = asc;
+                asc->asc = pasc;
+            }
         }
         
         if ((err = samples->write(moov)) != srs_success) {
@@ -6045,6 +6095,18 @@ srs_error_t SrsMp4Encoder::do_write_sample(SrsMp4Sample* ps, uint8_t* sample, ui
     return err;
 }
 
+SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+{
+    switch (acodec) {
+    case SrsAudioCodecIdAAC:
+        return SrsMp4ObjectTypeAac;
+    case SrsAudioCodecIdMP3:
+        return (srs_flv_srates[sample_rate] > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3;  // 11172 - 3
+    default:
+        return SrsMp4ObjectTypeForbidden;
+    }
+}
+
 SrsMp4M2tsInitEncoder::SrsMp4M2tsInitEncoder()
 {
     writer = NULL;
@@ -6162,6 +6224,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
             stbl->set_stsz(stsz);
             
+            // TODO: FIXME: need to check using stco or co64?
             SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
             stbl->set_stco(stco);
             
@@ -6262,6 +6325,7 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat* format, bool video, int tid)
             SrsMp4SampleSizeBox* stsz = new SrsMp4SampleSizeBox();
             stbl->set_stsz(stsz);
             
+            // TODO: FIXME: need to check using stco or co64?
             SrsMp4ChunkOffsetBox* stco = new SrsMp4ChunkOffsetBox();
             stbl->set_stco(stco);
             

@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Runner365
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include "srt_server.hpp"
@@ -229,7 +229,7 @@ void srt_server::srt_handle_connection(SRT_SOCKSTATUS status, SRTSOCKET input_fd
             } else if (srt_conn_ptr->get_mode() == PUSH_SRT_MODE) {
                 conn_event = SRT_EPOLL_IN | SRT_EPOLL_ERR;
             } else {
-                srt_log_trace("stream mode error, it shoulde be m=push or m=pull, streamid:%s",
+                srt_log_trace("stream mode error, it should be m=push or m=pull, streamid:%s",
                     srt_conn_ptr->get_streamid().c_str());
                 srt_conn_ptr->close();
                 return;
@@ -323,7 +323,7 @@ srs_error_t SrtServerAdapter::initialize()
     return err;
 }
 
-srs_error_t SrtServerAdapter::run()
+srs_error_t SrtServerAdapter::run(SrsWaitGroup* wg)
 {
     srs_error_t err = srs_success;
 

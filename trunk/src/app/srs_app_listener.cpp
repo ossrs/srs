@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2013-2021 Winlin
+// Copyright (c) 2013-2021 The SRS Authors
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
 #include <srs_app_listener.hpp>
@@ -652,7 +652,7 @@ srs_error_t SrsUdpMuxListener::cycle()
             if (pps_last > 10000 || pps_average > 10000) {
                 pps_unit = "(w)"; pps_last /= 10000; pps_average /= 10000;
             } else if (pps_last > 1000 || pps_average > 1000) {
-                pps_unit = "(k)"; pps_last /= 10000; pps_average /= 10000;
+                pps_unit = "(k)"; pps_last /= 1000; pps_average /= 1000;
             }
 
             srs_trace("<- RTC RECV #%d, udp %" PRId64 ", pps %d/%d%s, schedule %" PRId64,
