@@ -67,7 +67,7 @@ AC_C_CONST
 AC_TYPE_SIZE_T
 
 # Define Makefiles.
-AC_CONFIG_FILES([yaml-0.1.pc include/Makefile src/Makefile Makefile tests/Makefile])
+AC_CONFIG_FILES([yaml-0.1.pc include/Makefile src/Makefile Makefile])
 
 # Generate the "configure" script.
 AC_OUTPUT
