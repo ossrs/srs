@@ -161,6 +161,8 @@ We are grateful to the community for contributing bugfix and improvements, pleas
 
 ## LICENSE
 
+[![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_shield)
+
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
 but some third-party libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
