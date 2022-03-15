@@ -2040,14 +2040,14 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
         // we check it when user requires check config file.
         if (err == srs_success && (err = srs_config_transform_vhost(root)) == srs_success) {
             if ((err = check_config()) == srs_success) {
-                srs_trace("the configuration file %s syntax is ok", config_file.c_str());
-                srs_trace("configuration file %s test is successful", config_file.c_str());
+                srs_trace("the config file %s syntax is ok", config_file.c_str());
+                srs_trace("config file %s test is successful", config_file.c_str());
                 exit(0);
             }
         }
 
-        srs_trace("invalid configuration: %s in %s", srs_error_summary(err).c_str(), config_file.c_str());
-        srs_trace("configuration file %s test is failed", config_file.c_str());
+        srs_trace("invalid config%s in %s", srs_error_summary(err).c_str(), config_file.c_str());
+        srs_trace("config file %s test is failed", config_file.c_str());
         exit(srs_error_code(err));
     }
 

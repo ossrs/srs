@@ -85,9 +85,7 @@ std::string SrsCplxError::summary() {
 
         SrsCplxError* next = this;
         while (next) {
-            if (!next->wrapped) {
-                ss << next->msg;
-            }
+            ss << " : " << next->msg;
             next = next->wrapped;
         }
 
