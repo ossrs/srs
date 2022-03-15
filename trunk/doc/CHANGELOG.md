@@ -36,6 +36,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-03-15, Merge [#2966](https://github.com/ossrs/srs/pull/2966): Bugfix: Fix rtcp nack blp encode bug (#2966). v4.0.248
 * v4.0, 2022-03-07, RTC: Identify the WebRTC publisher in param for hooks. v4.0.247
 * v4.0, 2022-03-07, SRT: Append vhost to stream, not app. v4.0.246
 * v4.0, 2022-02-15, Fix warnings for uuid. v4.0.245
