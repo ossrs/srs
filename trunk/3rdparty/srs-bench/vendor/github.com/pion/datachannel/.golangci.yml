@@ -1,8 +1,0 @@
-linters-settings:
-  govet:
-    check-shadowing: true
-  misspell:
-    locale: US
-
-run:
-  skip-dirs-use-default: false
