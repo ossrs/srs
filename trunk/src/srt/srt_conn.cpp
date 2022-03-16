@@ -27,6 +27,7 @@ bool is_streamid_valid(const std::string& streamid) {
     std::string subpath;
     std::string vhost;
 
+    // Parse the stream info from streamid, see https://github.com/ossrs/srs/issues/2893
     bool ret = get_streamid_info(streamid, mode, vhost, subpath);
     if (!ret) {
         return false;
