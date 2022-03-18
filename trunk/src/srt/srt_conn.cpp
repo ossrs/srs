@@ -36,6 +36,7 @@ bool is_streamid_valid(const std::string& streamid) {
     std::vector<std::string> info_vec;
     string_split(subpath, "/", info_vec);
 
+    // TODO: FIXME: Should fail at parsing the original SRT URL.
     if (info_vec.size() != 2) {
         srt_log_warn("path format must be appname/stream?key=value...");
         return false;
@@ -69,9 +70,10 @@ bool get_key_value(const std::string& info, std::string& key, std::string& value
     return true;
 }
 
-//eg. streamid=#!::h:live/livestream,m:publish
-bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhost, std::string& url_subpath) {
-
+// See streamid of https://github.com/ossrs/srs/issues/2893
+// TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhost, std::string& url_subpath)
+{
     mode = PULL_SRT_MODE;
 
     size_t pos = streamid.find("#!::");
@@ -95,10 +97,32 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhos
     srs_parse_query_string(real_streamid, query);
     for (std::map<std::string, std::string>::iterator it = query.begin(); it != query.end(); ++it) {
         if (it->first == "h") {
-            params.append("vhost=");
-            params.append(it->second);
-            params.append("&");
-            vhost = it->second;
+            std::string host = it->second;
+
+            // Compatible with previous style, see https://github.com/ossrs/srs/issues/2893#compatible
+            size_t r0 = host.find("/");
+            size_t r1 = host.rfind("/");
+            if (r0 != std::string::npos && r0 != std::string::npos) {
+                if (r0 != r1) {
+                    // We got vhost in host.
+                    url_subpath = host.substr(r0 + 1);
+                    host = host.substr(0, r0);
+
+                    params.append("vhost=");
+                    params.append(host);
+                    params.append("&");
+                    vhost = host;
+                } else {
+                    // Only stream in host.
+                    url_subpath = host;
+                }
+            } else {
+                // Now we get the host as vhost.
+                params.append("vhost=");
+                params.append(host);
+                params.append("&");
+                vhost = host;
+            }
         } else if (it->first == "r") {
             url_subpath = it->second;
         } else if (it->first == "m") {
@@ -120,8 +144,9 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhos
         }
     }
 
-    if (url_subpath.empty())
+    if (url_subpath.empty()) {
         return false;
+    }
 
     if (!params.empty()) {
         url_subpath.append("?");
@@ -134,7 +159,8 @@ bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhos
 
 srt_conn::srt_conn(SRTSOCKET conn_fd, const std::string& streamid):_conn_fd(conn_fd),
     _streamid(streamid),
-    write_fail_cnt_(0) {
+    write_fail_cnt_(0)
+{
     get_streamid_info(streamid, _mode, _vhost, _url_subpath);
     
     _update_timestamp = now_ms();
