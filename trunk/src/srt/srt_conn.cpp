@@ -219,6 +219,17 @@ std::string srt_conn::get_streamid() {
     return _streamid;
 }
 
+std::string srt_conn::get_path() {
+    if (!_url_path.empty()) {
+        return _url_path;
+    }
+
+    size_t pos = _url_subpath.find("?");
+    _url_path = (pos != std::string::npos) ? _url_subpath.substr(0, pos) : _url_subpath;
+
+    return _url_path;
+}
+
 std::string srt_conn::get_subpath() {
     return _url_subpath;
 }
