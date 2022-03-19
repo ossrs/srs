@@ -26,7 +26,7 @@
 
 bool is_streamid_valid(const std::string& streamid);
 bool get_key_value(const std::string& info, std::string& key, std::string& value);
-bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash);
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhost, std::string& url_subpash);
 
 class srt_conn {
 public:

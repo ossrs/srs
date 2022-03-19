@@ -349,10 +349,7 @@ void srt_handle::handle_pull_data(SRT_SOCKSTATUS status, const std::string& subp
 
 void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
 {
-    std::string subpath;
-    int mode;
     auto conn_ptr = get_srt_conn(conn_fd);
-
     if (!conn_ptr) {
         if (status != SRTS_CLOSED) {
             srt_log_error("handle_srt_socket find srt connection error, fd:%d, status:%d", 
@@ -360,13 +357,10 @@ void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
         }
         return;
     }
-    bool ret = get_streamid_info(conn_ptr->get_streamid(), mode, subpath);
-    if (!ret) {
-        conn_ptr->close();
-        conn_ptr = nullptr;
-        return;
-    }
-    
+
+    std::string subpath = conn_ptr->get_subpath();
+
+    int mode = conn_ptr->get_mode();    
     if (mode == PUSH_SRT_MODE) {
         switch (status)
         {
