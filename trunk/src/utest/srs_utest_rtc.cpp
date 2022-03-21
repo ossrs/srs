@@ -1169,6 +1169,36 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
     }
 }
 
+VOID TEST(KernelRTCTest, SrsRtcpNack)
+{
+    uint32_t sender_ssrc = 0x0A;
+    uint32_t media_ssrc = 0x0B;
+
+    SrsRtcpNack nack_encoder(sender_ssrc);
+    nack_encoder.set_media_ssrc(media_ssrc);
+
+    for (uint16_t seq = 15; seq < 45; seq++) {
+        nack_encoder.add_lost_sn(seq);
+    }
+    EXPECT_FALSE(nack_encoder.empty());
+
+    char buf[kRtcpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+
+    srs_error_t err = srs_success;
+    err = nack_encoder.encode(&stream);
+    EXPECT_EQ(srs_error_code(err), srs_success);
+
+    SrsRtcpNack nack_decoder;
+    stream.skip(-stream.pos());
+    err = nack_decoder.decode(&stream);
+    EXPECT_EQ(srs_error_code(err), srs_success);
+
+    vector<uint16_t> actual_lost_sn = nack_encoder.get_lost_sns();
+    vector<uint16_t> req_lost_sns = nack_decoder.get_lost_sns();
+    EXPECT_EQ(actual_lost_sn.size(), req_lost_sns.size());
+}
+
 VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
 {
     SrsRtcConnection s(NULL, SrsContextId()); 
@@ -1243,3 +1273,4 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
         }
     }
 }
+

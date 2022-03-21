@@ -112,5 +112,17 @@ std::string srs_join_vector_string(std::vector<T>& vs, std::string separator)
 // Whether domain is an IPv4 address.
 extern bool srs_is_ipv4(std::string domain);
 
+// Convert an IPv4 from string to uint32_t.
+extern uint32_t srs_ipv4_to_num(std::string ip);
+
+// Whether the IPv4 is in an IP mask.
+extern bool srs_ipv4_within_mask(std::string ip, std::string network, std::string mask);
+
+// Get the CIDR (Classless Inter-Domain Routing) mask for a network address.
+extern std::string srs_get_cidr_mask(std::string network_address);
+
+// Get the CIDR (Classless Inter-Domain Routing) IPv4 for a network address.
+extern std::string srs_get_cidr_ipv4(std::string network_address);
+
 #endif
 

@@ -158,11 +158,11 @@ function system_string_trim(str, flag) {
     }
 
     while (system_string_startswith(str, flag)) {
-        str = str.substr(flag.length);
+        str = str.slice(flag.length);
     }
 
     while (system_string_endswith(str, flag)) {
-        str = str.substr(0, str.length - flag.length);
+        str = str.slice(0, str.length - flag.length);
     }
 
     return str;
@@ -227,8 +227,8 @@ function parse_query_string(){
         obj.dir = "/";
         obj.filename = "";
     } else {
-        obj.dir = obj.pathname.substr(0, obj.pathname.lastIndexOf("/"));
-        obj.filename = obj.pathname.substr(obj.pathname.lastIndexOf("/"));
+        obj.dir = obj.pathname.slice(0, obj.pathname.lastIndexOf("/"));
+        obj.filename = obj.pathname.slice(obj.pathname.lastIndexOf("/"));
     }
 
     // pure user query object.
@@ -298,19 +298,19 @@ function parse_rtmp_url(rtmp_url) {
         .replace("rtc://", "http://");
 
     var vhost = a.hostname;
-    var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
-    var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+    var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
+    var stream = a.pathname.slice(a.pathname.lastIndexOf("/") + 1);
 
     // parse the vhost in the params of app, that srs supports.
     app = app.replace("...vhost...", "?vhost=");
     if (app.indexOf("?") >= 0) {
-        var params = app.substr(app.indexOf("?"));
-        app = app.substr(0, app.indexOf("?"));
+        var params = app.slice(app.indexOf("?"));
+        app = app.slice(0, app.indexOf("?"));
 
         if (params.indexOf("vhost=") > 0) {
-            vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+            vhost = params.slice(params.indexOf("vhost=") + "vhost=".length);
             if (vhost.indexOf("&") > 0) {
-                vhost = vhost.substr(0, vhost.indexOf("&"));
+                vhost = vhost.slice(0, vhost.indexOf("&"));
             }
         }
     }
@@ -327,7 +327,7 @@ function parse_rtmp_url(rtmp_url) {
     // parse the schema
     var schema = "rtmp";
     if (rtmp_url.indexOf("://") > 0) {
-        schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
+        schema = rtmp_url.slice(0, rtmp_url.indexOf("://"));
     }
 
     var port = a.port;

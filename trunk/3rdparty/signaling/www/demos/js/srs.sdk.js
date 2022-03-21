@@ -154,7 +154,7 @@ function SrsRtcPublisherAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7)
+                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).slice(0, 7)
             };
         },
         parse: function (url) {
@@ -165,19 +165,19 @@ function SrsRtcPublisherAsync() {
                 .replace("rtc://", "http://");
 
             var vhost = a.hostname;
-            var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
-            var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+            var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
+            var stream = a.pathname.slice(a.pathname.lastIndexOf("/") + 1);
 
             // parse the vhost in the params of app, that srs supports.
             app = app.replace("...vhost...", "?vhost=");
             if (app.indexOf("?") >= 0) {
-                var params = app.substr(app.indexOf("?"));
-                app = app.substr(0, app.indexOf("?"));
+                var params = app.slice(app.indexOf("?"));
+                app = app.slice(0, app.indexOf("?"));
 
                 if (params.indexOf("vhost=") > 0) {
-                    vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+                    vhost = params.slice(params.indexOf("vhost=") + "vhost=".length);
                     if (vhost.indexOf("&") > 0) {
-                        vhost = vhost.substr(0, vhost.indexOf("&"));
+                        vhost = vhost.slice(0, vhost.indexOf("&"));
                     }
                 }
             }
@@ -194,7 +194,7 @@ function SrsRtcPublisherAsync() {
             // parse the schema
             var schema = "rtmp";
             if (url.indexOf("://") > 0) {
-                schema = url.substr(0, url.indexOf("://"));
+                schema = url.slice(0, url.indexOf("://"));
             }
 
             var port = a.port;
@@ -381,7 +381,7 @@ function SrsRtcPlayerAsync() {
 
             return {
                 apiUrl: apiUrl, streamUrl: streamUrl, schema: schema, urlObject: urlObject, port: port,
-                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).substr(0, 7)
+                tid: Number(parseInt(new Date().getTime()*Math.random()*100)).toString(16).slice(0, 7)
             };
         },
         parse: function (url) {
@@ -392,19 +392,19 @@ function SrsRtcPlayerAsync() {
                 .replace("rtc://", "http://");
 
             var vhost = a.hostname;
-            var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
-            var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+            var app = a.pathname.substring(1, a.pathname.lastIndexOf("/"));
+            var stream = a.pathname.slice(a.pathname.lastIndexOf("/") + 1);
 
             // parse the vhost in the params of app, that srs supports.
             app = app.replace("...vhost...", "?vhost=");
             if (app.indexOf("?") >= 0) {
-                var params = app.substr(app.indexOf("?"));
-                app = app.substr(0, app.indexOf("?"));
+                var params = app.slice(app.indexOf("?"));
+                app = app.slice(0, app.indexOf("?"));
 
                 if (params.indexOf("vhost=") > 0) {
-                    vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+                    vhost = params.slice(params.indexOf("vhost=") + "vhost=".length);
                     if (vhost.indexOf("&") > 0) {
-                        vhost = vhost.substr(0, vhost.indexOf("&"));
+                        vhost = vhost.slice(0, vhost.indexOf("&"));
                     }
                 }
             }
@@ -421,7 +421,7 @@ function SrsRtcPlayerAsync() {
             // parse the schema
             var schema = "rtmp";
             if (url.indexOf("://") > 0) {
-                schema = url.substr(0, url.indexOf("://"));
+                schema = url.slice(0, url.indexOf("://"));
             }
 
             var port = a.port;

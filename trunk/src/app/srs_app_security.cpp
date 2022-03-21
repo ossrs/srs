@@ -70,6 +70,9 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
         }
         allow_rules++;
 
+        string cidr_ipv4 = srs_get_cidr_ipv4(rule->arg1());
+        string cidr_mask = srs_get_cidr_mask(rule->arg1());
+
         switch (type) {
             case SrsRtmpConnPlay:
             case SrsRtcConnPlay:
@@ -77,6 +80,9 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
                     break;
                 }
                 if (rule->arg1() == "all" || rule->arg1() == ip) {
+                    return srs_success; // OK
+                }
+                if (srs_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
                     return srs_success; // OK
                 }
                 break;
@@ -88,6 +94,9 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType ty
                     break;
                 }
                 if (rule->arg1() == "all" || rule->arg1() == ip) {
+                    return srs_success; // OK
+                }
+                if (srs_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
                     return srs_success; // OK
                 }
                 break;
@@ -111,6 +120,9 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
         if (rule->name != "deny") {
             continue;
         }
+
+        string cidr_ipv4 = srs_get_cidr_ipv4(rule->arg1());
+        string cidr_mask = srs_get_cidr_mask(rule->arg1());
         
         switch (type) {
             case SrsRtmpConnPlay:
@@ -119,6 +131,9 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
                     break;
                 }
                 if (rule->arg1() == "all" || rule->arg1() == ip) {
+                    return srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule<%s>", rule->arg1().c_str());
+                }
+                if (srs_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
                     return srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule<%s>", rule->arg1().c_str());
                 }
                 break;
@@ -130,6 +145,9 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType typ
                     break;
                 }
                 if (rule->arg1() == "all" || rule->arg1() == ip) {
+                    return srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule<%s>", rule->arg1().c_str());
+                }
+                if (srs_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
                     return srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule<%s>", rule->arg1().c_str());
                 }
                 break;

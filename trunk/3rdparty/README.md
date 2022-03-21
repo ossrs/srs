@@ -37,10 +37,10 @@ opus-1.3.1.tar.gz
 * https://github.com/xiph/opus/releases/tag/v1.3.1
 * To support RTMP/WebRTC transcoding.
 * https://github.com/ossrs/srs/wiki/LicenseMixing#ffmpeg
-    
-gtest-1.6.0.zip
+
+gtest-fit
 * google test framework.
-* https://code.google.com/p/googletest/downloads/list
+* https://github.com/google/googletest/releases/tag/release-1.11.0
 
 gperftools-2-fit
 * gperf tools for performance benchmark.

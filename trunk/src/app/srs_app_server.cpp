@@ -1374,8 +1374,10 @@ srs_error_t SrsServer::accept_client(SrsListenerType type, srs_netfd_t stfd)
     ISrsStartableConneciton* conn = NULL;
     
     if ((err = fd_to_resource(type, stfd, &conn)) != srs_success) {
+        //close fd on conn error, otherwise will lead to fd leak -gs
+        srs_close_stfd(stfd);
         if (srs_error_code(err) == ERROR_SOCKET_GET_PEER_IP && _srs_config->empty_ip_ok()) {
-            srs_close_stfd(stfd); srs_error_reset(err);
+            srs_error_reset(err);
             return srs_success;
         }
         return srs_error_wrap(err, "fd to resource");

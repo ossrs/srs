@@ -1346,9 +1346,11 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
             if((sn - pid) < 1) {
                 srs_info("skip seq %d", sn);
             } else if( (sn - pid) > 16) {
-                // add new chunk
+                // append full chunk
                 chunks.push_back(chunk);
-		chunk.pid = sn;
+
+                // start new chunk
+                chunk.pid = sn;
                 chunk.blp = 0;
                 chunk.in_use = true;
                 pid = sn;

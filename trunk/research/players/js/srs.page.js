@@ -81,7 +81,7 @@ function build_default_flv_url() {
     }
     uri += "/" + app + "/" + stream + "?" + queries.join('&');
     while (uri.indexOf("?") === uri.length - 1) {
-        uri = uri.substr(0, uri.length - 1);
+        uri = uri.slice(0, uri.length - 1);
     }
 
     return uri;
@@ -110,7 +110,7 @@ function build_default_rtc_url(query) {
 
     var uri = "webrtc://" + server + api + "/" + app + "/" + stream + "?" + queries.join('&');
     while (uri.lastIndexOf("?") === uri.length - 1) {
-        uri = uri.substr(0, uri.length - 1);
+        uri = uri.slice(0, uri.length - 1);
     }
 
     return uri;

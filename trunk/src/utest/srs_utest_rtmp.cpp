@@ -3198,6 +3198,53 @@ VOID TEST(ProtocolRTMPTest, OthersAll)
     }
 
     if (true) {
+        EXPECT_EQ((uint32_t)0, srs_ipv4_to_num("not.a.valid.ip"));
+    }
+
+    if (true) {
+        EXPECT_EQ((uint32_t)2130706433, srs_ipv4_to_num("127.0.0.1"));
+        EXPECT_NE((uint32_t)16777343, srs_ipv4_to_num("127.0.0.1")); // Big-Endian
+    }
+
+    if (true) {
+        EXPECT_TRUE(srs_ipv4_within_mask("192.168.1.1", "192.168.1.0", "255.255.255.0"));
+        EXPECT_TRUE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.22", "255.255.255.255"));
+        EXPECT_TRUE(srs_ipv4_within_mask("0.0.0.1", "0.0.0.0", "0.0.0.0"));
+        EXPECT_TRUE(srs_ipv4_within_mask("10.2.13.243", "10.0.0.0", "255.0.0.0"));
+    }
+
+    if (true) {
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.1", "192.168.1.2", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.3", "192.168.1.2", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "192.168.1.0", "255.255.255.0"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.23", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("220.1.1.22", "220.1.1.21", "255.255.255.255"));
+        EXPECT_FALSE(srs_ipv4_within_mask("192.168.1.2", "10.0.0.1", "255.255.255.255"));
+    }
+
+    if (true) {
+        EXPECT_STREQ("255.255.255.255", srs_get_cidr_mask("127.0.0.1").c_str());
+        EXPECT_STREQ("255.240.0.0", srs_get_cidr_mask("127.0.0.1/12").c_str());
+    }
+
+    if (true) {
+        EXPECT_STREQ("", srs_get_cidr_mask("my.custom.domain").c_str());
+        EXPECT_STREQ("", srs_get_cidr_mask("my.custom.domain/12").c_str());
+        EXPECT_STREQ("", srs_get_cidr_mask("127.0.0.1/invalid/netmask").c_str());
+    }
+
+    if (true) {
+        EXPECT_STREQ("127.0.0.1", srs_get_cidr_ipv4("127.0.0.1").c_str());
+        EXPECT_STREQ("127.0.0.1", srs_get_cidr_ipv4("127.0.0.1/12").c_str());
+    }
+
+    if (true) {
+        EXPECT_STREQ("", srs_get_cidr_ipv4("my.custom.domain").c_str());
+        EXPECT_STREQ("", srs_get_cidr_ipv4("my.custom.domain/12").c_str());
+        EXPECT_STREQ("", srs_get_cidr_ipv4("127.0.0.1/invalid/netmask").c_str());
+    }
+
+    if (true) {
         SrsMessageArray h(10);
         h.msgs[0] = new SrsSharedPtrMessage();
         h.msgs[1] = new SrsSharedPtrMessage();
