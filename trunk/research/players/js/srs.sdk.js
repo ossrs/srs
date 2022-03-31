@@ -78,18 +78,19 @@ function SrsRtcPublisherAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType: 'application/json', dataType: 'json'
-            }).done(function (data) {
+            fetch(conf.apiUrl,{
+                method: "POST", 
+                body: JSON.stringify(data),
+                headers: new Headers({
+                    'Content-Type': 'application/json'
+                }),
+            }).then(data=>{
                 console.log("Got answer: ", data);
                 if (data.code) {
-                    reject(data);
-                    return;
+                    reject(data); return;
                 }
-
-                resolve(data);
-            }).fail(function (reason) {
+                resolve(data);})
+            .catch(reason=>{
                 reject(reason);
             });
         });
@@ -314,17 +315,19 @@ function SrsRtcPlayerAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType:'application/json', dataType: 'json'
-            }).done(function(data) {
+            fetch(conf.apiUrl,{
+                method: "POST", 
+                body: JSON.stringify(data),
+                headers: new Headers({
+                    'Content-Type': 'application/json'
+                }),
+            }).then(data=>{
                 console.log("Got answer: ", data);
                 if (data.code) {
                     reject(data); return;
                 }
-
-                resolve(data);
-            }).fail(function(reason){
+                resolve(data);})
+            .catch(reason=>{
                 reject(reason);
             });
         });
