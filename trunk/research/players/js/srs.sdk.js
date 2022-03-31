@@ -85,11 +85,11 @@ function SrsRtcPublisherAsync() {
                     'Content-Type': 'application/json'
                 }),
             }).then(data=>{
-                console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data); return;
+                console.log("Got answer: ", data.Body.body);
+                if (data.ok) {
+                    reject(data.Body.body); return;
                 }
-                resolve(data);})
+                resolve(data.Body.body);})
             .catch(reason=>{
                 reject(reason);
             });
@@ -322,11 +322,11 @@ function SrsRtcPlayerAsync() {
                     'Content-Type': 'application/json'
                 }),
             }).then(data=>{
-                console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data); return;
+                console.log("Got answer: ", data.Body.body);
+                if (data.ok) {
+                    reject(data.Body.body); return;
                 }
-                resolve(data);})
+                resolve(data.Body.body);})
             .catch(reason=>{
                 reject(reason);
             });
