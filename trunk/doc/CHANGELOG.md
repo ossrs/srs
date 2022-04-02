@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-03-30, Support DigitalOcean [Droplet SRS 1-Click](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications). v5.0.27
 * v5.0, 2022-03-12, Merge [#2943](https://github.com/ossrs/srs/pull/2943): SRT: Fix typo in libsrt build options. v5.0.26
 * v5.0, 2022-03-09, Merge SRS 4.0 for bugfix. v5.0.25
 * v5.0, 2022-02-16, Merge [#2799](https://github.com/ossrs/srs/pull/2799): Forward: Support dynamic forwarding by backend api. (#2799). v5.0.24
@@ -36,6 +37,9 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-03-19, For [#2893](https://github.com/ossrs/srs/pull/2893): SRT: Decouple publish with play url (#2893). v4.0.251
+* v4.0, 2022-03-19, Merge [#2908](https://github.com/ossrs/srs/pull/2908): SRT: url supports multiple QueryStrings (#2908). v4.0.250
+* v4.0, 2022-03-17, SRT: Support debug and run with CLion. v4.0.249
 * v4.0, 2022-03-15, Merge [#2966](https://github.com/ossrs/srs/pull/2966): Bugfix: Fix rtcp nack blp encode bug (#2966). v4.0.248
 * v4.0, 2022-03-07, RTC: Identify the WebRTC publisher in param for hooks. v4.0.247
 * v4.0, 2022-03-07, SRT: Append vhost to stream, not app. v4.0.246

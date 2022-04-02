@@ -53,6 +53,8 @@ CPPFLAGS += -I\$(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += ${CXXFLAGS} ${UTEST_EXTRA_DEFINES} -Wno-unused-private-field -Wno-unused-command-line-argument
+# Always use C++11 for gtest required, see https://github.com/google/googletest
+CXXFLAGS += -std=c++11
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.

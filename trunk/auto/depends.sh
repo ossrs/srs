@@ -841,22 +841,21 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0/include/gtest/gtest.h ]]; then
-        echo "The gtest-1.6.0 is ok.";
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest-fit/googletest/include/gtest/gtest.h ]]; then
+        echo "The gtest-fit is ok.";
     else
-        echo "Build gtest-1.6.0";
+        echo "Build gtest-fit";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/gtest-1.6.0.zip &&
-            rm -rf gtest && ln -sf gtest-1.6.0 gtest
+            cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest-fit && cp -R ../../3rdparty/gtest-fit gtest-fit
+            rm -rf gtest && ln -sf gtest-fit/googletest gtest
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest && ln -sf gtest-1.6.0 gtest)
-    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
-    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest && ln -sf gtest-fit/googletest gtest)
+    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-fit/googletest gtest)
+    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-fit failed."; exit -1; fi
 fi
 
 #####################################################################################

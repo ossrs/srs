@@ -8,14 +8,13 @@
 [![](https://ossrs.net/wiki/images/wechat-badge4.svg)](../../wikis/Contact#wechat)
 [![](https://img.shields.io/twitter/follow/srs_server?style=social)](https://twitter.com/srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
-[![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_shield)
+[![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_small)
 [![](https://ossrs.net/wiki/images/srs-faq.svg)](https://github.com/ossrs/srs/issues/2716)
 [![](https://badgen.net/badge/srs/stackoverflow/orange?icon=terminal)](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server/contribute)
 [![](https://ossrs.net/wiki/images/mulan-incubating.svg)](http://mulanos.cn)
-[![](https://img.shields.io/youtube/channel/views/UCP6ZblCL_fIJoEyUzZxC1ng?style=social)](https://www.youtube.com/channel/UCP6ZblCL_fIJoEyUzZxC1ng)
-[![](https://ossrs.net/wiki/images/srs-alternativeto.svg)](https://alternativeto.net/software/srs/about/)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
+[![](https://ossrs.net/wiki/images/do-btn-srs-125x20.svg)](https://cloud.digitalocean.com/droplets/new?appId=104916642&size=s-1vcpu-1gb&region=sgp1&image=ossrs-srs&type=applications)
 
 SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
@@ -25,34 +24,13 @@ SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) o
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
 but some third-party libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
 
-```mermaid
-flowchart LR;
-    subgraph rtc[WebRTC Clients]
-        direction LR;
-        H5[Chrome/Firefox<br/>/Edge/Safari etc];
-        Native[iOS/Android];
-    end
-    subgraph live[Live Streaming Clients]
-        direction LR;
-        encoder[FFmpeg/OBS <br/> Encoders];
-        player[H5/VLC/ffplay <br/> Players];
-    end
-    subgraph origin[SRS 4.0 Overview <br/> Single Node ]
-        direction TB;
-        srs[SRS 4.0 Origin <br/> Server];
-    end
-    srs --WebRTC--- rtc;
-    srs --RTMP/SRT--- encoder;
-    srs --HLS/FLV/RTMP/SRT---> player;
-    srs --CloudStorage<br/>HLS/DASH/HDS---> player;
-    srs --VoD System<br/>DVR FLV/MP4---> player;
-```
+[![](https://mermaid.ink/img/pako:eNqNkkFP4zAQhf-K5TPBHOBSEBIkrXIItIqrckg4uPEktZTY1dgpWyH--9ppKsIuSMzBivXeG3_25J1WRgKd0bo1b9VOoCNZfltq4sv22wbFfkfQVcULbPN1TOJWgXb29eQIJRVC5ZTRn8FQ6U0R79B0wBbeUJs_d1tk92wuG2Bc1AIVAVe9ThLPwqkDFGrJ2YOWaJQ8q6DlP0RtcGZ-IdwhiE7p5vdooMOdsVgsuj00bPnIyQBH5ifBTqn2rTh6b3rDNlnM6jrsR_tqkOzPlAZVo3TBc06uL6_I8gB4UPA2xrmHboE8-yPJt9DrxwmHRfvZaOh7buObAv4PgZZE0WlqURSFGd5OlXz9tGI8XwdtfJAveppxtsg2bOK7Hx_jiy9uTS-5MygaGIBCMHngKUsT_lNoYxLCj9ZBN0SSTU7CWU-r62mCXtAOsBNK-v_zPeRL6nbQQUln_lNCLfrWlbTUH97a76VwMJfKs9BZLVoLF1T0zvCjrujMYQ9nU6KEH1A3uj7-Ah_g8P8)](https://mermaid.live/edit#pako:eNqNkkFP4zAQhf-K5TPBHOBSEBIkrXIItIqrckg4uPEktZTY1dgpWyH--9ppKsIuSMzBivXeG3_25J1WRgKd0bo1b9VOoCNZfltq4sv22wbFfkfQVcULbPN1TOJWgXb29eQIJRVC5ZTRn8FQ6U0R79B0wBbeUJs_d1tk92wuG2Bc1AIVAVe9ThLPwqkDFGrJ2YOWaJQ8q6DlP0RtcGZ-IdwhiE7p5vdooMOdsVgsuj00bPnIyQBH5ifBTqn2rTh6b3rDNlnM6jrsR_tqkOzPlAZVo3TBc06uL6_I8gB4UPA2xrmHboE8-yPJt9DrxwmHRfvZaOh7buObAv4PgZZE0WlqURSFGd5OlXz9tGI8XwdtfJAveppxtsg2bOK7Hx_jiy9uTS-5MygaGIBCMHngKUsT_lNoYxLCj9ZBN0SSTU7CWU-r62mCXtAOsBNK-v_zPeRL6nbQQUln_lNCLfrWlbTUH97a76VwMJfKs9BZLVoLF1T0zvCjrujMYQ9nU6KEH1A3uj7-Ah_g8P8)
 
 > Note: The single node architecture for SRS, generally and major use scenario.
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
 
-> Note: If image load fail, please see it at [here](https://www.processon.com/view/link/619f29791efad425fd699fd2).
+> Note: The cluster architecture for SRS. If image load fail, please see it at [here](https://www.processon.com/view/link/619f29791efad425fd699fd2).
 
 <a name="product"></a>
 <a name="usage-docker"></a>
@@ -161,7 +139,7 @@ We are grateful to the community for contributing bugfix and improvements, pleas
 
 ## LICENSE
 
-[![](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_shield)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fossrs%2Fsrs.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2Fossrs%2Fsrs?ref=badge_small)
 
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
@@ -171,6 +149,7 @@ but some third-party libraries are distributed using their [own licenses](https:
 
 ## Releases
 
+* 2022-03-19, Release [v4.0-b10](https://github.com/ossrs/srs/releases/tag/v4.0-b10), v4.0-b10, 4.0 beta10, v4.0.251, 144665 lines.
 * 2022-02-15, Release [v4.0-b9](https://github.com/ossrs/srs/releases/tag/v4.0-b9), v4.0-b9, 4.0 beta9, v4.0.245, 144474 lines.
 * 2022-02-11, Release [v4.0-b8](https://github.com/ossrs/srs/releases/tag/v4.0-b8), v4.0-b8, 4.0 beta8, v4.0.241, 144445 lines.
 * 2022-02-09, Release [v4.0-b7](https://github.com/ossrs/srs/releases/tag/v4.0-b7), v4.0-b7, 4.0 beta7, v4.0.240, 144437 lines.
