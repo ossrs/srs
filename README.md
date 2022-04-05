@@ -20,13 +20,9 @@ SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/We
 
 SRS/5.0，[Bee](https://github.com/ossrs/srs/wiki/Product#release50) 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
-SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
-and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
-but some third-party libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
+[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png?v=108)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png)
 
-[![](https://mermaid.ink/img/pako:eNqNkkFP4zAQhf-K5TPBHOBSEBIkrXIItIqrckg4uPEktZTY1dgpWyH--9ppKsIuSMzBivXeG3_25J1WRgKd0bo1b9VOoCNZfltq4sv22wbFfkfQVcULbPN1TOJWgXb29eQIJRVC5ZTRn8FQ6U0R79B0wBbeUJs_d1tk92wuG2Bc1AIVAVe9ThLPwqkDFGrJ2YOWaJQ8q6DlP0RtcGZ-IdwhiE7p5vdooMOdsVgsuj00bPnIyQBH5ifBTqn2rTh6b3rDNlnM6jrsR_tqkOzPlAZVo3TBc06uL6_I8gB4UPA2xrmHboE8-yPJt9DrxwmHRfvZaOh7buObAv4PgZZE0WlqURSFGd5OlXz9tGI8XwdtfJAveppxtsg2bOK7Hx_jiy9uTS-5MygaGIBCMHngKUsT_lNoYxLCj9ZBN0SSTU7CWU-r62mCXtAOsBNK-v_zPeRL6nbQQUln_lNCLfrWlbTUH97a76VwMJfKs9BZLVoLF1T0zvCjrujMYQ9nU6KEH1A3uj7-Ah_g8P8)](https://mermaid.live/edit#pako:eNqNkkFP4zAQhf-K5TPBHOBSEBIkrXIItIqrckg4uPEktZTY1dgpWyH--9ppKsIuSMzBivXeG3_25J1WRgKd0bo1b9VOoCNZfltq4sv22wbFfkfQVcULbPN1TOJWgXb29eQIJRVC5ZTRn8FQ6U0R79B0wBbeUJs_d1tk92wuG2Bc1AIVAVe9ThLPwqkDFGrJ2YOWaJQ8q6DlP0RtcGZ-IdwhiE7p5vdooMOdsVgsuj00bPnIyQBH5ifBTqn2rTh6b3rDNlnM6jrsR_tqkOzPlAZVo3TBc06uL6_I8gB4UPA2xrmHboE8-yPJt9DrxwmHRfvZaOh7buObAv4PgZZE0WlqURSFGd5OlXz9tGI8XwdtfJAveppxtsg2bOK7Hx_jiy9uTS-5MygaGIBCMHngKUsT_lNoYxLCj9ZBN0SSTU7CWU-r62mCXtAOsBNK-v_zPeRL6nbQQUln_lNCLfrWlbTUH97a76VwMJfKs9BZLVoLF1T0zvCjrujMYQ9nU6KEH1A3uj7-Ah_g8P8)
-
-> Note: The single node architecture for SRS, generally and major use scenario.
+> Note: For detail about the picture, please see [figma](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
 
