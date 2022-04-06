@@ -20,20 +20,15 @@ SRS/5.0 is a simple, high efficiency and realtime video server, supports RTMP/We
 
 SRS/5.0，[Bee](https://github.com/ossrs/srs/wiki/Product#release50) 是一个简单高效的实时视频服务器，支持RTMP/WebRTC/HLS/HTTP-FLV/SRT。
 
+[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
+
+> Note:  The single node architecture for SRS, for detail please see [here](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
+
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE) or [MulanPSL-2.0](https://spdx.org/licenses/MulanPSL-2.0.html),
 and note that [MulanPSL-2.0 is compatible with Apache-2.0](https://www.apache.org/legal/resolved.html#category-a),
 but some third-party libraries are distributed using their [own licenses](https://github.com/ossrs/srs/wiki/LicenseMixing).
 
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png?v=108)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png)
-
-> Note: For detail about the picture, please see [figma](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
-
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
-
-> Note: The cluster architecture for SRS. If image load fail, please see it at [here](https://www.processon.com/view/link/619f29791efad425fd699fd2).
-
-<a name="product"></a>
-<a name="usage-docker"></a>
+<a name="product"></a> <a name="usage-docker"></a>
 ## Usage
 
 Build SRS from source:
@@ -77,9 +72,7 @@ Note that if convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github
 > and **HTTPS Live Streaming([CN](https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHttpStream#https-flv-live-stream) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_DeliveryHttpStream#https-flv-live-stream))**,
 > however HTTPS proxy also works perfect with SRS such as Nginx.
 
-<a name="srs-40-wiki"></a>
-<a name="wiki"></a>
-
+<a name="srs-40-wiki"></a> <a name="wiki"></a>
 From here, please read wikis:
 
 * [Getting Started](https://github.com/ossrs/srs/wiki/v4_EN_Home#getting-started), please read Wiki first.
@@ -187,9 +180,7 @@ but some third-party libraries are distributed using their [own licenses](https:
 
 Please read [FEATURES](trunk/doc/Features.md#features).
 
-<a name="history"></a>
-<a name="change-logs"></a>
-
+<a name="history"></a> <a name="change-logs"></a>
 ## Changelog
 
 Please read [CHANGELOG](trunk/doc/CHANGELOG.md#changelog).
