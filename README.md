@@ -19,13 +19,9 @@ SRS/4.0，[Leo](https://github.com/ossrs/srs/wiki/Product#release40)，是一个
 
 SRS is a simple, high efficiency and realtime video server, supports RTMP/WebRTC/HLS/HTTP-FLV/SRT.
 
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png?v=108)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0.png)
+[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
-> Note: For detail about the picture, please see [figma](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
-
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-Overview-4.0.png?v=100)](https://ossrs.net/wiki/images/SRS-Overview-4.0.png)
-
-> Note: Please see https://www.processon.com/view/link/5e3f5581e4b0a3daae80ecef
+> Note:  The single node architecture for SRS, for detail please see [here](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
 
 SRS is licenced under [MIT][LICENSE], but some depended libraries are distributed using their [own licenses][LicenseMixing].
 
