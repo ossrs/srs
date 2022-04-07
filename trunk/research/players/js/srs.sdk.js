@@ -78,18 +78,16 @@ function SrsRtcPublisherAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType: 'application/json', dataType: 'json'
-            }).done(function (data) {
-                console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data);
-                    return;
+            fetch(conf.apiUrl,{
+                method: "POST", body: JSON.stringify(data),    headers: new Headers({'Content-Type': 'application/json'}),
+            }).then(function(resp) {
+                console.log("Got answer: ", resp);
+                if (! resp.ok) {
+                    reject(resp); return;
                 }
 
-                resolve(data);
-            }).fail(function (reason) {
+                resp.json().then(resp=>{resolve(resp)});
+            }).catch(function(reason){
                 reject(reason);
             });
         });
@@ -314,17 +312,16 @@ function SrsRtcPlayerAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType:'application/json', dataType: 'json'
-            }).done(function(data) {
-                console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data); return;
+            fetch(conf.apiUrl,{
+                method: "POST", body: JSON.stringify(data),    headers: new Headers({'Content-Type': 'application/json'}),
+            }).then(function(resp) {
+                console.log("Got answer: ", resp);
+                if (! resp.ok) {
+                    reject(resp); return;
                 }
 
-                resolve(data);
-            }).fail(function(reason){
+                resp.json().then(resp=>{resolve(resp)});
+            }).catch(function(reason){
                 reject(reason);
             });
         });
