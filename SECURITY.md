@@ -12,4 +12,4 @@ The versions of SRS that are currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-Please email to winlin@vip.126.com to report vulnerability.
+Please email to winlinvip@gmail.com to report vulnerability.
