@@ -358,8 +358,9 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
         srs_warn("open self cpu stat failed, ignore");
         return false;
     }
-    
-    fscanf(f, "%d %32s %c %d %d %d %d "
+
+    // Note that we must read less than the size of r.comm, such as %31s for r.comm is char[32].
+    fscanf(f, "%d %31s %c %d %d %d %d "
            "%d %u %lu %lu %lu %lu "
            "%lu %lu %ld %ld %ld %ld "
            "%ld %ld %llu %lu %ld "
