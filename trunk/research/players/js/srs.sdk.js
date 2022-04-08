@@ -78,20 +78,17 @@ function SrsRtcPublisherAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType: 'application/json', dataType: 'json'
-            }).done(function (data) {
+            const http = new XMLHttpRequest();
+            http.onload = function() {
+                if (http.readyState !== http.DONE) return;
+                if (http.status !== 200) return reject(http);
+                const data = JSON.parse(http.responseText);
                 console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data);
-                    return;
-                }
-
-                resolve(data);
-            }).fail(function (reason) {
-                reject(reason);
-            });
+                return data.code ? reject(data) : resolve(data);
+            }
+            http.open('POST', conf.apiUrl, true);
+            http.setRequestHeader('Content-type', 'application/json');
+            http.send(JSON.stringify(data));
         });
         await self.pc.setRemoteDescription(
             new RTCSessionDescription({type: 'answer', sdp: session.sdp})
@@ -314,19 +311,17 @@ function SrsRtcPlayerAsync() {
             };
             console.log("Generated offer: ", data);
 
-            $.ajax({
-                type: "POST", url: conf.apiUrl, data: JSON.stringify(data),
-                contentType:'application/json', dataType: 'json'
-            }).done(function(data) {
+            const http = new XMLHttpRequest();
+            http.onload = function() {
+                if (http.readyState !== http.DONE) return;
+                if (http.status !== 200) return reject(http);
+                const data = JSON.parse(http.responseText);
                 console.log("Got answer: ", data);
-                if (data.code) {
-                    reject(data); return;
-                }
-
-                resolve(data);
-            }).fail(function(reason){
-                reject(reason);
-            });
+                return data.code ? reject(data) : resolve(data);
+            }
+            http.open('POST', conf.apiUrl, true);
+            http.setRequestHeader('Content-type', 'application/json');
+            http.send(JSON.stringify(data));
         });
         await self.pc.setRemoteDescription(
             new RTCSessionDescription({type: 'answer', sdp: session.sdp})
