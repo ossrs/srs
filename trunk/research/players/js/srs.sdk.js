@@ -78,17 +78,17 @@ function SrsRtcPublisherAsync() {
             };
             console.log("Generated offer: ", data);
 
-            const http = new XMLHttpRequest();
-            http.onload = function() {
-                if (http.readyState !== http.DONE) return;
-                if (http.status !== 200) return reject(http);
-                const data = JSON.parse(http.responseText);
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+                if (xhr.readyState !== xhr.DONE) return;
+                if (xhr.status !== 200) return reject(xhr);
+                const data = JSON.parse(xhr.responseText);
                 console.log("Got answer: ", data);
-                return data.code ? reject(data) : resolve(data);
+                return data.code ? reject(xhr) : resolve(data);
             }
-            http.open('POST', conf.apiUrl, true);
-            http.setRequestHeader('Content-type', 'application/json');
-            http.send(JSON.stringify(data));
+            xhr.open('POST', conf.apiUrl, true);
+            xhr.setRequestHeader('Content-type', 'application/json');
+            xhr.send(JSON.stringify(data));
         });
         await self.pc.setRemoteDescription(
             new RTCSessionDescription({type: 'answer', sdp: session.sdp})
@@ -311,17 +311,17 @@ function SrsRtcPlayerAsync() {
             };
             console.log("Generated offer: ", data);
 
-            const http = new XMLHttpRequest();
-            http.onload = function() {
-                if (http.readyState !== http.DONE) return;
-                if (http.status !== 200) return reject(http);
-                const data = JSON.parse(http.responseText);
+            const xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+                if (xhr.readyState !== xhr.DONE) return;
+                if (xhr.status !== 200) return reject(xhr);
+                const data = JSON.parse(xhr.responseText);
                 console.log("Got answer: ", data);
-                return data.code ? reject(data) : resolve(data);
+                return data.code ? reject(xhr) : resolve(data);
             }
-            http.open('POST', conf.apiUrl, true);
-            http.setRequestHeader('Content-type', 'application/json');
-            http.send(JSON.stringify(data));
+            xhr.open('POST', conf.apiUrl, true);
+            xhr.setRequestHeader('Content-type', 'application/json');
+            xhr.send(JSON.stringify(data));
         });
         await self.pc.setRemoteDescription(
             new RTCSessionDescription({type: 'answer', sdp: session.sdp})
