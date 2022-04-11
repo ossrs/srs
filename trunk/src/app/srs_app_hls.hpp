@@ -118,6 +118,7 @@ private:
     // TODO: FIXME: Use TBN 1000.
     srs_utime_t hls_fragment;
     srs_utime_t hls_window;
+    srs_utime_t hls_delay_cleanup;
     SrsAsyncCallWorker* async;
 private:
     // Whether use floor algorithm for timestamp.
@@ -177,7 +178,8 @@ public:
         std::string path, std::string m3u8_file, std::string ts_file,
         srs_utime_t fragment, srs_utime_t window, bool ts_floor, double aof_ratio,
         bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
-        std::string key_file, std::string key_file_path, std::string key_url);
+        std::string key_file, std::string key_file_path, std::string key_url,
+        srs_utime_t delay_cleanup);
     // Open a new segment(a new ts file)
     virtual srs_error_t segment_open();
     virtual srs_error_t on_sequence_header();

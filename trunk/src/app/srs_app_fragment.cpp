@@ -212,22 +212,49 @@ void SrsFragmentWindow::shrink(srs_utime_t window)
     }
 }
 
-void SrsFragmentWindow::clear_expired(bool delete_files)
+void SrsFragmentWindow::clear_expired(bool delete_files, srs_utime_t delay_time)
 {
     srs_error_t err = srs_success;
-    
-    std::vector<SrsFragment*>::iterator it;
-    
-    for (it = expired_fragments.begin(); it != expired_fragments.end(); ++it) {
-        SrsFragment* fragment = *it;
-        if (delete_files && (err = fragment->unlink_file()) != srs_success) {
-            srs_warn("Unlink ts failed, %s", srs_error_desc(err).c_str());
-            srs_freep(err);
+
+    if (!delete_files || delay_time == 0) {
+        std::vector<SrsFragment*>::iterator it;
+
+        for (it = expired_fragments.begin(); it != expired_fragments.end(); ++it) {
+            SrsFragment* fragment = *it;
+            if (delete_files && (err = fragment->unlink_file()) != srs_success) {
+                srs_warn("Unlink ts failed, %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+            srs_freep(fragment);
         }
-        srs_freep(fragment);
+
+        expired_fragments.clear();
+    } else {
+        srs_utime_t duration = 0;
+
+        int remove_index = -1;
+
+        for (int i = (int)expired_fragments.size() - 1; i >= 0; i--) {
+            SrsFragment* fragment = expired_fragments[i];
+            duration += fragment->duration();
+
+            if (duration > delay_time) {
+                remove_index = i;
+                break;
+            }
+        }
+
+        for (int i = 0; i < remove_index && !expired_fragments.empty(); i++) {
+            SrsFragment* fragment = *expired_fragments.begin();
+            expired_fragments.erase(expired_fragments.begin());
+
+            if ((err = fragment->unlink_file()) != srs_success) {
+                srs_warn("Unlink ts failed, %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+            srs_freep(fragment);
+        }
     }
-    
-    expired_fragments.clear();
 }
 
 srs_utime_t SrsFragmentWindow::max_duration()
