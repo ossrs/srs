@@ -2808,7 +2808,7 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                         && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                         && m != "hls_wait_keyframe" && m != "hls_dispose" && m != "hls_keys" && m != "hls_fragments_per_key" && m != "hls_key_file"
-                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly") {
+                        && m != "hls_key_file_path" && m != "hls_key_url" && m != "hls_dts_directly" && m != "hls_delay_cleanup") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.hls.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                     
@@ -6299,6 +6299,23 @@ string SrsConfig::get_hls_key_url(std::string vhost)
     }
     
     return conf->arg0();
+}
+
+srs_utime_t SrsConfig::get_hls_delay_cleanup(string vhost)
+{
+    static srs_utime_t DEFAULT = 0;
+
+    SrsConfDirective* conf = get_hls(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("hls_delay_cleanup");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective *SrsConfig::get_hds(const string &vhost)
