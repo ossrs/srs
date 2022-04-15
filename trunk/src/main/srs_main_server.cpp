@@ -44,7 +44,8 @@ using namespace std;
 #endif
 
 #ifdef SRS_SRT
-#include <srt_server.hpp>
+#include <srs_service_st_srt.hpp>
+#include <srs_app_srt_server.hpp>
 #endif
 
 // pre-declare
@@ -64,6 +65,10 @@ extern const char* _srs_version;
 
 // @global main SRS server, for debugging
 SrsServer* _srs_server = NULL;
+
+#ifdef SRS_SRT
+SrsSrtEventLoop* _srt_eventloop = NULL;
+#endif
 
 /**
  * main entrance.
@@ -455,7 +460,14 @@ srs_error_t run_hybrid_server()
     _srs_hybrid->register_server(new SrsServerAdapter());
 
 #ifdef SRS_SRT
-    _srs_hybrid->register_server(new SrtServerAdapter());
+    _srt_eventloop = new SrsSrtEventLoop();
+    if ((err = _srt_eventloop->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt poller initialize");
+    }
+    if ((err = _srt_eventloop->start()) != srs_success) {
+        return srs_error_wrap(err, "srt poller start");
+    }
+    _srs_hybrid->register_server(new SrsSrtServerAdapter());
 #endif
 
 #ifdef SRS_RTC

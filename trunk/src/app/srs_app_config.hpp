@@ -636,6 +636,8 @@ public:
     virtual int get_srto_maxbw();
     // Get the srt SRTO_MSS, Maximum Segment Size, default is 1500.
     virtual int get_srto_mss();
+    // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
+    virtual bool get_srto_tsbpdmode();
     // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
     virtual int get_srto_latency();
     // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
@@ -644,10 +646,12 @@ public:
     virtual int get_srto_peer_latency();
     // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
     virtual bool get_srt_sei_filter();
-    // Get the srt SRTO_TLPKDROP, Too-late Packet Drop, default is true.
-    virtual bool get_srto_tlpkdrop();
+    // Get the srt SRTO_TLPKTDROP, Too-late Packet Drop, default is true.
+    virtual bool get_srto_tlpktdrop();
     // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
     virtual int get_srto_conntimeout();
+    // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
+    virtual int get_srto_peeridletimeout();
     // Get the srt SRTO_SNDBUF, send buffer, default is 8192 × (1500-28).
     virtual int get_srto_sendbuf();
     // Get the srt SRTO_RCVBUF, recv buffer, default is 8192 × (1500-28).

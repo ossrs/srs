@@ -22,6 +22,10 @@
 #include <srs_app_rtc_conn.hpp>
 #endif
 
+#ifdef SRS_SRT
+#include <srs_app_srt_source.hpp>
+#endif
+
 #include <string>
 using namespace std;
 
@@ -297,6 +301,10 @@ srs_error_t srs_thread_initialize()
     _srs_sources = new SrsLiveSourceManager();
     _srs_stages = new SrsStageManager();
     _srs_circuit_breaker = new SrsCircuitBreaker();
+
+#ifdef SRS_SRT
+    _srs_srt_sources = new SrsSrtSourceManager();
+#endif
 
 #ifdef SRS_RTC
     _srs_rtc_sources = new SrsRtcSourceManager();
