@@ -432,12 +432,6 @@ function apply_auto_options() {
       SRS_TOOL_LD=$SRS_TOOL_CC
     fi
 
-    # The SRT code in SRS requires c++11, although we build libsrt without c++11.
-    # TODO: FIXME: Remove c++11 code in SRT of SRS.
-    if [[ $SRS_SRT == YES ]]; then
-        SRS_CXX11=YES
-    fi
-
     # Enable FFmpeg fit for RTC to transcode audio from AAC to OPUS, if user enabled it.
     if [[ $SRS_RTC == YES && $SRS_FFMPEG_FIT == RESERVED ]]; then
         SRS_FFMPEG_FIT=YES

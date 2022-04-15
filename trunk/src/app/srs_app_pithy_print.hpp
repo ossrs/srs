@@ -130,6 +130,10 @@ public:
     // For RTC sender and receiver, we create printer for each fd.
     static SrsPithyPrint* create_rtc_send(int fd);
     static SrsPithyPrint* create_rtc_recv(int fd);
+#ifdef SRS_SRT
+    static SrsPithyPrint* create_srt_play();
+    static SrsPithyPrint* create_srt_publish();
+#endif
     virtual ~SrsPithyPrint();
 private:
     // Enter the specified stage, return the client id.

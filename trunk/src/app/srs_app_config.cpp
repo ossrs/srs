@@ -2546,8 +2546,9 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
-                && n != "default_app" && n != "mix_correct" && n != "sei_filter") {
-                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_stream.%s", n.c_str());
+                && n != "default_app" && n != "mix_correct" && n != "sei_filter"
+                && n != "tlpktdrop" && n != "tsbpdmode") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
         }
     }
@@ -6798,6 +6799,20 @@ int SrsConfig::get_srto_mss() {
     return atoi(conf->arg0().c_str());
 }
 
+bool SrsConfig::get_srto_tsbpdmode() {
+    static bool DEFAULT = false;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("tsbpdmode");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
 int SrsConfig::get_srto_latency() {
     static int DEFAULT = 120;
     SrsConfDirective* conf = root->get("srt_server");
@@ -6854,14 +6869,18 @@ bool SrsConfig::get_srt_sei_filter() {
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-bool SrsConfig::get_srto_tlpkdrop() {
+bool SrsConfig::get_srto_tlpktdrop() {
     static bool DEFAULT = true;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
+    SrsConfDirective* srt_server_conf = root->get("srt_server");
+    if (!srt_server_conf) {
         return DEFAULT;
     }
     
-    conf = conf->get("tlpkdrop");
+    SrsConfDirective* conf = srt_server_conf->get("tlpkdrop");
+    if (! conf) {
+        // make it compatible tlpkdrop and tlpktdrop opt.
+        conf = srt_server_conf->get("tlpktdrop");
+    }
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -6876,6 +6895,20 @@ int SrsConfig::get_srto_conntimeout() {
     }
     
     conf = conf->get("connect_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_srto_peeridletimeout() {
+    static int DEFAULT = 10000;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("peer_idle_timeout");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

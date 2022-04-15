@@ -17,6 +17,10 @@
 #include <string>
 using namespace std;
 
+#ifdef SRS_SRT
+#include <srs_app_srt_server.hpp>
+#endif
+
 // Temporary disk config.
 std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
 // Temporary network config.
@@ -31,6 +35,10 @@ ISrsContext* _srs_context = NULL;
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
+
+#ifdef SRS_SRT
+SrsSrtEventLoop* _srt_eventloop = NULL;
+#endif
 
 #include <srs_app_st.hpp>
 
@@ -51,6 +59,16 @@ srs_error_t prepare_main() {
 
     srs_freep(_srs_context);
     _srs_context = new SrsThreadContext();
+
+#ifdef SRS_SRT
+    _srt_eventloop = new SrsSrtEventLoop();
+    if ((err = _srt_eventloop->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt poller initialize");
+    }
+    if ((err = _srt_eventloop->start()) != srs_success) {
+        return srs_error_wrap(err, "srt poller start");
+    }
+#endif
 
     return err;
 }
