@@ -530,21 +530,28 @@ srs_error_t SrsSrtSocket::connect(const string& ip, int port)
     // TODO: FIXME: inet_addr is deprecated
     inaddr.sin_addr.s_addr = inet_addr(ip.c_str());
 
+    // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_connect
     int ret = srt_connect(srt_fd_, (const sockaddr*)&inaddr, sizeof(inaddr));
 
-    // TODO: FIXME: check return value.
-    SRT_SOCKSTATUS srt_status = srt_getsockstate(srt_fd_);
-    if (srt_status != SRTS_CONNECTED) {
-        // Connect is in progress, wait until it finish or error.
-        if ((err = wait_writeable()) != srs_success) {
-            return srs_error_wrap(err, "wait writeable");
-        }
-
-        // Double check if connect is established.
-        srt_status = srt_getsockstate(srt_fd_);
+    if (ret == 0) {
+        // Connect succuess, in async mode, means SRT API succuess and return directly,
+        // and the connection is in progress, like tcp socket API connect errno EINPROGRESS,
+        // and the SRT IO threads will do the real handshake step to finish srt connect.
+        SRT_SOCKSTATUS srt_status = srt_getsockstate(srt_fd_);
         if (srt_status != SRTS_CONNECTED) {
-            return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
+            // Connect is in progress, wait until it finish or error.
+            if ((err = wait_writeable()) != srs_success) {
+                return srs_error_wrap(err, "wait writeable");
+            }
+
+            // Double check if connect is established.
+            srt_status = srt_getsockstate(srt_fd_);
+            if (srt_status != SRTS_CONNECTED) {
+                return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
+            }
         }
+    } else {
+        return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
     }
 
     return err;
@@ -557,6 +564,7 @@ srs_error_t SrsSrtSocket::accept(SRTSOCKET* client_srt_fd)
     while (true) {
         sockaddr_in inaddr;
         int addrlen = sizeof(inaddr);
+        // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_accept
         SRTSOCKET srt_fd = srt_accept(srt_fd_, (sockaddr*)&inaddr, &addrlen);
         if (srt_fd == SRT_INVALID_SOCK) {
             if (srt_getlasterror(NULL) == SRT_EASYNCRCV) {
@@ -582,6 +590,7 @@ srs_error_t SrsSrtSocket::recvmsg(void* buf, size_t size, ssize_t* nread)
     srs_error_t err = srs_success;
 
     while (true) {
+        // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_recvmsg
         int ret = srt_recvmsg(srt_fd_, (char*)buf, size);
         if (ret < 0) {
             if (srt_getlasterror(NULL) == SRT_EASYNCRCV) {
@@ -607,6 +616,7 @@ srs_error_t SrsSrtSocket::sendmsg(void* buf, size_t size, ssize_t* nwrite)
     srs_error_t err = srs_success;
 
     while (true) {
+        // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_sendmsg
         int ret = srt_sendmsg(srt_fd_, (const char*)buf, size, -1, 1);
         if (ret < 0) {
             if (srt_getlasterror(NULL) == SRT_EASYNCSND) {
