@@ -61,19 +61,13 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/src/kernel
         ${SRS_DIR}/src/protocol
         ${SRS_DIR}/src/app
-        ${SRS_DIR}/src/service
-        ${SRS_DIR}/src/srt)
+        ${SRS_DIR}/src/service)
 
 # Common used sources for SRS and utest.
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/core SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/kernel SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/protocol SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/app SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/srt SOURCE_FILES)
-
-# Remove the duplicated test main for srt.
-# TODO: FIMXE: Remove the file directly, use utest or main or research.
-list(REMOVE_ITEM SOURCE_FILES ${SRS_DIR}/src/srt/ts_demux_test.cpp)
 
 ADD_DEFINITIONS("-g -O0")
 
