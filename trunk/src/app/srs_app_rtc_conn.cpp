@@ -3210,13 +3210,19 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
         SrsMediaPayloadType remote_payload(0);
         if (remote_media_desc.is_audio()) {
             // TODO: check opus format specific param
+            // get the audio track frome source
+            track_descs = source->get_track_desc("audio", "");
+            if(track_descs.size() == 0) {
+                srs_warn("no audio track in rtc source!");
+                continue;
+            }
+
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
             if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found audio payload type");
             }
 
             remote_payload = payloads.at(0);
-            track_descs = source->get_track_desc("audio", "opus");
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
             if (payloads.empty()) {
