@@ -61,6 +61,9 @@ extern srs_error_t srs_srt_get_streamid(SRTSOCKET srt_fd, std::string& streamid)
 extern srs_error_t srs_srt_get_local_ip_port(SRTSOCKET srt_fd, std::string& ip, int& port);
 extern srs_error_t srs_srt_get_remote_ip_port(SRTSOCKET srt_fd, std::string& ip, int& port);
 
+// Get SRT stats.
+extern srs_error_t srs_srt_get_stats(SRTSOCKET srt_fd, SRT_TRACEBSTATS* srt_stats, bool clear);
+
 class SrsSrtSocket;
 
 // Srt poller, subscribe/unsubscribed events and wait them fired.

@@ -14,6 +14,7 @@
 
 #include <srs_kernel_ts.hpp>
 #include <srs_service_st.hpp>
+#include <srs_app_source.hpp>
 
 class SrsSharedPtrMessage;
 class SrsRequest;
@@ -86,25 +87,25 @@ public:
     // For SRT, we only got one packet, because there is not many packets in queue.
     virtual srs_error_t dump_packet(SrsSrtPacket** ppkt);
     // Wait for at-least some messages incoming in queue.
-    virtual void wait(int nb_msgs);
+    virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
 
-class ISrsTsSourceBridger
+class ISrsSrtSourceBridge : public ISrsBridge
 {
 public:
-    ISrsTsSourceBridger();
-    virtual ~ISrsTsSourceBridger();
+    ISrsSrtSourceBridge(SrsBridgeDestType type);
+    virtual ~ISrsSrtSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_packet(SrsSrtPacket *pkt) = 0;
     virtual void on_unpublish() = 0;
 };
 
-class SrsRtmpFromTsBridge : public ISrsTsSourceBridger, public ISrsTsHandler
+class SrsRtmpFromSrtBridge : public ISrsSrtSourceBridge, public ISrsTsHandler
 {
 public:
-    SrsRtmpFromTsBridge(SrsLiveSource* source);
-    virtual ~SrsRtmpFromTsBridge();
+    SrsRtmpFromSrtBridge(SrsLiveSource* source);
+    virtual ~SrsRtmpFromSrtBridge();
 public:
     virtual srs_error_t on_publish();
     virtual srs_error_t on_packet(SrsSrtPacket *pkt);
@@ -153,7 +154,7 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 public:
-    void set_bridger(ISrsTsSourceBridger *bridger);
+    void set_bridger(ISrsSrtSourceBridge *bridger);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -178,18 +179,14 @@ private:
     // To delivery packets to clients.
     std::vector<SrsSrtConsumer*> consumers;
     bool can_publish_;
-    ISrsTsSourceBridger* bridger_;
+    std::vector<ISrsSrtSourceBridge*> bridgers_;
 };
 
-/*
-class SrsTsFromRtmpBridger : public ISrsLiveSourceBridger
+class SrsSrtFromRtmpBridge : public ISrsLiveSourceBridger, public ISrsStreamWriter
 {
-private:
-    SrsRequest* req;
-    SrsSrtSource* source_;
 public:
-    SrsTsFromRtmpBridger(SrsSrtSource* source);
-    virtual ~SrsTsFromRtmpBridger();
+    SrsSrtFromRtmpBridge(SrsSrtSource* source);
+    virtual ~SrsSrtFromRtmpBridge();
 public:
     virtual srs_error_t initialize(SrsRequest* r);
 // Interface for ISrsLiveSourceBridger
@@ -198,8 +195,16 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
     virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
+// Interface for ISrsStreamWriter
+public:
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
+private:
+    SrsRequest* req_;
+    SrsSrtSource* srt_source_;
+    SrsTsTransmuxer* ts_muxer_;
+    char ts_buf_[1316];
+    int offset_;
 };
-*/
 
 #endif
 

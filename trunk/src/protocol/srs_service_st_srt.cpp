@@ -376,6 +376,18 @@ srs_error_t srs_srt_get_remote_ip_port(SRTSOCKET srt_fd, std::string& ip, int& p
     return err;
 }
 
+srs_error_t srs_srt_get_stats(SRTSOCKET srt_fd, SRT_TRACEBSTATS* srt_stats, bool clear)
+{
+    srs_error_t err = srs_success;
+
+    int ret = srt_bstats(srt_fd, srt_stats, clear);
+    if (ret != 0) {
+        return srs_error_new(ERROR_SRT_STATS, "srt_bstats");
+    }
+
+    return err;
+}
+
 SrsSrtPoller::SrsSrtPoller()
 {
     srt_epoller_fd_ = -1;
@@ -394,6 +406,9 @@ srs_error_t SrsSrtPoller::initialize()
 
     srt_epoller_fd_ = srt_epoll_create();
     events_.resize(1024);
+
+    // Enable srt empty poller, avoid warning.
+    srt_epoll_set(srt_epoller_fd_, SRT_EPOLL_ENABLE_EMPTY);
 
     return err;
 }
@@ -442,7 +457,7 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms)
     // wait srt event fired, will timeout after `timeout_ms` milliseconds.
     int ret = srt_epoll_uwait(srt_epoller_fd_, events_.data(), events_.size(), timeout_ms);
     if (ret < 0) {
-        return srs_error_new(ERROR_SRT_EPOLL, "srt_epoll_uwait, ret=%d", ret);
+        return srs_error_new(ERROR_SRT_EPOLL, "srt_epoll_uwait, ret=%d, err=%s", ret, srt_getlasterror_str());
     }
 
     for (int i = 0; i < ret; ++i) {

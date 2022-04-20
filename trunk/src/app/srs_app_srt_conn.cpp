@@ -87,6 +87,67 @@ srs_error_t SrsSrtConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
     return srs_error_new(ERROR_SRT_CONN, "unsupport method");
 }
 
+SrsSrtRecvThread::SrsSrtRecvThread(SrsSrtConnection* srt_conn)
+{
+    srt_conn_ = srt_conn;
+    trd_ = new SrsSTCoroutine("srt-recv", this, _srs_context->get_id());
+    recv_err_ = srs_success;
+}
+
+SrsSrtRecvThread::~SrsSrtRecvThread()
+{
+    srs_freep(trd_);
+    srs_error_reset(recv_err_);
+}
+
+srs_error_t SrsSrtRecvThread::cycle()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = do_cycle()) != srs_success) {
+        recv_err_ = srs_error_copy(err);
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtRecvThread::do_cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "srt: thread quit");
+        }
+
+        char buf[1316];
+        ssize_t nb = 0;
+        if ((err = srt_conn_->read(buf, sizeof(buf), &nb)) != srs_success) {
+            if (srs_error_code(err) != ERROR_SRT_TIMEOUT) {
+                return srs_error_wrap(err, "srt read");
+            }
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtRecvThread::start()
+{
+    srs_error_t err = srs_success;
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "start srt recv thread");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtRecvThread::get_recv_err()
+{
+    return srs_error_copy(recv_err_);
+}
+
 SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, SRTSOCKET srt_fd, std::string ip, int port)
 {
     // Create a identify for this client.
@@ -178,7 +239,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    if ((err != fetch_or_create_source()) != srs_success) {
+    if ((err = fetch_or_create_source()) != srs_success) {
         return srs_error_wrap(err, "fetch or create srt source");
     }
 
@@ -214,6 +275,10 @@ srs_error_t SrsMpegtsSrtConn::fetch_or_create_source()
     // Detect streamid of srt to request.
     if (! srs_srt_streamid_to_request(streamid, mode_, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
+    }
+
+    if (! _srs_config->get_srt_enabled(req_->vhost)) {
+        return srs_error_new(ERROR_SRT_CONN, "srt disabled, vhost=%s", req_->vhost.c_str());
     }
 
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
@@ -267,23 +332,25 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         return srs_error_new(ERROR_SRT_SOURCE_BUSY, "srt stream %s busy", req_->get_stream_url().c_str());
     }
 
-    // Check rtmp stream is busy.
-    SrsLiveSource *live_source = _srs_sources->fetch(req_);
-    if (live_source && !live_source->can_publish(false)) {
-        return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
-    }
+    if (_srs_config->get_srt_to_rtmp(req_->vhost)) {
+        // Check rtmp stream is busy.
+        SrsLiveSource *live_source = _srs_sources->fetch(req_);
+        if (live_source && !live_source->can_publish(false)) {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
+        }
 
-    if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
-        return srs_error_wrap(err, "create source");
-    }
+        if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
+            return srs_error_wrap(err, "create source");
+        }
 
-    SrsRtmpFromTsBridge *bridger = new SrsRtmpFromTsBridge(live_source);
-    if ((err = bridger->initialize(req_)) != srs_success) {
-        srs_freep(bridger);
-        return srs_error_wrap(err, "create bridger");
-    }
+        SrsRtmpFromSrtBridge *bridger = new SrsRtmpFromSrtBridge(live_source);
+        if ((err = bridger->initialize(req_)) != srs_success) {
+            srs_freep(bridger);
+            return srs_error_wrap(err, "create bridger");
+        }
 
-    srt_source_->set_bridger(bridger);
+        srt_source_->set_bridger(bridger);
+    }
 
     if ((err = srt_source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "srt source publish");
@@ -296,83 +363,6 @@ void SrsMpegtsSrtConn::release_publish()
 {
     srt_source_->on_unpublish();
 }
-
-/*
-srs_error_t SrsMpegtsSrtConn::do_cycle()
-{
-    srs_error_t err = srs_success;
-
-    string streamid = "";
-    if ((err = srs_srt_get_streamid(srt_fd_, streamid)) != srs_success) {
-        return srs_error_wrap(err, "get srt streamid");
-    }
-
-    // Must have streamid, because srt ts packet will convert to rtmp or rtc.
-    if (streamid.empty()) {
-        return srs_error_new(ERROR_SRT_CONN, "empty srt streamid");
-    }
-
-    // Detect streamid of srt to request.
-    if (! srs_srt_streamid_to_request(streamid, mode_, req_)) {
-        return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
-    }
-
-    srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-        streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
-
-    if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
-        return srs_error_wrap(err, "fetch srt source");
-    }
-
-    if (mode_ == SrtModePush) {
-        if ((err = http_hooks_on_publish()) != srs_success) {
-            return srs_error_wrap(err, "srt: callback on publish");
-        }
-        // Do srt publish.
-        if (! srt_source_->can_publish()) {
-            return srs_error_new(ERROR_SRT_SOURCE_BUSY, "srt stream %s busy", req_->get_stream_url().c_str());
-        }
-
-        SrsLiveSource *live_source = _srs_sources->fetch(req_);
-        if (live_source && !live_source->can_publish(false)) {
-            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
-        }
-
-        if ((err = _srs_sources->fetch_or_create(req_, _srs_hybrid->srs()->instance(), &live_source)) != srs_success) {
-            return srs_error_wrap(err, "create source");
-        }
-
-        SrsRtmpFromTsBridge *bridger = new SrsRtmpFromTsBridge(live_source);
-        if ((err = bridger->initialize(req_)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
-        }
-
-        srt_source_->set_bridger(bridger);
-
-        if ((err = srt_source_->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "srt source publish");
-        }
-
-        err = do_publish_cycle();
-
-        srt_source_->on_unpublish();
-        http_hooks_on_unpublish();
-    } else if (mode_ == SrtModePull) {
-        if ((err = http_hooks_on_play()) != srs_success) {
-            return srs_error_wrap(err, "srt: callback on play");
-        }
-        // Do srt play.
-        err = do_play_cycle();
-
-        http_hooks_on_stop();
-    } else {
-        srs_assert(false);
-    }
-
-    return err;
-}
-*/
 
 srs_error_t SrsMpegtsSrtConn::do_publishing()
 {
@@ -394,7 +384,18 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
         // reportable
         if (pprint->can_print()) {
+            SRT_TRACEBSTATS srt_stats;
+            srs_error_t err_tmp = srs_srt_get_stats(srt_fd_, &srt_stats, true);
+            if (err_tmp != srs_success) {
+                srs_freep(err_tmp);
+            } else {
+                srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Transport Stats # "
+                        "pktRecv=%ld, pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d",
+                    srt_stats.pktRecv, srt_stats.pktRcvLoss, srt_stats.pktRcvRetrans, srt_stats.pktRcvDrop);
+            }
+
             kbps_->sample();
+
             srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=%d, packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
                 (int)pprint->age(), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
                 kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
@@ -436,11 +437,20 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     SrsPithyPrint* pprint = SrsPithyPrint::create_srt_play();
     SrsAutoFree(SrsPithyPrint, pprint);
 
+    SrsSrtRecvThread srt_recv_trd(srt_conn_);
+    if ((err = srt_recv_trd.start()) != srs_success) {
+        return srs_error_wrap(err, "start srt recv trd");
+    }
+
     int nb_packets = 0;
 
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "srt play thread");
+        }
+
+        if ((err = srt_recv_trd.get_recv_err()) != srs_success) {
+            return srs_error_wrap(err, "srt play recv thread");
         }
 
         pprint->elapse();
@@ -451,13 +461,24 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
         consumer->dump_packet(&pkt);
         if (!pkt) {
             // TODO: FIXME: We should check the quit event.
-            consumer->wait(1);
+            consumer->wait(1, 1000 * SRS_UTIME_MILLISECONDS);
             continue;
         }
 
         // reportable
         if (pprint->can_print()) {
+            SRT_TRACEBSTATS srt_stats;
+            srs_error_t err_tmp = srs_srt_get_stats(srt_fd_, &srt_stats, true);
+            if (err_tmp != srs_success) {
+                srs_freep(err_tmp);
+            } else {
+                srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " Transport Stats # "
+                        "pktSent=%ld, pktSndLoss=%d, pktRetrans=%d, pktSndDrop=%d",
+                    srt_stats.pktSent, srt_stats.pktSndLoss, srt_stats.pktRetrans, srt_stats.pktSndDrop);
+            }
+
             kbps_->sample();
+
             srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=%d, packets=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d",
                 (int)pprint->age(), nb_packets, kbps_->get_send_kbps(), kbps_->get_send_kbps_30s(), kbps_->get_send_kbps_5m(),
                 kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
