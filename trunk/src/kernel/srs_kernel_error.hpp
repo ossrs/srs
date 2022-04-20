@@ -358,6 +358,8 @@
 #define ERROR_SRT_SOCKOPT                   6005
 #define ERROR_SRT_CONN                      6006
 #define ERROR_SRT_SOURCE_BUSY               6007
+#define ERROR_RTMP_TO_SRT                   6008
+#define ERROR_SRT_STATS                     6009
 
 ///////////////////////////////////////////////////////
 // HTTP API error.

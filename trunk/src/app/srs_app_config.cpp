@@ -2723,7 +2723,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "play" && n != "publish" && n != "cluster"
                 && n != "security" && n != "http_remux" && n != "dash"
                 && n != "http_static" && n != "hds" && n != "exec"
-                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc") {
+                && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -2878,6 +2878,13 @@ srs_error_t SrsConfig::check_normal_config()
                         && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp"
                         && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
+                    }
+                }
+            } else if (n == "srt") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name;
+                    if (m != "enabled" && m != "rtmp_to_srt" && m != "srt_to_rtmp") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.srt.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             }
@@ -6757,20 +6764,6 @@ unsigned short SrsConfig::get_srt_listen_port()
     return (unsigned short)atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_srt_mix_correct() {
-    static bool DEFAULT = true;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("mix_correct");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
-}
-
 int SrsConfig::get_srto_maxbw() {
     static int64_t DEFAULT = -1;
     SrsConfDirective* conf = root->get("srt_server");
@@ -6969,6 +6962,79 @@ string SrsConfig::get_default_app_name() {
         return DEFAULT;
     }
     return conf->arg0();
+}
+
+bool SrsConfig::get_srt_mix_correct() {
+    static bool DEFAULT = true;
+    SrsConfDirective* conf = root->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+    
+    conf = conf->get("mix_correct");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+SrsConfDirective* SrsConfig::get_srt(std::string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    return conf? conf->get("srt") : NULL;
+}
+
+bool SrsConfig::get_srt_enabled(std::string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_srt(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_srt_to_rtmp(std::string vhost)
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = get_srt(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("srt_to_rtmp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_srt_from_rtmp(std::string vhost)
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_srt(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtmp_to_srt");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::get_http_stream_enabled()

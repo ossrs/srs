@@ -662,6 +662,11 @@ public:
     virtual std::string get_default_app_name();
     // Get the mix_correct
     virtual bool get_srt_mix_correct();
+public:
+    SrsConfDirective* get_srt(std::string vhost);
+    bool get_srt_enabled(std::string vhost);
+    bool get_srt_to_rtmp(std::string vhost);
+    bool get_srt_from_rtmp(std::string vhost);
 
 // http_hooks section
 private:

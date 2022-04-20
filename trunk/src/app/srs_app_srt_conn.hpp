@@ -51,6 +51,25 @@ private:
     SrsSrtSocket* srt_skt_;
 };
 
+class SrsSrtRecvThread : public ISrsCoroutineHandler
+{
+public:
+    SrsSrtRecvThread(SrsSrtConnection* srt_conn);
+    ~SrsSrtRecvThread();
+// Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+private:
+    srs_error_t do_cycle();
+public:
+    srs_error_t start();
+    srs_error_t get_recv_err();
+private:
+    SrsSrtConnection* srt_conn_;
+    SrsCoroutine* trd_;
+    srs_error_t recv_err_;
+};
+
 class SrsMpegtsSrtConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
 {
 public:

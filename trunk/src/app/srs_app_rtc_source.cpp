@@ -270,7 +270,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
-    srs_trace("new source, stream_url=%s", stream_url.c_str());
+    srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
 
     source = new SrsRtcSource();
     if ((err = source->initialize(r)) != srs_success) {
@@ -316,7 +316,7 @@ ISrsRtcSourceEventHandler::~ISrsRtcSourceEventHandler()
 {
 }
 
-ISrsRtcSourceBridger::ISrsRtcSourceBridger()
+ISrsRtcSourceBridger::ISrsRtcSourceBridger(SrsBridgeDestType type) : ISrsBridge(type)
 {
 }
 
@@ -333,7 +333,6 @@ SrsRtcSource::SrsRtcSource()
     stream_desc_ = NULL;
 
     req = NULL;
-    bridger_ = NULL;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
 }
@@ -345,7 +344,11 @@ SrsRtcSource::~SrsRtcSource()
     consumers.clear();
 
     srs_freep(req);
-    srs_freep(bridger_);
+    for (vector<ISrsRtcSourceBridger*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
+        ISrsRtcSourceBridger* bridge = *iter;
+        srs_freep(bridge);
+    }
+    bridgers_.clear();
     srs_freep(stream_desc_);
 }
 
@@ -459,8 +462,16 @@ SrsContextId SrsRtcSource::pre_source_id()
 
 void SrsRtcSource::set_bridger(ISrsRtcSourceBridger *bridger)
 {
-    srs_freep(bridger_);
-    bridger_ = bridger;
+    for (vector<ISrsRtcSourceBridger*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
+        ISrsRtcSourceBridger* b = *iter;
+        if (b->get_type() == bridger->get_type()) {
+            srs_freep(b);
+            *iter = bridger;
+            return;
+        }
+    }
+
+    bridgers_.push_back(bridger);
 }
 
 srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
@@ -533,9 +544,12 @@ srs_error_t SrsRtcSource::on_publish()
     }
 
     // If bridge to other source, handle event and start timer to request PLI.
-    if (bridger_) {
-        if ((err = bridger_->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "bridger on publish");
+    if (! bridgers_.empty()) {
+        for (vector<ISrsRtcSourceBridger*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
+            ISrsRtcSourceBridger* bridge = *iter;
+            if ((err = bridge->on_publish()) != srs_success) {
+                return srs_error_wrap(err, "bridger on publish");
+            }
         }
 
         // The PLI interval for RTC2RTMP.
@@ -574,12 +588,16 @@ void SrsRtcSource::on_unpublish()
     }
 
     //free bridger resource
-    if (bridger_) {
+    if (! bridgers_.empty()) {
         // For SrsRtcSource::on_timer()
         _srs_hybrid->timer100ms()->unsubscribe(this);
 
-        bridger_->on_unpublish();
-        srs_freep(bridger_);
+        for (vector<ISrsRtcSourceBridger*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
+            ISrsRtcSourceBridger* bridge = *iter;
+            bridge->on_unpublish();
+            srs_freep(bridge);
+        }
+        bridgers_.clear();
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -629,8 +647,11 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket* pkt)
         }
     }
 
-    if (bridger_ && (err = bridger_->on_rtp(pkt)) != srs_success) {
-        return srs_error_wrap(err, "bridger consume message");
+    for (vector<ISrsRtcSourceBridger*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
+        ISrsRtcSourceBridger* bridge = *iter;
+        if ((err = bridge->on_rtp(pkt)) != srs_success) {
+            return srs_error_wrap(err, "bridger consume message");
+        }
     }
 
     return err;
@@ -703,7 +724,8 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 }
 
 #ifdef SRS_FFMPEG_FIT
-SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
+SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source) 
+    : ISrsLiveSourceBridger(SrsBridgeDestTypeRTC)
 {
     req = NULL;
     source_ = source;
@@ -1270,7 +1292,7 @@ srs_error_t SrsRtcFromRtmpBridger::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtmpFromRtcBridger::SrsRtmpFromRtcBridger(SrsLiveSource *src)
+SrsRtmpFromRtcBridger::SrsRtmpFromRtcBridger(SrsLiveSource *src) : ISrsRtcSourceBridger(SrsBridgeDestTypeRtmp)
 {
     source_ = src;
     codec_ = NULL;

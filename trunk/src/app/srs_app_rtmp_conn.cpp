@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_srt_source.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -950,6 +951,31 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     if (!source->can_publish(info->edge)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp: stream %s is busy", req->get_stream_url().c_str());
     }
+
+#ifdef SRS_SRT
+    if (_srs_config->get_rtc_from_rtmp(req->vhost)) {
+        SrsSrtSource *srt = NULL;
+        if (!info->edge) {
+            if ((err = _srs_srt_sources->fetch_or_create(req, &srt)) != srs_success) {
+                return srs_error_wrap(err, "create source");
+            }
+
+            if (!srt->can_publish()) {
+                return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "srt stream %s busy", req->get_stream_url().c_str());
+            }
+        }
+
+        if (srt) {
+            SrsSrtFromRtmpBridge *bridger = new SrsSrtFromRtmpBridge(srt);
+            if ((err = bridger->initialize(req)) != srs_success) {
+                srs_freep(bridger);
+                return srs_error_wrap(err, "bridger init");
+            }
+
+            source->set_bridger(bridger);
+        }
+    }
+#endif
     
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC

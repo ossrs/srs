@@ -380,12 +380,14 @@ srs_error_t SrsSrtEventLoop::cycle()
             return srs_error_wrap(err, "srt listener");
         }
        
+        // Check events fired, return directly.
         if ((err = srt_poller_->wait(0)) != srs_success) {
             srs_error("srt poll wait failed, err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
         }
 
-        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        // Schedule srt event by state-thread.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     }
     
     return err;
