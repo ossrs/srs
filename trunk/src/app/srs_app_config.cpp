@@ -4586,6 +4586,27 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
+srs_utime_t SrsConfig::get_play_timeout(std::string vhost){
+    static srs_utime_t DEFAULT = 15 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("play");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+}
+
 int SrsConfig::get_global_chunk_size()
 {
     SrsConfDirective* conf = root->get("chunk_size");

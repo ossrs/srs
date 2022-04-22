@@ -614,6 +614,8 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     // The normal packet timeout in srs_utime_t for encoder.
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
+    // play timeout
+    virtual srs_utime_t get_play_timeout(std::string vhost);
 private:
     // Get the global chunk size.
     virtual int get_global_chunk_size();

@@ -643,6 +643,9 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
+    srs_utime_t play_timeout = _srs_config->get_play_timeout(req->vhost);
+    srs_utime_t last_consumer_time = srs_get_system_time();
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     while (entry->enabled) {
         // Whether client closed the FD.
         if ((err = trd->pull()) != srs_success) {
@@ -660,11 +663,25 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
         // TODO: FIXME: Support merged-write wait.
         if (count <= 0) {
+            if (!vhost_is_edge) {
+                // live source inactive(un_publish)
+                if (source->inactive()) {
+                    w->final_request();
+                    return srs_error_wrap(err, "stream eof");
+                }
+                // check play timeout
+                srs_utime_t now = srs_get_system_time();
+                if (play_timeout > 0 && (now - last_consumer_time > play_timeout)) {
+                    w->final_request();
+                    return srs_error_wrap(err, "play timeout");
+                }
+            }
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
             srs_usleep(mw_sleep);
             // ignore when nothing got.
             continue;
         }
+        last_consumer_time = srs_get_system_time();
         
         if (pprint->can_print()) {
             srs_trace("-> " SRS_CONSTS_LOG_HTTP_STREAM " http: got %d msgs, age=%d, min=%d, mw=%d",
@@ -1100,8 +1117,10 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     std::string sid = r->get_stream_url();
     // check whether the http remux is enabled,
     // for example, user disable the http flv then reload.
+    bool find_stream = false;
     if (sflvs.find(sid) != sflvs.end()) {
         SrsLiveEntry* s_entry = sflvs[sid];
+        find_stream = true;
         if (!s_entry->stream->entry->enabled) {
             // only when the http entry is disabled, check the config whether http flv disable,
             // for the http flv edge use hijack to trigger the edge ingester, we always mount it
@@ -1110,6 +1129,12 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
                 return srs_error_new(ERROR_HTTP_HIJACK, "stream disabled");
             }
         }
+    }
+
+    // not find stream return 404 for origin
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
+    if (!vhost_is_edge && !find_stream) {
+        return err;
     }
     
     SrsLiveSource* s = NULL;
@@ -1132,7 +1157,6 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
     }
     
     // trigger edge to fetch from origin.
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
     srs_trace("flv: source url=%s, is_edge=%d, source_id=%s/%s",
         r->get_stream_url().c_str(), vhost_is_edge, s->source_id().c_str(), s->pre_source_id().c_str());
 
