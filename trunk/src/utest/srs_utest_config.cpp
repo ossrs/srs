@@ -2115,6 +2115,9 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 VOID TEST(ConfigUnitTest, CheckDefaultValuesGlobal)
 {
     if (true) {
+        // Schedule thread once, to update last_clock in state-thread.
+        srs_usleep(1);
+
         srs_utime_t t0 = srs_update_system_time();
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);
         srs_utime_t t1 = srs_update_system_time();
