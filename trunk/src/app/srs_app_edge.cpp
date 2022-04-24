@@ -454,10 +454,10 @@ srs_error_t SrsEdgeIngester::cycle()
     int retry_limit = _srs_config->get_vhost_edge_retry_times(req->vhost);
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
     int origin_count = 1;
-    if (conf != nullptr && !conf->args.empty()) {
+    if (conf != NULL && !conf->args.empty()) {
         origin_count = (int) conf->args.size();
     }
-    u_int32_t retry_times = 0;
+    int retry_times = 0;
     while (true) {
         // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
