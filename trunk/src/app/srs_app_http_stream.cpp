@@ -663,19 +663,21 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
         // TODO: FIXME: Support merged-write wait.
         if (count <= 0) {
+            // origin stream inactive
             if (!vhost_is_edge) {
-                // live source inactive(un_publish)
                 if (source->inactive()) {
                     w->final_request();
-                    return srs_error_wrap(err, "stream eof");
-                }
-                // check play timeout
-                srs_utime_t now = srs_get_system_time();
-                if (play_timeout > 0 && (now - last_consumer_time > play_timeout)) {
-                    w->final_request();
-                    return srs_error_wrap(err, "play timeout");
+                    return srs_error_new(ERROR_RTMP_STREAM_EOF, "stream eof");
                 }
             }
+
+            // check play timeout
+            srs_utime_t now = srs_get_system_time();
+            if (play_timeout > 0 && (now - last_consumer_time > play_timeout)) {
+                w->final_request();
+                return srs_error_new(ERROR_RTMP_PLAY_TIMEOUT, "play timeout");
+            }
+
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
             srs_usleep(mw_sleep);
             // ignore when nothing got.
@@ -1131,10 +1133,10 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
         }
     }
 
-    // not find stream return 404 for origin
+    // origin stream not find
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(r->vhost);
     if (!vhost_is_edge && !find_stream) {
-        return err;
+        return srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not find");
     }
     
     SrsLiveSource* s = NULL;

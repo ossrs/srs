@@ -4935,6 +4935,25 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
     return conf->get("origin");
 }
 
+int SrsConfig::get_vhost_edge_retry_times(string vhost)
+{
+    static int DEFAULT = 0;
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+
+    conf = conf->get("cluster");
+    if (!conf) {
+        return NULL;
+    }
+    conf = conf->get("retry_times");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return ::atoi(conf->arg0().c_str());
+}
+
 string SrsConfig::get_vhost_edge_protocol(string vhost)
 {
     static string DEFAULT = "rtmp";

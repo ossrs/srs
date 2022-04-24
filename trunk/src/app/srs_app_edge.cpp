@@ -451,7 +451,13 @@ string SrsEdgeIngester::get_curr_origin()
 srs_error_t SrsEdgeIngester::cycle()
 {
     srs_error_t err = srs_success;
-    
+    int retry_limit = _srs_config->get_vhost_edge_retry_times(req->vhost);
+    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
+    int origin_count = 1;
+    if (conf != nullptr && !conf->args.empty()) {
+        origin_count = (int) conf->args.size();
+    }
+    u_int32_t retry_times = 0;
     while (true) {
         // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
@@ -464,7 +470,16 @@ srs_error_t SrsEdgeIngester::cycle()
             srs_freep(err);
         }
 
-        srs_usleep(SRS_EDGE_INGESTER_CIMS);
+        retry_times++;
+        if (retry_limit > 0 && retry_times >= retry_limit * origin_count) {
+            srs_warn("edge ingest fail retry_limit=%d,retry_times=%d", retry_limit, retry_times);
+            return srs_error_new(ERROR_RTMP_INGEST_FAIL, "edge ingest fail");
+        }
+
+        bool next_origin_loop = retry_times % origin_count == 0;
+        if (next_origin_loop) {
+            srs_usleep(SRS_EDGE_INGESTER_CIMS);
+        }
     }
     
     return err;

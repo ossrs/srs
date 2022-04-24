@@ -614,7 +614,8 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost);
     // The normal packet timeout in srs_utime_t for encoder.
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost);
-    // play timeout
+    // Get the http play timeout (second)
+    // @param vhost, the vhost to get the play timeout second
     virtual srs_utime_t get_play_timeout(std::string vhost);
 private:
     // Get the global chunk size.
@@ -727,6 +728,8 @@ public:
     // Get the origin config of edge,
     // specifies the origin ip address, port.
     virtual SrsConfDirective* get_vhost_edge_origin(std::string vhost);
+    // Get the edge connect to origin retry limit times
+    virtual int get_vhost_edge_retry_times(std::string vhost);
     // Get the procotol to connect to origin server.
     virtual std::string get_vhost_edge_protocol(std::string vhost);
     // Whether follow client protocol to connect to origin.
