@@ -71,7 +71,6 @@ class SrsTsFragment
 {
 private:
     srs_utime_t die_at;
-    srs_utime_t delay_time;
     std::string filepath;
 public:
     SrsTsFragment(srs_utime_t time, std::string path);

@@ -391,8 +391,7 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
 
 SrsTsFragment::SrsTsFragment(srs_utime_t time, std::string path)
 {
-    die_at = srs_get_system_time();
-    delay_time = time;
+    die_at = srs_get_system_time() + time;
     filepath = path;
 }
 
@@ -403,7 +402,7 @@ SrsTsFragment::~SrsTsFragment()
 bool SrsTsFragment::expired()
 {
     srs_utime_t now = srs_get_system_time();
-    if (now > die_at + delay_time) {
+    if (now > die_at) {
         return true;
     }
 
