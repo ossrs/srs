@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-> 注意：提问前，请先看FAQ(Please read FAQ before file an issue) https://github.com/ossrs/srs/issues/2716
+> 注意：提问前，请先看FAQ(Please read FAQ before file an issue) issue 2716
 
 **描述(Description)**
 
