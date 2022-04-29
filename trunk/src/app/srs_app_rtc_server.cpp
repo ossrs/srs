@@ -471,17 +471,24 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     SrsRequest* req = ruc->req_;
 
     SrsRtcSource* source = NULL;
+    srs_error("api  ############################ step 5.1\n");
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
+        srs_error("api  ############################ step 5.2\n");
         return srs_error_wrap(err, "create source");
     }
+    srs_error("api  ############################ step 5.3\n");
 
     if (ruc->publish_ && !source->can_publish()) {
+        srs_error("api  ############################ step 5.4\n");
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
+    srs_error("api  ############################ step 5.5\n");
 
     // TODO: FIXME: add do_create_session to error process.
-    SrsRtcConnection* session = new SrsRtcConnection(this, cid);
+    string stream_info = req->vhost + "-" + req->app + "-" + req->stream;
+    SrsRtcConnection* session = new SrsRtcConnection(this, cid, stream_info);
     if ((err = do_create_session(ruc, local_sdp, session)) != srs_success) {
+        srs_error("api  ############################ step 5.6\n");
         srs_freep(session);
         return srs_error_wrap(err, "create session");
     }
@@ -498,13 +505,16 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     SrsRequest* req = ruc->req_;
 
     // first add publisher/player for negotiate sdp media info
-    if (ruc->publish_) {
-        if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
-            return srs_error_wrap(err, "add publisher");
-        }
-    } else {
-        if ((err = session->add_player(ruc, local_sdp)) != srs_success) {
-            return srs_error_wrap(err, "add player");
+    int nSize = ruc->remote_sdp_.media_descs_.size();
+    if (!ruc->remote_sdp_.media_descs_[0].is_application()) {
+        if (ruc->publish_) {
+            if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
+                return srs_error_wrap(err, "add publisher");
+            }
+        } else {
+            if ((err = session->add_player(ruc, local_sdp)) != srs_success) {
+                return srs_error_wrap(err, "add player");
+            }
         }
     }
 

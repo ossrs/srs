@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <string>
 
 #include <srs_app_rtc_sdp.hpp>
 #include <srs_service_st.hpp>
@@ -247,6 +248,8 @@ private:
 class SrsRtcFromRtmpBridger : public ISrsLiveSourceBridger
 {
 private:
+    bool has_idr;
+    std::vector<SrsSharedPtrMessage*> datachannel_queue;
     SrsRequest* req;
     SrsRtcSource* source_;
     // The format, codec information.
@@ -265,6 +268,9 @@ private:
 public:
     SrsRtcFromRtmpBridger(SrsRtcSource* source);
     virtual ~SrsRtcFromRtmpBridger();
+public:
+    std::string getDatachannelStreamInfo();
+    srs_error_t getDatachannelMsg(SrsSharedPtrMessage** msgs);
 public:
     virtual srs_error_t initialize(SrsRequest* r);
     virtual srs_error_t on_publish();

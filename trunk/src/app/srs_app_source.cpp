@@ -2146,7 +2146,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPack
             }
         }
     }
-    
+
     // Copy to hub to all utilities.
     return hub->on_meta_data(meta->data(), metadata);
 }

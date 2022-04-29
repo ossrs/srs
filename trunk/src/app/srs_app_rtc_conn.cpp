@@ -78,14 +78,16 @@ ISrsRtcTransport::~ISrsRtcTransport()
 {
 }
 
-SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s)
+SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s, const std::string& streaminfo)
 {
     session_ = s;
     dtls_ = new SrsDtls((ISrsDtlsCallback*)this);
     srtp_ = new SrsSRTP();
     
 #ifdef SRS_SCTP
-    sctp_ = new SrsSctp(dtls_);
+//    sctp_ = new SrsSctp(dtls_);
+    stream_info_ = streaminfo;
+    sctp_ = nullptr;
 #endif
 
     handshake_done = false;
@@ -166,10 +168,12 @@ srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, cons
     srs_error_t err = srs_success;
 
 #ifdef SRS_SCTP
+//    srs_error("############################ on_dtls_application_data , buf = %s, len = %d\n", buf, nb_buf);
     if (sctp_ == NULL) {
-        sctp_ = new SrsSctp(dtls_);
+        sctp_ = new SrsSctp(dtls_, stream_info_);
         // TODO: FIXME: Handle error.
-        sctp_->connect_to_class();
+        srs_error_t e = sctp_->connect_to_class();
+        srs_error("connect_to_class %s", srs_error_desc(e).c_str());
     }
 
     sctp_->feed(buf, nb_buf);
@@ -1814,7 +1818,7 @@ srs_error_t SrsRtcConnectionNackTimer::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
+SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, const std::string& streaminfo)
 {
     req_ = NULL;
     cid_ = cid;
@@ -1822,7 +1826,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
 
     sendonly_skt = NULL;
     server_ = s;
-    transport_ = new SrsSecurityTransport(this);
+    transport_ = new SrsSecurityTransport(this, streaminfo);
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -1840,6 +1844,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     pli_epp = new SrsErrorPithyPrint();
 
     nack_enabled_ = false;
+    stream_info_ = streaminfo;
     timer_nack_ = new SrsRtcConnectionNackTimer(this);
 
     _srs_rtc_manager->subscribe(this);
@@ -3206,6 +3211,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("audio", "opus");
+            srs_error("############################ step 1.1\n");
         } else if (remote_media_desc.is_video() && ruc->codec_ == "av1") {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1X");
             if (payloads.empty()) {
@@ -3214,6 +3220,7 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
 
             remote_payload = payloads.at(0);
             track_descs = source->get_track_desc("video", "AV1X");
+            srs_error("############################ step 1.2\n");
         } else if (remote_media_desc.is_video()) {
             // TODO: check opus format specific param
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H264");
@@ -3234,9 +3241,11 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
             }
 
             track_descs = source->get_track_desc("video", "H264");
+            srs_error("############################ step 1.3\n");
         }
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
+            srs_error("############################ step 1.4\n");
             SrsRtcTrackDescription* track = track_descs.at(j)->copy();
 
             // We should clear the extmaps of source(publisher).

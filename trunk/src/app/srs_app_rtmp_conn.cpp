@@ -940,6 +940,8 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     return err;
 }
 
+map<string, SrsRtcFromRtmpBridger*> g_mapStream2Bridger;
+
 srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 {
     srs_error_t err = srs_success;
@@ -977,6 +979,8 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
         }
 
         source->set_bridger(bridger);
+        string strInfo = bridger->getDatachannelStreamInfo();
+        g_mapStream2Bridger[strInfo] = bridger;
     }
 #endif
 

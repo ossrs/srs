@@ -109,10 +109,11 @@ private:
     SrsSRTP* srtp_;
 #ifdef SRS_SCTP
     SrsSctp* sctp_;
+    std::string stream_info_;
 #endif
     bool handshake_done;
 public:
-    SrsSecurityTransport(SrsRtcConnection* s);
+    SrsSecurityTransport(SrsRtcConnection* s, const std::string& streaminfo = "");
     virtual ~SrsSecurityTransport();
 
     srs_error_t initialize(SrsSessionConfig* cfg);
@@ -497,8 +498,9 @@ private:
     SrsErrorPithyPrint* pli_epp;
 private:
     bool nack_enabled_;
+    std::string stream_info_;
 public:
-    SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
+    SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, const std::string& streaminfo = "");
     virtual ~SrsRtcConnection();
 // interface ISrsDisposingHandler
 public:

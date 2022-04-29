@@ -39,6 +39,8 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_st.hpp>
+#include "srs_rtmp_msg_array.hpp"
 
 enum SrsDataChannelMessageType
 {
@@ -197,9 +199,12 @@ srs_error_t SrsSctpGlobalEnv::notify(int type, srs_utime_t interval, srs_utime_t
 
 SrsSctpGlobalEnv* _srs_sctp_env = NULL;
 
-SrsSctp::SrsSctp(SrsDtls* dtls)
+SrsSctp::SrsSctp(SrsDtls* dtls, const string& stream_info)
 {
-    rtc_dtls_ = dtls;
+    sctp_td_ = NULL;
+    bridge_ = NULL;
+    rtc_dtls_ = dtls;;
+    stream_info_ = stream_info;
 
     // TODO: FIXME: Should start in server init event.
     if (_srs_sctp_env == NULL) {
@@ -326,7 +331,15 @@ srs_error_t SrsSctp::on_sctp_event(const struct sctp_rcvinfo& rcv, void* data, s
         return srs_error_new(ERROR_RTC_SCTP, "sctp notify header, sn=%d, len=%d", sctp_notify->sn_header.sn_length, len);
     }
 
-    srs_verbose("sctp event type=%d", (int)sctp_notify->sn_header.sn_type);
+    srs_error("################# sctp event type=%d, sac_state = %d",
+              (int)sctp_notify->sn_header.sn_type, sctp_notify->sn_assoc_change.sac_state);
+
+//    if (sctp_notify->sn_header.sn_type == SCTP_ASSOC_CHANGE && sctp_notify->sn_assoc_change.sac_state == SCTP_COMM_UP) {
+//        string str = "1234567890";
+//        srs_error("################# send when connect");
+//        send(rcv.rcv_sid, str.c_str(), str.length());
+//    }
+
 
     switch (sctp_notify->sn_header.sn_type) {
         case SCTP_ASSOC_CHANGE:
@@ -387,6 +400,9 @@ srs_error_t SrsSctp::on_sctp_data(const struct sctp_rcvinfo& rcv, void* data, si
     }
     return err;
 }
+
+
+extern map<string, SrsRtcFromRtmpBridger*> g_mapStream2Bridger;
 
 srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, SrsBuffer* stream)
 {
@@ -468,6 +484,32 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, Srs
 
             data_channels_.insert(make_pair(data_channel.sid_, data_channel));
 
+            if (sctp_td_ == NULL) {
+                sctp_td_ = new SrsSTCoroutine("sctp-send", this);
+
+                std::map<string, SrsRtcFromRtmpBridger*>::iterator iter_test = g_mapStream2Bridger.begin();
+                for (; iter_test != g_mapStream2Bridger.end(); iter_test++)
+                {
+                    srs_error("iter_test  ############################ step 1, %s\n", iter_test->first.c_str());
+                }
+                srs_error("iter_test  ############################ step 2, %s\n", stream_info_.c_str());
+
+                std::map<string, SrsRtcFromRtmpBridger*>::iterator iter = g_mapStream2Bridger.find(stream_info_);
+                if (iter != g_mapStream2Bridger.end())
+                {
+                    bridge_ = iter->second;
+                    sctp_info_ = rcv;
+                    sctp_td_ = new SrsSTCoroutine("sctp-send", this);
+                    sctp_td_->start();
+                }
+                if (false)
+                {
+                    sctp_td_ = new SrsSTCoroutine("sctp-send", this);
+                    sctp_td_->start();
+                    sctp_info_ = rcv;
+                }
+            }
+
             break;
         }
         case SrsDataChannelMessageTypeAck: {
@@ -481,10 +523,66 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, Srs
     return err;
 }
 
+
+srs_error_t SrsSctp::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while ((err = sctp_td_->pull()) == srs_success)
+    {
+        while (true)
+        {
+            SrsSharedPtrMessage* msg = NULL;
+            bridge_->getDatachannelMsg(&msg);
+            if (msg == NULL)
+            {
+                break;
+            }
+//            char szBuf[32] = {0};
+//            sprintf(szBuf, "hello");
+//            char* pBuf = new char[msg->size + 1];
+//            memset(pBuf, 0, msg->size + 1);
+//            memcpy(pBuf, msg->payload, msg->size);
+//            send(sctp_info_.rcv_sid, pBuf, msg->size);
+//            delete[] pBuf;
+//            send(sctp_info_.rcv_sid, szBuf, strlen(szBuf));
+
+//            send(sctp_info_.rcv_sid, msg->payload, msg->size > 100 ? 100 : msg->size);
+
+            string sum;
+            string xyz = "1234567890";
+            for (int i = 0; i < 10; i++) {
+                sum = sum + xyz;
+            }
+            sum = sum + "123";
+
+//            send(sctp_info_.rcv_sid, sum.c_str(), sum.length());
+
+            send(sctp_info_.rcv_sid, msg->payload, msg->size > 100 ? 100 : msg->size);
+
+            static int g_cnt = 0;
+            g_cnt++;
+            char szNum[32] = {0};
+            sprintf(szNum, "num = %d", g_cnt);
+            send(sctp_info_.rcv_sid, szNum, strlen(szNum));
+
+
+            srs_error("############################ send size = %d, num = %d\n", msg->size, g_cnt);
+
+        }
+
+        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+    }
+
+    return err;
+}
+
+
 srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo& rcv, SrsBuffer* stream)
 {
     srs_error_t err = srs_success;
 
+    srs_error("############################ on_data_channel_msg , len = %d\n", stream->size());
     srs_trace("SCTP: RECV %uB MSG: %.*s", stream->size(), stream->size(), stream->data());
 
     // TODO: FIXME: echo test code.

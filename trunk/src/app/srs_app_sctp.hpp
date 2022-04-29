@@ -37,6 +37,7 @@
 #endif
 
 #include <usrsctp.h>
+#include <srs_app_rtc_source.hpp>
 
 class SrsHourGlass;
 class SrsDtls;
@@ -70,15 +71,16 @@ private:
     SrsHourGlass* sctp_timer_;
 };
 
-class SrsSctp
+class SrsSctp : public ISrsCoroutineHandler
 {
 public:
     SrsDtls* rtc_dtls_;
     struct socket* sctp_socket;
 public:
-    SrsSctp(SrsDtls* dtls);
+    SrsSctp(SrsDtls* dtls, const std::string& stream_info = "");
     virtual ~SrsSctp();
 public:
+    virtual srs_error_t cycle();
     srs_error_t connect_to_class();
 	srs_error_t send(const uint16_t sid, const char* buf, const int len);
     void broadcast(const char* buf, const int len);
@@ -89,6 +91,10 @@ private:
     srs_error_t on_data_channel_control(const struct sctp_rcvinfo& rcv, SrsBuffer* stream);
     srs_error_t on_data_channel_msg(const struct sctp_rcvinfo& rcv, SrsBuffer* stream);
 private:
+    SrsSTCoroutine* sctp_td_;
+    std::string stream_info_;
+    SrsRtcFromRtmpBridger* bridge_;
+    sctp_rcvinfo sctp_info_;
     std::map<uint16_t, SrsDataChannel> data_channels_;
 };
 
