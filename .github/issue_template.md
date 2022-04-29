@@ -7,34 +7,37 @@ assignees: ''
 
 ---
 
-> 注意：提问前，请先看FAQ(Please read FAQ before file an issue) issue 2716
+> Note: Please read FAQ before file an issue, see 2716
 
-**描述(Description)**
+> Note: 提问前，请先看FAQ, 即 2716
 
-> 描述你遇到了什么问题(Please description your issue here)
+**Description(描述)**
 
-1. SRS版本(Version): `xxxxxx`
+> Please description your issue here(描述你遇到了什么问题)
 
-1. SRS的日志如下(Log):
+1. SRS Version(版本): `xxxxxx`
 
-```
-xxxxxxxxxxxx
-```
-
-1. SRS的配置如下(Config):
+1. SRS Log(日志):
 
 ```
 xxxxxxxxxxxx
 ```
 
-**重现(Replay)**
+1. SRS Config(配置):
 
-> 重现Bug的步骤(How to replay bug?)
+```
+xxxxxxxxxxxx
+```
+
+**Replay(重现)**
+
+> Please describe how to replay the bug? (重现Bug的步骤)
 
 1. `xxxxxx`
 1. `xxxxxx`
 1. `xxxxxx`
 
-**期望行为(Expect)**
+**Expect(期望行为)**
 
-> 描述你期望发生的事情(Please describe your expectation)
+> Please describe your expectation(描述你期望发生的事情)
+
