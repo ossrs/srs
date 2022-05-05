@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 /**
-@see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html
+@see: https://gperftools.github.io/gperftools/heapprofile.html
 config srs with gperf(to make gperftools):
     ./configure --with-gperf --jobs=3
 set the pprof path if not set:

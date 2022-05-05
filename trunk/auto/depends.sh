@@ -384,6 +384,10 @@ fi
 if [[ $SRS_OSX == YES ]]; then
     _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="-DMD_HAVE_KQUEUE" && _ST_OBJ="DARWIN_`uname -r`_DBG"
 fi
+# For Ubuntu, the epoll detection might be fail.
+if [[ $OS_IS_UBUNTU == YES ]]; then
+    _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DMD_HAVE_EPOLL"
+fi
 # Whether enable debug stats.
 if [[ $SRS_DEBUG_STATS == YES ]]; then
     _ST_EXTRA_CFLAGS="$_ST_EXTRA_CFLAGS -DDEBUG_STATS"
@@ -469,6 +473,15 @@ ln -sf `pwd`/research/api-server/static-dir/index.html ${SRS_OBJS}/nginx/html/in
 
 # nginx.html to detect whether nginx is alive
 echo "Nginx is ok." > ${SRS_OBJS}/nginx/html/nginx.html
+
+#####################################################################################
+# Generate default self-sign certificate for HTTPS server, test only.
+#####################################################################################
+if [[ ! -f conf/server.key || ! -f conf/server.crt ]]; then
+    openssl genrsa -out conf/server.key 2048
+    openssl req -new -x509 -key conf/server.key -out conf/server.crt -days 3650 -subj "/C=CN/ST=Beijing/L=Beijing/O=Me/OU=Me/CN=ossrs.net"
+    echo "Generate test-only self-sign certificate files"
+fi
 
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
@@ -590,6 +603,12 @@ fi
 # srtp
 #####################################################################################
 SRTP_OPTIONS=""
+# To eliminate warnings, see https://stackoverflow.com/a/34208904/17679565
+#       was built for newer macOS version (11.6) than being linked (11.0)
+if [[ $SRS_OSX == YES ]]; then
+    export MACOSX_DEPLOYMENT_TARGET=11.0
+    echo "Set MACOSX_DEPLOYMENT_TARGET to avoid warnings"
+fi
 # If use ASM for SRTP, we enable openssl(with ASM).
 if [[ $SRS_SRTP_ASM == YES ]]; then
     SRTP_OPTIONS="--enable-openssl"
@@ -792,22 +811,21 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0/include/gtest/gtest.h ]]; then
-        echo "The gtest-1.6.0 is ok.";
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gtest-fit/googletest/include/gtest/gtest.h ]]; then
+        echo "The gtest-fit is ok.";
     else
-        echo "Build gtest-1.6.0";
+        echo "Build gtest-fit";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gtest-1.6.0 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/gtest-1.6.0.zip &&
-            rm -rf gtest && ln -sf gtest-1.6.0 gtest
+            cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest-fit && cp -R ../../3rdparty/gtest-fit gtest-fit
+            rm -rf gtest && ln -sf gtest-fit/googletest gtest
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gtest-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
-    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest && ln -sf gtest-1.6.0 gtest)
-    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-1.6.0 gtest)
-    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-1.6.0 failed."; exit -1; fi
+    (cd ${SRS_OBJS}/${SRS_PLATFORM} && rm -rf gtest && ln -sf gtest-fit/googletest gtest)
+    (cd ${SRS_OBJS} && rm -rf gtest && ln -sf ${SRS_PLATFORM}/gtest-fit/googletest gtest)
+    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "Build gtest-fit failed."; exit -1; fi
 fi
 
 #####################################################################################
@@ -815,21 +833,21 @@ fi
 #####################################################################################
 if [ $SRS_GPERF = YES ]; then
     if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/gperf/bin/pprof ]]; then
-        echo "The gperftools-2.1 is ok.";
+        echo "The gperftools-2-fit is ok.";
     else
-        echo "Build gperftools-2.1";
+        echo "Build gperftools-2-fit";
         (
-            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2.1 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
-            unzip -q ../../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
+            rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/gperftools-2-fit && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+            cp -R ../../3rdparty/gperftools-2-fit . && cd gperftools-2-fit &&
             ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
-            cd .. && rm -rf gperf && ln -sf gperftools-2.1/_release gperf &&
+            cd .. && rm -rf gperf && ln -sf gperftools-2-fit/_release gperf &&
             rm -rf pprof && ln -sf gperf/bin/pprof pprof
         )
     fi
     # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build gperftools-2-fit failed, ret=$ret"; exit $ret; fi
     # Always update the links.
     (cd ${SRS_OBJS} && rm -rf pprof && ln -sf ${SRS_PLATFORM}/gperf/bin/pprof pprof)
-    (cd ${SRS_OBJS} && rm -rf gperf && ln -sf ${SRS_PLATFORM}/gperftools-2.1/_release gperf)
-    if [ ! -f ${SRS_OBJS}/pprof ]; then echo "Build gperftools-2.1 failed."; exit -1; fi
+    (cd ${SRS_OBJS} && rm -rf gperf && ln -sf ${SRS_PLATFORM}/gperftools-2-fit/_release gperf)
+    if [ ! -f ${SRS_OBJS}/pprof ]; then echo "Build gperftools-2-fit failed."; exit -1; fi
 fi

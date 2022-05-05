@@ -75,6 +75,11 @@ void srs_build_features(stringstream& ss)
     SRS_CHECK_FEATURE2(_srs_config->get_https_api_enabled(), "https", ss);
     SRS_CHECK_FEATURE2(_srs_config->get_raw_api(), "raw", ss);
 
+    string region = srs_getenv("SRS_REGION");
+    SRS_CHECK_FEATURE3(!string(region).empty(), "region", region, ss);
+    string source = srs_getenv("SRS_SOURCE");
+    SRS_CHECK_FEATURE3(!string(source).empty(), "source", source, ss);
+
     int nn_vhosts = 0;
     bool rtsp = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
     bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
@@ -222,7 +227,7 @@ srs_error_t SrsLatestVersion::cycle()
         string url;
         srs_utime_t starttime = srs_update_system_time();
         if ((err = query_latest_version(url)) != srs_success) {
-            srs_warn("query err %s", srs_error_desc(err).c_str());
+            srs_trace("query release err %s", srs_error_summary(err).c_str());
             srs_freep(err); // Ignore any error.
         }
 

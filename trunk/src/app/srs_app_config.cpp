@@ -50,7 +50,7 @@ const char* _srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_CONF_PERFER_TRUE(conf_arg) conf_arg != "off"
 
 // default config file.
-#define SRS_CONF_DEFAULT_COFNIG_FILE "conf/srs.conf"
+#define SRS_CONF_DEFAULT_COFNIG_FILE SRS_DEFAULT_CONFIG
 
 // '\n'
 #define SRS_LF (char)SRS_CONSTS_LF
@@ -1982,23 +1982,22 @@ srs_error_t SrsConfig::parse_options(int argc, char** argv)
     srs_trace(_srs_version);
 
     // Try config files as bellow:
-    //      config_file Specified by user, like conf/srs.conf
-    //      try_docker_config Guess by SRS, like conf/docker.conf
-    //      try_fhs_config For FHS, try /etc/srs/srs.conf first, @see https://github.com/ossrs/srs/pull/2711
-    if (!srs_path_exists(config_file)) {
+    //      User specified config(not empty), like user/docker.conf
+    //      If user specified *docker.conf, try *srs.conf, like user/srs.conf
+    //      Try the default srs config, defined as SRS_CONF_DEFAULT_COFNIG_FILE, like conf/srs.conf
+    //      Try config for FHS, like /etc/srs/srs.conf @see https://github.com/ossrs/srs/pull/2711
+    if (true) {
         vector<string> try_config_files;
         if (!config_file.empty()) {
             try_config_files.push_back(config_file);
-            if (srs_string_ends_with(config_file, "docker.conf")) {
-                try_config_files.push_back(srs_string_replace(config_file, "docker.conf", "srs.conf"));
-            }
+        }
+        if (srs_string_ends_with(config_file, "docker.conf")) {
+            try_config_files.push_back(srs_string_replace(config_file, "docker.conf", "srs.conf"));
         }
         try_config_files.push_back(SRS_CONF_DEFAULT_COFNIG_FILE);
-        if (srs_string_ends_with(SRS_CONF_DEFAULT_COFNIG_FILE, "docker.conf")) {
-            try_config_files.push_back(srs_string_replace(SRS_CONF_DEFAULT_COFNIG_FILE, "docker.conf", "srs.conf"));
-        }
         try_config_files.push_back("/etc/srs/srs.conf");
 
+        // Match the first exists file.
         string exists_config_file;
         for (int i = 0; i < (int) try_config_files.size(); i++) {
             string try_config_file = try_config_files.at(i);
@@ -2472,7 +2471,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version"
-            && n != "circuit_breaker" && n != "is_full"
+            && n != "circuit_breaker" && n != "is_full" && n != "in_docker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -2543,7 +2542,7 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "listen" && n != "dir" && n != "candidate" && n != "ecdsa"
                 && n != "encrypt" && n != "reuseport" && n != "merge_nalus" && n != "black_hole"
-                && n != "ip_family") {
+                && n != "ip_family" && n != "api_as_candidates") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
             }
         }
@@ -2998,6 +2997,18 @@ bool SrsConfig::get_daemon()
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_in_docker()
+{
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = root->get("in_docker");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::is_full_config()
@@ -3531,6 +3542,23 @@ std::string SrsConfig::get_rtc_server_candidates()
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_api_as_candidates()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective* conf = root->get("rtc_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("api_as_candidates");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 std::string SrsConfig::get_rtc_server_ip_family()

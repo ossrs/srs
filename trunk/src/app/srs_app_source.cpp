@@ -1519,6 +1519,8 @@ SrsMetaCache::SrsMetaCache()
 SrsMetaCache::~SrsMetaCache()
 {
     dispose();
+    srs_freep(vformat);
+    srs_freep(aformat);
 }
 
 void SrsMetaCache::dispose()
@@ -1713,6 +1715,10 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceH
     
     SrsLiveSource* source = NULL;
     if ((source = fetch(r)) != NULL) {
+        // we always update the request of resource,
+        // for origin auth is on, the token in request maybe invalid,
+        // and we only need to update the token of request, it's simple.
+        source->update_auth(r);
         *pps = source;
         return err;
     }
@@ -1750,11 +1756,6 @@ SrsLiveSource* SrsLiveSourceManager::fetch(SrsRequest* r)
     }
     
     source = pool[stream_url];
-    
-    // we always update the request of resource,
-    // for origin auth is on, the token in request maybe invalid,
-    // and we only need to update the token of request, it's simple.
-    source->update_auth(r);
     
     return source;
 }

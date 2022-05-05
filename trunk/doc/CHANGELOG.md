@@ -8,6 +8,49 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-03-19, For [#2893](https://github.com/ossrs/srs/pull/2893): SRT: Decouple publish with play url (#2893). v4.0.251
+* v4.0, 2022-03-19, Merge [#2908](https://github.com/ossrs/srs/pull/2908): SRT: url supports multiple QueryStrings (#2908). v4.0.250
+* v4.0, 2022-03-17, SRT: Support debug and run with CLion. v4.0.249
+* v4.0, 2022-03-15, Merge [#2966](https://github.com/ossrs/srs/pull/2966): Bugfix: Fix rtcp nack blp encode bug (#2966). v4.0.248
+* v4.0, 2022-03-07, RTC: Identify the WebRTC publisher in param for hooks. v4.0.247
+* v4.0, 2022-03-07, SRT: Append vhost to stream, not app. v4.0.246
+* v4.0, 2022-02-15, Fix warnings for uuid. v4.0.245
+* v4.0, 2022-02-15, Merge [#2917](https://github.com/ossrs/srs/pull/2917): SRT: Close connection if RTMP failed. (#2917). v4.0.244
+* v4.0, 2022-02-15, Refine build script for SRT to avoid warnings. v4.0.243
+* v4.0, 2022-02-11, Support new fields for feature query. v4.0.241
+* v4.0, 2022-02-09, Mirror docker images in TCR Singapore. v4.0.240
+* v4.0, 2022-02-08, Refine the error for WebRTC H5 publisher. v4.0.239
+* v4.0, 2022-02-04, Push docker to docker, acr and tcr. v4.0.238
+* v4.0, 2022-02-03, Merge [#2888](https://github.com/ossrs/srs/pull/2888): Fix bug when the value of http header is empty. (#2888). v4.0.237
+* v4.0, 2022-01-30, Refine docker console, preview by players at the same server. v4.0.236
+* v4.0, 2022-01-30, For docker, always use the console for logging. v4.0.235
+* v4.0, 2022-01-29, Merge [#2896](https://github.com/ossrs/srs/pull/2896): SRT: Reduce the SRT bug by limit the max times for retry. (#2896). v4.0.234
+* v4.0, 2022-01-23, Merge [#2886](https://github.com/ossrs/srs/pull/2886): Fix bug when free addrinfo. (#2886). v4.0.233
+* v4.0, 2022-01-22, Merge [#2887](https://github.com/ossrs/srs/pull/2887): Fix memory leak in SrsMetaCache. (#2887). v4.0.232
+* v4.0, 2022-01-21, Support docker image for [lighthouse](https://hub.docker.com/r/ossrs/lighthouse). v4.0.231
+* v4.0, 2022-01-17, Enable rtmp2rtc and rtc2rtmp for docker.conf
+* v4.0, 2022-01-17, Support docker image for [droplet](https://hub.docker.com/r/ossrs/droplet). v4.0.230
+* v4.0, 2022-01-16, Update README for **Cloud Virtual Machine([CN](https://github.com/ossrs/srs/wiki/v4_CN_Home#cloud-virtual-machine) / [EN](https://github.com/ossrs/srs/wiki/v4_EN_Home#cloud-virtual-machine))**
+* v4.0, 2022-01-13, Merge [#2872](https://github.com/ossrs/srs/pull/2872): RTC: fix play rtc judge for config rtc2rtmp on. (#2872). v4.0.229
+* v4.0, 2022-01-13, Support configure with --config as default config file. v4.0.227
+* v4.0, 2022-01-13, For [#2880](https://github.com/ossrs/srs/pull/2880): Add SrsAutoFreeH to release ptr with hooks. (#2880). v4.0.226
+* v4.0, 2022-01-13, Support api_port to specify the WebRTC API port. v4.0.224
+* v4.0, 2022-01-13, Merge [#2873](https://github.com/ossrs/srs/pull/2873): LiveSource: Refine fetch for external exposed interface. (#2873). v4.0.223
+* v4.0, 2022-01-13, Add conf/vm.conf for cloud virtual machine. v4.0.222
+* v4.0, 2022-01-12, Refine the running homepage. v4.0.221
+* v4.0, 2022-01-12, Merge [#2863](https://github.com/ossrs/srs/pull/2863): RTC: fix play crash or no stream for rtmp2rtc tips. (#2863). v4.0.220
+* v4.0, 2022-01-05, For [#2717](https://github.com/ossrs/srs/issues/2717): When reopening segment, never update the duration. (#2717). v4.0.219
+* v4.0, 2022-01-04, Discover api server and ip as candidates. v4.0.218
+* v4.0, 2022-01-04, Install test-on self-sign certificate. v4.0.217
+* v4.0, 2022-01-03, For [#2824](https://github.com/ossrs/srs/issues/2824): Support config in_docker to fix the detect fail. (#2824). v4.0.216
+* v4.0, 2021-12-31, For [#2728](https://github.com/ossrs/srs/issues/2728): Refine error log for rtmp2rtc. (#2728). v4.0.215
+* v4.0, 2021-12-29, Merge [#2770](https://github.com/ossrs/srs/pull/2770), [#2820](https://github.com/ossrs/srs/pull/2820): Bugs fixed. (#2770)(#2820). v4.0.214
+* v4.0, 2021-12-27, Fix [#2811](https://github.com/ossrs/srs/issues/2811): Fix ulimit issue by detecting epoll on Ubuntu. (#2811). v4.0.213
+* v4.0, 2021-12-26, Fix [#2247](https://github.com/ossrs/srs/pull/2247): Cleanup server for GMC, by WaitGroup to destroy. (#2247). v4.0.212
+* v4.0, 2021-12-25, For [#2809](https://github.com/ossrs/srs/issues/2809), HTTP: Fix 2GB+ mp4/flv file downloading error. (#2809)(#2780)(#2781). v4.0.211
+* v4.0, 2021-12-23, For [#2800](https://github.com/ossrs/srs/issues/2800), Fix bug for large mp4(5G+) offset. (#2800). v4.0.210
+* v4.0, 2021-12-23, For [#2807](https://github.com/ossrs/srs/issues/2807), Fix bug for HLS log printing. (#2807). v4.0.209
+* v4.0, 2021-12-23, For [#2711](https://github.com/ossrs/srs/pull/2711), Refine the default config file. (#2711). v4.0.208
 * v4.0, 2021-12-20, Merge [#2784](https://github.com/ossrs/srs/pull/2784): RTC: Support payload name AV1X/AV1. (#2784)(#2760). v4.0.207
 * v4.0, 2021-12-07, Merge [#2771](https://github.com/ossrs/srs/pull/2771): RTC: Fix memory leak when replace rtp packet in cache. (#2771). v4.0.205
 * v4.0, 2021-12-06, Merge [#2766](https://github.com/ossrs/srs/pull/2766): RTC: Fix nack encode seqnum. (#2766). v4.0.204

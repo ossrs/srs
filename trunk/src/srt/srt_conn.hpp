@@ -26,7 +26,7 @@
 
 bool is_streamid_valid(const std::string& streamid);
 bool get_key_value(const std::string& info, std::string& key, std::string& value);
-bool get_streamid_info(const std::string& streamid, int& mode, std::string& url_subpash);
+bool get_streamid_info(const std::string& streamid, int& mode, std::string& vhost, std::string& url_subpash);
 
 class srt_conn {
 public:
@@ -37,6 +37,7 @@ public:
     SRTSOCKET get_conn();
     int get_mode();
     std::string get_streamid();
+    std::string get_path();
     std::string get_subpath();
     std::string get_vhost();
     int read(unsigned char* data, int len);
@@ -44,14 +45,17 @@ public:
 
     void update_timestamp(long long now_ts);
     long long get_last_ts();
+    int get_write_fail_count();
 
 private:
     SRTSOCKET _conn_fd;
     std::string _streamid;
+    std::string _url_path;
     std::string _url_subpath;
     std::string _vhost;
     int _mode;
     long long _update_timestamp;
+    int write_fail_cnt_;
 };
 
 typedef std::shared_ptr<srt_conn> SRT_CONN_PTR;

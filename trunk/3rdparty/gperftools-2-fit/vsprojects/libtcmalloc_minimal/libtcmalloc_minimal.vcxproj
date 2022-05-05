@@ -1,0 +1,297 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Override|Win32">
+      <Configuration>Release-Override</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Override|x64">
+      <Configuration>Release-Override</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Patch|Win32">
+      <Configuration>Release-Patch</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Patch|x64">
+      <Configuration>Release-Patch</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <UseNativeEnvironment>true</UseNativeEnvironment>
+    <ProjectGuid>{55E2B3AE-3CA1-4DB6-97F7-0A044D6F446F}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|Win32'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|Win32'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|x64'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|x64'">
+    <IncludePath>..\..\src\windows;..\..\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32_OVERRIDE_ALLOCATORS;PERFTOOLS_DLL_DECL=;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Patch|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-Override|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32_OVERRIDE_ALLOCATORS;PERFTOOLS_DLL_DECL=;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\base\dynamic_annotations.c" />
+    <ClCompile Include="..\..\src\base\logging.cc" />
+    <ClCompile Include="..\..\src\base\low_level_alloc.cc" />
+    <ClCompile Include="..\..\src\base\spinlock.cc" />
+    <ClCompile Include="..\..\src\base\spinlock_internal.cc" />
+    <ClCompile Include="..\..\src\base\sysinfo.cc" />
+    <ClCompile Include="..\..\src\central_freelist.cc" />
+    <ClCompile Include="..\..\src\common.cc" />
+    <ClCompile Include="..\..\src\fake_stacktrace_scope.cc" />
+    <ClCompile Include="..\..\src\heap-profile-table.cc" />
+    <ClCompile Include="..\..\src\internal_logging.cc" />
+    <ClCompile Include="..\..\src\malloc_extension.cc" />
+    <ClCompile Include="..\..\src\malloc_hook.cc" />
+    <ClCompile Include="..\..\src\memory_region_map.cc" />
+    <ClCompile Include="..\..\src\page_heap.cc" />
+    <ClCompile Include="..\..\src\raw_printer.cc" />
+    <ClCompile Include="..\..\src\sampler.cc" />
+    <ClCompile Include="..\..\src\span.cc" />
+    <ClCompile Include="..\..\src\stacktrace.cc" />
+    <ClCompile Include="..\..\src\stack_trace_table.cc" />
+    <ClCompile Include="..\..\src\static_vars.cc" />
+    <ClCompile Include="..\..\src\symbolize.cc" />
+    <ClCompile Include="..\..\src\thread_cache.cc" />
+    <ClCompile Include="..\..\src\windows\ia32_modrm_map.cc" />
+    <ClCompile Include="..\..\src\windows\ia32_opcode_map.cc" />
+    <ClCompile Include="..\..\src\windows\mini_disassembler.cc" />
+    <ClCompile Include="..\..\src\windows\override_functions.cc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Patch|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Patch|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\windows\patch_functions.cc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Override|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Override|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\windows\port.cc" />
+    <ClCompile Include="..\..\src\windows\preamble_patcher.cc" />
+    <ClCompile Include="..\..\src\windows\preamble_patcher_with_stub.cc" />
+    <ClCompile Include="..\..\src\windows\system-alloc.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\addressmap-inl.h" />
+    <ClInclude Include="..\..\src\base\atomicops-internals-arm-gcc.h" />
+    <ClInclude Include="..\..\src\base\atomicops-internals-linuxppc.h" />
+    <ClInclude Include="..\..\src\base\atomicops-internals-macosx.h" />
+    <ClInclude Include="..\..\src\base\atomicops-internals-x86-msvc.h" />
+    <ClInclude Include="..\..\src\base\atomicops-internals-x86.h" />
+    <ClInclude Include="..\..\src\base\atomicops.h" />
+    <ClInclude Include="..\..\src\base\basictypes.h" />
+    <ClInclude Include="..\..\src\base\commandlineflags.h" />
+    <ClInclude Include="..\..\src\base\googleinit.h" />
+    <ClInclude Include="..\..\src\base\linked_list.h" />
+    <ClInclude Include="..\..\src\base\logging.h" />
+    <ClInclude Include="..\..\src\base\low_level_alloc.h" />
+    <ClInclude Include="..\..\src\base\mutex.h" />
+    <ClInclude Include="..\..\src\base\spinlock.h" />
+    <ClInclude Include="..\..\src\base\spinlock_internal.h" />
+    <ClInclude Include="..\..\src\base\spinlock_linux-inl.h" />
+    <ClInclude Include="..\..\src\base\spinlock_posix-inl.h" />
+    <ClInclude Include="..\..\src\base\spinlock_win32-inl.h" />
+    <ClInclude Include="..\..\src\base\stl_allocator.h" />
+    <ClInclude Include="..\..\src\base\sysinfo.h" />
+    <ClInclude Include="..\..\src\base\thread_annotations.h" />
+    <ClInclude Include="..\..\src\central_freelist.h" />
+    <ClInclude Include="..\..\src\common.h" />
+    <ClInclude Include="..\..\src\gperftools\heap-checker.h" />
+    <ClInclude Include="..\..\src\gperftools\heap-profiler.h" />
+    <ClInclude Include="..\..\src\gperftools\malloc_extension.h" />
+    <ClInclude Include="..\..\src\gperftools\malloc_hook.h" />
+    <ClInclude Include="..\..\src\gperftools\profiler.h" />
+    <ClInclude Include="..\..\src\gperftools\stacktrace.h" />
+    <ClInclude Include="..\..\src\heap-profile-table.h" />
+    <ClInclude Include="..\..\src\internal_logging.h" />
+    <ClInclude Include="..\..\src\malloc_hook-inl.h" />
+    <ClInclude Include="..\..\src\memory_region_map.h" />
+    <ClInclude Include="..\..\src\packed-cache-inl.h" />
+    <ClInclude Include="..\..\src\pagemap.h" />
+    <ClInclude Include="..\..\src\page_heap.h" />
+    <ClInclude Include="..\..\src\page_heap_allocator.h" />
+    <ClInclude Include="..\..\src\raw_printer.h" />
+    <ClInclude Include="..\..\src\sampler.h" />
+    <ClInclude Include="..\..\src\span.h" />
+    <ClInclude Include="..\..\src\stacktrace_config.h" />
+    <ClInclude Include="..\..\src\stacktrace_win32-inl.h" />
+    <ClInclude Include="..\..\src\stack_trace_table.h" />
+    <ClInclude Include="..\..\src\static_vars.h" />
+    <ClInclude Include="..\..\src\symbolize.h" />
+    <ClInclude Include="..\..\src\system-alloc.h" />
+    <ClInclude Include="..\..\src\tcmalloc.h" />
+    <ClInclude Include="..\..\src\thread_cache.h" />
+    <ClInclude Include="..\..\src\windows\config.h" />
+    <ClInclude Include="..\..\src\windows\mini_disassembler.h" />
+    <ClInclude Include="..\..\src\windows\mini_disassembler_types.h" />
+    <ClInclude Include="..\..\src\windows\port.h" />
+    <ClInclude Include="..\..\src\windows\preamble_patcher.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -26,6 +26,7 @@ static long long MONITOR_TIMEOUT = 5000;
 const unsigned int DEF_DATA_SIZE = 188*7;
 const long long CHECK_ALIVE_INTERVAL = 5*1000;
 const long long CHECK_ALIVE_TIMEOUT = 5*1000;
+static const int SRT_WRTIE_FAIL_MAX = 10;
 
 long long srt_now_ms = 0;
 
@@ -159,7 +160,7 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
     srt_log_trace("srt h264 sei filter is %s.", _srs_config->get_srt_sei_filter() ? "enable" : "disable");
 
     if (conn_ptr->get_mode() == PULL_SRT_MODE) {
-        add_new_puller(conn_ptr, conn_ptr->get_subpath());
+        add_new_puller(conn_ptr, conn_ptr->get_path());
     } else {
         if(add_new_pusher(conn_ptr) == false) {
             srt_log_trace("push connection is repeated and rejected, fd:%d, streamid:%s",
@@ -178,7 +179,7 @@ void srt_handle::add_newconn(SRT_CONN_PTR conn_ptr, int events) {
     return;
 }
 
-void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subpath, SRTSOCKET conn_fd) {
+void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& path, const std::string& subpath, SRTSOCKET conn_fd) {
     SRT_CONN_PTR srt_conn_ptr;
     unsigned char data[DEF_DATA_SIZE];
     int ret;
@@ -205,10 +206,23 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     srt_conn_ptr->update_timestamp(srt_now_ms);
 
     srt2rtmp::get_instance()->insert_data_message(data, ret, subpath);
+    {
+        std::unique_lock<std::mutex> locker(srt2rtmp::_srt_error_mutex);
+        if (srt2rtmp::_srt_error_map.count(subpath) == 1) {
+            int err_code = srt2rtmp::_srt_error_map[subpath];
+            if (err_code != ERROR_SUCCESS) {
+                close_push_conn(conn_fd);
+                srt_log_error("handle_push_data srt to rtmp error:%d, fd:%d", err_code,conn_fd);
+                //todo: reset to next use, maybe update by srt2rtmp::cycle again
+                srt2rtmp::_srt_error_map[subpath] = ERROR_SUCCESS;
+                return;
+            }
+        }
+    }
     
     //send data to subscriber(players)
     //streamid, play map<SRTSOCKET, SRT_CONN_PTR>
-    auto streamid_iter = _streamid_map.find(subpath);
+    auto streamid_iter = _streamid_map.find(path);
     if (streamid_iter == _streamid_map.end()) {//no puler
         srt_log_info("receive data size(%d) from pusher(%d) but no puller", ret, conn_fd);
         return;
@@ -216,6 +230,7 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
     srt_log_info("receive data size(%d) from pusher(%d) to pullers, count:%d", 
         ret, conn_fd, streamid_iter->second.size());
 
+    std::vector<SRTSOCKET> remove_vec;
     for (auto puller_iter = streamid_iter->second.begin();
         puller_iter != streamid_iter->second.end();
         puller_iter++) {
@@ -228,6 +243,17 @@ void srt_handle::handle_push_data(SRT_SOCKSTATUS status, const std::string& subp
         srt_log_info("send data size(%d) to puller fd:%d", write_ret, puller_iter->first);
         if (write_ret > 0) {
             puller_iter->second->update_timestamp(srt_now_ms);
+        } else {
+            if (player_conn->get_write_fail_count() > SRT_WRTIE_FAIL_MAX) {
+                remove_vec.push_back(puller_iter->first);
+            }
+        }
+    }
+
+    for (auto item : remove_vec) {
+        streamid_iter->second.erase(item);
+        if (streamid_iter->second.empty()) {
+            _streamid_map.erase(streamid_iter);
         }
     }
 
@@ -268,8 +294,8 @@ void srt_handle::check_alive() {
             close_push_conn(conn_ptr->get_conn());
         } else if (conn_ptr->get_mode() == PULL_SRT_MODE) {
             srt_log_warn("check alive close pull connection fd:%d, streamid:%s",
-                conn_ptr->get_conn(), conn_ptr->get_subpath().c_str());
-            close_pull_conn(conn_ptr->get_conn(), conn_ptr->get_subpath());
+                conn_ptr->get_conn(), conn_ptr->get_path().c_str());
+            close_pull_conn(conn_ptr->get_conn(), conn_ptr->get_path());
         } else {
             srt_log_error("check_alive get unkown srt mode:%d, fd:%d", 
                 conn_ptr->get_mode(), conn_ptr->get_conn());
@@ -283,7 +309,7 @@ void srt_handle::close_push_conn(SRTSOCKET srtsocket) {
 
     if (iter != _conn_map.end()) {
         SRT_CONN_PTR conn_ptr = iter->second;
-        auto push_iter = _push_conn_map.find(conn_ptr->get_subpath());
+        auto push_iter = _push_conn_map.find(conn_ptr->get_path());
         if (push_iter != _push_conn_map.end()) {
             _push_conn_map.erase(push_iter);
         }
@@ -298,14 +324,14 @@ void srt_handle::close_push_conn(SRTSOCKET srtsocket) {
 }
 
 bool srt_handle::add_new_pusher(SRT_CONN_PTR conn_ptr) {
-    auto push_iter = _push_conn_map.find(conn_ptr->get_subpath());
+    auto push_iter = _push_conn_map.find(conn_ptr->get_path());
     if (push_iter != _push_conn_map.end()) {
         return false;
     }
-    _push_conn_map.insert(std::make_pair(conn_ptr->get_subpath(), conn_ptr));
+    _push_conn_map.insert(std::make_pair(conn_ptr->get_path(), conn_ptr));
     _conn_map.insert(std::make_pair(conn_ptr->get_conn(), conn_ptr));
-    srt_log_trace("srt_handle add new pusher streamid:%s, subpath:%s",
-        conn_ptr->get_streamid().c_str(), conn_ptr->get_subpath().c_str());
+    srt_log_trace("srt_handle add new pusher streamid:%s, subpath:%s, sid:%s",
+        conn_ptr->get_streamid().c_str(), conn_ptr->get_subpath().c_str(), conn_ptr->get_path().c_str());
     return true;
 }
 
@@ -323,10 +349,7 @@ void srt_handle::handle_pull_data(SRT_SOCKSTATUS status, const std::string& subp
 
 void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
 {
-    std::string subpath;
-    int mode;
     auto conn_ptr = get_srt_conn(conn_fd);
-
     if (!conn_ptr) {
         if (status != SRTS_CLOSED) {
             srt_log_error("handle_srt_socket find srt connection error, fd:%d, status:%d", 
@@ -334,19 +357,17 @@ void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
         }
         return;
     }
-    bool ret = get_streamid_info(conn_ptr->get_streamid(), mode, subpath);
-    if (!ret) {
-        conn_ptr->close();
-        conn_ptr = nullptr;
-        return;
-    }
-    
+
+    std::string path = conn_ptr->get_path();
+    std::string subpath = conn_ptr->get_subpath();
+
+    int mode = conn_ptr->get_mode();    
     if (mode == PUSH_SRT_MODE) {
         switch (status)
         {
             case SRTS_CONNECTED:
             {
-                handle_push_data(status, subpath, conn_fd);
+                handle_push_data(status, path, subpath, conn_fd);
                 break;
             }
             case SRTS_BROKEN:
@@ -372,7 +393,7 @@ void srt_handle::handle_srt_socket(SRT_SOCKSTATUS status, SRTSOCKET conn_fd)
         {
             srt_log_warn("srt pull disconnected fd:%d, streamid:%s",
                 conn_fd, conn_ptr->get_streamid().c_str());
-            close_pull_conn(conn_fd, subpath);
+            close_pull_conn(conn_fd, path);
             break;
         }
         default:

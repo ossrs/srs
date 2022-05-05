@@ -26,6 +26,7 @@ class SrsRequest;
 class SrsSdp;
 class SrsRtcSource;
 class SrsResourceManager;
+class SrsWaitGroup;
 
 // The UDP black hole, for developer to use wireshark to catch plaintext packets.
 // For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
@@ -77,6 +78,7 @@ public:
     SrsSdp remote_sdp_;
     std::string eip_;
     std::string codec_;
+    std::string api_;
 
     // Generated data.
     SrsRequest* req_;
@@ -137,7 +139,7 @@ public:
     virtual ~RtcServerAdapter();
 public:
     virtual srs_error_t initialize();
-    virtual srs_error_t run();
+    virtual srs_error_t run(SrsWaitGroup* wg);
     virtual void stop();
 };
 

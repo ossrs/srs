@@ -189,5 +189,23 @@ private:
     static void* pfn(void* arg);
 };
 
+// Like goroytine sync.WaitGroup.
+class SrsWaitGroup
+{
+private:
+    int nn_;
+    srs_cond_t done_;
+public:
+    SrsWaitGroup();
+    virtual ~SrsWaitGroup();
+public:
+    // When start for n coroutines.
+    void add(int n);
+    // When coroutine is done.
+    void done();
+    // Wait for all corotine to be done.
+    void wait();
+};
+
 #endif
 

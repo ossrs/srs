@@ -448,9 +448,8 @@ public:
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
-private:
+public:
     // Get the exists source, NULL when not exists.
-    // update the request and return the exists source.
     virtual SrsLiveSource* fetch(SrsRequest* r);
 public:
     // dispose and cycle all sources.

@@ -127,8 +127,9 @@ srs_error_t do_main(int argc, char** argv)
     srs_trace2(TAG_MAIN, "%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %s", RTMP_SIG_SRS_AUTHORS);
     srs_trace("contributors: %s", SRS_CONSTRIBUTORS);
-    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d",
-        _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL);
+    srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d, pkg: %s, region: %s, source: %s",
+        _srs_config->cwd().c_str(), cwd.c_str(), SRS_BUILD_DATE, SRS_USER_CONFIGURE, SRS_UNAME, SRS_OSX_BOOL, SRS_PACKAGER,
+        srs_getenv("SRS_REGION").c_str(), srs_getenv("SRS_SOURCE").c_str());
     srs_trace("configure detail: " SRS_CONFIGURE);
 #ifdef SRS_EMBEDED_TOOL_CHAIN
     srs_trace("crossbuild tool chain: " SRS_EMBEDED_TOOL_CHAIN);
@@ -384,6 +385,14 @@ srs_error_t srs_detect_docker()
 srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
+
+    // Try to load the config if docker detect failed.
+    if (!_srs_in_docker) {
+        _srs_in_docker = _srs_config->get_in_docker();
+        if (_srs_in_docker) {
+            srs_trace("enable in_docker by config");
+        }
+    }
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594

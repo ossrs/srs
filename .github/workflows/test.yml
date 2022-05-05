@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Build for CentOS7
+      # Build for CentOS 7
       - name: Build on CentOS7, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-baseline .
       - name: Build on CentOS7, with SRT
@@ -23,7 +23,10 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-no-asm .
       - name: Build on CentOS7, C++98, no FFmpeg
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos7-ansi-no-ffmpeg .
-      # Build for CentOS8
+      # Build for CentOS 6
+      - name: Build on CentOS6, baseline
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
+      # Build for CentOS 8
       - name: Build on CentOS8, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
       - name: Build on CentOS8, with SRT

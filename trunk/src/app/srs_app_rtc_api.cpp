@@ -117,6 +117,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
 
@@ -183,6 +184,21 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
     if (!server_enabled || !rtc_enabled) {
         return srs_error_new(ERROR_RTC_DISABLED, "Disabled server=%d, rtc=%d, vhost=%s",
             server_enabled, rtc_enabled, ruc.req_->vhost.c_str());
+    }
+
+    // Whether RTC stream is active.
+    bool is_rtc_stream_active = false;
+    if (true) {
+        SrsRtcSource* source = _srs_rtc_sources->fetch(ruc.req_);
+        is_rtc_stream_active = (source && !source->can_publish());
+    }
+
+    // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
+    if (!is_rtc_stream_active && !_srs_config->get_rtc_from_rtmp(ruc.req_->vhost)) {
+        SrsLiveSource* rtmp = _srs_sources->fetch(ruc.req_);
+        if (rtmp && !rtmp->inactive()) {
+            return srs_error_new(ERROR_RTC_DISABLED, "Disabled rtmp_to_rtc of %s, see #2728", ruc.req_->vhost.c_str());
+        }
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
@@ -375,11 +391,14 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
     // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip = clientip;
+    ruc.api_ = api;
 
     srs_parse_rtmp_url(streamurl, ruc.req_->tcUrl, ruc.req_->stream);
+    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost,
+    ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
 
-    srs_discovery_tc_url(ruc.req_->tcUrl, ruc.req_->schema, ruc.req_->host, ruc.req_->vhost, 
-                         ruc.req_->app, ruc.req_->stream, ruc.req_->port, ruc.req_->param);
+    // Identify WebRTC publisher by param upstream=rtc
+    ruc.req_->param = srs_string_trim_start(ruc.req_->param + "&upstream=rtc", "&");
 
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(ruc.req_->vhost);
@@ -510,11 +529,9 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(SrsRequest* req)
 
     if (true) {
         SrsConfDirective* conf = _srs_config->get_vhost_on_publish(req->vhost);
-
         if (!conf) {
             return err;
         }
-
         hooks = conf->args;
     }
 

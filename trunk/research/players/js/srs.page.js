@@ -24,7 +24,7 @@ function update_nav() {
 }
 
 // Special extra params, such as auth_key.
-function user_extra_params(query, params) {
+function user_extra_params(query, params, rtc) {
     var queries = params || [];
 
     for (var key in query.user_query) {
@@ -90,6 +90,8 @@ function build_default_flv_url() {
 function build_default_rtc_url(query) {
     // The format for query string to overwrite configs of server.
     console.log('?eip=x.x.x.x to overwrite candidate. 覆盖服务器candidate(外网IP)配置');
+    console.log('?api=x to overwrite WebRTC API(1985).');
+    console.log('?schema=http|https to overwrite WebRTC API protocol.');
 
     var server = (!query.server)? window.location.hostname:query.server;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
@@ -104,7 +106,7 @@ function build_default_rtc_url(query) {
     if (query.schema && window.location.protocol !== query.schema + ':') {
         queries.push('schema=' + query.schema);
     }
-    queries = user_extra_params(query, queries);
+    queries = user_extra_params(query, queries, true);
 
     var uri = "webrtc://" + server + api + "/" + app + "/" + stream + "?" + queries.join('&');
     while (uri.lastIndexOf("?") === uri.length - 1) {

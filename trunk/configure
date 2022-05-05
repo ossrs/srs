@@ -407,7 +407,7 @@ fi
 if [ $SRS_UTEST = YES ]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" "srs_utest_kernel" "srs_utest_core"
         "srs_utest_config" "srs_utest_rtmp" "srs_utest_http" "srs_utest_avc" "srs_utest_reload"
-        "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc")
+        "srs_utest_mp4" "srs_utest_service" "srs_utest_app" "srs_utest_rtc" "srs_utest_srt")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     if [[ $SRS_RTC == YES ]]; then
         ModuleLibIncs+=(${LibSrtpRoot})
@@ -463,6 +463,7 @@ CXXFLAGS = ${CXXFLAGS}
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
+SRS_DEFAULT_CONFIG=${SRS_DEFAULT_CONFIG}
 __REAL_INSTALL=\$(DESTDIR)\$(SRS_PREFIX)
 
 default: server
@@ -604,23 +605,17 @@ install:
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
 	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
+	@cp -f conf/server.key conf/server.crt \$(__REAL_INSTALL)/conf
 	@echo "Now copy init.d script files"
 	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
 	@cp -f etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
+	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
 	@echo "Now copy systemctl service files"
 	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
 	@echo ""
-	@echo "The api installed, to link and start srs, please"
-	@echo "For CentOS6:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
-	@echo "     /etc/init.d/srs start"
-	@echo "For CentOS7:"
-	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs &&"
-	@echo "     sudo cp -f \$(SRS_PREFIX)/usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service && sudo systemctl daemon-reload && sudo systemctl enable srs &&"
-	@echo "     sudo systemctl start srs"
-	@echo "@see: https://github.com/ossrs/srs/wiki/v3_CN_LinuxService"
+	@echo "@see: https://github.com/ossrs/srs/wiki/v4_CN_LinuxService"
 
 END
 
