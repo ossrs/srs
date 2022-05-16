@@ -177,6 +177,10 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir(html)))
 
+	http.Handle("/sig/v1/versions", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("1.0"))
+	}))
+
 	// Key is name of room, value is Room
 	var rooms sync.Map
 	http.Handle("/sig/v1/rtc", websocket.Handler(func(c *websocket.Conn) {
