@@ -9,8 +9,11 @@
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_utility.hpp>
+
+#include <unistd.h>
 
 using namespace std;
 
@@ -129,11 +132,15 @@ SrsHybridServer::SrsHybridServer()
     timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
     clock_monitor_ = new SrsClockWallMonitor();
+
+    clock_cleanUp = new SrsCleanUpExpiredTs();
 }
 
 SrsHybridServer::~SrsHybridServer()
 {
     srs_freep(clock_monitor_);
+
+    srs_freep(clock_cleanUp);
 
     srs_freep(timer20ms_);
     srs_freep(timer100ms_);
@@ -176,6 +183,7 @@ srs_error_t SrsHybridServer::initialize()
 
     // Register some timers.
     timer20ms_->subscribe(clock_monitor_);
+    timer100ms_->subscribe(clock_cleanUp);
     timer5s_->subscribe(this);
 
     // Initialize all hybrid servers.
@@ -377,6 +385,74 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
         epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
         thread_desc.c_str(), free_desc.c_str(), objs_desc.c_str()
     );
+
+    return err;
+}
+
+SrsTsFragment::SrsTsFragment(srs_utime_t time, std::string path)
+{
+    die_at = srs_get_system_time() + time;
+    filepath = path;
+}
+
+SrsTsFragment::~SrsTsFragment()
+{
+}
+
+bool SrsTsFragment::expired()
+{
+    srs_utime_t now = srs_get_system_time();
+    if (now > die_at) {
+        return true;
+    }
+
+    return false;
+}
+
+srs_error_t SrsTsFragment::unlink_file()
+{
+    srs_error_t err = srs_success;
+
+    if (::unlink(filepath.c_str()) < 0) {
+        return srs_error_new(ERROR_SYSTEM_FRAGMENT_UNLINK, "unlink %s", filepath.c_str());
+    }
+
+    return err;
+}
+
+SrsCleanUpExpiredTs::SrsCleanUpExpiredTs()
+{
+}
+
+SrsCleanUpExpiredTs::~SrsCleanUpExpiredTs()
+{
+}
+
+void SrsCleanUpExpiredTs::append(SrsTsFragment* fragment)
+{
+    fragments.push_back(fragment);
+}
+
+srs_error_t SrsCleanUpExpiredTs::on_timer(srs_utime_t interval)
+{
+    srs_error_t err = srs_success;
+
+    std::list<SrsTsFragment*>::iterator it;
+    for (it = fragments.begin(); it != fragments.end();) {
+        SrsTsFragment* fragment = *it;
+
+        if (fragment->expired()) {
+            if ((err = fragment->unlink_file()) != srs_success) {
+                srs_warn("Unlink ts failed %s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+            srs_freep(fragment);
+
+            fragments.erase(it ++);
+        } else {
+            it ++;
+        }
+    }
 
     return err;
 }

@@ -199,6 +199,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     current = NULL;
     hls_keys = false;
     hls_fragments_per_key = 0;
+    hls_delay_cleanup = 0;
     async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
     segments = new SrsFragmentWindow();
@@ -288,7 +289,8 @@ srs_error_t SrsHlsMuxer::on_unpublish()
 srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     string path, string m3u8_file, string ts_file, srs_utime_t fragment, srs_utime_t window,
     bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe, bool keys,
-    int fragments_per_key, string key_file ,string key_file_path, string key_url)
+    int fragments_per_key, string key_file ,string key_file_path, string key_url,
+    srs_utime_t delay_cleanup)
 {
     srs_error_t err = srs_success;
     
@@ -313,6 +315,8 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     hls_key_file = key_file;
     hls_key_file_path = key_file_path;
     hls_key_url = key_url;
+
+    hls_delay_cleanup = delay_cleanup;
    
     // generate the m3u8 dir and path.
     m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
@@ -659,7 +663,7 @@ srs_error_t SrsHlsMuxer::do_segment_close()
     err = refresh_m3u8();
     
     // remove the ts file.
-    segments->clear_expired(hls_cleanup);
+    segments->clear_expired(hls_cleanup, hls_delay_cleanup);
     
     // check ret of refresh m3u8
     if (err != srs_success) {
@@ -902,6 +906,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     string hls_key_file =  _srs_config->get_hls_key_file(vhost);
     string hls_key_file_path = _srs_config->get_hls_key_file_path(vhost);
     string hls_key_url = _srs_config->get_hls_key_url(vhost);
+
+    // the time to delay cleanup ts files.
+    srs_utime_t hls_delay_cleanup = _srs_config->get_hls_delay_cleanup(vhost);
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
@@ -912,7 +919,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     
     if ((err = muxer->update_config(req, entry_prefix, path, m3u8_file, ts_file, hls_fragment,
         hls_window, ts_floor, hls_aof_ratio, cleanup, wait_keyframe,hls_keys,hls_fragments_per_key,
-        hls_key_file, hls_key_file_path, hls_key_url)) != srs_success ) {
+        hls_key_file, hls_key_file_path, hls_key_url, hls_delay_cleanup)) != srs_success ) {
         return srs_error_wrap(err, "hls: update config");
     }
     
@@ -923,9 +930,9 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     // This config item is used in SrsHls, we just log its value here.
     bool hls_dts_directly = _srs_config->get_vhost_hls_dts_directly(req->vhost);
 
-    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d",
+    srs_trace("hls: win=%dms, frag=%dms, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d, dispose=%dms, dts_directly=%d, delay_cleanup=%dms",
         srsu2msi(hls_window), srsu2msi(hls_fragment), entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(), ts_file.c_str(),
-        hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly);
+        hls_aof_ratio, ts_floor, cleanup, wait_keyframe, srsu2msi(hls_dispose), hls_dts_directly, srsu2msi(hls_delay_cleanup));
     
     return err;
 }

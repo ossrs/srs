@@ -10,12 +10,14 @@
 #include <srs_core.hpp>
 
 #include <vector>
+#include <list>
 
 #include <srs_app_hourglass.hpp>
 
 class SrsServer;
 class SrsServerAdapter;
 class SrsWaitGroup;
+class SrsCleanUpExpiredTs;
 
 // The hibrid server interfaces, we could register many servers.
 class ISrsHybridServer
@@ -43,6 +45,8 @@ private:
     SrsFastTimer* timer5s_;
     SrsClockWallMonitor* clock_monitor_;
 public:
+    SrsCleanUpExpiredTs* clock_cleanUp;
+public:
     SrsHybridServer();
     virtual ~SrsHybridServer();
 public:
@@ -57,6 +61,37 @@ public:
     SrsFastTimer* timer100ms();
     SrsFastTimer* timer1s();
     SrsFastTimer* timer5s();
+// interface ISrsFastTimer
+private:
+    srs_error_t on_timer(srs_utime_t interval);
+};
+
+// The Ts fragment info.
+class SrsTsFragment
+{
+private:
+    srs_utime_t die_at;
+    std::string filepath;
+public:
+    SrsTsFragment(srs_utime_t time, std::string path);
+    virtual ~SrsTsFragment();
+public:
+    // Unlink ts file when expired.
+    virtual bool expired();
+    // Unlink the fragment, to delete the file.
+    virtual srs_error_t unlink_file();
+};
+
+// To clean up expired Ts file.
+class SrsCleanUpExpiredTs : public ISrsFastTimer
+{
+private:
+    std::list<SrsTsFragment*> fragments;
+public:
+    SrsCleanUpExpiredTs();
+    virtual ~SrsCleanUpExpiredTs();
+public:
+    virtual void append(SrsTsFragment* fragment);
 // interface ISrsFastTimer
 private:
     srs_error_t on_timer(srs_utime_t interval);

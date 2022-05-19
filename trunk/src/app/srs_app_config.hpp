@@ -936,6 +936,8 @@ public:
     virtual int get_vhost_hls_nb_notify(std::string vhost);
     // Whether turn the FLV timestamp to TS DTS.
     virtual bool get_vhost_hls_dts_directly(std::string vhost);
+    // Get the delay time to clean up old ts files.
+    virtual srs_utime_t get_hls_delay_cleanup(std::string vhost);
 // hds section
 private:
     // Get the hds directive of vhost.

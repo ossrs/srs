@@ -74,7 +74,7 @@ public:
     // Shrink the window, push the expired fragment to a queue.
     virtual void shrink(srs_utime_t window);
     // Clear the expired fragments.
-    virtual void clear_expired(bool delete_files);
+    virtual void clear_expired(bool delete_files, srs_utime_t delay_time);
     // Get the max duration in srs_utime_t of all fragments.
     virtual srs_utime_t max_duration();
 public:
