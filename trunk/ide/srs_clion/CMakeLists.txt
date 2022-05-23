@@ -26,10 +26,17 @@ ProcessorCount(JOBS)
 
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --osx --srt=on --utest=on --jobs=${JOBS}")
+    EXECUTE_PROCESS(
+        COMMAND ./configure --osx --srt=on --utest=on --jobs=${JOBS}
+        WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
-    EXEC_PROGRAM("cd ${SRS_DIR} && ./configure --srt=on --utest=on --jobs=${JOBS}")
+    EXECUTE_PROCESS(
+        COMMAND ./configure --srt=on --utest=on --jobs=${JOBS}
+        WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
+if(NOT ret EQUAL 0)
+    message(FATAL_ERROR "FAILED: ${ret}")
+endif()
 
 set(DEPS_LIBS ${SRS_DIR}/objs/st/libst.a
         ${SRS_DIR}/objs/openssl/lib/libssl.a

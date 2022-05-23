@@ -253,11 +253,9 @@ function OSX_prepare()
 
     echo "OSX detected, install tools if needed"
 
-    brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install brew"
-        echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
-        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install brew success"
+    brew --version >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install brew at https://brew.sh/"
+        exit $ret
     fi
 
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
