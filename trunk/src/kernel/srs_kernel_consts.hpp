@@ -125,6 +125,8 @@
 // The signal for srs to gracefully quit, do carefully dispose then exit.
 // @see https://github.com/ossrs/srs/issues/1579
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
+// The signal for SRS to abort by assert(false).
+#define SRS_SIGNAL_ASSERT_ABORT SIGABRT
 
 // The application level signals.
 // Persistence the config in memory to config file.

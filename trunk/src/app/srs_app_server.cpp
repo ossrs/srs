@@ -294,6 +294,11 @@ srs_error_t SrsSignalManager::start()
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
+
+    sa.sa_handler = SrsSignalManager::sig_catcher;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SRS_SIGNAL_ASSERT_ABORT, &sa, NULL);
     
     sa.sa_handler = SrsSignalManager::sig_catcher;
     sigemptyset(&sa.sa_mask);
@@ -971,6 +976,13 @@ srs_error_t SrsServer::cycle()
 
 void SrsServer::on_signal(int signo)
 {
+    // For signal to quit with coredump.
+    if (signo == SRS_SIGNAL_ASSERT_ABORT) {
+        srs_trace("abort with coredump, signo=%d", signo);
+        srs_assert(false);
+        return;
+    }
+
     if (signo == SRS_SIGNAL_RELOAD) {
         srs_trace("reload config, signo=%d", signo);
         signal_reload = true;
