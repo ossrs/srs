@@ -426,7 +426,24 @@ void SrsStatistic::on_disconnect(std::string id)
     
     srs_freep(client);
     clients.erase(it);
+
+    // if we play without publish, SrsStatistic::on_client will create a stream and insert into streams and rstreams
+    // than we leave the player, we alao need to free the stream created by SrsStatistic::on_client
+    // we can not free the stream in unpublish function, because we do not publish, so we need free stream here.
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it=streams.find(stream->id)) != streams.end()) {
+            streams.erase(it);
+        }
+    }
     
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        if ((it = rstreams.find(stream->url)) != rstreams.end()) {
+            rstreams.erase(it);
+        }
+    }
+
     stream->nb_clients--;
     vhost->nb_clients--;
 }
