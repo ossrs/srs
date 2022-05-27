@@ -321,34 +321,12 @@ string srs_generate_stream_url(string vhost, string app, string stream)
 
 void srs_parse_rtmp_url(string url, string& tcUrl, string& stream)
 {
-    // url example: 
-    // [schema]://[vhost]/[app]/[stream]
-    // 1. webrtc://localhost/live/stream1
-    // 2. webrtc://localhost/live/user1/stream1
-
     size_t pos;
-    string path=url;
-
-    // default value for tcUrl
-    tcUrl = url; 
-
-    // remove schema
-    if ((pos = path.find("://")) != std::string::npos) {
-        path = path.substr(path.substr(0, pos).length() + 3);
-    }
-    
-    // remove vhost
-    if ((pos = path.find("/")) != std::string::npos) {
-        path = path.substr(path.substr(0, pos).length() + 1);
-    }
-
-    // split app and stream by the first slash
-    if ((pos = path.find("/")) != string::npos) {
-        stream = path.substr(pos + 1);
-        if ((pos = url.find(stream)) != string::npos){
-            tcUrl = url.substr(0, pos);
-            tcUrl = srs_string_trim_end(tcUrl, "/");
-        }
+    if ((pos = url.rfind("/")) != string::npos) {
+        stream = url.substr(pos + 1);
+        tcUrl = url.substr(0, pos);
+    } else {
+        tcUrl = url;
     }
 }
 

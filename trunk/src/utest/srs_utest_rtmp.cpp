@@ -3219,15 +3219,15 @@ VOID TEST(ProtocolRTMPTest, ParseRTMPURL)
     if (true) {
         string url("rtmp://ossrs.net/live/show/livestream?token=abc"), tcUrl, stream;
         srs_parse_rtmp_url(url, tcUrl, stream);
-        EXPECT_STREQ("rtmp://ossrs.net/live", tcUrl.c_str());
-        EXPECT_STREQ("show/livestream?token=abc", stream.c_str());
+        EXPECT_STREQ("rtmp://ossrs.net/live/show", tcUrl.c_str());
+        EXPECT_STREQ("livestream?token=abc", stream.c_str());
     }
 
     if (true) {
         string url("rtmp://ossrs.net/live/show/livestream"), tcUrl, stream;
         srs_parse_rtmp_url(url, tcUrl, stream);
-        EXPECT_STREQ("rtmp://ossrs.net/live", tcUrl.c_str());
-        EXPECT_STREQ("show/livestream", stream.c_str());
+        EXPECT_STREQ("rtmp://ossrs.net/live/show", tcUrl.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
     }
 
     if (true) {
