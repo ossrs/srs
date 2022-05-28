@@ -188,27 +188,21 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     if (! _srs_config->get_srt_enabled()) {
         return err;
     }
-    
-    // TODO: FIXME: bad code, refine it.
-    std::vector<std::string> ip_ports;
-    std::stringstream ss;
-    ss << _srs_config->get_srt_listen_port();
-    ip_ports.push_back(ss.str());
-    
-    close_listeners(SrsSrtListenerMpegts);
-    
-    for (int i = 0; i < (int)ip_ports.size(); i++) {
-        SrsSrtAcceptor* acceptor = new SrsSrtMessageAcceptor(this, SrsSrtListenerMpegts);
-        acceptors_.push_back(acceptor);
 
-        int port; string ip;
-        srs_parse_endpoint(ip_ports[i], ip, port);
-        
-        if ((err = acceptor->listen(ip, port)) != srs_success) {
-            return srs_error_wrap(err, "srt listen %s:%d", ip.c_str(), port);
-        }
+    // Close all listener for SRT if exists.
+    close_listeners(SrsSrtListenerMpegts);
+
+    // Start a listener for SRT, we might need multiple listeners in the future.
+    SrsSrtAcceptor* acceptor = new SrsSrtMessageAcceptor(this, SrsSrtListenerMpegts);
+    acceptors_.push_back(acceptor);
+
+    int port; string ip;
+    srs_parse_endpoint(srs_int2str(_srs_config->get_srt_listen_port()), ip, port);
+
+    if ((err = acceptor->listen(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "srt listen %s:%d", ip.c_str(), port);
     }
-    
+
     return err;
 }
 
