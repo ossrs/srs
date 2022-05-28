@@ -23,7 +23,7 @@ using namespace std;
 SrsSrtConnection::SrsSrtConnection(SRTSOCKET srt_fd)
 {
     srt_fd_ = srt_fd;
-    srt_skt_ = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_fd_);
+    srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_fd_);
 }
 
 SrsSrtConnection::~SrsSrtConnection()

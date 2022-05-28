@@ -104,14 +104,14 @@ public:
     virtual SrsSrtServer* instance();
 };
 
-// The srt event loop, run srt poller and wait event happeed.
+// Start a coroutine to drive the SRT events with state-threads.
 class SrsSrtEventLoop : public ISrsCoroutineHandler
 {
 public:
     SrsSrtEventLoop();
     virtual ~SrsSrtEventLoop();
 public:
-    SrsSrtPoller* get_srt_poller() { return srt_poller_; }
+    SrsSrtPoller* poller() { return srt_poller_; }
 public:
     srs_error_t initialize();
     srs_error_t start();

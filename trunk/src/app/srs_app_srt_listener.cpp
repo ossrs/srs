@@ -61,7 +61,7 @@ srs_error_t SrsSrtListener::listen()
         return srs_error_wrap(err, "srs_srt_listen");
     }
 
-    srt_skt_ = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), lfd_);
+    srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), lfd_);
     // Accept never timeout.
     srt_skt_->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
     srt_skt_->set_send_timeout(ST_UTIME_NO_TIMEOUT);
