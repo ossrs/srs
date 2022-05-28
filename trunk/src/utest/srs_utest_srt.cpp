@@ -151,7 +151,7 @@ public:
             return srs_error_wrap(err, "srt listen");
         }
 
-        srt_socket_ = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_server_fd_);
+        srt_socket_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_fd_);
 
         return err;
     }
@@ -185,7 +185,7 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_client_fd));
 
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_client_fd);
+    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     // No client connected, accept will timeout.
     SRTSOCKET srt_fd = SRT_INVALID_SOCK;
@@ -209,7 +209,7 @@ VOID TEST(ServiceStSRTTest, ConnectTimeout)
 
     SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_client_fd);
+    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     srt_client_socket->set_send_timeout(50 * SRS_UTIME_MILLISECONDS);
     // Client connect to server which is no listening.
@@ -231,7 +231,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_client_fd);
+    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect("127.0.0.1", 9000));
 
@@ -256,7 +256,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
 
     SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_client_fd);
+    SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     // Client connect to server
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
@@ -265,7 +265,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     SRTSOCKET srt_server_accepted_fd = SRT_INVALID_SOCK;
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
     EXPECT_NE(srt_server_accepted_fd, SRT_INVALID_SOCK);
-    SrsSrtSocket* srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->get_srt_poller(), srt_server_accepted_fd);
+    SrsSrtSocket* srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_accepted_fd);
 
     if (true) {
         std::string content = "Hello, SRS SRT!";
