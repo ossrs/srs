@@ -374,15 +374,21 @@ srs_error_t SrsSrtEventLoop::cycle()
             return srs_error_wrap(err, "srt listener");
         }
        
-        // Check events fired, return directly.
-        if ((err = srt_poller_->wait(0)) != srs_success) {
-            srs_error("srt poll wait failed, err=%s", srs_error_desc(err).c_str());
+        // Check and notify fired SRT events by epoll.
+        //
+        // Note that the SRT poller use a dedicated and isolated epoll, which is not the same as the one of SRS, in
+        // short, the wait won't switch to other coroutines when no fd is active, so we must use timeout(0) to make sure
+        // to return directly, then use srs_usleep to do the coroutine switch.
+        int n_fds = 0;
+        if ((err = srt_poller_->wait(0, &n_fds)) != srs_success) {
+            srs_warn("srt poll wait failed, n_fds=%d, err=%s", n_fds, srs_error_desc(err).c_str());
             srs_error_reset(err);
         }
 
-        // Schedule srt event by state-thread.
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        // We use sleep to switch to other coroutines, because the SRT poller is not possible to do this.
+        srs_usleep((n_fds ? 1 : 10) * SRS_UTIME_MILLISECONDS);
     }
     
     return err;
 }
+

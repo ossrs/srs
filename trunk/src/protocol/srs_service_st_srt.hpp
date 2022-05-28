@@ -77,7 +77,9 @@ public:
     srs_error_t add_socket(SrsSrtSocket* srt_skt);
     srs_error_t mod_socket(SrsSrtSocket* srt_skt);
     srs_error_t del_socket(SrsSrtSocket* srt_skt);
-    srs_error_t wait(int timeout_ms);
+    // Wait for the fds in its epoll to be fired in specified timeout_ms, where the pn_fds is the number of active fds.
+    // Note that for ST, please always use timeout_ms(0) and switch coroutine by yourself.
+    srs_error_t wait(int timeout_ms, int* pn_fds);
 private:
     // Find SrsSrtSocket* context by SRTSOCKET.
     std::map<SRTSOCKET, SrsSrtSocket*> fd_sockets_;
