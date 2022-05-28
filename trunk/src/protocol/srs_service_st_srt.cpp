@@ -450,12 +450,14 @@ srs_error_t SrsSrtPoller::del_socket(SrsSrtSocket* srt_skt)
     return err;
 }
 
-srs_error_t SrsSrtPoller::wait(int timeout_ms)
+srs_error_t SrsSrtPoller::wait(int timeout_ms, int* pn_fds)
 {
     srs_error_t err = srs_success;
 
     // wait srt event fired, will timeout after `timeout_ms` milliseconds.
     int ret = srt_epoll_uwait(srt_epoller_fd_, events_.data(), events_.size(), timeout_ms);
+    *pn_fds = ret;
+
     if (ret < 0) {
         return srs_error_new(ERROR_SRT_EPOLL, "srt_epoll_uwait, ret=%d, err=%s", ret, srt_getlasterror_str());
     }
