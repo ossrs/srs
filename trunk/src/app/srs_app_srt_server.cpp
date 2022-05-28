@@ -14,6 +14,10 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_srt_conn.hpp>
 
+#ifdef SRS_SRT
+SrsSrtEventLoop* _srt_eventloop = NULL;
+#endif
+
 std::string srs_srt_listener_type2string(SrsSrtListenerType type)
 {
     switch (type) {
@@ -300,6 +304,17 @@ SrsSrtServerAdapter::~SrsSrtServerAdapter()
 srs_error_t SrsSrtServerAdapter::initialize()
 {
     srs_error_t err = srs_success;
+
+    _srt_eventloop = new SrsSrtEventLoop();
+
+    if ((err = _srt_eventloop->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt poller initialize");
+    }
+
+    if ((err = _srt_eventloop->start()) != srs_success) {
+        return srs_error_wrap(err, "srt poller start");
+    }
+
     return err;
 }
 
