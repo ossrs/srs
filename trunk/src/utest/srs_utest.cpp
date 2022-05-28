@@ -36,10 +36,6 @@ SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 bool _srs_in_docker = false;
 
-#ifdef SRS_SRT
-SrsSrtEventLoop* _srt_eventloop = NULL;
-#endif
-
 #include <srs_app_st.hpp>
 
 // Initialize global settings.
