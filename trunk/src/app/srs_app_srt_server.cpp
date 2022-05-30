@@ -118,11 +118,11 @@ srs_error_t SrsSrtMessageAcceptor::set_srt_opt()
         return srs_error_wrap(err, "set opt");
     }
 
-    if ((err = srs_srt_set_connect_timeout(listener_->fd(), _srs_config->get_srto_conntimeout())) != srs_success) {
+    if ((err = srs_srt_set_connect_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_conntimeout()))) != srs_success) {
         return srs_error_wrap(err, "set opt");
     }
 
-    if ((err = srs_srt_set_peer_idle_timeout(listener_->fd(), _srs_config->get_srto_peeridletimeout())) != srs_success) {
+    if ((err = srs_srt_set_peer_idle_timeout(listener_->fd(), srsu2msi(_srs_config->get_srto_peeridletimeout()))) != srs_success) {
         return srs_error_wrap(err, "set opt");
     }
 
