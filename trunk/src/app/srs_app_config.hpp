@@ -665,7 +665,6 @@ private:
 public:
     bool get_srt_enabled(std::string vhost);
     bool get_srt_to_rtmp(std::string vhost);
-    bool get_srt_from_rtmp(std::string vhost);
 
 // http_hooks section
 private:

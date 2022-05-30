@@ -182,29 +182,5 @@ private:
     std::vector<ISrsSrtSourceBridge*> bridgers_;
 };
 
-class SrsSrtFromRtmpBridge : public ISrsLiveSourceBridger, public ISrsStreamWriter
-{
-public:
-    SrsSrtFromRtmpBridge(SrsSrtSource* source);
-    virtual ~SrsSrtFromRtmpBridge();
-public:
-    virtual srs_error_t initialize(SrsRequest* r);
-// Interface for ISrsLiveSourceBridger
-public:
-    virtual srs_error_t on_publish();
-    virtual void on_unpublish();
-    virtual srs_error_t on_audio(SrsSharedPtrMessage* msg);
-    virtual srs_error_t on_video(SrsSharedPtrMessage* msg);
-// Interface for ISrsStreamWriter
-public:
-    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite);
-private:
-    SrsRequest* req_;
-    SrsSrtSource* srt_source_;
-    SrsTsTransmuxer* ts_muxer_;
-    char ts_buf_[1316];
-    int offset_;
-};
-
 #endif
 
