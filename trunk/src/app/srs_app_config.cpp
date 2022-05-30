@@ -6793,7 +6793,7 @@ int SrsConfig::get_srto_mss() {
 }
 
 bool SrsConfig::get_srto_tsbpdmode() {
-    static bool DEFAULT = false;
+    static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
