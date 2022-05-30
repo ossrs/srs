@@ -2546,7 +2546,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
-                && n != "default_app" && n != "mix_correct" && n != "sei_filter"
+                && n != "default_app" && n != "sei_filter"
                 && n != "tlpktdrop" && n != "tsbpdmode") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
@@ -6976,21 +6976,6 @@ string SrsConfig::get_default_app_name()
         return DEFAULT;
     }
     return conf->arg0();
-}
-
-bool SrsConfig::get_srt_mix_correct()
-{
-    static bool DEFAULT = true;
-    SrsConfDirective* conf = root->get("srt_server");
-    if (!conf) {
-        return DEFAULT;
-    }
-    
-    conf = conf->get("mix_correct");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-    return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
 SrsConfDirective* SrsConfig::get_srt(std::string vhost)
