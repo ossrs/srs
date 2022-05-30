@@ -6764,7 +6764,8 @@ unsigned short SrsConfig::get_srt_listen_port()
     return (unsigned short)atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_maxbw() {
+int SrsConfig::get_srto_maxbw()
+{
     static int64_t DEFAULT = -1;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6778,7 +6779,8 @@ int SrsConfig::get_srto_maxbw() {
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_mss() {
+int SrsConfig::get_srto_mss()
+{
     static int DEFAULT = 1500;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6792,7 +6794,8 @@ int SrsConfig::get_srto_mss() {
     return atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_srto_tsbpdmode() {
+bool SrsConfig::get_srto_tsbpdmode()
+{
     static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6806,7 +6809,8 @@ bool SrsConfig::get_srto_tsbpdmode() {
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-int SrsConfig::get_srto_latency() {
+int SrsConfig::get_srto_latency()
+{
     static int DEFAULT = 120;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6820,7 +6824,8 @@ int SrsConfig::get_srto_latency() {
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_recv_latency() {
+int SrsConfig::get_srto_recv_latency()
+{
     static int DEFAULT = 120;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6834,7 +6839,8 @@ int SrsConfig::get_srto_recv_latency() {
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_peer_latency() {
+int SrsConfig::get_srto_peer_latency()
+{
     static int DEFAULT = 0;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6848,7 +6854,8 @@ int SrsConfig::get_srto_peer_latency() {
     return atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_srt_sei_filter() {
+bool SrsConfig::get_srt_sei_filter()
+{
     static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6862,7 +6869,8 @@ bool SrsConfig::get_srt_sei_filter() {
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-bool SrsConfig::get_srto_tlpktdrop() {
+bool SrsConfig::get_srto_tlpktdrop()
+{
     static bool DEFAULT = true;
     SrsConfDirective* srt_server_conf = root->get("srt_server");
     if (!srt_server_conf) {
@@ -6880,7 +6888,8 @@ bool SrsConfig::get_srto_tlpktdrop() {
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-srs_utime_t SrsConfig::get_srto_conntimeout() {
+srs_utime_t SrsConfig::get_srto_conntimeout()
+{
     static srs_utime_t DEFAULT = 3 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6894,7 +6903,8 @@ srs_utime_t SrsConfig::get_srto_conntimeout() {
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-srs_utime_t SrsConfig::get_srto_peeridletimeout() {
+srs_utime_t SrsConfig::get_srto_peeridletimeout()
+{
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6908,8 +6918,9 @@ srs_utime_t SrsConfig::get_srto_peeridletimeout() {
     return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_srto_sendbuf() {
-    static int64_t DEFAULT = 8192 * (1500-28);
+int SrsConfig::get_srto_sendbuf()
+{
+    static int DEFAULT = 8192 * (1500-28);
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -6922,8 +6933,9 @@ int SrsConfig::get_srto_sendbuf() {
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_recvbuf() {
-    static int64_t DEFAULT = 8192 * (1500-28);
+int SrsConfig::get_srto_recvbuf()
+{
+    static int DEFAULT = 8192 * (1500-28);
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -6936,7 +6948,8 @@ int SrsConfig::get_srto_recvbuf() {
     return atoi(conf->arg0().c_str());
 }
 
-int SrsConfig::get_srto_payloadsize() {
+int SrsConfig::get_srto_payloadsize()
+{
     static int DEFAULT = 1316;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6950,7 +6963,8 @@ int SrsConfig::get_srto_payloadsize() {
     return atoi(conf->arg0().c_str());
 }
 
-string SrsConfig::get_default_app_name() {
+string SrsConfig::get_default_app_name()
+{
     static string DEFAULT = "live";
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
@@ -6964,7 +6978,8 @@ string SrsConfig::get_default_app_name() {
     return conf->arg0();
 }
 
-bool SrsConfig::get_srt_mix_correct() {
+bool SrsConfig::get_srt_mix_correct()
+{
     static bool DEFAULT = true;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
