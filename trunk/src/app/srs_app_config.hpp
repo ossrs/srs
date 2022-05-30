@@ -649,9 +649,9 @@ public:
     // Get the srt SRTO_TLPKTDROP, Too-late Packet Drop, default is true.
     virtual bool get_srto_tlpktdrop();
     // Get the srt SRTO_CONNTIMEO, connection timeout, default is 3000ms.
-    virtual int get_srto_conntimeout();
+    virtual srs_utime_t get_srto_conntimeout();
     // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
-    virtual int get_srto_peeridletimeout();
+    virtual srs_utime_t get_srto_peeridletimeout();
     // Get the srt SRTO_SNDBUF, send buffer, default is 8192 × (1500-28).
     virtual int get_srto_sendbuf();
     // Get the srt SRTO_RCVBUF, recv buffer, default is 8192 × (1500-28).

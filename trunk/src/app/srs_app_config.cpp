@@ -6880,8 +6880,8 @@ bool SrsConfig::get_srto_tlpktdrop() {
     return SRS_CONF_PERFER_TRUE(conf->arg0());
 }
 
-int SrsConfig::get_srto_conntimeout() {
-    static int DEFAULT = 3000;
+srs_utime_t SrsConfig::get_srto_conntimeout() {
+    static srs_utime_t DEFAULT = 3 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -6891,11 +6891,11 @@ int SrsConfig::get_srto_conntimeout() {
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    return atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
-int SrsConfig::get_srto_peeridletimeout() {
-    static int DEFAULT = 10000;
+srs_utime_t SrsConfig::get_srto_peeridletimeout() {
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
     SrsConfDirective* conf = root->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -6905,7 +6905,7 @@ int SrsConfig::get_srto_peeridletimeout() {
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
-    return atoi(conf->arg0().c_str());
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_MILLISECONDS);
 }
 
 int SrsConfig::get_srto_sendbuf() {
