@@ -199,12 +199,13 @@ srs_error_t SrsSctpGlobalEnv::notify(int type, srs_utime_t interval, srs_utime_t
 
 SrsSctpGlobalEnv* _srs_sctp_env = NULL;
 
-SrsSctp::SrsSctp(SrsDtls* dtls, const string& stream_info)
+SrsSctp::SrsSctp(SrsDtls* dtls, const string& stream_info, int cnt)
 {
     sctp_td_ = NULL;
-    bridge_ = NULL;
     rtc_dtls_ = dtls;;
     stream_info_ = stream_info;
+    retry_cnt_ = cnt;
+    loop_cnt_ = 0;
 
     // TODO: FIXME: Should start in server init event.
     if (_srs_sctp_env == NULL) {
@@ -331,16 +332,6 @@ srs_error_t SrsSctp::on_sctp_event(const struct sctp_rcvinfo& rcv, void* data, s
         return srs_error_new(ERROR_RTC_SCTP, "sctp notify header, sn=%d, len=%d", sctp_notify->sn_header.sn_length, len);
     }
 
-    srs_error("################# sctp event type=%d, sac_state = %d",
-              (int)sctp_notify->sn_header.sn_type, sctp_notify->sn_assoc_change.sac_state);
-
-//    if (sctp_notify->sn_header.sn_type == SCTP_ASSOC_CHANGE && sctp_notify->sn_assoc_change.sac_state == SCTP_COMM_UP) {
-//        string str = "1234567890";
-//        srs_error("################# send when connect");
-//        send(rcv.rcv_sid, str.c_str(), str.length());
-//    }
-
-
     switch (sctp_notify->sn_header.sn_type) {
         case SCTP_ASSOC_CHANGE:
             break;
@@ -402,7 +393,7 @@ srs_error_t SrsSctp::on_sctp_data(const struct sctp_rcvinfo& rcv, void* data, si
 }
 
 
-extern map<string, SrsRtcFromRtmpBridger*> g_mapStream2Bridger;
+extern map<string, vector<IComsumeDatachannel*>> g_mapStream2Sctp;
 
 srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, SrsBuffer* stream)
 {
@@ -448,13 +439,15 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, Srs
             uint16_t label_length = stream->read_2bytes();
             uint16_t protocol_length = stream->read_2bytes();
 
+            channel_type = SrsDataChannelTypeUnreliableRexmit;
+
             switch (channel_type) {
-                case SrsDataChannelTypeReliable:                    srs_trace("SCTP: reliable|ordered channel"); break;
-                case SrsDataChannelTypeReliableUnordered:           srs_trace("SCTP: reliable|unordered channel"); break;
-                case SrsDataChannelTypeUnreliableRexmit:            srs_trace("SCTP: unreliable|ordered|rtx(%u) channel", reliability_params); break;
-                case SrsDataChannelTypeUnreliableRexmitUnordered:   srs_trace("SCTP: unreliable|unordered|rtx(%u) channel", reliability_params); break;
-                case SrsDataChannelTypeUnreliableTimed:             srs_trace("SCTP: unreliable|ordered|life(%u) channel", reliability_params); break;
-                case SrsDataChannelTypeUnreliableTimedUnordered:    srs_trace("SCTP: unreliable|unordered|life(%u) channel", reliability_params); break;
+                case SrsDataChannelTypeReliable:                    srs_error("##############  SCTP: reliable|ordered channel"); break;
+                case SrsDataChannelTypeReliableUnordered:           srs_error("##############  SCTP: reliable|unordered channel"); break;
+                case SrsDataChannelTypeUnreliableRexmit:            srs_error("##############  SCTP: unreliable|ordered|rtx(%u) channel", reliability_params); break;
+                case SrsDataChannelTypeUnreliableRexmitUnordered:   srs_error("##############  SCTP: unreliable|unordered|rtx(%u) channel", reliability_params); break;
+                case SrsDataChannelTypeUnreliableTimed:             srs_error("##############  SCTP: unreliable|ordered|life(%u) channel", reliability_params); break;
+                case SrsDataChannelTypeUnreliableTimedUnordered:    srs_trace("##############  SCTP: unreliable|unordered|life(%u) channel", reliability_params); break;
             }
 
             string label = "";
@@ -484,32 +477,20 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, Srs
 
             data_channels_.insert(make_pair(data_channel.sid_, data_channel));
 
-            if (sctp_td_ == NULL) {
-                sctp_td_ = new SrsSTCoroutine("sctp-send", this);
-
-                std::map<string, SrsRtcFromRtmpBridger*>::iterator iter_test = g_mapStream2Bridger.begin();
-                for (; iter_test != g_mapStream2Bridger.end(); iter_test++)
-                {
-                    srs_error("iter_test  ############################ step 1, %s\n", iter_test->first.c_str());
-                }
-                srs_error("iter_test  ############################ step 2, %s\n", stream_info_.c_str());
-
-                std::map<string, SrsRtcFromRtmpBridger*>::iterator iter = g_mapStream2Bridger.find(stream_info_);
-                if (iter != g_mapStream2Bridger.end())
-                {
-                    bridge_ = iter->second;
-                    sctp_info_ = rcv;
-                    sctp_td_ = new SrsSTCoroutine("sctp-send", this);
-                    sctp_td_->start();
-                }
-                if (false)
-                {
-                    sctp_td_ = new SrsSTCoroutine("sctp-send", this);
-                    sctp_td_->start();
-                    sctp_info_ = rcv;
-                }
+            auto iter = g_mapStream2Sctp.find(stream_info_);
+            std::vector<IComsumeDatachannel*> vecDatachannel;
+            if (iter == g_mapStream2Sctp.end()) {
+                g_mapStream2Sctp.insert(make_pair(stream_info_, vecDatachannel));
             }
+            g_mapStream2Sctp[stream_info_].push_back(this);
 
+            if (sctp_td_  == NULL) {
+                sctp_info_ = rcv;
+                std::ostringstream co_name;
+                co_name << "sctp-send-" << stream_info_;
+                sctp_td_ = new SrsSTCoroutine(co_name.str(), this);
+                sctp_td_->start();
+            }
             break;
         }
         case SrsDataChannelMessageTypeAck: {
@@ -528,55 +509,104 @@ srs_error_t SrsSctp::cycle()
 {
     srs_error_t err = srs_success;
 
+//    SrsFlvTransmuxer flv;
+    SrsFlvStreamEncoder flv_enc;
+    SrsDatachannelWriter datachannel_writer(this, sctp_info_.rcv_sid);
+    flv_enc.initialize(&datachannel_writer, NULL);
+    int loop_cnt = 0;
+    bool has_metadata = false;
+    bool has_sequence = false;
     while ((err = sctp_td_->pull()) == srs_success)
     {
-        while (true)
+        SrsSharedPtrMessage* msg = NULL;
+        if (!datachannel_queue.size())
         {
-            SrsSharedPtrMessage* msg = NULL;
-            bridge_->getDatachannelMsg(&msg);
-            if (msg == NULL)
-            {
-                break;
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            loop_cnt = 0;
+            continue;
+        }
+        auto frame = datachannel_queue.front();
+
+        if (!has_metadata && datachannel_metadata) {
+            // check if metadata changed ?
+            has_metadata = true;
+            if (datachannel_metadata) {
+                flv_enc.write_metadata(datachannel_metadata->timestamp, datachannel_metadata->payload, datachannel_metadata->size);
             }
-//            char szBuf[32] = {0};
-//            sprintf(szBuf, "hello");
-//            char* pBuf = new char[msg->size + 1];
-//            memset(pBuf, 0, msg->size + 1);
-//            memcpy(pBuf, msg->payload, msg->size);
-//            send(sctp_info_.rcv_sid, pBuf, msg->size);
-//            delete[] pBuf;
-//            send(sctp_info_.rcv_sid, szBuf, strlen(szBuf));
-
-//            send(sctp_info_.rcv_sid, msg->payload, msg->size > 100 ? 100 : msg->size);
-
-            string sum;
-            string xyz = "1234567890";
-            for (int i = 0; i < 10; i++) {
-                sum = sum + xyz;
+        }
+        if (has_metadata) {
+            if (frame->is_audio()) {
+                flv_enc.write_audio(frame->timestamp, frame->payload, frame->size);
+            } else if (frame->is_video()) {
+                if (!has_sequence) {
+                    has_sequence = true;
+                    flv_enc.write_video(datachannel_sequence->timestamp, datachannel_sequence->payload, datachannel_sequence->size);
+                }
+                flv_enc.write_video(frame->timestamp, frame->payload, frame->size);
             }
-            sum = sum + "123";
-
-//            send(sctp_info_.rcv_sid, sum.c_str(), sum.length());
-
-            send(sctp_info_.rcv_sid, msg->payload, msg->size > 100 ? 100 : msg->size);
-
-            static int g_cnt = 0;
-            g_cnt++;
-            char szNum[32] = {0};
-            sprintf(szNum, "num = %d", g_cnt);
-            send(sctp_info_.rcv_sid, szNum, strlen(szNum));
-
-
-            srs_error("############################ send size = %d, num = %d\n", msg->size, g_cnt);
-
         }
 
-        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+        srs_freep(frame);
+        datachannel_queue.pop_front();
+
+        if (++loop_cnt == 10) {
+            loop_cnt = 0;
+            srs_thread_yield();
+        }
     }
 
     return err;
 }
 
+srs_error_t SrsSctp::send_data_channel(const uint16_t sid, const char* buf, const int len)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < retry_cnt_; i++) {
+        err = send(sid, buf, len);
+        if (err == srs_success) {
+            return err;
+        }
+        srs_warn("sctp send not success, %s", srs_error_desc(err).c_str());
+    }
+    srs_error("sctp send not failed");  // TODO, restart sctp connection ?
+
+    return err;
+}
+
+srs_error_t SrsSctp::enqueue_datachannel(SrsSharedPtrMessage* msg)
+{
+    // TODO, use gop cache optimize
+    if (!hasIdr && msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
+        hasIdr = true;
+    }
+    if (!hasIdr) {
+        return srs_success;
+    }
+    datachannel_queue.push_back(msg);
+    if (datachannel_queue.size() > 200) {
+        datachannel_queue.clear();
+    }
+    return srs_success;
+}
+
+srs_error_t SrsSctp::set_datachannel_metadata(SrsSharedPtrMessage* msg)
+{
+    if (datachannel_metadata) {
+        srs_freep(msg);
+    }
+    datachannel_metadata = msg;
+    return srs_success;
+}
+
+srs_error_t SrsSctp::set_datachannel_sequence(SrsSharedPtrMessage* msg)
+{
+    if (datachannel_sequence) {
+        srs_freep(msg);
+    }
+    datachannel_sequence = msg;
+    return srs_success;
+}
 
 srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo& rcv, SrsBuffer* stream)
 {
@@ -614,7 +644,7 @@ srs_error_t SrsSctp::send(const uint16_t sid, const char* buf, const int len)
     memset(&spa, 0, sizeof(spa));
     spa.sendv_flags             = SCTP_SEND_SNDINFO_VALID;
     spa.sendv_sndinfo.snd_sid   = sid;
-    spa.sendv_sndinfo.snd_ppid  = htonl(SrsDataChannelPPIDString);
+    spa.sendv_sndinfo.snd_ppid  = htonl(SrsDataChannelPPIDBinary);
     spa.sendv_sndinfo.snd_flags = SCTP_EOR;
 
     if (data_channel.channel_type_ & 0x80) {
@@ -638,7 +668,6 @@ srs_error_t SrsSctp::send(const uint16_t sid, const char* buf, const int len)
 
     // Fake IO, which call on_send_sctp_data actually.
     int ret = usrsctp_sendv(sctp_socket, buf, len, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
-
     // If error, ret is set to -1, and the variable errno is then set appropriately.
     if (ret < 0) {
         return srs_error_new(ERROR_RTC_SCTP, "sctp notify header");

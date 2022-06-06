@@ -940,7 +940,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsLiveSource* source, SrsPublishRecvThre
     return err;
 }
 
-map<string, SrsRtcFromRtmpBridger*> g_mapStream2Bridger;
+map<string, vector<IComsumeDatachannel*>> g_mapStream2Sctp;
 
 srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
 {
@@ -979,8 +979,6 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
         }
 
         source->set_bridger(bridger);
-        string strInfo = bridger->getDatachannelStreamInfo();
-        g_mapStream2Bridger[strInfo] = bridger;
     }
 #endif
 
@@ -1055,7 +1053,16 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsLiveSource* source, SrsCommo
         }
         return err;
     }
-    
+
+//    fprintf(stdout, "########################## step 1");
+//    static FILE* s_fp = NULL;
+//    if (s_fp == NULL) {
+//        fprintf(stdout, "########################## step 2");
+//        s_fp = fopen("/tmp/sctp.flv", "wb");
+//    }
+//    fwrite(msg->payload, 1, msg->size, s_fp);
+//    fflush(s_fp);
+
     // process audio packet
     if (msg->header.is_audio()) {
         if ((err = source->on_audio(msg)) != srs_success) {

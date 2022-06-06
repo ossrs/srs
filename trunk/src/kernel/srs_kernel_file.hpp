@@ -12,10 +12,13 @@
 #include <srs_kernel_io.hpp>
 
 #include <string>
+#include <deque>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <sys/uio.h>
+#include "srs_kernel_flv.hpp"
+
 #endif
 
 class SrsFileReader;
@@ -56,6 +59,44 @@ public:
     virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
     virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
     virtual srs_error_t lseek(off_t offset, int whence, off_t* seeked);
+};
+
+
+class ISendDatachannel
+{
+public:
+    ISendDatachannel();
+    virtual ~ISendDatachannel();
+public:
+    virtual srs_error_t send_data_channel(const uint16_t sid, const char* buf, const int len) = 0;
+};
+
+class IComsumeDatachannel
+{
+public:
+    std::deque<SrsSharedPtrMessage*> datachannel_queue;
+    SrsSharedPtrMessage* datachannel_metadata;
+    SrsSharedPtrMessage* datachannel_sequence;
+    bool hasIdr;
+public:
+    IComsumeDatachannel();
+    virtual ~IComsumeDatachannel();
+public:
+    virtual srs_error_t enqueue_datachannel(SrsSharedPtrMessage* msg) = 0;
+    virtual srs_error_t set_datachannel_metadata(SrsSharedPtrMessage* msg) = 0;
+    virtual srs_error_t set_datachannel_sequence(SrsSharedPtrMessage* msg) = 0;
+};
+
+class SrsDatachannelWriter : public SrsFileWriter
+{
+private:
+    ISendDatachannel* sctp;
+    uint16_t sid;
+public:
+    SrsDatachannelWriter(ISendDatachannel* s, uint16_t id);
+    virtual ~SrsDatachannelWriter();
+public:
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
 };
 
 // The file reader factory.

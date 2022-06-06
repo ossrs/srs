@@ -18,6 +18,7 @@
 #include <srs_core_performance.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_hourglass.hpp>
+#include "srs_kernel_file.hpp"
 
 class SrsFormat;
 class SrsRtmpFormat;
@@ -448,6 +449,7 @@ public:
     // @param h the event handler for source.
     // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps);
+    virtual srs_error_t create_datachannl_source(std::string stream_url, IComsumeDatachannel* comsumeDatachannel);
 private:
     // Get the exists source, NULL when not exists.
     // update the request and return the exists source.
@@ -558,6 +560,7 @@ public:
     virtual bool inactive();
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
+    virtual void enqueue_datachannel(SrsSharedPtrMessage* msg, bool metadata = false);
 public:
     virtual bool can_publish(bool is_edge);
     virtual srs_error_t on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

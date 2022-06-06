@@ -162,6 +162,58 @@ srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t* seeked)
     return srs_success;
 }
 
+
+//class SrsDatachannelWriter : public SrsFileWriter
+//{
+//private:
+//    func_send_datachannel sctp;
+//public:
+//    SrsDatachannelWriter(func_send_datachannel s);
+//    virtual ~SrsDatachannelWriter();
+//};
+
+
+ISendDatachannel::ISendDatachannel() {
+
+}
+
+ISendDatachannel::~ISendDatachannel() {
+
+}
+
+
+IComsumeDatachannel::IComsumeDatachannel() {
+    datachannel_metadata = NULL;
+    datachannel_sequence = NULL;
+    hasIdr = false;
+}
+
+IComsumeDatachannel::~IComsumeDatachannel() {
+
+}
+
+
+SrsDatachannelWriter::SrsDatachannelWriter(ISendDatachannel* s, uint16_t id)
+{
+   sctp = s;
+   sid = id;
+}
+
+SrsDatachannelWriter::~SrsDatachannelWriter()
+{
+}
+
+
+srs_error_t SrsDatachannelWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+{
+    if (!sctp) {
+        return srs_error_new(ERROR_RTC_DATACHANNEL, "sctp is NULL");
+    }
+
+    return sctp->send_data_channel(sid, (const char*)buf, count);
+}
+
+
 ISrsFileReaderFactory::ISrsFileReaderFactory()
 {
 }

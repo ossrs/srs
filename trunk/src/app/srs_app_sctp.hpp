@@ -71,13 +71,13 @@ private:
     SrsHourGlass* sctp_timer_;
 };
 
-class SrsSctp : public ISrsCoroutineHandler
+class SrsSctp : public ISrsCoroutineHandler, public ISendDatachannel, public IComsumeDatachannel
 {
 public:
     SrsDtls* rtc_dtls_;
     struct socket* sctp_socket;
 public:
-    SrsSctp(SrsDtls* dtls, const std::string& stream_info = "");
+    SrsSctp(SrsDtls* dtls, const std::string& stream_info = "", int cnt = 0);
     virtual ~SrsSctp();
 public:
     virtual srs_error_t cycle();
@@ -90,10 +90,15 @@ public:
 private:
     srs_error_t on_data_channel_control(const struct sctp_rcvinfo& rcv, SrsBuffer* stream);
     srs_error_t on_data_channel_msg(const struct sctp_rcvinfo& rcv, SrsBuffer* stream);
+    srs_error_t send_data_channel(const uint16_t sid, const char* buf, const int len);
+    srs_error_t enqueue_datachannel(SrsSharedPtrMessage* msg);
+    srs_error_t set_datachannel_metadata(SrsSharedPtrMessage* msg);
+    srs_error_t set_datachannel_sequence(SrsSharedPtrMessage* msg);
 private:
     SrsSTCoroutine* sctp_td_;
     std::string stream_info_;
-    SrsRtcFromRtmpBridger* bridge_;
+    int retry_cnt_;
+    int loop_cnt_;
     sctp_rcvinfo sctp_info_;
     std::map<uint16_t, SrsDataChannel> data_channels_;
 };

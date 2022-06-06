@@ -1702,6 +1702,15 @@ srs_error_t SrsLiveSourceManager::initialize()
     return setup_ticks();
 }
 
+
+srs_error_t SrsLiveSourceManager::create_datachannl_source(std::string stream_url, IComsumeDatachannel* comsumeDatachannel) {
+
+    auto iter = pool.find(stream_url);
+    if (iter != pool.end()) {
+
+    }
+}
+
 srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceHandler* h, SrsLiveSource** pps)
 {
     srs_error_t err = srs_success;
@@ -2105,6 +2114,32 @@ bool SrsLiveSource::can_publish(bool is_edge)
     return _can_publish;
 }
 
+extern map<string, vector<IComsumeDatachannel*>> g_mapStream2Sctp;
+
+
+void SrsLiveSource::enqueue_datachannel(SrsSharedPtrMessage* msg, bool metadata)
+{
+    string stream_url = req->get_stream_url();
+    auto iter = g_mapStream2Sctp.find(stream_url);
+    if (iter != g_mapStream2Sctp.end()) {
+        vector<IComsumeDatachannel*> vecCosumer = iter->second;
+        auto iterConsumer = vecCosumer.begin();
+        for (; iterConsumer != vecCosumer.end(); iterConsumer++) {
+            IComsumeDatachannel* pConsumer = (*iterConsumer);
+            if (pConsumer) {
+                if (!pConsumer->hasIdr && msg->is_video() && SrsFlvVideo::keyframe(msg->payload, msg->size)) {
+                    pConsumer->hasIdr = true;
+                    pConsumer->set_datachannel_metadata(meta->data()->copy());
+                    pConsumer->set_datachannel_sequence(meta->vsh()->copy());
+                }
+                if (pConsumer->hasIdr) {
+                    pConsumer->enqueue_datachannel(msg->copy());
+                }
+            }
+        }
+    }
+}
+
 srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     srs_error_t err = srs_success;
@@ -2146,6 +2181,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPack
             }
         }
     }
+    enqueue_datachannel(meta->data()->copy(), true);
 
     // Copy to hub to all utilities.
     return hub->on_meta_data(meta->data(), metadata);
@@ -2170,7 +2206,9 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
     if ((err = msg.create(shared_audio)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
-    
+
+    enqueue_datachannel(msg.copy());
+
     // directly process the audio message.
     if (!mix_correct) {
         return on_audio_imp(&msg);
@@ -2191,6 +2229,7 @@ srs_error_t SrsLiveSource::on_audio(SrsCommonMessage* shared_audio)
     } else {
         err = on_video_imp(m);
     }
+
     srs_freep(m);
     
     return err;
@@ -2295,6 +2334,8 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
     if ((err = msg.create(shared_video)) != srs_success) {
         return srs_error_wrap(err, "create message");
     }
+
+    enqueue_datachannel(msg.copy());
     
     // directly process the video message.
     if (!mix_correct) {
@@ -2316,6 +2357,7 @@ srs_error_t SrsLiveSource::on_video(SrsCommonMessage* shared_video)
     } else {
         err = on_video_imp(m);
     }
+
     srs_freep(m);
     
     return err;

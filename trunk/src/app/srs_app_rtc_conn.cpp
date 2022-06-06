@@ -78,7 +78,7 @@ ISrsRtcTransport::~ISrsRtcTransport()
 {
 }
 
-SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s, const std::string& streaminfo)
+SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s, bool datachannel_from_rtmp, const std::string& stream_url, int cnt)
 {
     session_ = s;
     dtls_ = new SrsDtls((ISrsDtlsCallback*)this);
@@ -86,8 +86,9 @@ SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s, const std::strin
     
 #ifdef SRS_SCTP
 //    sctp_ = new SrsSctp(dtls_);
-    stream_info_ = streaminfo;
-    sctp_ = nullptr;
+    sctp_ = NULL;
+    stream_url_ = stream_url;
+    cnt_ = cnt;
 #endif
 
     handshake_done = false;
@@ -168,14 +169,12 @@ srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, cons
     srs_error_t err = srs_success;
 
 #ifdef SRS_SCTP
-//    srs_error("############################ on_dtls_application_data , buf = %s, len = %d\n", buf, nb_buf);
-    if (sctp_ == NULL) {
-        sctp_ = new SrsSctp(dtls_, stream_info_);
+    if (!sctp_) {
+        sctp_ = new SrsSctp(dtls_, stream_url_, cnt_);
         // TODO: FIXME: Handle error.
         srs_error_t e = sctp_->connect_to_class();
         srs_error("connect_to_class %s", srs_error_desc(e).c_str());
     }
-
     sctp_->feed(buf, nb_buf);
 #endif
 
@@ -1818,7 +1817,7 @@ srs_error_t SrsRtcConnectionNackTimer::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, const std::string& streaminfo)
+SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
 {
     req_ = NULL;
     cid_ = cid;
@@ -1826,7 +1825,7 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, con
 
     sendonly_skt = NULL;
     server_ = s;
-    transport_ = new SrsSecurityTransport(this, streaminfo);
+    transport_ = NULL;
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -1844,7 +1843,6 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, con
     pli_epp = new SrsErrorPithyPrint();
 
     nack_enabled_ = false;
-    stream_info_ = streaminfo;
     timer_nack_ = new SrsRtcConnectionNackTimer(this);
 
     _srs_rtc_manager->subscribe(this);
@@ -2088,6 +2086,14 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
 
     username_ = username;
     req_ = r->copy();
+
+    if (!transport_) {
+//        std::string stream_info = req_->vhost + "-" + req_->app + "-" + req_->stream;
+        std::string stream_url = req_->get_stream_url();
+        bool datachannel_from_rtmp = _srs_config->get_datachannel_from_rtmp(req_->vhost);
+        int retry_cnt = _srs_config->get_datachannel_retry_cnt(req_->vhost);
+        transport_ = new SrsSecurityTransport(this, datachannel_from_rtmp, stream_url, retry_cnt);
+    }
 
     if (!srtp) {
         srs_freep(transport_);

@@ -471,24 +471,17 @@ srs_error_t SrsRtcServer::create_session(SrsRtcUserConfig* ruc, SrsSdp& local_sd
     SrsRequest* req = ruc->req_;
 
     SrsRtcSource* source = NULL;
-    srs_error("api  ############################ step 5.1\n");
     if ((err = _srs_rtc_sources->fetch_or_create(req, &source)) != srs_success) {
-        srs_error("api  ############################ step 5.2\n");
         return srs_error_wrap(err, "create source");
     }
-    srs_error("api  ############################ step 5.3\n");
 
     if (ruc->publish_ && !source->can_publish()) {
-        srs_error("api  ############################ step 5.4\n");
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
-    srs_error("api  ############################ step 5.5\n");
 
     // TODO: FIXME: add do_create_session to error process.
-    string stream_info = req->vhost + "-" + req->app + "-" + req->stream;
-    SrsRtcConnection* session = new SrsRtcConnection(this, cid, stream_info);
+    SrsRtcConnection* session = new SrsRtcConnection(this, cid);
     if ((err = do_create_session(ruc, local_sdp, session)) != srs_success) {
-        srs_error("api  ############################ step 5.6\n");
         srs_freep(session);
         return srs_error_wrap(err, "create session");
     }

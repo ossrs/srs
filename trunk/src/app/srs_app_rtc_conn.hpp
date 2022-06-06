@@ -109,15 +109,16 @@ private:
     SrsSRTP* srtp_;
 #ifdef SRS_SCTP
     SrsSctp* sctp_;
-    std::string stream_info_;
+    std::string stream_url_;
+    int cnt_;
 #endif
     bool handshake_done;
 public:
-    SrsSecurityTransport(SrsRtcConnection* s, const std::string& streaminfo = "");
+    SrsSecurityTransport(SrsRtcConnection* s, bool datachannel_from_rtmp = false, const std::string& streaminfo = "", int cnt = 0);
     virtual ~SrsSecurityTransport();
 
     srs_error_t initialize(SrsSessionConfig* cfg);
-    // When play role of dtls client, it send handshake. 
+    // When play role of dtls client, it send handshake.
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char* data, int nb_data);
     srs_error_t on_dtls_alert(std::string type, std::string desc);
@@ -498,9 +499,8 @@ private:
     SrsErrorPithyPrint* pli_epp;
 private:
     bool nack_enabled_;
-    std::string stream_info_;
 public:
-    SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid, const std::string& streaminfo = "");
+    SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid);
     virtual ~SrsRtcConnection();
 // interface ISrsDisposingHandler
 public:

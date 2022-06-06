@@ -706,7 +706,6 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 #ifdef SRS_FFMPEG_FIT
 SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 {
-    has_idr = false;
     req = NULL;
     source_ = source;
     format = new SrsRtmpFormat();
@@ -737,27 +736,9 @@ SrsRtcFromRtmpBridger::SrsRtcFromRtmpBridger(SrsRtcSource* source)
 
 SrsRtcFromRtmpBridger::~SrsRtcFromRtmpBridger()
 {
-    datachannel_queue.clear();
     srs_freep(format);
     srs_freep(codec_);
     srs_freep(meta);
-}
-
-std::string SrsRtcFromRtmpBridger::getDatachannelStreamInfo()
-{
-    return req->vhost + "-" + req->app + "-" + req->stream;
-}
-
-srs_error_t SrsRtcFromRtmpBridger::getDatachannelMsg(SrsSharedPtrMessage** msgs)
-{
-    srs_error_t err = srs_success;
-
-    if (!datachannel_queue.empty()) {
-        *msgs = datachannel_queue.front();
-        datachannel_queue.erase(datachannel_queue.begin());
-    }
-
-    return err;
 }
 
 srs_error_t SrsRtcFromRtmpBridger::initialize(SrsRequest* r)
@@ -830,6 +811,7 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     if (!rtmp_to_rtc) {
         return err;
     }
+
     // TODO: FIXME: Support parsing OPUS for RTC.
     if ((err = format->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "format consume audio");
@@ -850,12 +832,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_audio(SrsSharedPtrMessage* msg)
     // When drop aac audio packet, never transcode.
     if (acodec != SrsAudioCodecIdAAC) {
         return err;
-    }
-
-
-    if (datachannel_queue.size() < 100) {
-        SrsSharedPtrMessage* msg_cp = msg->copy();
-        datachannel_queue.push_back(msg_cp);
     }
 
     // ignore sequence header
@@ -971,16 +947,6 @@ srs_error_t SrsRtcFromRtmpBridger::on_video(SrsSharedPtrMessage* msg)
     if ((err = filter(msg, format, has_idr, samples)) != srs_success) {
         return srs_error_wrap(err, "filter video");
     }
-
-    if (datachannel_queue.size() < 100) {
-        SrsSharedPtrMessage* msg_cp = msg->copy();
-        datachannel_queue.push_back(msg_cp);
-//        if (has_idr) {
-//            has_idr = false;
-//            datachannel_queue->clear();
-//        }
-    }
-
     int nn_samples = (int)samples.size();
 
     // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.

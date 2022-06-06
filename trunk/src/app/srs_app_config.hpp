@@ -483,6 +483,8 @@ public:
     bool get_rtc_enabled(std::string vhost);
     bool get_rtc_keep_bframe(std::string vhost);
     bool get_rtc_from_rtmp(std::string vhost);
+    bool get_datachannel_from_rtmp(std::string vhost);
+    int get_datachannel_retry_cnt(std::string vhost);
     srs_utime_t get_rtc_stun_timeout(std::string vhost);
     bool get_rtc_stun_strict_check(std::string vhost);
     std::string get_rtc_dtls_role(std::string vhost);
