@@ -109,6 +109,7 @@ private:
     SrsSRTP* srtp_;
 #ifdef SRS_SCTP
     SrsSctp* sctp_;
+    bool datachannel_from_rtmp_;
     std::string stream_url_;
     int cnt_;
 #endif

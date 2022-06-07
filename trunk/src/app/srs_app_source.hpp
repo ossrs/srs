@@ -527,6 +527,7 @@ private:
     SrsOriginHub* hub;
     // The metadata cache.
     SrsMetaCache* meta;
+    bool rtmp_to_datachannel;
 private:
     // Whether source is avaiable for publishing.
     bool _can_publish;

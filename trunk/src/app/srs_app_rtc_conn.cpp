@@ -87,6 +87,7 @@ SrsSecurityTransport::SrsSecurityTransport(SrsRtcConnection* s, bool datachannel
 #ifdef SRS_SCTP
 //    sctp_ = new SrsSctp(dtls_);
     sctp_ = NULL;
+    datachannel_from_rtmp_ = datachannel_from_rtmp;
     stream_url_ = stream_url;
     cnt_ = cnt;
 #endif
@@ -170,7 +171,7 @@ srs_error_t SrsSecurityTransport::on_dtls_application_data(const char* buf, cons
 
 #ifdef SRS_SCTP
     if (!sctp_) {
-        sctp_ = new SrsSctp(dtls_, stream_url_, cnt_);
+        sctp_ = new SrsSctp(dtls_, datachannel_from_rtmp_, stream_url_, cnt_);
         // TODO: FIXME: Handle error.
         srs_error_t e = sctp_->connect_to_class();
         srs_error("connect_to_class %s", srs_error_desc(e).c_str());
@@ -2088,7 +2089,6 @@ srs_error_t SrsRtcConnection::initialize(SrsRequest* r, bool dtls, bool srtp, st
     req_ = r->copy();
 
     if (!transport_) {
-//        std::string stream_info = req_->vhost + "-" + req_->app + "-" + req_->stream;
         std::string stream_url = req_->get_stream_url();
         bool datachannel_from_rtmp = _srs_config->get_datachannel_from_rtmp(req_->vhost);
         int retry_cnt = _srs_config->get_datachannel_retry_cnt(req_->vhost);

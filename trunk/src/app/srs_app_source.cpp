@@ -1873,6 +1873,7 @@ SrsLiveSource::SrsLiveSource()
     
     is_monotonically_increase = false;
     last_packet_time = 0;
+    rtmp_to_datachannel = false;
     
     _srs_config->subscribe(this);
     atc = false;
@@ -1967,6 +1968,7 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(req->vhost);
     mix_correct = _srs_config->get_mix_correct(req->vhost);
+    rtmp_to_datachannel = _srs_config->get_datachannel_from_rtmp(req->vhost);
     
     return err;
 }
@@ -2119,6 +2121,9 @@ extern map<string, vector<IComsumeDatachannel*>> g_mapStream2Sctp;
 
 void SrsLiveSource::enqueue_datachannel(SrsSharedPtrMessage* msg, bool metadata)
 {
+    if (!rtmp_to_datachannel) {
+        return;
+    }
     string stream_url = req->get_stream_url();
     auto iter = g_mapStream2Sctp.find(stream_url);
     if (iter != g_mapStream2Sctp.end()) {

@@ -40,7 +40,8 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_st.hpp>
-#include "srs_rtmp_msg_array.hpp"
+#include <srs_rtmp_msg_array.hpp>
+#include <srs_app_http_stream.hpp>
 
 enum SrsDataChannelMessageType
 {
@@ -199,10 +200,11 @@ srs_error_t SrsSctpGlobalEnv::notify(int type, srs_utime_t interval, srs_utime_t
 
 SrsSctpGlobalEnv* _srs_sctp_env = NULL;
 
-SrsSctp::SrsSctp(SrsDtls* dtls, const string& stream_info, int cnt)
+SrsSctp::SrsSctp(SrsDtls* dtls, bool datachannel_from_rtmp, const string& stream_info, int cnt)
 {
     sctp_td_ = NULL;
-    rtc_dtls_ = dtls;;
+    rtc_dtls_ = dtls;
+    datachannel_from_rtmp_ = datachannel_from_rtmp;
     stream_info_ = stream_info;
     retry_cnt_ = cnt;
     loop_cnt_ = 0;
@@ -477,19 +479,20 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo& rcv, Srs
 
             data_channels_.insert(make_pair(data_channel.sid_, data_channel));
 
-            auto iter = g_mapStream2Sctp.find(stream_info_);
-            std::vector<IComsumeDatachannel*> vecDatachannel;
-            if (iter == g_mapStream2Sctp.end()) {
-                g_mapStream2Sctp.insert(make_pair(stream_info_, vecDatachannel));
-            }
-            g_mapStream2Sctp[stream_info_].push_back(this);
-
-            if (sctp_td_  == NULL) {
-                sctp_info_ = rcv;
-                std::ostringstream co_name;
-                co_name << "sctp-send-" << stream_info_;
-                sctp_td_ = new SrsSTCoroutine(co_name.str(), this);
-                sctp_td_->start();
+            if (datachannel_from_rtmp_) {
+                auto iter = g_mapStream2Sctp.find(stream_info_);
+                std::vector<IComsumeDatachannel*> vecDatachannel;
+                if (iter == g_mapStream2Sctp.end()) {
+                    g_mapStream2Sctp.insert(make_pair(stream_info_, vecDatachannel));
+                }
+                g_mapStream2Sctp[stream_info_].push_back(this);
+                if (sctp_td_  == NULL) {
+                    sctp_info_ = rcv;
+                    std::ostringstream co_name;
+                    co_name << "sctp-send-" << stream_info_;
+                    sctp_td_ = new SrsSTCoroutine(co_name.str(), this);
+                    sctp_td_->start();
+                }
             }
             break;
         }

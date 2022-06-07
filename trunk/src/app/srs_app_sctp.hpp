@@ -77,7 +77,7 @@ public:
     SrsDtls* rtc_dtls_;
     struct socket* sctp_socket;
 public:
-    SrsSctp(SrsDtls* dtls, const std::string& stream_info = "", int cnt = 0);
+    SrsSctp(SrsDtls* dtls, bool datachannel_from_rtmp = false, const std::string& stream_info = "", int cnt = 0);
     virtual ~SrsSctp();
 public:
     virtual srs_error_t cycle();
@@ -96,6 +96,7 @@ private:
     srs_error_t set_datachannel_sequence(SrsSharedPtrMessage* msg);
 private:
     SrsSTCoroutine* sctp_td_;
+    bool datachannel_from_rtmp_;
     std::string stream_info_;
     int retry_cnt_;
     int loop_cnt_;
