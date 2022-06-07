@@ -439,6 +439,24 @@ srs_error_t SrsSrtStat::fetch(SRTSOCKET srt_fd, bool clear)
     return err;
 }
 
+class SrsSrtPoller : public ISrsSrtPoller
+{
+public:
+    SrsSrtPoller();
+    virtual ~SrsSrtPoller();
+public:
+    srs_error_t initialize();
+    srs_error_t add_socket(SrsSrtSocket* srt_skt);
+    srs_error_t mod_socket(SrsSrtSocket* srt_skt);
+    srs_error_t del_socket(SrsSrtSocket* srt_skt);
+    srs_error_t wait(int timeout_ms, int* pn_fds);
+private:
+    // Find SrsSrtSocket* context by SRTSOCKET.
+    std::map<SRTSOCKET, SrsSrtSocket*> fd_sockets_;
+    int srt_epoller_fd_;
+    std::vector<SRT_EPOLL_EVENT> events_;
+};
+
 SrsSrtPoller::SrsSrtPoller()
 {
     srt_epoller_fd_ = -1;
@@ -556,7 +574,20 @@ srs_error_t SrsSrtPoller::mod_socket(SrsSrtSocket* srt_skt)
     return err;
 }
 
-SrsSrtSocket::SrsSrtSocket(SrsSrtPoller* srt_poller, SRTSOCKET srt_fd)
+ISrsSrtPoller::ISrsSrtPoller()
+{
+}
+
+ISrsSrtPoller::~ISrsSrtPoller()
+{
+}
+
+ISrsSrtPoller* srs_srt_poller_new()
+{
+    return new SrsSrtPoller();
+}
+
+SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller* srt_poller, SRTSOCKET srt_fd)
 {
     srt_poller_ = srt_poller;
     srt_fd_ = srt_fd;

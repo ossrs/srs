@@ -111,7 +111,7 @@ public:
     SrsSrtEventLoop();
     virtual ~SrsSrtEventLoop();
 public:
-    SrsSrtPoller* poller() { return srt_poller_; }
+    ISrsSrtPoller* poller() { return srt_poller_; }
 public:
     srs_error_t initialize();
     srs_error_t start();
@@ -119,7 +119,7 @@ public:
 public:
     virtual srs_error_t cycle();
 private:
-    SrsSrtPoller* srt_poller_;
+    ISrsSrtPoller* srt_poller_;
     SrsCoroutine* trd_;
 };
 
