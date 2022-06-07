@@ -384,14 +384,12 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
         // reportable
         if (pprint->can_print()) {
-            SRT_TRACEBSTATS srt_stats;
-            srs_error_t err_tmp = srs_srt_get_stats(srt_fd_, &srt_stats, true);
-            if (err_tmp != srs_success) {
-                srs_freep(err_tmp);
+            SrsSrtStat s;
+            if ((err = s.fetch(srt_fd_, true)) != srs_success) {
+                srs_freep(err);
             } else {
-                srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Transport Stats # "
-                        "pktRecv=%ld, pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d",
-                    srt_stats.pktRecv, srt_stats.pktRcvLoss, srt_stats.pktRcvRetrans, srt_stats.pktRcvDrop);
+                srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Transport Stats # pktRecv=%" PRId64 ", pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d",
+                    s.pktRecv(), s.pktRcvLoss(), s.pktRcvRetrans(), s.pktRcvDrop());
             }
 
             kbps_->sample();
@@ -467,14 +465,12 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 
         // reportable
         if (pprint->can_print()) {
-            SRT_TRACEBSTATS srt_stats;
-            srs_error_t err_tmp = srs_srt_get_stats(srt_fd_, &srt_stats, true);
-            if (err_tmp != srs_success) {
-                srs_freep(err_tmp);
+            SrsSrtStat s;
+            if ((err = s.fetch(srt_fd_, true)) != srs_success) {
+                srs_freep(err);
             } else {
-                srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " Transport Stats # "
-                        "pktSent=%ld, pktSndLoss=%d, pktRetrans=%d, pktSndDrop=%d",
-                    srt_stats.pktSent, srt_stats.pktSndLoss, srt_stats.pktRetrans, srt_stats.pktSndDrop);
+                srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " Transport Stats # pktSent=%" PRId64 ", pktSndLoss=%d, pktRetrans=%d, pktSndDrop=%d",
+                    s.pktSent(), s.pktSndLoss(), s.pktRetrans(), s.pktSndDrop());
             }
 
             kbps_->sample();
