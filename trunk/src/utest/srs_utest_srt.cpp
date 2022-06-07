@@ -16,6 +16,8 @@
 #include <vector>
 using namespace std;
 
+#include <srt/srt.h>
+
 extern SrsSrtEventLoop* _srt_eventloop;
 
 // Test srt st service
@@ -26,7 +28,7 @@ VOID TEST(ServiceSrtPoller, SrtPollOperateSocket)
     ISrsSrtPoller* srt_poller = srs_srt_poller_new();
     HELPER_EXPECT_SUCCESS(srt_poller->initialize());
 
-    SRTSOCKET srt_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_fd));
     EXPECT_TRUE(srt_fd > 0);
 
@@ -53,10 +55,10 @@ VOID TEST(ServiceSrtPoller, SrtPollOperateSocket)
     EXPECT_FALSE(srt_socket->events() & SRT_EPOLL_OUT);
     EXPECT_TRUE(srt_socket->events() & SRT_EPOLL_ERR);
 
-    EXPECT_EQ(srt_poller->fd_sockets_.size(), 1);
+    EXPECT_EQ(srt_poller->size(), 1);
     // Delete socket, will remove in srt poller.
     srs_freep(srt_socket);
-    EXPECT_EQ(srt_poller->fd_sockets_.size(), 0);
+    EXPECT_EQ(srt_poller->size(), 0);
 
     srs_freep(srt_poller);
 }
@@ -65,7 +67,7 @@ VOID TEST(ServiceSrtPoller, SrtSetGetSocketOpt)
 {
     srs_error_t err = srs_success;
 
-    SRTSOCKET srt_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_nonblock(srt_fd));
 
@@ -129,10 +131,10 @@ class MockSrtServer
 {
 public:
     SrsSrtSocket* srt_socket_;
-    SRTSOCKET srt_server_fd_;
+    srs_srt_t srt_server_fd_;
 
     MockSrtServer() {
-        srt_server_fd_ = SRT_INVALID_SOCK;
+        srt_server_fd_ = srs_srt_socket_invalid();
         srt_socket_ = NULL;
     }
 
@@ -160,7 +162,7 @@ public:
         srs_freep(srt_socket_);
     }
 
-    virtual srs_error_t accept(SRTSOCKET* client_fd) {
+    virtual srs_error_t accept(srs_srt_t* client_fd) {
         srs_error_t err = srs_success;
 
         if ((err = srt_socket_->accept(client_fd)) != srs_success) {
@@ -182,32 +184,32 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
     HELPER_EXPECT_SUCCESS(srt_server.listen(server_ip, server_port));
 
-    SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_client_fd));
 
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     // No client connected, accept will timeout.
-    SRTSOCKET srt_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_fd = srs_srt_socket_invalid();
     // Make utest fast timeout.
     srt_server.srt_socket_->set_recv_timeout(50 * SRS_UTIME_MILLISECONDS);
     err = srt_server.accept(&srt_fd);
     EXPECT_EQ(srs_error_code(err), ERROR_SRT_TIMEOUT);
-    EXPECT_EQ(srt_fd, SRT_INVALID_SOCK);
+    EXPECT_EQ(srt_fd, srs_srt_socket_invalid());
 
     // Client connect to server
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
     // Server will accept one client.
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_fd));
-    EXPECT_NE(srt_fd, SRT_INVALID_SOCK);
+    EXPECT_NE(srt_fd, srs_srt_socket_invalid());
 }
 
 VOID TEST(ServiceStSRTTest, ConnectTimeout) 
 {
     srs_error_t err = srs_success;
 
-    SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
@@ -228,16 +230,16 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     HELPER_EXPECT_SUCCESS(srt_server.listen(server_ip, server_port));
 
     std::string streamid = "SRS_SRT_Streamid";
-    SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect("127.0.0.1", 9000));
 
-    SRTSOCKET srt_server_accepted_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
-    EXPECT_NE(srt_server_accepted_fd, SRT_INVALID_SOCK);
+    EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
     std::string s;
     HELPER_EXPECT_SUCCESS(srs_srt_get_streamid(srt_server_accepted_fd, s));
     EXPECT_EQ(s, streamid);
@@ -254,7 +256,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
     HELPER_EXPECT_SUCCESS(srt_server.listen(server_ip, server_port));
 
-    SRTSOCKET srt_client_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     SrsSrtSocket* srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
 
@@ -262,9 +264,9 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
     // Server will accept one client.
-    SRTSOCKET srt_server_accepted_fd = SRT_INVALID_SOCK;
+    srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
-    EXPECT_NE(srt_server_accepted_fd, SRT_INVALID_SOCK);
+    EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
     SrsSrtSocket* srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_accepted_fd);
 
     if (true) {
@@ -307,15 +309,15 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
 class MockSrtHandler : public ISrsSrtHandler
 {
 private:
-    SRTSOCKET srt_fd;
+    srs_srt_t srt_fd;
 public:
 	MockSrtHandler() {
-        srt_fd = SRT_INVALID_SOCK;
+        srt_fd = srs_srt_socket_invalid();
 	}
 	virtual ~MockSrtHandler() {
 	}
 public:
-    virtual srs_error_t on_srt_client(SRTSOCKET fd) {
+    virtual srs_error_t on_srt_client(srs_srt_t fd) {
         srt_fd = fd;
         return srs_success;
 	}

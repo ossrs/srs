@@ -21,14 +21,14 @@ public:
     virtual ~ISrsSrtHandler();
 public:
     // When got srt client.
-    virtual srs_error_t on_srt_client(SRTSOCKET srt_fd) = 0;
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd) = 0;
 };
 
 // Bind and listen SRT(udp) port, use handler to process the client.
 class SrsSrtListener : public ISrsCoroutineHandler
 {
 private:
-    SRTSOCKET lfd_;
+    srs_srt_t lfd_;
     SrsSrtSocket* srt_skt_;
     SrsCoroutine* trd_;
 private:
@@ -39,7 +39,7 @@ public:
     SrsSrtListener(ISrsSrtHandler* h, std::string i, int p);
     virtual ~SrsSrtListener();
 public:
-    virtual SRTSOCKET fd();
+    virtual srs_srt_t fd();
 public:
     // Create srt socket, separate this step because of srt have some option must set before listen.
     virtual srs_error_t create_socket();

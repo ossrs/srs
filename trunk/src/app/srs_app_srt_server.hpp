@@ -50,7 +50,7 @@ public:
     virtual srs_error_t set_srt_opt();
 // Interface ISrsSrtHandler
 public:
-    virtual srs_error_t on_srt_client(SRTSOCKET srt_fd);
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
 // SRS SRT server, initialize and listen, start connection service thread, destroy client.
@@ -78,9 +78,9 @@ public:
     // @param type, the client type, used to create concrete connection,
     //       for instance SRT connection to serve client.
     // @param srt_fd, the client fd in srt boxed, the underlayer fd.
-    virtual srs_error_t accept_srt_client(SrsSrtListenerType type, SRTSOCKET srt_fd);
+    virtual srs_error_t accept_srt_client(SrsSrtListenerType type, srs_srt_t srt_fd);
 private:
-    virtual srs_error_t fd_to_resource(SrsSrtListenerType type, SRTSOCKET srt_fd, ISrsStartableConneciton** pr);
+    virtual srs_error_t fd_to_resource(SrsSrtListenerType type, srs_srt_t srt_fd, ISrsStartableConneciton** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.
