@@ -13,7 +13,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_service_st_srt.hpp>
+#include <srs_protocol_srt.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_pithy_print.hpp>

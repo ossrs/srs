@@ -44,7 +44,7 @@ using namespace std;
 #endif
 
 #ifdef SRS_SRT
-#include <srs_service_st_srt.hpp>
+#include <srs_protocol_srt.hpp>
 #include <srs_app_srt_server.hpp>
 #endif
 

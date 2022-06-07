@@ -228,7 +228,7 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_conn" "srs_pro
         "srs_protocol_format" "srs_protocol_log" "srs_protocol_st" "srs_protocol_http_client"
         "srs_protocol_http_conn" "srs_protocol_rtmp_conn")
 if [[ $SRS_SRT == YES ]]; then
-    MODULE_FILES+=("srs_service_st_srt")
+    MODULE_FILES+=("srs_protocol_srt")
     ModuleLibIncs+=(${LibSRTRoot})
 fi
 if [[ $SRS_RTC == YES ]]; then
