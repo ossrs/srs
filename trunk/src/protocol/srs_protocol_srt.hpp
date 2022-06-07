@@ -86,31 +86,27 @@ public:
 };
 
 // Srt poller, subscribe/unsubscribed events and wait them fired.
-class SrsSrtPoller 
+class ISrsSrtPoller
 {
 public:
-    SrsSrtPoller();
-    virtual ~SrsSrtPoller();
+    ISrsSrtPoller();
+    virtual ~ISrsSrtPoller();
 public:
-    srs_error_t initialize();
-    srs_error_t add_socket(SrsSrtSocket* srt_skt);
-    srs_error_t mod_socket(SrsSrtSocket* srt_skt);
-    srs_error_t del_socket(SrsSrtSocket* srt_skt);
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t add_socket(SrsSrtSocket* srt_skt) = 0;
+    virtual srs_error_t mod_socket(SrsSrtSocket* srt_skt) = 0;
+    virtual srs_error_t del_socket(SrsSrtSocket* srt_skt) = 0;
     // Wait for the fds in its epoll to be fired in specified timeout_ms, where the pn_fds is the number of active fds.
     // Note that for ST, please always use timeout_ms(0) and switch coroutine by yourself.
-    srs_error_t wait(int timeout_ms, int* pn_fds);
-private:
-    // Find SrsSrtSocket* context by SRTSOCKET.
-    std::map<SRTSOCKET, SrsSrtSocket*> fd_sockets_;
-    int srt_epoller_fd_;
-    std::vector<SRT_EPOLL_EVENT> events_;
+    virtual srs_error_t wait(int timeout_ms, int* pn_fds) = 0;
 };
+ISrsSrtPoller* srs_srt_poller_new();
 
 // Srt ST socket, wrap SRT io and make it adapt to ST-thread.
 class SrsSrtSocket
 {
 public:
-    SrsSrtSocket(SrsSrtPoller* srt_poller, SRTSOCKET srt_fd);
+    SrsSrtSocket(ISrsSrtPoller* srt_poller, SRTSOCKET srt_fd);
     virtual ~SrsSrtSocket();
 public: // IO API
     srs_error_t connect(const std::string& ip, int port);
@@ -171,7 +167,7 @@ private:
     // Event of this socket subscribed.
     int events_;
     // Srt poller which this socket attach to.
-    SrsSrtPoller* srt_poller_;
+    ISrsSrtPoller* srt_poller_;
 };
 
 #endif

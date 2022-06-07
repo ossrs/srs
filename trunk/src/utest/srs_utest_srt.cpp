@@ -23,7 +23,7 @@ VOID TEST(ServiceSrtPoller, SrtPollOperateSocket)
 {
     srs_error_t err = srs_success;
 
-    SrsSrtPoller* srt_poller = new SrsSrtPoller();
+    ISrsSrtPoller* srt_poller = srs_srt_poller_new();
     HELPER_EXPECT_SUCCESS(srt_poller->initialize());
 
     SRTSOCKET srt_fd = SRT_INVALID_SOCK;
