@@ -141,7 +141,7 @@ srs_error_t SrsSrtMessageAcceptor::set_srt_opt()
     return err;
 }
 
-srs_error_t SrsSrtMessageAcceptor::on_srt_client(SRTSOCKET srt_fd)
+srs_error_t SrsSrtMessageAcceptor::on_srt_client(srs_srt_t srt_fd)
 {
     // Notify srt server to accept srt client, and create new SrsSrtConn on it.
     srs_error_t err = srt_server_->accept_srt_client(type_, srt_fd);
@@ -226,7 +226,7 @@ void SrsSrtServer::close_listeners(SrsSrtListenerType type)
     }
 }
 
-srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, SRTSOCKET srt_fd)
+srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
 
@@ -234,7 +234,8 @@ srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, SRTSOCKET s
     
     if ((err = fd_to_resource(type, srt_fd, &conn)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
-        srt_close(srt_fd);
+        // TODO: FIXME: Handle error.
+        srs_srt_close(srt_fd);
         return srs_error_wrap(err, "srt fd to resource");
     }
     srs_assert(conn);
@@ -249,7 +250,7 @@ srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, SRTSOCKET s
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(SrsSrtListenerType type, SRTSOCKET srt_fd, ISrsStartableConneciton** pr)
+srs_error_t SrsSrtServer::fd_to_resource(SrsSrtListenerType type, srs_srt_t srt_fd, ISrsStartableConneciton** pr)
 {
     srs_error_t err = srs_success;
     
@@ -271,7 +272,8 @@ srs_error_t SrsSrtServer::fd_to_resource(SrsSrtListenerType type, SRTSOCKET srt_
         *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
     } else {
         srs_warn("close for no service handler. srtfd=%d, ip=%s:%d", srt_fd, ip.c_str(), port);
-        srt_close(srt_fd);
+        // TODO: FIXME: Handle error.
+        srs_srt_close(srt_fd);
         return err;
     }
     

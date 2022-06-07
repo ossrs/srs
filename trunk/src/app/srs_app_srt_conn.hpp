@@ -28,7 +28,7 @@ class SrsSrtServer;
 class SrsSrtConnection : public ISrsProtocolReadWriter
 {
 public:
-    SrsSrtConnection(SRTSOCKET srt_fd);
+    SrsSrtConnection(srs_srt_t srt_fd);
     virtual ~SrsSrtConnection();
 public:
     virtual srs_error_t initialize();
@@ -46,7 +46,7 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 private:
     // The underlayer srt fd handler.
-    SRTSOCKET srt_fd_;
+    srs_srt_t srt_fd_;
     // The underlayer srt socket.
     SrsSrtSocket* srt_skt_;
 };
@@ -73,7 +73,7 @@ private:
 class SrsMpegtsSrtConn : public ISrsStartableConneciton, public ISrsCoroutineHandler
 {
 public:
-    SrsMpegtsSrtConn(SrsSrtServer* srt_server, SRTSOCKET srt_fd, std::string ip, int port);
+    SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port);
     virtual ~SrsMpegtsSrtConn();
 // Interface ISrsResource.
 public:
@@ -111,7 +111,7 @@ private:
     void http_hooks_on_stop();
 private:
     SrsSrtServer* srt_server_;
-    SRTSOCKET srt_fd_;
+    srs_srt_t srt_fd_;
     SrsSrtConnection* srt_conn_;
     SrsWallClock* clock_;
     SrsKbps* kbps_;

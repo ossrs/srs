@@ -20,7 +20,7 @@ using namespace std;
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
 
-SrsSrtConnection::SrsSrtConnection(SRTSOCKET srt_fd)
+SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
 {
     srt_fd_ = srt_fd;
     srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_fd_);
@@ -148,7 +148,7 @@ srs_error_t SrsSrtRecvThread::get_recv_err()
     return srs_error_copy(recv_err_);
 }
 
-SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, SRTSOCKET srt_fd, std::string ip, int port)
+SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, std::string ip, int port)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());

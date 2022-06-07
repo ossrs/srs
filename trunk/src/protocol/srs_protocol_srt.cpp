@@ -14,6 +14,8 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
 
+#include <srt/srt.h>
+
 #define SET_SRT_OPT_STR(srtfd, optname, buf, size)                                  \
     if (srt_setsockflag(srtfd, optname, buf, size) == SRT_ERROR) {                  \
         std::stringstream ss;                                                       \
@@ -41,7 +43,7 @@ using namespace std;
         }                                                                       \
     } while (0)
 
-static srs_error_t do_srs_srt_listen(SRTSOCKET srt_fd, addrinfo* r)
+static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo* r)
 {
     srs_error_t err = srs_success;
 
@@ -60,7 +62,7 @@ static srs_error_t do_srs_srt_listen(SRTSOCKET srt_fd, addrinfo* r)
     return err;
 }
 
-static srs_error_t do_srs_srt_get_streamid(SRTSOCKET srt_fd, string& streamid)
+static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string& streamid)
 {
     // SRT max streamid length is 512.
     char sid[512];
@@ -70,11 +72,16 @@ static srs_error_t do_srs_srt_get_streamid(SRTSOCKET srt_fd, string& streamid)
     return srs_success;
 }
 
-srs_error_t srs_srt_socket(SRTSOCKET* pfd)
+srs_srt_t srs_srt_socket_invalid()
+{
+    return SRT_INVALID_SOCK;
+}
+
+srs_error_t srs_srt_socket(srs_srt_t* pfd)
 {
     srs_error_t err = srs_success;
 
-    SRTSOCKET srt_fd = 0;
+    srs_srt_t srt_fd = 0;
     if ((srt_fd = srt_create_socket()) < 0) {
         return srs_error_new(ERROR_SOCKET_CREATE, "create srt socket");
     }
@@ -84,11 +91,18 @@ srs_error_t srs_srt_socket(SRTSOCKET* pfd)
     return err;
 }
 
-srs_error_t srs_srt_socket_with_default_option(SRTSOCKET* pfd)
+srs_error_t srs_srt_close(srs_srt_t fd)
+{
+    // TODO: FIXME: Handle error.
+    srt_close(fd);
+    return srs_success;
+}
+
+srs_error_t srs_srt_socket_with_default_option(srs_srt_t* pfd)
 {
     srs_error_t err = srs_success;
 
-    SRTSOCKET srt_fd = 0;
+    srs_srt_t srt_fd = 0;
     if ((srt_fd = srt_create_socket()) < 0) {
         return srs_error_new(ERROR_SOCKET_CREATE, "create srt socket");
     }
@@ -114,7 +128,7 @@ srs_error_t srs_srt_socket_with_default_option(SRTSOCKET* pfd)
     return err;
 }
 
-srs_error_t srs_srt_listen(SRTSOCKET srt_fd, std::string ip, int port)
+srs_error_t srs_srt_listen(srs_srt_t srt_fd, std::string ip, int port)
 {
     srs_error_t err = srs_success;
 
@@ -142,7 +156,7 @@ srs_error_t srs_srt_listen(SRTSOCKET srt_fd, std::string ip, int port)
     return err;
 }
 
-srs_error_t srs_srt_nonblock(SRTSOCKET srt_fd)
+srs_error_t srs_srt_nonblock(srs_srt_t srt_fd)
 {
     int sync = 0;
     SET_SRT_OPT(srt_fd, SRTO_SNDSYN, sync);
@@ -151,157 +165,157 @@ srs_error_t srs_srt_nonblock(SRTSOCKET srt_fd)
     return srs_success;
 }
 
-srs_error_t srs_srt_set_maxbw(SRTSOCKET srt_fd, int maxbw)
+srs_error_t srs_srt_set_maxbw(srs_srt_t srt_fd, int maxbw)
 {
     SET_SRT_OPT(srt_fd, SRTO_MAXBW, maxbw);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_mss(SRTSOCKET srt_fd, int mss)
+srs_error_t srs_srt_set_mss(srs_srt_t srt_fd, int mss)
 {
     SET_SRT_OPT(srt_fd, SRTO_MSS, mss);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_payload_size(SRTSOCKET srt_fd, int payload_size)
+srs_error_t srs_srt_set_payload_size(srs_srt_t srt_fd, int payload_size)
 {
     SET_SRT_OPT(srt_fd, SRTO_PAYLOADSIZE, payload_size);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_connect_timeout(SRTSOCKET srt_fd, int timeout)
+srs_error_t srs_srt_set_connect_timeout(srs_srt_t srt_fd, int timeout)
 {
     SET_SRT_OPT(srt_fd, SRTO_CONNTIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_peer_idle_timeout(SRTSOCKET srt_fd, int timeout)
+srs_error_t srs_srt_set_peer_idle_timeout(srs_srt_t srt_fd, int timeout)
 {
     SET_SRT_OPT(srt_fd, SRTO_PEERIDLETIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_tsbpdmode(SRTSOCKET srt_fd, bool tsbpdmode)
+srs_error_t srs_srt_set_tsbpdmode(srs_srt_t srt_fd, bool tsbpdmode)
 {
     SET_SRT_OPT(srt_fd, SRTO_TSBPDMODE, tsbpdmode);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_sndbuf(SRTSOCKET srt_fd, int sndbuf)
+srs_error_t srs_srt_set_sndbuf(srs_srt_t srt_fd, int sndbuf)
 {
     SET_SRT_OPT(srt_fd, SRTO_SNDBUF, sndbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_rcvbuf(SRTSOCKET srt_fd, int rcvbuf)
+srs_error_t srs_srt_set_rcvbuf(srs_srt_t srt_fd, int rcvbuf)
 {
     SET_SRT_OPT(srt_fd, SRTO_RCVBUF, rcvbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_tlpktdrop(SRTSOCKET srt_fd, bool tlpktdrop)
+srs_error_t srs_srt_set_tlpktdrop(srs_srt_t srt_fd, bool tlpktdrop)
 {
     SET_SRT_OPT(srt_fd, SRTO_TLPKTDROP, tlpktdrop);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_latency(SRTSOCKET srt_fd, int latency)
+srs_error_t srs_srt_set_latency(srs_srt_t srt_fd, int latency)
 {
     SET_SRT_OPT(srt_fd, SRTO_LATENCY, latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_rcv_latency(SRTSOCKET srt_fd, int rcv_latency)
+srs_error_t srs_srt_set_rcv_latency(srs_srt_t srt_fd, int rcv_latency)
 {
     SET_SRT_OPT(srt_fd, SRTO_RCVLATENCY, rcv_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_peer_latency(SRTSOCKET srt_fd, int peer_latency)
+srs_error_t srs_srt_set_peer_latency(srs_srt_t srt_fd, int peer_latency)
 {
     SET_SRT_OPT(srt_fd, SRTO_PEERLATENCY, peer_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_set_streamid(SRTSOCKET srt_fd, const std::string& streamid)
+srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string& streamid)
 {
     SET_SRT_OPT_STR(srt_fd, SRTO_STREAMID, streamid.data(), streamid.size());
     return srs_success;
 }
 
-srs_error_t srs_srt_get_maxbw(SRTSOCKET srt_fd, int& maxbw)
+srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int& maxbw)
 {
     GET_SRT_OPT(srt_fd, SRTO_MAXBW, maxbw);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_mss(SRTSOCKET srt_fd, int& mss)
+srs_error_t srs_srt_get_mss(srs_srt_t srt_fd, int& mss)
 {
     GET_SRT_OPT(srt_fd, SRTO_MSS, mss);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_payload_size(SRTSOCKET srt_fd, int& payload_size)
+srs_error_t srs_srt_get_payload_size(srs_srt_t srt_fd, int& payload_size)
 {
     GET_SRT_OPT(srt_fd, SRTO_PAYLOADSIZE, payload_size);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_connect_timeout(SRTSOCKET srt_fd, int& timeout)
+srs_error_t srs_srt_get_connect_timeout(srs_srt_t srt_fd, int& timeout)
 {
     GET_SRT_OPT(srt_fd, SRTO_CONNTIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_peer_idle_timeout(SRTSOCKET srt_fd, int& timeout)
+srs_error_t srs_srt_get_peer_idle_timeout(srs_srt_t srt_fd, int& timeout)
 {
     GET_SRT_OPT(srt_fd, SRTO_PEERIDLETIMEO, timeout);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_tsbpdmode(SRTSOCKET srt_fd, bool& tsbpdmode)
+srs_error_t srs_srt_get_tsbpdmode(srs_srt_t srt_fd, bool& tsbpdmode)
 {
     GET_SRT_OPT(srt_fd, SRTO_TSBPDMODE, tsbpdmode);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_sndbuf(SRTSOCKET srt_fd, int& sndbuf)
+srs_error_t srs_srt_get_sndbuf(srs_srt_t srt_fd, int& sndbuf)
 {
     GET_SRT_OPT(srt_fd, SRTO_SNDBUF, sndbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_rcvbuf(SRTSOCKET srt_fd, int& rcvbuf)
+srs_error_t srs_srt_get_rcvbuf(srs_srt_t srt_fd, int& rcvbuf)
 {
     GET_SRT_OPT(srt_fd, SRTO_RCVBUF, rcvbuf);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_tlpktdrop(SRTSOCKET srt_fd, bool& tlpktdrop)
+srs_error_t srs_srt_get_tlpktdrop(srs_srt_t srt_fd, bool& tlpktdrop)
 {
     GET_SRT_OPT(srt_fd, SRTO_TLPKTDROP, tlpktdrop);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_latency(SRTSOCKET srt_fd, int& latency)
+srs_error_t srs_srt_get_latency(srs_srt_t srt_fd, int& latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_LATENCY, latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_rcv_latency(SRTSOCKET srt_fd, int& rcv_latency)
+srs_error_t srs_srt_get_rcv_latency(srs_srt_t srt_fd, int& rcv_latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_RCVLATENCY, rcv_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_peer_latency(SRTSOCKET srt_fd, int& peer_latency)
+srs_error_t srs_srt_get_peer_latency(srs_srt_t srt_fd, int& peer_latency)
 {
     GET_SRT_OPT(srt_fd, SRTO_PEERLATENCY, peer_latency);
     return srs_success;
 }
 
-srs_error_t srs_srt_get_streamid(SRTSOCKET srt_fd, std::string& streamid)
+srs_error_t srs_srt_get_streamid(srs_srt_t srt_fd, std::string& streamid)
 {
     srs_error_t err = srs_success;
 
@@ -312,7 +326,7 @@ srs_error_t srs_srt_get_streamid(SRTSOCKET srt_fd, std::string& streamid)
     return err;
 }
 
-srs_error_t srs_srt_get_local_ip_port(SRTSOCKET srt_fd, std::string& ip, int& port)
+srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string& ip, int& port)
 {
     srs_error_t err = srs_success;
 
@@ -344,7 +358,7 @@ srs_error_t srs_srt_get_local_ip_port(SRTSOCKET srt_fd, std::string& ip, int& po
     return err;
 }
 
-srs_error_t srs_srt_get_remote_ip_port(SRTSOCKET srt_fd, std::string& ip, int& port)
+srs_error_t srs_srt_get_remote_ip_port(srs_srt_t srt_fd, std::string& ip, int& port)
 {
     srs_error_t err = srs_success;
 
@@ -427,7 +441,7 @@ int SrsSrtStat::pktSndDrop()
     return ((SRT_TRACEBSTATS*)stat_)->pktSndDrop;
 }
 
-srs_error_t SrsSrtStat::fetch(SRTSOCKET srt_fd, bool clear)
+srs_error_t SrsSrtStat::fetch(srs_srt_t srt_fd, bool clear)
 {
     srs_error_t err = srs_success;
 
@@ -450,9 +464,11 @@ public:
     srs_error_t mod_socket(SrsSrtSocket* srt_skt);
     srs_error_t del_socket(SrsSrtSocket* srt_skt);
     srs_error_t wait(int timeout_ms, int* pn_fds);
+public:
+    virtual int size();
 private:
-    // Find SrsSrtSocket* context by SRTSOCKET.
-    std::map<SRTSOCKET, SrsSrtSocket*> fd_sockets_;
+    // Find SrsSrtSocket* context by srs_srt_t.
+    std::map<srs_srt_t, SrsSrtSocket*> fd_sockets_;
     int srt_epoller_fd_;
     std::vector<SRT_EPOLL_EVENT> events_;
 };
@@ -487,7 +503,7 @@ srs_error_t SrsSrtPoller::add_socket(SrsSrtSocket* srt_skt)
     srs_error_t err = srs_success;
 
     int events = srt_skt->events();
-    SRTSOCKET srtfd = srt_skt->fd();
+    srs_srt_t srtfd = srt_skt->fd();
 
     int ret = srt_epoll_add_usock(srt_epoller_fd_, srtfd, &events);
 
@@ -506,7 +522,7 @@ srs_error_t SrsSrtPoller::del_socket(SrsSrtSocket* srt_skt)
 {
     srs_error_t err = srs_success;
 
-    SRTSOCKET srtfd = srt_skt->fd();
+    srs_srt_t srtfd = srt_skt->fd();
 
     int ret = srt_epoll_remove_usock(srt_epoller_fd_, srtfd);
     srs_info("srt poller %d remove srt socket %d", srt_epoller_fd_, srtfd);
@@ -533,7 +549,7 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int* pn_fds)
 
     for (int i = 0; i < ret; ++i) {
         SRT_EPOLL_EVENT event = events_[i];
-        map<SRTSOCKET, SrsSrtSocket*>::iterator iter = fd_sockets_.find(event.fd);
+        map<srs_srt_t, SrsSrtSocket*>::iterator iter = fd_sockets_.find(event.fd);
         if (iter == fd_sockets_.end()) {
             srs_assert(false);
         }
@@ -557,12 +573,17 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int* pn_fds)
     return err;
 }
 
+int SrsSrtPoller::size()
+{
+    return (int)fd_sockets_.size();
+}
+
 srs_error_t SrsSrtPoller::mod_socket(SrsSrtSocket* srt_skt)
 {
     srs_error_t err = srs_success;
 
     int events = srt_skt->events();
-    SRTSOCKET srtfd = srt_skt->fd();
+    srs_srt_t srtfd = srt_skt->fd();
 
     int ret = srt_epoll_update_usock(srt_epoller_fd_, srtfd, &events);
     srs_info("srt poller %d update srt socket %d, events=%d", srt_epoller_fd_, srtfd, events);
@@ -587,7 +608,7 @@ ISrsSrtPoller* srs_srt_poller_new()
     return new SrsSrtPoller();
 }
 
-SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller* srt_poller, SRTSOCKET srt_fd)
+SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller* srt_poller, srs_srt_t srt_fd)
 {
     srt_poller_ = srt_poller;
     srt_fd_ = srt_fd;
@@ -657,7 +678,7 @@ srs_error_t SrsSrtSocket::connect(const string& ip, int port)
     return err;
 }
 
-srs_error_t SrsSrtSocket::accept(SRTSOCKET* client_srt_fd)
+srs_error_t SrsSrtSocket::accept(srs_srt_t* client_srt_fd)
 {
     srs_error_t err = srs_success;
 
@@ -665,10 +686,10 @@ srs_error_t SrsSrtSocket::accept(SRTSOCKET* client_srt_fd)
         sockaddr_in inaddr;
         int addrlen = sizeof(inaddr);
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_accept
-        SRTSOCKET srt_fd = srt_accept(srt_fd_, (sockaddr*)&inaddr, &addrlen);
+        srs_srt_t srt_fd = srt_accept(srt_fd_, (sockaddr*)&inaddr, &addrlen);
 
         // Accept ok, return with the SRT client fd.
-        if (srt_fd != SRT_INVALID_SOCK) {
+        if (srt_fd != srs_srt_socket_invalid()) {
             *client_srt_fd = srt_fd;
             return err;
         }

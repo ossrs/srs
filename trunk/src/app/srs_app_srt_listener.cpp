@@ -26,7 +26,7 @@ SrsSrtListener::SrsSrtListener(ISrsSrtHandler* h, std::string i, int p)
     ip_ = i;
     port_ = p;
 
-    lfd_ = SRT_INVALID_SOCK;
+    lfd_ = srs_srt_socket_invalid();
     srt_skt_ = NULL;
     
     trd_ = new SrsDummyCoroutine();
@@ -36,7 +36,8 @@ SrsSrtListener::~SrsSrtListener()
 {
     srs_freep(trd_);
     srs_freep(srt_skt_);
-    srt_close(lfd_);
+    // TODO: FIXME: Handle error.
+    srs_srt_close(lfd_);
 }
 
 int SrsSrtListener::fd()
@@ -84,7 +85,7 @@ srs_error_t SrsSrtListener::cycle()
             return srs_error_wrap(err, "srt listener");
         }
         
-        SRTSOCKET client_srt_fd = SRT_INVALID_SOCK;
+        srs_srt_t client_srt_fd = srs_srt_socket_invalid();
         if ((err = srt_skt_->accept(&client_srt_fd)) != srs_success) {
             return srs_error_wrap(err, "srt accept");
         }
