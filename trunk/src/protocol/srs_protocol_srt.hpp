@@ -15,6 +15,8 @@
 
 #include <srt/srt.h>
 
+class SrsSrtSocket;
+
 // Create srt socket only, with libsrt's default option.
 extern srs_error_t srs_srt_socket(SRTSOCKET* pfd);
 
@@ -62,9 +64,26 @@ extern srs_error_t srs_srt_get_local_ip_port(SRTSOCKET srt_fd, std::string& ip, 
 extern srs_error_t srs_srt_get_remote_ip_port(SRTSOCKET srt_fd, std::string& ip, int& port);
 
 // Get SRT stats.
-extern srs_error_t srs_srt_get_stats(SRTSOCKET srt_fd, SRT_TRACEBSTATS* srt_stats, bool clear);
-
-class SrsSrtSocket;
+class SrsSrtStat
+{
+private:
+    void* stat_;
+public:
+    SrsSrtStat();
+    virtual ~SrsSrtStat();
+public:
+    int64_t pktRecv();
+    int pktRcvLoss();
+    int pktRcvRetrans();
+    int pktRcvDrop();
+public:
+    int64_t pktSent();
+    int pktSndLoss();
+    int pktRetrans();
+    int pktSndDrop();
+public:
+    srs_error_t fetch(SRTSOCKET srt_fd, bool clear);
+};
 
 // Srt poller, subscribe/unsubscribed events and wait them fired.
 class SrsSrtPoller 

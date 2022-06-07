@@ -376,13 +376,64 @@ srs_error_t srs_srt_get_remote_ip_port(SRTSOCKET srt_fd, std::string& ip, int& p
     return err;
 }
 
-srs_error_t srs_srt_get_stats(SRTSOCKET srt_fd, SRT_TRACEBSTATS* srt_stats, bool clear)
+SrsSrtStat::SrsSrtStat()
+{
+    stat_ = new SRT_TRACEBSTATS();
+}
+
+SrsSrtStat::~SrsSrtStat()
+{
+    SRT_TRACEBSTATS* p = (SRT_TRACEBSTATS*)stat_;
+    srs_freep(p);
+}
+
+int64_t SrsSrtStat::pktRecv()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktRecv;
+}
+
+int SrsSrtStat::pktRcvLoss()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktRcvLoss;
+}
+
+int SrsSrtStat::pktRcvRetrans()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktRcvRetrans;
+}
+
+int SrsSrtStat::pktRcvDrop()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktRcvDrop;
+}
+
+int64_t SrsSrtStat::pktSent()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktSent;
+}
+
+int SrsSrtStat::pktSndLoss()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktSndLoss;
+}
+
+int SrsSrtStat::pktRetrans()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktRetrans;
+}
+
+int SrsSrtStat::pktSndDrop()
+{
+    return ((SRT_TRACEBSTATS*)stat_)->pktSndDrop;
+}
+
+srs_error_t SrsSrtStat::fetch(SRTSOCKET srt_fd, bool clear)
 {
     srs_error_t err = srs_success;
 
-    int ret = srt_bstats(srt_fd, srt_stats, clear);
-    if (ret != 0) {
-        return srs_error_new(ERROR_SRT_STATS, "srt_bstats");
+    int r0 = srt_bstats(srt_fd, (SRT_TRACEBSTATS*)stat_, clear);
+    if (r0) {
+        return srs_error_new(ERROR_SRT_STATS, "srt_bstats r0=%d", r0);
     }
 
     return err;
