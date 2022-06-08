@@ -287,7 +287,8 @@ srs_error_t SrsRtmpFromSrtBridge::on_packet(SrsSrtPacket *pkt)
         SrsBuffer* stream = new SrsBuffer(p, SRS_TS_PACKET_SIZE);
         SrsAutoFree(SrsBuffer, stream);
         
-        // process each ts packet
+        // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
+        // don't handle it because SRT will, see tlpkdrop at https://github.com/ossrs/srs/wiki/v5_EN_SRTParams
         if ((err = ts_ctx_->decode(stream, this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_error_reset(err);
