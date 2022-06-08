@@ -167,7 +167,6 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
 
     srt_source_ = NULL;
     req_ = new SrsRequest();
-    mode_ = SrtModePull;
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
@@ -239,29 +238,6 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    if ((err = fetch_or_create_source()) != srs_success) {
-        return srs_error_wrap(err, "fetch or create srt source");
-    }
-
-    if ((err = http_hooks_on_connect()) != srs_success) {
-        return srs_error_wrap(err, "on connect");
-    }
-
-    if (mode_ == SrtModePush) {
-        err = publishing();
-    } else if (mode_ == SrtModePull) {
-        err = playing();
-    }
-    
-    http_hooks_on_close();
-    
-    return err;
-}
-
-srs_error_t SrsMpegtsSrtConn::fetch_or_create_source()
-{
-    srs_error_t err = srs_success;
-
     string streamid = "";
     if ((err = srs_srt_get_streamid(srt_fd_, streamid)) != srs_success) {
         return srs_error_wrap(err, "get srt streamid");
@@ -273,7 +249,8 @@ srs_error_t SrsMpegtsSrtConn::fetch_or_create_source()
     }
 
     // Detect streamid of srt to request.
-    if (! srs_srt_streamid_to_request(streamid, mode_, req_)) {
+    SrtMode mode = SrtModePull;
+    if (! srs_srt_streamid_to_request(streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
@@ -282,12 +259,24 @@ srs_error_t SrsMpegtsSrtConn::fetch_or_create_source()
     }
 
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
-        streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
+              streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost.c_str(), req_->app.c_str(), req_->stream.c_str(), req_->param.c_str());
 
     if ((err = _srs_srt_sources->fetch_or_create(req_, &srt_source_)) != srs_success) {
         return srs_error_wrap(err, "fetch srt source");
     }
 
+    if ((err = http_hooks_on_connect()) != srs_success) {
+        return srs_error_wrap(err, "on connect");
+    }
+
+    if (mode == SrtModePush) {
+        err = publishing();
+    } else if (mode == SrtModePull) {
+        err = playing();
+    }
+    
+    http_hooks_on_close();
+    
     return err;
 }
 

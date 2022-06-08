@@ -93,7 +93,6 @@ public:
 protected:
     virtual srs_error_t do_cycle();
 private:
-    srs_error_t fetch_or_create_source();
     srs_error_t publishing();
     srs_error_t playing();
     srs_error_t acquire_publish();
@@ -120,7 +119,6 @@ private:
     SrsCoroutine* trd_;
 
     SrsRequest* req_;
-    SrtMode mode_;
     SrsSrtSource* srt_source_;
 };
 
