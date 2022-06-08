@@ -312,6 +312,7 @@ srs_error_t SrsMpegtsSrtConn::playing()
     return err;
 }
 
+// TODO: FIXME: It's not atomic and has risk between multiple source checking.
 srs_error_t SrsMpegtsSrtConn::acquire_publish()
 {
     srs_error_t err = srs_success;
@@ -370,8 +371,6 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
         }
 
         pprint->elapse();
-
-        // reportable
         if (pprint->can_print()) {
             SrsSrtStat s;
             if ((err = s.fetch(srt_fd_, true)) != srs_success) {
@@ -485,9 +484,19 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
 
-    // Check srt payload, mpegts must be N times of SRS_TS_PACKET_SIZE, and the first byte must be 0x47
-    if ((nb_buf <= 0) || (nb_buf % SRS_TS_PACKET_SIZE != 0) || (buf[0] != 0x47)) {
-        return srs_error_new(ERROR_SRT_CONN, "invalid ts packet");
+    // Ignore if invalid length.
+    if (nb_buf <= 0) {
+        return err;
+    }
+
+    // Check srt payload, mpegts must be N times of SRS_TS_PACKET_SIZE
+    if ((nb_buf % SRS_TS_PACKET_SIZE) != 0) {
+        return srs_error_new(ERROR_SRT_CONN, "invalid ts packet len=%d", nb_buf);
+    }
+
+    // Check srt payload, the first byte must be 0x47
+    if (buf[0] != 0x47) {
+        return srs_error_new(ERROR_SRT_CONN, "invalid ts packet first=%#x", (uint8_t)buf[0]);
     }
 
     SrsSrtPacket* packet = new SrsSrtPacket();
