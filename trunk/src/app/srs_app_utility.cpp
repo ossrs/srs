@@ -1093,6 +1093,11 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     nb_tcp_total = 0;
     nb_tcp_mem = 0;
     nb_udp4 = 0;
+
+    (void)nb_socks;
+    (void)nb_tcp_mem;
+    (void)nb_tcp4_hashed;
+    (void)nb_tcp_orphans;
 #endif
 
     int nb_tcp_estab = 0;
