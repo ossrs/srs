@@ -16,7 +16,7 @@
 #include <srs_protocol_utility.hpp>
 
 #include <srs_protocol_rtmp_stack.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_kbps.hpp>
 
