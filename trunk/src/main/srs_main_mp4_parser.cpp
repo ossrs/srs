@@ -7,7 +7,7 @@
 #include <srs_core.hpp>
 
 #include <srs_kernel_error.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_kernel_mp4.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_stream.hpp>

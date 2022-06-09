@@ -13,7 +13,7 @@
 #include <string>
 
 #include <srs_app_reload.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 
 // For log TAGs.
 #define TAG_MAIN "MAIN"

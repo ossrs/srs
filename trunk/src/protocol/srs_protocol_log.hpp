@@ -4,15 +4,15 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#ifndef SRS_SERVICE_LOG_HPP
-#define SRS_SERVICE_LOG_HPP
+#ifndef SRS_PROTOCOL_LOG_HPP
+#define SRS_PROTOCOL_LOG_HPP
 
 #include <srs_core.hpp>
 
 #include <map>
 #include <string>
 
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_kernel_log.hpp>
 
 // The st thread context, get_id will get the st-thread id,

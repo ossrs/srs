@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 
 #include <st.h>
 #include <fcntl.h>
@@ -15,7 +15,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
 
 // nginx also set to 512

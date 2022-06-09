@@ -14,7 +14,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>

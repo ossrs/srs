@@ -15,7 +15,7 @@
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_service_rtmp_conn.hpp>
+#include <srs_protocol_rtmp_conn.hpp>
 
 class SrsServer;
 class SrsRtmpServer;

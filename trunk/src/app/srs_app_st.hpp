@@ -13,7 +13,7 @@
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_protocol_io.hpp>
 
 class SrsFastCoroutine;

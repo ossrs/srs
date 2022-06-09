@@ -9,14 +9,14 @@
 using namespace std;
 
 #include <srs_http_stack.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_utest_protocol.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_utest_kernel.hpp>
 #include <srs_app_http_static.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 
 class MockMSegmentsReader : public ISrsReader

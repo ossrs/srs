@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#ifndef SRS_SERVICE_RTMP_CONN_HPP
-#define SRS_SERVICE_RTMP_CONN_HPP
+#ifndef SRS_PROTOCOL_RTMP_CONN_HPP
+#define SRS_PROTOCOL_RTMP_CONN_HPP
 
 #include <srs_core.hpp>
 

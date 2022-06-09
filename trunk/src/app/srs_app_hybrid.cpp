@@ -9,7 +9,7 @@
 #include <srs_app_server.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_utility.hpp>
 
 using namespace std;

@@ -14,7 +14,7 @@
 
 #include <srs_utest_protocol.hpp>
 #include <srs_http_stack.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 
 #include <string>
 using namespace std;

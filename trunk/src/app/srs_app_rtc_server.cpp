@@ -23,12 +23,12 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_dtls.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 
 extern SrsPps* _srs_pps_rpkts;
 SrsPps* _srs_pps_rstuns = NULL;
