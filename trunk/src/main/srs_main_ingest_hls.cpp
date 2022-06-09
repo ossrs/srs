@@ -20,8 +20,8 @@ using namespace std;
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_raw_avc.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_raw_avc.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_log.hpp>

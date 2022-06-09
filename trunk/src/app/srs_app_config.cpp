@@ -38,7 +38,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 using namespace srs_internal;
 

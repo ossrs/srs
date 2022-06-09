@@ -13,7 +13,7 @@
 #include <srs_utest.hpp>
 
 #include <srs_utest_protocol.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_http_conn.hpp>
 
 #include <string>

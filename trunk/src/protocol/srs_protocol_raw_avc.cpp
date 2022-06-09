@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_raw_avc.hpp>
+#include <srs_protocol_raw_avc.hpp>
 
 #include <string.h>
 using namespace std;

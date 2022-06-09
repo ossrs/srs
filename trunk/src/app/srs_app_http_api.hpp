@@ -24,7 +24,7 @@ class SrsHttpConn;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_http_conn.hpp>
 

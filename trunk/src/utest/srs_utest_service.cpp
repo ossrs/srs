@@ -14,7 +14,7 @@ using namespace std;
 
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_http_conn.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_utest_protocol.hpp>
 #include <srs_utest_http.hpp>

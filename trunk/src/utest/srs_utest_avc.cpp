@@ -5,7 +5,7 @@
 //
 #include <srs_utest_avc.hpp>
 
-#include <srs_raw_avc.hpp>
+#include <srs_protocol_raw_avc.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>

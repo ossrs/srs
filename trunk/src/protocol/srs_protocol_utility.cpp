@@ -18,10 +18,10 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_consts.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_io.hpp>
 
 #include <unistd.h>
@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 /**
  * resolve the vhost in query string

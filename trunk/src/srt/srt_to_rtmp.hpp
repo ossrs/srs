@@ -18,7 +18,7 @@
 #include <condition_variable>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_rtmp_conn.hpp>
-#include <srs_raw_avc.hpp>
+#include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_utility.hpp>
 #include <unordered_map>
 
