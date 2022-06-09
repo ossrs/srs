@@ -1,6 +1,6 @@
 # signaling
 
-WebRTC signaling for https://github.com/ossrs/srs
+A demo WebRTC signaling for https://github.com/ossrs/srs
 
 ## Usage
 
@@ -18,7 +18,7 @@ docker run --rm --env CANDIDATE=$(ifconfig en0 inet| grep 'inet '|awk '{print $2
 Run signaling in docker:
 
 ```bash
-docker run --rm -p 1989:1989 registry.cn-hangzhou.aliyuncs.com/ossrs/signaling:v1.0.4
+docker run --rm -p 1989:1989 registry.cn-hangzhou.aliyuncs.com/ossrs/signaling:1
 ```
 
 > Note: More images and version is [here](https://cr.console.aliyun.com/repository/cn-hangzhou/ossrs/signaling/images). 
@@ -60,3 +60,5 @@ Open demos by HTTPS or IP:
 * https://192.168.3.6/demos/
 
 Winlin 2021.05
+
+

@@ -154,7 +154,7 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 public:
-    void set_bridger(ISrsSrtSourceBridge *bridger);
+    void set_bridge(ISrsSrtSourceBridge *bridge);
 public:
     // Create consumer
     // @param consumer, output the create consumer.
@@ -179,7 +179,7 @@ private:
     // To delivery packets to clients.
     std::vector<SrsSrtConsumer*> consumers;
     bool can_publish_;
-    std::vector<ISrsSrtSourceBridge*> bridgers_;
+    std::vector<ISrsSrtSourceBridge*> bridges_;
 };
 
 #endif

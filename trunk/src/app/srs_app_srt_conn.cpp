@@ -333,13 +333,13 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
             return srs_error_wrap(err, "create source");
         }
 
-        SrsRtmpFromSrtBridge *bridger = new SrsRtmpFromSrtBridge(live_source);
-        if ((err = bridger->initialize(req_)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
+        SrsRtmpFromSrtBridge *bridge = new SrsRtmpFromSrtBridge(live_source);
+        if ((err = bridge->initialize(req_)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "create bridge");
         }
 
-        srt_source_->set_bridger(bridger);
+        srt_source_->set_bridge(bridge);
     }
 
     if ((err = srt_source_->on_publish()) != srs_success) {

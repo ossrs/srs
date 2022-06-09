@@ -1197,17 +1197,17 @@ srs_error_t SrsRtcPublishStream::initialize(SrsRequest* r, SrsRtcSourceDescripti
             return srs_error_wrap(err, "create source");
         }
 
-        // Disable GOP cache for RTC2RTMP bridger, to keep the streams in sync,
+        // Disable GOP cache for RTC2RTMP bridge, to keep the streams in sync,
         // especially for stream merging.
         rtmp->set_cache(false);
 
-        SrsRtmpFromRtcBridger *bridger = new SrsRtmpFromRtcBridger(rtmp);
-        if ((err = bridger->initialize(r)) != srs_success) {
-            srs_freep(bridger);
-            return srs_error_wrap(err, "create bridger");
+        SrsRtmpFromRtcBridge *bridge = new SrsRtmpFromRtcBridge(rtmp);
+        if ((err = bridge->initialize(r)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "create bridge");
         }
 
-        source->set_bridger(bridger);
+        source->set_bridge(bridge);
     }
 #endif
 
