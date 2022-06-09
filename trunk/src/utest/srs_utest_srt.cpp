@@ -8,7 +8,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_srt.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_srt_utility.hpp>
 #include <srs_app_srt_server.hpp>
 
