@@ -412,7 +412,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     if ((err = srt_source_->create_consumer(consumer)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
     }
-
     srs_assert(consumer);
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
@@ -439,8 +438,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
             return srs_error_wrap(err, "srt play recv thread");
         }
 
-        pprint->elapse();
-
         // Wait for amount of packets.
         SrsSrtPacket* pkt = NULL;
         SrsAutoFree(SrsSrtPacket, pkt);
@@ -451,7 +448,10 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
             continue;
         }
 
+        ++nb_packets;
+
         // reportable
+        pprint->elapse();
         if (pprint->can_print()) {
             SrsSrtStat s;
             if ((err = s.fetch(srt_fd_, true)) != srs_success) {
@@ -468,13 +468,15 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
                 kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m());
             nb_packets = 0;
         }
-        
-        ++nb_packets;
 
         ssize_t nb_write = 0;
         if ((err = srt_conn_->write(pkt->data(), pkt->size(), &nb_write)) != srs_success) {
             return srs_error_wrap(err, "srt send, size=%d", pkt->size());
         }
+
+        // Yield to another coroutines.
+        // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777542162
+        // TODO: FIXME: Please check whether SRT sendmsg causing clock deviation, see srs_thread_yield of SrsUdpMuxSocket::sendto
     }
 
     return err;
