@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_service_http_client.hpp>
+#include <srs_protocol_http_client.hpp>
 
 #include <arpa/inet.h>
 #include <sstream>
@@ -16,7 +16,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 
 // The return value of verify_callback controls the strategy of the further verification process. If verify_callback
 // returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is

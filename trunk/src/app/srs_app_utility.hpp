@@ -19,7 +19,7 @@
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 class SrsKbps;
 class SrsBuffer;

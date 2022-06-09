@@ -29,7 +29,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_balance.hpp>
 #include <srs_app_rtmp_conn.hpp>
-#include <srs_service_http_client.hpp>
+#include <srs_protocol_http_client.hpp>
 #include <srs_app_caster_flv.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_buffer.hpp>

@@ -9,7 +9,7 @@
 
 #include <srs_core.hpp>
 
-#include <srs_service_http_client.hpp>
+#include <srs_protocol_http_client.hpp>
 
 #endif
 

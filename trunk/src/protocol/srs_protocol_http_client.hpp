@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#ifndef SRS_SERVICE_HTTP_CLIENT_HPP
-#define SRS_SERVICE_HTTP_CLIENT_HPP
+#ifndef SRS_PROTOCOL_HTTP_CLIENT_HPP
+#define SRS_PROTOCOL_HTTP_CLIENT_HPP
 
 #include <srs_core.hpp>
 
@@ -14,7 +14,7 @@
 
 #include <openssl/ssl.h>
 
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_http_stack.hpp>
 
 class SrsHttpUri;

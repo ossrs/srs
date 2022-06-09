@@ -34,7 +34,7 @@ using namespace std;
 #include <srs_app_caster_flv.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_app_coworkers.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
 
 std::string srs_listener_type2string(SrsListenerType type)

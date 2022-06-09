@@ -33,11 +33,11 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_hybrid.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 
 #define SRS_CONTEXT_IN_HLS "hls_ctx"
 

@@ -13,7 +13,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 
 #include <srs_app_st.hpp>
-#include <srs_service_conn.hpp>
+#include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
 
 class MockIDResource : public ISrsResource

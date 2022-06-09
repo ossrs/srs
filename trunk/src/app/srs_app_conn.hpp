@@ -18,7 +18,7 @@
 #include <srs_app_st.hpp>
 #include <srs_protocol_kbps.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_service_conn.hpp>
+#include <srs_protocol_conn.hpp>
 
 class SrsWallClock;
 

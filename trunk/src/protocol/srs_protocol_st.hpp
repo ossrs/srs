@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#ifndef SRS_SERVICE_ST_HPP
-#define SRS_SERVICE_ST_HPP
+#ifndef SRS_PROTOCOL_ST_HPP
+#define SRS_PROTOCOL_ST_HPP
 
 #include <srs_core.hpp>
 

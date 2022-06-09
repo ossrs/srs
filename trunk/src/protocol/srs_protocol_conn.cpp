@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_service_conn.hpp>
+#include <srs_protocol_conn.hpp>
 
 ISrsResource::ISrsResource()
 {

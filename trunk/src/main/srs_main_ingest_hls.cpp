@@ -23,12 +23,12 @@ using namespace std;
 #include <srs_raw_avc.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_service_http_client.hpp>
-#include <srs_service_log.hpp>
-#include <srs_service_st.hpp>
-#include <srs_service_http_conn.hpp>
-#include <srs_service_rtmp_conn.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_http_client.hpp>
+#include <srs_protocol_log.hpp>
+#include <srs_protocol_st.hpp>
+#include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_rtmp_conn.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_app_config.hpp>
 
 // pre-declare

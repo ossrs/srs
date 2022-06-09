@@ -14,7 +14,7 @@
 #include <srs_app_st.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_rtmp_stack.hpp>
-#include <srs_service_http_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 
