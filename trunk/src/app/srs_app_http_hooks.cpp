@@ -10,7 +10,7 @@
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_st.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_dvr.hpp>

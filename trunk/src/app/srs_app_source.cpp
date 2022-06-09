@@ -11,7 +11,7 @@
 using namespace std;
 
 #include <srs_kernel_log.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -19,13 +19,13 @@ using namespace std;
 #include <srs_app_forward.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_encoder.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
-#include <srs_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_app_hds.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>

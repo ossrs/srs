@@ -12,7 +12,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_process.hpp>
 #include <srs_kernel_utility.hpp>

@@ -20,7 +20,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>

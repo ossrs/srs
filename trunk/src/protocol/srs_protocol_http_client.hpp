@@ -15,7 +15,7 @@
 #include <openssl/ssl.h>
 
 #include <srs_protocol_st.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 class SrsHttpUri;
 class SrsHttpParser;

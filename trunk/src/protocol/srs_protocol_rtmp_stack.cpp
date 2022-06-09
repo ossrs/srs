@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_io.hpp>
@@ -13,7 +13,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_rtmp_handshake.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32

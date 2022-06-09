@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 #include <stdlib.h>
 #include <sstream>

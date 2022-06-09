@@ -8,7 +8,7 @@
 #define SRS_PROTOCOL_SRT_HPP
 
 #include <srs_core.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 
 #include <map>
 #include <vector>

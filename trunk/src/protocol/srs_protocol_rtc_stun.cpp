@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT or MulanPSL-2.0
 //
 
-#include <srs_rtc_stun_stack.hpp>
+#include <srs_protocol_rtc_stun.hpp>
 
 using namespace std;
 
@@ -17,7 +17,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_handshake.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 static srs_error_t hmac_encode(const std::string& algo, const char* key, const int& key_length,  
         const char* input, const int input_length, char* output, unsigned int& output_length)

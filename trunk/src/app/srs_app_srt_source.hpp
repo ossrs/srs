@@ -13,7 +13,7 @@
 #include <vector>
 
 #include <srs_kernel_ts.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_source.hpp>
 
 class SrsSharedPtrMessage;

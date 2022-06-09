@@ -9,7 +9,7 @@
 
 #include <srs_core.hpp>
 
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 class SrsRtcServer;
 class SrsRequest;

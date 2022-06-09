@@ -6,8 +6,8 @@
 
 #include <srs_app_recv_thread.hpp>
 
-#include <srs_rtmp_stack.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_kernel_utility.hpp>

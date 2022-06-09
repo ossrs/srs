@@ -18,8 +18,8 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_rtc_conn.hpp>
-#include <srs_rtc_stun_stack.hpp>
-#include <srs_http_stack.hpp>
+#include <srs_protocol_rtc_stun.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_rtc_dtls.hpp>

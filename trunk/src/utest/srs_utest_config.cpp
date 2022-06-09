@@ -14,7 +14,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_st.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_kernel.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)

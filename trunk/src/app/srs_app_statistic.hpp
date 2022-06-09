@@ -14,7 +14,7 @@
 #include <vector>
 
 #include <srs_kernel_codec.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 class SrsKbps;
 class SrsWallClock;

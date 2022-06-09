@@ -11,7 +11,7 @@
 
 #include <string>
 
-#include <srs_http_stack.hpp>
+#include <srs_protocol_http_stack.hpp>
 
 class ISrsConnection;
 class SrsFastStream;

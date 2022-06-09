@@ -11,7 +11,7 @@
 #include <srs_app_listener.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_hybrid.hpp>
 #include <srs_app_hourglass.hpp>
 #include <srs_app_rtc_sdp.hpp>
