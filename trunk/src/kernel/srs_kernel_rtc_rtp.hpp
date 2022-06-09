@@ -286,7 +286,7 @@ private:
 public:
     // The first byte as nalu type, for video decoder only.
     SrsAvcNaluType nalu_type;
-    // The frame type, for RTMP bridger or SFU source.
+    // The frame type, for RTMP bridge or SFU source.
     SrsFrameType frame_type;
 // Fast cache for performance.
 private:

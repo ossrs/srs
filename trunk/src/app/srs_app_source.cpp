@@ -1909,11 +1909,11 @@ void SrsLiveSourceManager::destroy()
     pool.clear();
 }
 
-ISrsLiveSourceBridger::ISrsLiveSourceBridger()
+ISrsLiveSourceBridge::ISrsLiveSourceBridge()
 {
 }
 
-ISrsLiveSourceBridger::~ISrsLiveSourceBridger()
+ISrsLiveSourceBridge::~ISrsLiveSourceBridge()
 {
 }
 
@@ -1928,7 +1928,7 @@ SrsLiveSource::SrsLiveSource()
     die_at = 0;
 
     handler = NULL;
-    bridger_ = NULL;
+    bridge_ = NULL;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1960,7 +1960,7 @@ SrsLiveSource::~SrsLiveSource()
     srs_freep(gop_cache);
     
     srs_freep(req);
-    srs_freep(bridger_);
+    srs_freep(bridge_);
 }
 
 void SrsLiveSource::dispose()
@@ -2036,10 +2036,10 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
     return err;
 }
 
-void SrsLiveSource::set_bridger(ISrsLiveSourceBridger* v)
+void SrsLiveSource::set_bridge(ISrsLiveSourceBridge* v)
 {
-    srs_freep(bridger_);
-    bridger_ = v;
+    srs_freep(bridge_);
+    bridge_ = v;
 }
 
 srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
@@ -2170,7 +2170,7 @@ void SrsLiveSource::update_auth(SrsRequest* r)
 
 bool SrsLiveSource::can_publish(bool is_edge)
 {
-    // TODO: FIXME: Should check the status of bridger.
+    // TODO: FIXME: Should check the status of bridge.
 
     if (is_edge) {
         return publish_edge->can_publish();
@@ -2291,9 +2291,9 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "consume audio");
     }
 
-    // For bridger to consume the message.
-    if (bridger_ && (err = bridger_->on_audio(msg)) != srs_success) {
-        return srs_error_wrap(err, "bridger consume audio");
+    // For bridge to consume the message.
+    if (bridge_ && (err = bridge_->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume audio");
     }
 
     // copy to all consumer
@@ -2421,9 +2421,9 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
         return srs_error_wrap(err, "hub consume video");
     }
 
-    // For bridger to consume the message.
-    if (bridger_ && (err = bridger_->on_video(msg)) != srs_success) {
-        return srs_error_wrap(err, "bridger consume video");
+    // For bridge to consume the message.
+    if (bridge_ && (err = bridge_->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume video");
     }
 
     // copy to all consumer
@@ -2586,8 +2586,8 @@ srs_error_t SrsLiveSource::on_publish()
         return srs_error_wrap(err, "handle publish");
     }
 
-    if (bridger_ && (err = bridger_->on_publish()) != srs_success) {
-        return srs_error_wrap(err, "bridger publish");
+    if (bridge_ && (err = bridge_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "bridge publish");
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -2631,9 +2631,9 @@ void SrsLiveSource::on_unpublish()
 
     handler->on_unpublish(this, req);
 
-    if (bridger_) {
-        bridger_->on_unpublish();
-        srs_freep(bridger_);
+    if (bridge_) {
+        bridge_->on_unpublish();
+        srs_freep(bridge_);
     }
     
     // no consumer, stream is die.

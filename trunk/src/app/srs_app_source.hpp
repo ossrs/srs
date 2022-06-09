@@ -469,11 +469,11 @@ public:
 extern SrsLiveSourceManager* _srs_sources;
 
 // For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
-class ISrsLiveSourceBridger
+class ISrsLiveSourceBridge
 {
 public:
-    ISrsLiveSourceBridger();
-    virtual ~ISrsLiveSourceBridger();
+    ISrsLiveSourceBridge();
+    virtual ~ISrsLiveSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
     virtual srs_error_t on_audio(SrsSharedPtrMessage* audio) = 0;
@@ -514,8 +514,8 @@ private:
     int64_t last_packet_time;
     // The event handler.
     ISrsLiveSourceHandler* handler;
-    // The source bridger for other source.
-    ISrsLiveSourceBridger* bridger_;
+    // The source bridge for other source.
+    ISrsLiveSourceBridge* bridge_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
@@ -543,7 +543,7 @@ public:
     // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsRequest* r, ISrsLiveSourceHandler* h);
     // Bridge to other source, forward packets to it.
-    void set_bridger(ISrsLiveSourceBridger* v);
+    void set_bridge(ISrsLiveSourceBridge* v);
 // Interface ISrsReloadHandler
 public:
     virtual srs_error_t on_reload_vhost_play(std::string vhost);
