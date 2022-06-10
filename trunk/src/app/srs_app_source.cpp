@@ -1909,21 +1909,7 @@ void SrsLiveSourceManager::destroy()
     pool.clear();
 }
 
-ISrsBridge::ISrsBridge(SrsBridgeDestType type)
-{
-    type_ = type;
-}
-
-ISrsBridge::~ISrsBridge()
-{
-}
-
-SrsBridgeDestType ISrsBridge::get_type() const
-{
-    return type_;
-}
-
-ISrsLiveSourceBridge::ISrsLiveSourceBridge(SrsBridgeDestType type) : ISrsBridge(type)
+ISrsLiveSourceBridge::ISrsLiveSourceBridge()
 {
 }
 
@@ -1942,6 +1928,7 @@ SrsLiveSource::SrsLiveSource()
     die_at = 0;
 
     handler = NULL;
+    bridge_ = NULL;
 
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -1973,11 +1960,7 @@ SrsLiveSource::~SrsLiveSource()
     srs_freep(gop_cache);
     
     srs_freep(req);
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        srs_freep(bridge);
-    }
-    bridges_.clear();
+    srs_freep(bridge_);
 }
 
 void SrsLiveSource::dispose()
@@ -2055,16 +2038,8 @@ srs_error_t SrsLiveSource::initialize(SrsRequest* r, ISrsLiveSourceHandler* h)
 
 void SrsLiveSource::set_bridge(ISrsLiveSourceBridge* v)
 {
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        if (v->get_type() == bridge->get_type()) {
-            srs_freep(bridge);
-            *iter = v;
-            return;
-        }
-    }
-
-    bridges_.push_back(v);
+    srs_freep(bridge_);
+    bridge_ = v;
 }
 
 srs_error_t SrsLiveSource::on_reload_vhost_play(string vhost)
@@ -2317,11 +2292,8 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        if ((err = bridge->on_audio(msg)) != srs_success) {
-            return srs_error_wrap(err, "bridge consume audio");
-        }
+    if (bridge_ && (err = bridge_->on_audio(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume audio");
     }
 
     // copy to all consumer
@@ -2450,11 +2422,8 @@ srs_error_t SrsLiveSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
 
     // For bridge to consume the message.
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        if ((err = bridge->on_video(msg)) != srs_success) {
-            return srs_error_wrap(err, "bridge consume video");
-        }
+    if (bridge_ && (err = bridge_->on_video(msg)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume video");
     }
 
     // copy to all consumer
@@ -2617,11 +2586,8 @@ srs_error_t SrsLiveSource::on_publish()
         return srs_error_wrap(err, "handle publish");
     }
 
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        if ((err = bridge->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "bridge publish");
-        }
+    if (bridge_ && (err = bridge_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "bridge publish");
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -2665,13 +2631,11 @@ void SrsLiveSource::on_unpublish()
 
     handler->on_unpublish(this, req);
 
-    for (vector<ISrsLiveSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsLiveSourceBridge* bridge = *iter;
-        bridge->on_unpublish();
-        srs_freep(bridge);
+    if (bridge_) {
+        bridge_->on_unpublish();
+        srs_freep(bridge_);
     }
-    bridges_.clear();
-    
+
     // no consumer, stream is die.
     if (consumers.empty()) {
         die_at = srs_get_system_time();

@@ -468,28 +468,11 @@ public:
 // Global singleton instance.
 extern SrsLiveSourceManager* _srs_sources;
 
-// Destination type.
-enum SrsBridgeDestType {
-    SrsBridgeDestTypeRtmp = 1,
-    SrsBridgeDestTypeRTC = 2,
-    SrsBridgeDestTypeSRT = 3,
-};
-
-class ISrsBridge {
-public:
-    ISrsBridge(SrsBridgeDestType type);
-    virtual ~ISrsBridge();
-public:
-    SrsBridgeDestType get_type() const;
-protected:
-    SrsBridgeDestType type_;
-};
-
 // For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
-class ISrsLiveSourceBridge : public ISrsBridge
+class ISrsLiveSourceBridge
 {
 public:
-    ISrsLiveSourceBridge(SrsBridgeDestType type);
+    ISrsLiveSourceBridge();
     virtual ~ISrsLiveSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
@@ -532,7 +515,7 @@ private:
     // The event handler.
     ISrsLiveSourceHandler* handler;
     // The source bridge for other source.
-    std::vector<ISrsLiveSourceBridge*> bridges_;
+    ISrsLiveSourceBridge* bridge_;
     // The edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;

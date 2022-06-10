@@ -144,10 +144,10 @@ public:
 };
 
 // SrsRtcSource bridge to SrsLiveSource
-class ISrsRtcSourceBridge : public ISrsBridge
+class ISrsRtcSourceBridge
 {
 public:
-    ISrsRtcSourceBridge(SrsBridgeDestType type);
+    ISrsRtcSourceBridge();
     virtual ~ISrsRtcSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
@@ -171,7 +171,7 @@ private:
     // Steam description for this steam.
     SrsRtcSourceDescription* stream_desc_;
     // The Source bridge, bridge stream to other source.
-    std::vector<ISrsRtcSourceBridge*> bridges_;
+    ISrsRtcSourceBridge* bridge_;
 private:
     // To delivery stream to clients.
     std::vector<SrsRtcConsumer*> consumers;

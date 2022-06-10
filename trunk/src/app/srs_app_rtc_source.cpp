@@ -316,7 +316,7 @@ ISrsRtcSourceEventHandler::~ISrsRtcSourceEventHandler()
 {
 }
 
-ISrsRtcSourceBridge::ISrsRtcSourceBridge(SrsBridgeDestType type) : ISrsBridge(type)
+ISrsRtcSourceBridge::ISrsRtcSourceBridge()
 {
 }
 
@@ -333,6 +333,7 @@ SrsRtcSource::SrsRtcSource()
     stream_desc_ = NULL;
 
     req = NULL;
+    bridge_ = NULL;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
 }
@@ -343,11 +344,7 @@ SrsRtcSource::~SrsRtcSource()
     // for all consumers are auto free.
     consumers.clear();
 
-    for (vector<ISrsRtcSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsRtcSourceBridge* bridge = *iter;
-        srs_freep(bridge);
-    }
-    bridges_.clear();
+    srs_freep(bridge_);
 
     srs_freep(stream_desc_);
     srs_freep(req);
@@ -463,16 +460,8 @@ SrsContextId SrsRtcSource::pre_source_id()
 
 void SrsRtcSource::set_bridge(ISrsRtcSourceBridge *bridge)
 {
-    for (vector<ISrsRtcSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsRtcSourceBridge* b = *iter;
-        if (b->get_type() == bridge->get_type()) {
-            srs_freep(b);
-            *iter = bridge;
-            return;
-        }
-    }
-
-    bridges_.push_back(bridge);
+    srs_freep(bridge_);
+    bridge_ = bridge;
 }
 
 srs_error_t SrsRtcSource::create_consumer(SrsRtcConsumer*& consumer)
@@ -545,12 +534,9 @@ srs_error_t SrsRtcSource::on_publish()
     }
 
     // If bridge to other source, handle event and start timer to request PLI.
-    if (! bridges_.empty()) {
-        for (vector<ISrsRtcSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-            ISrsRtcSourceBridge* bridge = *iter;
-            if ((err = bridge->on_publish()) != srs_success) {
-                return srs_error_wrap(err, "bridge on publish");
-            }
+    if (bridge_) {
+        if ((err = bridge_->on_publish()) != srs_success) {
+            return srs_error_wrap(err, "bridge on publish");
         }
 
         // The PLI interval for RTC2RTMP.
@@ -589,16 +575,12 @@ void SrsRtcSource::on_unpublish()
     }
 
     //free bridge resource
-    if (! bridges_.empty()) {
+    if (bridge_) {
         // For SrsRtcSource::on_timer()
         _srs_hybrid->timer100ms()->unsubscribe(this);
 
-        for (vector<ISrsRtcSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-            ISrsRtcSourceBridge* bridge = *iter;
-            bridge->on_unpublish();
-            srs_freep(bridge);
-        }
-        bridges_.clear();
+        bridge_->on_unpublish();
+        srs_freep(bridge_);
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -648,11 +630,8 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket* pkt)
         }
     }
 
-    for (vector<ISrsRtcSourceBridge*>::iterator iter = bridges_.begin(); iter != bridges_.end(); ++iter) {
-        ISrsRtcSourceBridge* bridge = *iter;
-        if ((err = bridge->on_rtp(pkt)) != srs_success) {
-            return srs_error_wrap(err, "bridge consume message");
-        }
+    if (bridge_ && (err = bridge_->on_rtp(pkt)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume message");
     }
 
     return err;
@@ -725,7 +704,7 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 }
 
 #ifdef SRS_FFMPEG_FIT
-SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source) : ISrsLiveSourceBridge(SrsBridgeDestTypeRTC)
+SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
 {
     req = NULL;
     source_ = source;
@@ -1292,7 +1271,7 @@ srs_error_t SrsRtcFromRtmpBridge::consume_packets(vector<SrsRtpPacket*>& pkts)
     return err;
 }
 
-SrsRtmpFromRtcBridge::SrsRtmpFromRtcBridge(SrsLiveSource *src) : ISrsRtcSourceBridge(SrsBridgeDestTypeRtmp)
+SrsRtmpFromRtcBridge::SrsRtmpFromRtcBridge(SrsLiveSource *src)
 {
     source_ = src;
     codec_ = NULL;
