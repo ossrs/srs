@@ -15,38 +15,21 @@
 
 class SrsSrtServer;
 
-enum SrsSrtListenerType
-{
-    SrsSrtListenerMpegts = 1,
-};
-
 // A common srt acceptor, for SRT server.
-class SrsSrtAcceptor
+class SrsSrtAcceptor : public ISrsSrtHandler
 {
-protected:
-    SrsSrtListenerType type_;
-protected:
+private:
     std::string ip_;
     int port_;
     SrsSrtServer* srt_server_;
-public:
-    SrsSrtAcceptor(SrsSrtServer* srt_server, SrsSrtListenerType listen_type);
-    virtual ~SrsSrtAcceptor();
-public:
-    virtual SrsSrtListenerType listen_type();
-    virtual srs_error_t listen(std::string ip, int port) = 0;
-};
-
-// A srt messge acceptor.
-class SrsSrtMessageAcceptor : public SrsSrtAcceptor, public ISrsSrtHandler
-{
 private:
     SrsSrtListener* listener_;
 public:
-    SrsSrtMessageAcceptor(SrsSrtServer* srt_server, SrsSrtListenerType listen_type);
-    virtual ~SrsSrtMessageAcceptor();
+    SrsSrtAcceptor(SrsSrtServer* srt_server);
+    virtual ~SrsSrtAcceptor();
 public:
-    virtual srs_error_t listen(std::string i, int p);
+    virtual srs_error_t listen(std::string ip, int port);
+private:
     virtual srs_error_t set_srt_opt();
 // Interface ISrsSrtHandler
 public:
@@ -69,18 +52,15 @@ public:
 private:
     // listen at specified srt protocol.
     virtual srs_error_t listen_srt_mpegts();
-    // Close the listeners for specified type,
-    // Remove the listen object from manager.
-    virtual void close_listeners(SrsSrtListenerType type);
+    // Close the listeners and remove the listen object from manager.
+    virtual void close_listeners();
 // For internal only
 public:
     // When listener got a fd, notice server to accept it.
-    // @param type, the client type, used to create concrete connection,
-    //       for instance SRT connection to serve client.
     // @param srt_fd, the client fd in srt boxed, the underlayer fd.
-    virtual srs_error_t accept_srt_client(SrsSrtListenerType type, srs_srt_t srt_fd);
+    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
 private:
-    virtual srs_error_t fd_to_resource(SrsSrtListenerType type, srs_srt_t srt_fd, ISrsStartableConneciton** pr);
+    virtual srs_error_t fd_to_resource(srs_srt_t srt_fd, ISrsStartableConneciton** pr);
 // Interface ISrsResourceManager
 public:
     // A callback for connection to remove itself.

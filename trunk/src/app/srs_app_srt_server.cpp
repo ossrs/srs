@@ -18,50 +18,25 @@ using namespace std;
 SrsSrtEventLoop* _srt_eventloop = NULL;
 #endif
 
-std::string srs_srt_listener_type2string(SrsSrtListenerType type)
-{
-    switch (type) {
-        case SrsSrtListenerMpegts:
-            return "SRT-MPEGTS";
-        default:
-            return "UNKONWN";
-    }
-}
-
-SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server, SrsSrtListenerType t)
+SrsSrtAcceptor::SrsSrtAcceptor(SrsSrtServer* srt_server)
 {
     port_ = 0;
     srt_server_ = srt_server;
-    type_ = t;
+    listener_ = NULL;
 }
 
 SrsSrtAcceptor::~SrsSrtAcceptor()
 {
-}
-
-SrsSrtListenerType SrsSrtAcceptor::listen_type()
-{
-    return type_;
-}
-
-SrsSrtMessageAcceptor::SrsSrtMessageAcceptor(SrsSrtServer* srt_server, SrsSrtListenerType listen_type)
-    : SrsSrtAcceptor(srt_server, listen_type)
-{
-    listener_ = NULL;
-}
-
-SrsSrtMessageAcceptor::~SrsSrtMessageAcceptor()
-{
     srs_freep(listener_);
 }
 
-srs_error_t SrsSrtMessageAcceptor::listen(std::string ip, int port)
+srs_error_t SrsSrtAcceptor::listen(std::string ip, int port)
 {
     srs_error_t err = srs_success;
-    
+
     ip_ = ip;
     port_ = port;
-    
+
     srs_freep(listener_);
     listener_ = new SrsSrtListener(this, ip_, port_);
 
@@ -79,14 +54,13 @@ srs_error_t SrsSrtMessageAcceptor::listen(std::string ip, int port)
     if ((err = listener_->listen()) != srs_success) {
         return srs_error_wrap(err, "message srt acceptor");
     }
-    
-    string v = srs_srt_listener_type2string(type_);
-    srs_trace("%s listen at srt://%s:%d, fd=%d", v.c_str(), ip_.c_str(), port_, listener_->fd());
-    
+
+    srs_trace("srt listen at udp://%s:%d, fd=%d", ip_.c_str(), port_, listener_->fd());
+
     return err;
 }
 
-srs_error_t SrsSrtMessageAcceptor::set_srt_opt()
+srs_error_t SrsSrtAcceptor::set_srt_opt()
 {
     srs_error_t err = srs_success;
 
@@ -141,16 +115,17 @@ srs_error_t SrsSrtMessageAcceptor::set_srt_opt()
     return err;
 }
 
-srs_error_t SrsSrtMessageAcceptor::on_srt_client(srs_srt_t srt_fd)
+srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
 {
+    srs_error_t err = srs_success;
+
     // Notify srt server to accept srt client, and create new SrsSrtConn on it.
-    srs_error_t err = srt_server_->accept_srt_client(type_, srt_fd);
-    if (err != srs_success) {
+    if ((err = srt_server_->accept_srt_client(srt_fd)) != srs_success) {
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
     
-    return srs_success;
+    return err;
 }
 
 SrsSrtServer::SrsSrtServer()
@@ -194,10 +169,10 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     }
 
     // Close all listener for SRT if exists.
-    close_listeners(SrsSrtListenerMpegts);
+    close_listeners();
 
     // Start a listener for SRT, we might need multiple listeners in the future.
-    SrsSrtAcceptor* acceptor = new SrsSrtMessageAcceptor(this, SrsSrtListenerMpegts);
+    SrsSrtAcceptor* acceptor = new SrsSrtAcceptor(this);
     acceptors_.push_back(acceptor);
 
     int port; string ip;
@@ -210,29 +185,23 @@ srs_error_t SrsSrtServer::listen_srt_mpegts()
     return err;
 }
 
-void SrsSrtServer::close_listeners(SrsSrtListenerType type)
+void SrsSrtServer::close_listeners()
 {
     std::vector<SrsSrtAcceptor*>::iterator it;
     for (it = acceptors_.begin(); it != acceptors_.end();) {
         SrsSrtAcceptor* acceptor = *it;
-        
-        if (acceptor->listen_type() != type) {
-            ++it;
-            continue;
-        }
-        
         srs_freep(acceptor);
+
         it = acceptors_.erase(it);
     }
 }
 
-srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, srs_srt_t srt_fd)
+srs_error_t SrsSrtServer::accept_srt_client(srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
 
     ISrsStartableConneciton* conn = NULL;
-    
-    if ((err = fd_to_resource(type, srt_fd, &conn)) != srs_success) {
+    if ((err = fd_to_resource(srt_fd, &conn)) != srs_success) {
         //close fd on conn error, otherwise will lead to fd leak -gs
         // TODO: FIXME: Handle error.
         srs_srt_close(srt_fd);
@@ -250,13 +219,12 @@ srs_error_t SrsSrtServer::accept_srt_client(SrsSrtListenerType type, srs_srt_t s
     return err;
 }
 
-srs_error_t SrsSrtServer::fd_to_resource(SrsSrtListenerType type, srs_srt_t srt_fd, ISrsStartableConneciton** pr)
+srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsStartableConneciton** pr)
 {
     srs_error_t err = srs_success;
     
     string ip = "";
     int port = 0;
-
     if ((err = srs_srt_get_remote_ip_port(srt_fd, ip, port)) != srs_success) {
         return srs_error_wrap(err, "get srt ip port");
     }
@@ -267,15 +235,9 @@ srs_error_t SrsSrtServer::fd_to_resource(SrsSrtListenerType type, srs_srt_t srt_
 
     // The context id may change during creating the bellow objects.
     SrsContextRestore(_srs_context->get_id());
-    
-    if (type == SrsSrtListenerMpegts) {
-        *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
-    } else {
-        srs_warn("close for no service handler. srtfd=%d, ip=%s:%d", srt_fd, ip.c_str(), port);
-        // TODO: FIXME: Handle error.
-        srs_srt_close(srt_fd);
-        return err;
-    }
+
+    // Covert to SRT conection.
+    *pr = new SrsMpegtsSrtConn(this, srt_fd, ip, port);
     
     return err;
 }
