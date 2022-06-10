@@ -344,8 +344,8 @@ SrsRtcSource::~SrsRtcSource()
     // for all consumers are auto free.
     consumers.clear();
 
-    srs_freep(req);
     srs_freep(bridge_);
+    srs_freep(req);
     srs_freep(stream_desc_);
 }
 

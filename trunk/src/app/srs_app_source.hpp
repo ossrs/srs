@@ -468,23 +468,6 @@ public:
 // Global singleton instance.
 extern SrsLiveSourceManager* _srs_sources;
 
-// Destination type.
-enum SrsBridgeDestType {
-    SrsBridgeDestTypeRtmp = 1,
-    SrsBridgeDestTypeRTC = 2,
-    SrsBridgeDestTypeSRT = 3,
-};
-
-class ISrsBridge {
-public:
-    ISrsBridge(SrsBridgeDestType type);
-    virtual ~ISrsBridge();
-public:
-    SrsBridgeDestType get_type() const;
-protected:
-    SrsBridgeDestType type_;
-};
-
 // For RTMP2RTC, bridge SrsLiveSource to SrsRtcSource
 class ISrsLiveSourceBridge
 {

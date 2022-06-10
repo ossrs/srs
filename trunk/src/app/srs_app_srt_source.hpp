@@ -90,10 +90,10 @@ public:
     virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
 
-class ISrsSrtSourceBridge : public ISrsBridge
+class ISrsSrtSourceBridge
 {
 public:
-    ISrsSrtSourceBridge(SrsBridgeDestType type);
+    ISrsSrtSourceBridge();
     virtual ~ISrsSrtSourceBridge();
 public:
     virtual srs_error_t on_publish() = 0;
@@ -179,7 +179,7 @@ private:
     // To delivery packets to clients.
     std::vector<SrsSrtConsumer*> consumers;
     bool can_publish_;
-    std::vector<ISrsSrtSourceBridge*> bridgers_;
+    ISrsSrtSourceBridge* bridge_;
 };
 
 #endif

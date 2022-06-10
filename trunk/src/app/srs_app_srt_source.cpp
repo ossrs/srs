@@ -234,7 +234,7 @@ void SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
     srs_cond_timedwait(mw_wait, timeout);
 }
 
-ISrsSrtSourceBridge::ISrsSrtSourceBridge(SrsBridgeDestType type) : ISrsBridge(type)
+ISrsSrtSourceBridge::ISrsSrtSourceBridge()
 {
 }
 
@@ -242,8 +242,7 @@ ISrsSrtSourceBridge::~ISrsSrtSourceBridge()
 {
 }
 
-SrsRtmpFromSrtBridge::SrsRtmpFromSrtBridge(SrsLiveSource* source)
-    : ISrsSrtSourceBridge(SrsBridgeDestTypeRtmp)
+SrsRtmpFromSrtBridge::SrsRtmpFromSrtBridge(SrsLiveSource* source) : ISrsSrtSourceBridge()
 {
     ts_ctx_ = new SrsTsContext();
 
@@ -645,6 +644,7 @@ SrsSrtSource::SrsSrtSource()
 {
     req = NULL;
     can_publish_ = true;
+    bridge_ = NULL;
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -653,11 +653,7 @@ SrsSrtSource::~SrsSrtSource()
     // for all consumers are auto free.
     consumers.clear();
 
-    for (vector<ISrsSrtSourceBridge*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
-        ISrsSrtSourceBridge* bridge = *iter;
-        srs_freep(bridge);
-    }
-    bridgers_.clear();
+    srs_freep(bridge_);
 }
 
 srs_error_t SrsSrtSource::initialize(SrsRequest* r)
@@ -707,18 +703,10 @@ void SrsSrtSource::update_auth(SrsRequest* r)
     req->update_auth(r);
 }
 
-void SrsSrtSource::set_bridger(ISrsSrtSourceBridge *bridger)
+void SrsSrtSource::set_bridge(ISrsSrtSourceBridge* bridge)
 {
-    for (vector<ISrsSrtSourceBridge*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
-        ISrsSrtSourceBridge* b = *iter;
-        if (b->get_type() == bridger->get_type()) {
-            srs_freep(b);
-            *iter = bridger;
-            return;
-        }
-    }
-
-    bridgers_.push_back(bridger);
+    srs_freep(bridge_);
+    bridge_ = bridge;
 }
 
 srs_error_t SrsSrtSource::create_consumer(SrsSrtConsumer*& consumer)
@@ -765,11 +753,8 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "source id change");
     }
 
-    for (vector<ISrsSrtSourceBridge*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
-        ISrsSrtSourceBridge* bridge = *iter;
-        if ((err = bridge->on_publish()) != srs_success) {
-            return srs_error_wrap(err, "bridger on publish");
-        }
+    if ((err = bridge_->on_publish()) != srs_success) {
+        return srs_error_wrap(err, "bridge on publish");
     }
 
     SrsStatistic* stat = SrsStatistic::instance();
@@ -787,12 +772,8 @@ void SrsSrtSource::on_unpublish()
 
     can_publish_ = true;
 
-    for (vector<ISrsSrtSourceBridge*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
-        ISrsSrtSourceBridge* bridge = *iter;
-        bridge->on_unpublish();
-        srs_freep(bridge);
-    }
-    bridgers_.clear();
+    bridge_->on_unpublish();
+    srs_freep(bridge_);
 }
 
 srs_error_t SrsSrtSource::on_packet(SrsSrtPacket* packet)
@@ -806,11 +787,8 @@ srs_error_t SrsSrtSource::on_packet(SrsSrtPacket* packet)
         }
     }
 
-    for (vector<ISrsSrtSourceBridge*>::iterator iter = bridgers_.begin(); iter != bridgers_.end(); ++iter) {
-        ISrsSrtSourceBridge* bridge = *iter;
-        if ((err = bridge->on_packet(packet)) != srs_success) {
-            return srs_error_wrap(err, "bridger consume message");
-        }
+    if ((err = bridge_->on_packet(packet)) != srs_success) {
+        return srs_error_wrap(err, "bridge consume message");
     }
 
     return err;

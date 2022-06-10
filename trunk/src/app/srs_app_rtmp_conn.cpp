@@ -39,7 +39,6 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_app_rtc_source.hpp>
-#include <srs_app_srt_source.hpp>
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
