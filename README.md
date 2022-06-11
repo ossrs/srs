@@ -131,6 +131,7 @@ A big THANK YOU goes to:
 
 ## Releases
 
+* 2022-06-11, Release [v4.0-r0](https://github.com/ossrs/srs/releases/tag/v4.0-r0), v4.0-r0, 4.0 release0, v4.0.252, 144680 lines.
 * 2022-03-19, Release [v4.0-b10](https://github.com/ossrs/srs/releases/tag/v4.0-b10), v4.0-b10, 4.0 beta10, v4.0.251, 144665 lines.
 * 2022-02-15, Release [v4.0-b9](https://github.com/ossrs/srs/releases/tag/v4.0-b9), v4.0-b9, 4.0 beta9, v4.0.245, 144474 lines.
 * 2022-02-11, Release [v4.0-b8](https://github.com/ossrs/srs/releases/tag/v4.0-b8), v4.0-b8, 4.0 beta8, v4.0.241, 144445 lines.

@@ -129,12 +129,35 @@ jobs:
           docker run --rm --env SRS_BRANCH=$SRS_BRANCH --env SRS_PR=$SRS_PR --env SRS_SHA=$SRS_SHA --env SRS_PROJECT=$SRS_PROJECT \
             srs:cov bash -c 'make utest && ./objs/srs_utest && bash auto/codecov.sh'
 
+  multile-archs:
+    name: actions-test-multile-archs
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build multiple archs image
+        run: |
+          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+            --output "type=image,push=false" \
+            -f trunk/Dockerfile .
+
   done:
     name: actions-test-done
     needs:
       - build
       - utest
       - coverage
+      - multile-archs
     runs-on: ubuntu-20.04
 
     steps:

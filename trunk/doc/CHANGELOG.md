@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 4.0 Changelog
 
+* v4.0, 2022-06-11, For [#3058](https://github.com/ossrs/srs/pull/3058): Docker: Support x86_64, armv7 and aarch64 docker image (#3058). v4.0.252
 * v4.0, 2022-03-19, For [#2893](https://github.com/ossrs/srs/pull/2893): SRT: Decouple publish with play url (#2893). v4.0.251
 * v4.0, 2022-03-19, Merge [#2908](https://github.com/ossrs/srs/pull/2908): SRT: url supports multiple QueryStrings (#2908). v4.0.250
 * v4.0, 2022-03-17, SRT: Support debug and run with CLion. v4.0.249
