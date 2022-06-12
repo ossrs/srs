@@ -229,8 +229,6 @@ srs_error_t SrsSrtServer::fd_to_resource(srs_srt_t srt_fd, ISrsStartableConnecit
         return srs_error_wrap(err, "get srt ip port");
     }
 
-    srs_trace("accept srt client from %s:%d, fd=%d", ip.c_str(), port, srt_fd);
-    
     // TODO: FIXME: need to check max connection?
 
     // The context id may change during creating the bellow objects.
