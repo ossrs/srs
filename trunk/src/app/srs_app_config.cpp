@@ -2546,7 +2546,7 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "mss" && n != "latency" && n != "recvlatency"
                 && n != "peerlatency" && n != "tlpkdrop" && n != "connect_timeout"
                 && n != "sendbuf" && n != "recvbuf" && n != "payloadsize"
-                && n != "default_app" && n != "sei_filter"
+                && n != "default_app" && n != "sei_filter" && n != "mix_correct"
                 && n != "tlpktdrop" && n != "tsbpdmode") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
