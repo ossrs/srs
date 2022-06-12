@@ -39,6 +39,9 @@ private:
     bool log_to_file_tank;
     // Whether use utc time.
     bool utc;
+    // TODO: FIXME: use macro define like SRS_MULTI_THREAD_LOG to switch enable log mutex or not.
+    // Mutex for multithread log.
+    pthread_mutex_t mutex_;
 public:
     SrsFileLog();
     virtual ~SrsFileLog();

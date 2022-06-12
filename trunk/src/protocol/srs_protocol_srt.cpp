@@ -16,6 +16,9 @@ using namespace std;
 
 #include <srt/srt.h>
 
+// TODO: FIXME: protocol could no include app's header file, so define TAG_SRT in this file.
+#define TAG_SRT "SRT"
+
 #define SET_SRT_OPT_STR(srtfd, optname, buf, size)                                  \
     if (srt_setsockflag(srtfd, optname, buf, size) == SRT_ERROR) {                  \
         std::stringstream ss;                                                       \
@@ -42,6 +45,7 @@ using namespace std;
             return srs_error_new(ERROR_SRT_SOCKOPT, "%s", ss.str().c_str());    \
         }                                                                       \
     } while (0)
+
 
 static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo* r)
 {
@@ -70,6 +74,39 @@ static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string& streamid)
 
     streamid.assign(sid);
     return srs_success;
+}
+
+static void srs_srt_log_handler(void* opaque, int level, const char* file, int line, const char* area, const char* message)
+{
+    switch (level) {
+        case srt_logging::LogLevel::debug:
+            srs_info2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+            break;
+        case srt_logging::LogLevel::note:
+            srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+            break;
+        case srt_logging::LogLevel::warning:
+            srs_warn2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+            break;
+        case srt_logging::LogLevel::error:
+        case srt_logging::LogLevel::fatal:
+            srs_error2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+            break;
+        default:
+            srs_trace2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);
+            break;
+    }
+}
+
+srs_error_t srs_srt_log_initialie()
+{
+    srs_error_t err = srs_success;
+
+    srt_setlogflags(0 | SRT_LOGF_DISABLE_TIME | SRT_LOGF_DISABLE_SEVERITY |
+        SRT_LOGF_DISABLE_THREADNAME | SRT_LOGF_DISABLE_EOL);
+    srt_setloghandler(NULL, srs_srt_log_handler);
+
+    return err;
 }
 
 srs_srt_t srs_srt_socket_invalid()
