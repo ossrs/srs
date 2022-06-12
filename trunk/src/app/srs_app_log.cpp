@@ -18,6 +18,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_lock.hpp>
 
 // the max size of a line of log.
 #define LOG_MAX_SIZE 8192
@@ -35,6 +36,8 @@ SrsFileLog::SrsFileLog()
     fd = -1;
     log_to_file_tank = false;
     utc = false;
+
+    pthread_mutex_init(&mutex_, NULL);
 }
 
 SrsFileLog::~SrsFileLog()
@@ -49,6 +52,8 @@ SrsFileLog::~SrsFileLog()
     if (_srs_config) {
         _srs_config->unsubscribe(this);
     }
+
+    pthread_mutex_destroy(&mutex_);
 }
 
 srs_error_t SrsFileLog::initialize()
@@ -79,6 +84,8 @@ void SrsFileLog::reopen()
 
 void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
+    SrsScopeLock sl(&mutex_);
+
     if (level > SrsLogLevelVerbose) {
         return;
     }
@@ -99,6 +106,8 @@ void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* f
 
 void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
+    SrsScopeLock sl(&mutex_);
+
     if (level > SrsLogLevelInfo) {
         return;
     }
@@ -119,6 +128,8 @@ void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt,
 
 void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
+    SrsScopeLock sl(&mutex_);
+
     if (level > SrsLogLevelTrace) {
         return;
     }
@@ -139,6 +150,8 @@ void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt
 
 void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
+    SrsScopeLock sl(&mutex_);
+
     if (level > SrsLogLevelWarn) {
         return;
     }
@@ -159,6 +172,8 @@ void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt,
 
 void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
+    SrsScopeLock sl(&mutex_);
+
     if (level > SrsLogLevelError) {
         return;
     }
