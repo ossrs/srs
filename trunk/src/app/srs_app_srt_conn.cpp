@@ -238,6 +238,8 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
+    srs_trace("SRT client ip=%s:%d, fd=%d", ip_.c_str(), port_, srt_fd_);
+
     string streamid = "";
     if ((err = srs_srt_get_streamid(srt_fd_, streamid)) != srs_success) {
         return srs_error_wrap(err, "get srt streamid");
