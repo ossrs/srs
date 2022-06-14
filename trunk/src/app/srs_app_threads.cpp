@@ -26,6 +26,7 @@
 #include <srs_app_srt_source.hpp>
 #endif
 
+#include <stdlib.h>
 #include <string>
 using namespace std;
 
@@ -425,5 +426,40 @@ srs_error_t srs_thread_initialize()
     }
 
     return err;
+}
+
+SrsMutex::SrsMutex()
+{
+    int rc = pthread_mutex_init(&mutex_, NULL);
+    srs_assert(!rc);
+}
+
+SrsMutex::~SrsMutex()
+{
+    int rc = pthread_mutex_destroy(&mutex_);
+    srs_assert(!rc);
+}
+
+void SrsMutex::lock()
+{
+    int rc = pthread_mutex_lock(&mutex_);
+    srs_assert(!rc);
+}
+
+void SrsMutex::unlock()
+{
+    int rc = pthread_mutex_unlock(&mutex_);
+    srs_assert(!rc);
+}
+
+SrsAutoLock::SrsAutoLock(SrsMutex* mutex)
+{
+    mutex_ = mutex;
+    mutex_->lock();
+}
+
+SrsAutoLock::~SrsAutoLock()
+{
+    mutex_->unlock();
 }
 
