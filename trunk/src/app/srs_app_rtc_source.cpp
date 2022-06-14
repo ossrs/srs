@@ -270,7 +270,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(SrsRequest* r, SrsRtcSource** p
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
-    srs_trace("new source, stream_url=%s", stream_url.c_str());
+    srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
 
     source = new SrsRtcSource();
     if ((err = source->initialize(r)) != srs_success) {
@@ -344,8 +344,8 @@ SrsRtcSource::~SrsRtcSource()
     // for all consumers are auto free.
     consumers.clear();
 
-    srs_freep(req);
     srs_freep(bridge_);
+    srs_freep(req);
     srs_freep(stream_desc_);
 }
 

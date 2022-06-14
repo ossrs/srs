@@ -348,6 +348,20 @@
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
 
 ///////////////////////////////////////////////////////
+// SRT protocol error.
+///////////////////////////////////////////////////////
+#define ERROR_SRT_EPOLL                     6000
+#define ERROR_SRT_IO                        6001
+#define ERROR_SRT_TIMEOUT                   6002
+#define ERROR_SRT_INTERRUPT                 6003
+#define ERROR_SRT_LISTEN                    6004
+#define ERROR_SRT_SOCKOPT                   6005
+#define ERROR_SRT_CONN                      6006
+#define ERROR_SRT_SOURCE_BUSY               6007
+#define ERROR_RTMP_TO_SRT                   6008
+#define ERROR_SRT_STATS                     6009
+
+///////////////////////////////////////////////////////
 // HTTP API error.
 ///////////////////////////////////////////////////////
 //#define ERROR_API_METHOD_NOT_ALLOWD

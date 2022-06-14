@@ -950,7 +950,7 @@ srs_error_t SrsRtmpConn::acquire_publish(SrsLiveSource* source)
     if (!source->can_publish(info->edge)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp: stream %s is busy", req->get_stream_url().c_str());
     }
-    
+
     // Check whether RTC stream is busy.
 #ifdef SRS_RTC
     SrsRtcSource *rtc = NULL;

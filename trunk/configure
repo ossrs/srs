@@ -164,7 +164,6 @@ fi
 
 # srt code path
 if [[ $SRS_SRT == YES ]]; then
-    SrsSRTRoot="${SRS_WORKDIR}/src/srt"
     LibSRTRoot="${SRS_OBJS_DIR}/srt/include"; LibSRTfile="${SRS_OBJS_DIR}/srt/lib/libsrt.a"
     if [[ $SRS_SHARED_SRT == YES ]]; then LibSRTfile="-L${SRS_OBJS_DIR}/srt/lib -lsrt"; fi
 fi
@@ -228,6 +227,10 @@ MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_conn" "srs_pro
         "srs_protocol_raw_avc" "srs_protocol_rtsp_stack" "srs_protocol_http_stack" "srs_protocol_kbps" "srs_protocol_json"
         "srs_protocol_format" "srs_protocol_log" "srs_protocol_st" "srs_protocol_http_client"
         "srs_protocol_http_conn" "srs_protocol_rtmp_conn")
+if [[ $SRS_SRT == YES ]]; then
+    MODULE_FILES+=("srs_protocol_srt")
+    ModuleLibIncs+=(${LibSRTRoot})
+fi
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_protocol_rtc_stun")
     ModuleLibIncs+=(${LibSrtpRoot})
@@ -237,16 +240,6 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 PROTOCOL_INCS="src/protocol"; MODULE_DIR=${PROTOCOL_INCS} . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
-#
-#srt protocol features.
-if [[ $SRS_SRT == YES ]]; then
-    MODULE_ID="SRT"
-    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot} ${LibSRTRoot})
-    MODULE_FILES=("srt_server" "srt_handle" "srt_conn" "srt_to_rtmp" "ts_demux" "srt_data" "srt_log")
-    SRT_INCS=(${LibSRTRoot} ${SrsSRTRoot}); MODULE_DIR=${SrsSRTRoot} . auto/modules.sh
-    SRT_OBJS="${MODULE_OBJS[@]}"
-fi
 
 #
 #App Module, for SRS server only.
@@ -262,6 +255,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
+if [[ $SRS_SRT == YES ]]; then
+    ModuleLibIncs+=("${LibSRTRoot[*]}")
+fi
 MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http_stream"
         "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config"
@@ -273,6 +269,9 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_sourc
         "srs_app_caster_flv" "srs_app_latest_version" "srs_app_uuid" "srs_app_process" "srs_app_ng_exec"
         "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
         "srs_app_coworkers" "srs_app_hybrid" "srs_app_threads")
+if [[ $SRS_SRT == YES ]]; then
+    MODULE_FILES+=("srs_app_srt_server" "srs_app_srt_listener" "srs_app_srt_conn" "srs_app_srt_utility" "srs_app_srt_source")
+fi
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_sdp"
         "srs_app_rtc_queue" "srs_app_rtc_server" "srs_app_rtc_source" "srs_app_rtc_api")
@@ -294,9 +293,6 @@ APP_OBJS="${MODULE_OBJS[@]}"
 #Server Module, for SRS only.
 MODULE_ID="SERVER"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-if [[ $SRS_SRT == YES ]]; then
-    MODULE_DEPENDS+=("SRT")
-fi
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot})
 if [[ $SRS_RTC == YES ]]; then
     ModuleLibIncs+=(${LibSrtpRoot})
@@ -306,7 +302,6 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
-    ModuleLibIncs+=("${SrsSRTRoot[*]}")
 fi
 MODULE_FILES=("srs_main_server")
 SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . auto/modules.sh
@@ -324,7 +319,6 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
-    ModuleLibIncs+=("${SrsSRTRoot[*]}")
 fi
 MODULE_FILES=()
 DEFINES=""
@@ -370,7 +364,6 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_SRT == YES ]]; then
     ModuleLibIncs+=(${LibSRTRoot})
-    ModuleLibIncs+=("${SrsSRTRoot[*]}")
     MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
 fi
 LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
@@ -416,7 +409,7 @@ if [ $SRS_UTEST = YES ]; then
         ModuleLibIncs+=("${LibFfmpegRoot[*]}")
     fi
     if [[ $SRS_SRT == YES ]]; then
-        ModuleLibIncs+=("${SrsSRTRoot[*]}")
+        ModuleLibIncs+=("${LibSRTRoot[*]}")
     fi
     ModuleLibFiles=(${LibSTfile} ${LibSSLfile})
     if [[ $SRS_RTC == YES ]]; then
@@ -429,9 +422,6 @@ if [ $SRS_UTEST = YES ]; then
         ModuleLibFiles+=("${LibSRTfile[*]}")
     fi
     MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
-    if [[ $SRS_SRT == YES ]]; then
-        MODULE_DEPENDS+=("SRT")
-    fi
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SRT_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi

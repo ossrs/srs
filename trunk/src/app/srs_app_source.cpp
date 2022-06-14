@@ -1802,7 +1802,7 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(SrsRequest* r, ISrsLiveSourceH
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
-    srs_trace("new source, stream_url=%s", stream_url.c_str());
+    srs_trace("new live source, stream_url=%s", stream_url.c_str());
 
     source = new SrsLiveSource();
     if ((err = source->initialize(r, h)) != srs_success) {
@@ -1929,7 +1929,7 @@ SrsLiveSource::SrsLiveSource()
 
     handler = NULL;
     bridge_ = NULL;
-    
+
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
@@ -2635,7 +2635,7 @@ void SrsLiveSource::on_unpublish()
         bridge_->on_unpublish();
         srs_freep(bridge_);
     }
-    
+
     // no consumer, stream is die.
     if (consumers.empty()) {
         die_at = srs_get_system_time();

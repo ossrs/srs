@@ -44,7 +44,8 @@ using namespace std;
 #endif
 
 #ifdef SRS_SRT
-#include <srt_server.hpp>
+#include <srs_protocol_srt.hpp>
+#include <srs_app_srt_server.hpp>
 #endif
 
 // pre-declare
@@ -455,7 +456,7 @@ srs_error_t run_hybrid_server()
     _srs_hybrid->register_server(new SrsServerAdapter());
 
 #ifdef SRS_SRT
-    _srs_hybrid->register_server(new SrtServerAdapter());
+    _srs_hybrid->register_server(new SrsSrtServerAdapter());
 #endif
 
 #ifdef SRS_RTC
