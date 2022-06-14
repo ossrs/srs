@@ -13,7 +13,7 @@
 #include <vector>
 
 #include <srs_kernel_ts.hpp>
-#include <srs_service_st.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_app_source.hpp>
 
 class SrsSharedPtrMessage;
@@ -154,7 +154,7 @@ public:
     // Update the authentication information in request.
     virtual void update_auth(SrsRequest* r);
 public:
-    void set_bridger(ISrsSrtSourceBridge *bridger);
+    void set_bridge(ISrsSrtSourceBridge *bridger);
 public:
     // Create consumer
     // @param consumer, output the create consumer.

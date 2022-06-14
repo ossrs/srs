@@ -12,7 +12,7 @@
 #include <string>
 
 #include <srs_kernel_log.hpp>
-#include <srs_service_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 class SrsRequest;
 

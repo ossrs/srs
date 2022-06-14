@@ -12,7 +12,7 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_http_hooks.hpp>
@@ -341,7 +341,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
             return srs_error_wrap(err, "create bridger");
         }
 
-        srt_source_->set_bridger(bridger);
+        srt_source_->set_bridge(bridger);
     }
 
     if ((err = srt_source_->on_publish()) != srs_success) {

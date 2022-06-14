@@ -10,7 +10,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_service_log.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_srt_conn.hpp>
 

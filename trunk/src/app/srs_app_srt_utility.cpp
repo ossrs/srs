@@ -13,7 +13,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_rtmp_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 
 // See streamid of https://github.com/ossrs/srs/issues/2893
@@ -107,7 +107,7 @@ bool srs_srt_streamid_info(const std::string& streamid, SrtMode& mode, std::stri
     if (!params.empty()) {
         url_subpath.append("?");
         url_subpath.append(params);
-        url_subpath.pop_back(); // remove last '&'
+        url_subpath = url_subpath.substr(0, url_subpath.length() - 1); // remove last '&'
     }
 
     return true;
