@@ -4,7 +4,7 @@
 help=no
 # feature options
 SRS_HDS=NO
-SRS_SRT=NO
+SRS_SRT=YES
 SRS_RTC=YES
 SRS_CXX11=YES
 SRS_CXX14=NO

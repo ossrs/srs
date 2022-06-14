@@ -15,6 +15,8 @@
 #include <srs_app_reload.hpp>
 #include <srs_protocol_log.hpp>
 
+class SrsMutex;
+
 // For log TAGs.
 #define TAG_MAIN "MAIN"
 #define TAG_MAYBE "MAYBE"
@@ -41,7 +43,7 @@ private:
     bool utc;
     // TODO: FIXME: use macro define like SRS_MULTI_THREAD_LOG to switch enable log mutex or not.
     // Mutex for multithread log.
-    pthread_mutex_t mutex_;
+    SrsMutex* mutex_;
 public:
     SrsFileLog();
     virtual ~SrsFileLog();

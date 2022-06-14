@@ -18,7 +18,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_core_lock.hpp>
+#include <srs_app_threads.hpp>
 
 // the max size of a line of log.
 #define LOG_MAX_SIZE 8192
@@ -37,7 +37,7 @@ SrsFileLog::SrsFileLog()
     log_to_file_tank = false;
     utc = false;
 
-    pthread_mutex_init(&mutex_, NULL);
+    mutex_ = new SrsMutex();
 }
 
 SrsFileLog::~SrsFileLog()
@@ -53,7 +53,7 @@ SrsFileLog::~SrsFileLog()
         _srs_config->unsubscribe(this);
     }
 
-    pthread_mutex_destroy(&mutex_);
+    srs_freep(mutex_);
 }
 
 srs_error_t SrsFileLog::initialize()
@@ -84,95 +84,95 @@ void SrsFileLog::reopen()
 
 void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsScopeLock sl(&mutex_);
+    SrsAutoLock sl(mutex_);
 
     if (level > SrsLogLevelVerbose) {
         return;
     }
-    
+
     int size = 0;
     if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Verb", &size)) {
         return;
     }
-    
+
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-    
+
     write_log(fd, log_data, size, SrsLogLevelVerbose);
 }
 
 void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsScopeLock sl(&mutex_);
+    SrsAutoLock sl(mutex_);
 
     if (level > SrsLogLevelInfo) {
         return;
     }
-    
+
     int size = 0;
     if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Debug", &size)) {
         return;
     }
-    
+
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-    
+
     write_log(fd, log_data, size, SrsLogLevelInfo);
 }
 
 void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsScopeLock sl(&mutex_);
+    SrsAutoLock sl(mutex_);
 
     if (level > SrsLogLevelTrace) {
         return;
     }
-    
+
     int size = 0;
     if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, false, tag, context_id, "Trace", &size)) {
         return;
     }
-    
+
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-    
+
     write_log(fd, log_data, size, SrsLogLevelTrace);
 }
 
 void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsScopeLock sl(&mutex_);
+    SrsAutoLock sl(mutex_);
 
     if (level > SrsLogLevelWarn) {
         return;
     }
-    
+
     int size = 0;
     if (!srs_log_header(log_data, LOG_MAX_SIZE, utc, true, tag, context_id, "Warn", &size)) {
         return;
     }
-    
+
     va_list ap;
     va_start(ap, fmt);
     // we reserved 1 bytes for the new line.
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
-    
+
     write_log(fd, log_data, size, SrsLogLevelWarn);
 }
 
 void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsScopeLock sl(&mutex_);
+    SrsAutoLock sl(mutex_);
 
     if (level > SrsLogLevelError) {
         return;

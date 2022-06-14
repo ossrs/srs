@@ -63,10 +63,10 @@ RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 ########################################################
 FROM ossrs/srs:ubuntu16 AS ubuntu16-cross-armv7
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --cross-build --cc=arm-linux-gnueabihf-gcc --cxx=arm-linux-gnueabihf-g++ \
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --cross-build --cc=arm-linux-gnueabihf-gcc --cxx=arm-linux-gnueabihf-g++ \
     --ar=arm-linux-gnueabihf-ar --ld=arm-linux-gnueabihf-ld --randlib=arm-linux-gnueabihf-randlib && make -j2
 
 FROM ossrs/srs:ubuntu16 AS ubuntu16-cross-aarch64
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --cross-build --cc=aarch64-linux-gnu-gcc --cxx=aarch64-linux-gnu-g++ \
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --cross-build --cc=aarch64-linux-gnu-gcc --cxx=aarch64-linux-gnu-g++ \
     --ar=aarch64-linux-gnu-ar --ld=aarch64-linux-gnu-ld --randlib=aarch64-linux-gnu-randlib && make -j2
