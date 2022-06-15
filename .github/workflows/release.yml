@@ -7,8 +7,8 @@ on:
       - v5*
 
 jobs:
-  k8s:
-    name: release-k8s
+  test:
+    name: test
     runs-on: ubuntu-20.04
 
     steps:
@@ -44,138 +44,362 @@ jobs:
         run: docker run --rm srs:test bash -c 'make utest && ./objs/srs_utest'
       # For regression-test
       - name: Run SRS regression-test
-        run: docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
-
-      ##################################################################################################################
-      ##################################################################################################################
-      ##################################################################################################################
-      # Build SRS docker images
-      - name: Build SRS docker image
-        env:
-          PACKAGER: ${{ secrets.SRS_PACKAGER_DOCKER }}
-          PACKAGER_DROPLET: ${{ secrets.SRS_PACKAGER_DROPLET }}
-          PACKAGER_LIGHTHOUSE: ${{ secrets.SRS_PACKAGER_LIGHTHOUSE }}
         run: |
-          echo "Release ossrs/srs:$SRS_TAG"
-          docker build --tag ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
-          echo "Release ossrs/droplet:$SRS_TAG"
-          docker build --tag ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
-          echo "Release ossrs/lighthouse:$SRS_TAG"
-          docker build --tag ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
+          docker run --rm srs:test bash -c 'make && ./objs/srs -c conf/regression-test.conf && \
+          cd 3rdparty/srs-bench && make && ./objs/srs_test -test.v'
 
-      # Docker hub
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login docker hub
+  docker-srs:
+    name: docker-srs
+    runs-on: ubuntu-20.04
+    needs:
+      - test
+
+    steps:
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Create main images for Docker
+      - name: Login to docker hub
         uses: docker/login-action@v1
         with:
           username: "${{ secrets.DOCKER_USERNAME }}"
           password: "${{ secrets.DOCKER_PASSWORD }}"
-      - name: Push to docker hub
+      - name: Build and push images to Docker hub
+        env:
+          PACKAGER: ${{ secrets.SRS_PACKAGER_DOCKER }}
         run: |
-          docker tag ossrs/srs:$SRS_TAG ossrs/srs:$SRS_MAJOR
-          #docker tag ossrs/srs:$SRS_TAG ossrs/srs:latest
-          docker push --all-tags ossrs/srs
-          #
-          docker tag ossrs/droplet:$SRS_TAG ossrs/droplet:$SRS_MAJOR
-          #docker tag ossrs/droplet:$SRS_TAG ossrs/droplet:latest
-          docker push --all-tags ossrs/droplet
-          #
-          docker tag ossrs/lighthouse:$SRS_TAG ossrs/lighthouse:$SRS_MAJOR
-          #docker tag ossrs/lighthouse:$SRS_TAG ossrs/lighthouse:latest
-          docker push --all-tags ossrs/lighthouse
+          echo "Release ossrs/srs:$SRS_TAG"
+          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+            --output "type=image,push=true" \
+            -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
 
-      # Aliyun ACR hub
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login Aliyun docker hub
+      # Docker alias images
+      - name: Docker alias images for ossrs/srs
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/srs:${{ env.SRS_TAG }}
+          dst: |
+            ossrs/srs:${{ env.SRS_VERSION }}
+            ossrs/srs:${{ env.SRS_MAJOR }}
+            ossrs/srs:v${{ env.SRS_MAJOR }}
+            ossrs/srs:latest
+
+      # Aliyun ACR
+      - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: "${{ secrets.ACR_USERNAME }}"
           password: "${{ secrets.ACR_PASSWORD }}"
-      - name: Push to Aliyun docker hub
-        run: |
-          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
-          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_VERSION
-          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v$SRS_MAJOR
-          docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
-          #docker tag ossrs/srs:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
-          docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/srs
-          #
-          docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:$SRS_TAG
-          docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:$SRS_VERSION
-          docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:v$SRS_MAJOR
-          docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:$SRS_MAJOR
-          #docker tag ossrs/droplet:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
-          docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/droplet
-          #
-          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_TAG
-          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_VERSION
-          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v$SRS_MAJOR
-          docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:$SRS_MAJOR
-          #docker tag ossrs/lighthouse:$SRS_TAG registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
-          docker push --all-tags registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse
+      - name: Push to Aliyun registry for ossrs/srs
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/srs:${{ env.SRS_TAG }}
+          dst: |
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
 
-      # Tencent TCR Singapore hub
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login Tencent Singapore docker hub
+  docker-droplet:
+    name: docker-droplet
+    runs-on: ubuntu-20.04
+    needs:
+      - test
+
+    steps:
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Create main images for Docker
+      - name: Login to docker hub
         uses: docker/login-action@v1
         with:
-          registry: sgccr.ccs.tencentyun.com
-          username: "${{ secrets.TCR_USERNAME }}"
-          password: "${{ secrets.TCR_PASSWORD }}"
-      - name: Push to Tencent Singapore docker hub
+          username: "${{ secrets.DOCKER_USERNAME }}"
+          password: "${{ secrets.DOCKER_PASSWORD }}"
+      - name: Build and push images to Docker hub
+        env:
+          PACKAGER_DROPLET: ${{ secrets.SRS_PACKAGER_DROPLET }}
         run: |
-          docker tag ossrs/srs:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/srs:$SRS_TAG
-          docker tag ossrs/srs:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/srs:$SRS_VERSION
-          docker tag ossrs/srs:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/srs:v$SRS_MAJOR
-          docker tag ossrs/srs:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/srs:$SRS_MAJOR
-          #docker tag ossrs/srs:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/srs:latest
-          docker push --all-tags sgccr.ccs.tencentyun.com/ossrs/srs
-          #
-          docker tag ossrs/droplet:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/droplet:$SRS_TAG
-          docker tag ossrs/droplet:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/droplet:$SRS_VERSION
-          docker tag ossrs/droplet:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/droplet:v$SRS_MAJOR
-          docker tag ossrs/droplet:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/droplet:$SRS_MAJOR
-          #docker tag ossrs/droplet:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/droplet:latest
-          docker push --all-tags sgccr.ccs.tencentyun.com/ossrs/droplet
-          #
-          docker tag ossrs/lighthouse:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_TAG
-          docker tag ossrs/lighthouse:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_VERSION
-          docker tag ossrs/lighthouse:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/lighthouse:v$SRS_MAJOR
-          docker tag ossrs/lighthouse:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_MAJOR
-          #docker tag ossrs/lighthouse:$SRS_TAG sgccr.ccs.tencentyun.com/ossrs/lighthouse:latest
-          docker push --all-tags sgccr.ccs.tencentyun.com/ossrs/lighthouse
+          echo "Release ossrs/droplet:$SRS_TAG"
+          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+            --output "type=image,push=true" \
+            -t ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
 
-      # Tencent TCR Beijing hub
-      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
-      - name: Login Tencent Beijing docker hub
+      # Docker alias images
+      - name: Docker alias images for ossrs/droplet
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/droplet:${{ env.SRS_TAG }}
+          dst: |
+            ossrs/droplet:${{ env.SRS_VERSION }}
+            ossrs/droplet:${{ env.SRS_MAJOR }}
+            ossrs/droplet:v${{ env.SRS_MAJOR }}
+            ossrs/droplet:latest
+
+      # Aliyun ACR
+      - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
-          registry: ccr.ccs.tencentyun.com
-          username: "${{ secrets.TCR_USERNAME }}"
-          password: "${{ secrets.TCR_PASSWORD }}"
-      - name: Push to Tencent Beijing docker hub
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: "${{ secrets.ACR_USERNAME }}"
+          password: "${{ secrets.ACR_PASSWORD }}"
+      - name: Push to Aliyun registry for ossrs/droplet
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/droplet:${{ env.SRS_TAG }}
+          dst: |
+            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_TAG }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:v${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
+
+  docker-lighthouse:
+    name: docker-lighthouse
+    runs-on: ubuntu-20.04
+    needs:
+      - test
+
+    steps:
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
         run: |
-          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_TAG
-          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_VERSION
-          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:v$SRS_MAJOR
-          docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:$SRS_MAJOR
-          #docker tag ossrs/srs:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/srs:latest
-          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/srs
-          #
-          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_TAG
-          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_VERSION
-          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:v$SRS_MAJOR
-          docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:$SRS_MAJOR
-          #docker tag ossrs/droplet:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/droplet:latest
-          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/droplet
-          #
-          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_TAG
-          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_VERSION
-          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:v$SRS_MAJOR
-          docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:$SRS_MAJOR
-          #docker tag ossrs/lighthouse:$SRS_TAG ccr.ccs.tencentyun.com/ossrs/lighthouse:latest
-          docker push --all-tags ccr.ccs.tencentyun.com/ossrs/lighthouse
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Create main images for Docker
+      - name: Login to docker hub
+        uses: docker/login-action@v1
+        with:
+          username: "${{ secrets.DOCKER_USERNAME }}"
+          password: "${{ secrets.DOCKER_PASSWORD }}"
+      - name: Build and push images to Docker hub
+        env:
+          PACKAGER_LIGHTHOUSE: ${{ secrets.SRS_PACKAGER_LIGHTHOUSE }}
+        run: |
+          echo "Release ossrs/lighthouse:$SRS_TAG"
+          docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+            --output "type=image,push=true" \
+            -t ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
+
+      # Docker alias images
+      - name: Docker alias images for ossrs/lighthouse
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/lighthouse:${{ env.SRS_TAG }}
+          dst: |
+            ossrs/lighthouse:${{ env.SRS_VERSION }}
+            ossrs/lighthouse:${{ env.SRS_MAJOR }}
+            ossrs/lighthouse:v${{ env.SRS_MAJOR }}
+            ossrs/lighthouse:latest
+
+      # Aliyun ACR
+      - name: Login aliyun hub
+        uses: docker/login-action@v1
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: "${{ secrets.ACR_USERNAME }}"
+          password: "${{ secrets.ACR_PASSWORD }}"
+      - name: Push to Aliyun registry for ossrs/lighthouse
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: ossrs/lighthouse:${{ env.SRS_TAG }}
+          dst: |
+            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_TAG }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v${{ env.SRS_MAJOR }}
+            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
+
+  update:
+    name: update
+    runs-on: ubuntu-20.04
+    needs:
+      - test
+      - docker-srs
+      - docker-lighthouse
+      - docker-droplet
+
+    steps:
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
+
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Generate variables like:
+      #   SRS_DROPLET_EIP=1.2.3.4
+      - name: Build variables for lh.ossrs.net
+        run: |
+          SRS_DROPLET_EIP=$(dig +short lh.ossrs.net)
+          echo "SRS_DROPLET_EIP=$SRS_DROPLET_EIP" >> $GITHUB_ENV
+
+      - name: Release to lh.ossrs.net
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.SRS_DROPLET_EIP }}
+          username: root
+          key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
+          port: 22
+          envs: SRS_MAJOR
+          timeout: 60s
+          command_timeout: 30m
+          script: |
+            docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
+            docker rm -f srs-server
+            #
+            # Cleanup old docker images.
+            for image in $(docker images |grep '<none>' |awk '{print $3}'); do
+              docker rmi -f $image
+              echo "Remove image $image, r0=$?"
+            done
+
+  release:
+    name: release
+    runs-on: ubuntu-20.04
+    needs:
+      - update
+
+    steps:
+      ##################################################################################################################
+      ##################################################################################################################
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # Generate variables like:
+      #   SRS_TAG=v4.0-r8
+      #   SRS_TAG=v4.0.145
+      #   SRS_VERSION=4.0.145
+      #   SRS_VERSION=4.0-r8
+      #   SRS_MAJOR=4
+      # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
+      - name: Generate varaiables
+        run: |
+          SRS_TAG=$(echo ${{ github.ref }}| awk -F '/' '{print $3}')
+          echo "SRS_TAG=$SRS_TAG" >> $GITHUB_ENV
+          SRS_VERSION=$(echo ${SRS_TAG}| sed 's/^v//g')
+          echo "SRS_VERSION=$SRS_VERSION" >> $GITHUB_ENV
+          SRS_MAJOR=$(echo $SRS_TAG| cut -c 2)
+          echo "SRS_MAJOR=$SRS_MAJOR" >> $GITHUB_ENV
 
       ##################################################################################################################
       ##################################################################################################################
@@ -224,10 +448,12 @@ jobs:
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
             ## Docker
-            * China: docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
-            * China: docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}
-            * Global: docker pull ossrs/srs:${{ env.SRS_MAJOR }}
-            * Global: docker pull ossrs/srs:${{ env.SRS_TAG }}
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
+            * Global: [docker pull ossrs/srs:latest](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
             ## Doc
             * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
@@ -253,19 +479,12 @@ jobs:
           release_id: ${{ steps.create_release.outputs.id }}
           assets_path: ${{ env.SRS_PACKAGE_ZIP }}
 
-      ##################################################################################################################
-      ##################################################################################################################
-      ##################################################################################################################
-      # K8S release to official website
-      - name: Setup KUBCONFIG for Aliyun ACK
-        run: |-
-          KUBECONFIG=$RUNNER_TEMP/kubeconfig_$(date +%s)
-          echo "${{ secrets.KUBCONFIG }}" > $KUBECONFIG
-          echo "KUBECONFIG=$KUBECONFIG" >> $GITHUB_ENV
-      # K8S for SRS 5.0
-      - name: Release SRS 5.0 to Aliyun ACK
-        if: ${{ startsWith(github.ref, 'refs/tags/v5') }}
-        run: |-
-          kubectl set image deploy/srs5-deploy srs=registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_TAG
-          kubectl describe deploy/srs5-deploy
+  done:
+    name: done
+    runs-on: ubuntu-20.04
+    needs:
+      - release
+
+    steps:
+      - run: echo 'All done'
 
