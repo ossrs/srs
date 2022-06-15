@@ -202,6 +202,10 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter * w, ISrsHttpMes
     }
 
     SrsAutoFree(SrsRequest, req);
+    
+    if (!_srs_config->get_hls_ctx_enabled(req->vhost)) {
+        return SrsHttpFileServer::serve_m3u8_ctx(w, r, fullpath);
+    }
 
     string ctx = hr->query_get(SRS_CONTEXT_IN_HLS);
     if (!ctx.empty() && ctx_is_exist(ctx)) {
