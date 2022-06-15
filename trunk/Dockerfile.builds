@@ -1,15 +1,15 @@
 ########################################################
 FROM ossrs/srs:dev AS centos7-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off && make -j2
 
 FROM ossrs/srs:dev AS centos7-no-webrtc
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --rtc=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --rtc=off && make -j2
 
 FROM ossrs/srs:dev AS centos7-no-asm
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --nasm=off --srtp-nasm=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --nasm=off --srtp-nasm=off && make -j2
 
 FROM ossrs/srs:dev AS centos7-srt
 COPY . /srs
@@ -17,17 +17,21 @@ RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 
 FROM ossrs/srs:dev AS centos7-ansi-no-ffmpeg
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --cxx11=off --cxx14=off --ffmpeg-fit=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --cxx11=off --cxx14=off --ffmpeg-fit=off && make -j2
 
 ########################################################
 FROM ossrs/srs:dev6 AS centos6-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 --cxx11=off --cxx14=off && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off --cxx11=off --cxx14=off && make -j2
+
+FROM ossrs/srs:dev6 AS centos6-srt
+COPY . /srs
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=on --cxx11=off --cxx14=off && make -j2
 
 ########################################################
 FROM ossrs/srs:dev8 AS centos8-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off && make -j2
 
 FROM ossrs/srs:dev8 AS centos8-srt
 COPY . /srs
@@ -36,7 +40,7 @@ RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 ########################################################
 FROM ossrs/srs:ubuntu16 AS ubuntu16-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off && make -j2
 
 FROM ossrs/srs:ubuntu16 AS ubuntu16-srt
 COPY . /srs
@@ -45,7 +49,7 @@ RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 ########################################################
 FROM ossrs/srs:ubuntu18 AS ubuntu18-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off && make -j2
 
 FROM ossrs/srs:ubuntu18 AS ubuntu18-srt
 COPY . /srs
@@ -54,7 +58,7 @@ RUN cd /srs/trunk && ./configure --jobs=2 --srt=on && make -j2
 ########################################################
 FROM ossrs/srs:ubuntu20 AS ubuntu20-baseline
 COPY . /srs
-RUN cd /srs/trunk && ./configure --jobs=2 && make -j2
+RUN cd /srs/trunk && ./configure --jobs=2 --srt=off && make -j2
 
 FROM ossrs/srs:ubuntu20 AS ubuntu20-srt
 COPY . /srs

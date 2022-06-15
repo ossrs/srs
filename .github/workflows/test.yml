@@ -26,6 +26,8 @@ jobs:
       # Build for CentOS 6
       - name: Build on CentOS6, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-baseline .
+      - name: Build on CentOS6, with SRT
+        run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos6-srt .
       # Build for CentOS 8
       - name: Build on CentOS8, baseline
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target centos8-baseline .
@@ -121,7 +123,7 @@ jobs:
           SRS_SHA=${{ github.sha }}
           # Note that the root of SRS, must contains .git, for report fixing.
           SRS_PROJECT=/srs
-          # The github.ref is, for example, refs/heads/4.0release
+          # The github.ref is, for example, refs/heads/develop
           SRS_BRANCH=$(echo ${{ github.ref }}| awk -F 'refs/heads/' '{print $2}'| awk -F '/' '{print $1}')
           # The github.ref is, for example, refs/pull/2536/merge
           SRS_PR=$(echo ${{ github.ref }}| awk -F 'refs/pull/' '{print $2}'| awk -F '/' '{print $1}')

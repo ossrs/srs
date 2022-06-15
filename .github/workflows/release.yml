@@ -70,13 +70,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0-r8
-      #   SRS_TAG=v4.0.145
-      #   SRS_VERSION=4.0.145
-      #   SRS_VERSION=4.0-r8
-      #   SRS_MAJOR=4
+      #   SRS_TAG=v5.0-r8
+      #   SRS_TAG=v5.0.145
+      #   SRS_VERSION=5.0.145
+      #   SRS_VERSION=5.0-r8
+      #   SRS_MAJOR=5
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -106,6 +106,7 @@ jobs:
             -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f trunk/Dockerfile .
 
       # Docker alias images
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/srs
         uses: akhilerm/tag-push-action@v2.0.0
         with:
@@ -114,9 +115,10 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
-            ossrs/srs:latest
+            #ossrs/srs:latest
 
       # Aliyun ACR
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
@@ -132,7 +134,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
+            #registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
 
   docker-droplet:
     name: docker-droplet
@@ -156,13 +158,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0-r8
-      #   SRS_TAG=v4.0.145
-      #   SRS_VERSION=4.0.145
-      #   SRS_VERSION=4.0-r8
-      #   SRS_MAJOR=4
+      #   SRS_TAG=v5.0-r8
+      #   SRS_TAG=v5.0.145
+      #   SRS_VERSION=5.0.145
+      #   SRS_VERSION=5.0-r8
+      #   SRS_MAJOR=5
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -192,6 +194,7 @@ jobs:
             -t ossrs/droplet:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_DROPLET -f trunk/Dockerfile .
 
       # Docker alias images
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/droplet
         uses: akhilerm/tag-push-action@v2.0.0
         with:
@@ -200,9 +203,10 @@ jobs:
             ossrs/droplet:${{ env.SRS_VERSION }}
             ossrs/droplet:${{ env.SRS_MAJOR }}
             ossrs/droplet:v${{ env.SRS_MAJOR }}
-            ossrs/droplet:latest
+            #ossrs/droplet:latest
 
       # Aliyun ACR
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
@@ -218,7 +222,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:v${{ env.SRS_MAJOR }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
+            #registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
 
   docker-lighthouse:
     name: docker-lighthouse
@@ -242,13 +246,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0-r8
-      #   SRS_TAG=v4.0.145
-      #   SRS_VERSION=4.0.145
-      #   SRS_VERSION=4.0-r8
-      #   SRS_MAJOR=4
+      #   SRS_TAG=v5.0-r8
+      #   SRS_TAG=v5.0.145
+      #   SRS_VERSION=5.0.145
+      #   SRS_VERSION=5.0-r8
+      #   SRS_MAJOR=5
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -278,6 +282,7 @@ jobs:
             -t ossrs/lighthouse:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER_LIGHTHOUSE -f trunk/Dockerfile .
 
       # Docker alias images
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/lighthouse
         uses: akhilerm/tag-push-action@v2.0.0
         with:
@@ -286,9 +291,10 @@ jobs:
             ossrs/lighthouse:${{ env.SRS_VERSION }}
             ossrs/lighthouse:${{ env.SRS_MAJOR }}
             ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-            ossrs/lighthouse:latest
+            #ossrs/lighthouse:latest
 
       # Aliyun ACR
+      # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
         uses: docker/login-action@v1
         with:
@@ -304,7 +310,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-            registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
+            #registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
 
   update:
     name: update
@@ -323,13 +329,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0-r8
-      #   SRS_TAG=v4.0.145
-      #   SRS_VERSION=4.0.145
-      #   SRS_VERSION=4.0-r8
-      #   SRS_MAJOR=4
+      #   SRS_TAG=v5.0-r8
+      #   SRS_TAG=v5.0.145
+      #   SRS_VERSION=5.0.145
+      #   SRS_VERSION=5.0-r8
+      #   SRS_MAJOR=5
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -384,13 +390,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # The github.ref is, for example, refs/tags/v4.0.145 or refs/tags/v4.0-r8
+      # The github.ref is, for example, refs/tags/v5.0.145 or refs/tags/v5.0-r8
       # Generate variables like:
-      #   SRS_TAG=v4.0-r8
-      #   SRS_TAG=v4.0.145
-      #   SRS_VERSION=4.0.145
-      #   SRS_VERSION=4.0-r8
-      #   SRS_MAJOR=4
+      #   SRS_TAG=v5.0-r8
+      #   SRS_TAG=v5.0.145
+      #   SRS_VERSION=5.0.145
+      #   SRS_VERSION=5.0-r8
+      #   SRS_MAJOR=5
       # @see https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#setting-an-environment-variable
       - name: Generate varaiables
         run: |
@@ -433,7 +439,8 @@ jobs:
           echo "SRS_PACKAGE_MD5=$(md5sum $SRS_PACKAGE_ZIP| awk '{print $1}')" >> $GITHUB_ENV
 
       # Create release.
-      # TODO: FIXME: Refine the release when 5.0 releoased
+      # TODO: FIXME: Refine the release when 5.0 released
+      # TODO: FIXME: Change prerelease to false when 5.0 released
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -448,12 +455,10 @@ jobs:
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
             ## Docker
-            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
-            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
-            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v4_CN_Home#docker)
-            * Global: [docker pull ossrs/srs:latest](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
-            * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
-            * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v4_EN_Home#docker)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v5_CN_Home#docker)
+            * China: [docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v5_CN_Home#docker)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://github.com/ossrs/srs/wiki/v5_EN_Home#docker)
+            * Global: [docker pull ossrs/srs:${{ env.SRS_TAG }}](https://github.com/ossrs/srs/wiki/v5_EN_Home#docker)
             ## Doc
             * [FAQ](https://github.com/ossrs/srs/issues/2716), [Features](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/Features.md#features) or [ChangeLogs](https://github.com/ossrs/srs/blob/${{ github.sha }}/trunk/doc/CHANGELOG.md#changelog)
           draft: false
