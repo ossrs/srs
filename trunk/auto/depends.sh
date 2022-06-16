@@ -691,11 +691,8 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
       FFMPEG_CONFIGURE="env PKG_CONFIG_PATH=$(cd ${SRS_OBJS}/${SRS_PLATFORM} && pwd)/opus/lib/pkgconfig ./configure"
     fi
 
-    # If disable nasm, disable all ASMs.
-    nasm -v >/dev/null 2>&1 && NASM_BIN_OK=YES
-    if [[ $NASM_BIN_OK != YES || $SRS_NASM == NO || $SRS_CROSS_BUILD == YES ]]; then
-        FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
-    fi
+    # Disable all asm for FFmpeg, to compatible with ARM CPU.
+    FFMPEG_OPTIONS="--disable-asm --disable-x86asm --disable-inline-asm"
     # Only build static libraries if no shared FFmpeg.
     if [[ $SRS_SHARED_FFMPEG == YES ]]; then
         FFMPEG_OPTIONS="$FFMPEG_OPTIONS --enable-shared"
