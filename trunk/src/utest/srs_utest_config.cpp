@@ -1446,6 +1446,11 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_hls)
         MockSrsConfig conf;
         HELPER_ASSERT_FAILED(conf.parse(_MIN_OK_CONF "vhost v{hls{hls_windows 60;}}"));
     }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.parse(_MIN_OK_CONF "vhost v{hls{hls_ctx on;}}"));
+    }
 }
 
 VOID TEST(ConfigMainTest, CheckConf_hooks)
