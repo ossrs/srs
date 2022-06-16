@@ -115,7 +115,6 @@ jobs:
             ossrs/srs:${{ env.SRS_VERSION }}
             ossrs/srs:${{ env.SRS_MAJOR }}
             ossrs/srs:v${{ env.SRS_MAJOR }}
-            #ossrs/srs:latest
 
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
@@ -134,7 +133,6 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_MAJOR }}
-            #registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
 
   docker-droplet:
     name: docker-droplet
@@ -203,7 +201,6 @@ jobs:
             ossrs/droplet:${{ env.SRS_VERSION }}
             ossrs/droplet:${{ env.SRS_MAJOR }}
             ossrs/droplet:v${{ env.SRS_MAJOR }}
-            #ossrs/droplet:latest
 
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
@@ -222,7 +219,6 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:v${{ env.SRS_MAJOR }}
-            #registry.cn-hangzhou.aliyuncs.com/ossrs/droplet:latest
 
   docker-lighthouse:
     name: docker-lighthouse
@@ -291,7 +287,6 @@ jobs:
             ossrs/lighthouse:${{ env.SRS_VERSION }}
             ossrs/lighthouse:${{ env.SRS_MAJOR }}
             ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-            #ossrs/lighthouse:latest
 
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
@@ -310,7 +305,6 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_VERSION }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:${{ env.SRS_MAJOR }}
             registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:v${{ env.SRS_MAJOR }}
-            #registry.cn-hangzhou.aliyuncs.com/ossrs/lighthouse:latest
 
   update:
     name: update
