@@ -151,6 +151,7 @@ jobs:
         run: |
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
             --output "type=image,push=false" \
+            --build-arg IMAGE=ossrs/srs:ubuntu20-cache \
             -f trunk/Dockerfile .
 
   done:

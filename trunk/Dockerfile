@@ -1,5 +1,6 @@
 ARG ARCH
-FROM ${ARCH}ossrs/srs:ubuntu20 AS build
+ARG IMAGE=ossrs/srs:ubuntu20
+FROM ${ARCH}${IMAGE} AS build
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
@@ -10,13 +11,26 @@ RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, JOBS: 
 # https://serverfault.com/questions/949991/how-to-install-tzdata-on-a-ubuntu-docker-image
 ENV DEBIAN_FRONTEND noninteractive
 
+# To use if in RUN, see https://github.com/moby/moby/issues/7281#issuecomment-389440503
+# Note that only exists issue like "/bin/sh: 1: [[: not found" for Ubuntu20, no such problem in CentOS7.
+SHELL ["/bin/bash", "-c"]
+
 # Install depends tools.
 RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git
 
-# Build and install SRS.
-# Note that SRT is enabled by default, so we configure without --srt=on.
+# Copy source code to docker.
 COPY . /srs
 WORKDIR /srs/trunk
+
+# Use srs-cache from base image.
+RUN if [[ -d /usr/local/srs-cache/srs/trunk/objs ]]; then \
+      echo "Build from cache of base image" && mkdir -p objs && \
+      cp -R /usr/local/srs-cache/srs/trunk/objs/Platform-* objs/ && \
+      du -sh objs/*; \
+    fi
+
+# Build and install SRS.
+# Note that SRT is enabled by default, so we configure without --srt=on.
 RUN ./configure --jobs=${JOBS} && make -j${JOBS} && make install
 
 # All config files for SRS.
