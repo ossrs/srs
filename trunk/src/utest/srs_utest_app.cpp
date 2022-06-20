@@ -15,7 +15,8 @@ using namespace std;
 #include <srs_app_st.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_dispatch.hpp>
+#include <srs_app_threads.hpp>
+#include <srs_core_autofree.hpp>
 
 class MockIDResource : public ISrsResource
 {
@@ -747,41 +748,76 @@ VOID TEST(AppSecurity, CheckSecurity)
     //       4. deny if matches deny strategy.
 }
 
-class MockLogInfo
+class MockLogMessage
 {
 public:
     std::string msg;
 public:
-    MockLogInfo() {}
-    virtual ~MockLogInfo() {}
+    MockLogMessage() {
+    }
+    MockLogMessage(const char* p) {
+        msg = p;
+    }
+    virtual ~MockLogMessage() {
+    }
 };
 
-VOID TEST(AppDispatch, CoverAll)
+VOID TEST(AppLocklessQueue, CoverAll)
 {
 	srs_error_t err;
 
+    // Push and shift elem.
     if (true) {
-        SrsDispatch dispatch;
-        err = dispatch.init();
-        EXPECT_TRUE(srs_success == err);
+        SrsLocklessQueue<MockLogMessage> queue;
+        HELPER_ASSERT_SUCCESS(queue.initialize());
 
-        if (true) {
-            SrsStWork work;
-            MockLogInfo *log_info = new MockLogInfo();
-            log_info->msg = "hello";
-            work.info = (void *)log_info;
-            err = dispatch.dispatch_log(work);
-            EXPECT_TRUE(srs_success == err);
-        }
+        HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
+        ASSERT_EQ(1, queue.size());
 
-        if (true) {
-            SrsStWork work;
-            err = dispatch.fetch_log(work);
-            EXPECT_TRUE(srs_success == err);
-            MockLogInfo* log_info = (MockLogInfo*)work.info;
-            EXPECT_TRUE(log_info->msg == "hello");
-            srs_freep(log_info);
-        }
+        MockLogMessage log;
+        HELPER_ASSERT_SUCCESS(queue.shift(log));
+        EXPECT_STREQ("hello", log.msg.c_str());
+    }
+
+    // Push and shift elem, using pointer.
+    if (true) {
+        SrsLocklessQueue<MockLogMessage*> queue;
+        HELPER_ASSERT_SUCCESS(queue.initialize());
+
+        HELPER_ASSERT_SUCCESS(queue.push(new MockLogMessage("hello")));
+        ASSERT_EQ(1, queue.size());
+
+        MockLogMessage* log = NULL;
+        SrsAutoFree(MockLogMessage, log);
+
+        HELPER_ASSERT_SUCCESS(queue.shift(log));
+        EXPECT_STREQ("hello", log->msg.c_str());
+    }
+
+    // Error shift if queue if empty.
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue;
+        HELPER_ASSERT_SUCCESS(queue.initialize(3));
+
+        MockLogMessage log;
+        HELPER_ASSERT_FAILED(queue.shift(log));
+    }
+
+    // Error push if queue if full.
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue;
+        HELPER_ASSERT_SUCCESS(queue.initialize(3));
+
+        HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
+        ASSERT_EQ(1, queue.size());
+
+        HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
+        ASSERT_EQ(2, queue.size());
+
+        HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
+        ASSERT_EQ(3, queue.size());
+
+        HELPER_ASSERT_FAILED(queue.push(MockLogMessage("hello")));
     }
 }
 
