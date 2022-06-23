@@ -710,6 +710,17 @@ srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 }
 
 #ifdef SRS_FFMPEG_FIT
+
+inline uint8_t GetVideoPayloadType(const std::vector<SrsRtcTrackDescription*>& descs) {
+    if (descs.empty()) {
+        return kVideoPayloadType;
+    }
+
+    SrsCodecPayload* media_ = descs.front()->media_;
+    assert(media_->pt_ == media_->pt_of_publisher_);
+    return media_->pt_;
+}
+
 SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
 {
     req = NULL;
@@ -737,6 +748,9 @@ SrsRtcFromRtmpBridge::SrsRtcFromRtmpBridge(SrsRtcSource* source)
         if (!descs.empty()) {
             video_ssrc = descs.at(0)->ssrc_;
         }
+
+        // note: important video_payload_type for rtmp to rtc
+        video_payload_type = GetVideoPayloadType(descs);
     }
 }
 
@@ -1054,7 +1068,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_stap_a(SrsRtcSource* source, SrsShared
         return srs_error_new(ERROR_RTC_RTP_MUXER, "sps/pps empty");
     }
 
-    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_payload_type(video_payload_type);
     pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->nalu_type = (SrsAvcNaluType)kStapA;
@@ -1136,7 +1150,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_nalus(SrsSharedPtrMessage* msg, const 
         SrsRtpPacket* pkt = new SrsRtpPacket();
         pkts.push_back(pkt);
 
-        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_payload_type(video_payload_type);
         pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->nalu_type = (SrsAvcNaluType)first_nalu_type;
@@ -1170,7 +1184,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_nalus(SrsSharedPtrMessage* msg, const 
             SrsRtpPacket* pkt = new SrsRtpPacket();
             pkts.push_back(pkt);
 
-            pkt->header.set_payload_type(kVideoPayloadType);
+            pkt->header.set_payload_type(video_payload_type);
             pkt->header.set_ssrc(video_ssrc);
             pkt->frame_type = SrsFrameTypeVideo;
             pkt->nalu_type = (SrsAvcNaluType)kFuA;
@@ -1200,7 +1214,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_single_nalu(SrsSharedPtrMessage* msg, 
     SrsRtpPacket* pkt = new SrsRtpPacket();
     pkts.push_back(pkt);
 
-    pkt->header.set_payload_type(kVideoPayloadType);
+    pkt->header.set_payload_type(video_payload_type);
     pkt->header.set_ssrc(video_ssrc);
     pkt->frame_type = SrsFrameTypeVideo;
     pkt->header.set_sequence(video_sequence++);
@@ -1233,7 +1247,7 @@ srs_error_t SrsRtcFromRtmpBridge::package_fu_a(SrsSharedPtrMessage* msg, SrsSamp
         SrsRtpPacket* pkt = new SrsRtpPacket();
         pkts.push_back(pkt);
 
-        pkt->header.set_payload_type(kVideoPayloadType);
+        pkt->header.set_payload_type(video_payload_type);
         pkt->header.set_ssrc(video_ssrc);
         pkt->frame_type = SrsFrameTypeVideo;
         pkt->header.set_sequence(video_sequence++);
