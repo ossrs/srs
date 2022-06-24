@@ -1529,7 +1529,7 @@ srs_error_t SrsConfig::reload_conf(SrsConfig* conf)
             return srs_error_wrap(err, "listen");
         }
     }
-    
+
     // merge config: max_connections
     if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
         if ((err = do_reload_max_connections()) != srs_success) {
