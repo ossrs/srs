@@ -769,7 +769,6 @@ VOID TEST(AppLocklessQueue, CoverAll)
     // Push and shift elem.
     if (true) {
         SrsLocklessQueue<MockLogMessage> queue;
-        HELPER_ASSERT_SUCCESS(queue.initialize());
 
         HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -782,7 +781,6 @@ VOID TEST(AppLocklessQueue, CoverAll)
     // Push and shift elem, using pointer.
     if (true) {
         SrsLocklessQueue<MockLogMessage*> queue;
-        HELPER_ASSERT_SUCCESS(queue.initialize());
 
         HELPER_ASSERT_SUCCESS(queue.push(new MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -797,7 +795,6 @@ VOID TEST(AppLocklessQueue, CoverAll)
     // Error shift if queue if empty.
     if (true) {
         SrsLocklessQueue<MockLogMessage> queue;
-        HELPER_ASSERT_SUCCESS(queue.initialize(3));
 
         MockLogMessage log;
         HELPER_ASSERT_FAILED(queue.shift(log));
@@ -805,8 +802,7 @@ VOID TEST(AppLocklessQueue, CoverAll)
 
     // Error push if queue if full.
     if (true) {
-        SrsLocklessQueue<MockLogMessage> queue;
-        HELPER_ASSERT_SUCCESS(queue.initialize(3));
+        SrsLocklessQueue<MockLogMessage> queue(3);
 
         HELPER_ASSERT_SUCCESS(queue.push(MockLogMessage("hello")));
         ASSERT_EQ(1, queue.size());
@@ -818,6 +814,24 @@ VOID TEST(AppLocklessQueue, CoverAll)
         ASSERT_EQ(3, queue.size());
 
         HELPER_ASSERT_FAILED(queue.push(MockLogMessage("hello")));
+    }
+
+    // Limit the capacity.
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue(0);
+        EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
+    }
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue(-1);
+        EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
+    }
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue(SRS_CONST_MAX_QUEUE_SIZE + 1);
+        EXPECT_EQ(SRS_CONST_MAX_QUEUE_SIZE, queue.capacity());
+    }
+    if (true) {
+        SrsLocklessQueue<MockLogMessage> queue(3);
+        EXPECT_EQ(3, queue.capacity());
     }
 }
 

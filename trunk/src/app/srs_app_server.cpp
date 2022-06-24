@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #include <srs_protocol_log.hpp>
 #include <srs_app_latest_version.hpp>
+#include <srs_app_threads.hpp>
 
 std::string srs_listener_type2string(SrsListenerType type)
 {
@@ -928,7 +929,7 @@ void SrsServer::on_signal(int signo)
     
 #ifndef SRS_GPERF_MC
     if (signo == SRS_SIGNAL_REOPEN_LOG) {
-        _srs_log->reopen();
+        _srs_async_log->reopen();
 
         if (handler) {
             handler->on_logrotate();

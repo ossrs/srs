@@ -858,6 +858,8 @@ public:
     virtual std::string get_log_level();
     // Get the log file path.
     virtual std::string get_log_file();
+    // Get the interval in ms to flush async log.
+    virtual srs_utime_t srs_log_flush_interval();
     // Whether ffmpeg log enabled
     virtual bool get_ff_log_enabled();
     // The ffmpeg log dir.

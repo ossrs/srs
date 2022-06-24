@@ -123,6 +123,11 @@ srs_error_t do_main(int argc, char** argv)
     if ((err = _srs_config->initialize_cwd()) != srs_success) {
         return srs_error_wrap(err, "config cwd");
     }
+
+    // We must initialize the async log manager before log init.
+    if ((err = _srs_async_log->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init async log");
+    }
     
     // config parsed, initialize log.
     if ((err = _srs_log->initialize()) != srs_success) {
@@ -461,6 +466,11 @@ srs_error_t run_in_thread_pool()
     // Initialize the thread pool.
     if ((err = _srs_thread_pool->initialize()) != srs_success) {
         return srs_error_wrap(err, "init thread pool");
+    }
+
+    // Run the log manager thread, writing log to disk at a dedicated thread, avoiding block the hybrid thread.
+    if ((err = _srs_thread_pool->execute("log", SrsAsyncLogManager::start, _srs_async_log)) != srs_success) {
+        return srs_error_wrap(err, "start async log thread");
     }
 
     // Start the hybrid service worker thread, for RTMP and RTC server, etc.

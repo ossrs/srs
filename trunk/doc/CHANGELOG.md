@@ -8,6 +8,7 @@ The changelog for SRS.
 
 ## SRS 5.0 Changelog
 
+* v5.0, 2022-06-29, Merge [#2965](https://github.com/ossrs/srs/pull/2965): Support CircleQueue for multiple threads. (#2965). v5.0.34
 * v5.0, 2022-06-29, Support multiple threads by thread pool. v5.0.32
 * v5.0, 2022-06-28, ST: Support thread-local for multiple threads. v5.0.31
 * v5.0, 2022-06-17, Merge [#3010](https://github.com/ossrs/srs/pull/3010): SRT: Support Coroutine Native SRT over ST. (#3010). v5.0.30

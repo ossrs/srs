@@ -15,7 +15,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_protocol_log.hpp>
 
-class SrsThreadMutex;
+class SrsAsyncFileWriter;
 
 // For log TAGs.
 #define TAG_MAIN "MAIN"
@@ -28,37 +28,33 @@ class SrsThreadMutex;
 // Use memory/disk cache and donot flush when write log.
 // it's ok to use it without config, which will log to console, and default trace level.
 // when you want to use different level, override this classs, set the protected _level.
-class SrsFileLog : public ISrsLog, public ISrsReloadHandler
+class SrsFileLog : public ISrsLog
 {
+private:
+    // Async file writer.
+    SrsAsyncFileWriter* writer_;
 private:
     // Defined in SrsLogLevel.
     SrsLogLevel level;
-private:
-    char* log_data;
-    // Log to file if specified srs_log_file
-    int fd;
     // Whether log to file tank
     bool log_to_file_tank;
+    // If log to file, the log filename.
+    std::string filename_;
     // Whether use utc time.
     bool utc;
-    // TODO: FIXME: use macro define like SRS_MULTI_THREAD_LOG to switch enable log mutex or not.
-    // Mutex for multithread log.
-    SrsThreadMutex* mutex_;
 public:
     SrsFileLog();
     virtual ~SrsFileLog();
 // Interface ISrsLog
 public:
     virtual srs_error_t initialize();
-    virtual void reopen();
     virtual void verbose(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void info(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void trace(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void warn(const char* tag, SrsContextId context_id, const char* fmt, ...);
     virtual void error(const char* tag, SrsContextId context_id, const char* fmt, ...);
 private:
-    virtual void write_log(int& fd, char* str_log, int size, int level);
-    virtual void open_log_file();
+    virtual void write_log(char* str_log, int size, int level);
 };
 
 #endif

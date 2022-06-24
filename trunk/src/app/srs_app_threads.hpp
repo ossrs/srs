@@ -11,6 +11,7 @@
 
 #include <srs_app_hourglass.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -23,6 +24,8 @@
 
 class SrsThreadPool;
 class SrsProcSelfStat;
+class SrsFileWriter;
+class SrsSharedPtrMessage;
 
 // Protect server in high load.
 class SrsCircuitBreaker : public ISrsFastTimer
@@ -198,9 +201,10 @@ template <typename T>
 class SrsLocklessQueue
 {
 public:
-    SrsLocklessQueue() {
+    SrsLocklessQueue(uint32_t capacity = 0) {
         info = new SrsCircleQueueMetadata();
         data = NULL;
+        initialize(capacity);
     }
 
     ~SrsLocklessQueue() {
@@ -208,28 +212,20 @@ public:
         srs_freepa(data);
     }
 
-public:
-    srs_error_t initialize(uint32_t max_count = 0) {
-        srs_error_t err = srs_success;
+private:
+    void initialize(uint32_t capacity) {
+        uint32_t count = (capacity > 0) ? capacity : SRS_CONST_MAX_QUEUE_SIZE;
+        count = srs_min(count, SRS_CONST_MAX_QUEUE_SIZE);
 
-        if (data) {
-            return err;
-        }
-        if (max_count > SRS_CONST_MAX_QUEUE_SIZE) {
-            return srs_error_new(ERROR_QUEUE_INIT, "size=%" PRIu64 " is too large", max_count);
-        }
-
-        uint32_t count = (max_count > 0) ? max_count : SRS_CONST_MAX_QUEUE_SIZE;
         // We increase an element for reserved.
         count += 1;
 
         data = new T[count];
         info->nn_capacity = count;
         info->nn_elems = 0;
-
-        return err;
     }
 
+public:
     // Push the elem to the end of queue.
     srs_error_t push(const T& elem) {
         srs_error_t err = srs_success;
@@ -305,6 +301,10 @@ public:
 
     unsigned int size() const {
         return (!info || !data) ? 0 : info->nn_elems;
+    }
+
+    unsigned int capacity() const {
+        return info->nn_capacity - 1;
     }
 
 private:
@@ -386,6 +386,69 @@ private:
 
 // It MUST be thread-safe, global and shared object.
 extern SrsThreadPool* _srs_thread_pool;
+
+// Async file writer, it's thread safe.
+class SrsAsyncFileWriter : public ISrsWriter
+{
+    friend class SrsAsyncLogManager;
+private:
+    std::string filename_;
+    SrsFileWriter* writer_;
+private:
+    // The thread-queue, to flush to disk by dedicated thread.
+    SrsLocklessQueue<SrsSharedPtrMessage*>* chunks_;
+private:
+    SrsAsyncFileWriter(std::string p);
+    virtual ~SrsAsyncFileWriter();
+public:
+    // Open file writer, in truncate mode.
+    virtual srs_error_t open();
+    // Open file writer, in append mode.
+    virtual srs_error_t open_append();
+    // Close current writer.
+    virtual void close();
+// Interface ISrsWriteSeeker
+public:
+    virtual srs_error_t write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual srs_error_t writev(const iovec* iov, int iovcnt, ssize_t* pnwrite);
+public:
+    // Flush thread-queue to disk, generally by dedicated thread.
+    srs_error_t flush();
+};
+
+// The async log file writer manager, use a thread to flush multiple writers,
+// and reopen all log files when got LOGROTATE signal.
+class SrsAsyncLogManager
+{
+private:
+    // The async flush interval.
+    srs_utime_t interval_;
+private:
+    // The async reopen event.
+    bool reopen_;
+    // The global shared writer.
+    SrsAsyncFileWriter* writer_;
+public:
+    SrsAsyncLogManager();
+    virtual ~SrsAsyncLogManager();
+public:
+    // Initialize the async log manager.
+    srs_error_t initialize();
+    // Run the async log manager thread.
+    static srs_error_t start(void* arg);
+    // Create or get the global shared writer, which is thread safe.
+    // Note that SRS always use one global _srs_log to create the writer.
+    srs_error_t writer(std::string filename, SrsAsyncFileWriter** pwriter);
+    // Reopen all log files, asynchronously.
+    virtual void reopen();
+    // Get the number of logs in queue.
+    int size();
+private:
+    srs_error_t do_start();
+};
+
+// It MUST be thread-safe, global shared object.
+extern SrsAsyncLogManager* _srs_async_log;
 
 #endif
 
