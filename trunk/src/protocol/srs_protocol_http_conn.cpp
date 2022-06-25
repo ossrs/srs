@@ -761,11 +761,28 @@ srs_error_t SrsHttpResponseWriter::write(char* data, int size)
         return srs_error_new(ERROR_HTTP_CONTENT_LENGTH, "overflow writen=%" PRId64 ", max=%" PRId64, written, content_length);
     }
     
-    // ignore NULL content.
     if (!data || size <= 0) {
+            
+        // send end of stream in chunked encoding mode.
+        if (content_length == -1) {
+            int nb_size = snprintf(header_cache, SRS_HTTP_HEADER_CACHE_SIZE, "%x\r\n", 0);
+
+            iovec iovs[2];
+            iovs[0].iov_base = (char*)header_cache;
+            iovs[0].iov_len  = (int)nb_size;
+            iovs[1].iov_base = (char*)SRS_HTTP_CRLF;
+            iovs[1].iov_len  = 2;
+
+            ssize_t nwrite;
+            if ((err = skt->writev(iovs, 2, &nwrite)) != srs_success) {
+                return srs_error_wrap(err, "stream write END chunk");
+            }
+        }
+
         return err;
     }
-    
+
+
     // directly send with content length
     if (content_length != -1) {
         return skt->write((void*)data, size, NULL);

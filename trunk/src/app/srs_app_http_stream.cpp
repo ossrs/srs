@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_mp3.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_kernel_mp4.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
@@ -349,6 +350,114 @@ srs_error_t SrsFlvStreamEncoder::write_header(bool has_video, bool has_audio)
     return err;
 }
 
+
+
+
+SrsFmp4StreamEncoder::SrsFmp4StreamEncoder()
+{
+    enc = new SrsFmp4Transmuxer();
+    format = new SrsFormat();
+
+}
+
+SrsFmp4StreamEncoder::~SrsFmp4StreamEncoder()
+{
+    srs_freep(enc);
+    srs_freep(format);
+}
+
+srs_error_t SrsFmp4StreamEncoder::initialize(SrsFileWriter* w, SrsBufferCache* /*c*/)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = enc->initialize(w)) != srs_success) {
+        return srs_error_wrap(err, "init encoder");
+    }
+
+    return err;
+}
+
+srs_error_t SrsFmp4StreamEncoder::write_audio(int64_t timestamp, char* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = format->on_audio( timestamp, data, size )) != srs_success){
+        return srs_error_wrap(err, "SrsFmp4StreamEncoder write_audio");
+    }
+
+    SrsAudioCodecId sound_format = format->acodec->id;
+    SrsAudioSampleRate sound_rate = format->acodec->sound_rate;
+    SrsAudioSampleBits sound_size = format->acodec->sound_size;
+    SrsAudioChannels channels = format->acodec->sound_type;
+
+    SrsAudioAacFrameTrait ct = format->audio->aac_packet_type;
+    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
+        enc->acodec      = sound_format;
+        enc->sample_rate = sound_rate;
+        enc->sound_bits  = sound_size;
+        enc->channels    = channels;
+    }
+
+    uint8_t* sample = (uint8_t*)format->raw;
+    uint32_t nb_sample = (uint32_t)format->nb_raw;
+
+    uint32_t dts = (uint32_t)timestamp;
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, sample, nb_sample)) != srs_success) {
+        return srs_error_wrap(err, "SrsFmp4StreamEncoder write sample");
+    }
+
+    return err;
+}
+
+srs_error_t SrsFmp4StreamEncoder::write_video(int64_t timestamp, char* data, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = format->on_video( timestamp, data, size )) != srs_success){
+        return srs_error_wrap(err, "SrsMp4StreamEncoder write_audio");
+    }
+
+
+    SrsVideoAvcFrameType frame_type = format->video->frame_type;
+    SrsVideoCodecId codec_id = format->vcodec->id;
+
+    SrsVideoAvcFrameTrait ct = format->video->avc_packet_type;
+    uint32_t cts = (uint32_t)format->video->cts;
+
+    if (ct == SrsVideoAvcFrameTraitSequenceHeader) {
+        enc->vcodec = codec_id;
+    }
+
+    uint32_t dts = (uint32_t)timestamp;
+    uint32_t pts = dts + cts;
+
+    uint8_t* sample = (uint8_t*)format->raw;
+    uint32_t nb_sample = (uint32_t)format->nb_raw;
+    if ((err = enc->write_sample(format, SrsMp4HandlerTypeVIDE, frame_type, ct, dts, pts, sample, nb_sample)) != srs_success) {
+        return srs_error_wrap(err, "SrsMp4StreamEncoder write sample");
+    }
+
+    return err;
+}
+
+srs_error_t SrsFmp4StreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
+{
+    return srs_success;
+}
+
+bool SrsFmp4StreamEncoder::has_cache()
+{
+    // for ts stream, use gop cache of SrsSource is ok.
+    return false;
+}
+
+srs_error_t SrsFmp4StreamEncoder::dump_cache(SrsLiveConsumer* /*consumer*/, SrsRtmpJitterAlgorithm /*jitter*/)
+{
+    // for ts stream, ignore cache.
+    return srs_success;
+}
+
+
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
     enc = new SrsAacTransmuxer();
@@ -559,6 +668,10 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         w->header()->set_content_type("video/MP2T");
         enc_desc = "TS";
         enc = new SrsTsStreamEncoder();
+    }  else if (srs_string_ends_with(entry->pattern, ".mp4")) {
+        w->header()->set_content_type("video/mp4");
+        enc_desc = "FMP4";
+        enc = new SrsFmp4StreamEncoder();
     } else {
         return srs_error_new(ERROR_HTTP_LIVE_STREAM_EXT, "invalid pattern=%s", entry->pattern.c_str());
     }
@@ -641,6 +754,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
         entry->pattern.c_str(), enc_desc.c_str(), tcp_nodelay, srsu2msi(mw_sleep),
         enc->has_cache(), msgs.max);
 
+    srs_utime_t last_frame_got_time = srs_get_system_time();
+
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry->enabled) {
@@ -660,6 +775,20 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
 
         // TODO: FIXME: Support merged-write wait.
         if (count <= 0) {
+            
+            // if there is no data got for a long time
+            // terminate the connection, and before termination, send an empty http thunk data
+            // and this can cause brower known the streaming download finished.
+            if (srsu2ms(srs_get_system_time() - last_frame_got_time) > 5000){
+                err = w->write(NULL, 0);
+                if (err != srs_success){
+                    srs_error("Failed to send chunk end msg, error:%s", srs_error_desc(err).c_str());
+                    srs_error_reset(err);
+                }
+
+                return srs_error_new(ERROR_SOCKET_TIMEOUT, "http stream get frame timeout, %s", r->path().c_str() );
+            }
+
             // Directly use sleep, donot use consumer wait, because we couldn't awake consumer.
             srs_usleep(mw_sleep);
             // ignore when nothing got.
@@ -686,6 +815,8 @@ srs_error_t SrsLiveStream::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMess
             srs_freep(msg);
         }
         
+        last_frame_got_time = srs_get_system_time();
+
         // check send error code.
         if (err != srs_success) {
             return srs_error_wrap(err, "send messages");
@@ -808,6 +939,7 @@ SrsLiveEntry::SrsLiveEntry(std::string m)
     _is_ts = (ext == ".ts");
     _is_mp3 = (ext == ".mp3");
     _is_aac = (ext == ".aac");
+    _is_mp4 = (ext == ".mp4");
 }
 
 SrsLiveEntry::~SrsLiveEntry()
@@ -833,6 +965,11 @@ bool SrsLiveEntry::is_aac()
 bool SrsLiveEntry::is_mp3()
 {
     return _is_mp3;
+}
+
+bool SrsLiveEntry::is_mp4()
+{
+    return _is_mp4;
 }
 
 SrsHttpStreamServer::SrsHttpStreamServer(SrsServer* svr)
@@ -1070,6 +1207,10 @@ srs_error_t SrsHttpStreamServer::hijack(ISrsHttpMessage* request, ISrsHttpHandle
             }
         } else if (entry->is_aac()) {
             if (ext != ".aac") {
+                return err;
+            }
+        } else if (entry->is_mp4()) {
+            if (ext != ".mp4") {
                 return err;
             }
         } else {
