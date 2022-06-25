@@ -2305,7 +2305,7 @@ private:
     uint64_t  start_dts[2];
 
     // 当前已经分配的track编号
-    int cur_track_id = 1;
+    int cur_track_id;
 public:
 
     SrsFmp4Transmuxer();

@@ -238,7 +238,7 @@ std::vector<SrsMp4Box*> SrsMp4Box::gets(SrsMp4BoxType bt)
         SrsMp4Box* box = *it;
 
         if (box->type == bt) {
-            found.emplace_back(box);
+            found.push_back(box);
         }
     }
 
@@ -770,7 +770,7 @@ void SrsMp4MovieFragmentBox::set_mfhd(SrsMp4MovieFragmentHeaderBox* v)
 
 SrsMp4TrackFragmentBox* SrsMp4MovieFragmentBox::traf(int track_id)
 {
-    auto boxes = gets(SrsMp4BoxTypeTRAF);
+    std::vector<SrsMp4Box*> boxes = gets(SrsMp4BoxTypeTRAF);
 
     if (boxes.empty()){
         return NULL;
@@ -782,7 +782,8 @@ SrsMp4TrackFragmentBox* SrsMp4MovieFragmentBox::traf(int track_id)
     }
 
     // find the specified track by track_id
-    for( auto p : boxes){
+    for ( std::vector<SrsMp4Box*>::iterator it = boxes.begin(); it != boxes.end(); it++ ){
+        SrsMp4Box* p = *it;
         SrsMp4TrackFragmentBox* pt = dynamic_cast<SrsMp4TrackFragmentBox*>(p);
         SrsMp4Box* tfhd = pt->get(SrsMp4BoxTypeTFHD);
 
@@ -6618,7 +6619,7 @@ SrsFmp4Transmuxer::SrsFmp4Transmuxer()
     decode_basetime[0] = decode_basetime[1] = -1u;
     have_av[0] = have_av[1] = 0;
     start_dts[0] = start_dts[1] = 0;
-
+    cur_track_id = 1;
 }
 
 
@@ -7128,6 +7129,9 @@ void SrsFmp4Transmuxer::clear_samples()
     // release the cached SrsMp4Sample
     for (int track_id = 0; track_id < 2; track_id++){
         sample_list_t::iterator it;
+
+        if (samples[track_id] == NULL ) continue;
+
         for (it = samples[track_id]->begin(); it != samples[track_id]->end(); ++it) {
             SrsMp4Sample* p = *it;
 
@@ -7246,3 +7250,4 @@ srs_error_t SrsFmp4Transmuxer::flush()
 
     return err;
 }
+
