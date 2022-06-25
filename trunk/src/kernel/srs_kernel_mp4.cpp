@@ -7129,7 +7129,7 @@ void SrsFmp4Transmuxer::clear_samples()
     for (int track_id = 0; track_id < 2; track_id++){
         sample_list_t::iterator it;
         for (it = samples[track_id]->begin(); it != samples[track_id]->end(); ++it) {
-            auto p = *it;
+            SrsMp4Sample* p = *it;
 
             srs_freep(p);
         }
@@ -7187,7 +7187,7 @@ srs_error_t SrsFmp4Transmuxer::flush()
                 return srs_error_wrap(err, "write samples");
             }
 
-            truns.emplace_back(trun);
+            truns.push_back(trun);
 
             // @remark Remember the data_offset of turn is size(moof)+header(mdat), not including styp or sidx.
         }
@@ -7230,7 +7230,7 @@ srs_error_t SrsFmp4Transmuxer::flush()
 
             if (samples[track_id] == NULL) continue;
 
-            auto p_sample = samples[track_id];
+            sample_list_t* p_sample = samples[track_id];
 
             sample_list_t::iterator it;
             for (it = p_sample->begin(); it != p_sample->end(); ++it) {
