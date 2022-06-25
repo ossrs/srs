@@ -6782,6 +6782,15 @@ srs_error_t SrsFmp4Transmuxer::write_sample(SrsFormat* format, SrsMp4HandlerType
                 return srs_error_wrap( err, "write_sample" );
             }
 
+            clear_samples();
+
+            // add moof seq no
+            sequence_number++;
+
+            nb_audios = nb_videos = 0;
+            mdat_bytes[0] = mdat_bytes[1] = 0;
+            decode_basetime[0] = decode_basetime[1] = -1u;            
+
             decode_basetime[track_id] = dts;
         }
 
@@ -6852,11 +6861,6 @@ srs_error_t SrsFmp4Transmuxer::write_moov()
     if (cur_track_id == 0){
         return err;
     }
-
-    SCOPE_EXIT{
-        moov_sent = true;
-    };
-
 
     // add movie header
     SrsMp4MovieHeaderBox* mvhd = new SrsMp4MovieHeaderBox();
@@ -7068,7 +7072,8 @@ srs_error_t SrsFmp4Transmuxer::write_moov()
     if ((err = srs_mp4_write_box(writer, moov)) != srs_success) {
         return srs_error_wrap(err, "write moov");
     }
-
+    
+    moov_sent = true;
     return err;
 }
 
@@ -7136,18 +7141,6 @@ void SrsFmp4Transmuxer::clear_samples()
 srs_error_t SrsFmp4Transmuxer::flush()
 {
     srs_error_t err = srs_success;
-
-    SCOPE_EXIT{
-        clear_samples();
-
-        // add moof seq no
-        sequence_number++;
-
-        nb_audios = nb_videos = 0;
-        mdat_bytes[0] = mdat_bytes[1] = 0;
-        decode_basetime[0] = decode_basetime[1] = -1u;
-    };
-
 
     // create a mdat box.
     // its payload will be writen by samples,
