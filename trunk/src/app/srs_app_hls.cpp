@@ -383,6 +383,36 @@ srs_error_t SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     return err;
 }
 
+srs_error_t SrsHlsMuxer::restore_stream()
+{
+    srs_error_t err = srs_success;
+
+    // exist the m3u8 file.
+    if (!srs_path_exists(m3u8)) {
+        return err;
+    }
+
+    srs_trace("hls: restore stream m3u8=%s, m3u8_url=%s", m3u8.c_str(), m3u8_url.c_str());
+
+    // read m3u8
+    SrsFileReader fr;
+    if ((err = fr.open(m3u8)) != srs_success) {
+        return srs_error_wrap(err, "open file");
+    }
+
+    int nb_fbuf = fr.filesize();
+    char* fbuf = new char[nb_fbuf];
+    SrsAutoFreeA(char, fbuf);
+    if ((err = fr.read(fbuf, nb_fbuf, NULL)) != srs_success) {
+        return srs_error_wrap(err, "read data");
+    }
+    fr.close();
+
+    // parse
+
+    return err;
+}
+
 srs_error_t SrsHlsMuxer::segment_open()
 {
     srs_error_t err = srs_success;
@@ -949,6 +979,7 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
+    bool continuous = _srs_config->get_hls_continuous(vhost);
 
     if ((err = muxer->on_publish(req)) != srs_success) {
         return srs_error_wrap(err, "muxer publish");
@@ -958,6 +989,10 @@ srs_error_t SrsHlsController::on_publish(SrsRequest* req)
         hls_window, ts_floor, hls_aof_ratio, cleanup, wait_keyframe,hls_keys,hls_fragments_per_key,
         hls_key_file, hls_key_file_path, hls_key_url)) != srs_success ) {
         return srs_error_wrap(err, "hls: update config");
+    }
+
+    if (continuous && (err = muxer->restore_stream()) != srs_success ) {
+        return srs_error_wrap(err, "hls: restore stream");
     }
     
     if ((err = muxer->segment_open()) != srs_success) {

@@ -967,6 +967,10 @@ public:
     virtual bool get_hls_ctx_enabled(std::string vhost);
     // Whether enable session for ts file.
     virtual bool get_hls_ts_ctx_enabled(std::string vhost);
+    // Toggles HLS continuous mode.
+    // In this mode HLS sequence number is started from where it stopped last time.
+    // Old fragments are kept. Default is on.
+    virtual bool get_hls_continuous(std::string vhost);
 // hds section
 private:
     // Get the hds directive of vhost.
