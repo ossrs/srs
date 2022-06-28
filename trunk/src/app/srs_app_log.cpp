@@ -37,7 +37,7 @@ SrsFileLog::SrsFileLog()
     log_to_file_tank = false;
     utc = false;
 
-    mutex_ = new SrsMutex();
+    mutex_ = new SrsThreadMutex();
 }
 
 SrsFileLog::~SrsFileLog()
@@ -84,7 +84,7 @@ void SrsFileLog::reopen()
 
 void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsAutoLock sl(mutex_);
+    SrsThreadLocker(mutex_);
 
     if (level > SrsLogLevelVerbose) {
         return;
@@ -106,7 +106,7 @@ void SrsFileLog::verbose(const char* tag, SrsContextId context_id, const char* f
 
 void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsAutoLock sl(mutex_);
+    SrsThreadLocker(mutex_);
 
     if (level > SrsLogLevelInfo) {
         return;
@@ -128,7 +128,7 @@ void SrsFileLog::info(const char* tag, SrsContextId context_id, const char* fmt,
 
 void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsAutoLock sl(mutex_);
+    SrsThreadLocker(mutex_);
 
     if (level > SrsLogLevelTrace) {
         return;
@@ -150,7 +150,7 @@ void SrsFileLog::trace(const char* tag, SrsContextId context_id, const char* fmt
 
 void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsAutoLock sl(mutex_);
+    SrsThreadLocker(mutex_);
 
     if (level > SrsLogLevelWarn) {
         return;
@@ -172,7 +172,7 @@ void SrsFileLog::warn(const char* tag, SrsContextId context_id, const char* fmt,
 
 void SrsFileLog::error(const char* tag, SrsContextId context_id, const char* fmt, ...)
 {
-    SrsAutoLock sl(mutex_);
+    SrsThreadLocker(mutex_);
 
     if (level > SrsLogLevelError) {
         return;

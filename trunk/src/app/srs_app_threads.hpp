@@ -51,27 +51,37 @@ extern SrsCircuitBreaker* _srs_circuit_breaker;
 // Initialize global or thread-local variables.
 extern srs_error_t srs_thread_initialize();
 
-// Wrapper for mutex.
-class SrsMutex
+// The thread mutex wrapper, without error.
+class SrsThreadMutex
 {
 private:
-    pthread_mutex_t mutex_;
+    pthread_mutex_t lock_;
+    pthread_mutexattr_t attr_;
 public:
-    SrsMutex();
-    ~SrsMutex();
+    SrsThreadMutex();
+    virtual ~SrsThreadMutex();
 public:
     void lock();
     void unlock();
 };
 
-// Lock the mutex when enter current scope, and unlock it when out.
-class SrsAutoLock
+// The thread mutex locker.
+// TODO: FIXME: Rename _SRS to _srs
+#define SrsThreadLocker(instance) \
+    impl__SrsThreadLocker _SRS_free_##instance(instance)
+
+class impl__SrsThreadLocker
 {
 private:
-    SrsMutex* mutex_;
+    SrsThreadMutex* lock;
 public:
-    SrsAutoLock(SrsMutex* mutex);
-    ~SrsAutoLock();
+    impl__SrsThreadLocker(SrsThreadMutex* l) {
+        lock = l;
+        lock->lock();
+    }
+    virtual ~impl__SrsThreadLocker() {
+        lock->unlock();
+    }
 };
 
 #endif
