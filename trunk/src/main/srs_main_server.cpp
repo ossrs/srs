@@ -50,12 +50,13 @@ using namespace std;
 
 // pre-declare
 srs_error_t run_directly_or_daemon();
+srs_error_t run_in_thread_pool();
 srs_error_t srs_detect_docker();
-srs_error_t run_hybrid_server();
 void show_macro_features();
 
 // @global log and context.
 ISrsLog* _srs_log = NULL;
+// It SHOULD be thread-safe, because it use thread-local thread private data.
 ISrsContext* _srs_context = NULL;
 // @global config object for app module.
 SrsConfig* _srs_config = NULL;
@@ -73,8 +74,12 @@ srs_error_t do_main(int argc, char** argv)
 {
     srs_error_t err = srs_success;
 
-    // Initialize global or thread-local variables.
-    if ((err = srs_thread_initialize()) != srs_success) {
+    // Initialize global and thread-local variables.
+    if ((err = srs_global_initialize()) != srs_success) {
+        return srs_error_wrap(err, "global init");
+    }
+
+    if ((err = SrsThreadPool::setup_thread_locals()) != srs_success) {
         return srs_error_wrap(err, "thread init");
     }
 
@@ -404,8 +409,8 @@ srs_error_t run_directly_or_daemon()
     
     // If not daemon, directly run hybrid server.
     if (!run_as_daemon) {
-        if ((err = run_hybrid_server()) != srs_success) {
-            return srs_error_wrap(err, "run hybrid");
+        if ((err = run_in_thread_pool()) != srs_success) {
+            return srs_error_wrap(err, "run thread pool");
         }
         return srs_success;
     }
@@ -441,14 +446,34 @@ srs_error_t run_directly_or_daemon()
     // son
     srs_trace("son(daemon) process running.");
     
-    if ((err = run_hybrid_server()) != srs_success) {
-        return srs_error_wrap(err, "daemon run hybrid");
+    if ((err = run_in_thread_pool()) != srs_success) {
+        return srs_error_wrap(err, "daemon run thread pool");
     }
     
     return err;
 }
 
-srs_error_t run_hybrid_server()
+srs_error_t run_hybrid_server(void* arg);
+srs_error_t run_in_thread_pool()
+{
+    srs_error_t err = srs_success;
+
+    // Initialize the thread pool.
+    if ((err = _srs_thread_pool->initialize()) != srs_success) {
+        return srs_error_wrap(err, "init thread pool");
+    }
+
+    // Start the hybrid service worker thread, for RTMP and RTC server, etc.
+    if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)NULL)) != srs_success) {
+        return srs_error_wrap(err, "start hybrid server thread");
+    }
+
+    srs_trace("Pool: Start threads primordial=1, hybrids=1 ok");
+
+    return _srs_thread_pool->run();
+}
+
+srs_error_t run_hybrid_server(void* /*arg*/)
 {
     srs_error_t err = srs_success;
 

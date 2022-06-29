@@ -2389,7 +2389,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit"
             && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker"
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
-            && n != "query_latest_version"
+            && n != "query_latest_version" && n != "threads"
             && n != "circuit_breaker" && n != "is_full" && n != "in_docker"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
@@ -3153,6 +3153,28 @@ double SrsConfig::tcmalloc_release_rate()
     trr = srs_min(10, trr);
     trr = srs_max(0, trr);
     return trr;
+}
+
+srs_utime_t SrsConfig::get_threads_interval()
+{
+    static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective* conf = root->get("threads");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("interval");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    int v = ::atoi(conf->arg0().c_str());
+    if (v <= 0) {
+        return DEFAULT;
+    }
+
+    return v * SRS_UTIME_SECONDS;
 }
 
 bool SrsConfig::get_circuit_breaker()

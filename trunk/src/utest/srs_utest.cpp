@@ -42,8 +42,12 @@ bool _srs_in_docker = false;
 srs_error_t prepare_main() {
     srs_error_t err = srs_success;
 
-    if ((err = srs_thread_initialize()) != srs_success) {
-        return srs_error_wrap(err, "init st");
+    if ((err = srs_global_initialize()) != srs_success) {
+        return srs_error_wrap(err, "init global");
+    }
+
+    if ((err = SrsThreadPool::setup_thread_locals()) != srs_success) {
+        return srs_error_wrap(err, "init thread");
     }
 
     srs_freep(_srs_log);

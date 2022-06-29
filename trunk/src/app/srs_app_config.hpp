@@ -449,6 +449,7 @@ public:
     virtual double tcmalloc_release_rate();
 // Thread pool section.
 public:
+    virtual srs_utime_t get_threads_interval();
     virtual bool get_circuit_breaker();
     virtual int get_high_threshold();
     virtual int get_high_pulse();

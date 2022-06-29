@@ -250,7 +250,6 @@ public:
     virtual srs_error_t initialize(ISrsServerCycle* ch);
     virtual srs_error_t initialize_st();
     virtual srs_error_t initialize_signal();
-    virtual srs_error_t acquire_pid_file();
     virtual srs_error_t listen();
     virtual srs_error_t register_signal();
     virtual srs_error_t http_handle();
