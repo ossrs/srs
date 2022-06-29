@@ -348,9 +348,9 @@ jobs:
       - name: Build variables for lh.ossrs.net
         run: |
           SRS_LH_OSSRS_NET=$(dig +short lh.ossrs.net)
-          SRS_R_OSSRS_NET=$(dig +short r.ossrs.net)
+          SRS_D_OSSRS_NET=$(dig +short d.ossrs.net)
           echo "SRS_LH_OSSRS_NET=$SRS_LH_OSSRS_NET" >> $GITHUB_ENV
-          echo "SRS_R_OSSRS_NET=$SRS_R_OSSRS_NET" >> $GITHUB_ENV
+          echo "SRS_D_OSSRS_NET=$SRS_D_OSSRS_NET" >> $GITHUB_ENV
 
       - name: Release to lh.ossrs.net
         uses: appleboy/ssh-action@master
@@ -372,10 +372,10 @@ jobs:
               echo "Remove image $image, r0=$?"
             done
 
-      - name: Release to r.ossrs.net
+      - name: Release to d.ossrs.net
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ env.SRS_R_OSSRS_NET }}
+          host: ${{ env.SRS_D_OSSRS_NET }}
           username: root
           key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
           port: 22
