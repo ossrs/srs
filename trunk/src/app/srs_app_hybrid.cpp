@@ -11,6 +11,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_dvr.hpp>
 
 using namespace std;
 
@@ -172,6 +173,11 @@ srs_error_t SrsHybridServer::initialize()
 
     if ((err = timer5s_->start()) != srs_success) {
         return srs_error_wrap(err, "start timer");
+    }
+
+    // Start the DVR async call.
+    if ((err = _srs_dvr_async->start()) != srs_success) {
+        return srs_error_wrap(err, "dvr async");
     }
 
     // Register some timers.

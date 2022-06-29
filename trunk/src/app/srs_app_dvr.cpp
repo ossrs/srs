@@ -566,8 +566,6 @@ string SrsDvrAsyncCallOnDvr::to_string()
     return ss.str();
 }
 
-extern SrsAsyncCallWorker* _srs_dvr_async;
-
 SrsDvrPlan::SrsDvrPlan()
 {
     req = NULL;

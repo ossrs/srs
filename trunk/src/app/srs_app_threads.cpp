@@ -421,9 +421,6 @@ srs_error_t srs_thread_initialize()
 
     // Create global async worker for DVR.
     _srs_dvr_async = new SrsAsyncCallWorker();
-    if ((err = _srs_dvr_async->start()) != srs_success) {
-        return srs_error_wrap(err, "dvr async");
-    }
 
     return err;
 }

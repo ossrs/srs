@@ -253,5 +253,7 @@ public:
     virtual srs_error_t on_video(SrsSharedPtrMessage* shared_video, SrsFormat* format);
 };
 
+extern SrsAsyncCallWorker* _srs_dvr_async;
+
 #endif
 
